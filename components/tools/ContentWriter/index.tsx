@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
-import { createRoot } from 'react-dom/client';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { styles } from './styles';
@@ -1901,5 +1900,4 @@ const App = () => {
     );
 };
 
-const root = createRoot(document.getElementById('root')!);
-root.render(<App />);
+export default App;
