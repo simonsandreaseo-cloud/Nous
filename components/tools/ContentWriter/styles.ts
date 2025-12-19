@@ -4,8 +4,8 @@ export const styles = {
     appLayout: {
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
-        overflow: 'hidden',
+        minHeight: '800px', // Ensure visibility
+        width: '100%',
         backgroundColor: '#F8FAFC'
     },
     navBar: {
@@ -49,9 +49,9 @@ export const styles = {
         cursor: 'not-allowed',
         filter: 'grayscale(1)'
     },
-    
+
     // --- OLD LAYOUTS ADAPTED ---
-    
+
     // FULL SCREEN SETUP HUB (Now fits in flex)
     hubContainer: {
         width: '100%',
@@ -116,7 +116,7 @@ export const styles = {
     sidebarCollapsed: {
         width: '64px',
     },
-    
+
     sidebarHeader: {
         height: '64px',
         borderBottom: '1px solid #F1F5F9',
@@ -150,7 +150,7 @@ export const styles = {
         opacity: 1,
         transition: 'opacity 0.2s',
     },
-    
+
     // Collapsed Icons Rail
     iconRail: {
         display: 'flex',
@@ -227,7 +227,7 @@ export const styles = {
     },
 
     // --- COMPONENTS ---
-    
+
     // Cards for Setup
     stepCard: {
         backgroundColor: '#FFFFFF',
@@ -260,7 +260,7 @@ export const styles = {
         fontSize: '16px',
         fontWeight: '700'
     },
-    
+
     // Form Elements
     label: {
         fontSize: '12px',
@@ -365,12 +365,12 @@ export const styles = {
         boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.1)',
         fontFamily: "'Outfit', sans-serif"
     },
-    
+
     // Magic/Premium Button - NOW SIMPLIFIED
     magicButton: {
         // Just an alias for simple styling now as per request
     },
-    
+
     // Dropzone
     dropzone: {
         border: '2px dashed #CBD5E1',
@@ -389,7 +389,7 @@ export const styles = {
         borderColor: '#0F172A',
         backgroundColor: '#E2E8F0'
     },
-    
+
     // Status
     statusText: {
         textAlign: 'center',
@@ -424,7 +424,7 @@ export const styles = {
         color: 'white',
         border: 'none'
     },
-    
+
     // Right Sidebar Specifics
     inspectorHeader: {
         padding: '20px',
@@ -453,7 +453,7 @@ export const styles = {
         flexDirection: 'column',
         gap: '24px'
     },
-    
+
     // New Tool Card for Sidebar (High Visibility)
     toolCard: {
         marginBottom: '16px',
@@ -503,7 +503,7 @@ export const styles = {
         fontFamily: 'monospace',
         position: 'relative'
     },
-    
+
     // AI Image Cards
     aiImageCard: {
         borderRadius: '8px',
@@ -541,13 +541,13 @@ export const styles = {
         justifyContent: 'center',
         color: '#475569'
     },
-    
+
     aiActions: {
         display: 'flex',
         gap: '8px',
         marginTop: '8px'
     },
-    
+
     // Custom Size Inputs
     customSizeBox: {
         display: 'flex',
@@ -633,7 +633,7 @@ export const styles = {
         gap: '8px',
         fontFamily: "'Outfit', sans-serif"
     },
-    
+
     // Links List (Cleaned)
     linkListContainer: {
         display: 'flex',
@@ -672,7 +672,7 @@ export const styles = {
         textOverflow: 'ellipsis',
         maxWidth: '300px'
     },
-    
+
     // New Strategy Elements
     keywordTag: {
         padding: '6px 10px',
@@ -691,7 +691,7 @@ export const styles = {
         border: '1px solid #FEF3C7',
         fontStyle: 'italic'
     },
-    
+
     // Loading Spinner
     spinner: {
         border: '2px solid rgba(255,255,255,0.3)',

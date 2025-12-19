@@ -74,6 +74,25 @@ const UserDashboard: React.FC = () => {
                     {/* Main Content Area */}
                     <div className="md:col-span-2 space-y-8">
 
+                        {/* Reports Section */}
+                        <div className="bg-white rounded-2xl p-8 shadow-sm border border-brand-power/5 mb-8">
+                            <div className="flex items-center justify-between mb-8">
+                                <h2 className="text-xl font-bold text-brand-power flex items-center gap-3">
+                                    <FileText className="text-brand-accent" />
+                                    Mis Informes SEO
+                                </h2>
+                                <Link to="/herramientas/generador-informes" className="text-xs font-bold text-brand-power/50 hover:text-brand-accent uppercase tracking-widest">
+                                    Nuevo +
+                                </Link>
+                            </div>
+                            <div className="text-center py-8 border-2 border-dashed border-brand-power/5 rounded-xl">
+                                <p className="text-brand-power/40 text-sm mb-4">No hay informes guardados.</p>
+                                <Link to="/herramientas/generador-informes" className="inline-block px-4 py-2 bg-brand-soft text-brand-power rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-brand-accent transition-colors">
+                                    Generar Informe
+                                </Link>
+                            </div>
+                        </div>
+
                         {/* Saved Content Section */}
                         <div className="bg-white rounded-2xl p-8 shadow-sm border border-brand-power/5">
                             <div className="flex items-center justify-between mb-8">
