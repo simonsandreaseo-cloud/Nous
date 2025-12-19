@@ -21,7 +21,8 @@
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
     "process": "^0.11.10",
-    "buffer": "^6.0.3"
+    "buffer": "^6.0.3",
+    "@supabase/supabase-js": "^2.39.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
