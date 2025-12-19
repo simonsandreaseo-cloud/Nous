@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
-import { createRoot } from 'react-dom/client';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { styles } from './styles';
@@ -53,9 +52,30 @@ const App = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [configStep, setConfigStep] = useState<'data' | 'keyword'>('data');
 
-    // SAFE INIT: Check for API Key safely using Vite standard or fallback
-    const initialKey = import.meta.env.VITE_GEMINI_API_KEY || ''; // Prefer VITE_ prefix if available
-    const [apiKeys, setApiKeys] = useState<string[]>(initialKey ? [initialKey] : []);
+    // SAFE INIT: Check for API Key safely using Vite standard or falling back to process.env
+    // We try multiple common patterns because of the complex environment mixing.
+    const getInitKey = () => {
+        try {
+            // Priority 1: import.meta.env (Vite standard)
+            if (typeof import.meta !== 'undefined' && import.meta.env) {
+                if (import.meta.env.VITE_GEMINI_API_KEY) return import.meta.env.VITE_GEMINI_API_KEY;
+                if (import.meta.env.GEMINI_API_KEY) return import.meta.env.GEMINI_API_KEY;
+            }
+            // Priority 2: process.env (Vite 'define' or Node-like)
+            if (typeof process !== 'undefined' && process.env) {
+                if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+                if (process.env.API_KEY) return process.env.API_KEY;
+            }
+        } catch (e) {
+            console.warn("Env check failed", e);
+        }
+        return '';
+    };
+
+    const [apiKeys, setApiKeys] = useState<string[]>(() => {
+        const key = getInitKey();
+        return key ? [key] : [];
+    });
 
     console.log("ContentWriter Rendered. ViewMode:", viewMode, "Keys:", apiKeys.length); // DEBUG
 
