@@ -22,6 +22,8 @@ jobs:
 
     - name: 🏗️ Build Project
       run: npm run build
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
     - name: 📂 Sync files to Hosting
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4

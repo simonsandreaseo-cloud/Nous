@@ -52,10 +52,11 @@ const executeWithKeyRotation = async <T>(keys: string[] | string, operation: (cl
     const keyList = Array.isArray(keys) ? keys : [keys];
     const validKeys = keyList.filter(isValidKey);
     if (validKeys.length === 0) throw new Error("API Keys faltantes.");
-    
+
     let lastError: any = null;
     for (let i = 0; i < validKeys.length; i++) {
         try {
+            if (!validKeys[i]) continue;
             const client = new GoogleGenAI({ apiKey: validKeys[i] });
             return await operation(client);
         } catch (e: any) {
@@ -83,7 +84,7 @@ export const parseJSON = (text: string) => ({ data: JSON.parse(text) });
 
 export const buildPrompt = (config: ArticleConfig): string => {
     const { topic, keywords, tone, wordCount, isStrictMode, strictFrequency, lsiKeywords, questions, outlineStructure } = config;
-    
+
     let strictRules = "";
     if (isStrictMode) {
         const freq = strictFrequency || 30;
