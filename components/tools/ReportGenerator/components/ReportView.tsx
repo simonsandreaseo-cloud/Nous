@@ -11,7 +11,12 @@ interface ReportViewProps {
     onRegenerate: (message: string) => void;
     isRegenerating: boolean;
     dashboardStats?: DashboardStats;
+    dashboardStats?: DashboardStats;
     logo?: string | null;
+    onSave?: () => void;
+    isSaving?: boolean;
+    hasSaved?: boolean;
+    user?: any;
 }
 
 // Helper to map HTML Section ID to Data Payload Key
@@ -23,25 +28,30 @@ const SECTION_DATA_MAP: Record<string, keyof ReportPayload> = {
     'analysis-ALERTA_CANIBALIZACION': 'keywordCannibalizationAlerts'
 };
 
-export const ReportView: React.FC<ReportViewProps> = ({ 
-    htmlContent, 
-    chartData, 
-    p1Name, 
-    p2Name, 
-    onRegenerate, 
+export const ReportView: React.FC<ReportViewProps> = ({
+    htmlContent,
+    chartData,
+    p1Name,
+    p2Name,
+    onRegenerate,
     isRegenerating,
     dashboardStats,
-    logo
+    dashboardStats,
+    logo,
+    onSave,
+    isSaving,
+    hasSaved,
+    user
 }) => {
     const mainContainerRef = useRef<HTMLDivElement>(null);
     const chartInstances = useRef<Chart[]>([]);
-    
+
     const [chatInput, setChatInput] = useState('');
     const [isEditing, setIsEditing] = useState(false);
-    const [toc, setToc] = useState<{id: string, text: string, level: number}[]>([]);
+    const [toc, setToc] = useState<{ id: string, text: string, level: number }[]>([]);
     const [activeSection, setActiveSection] = useState<string>('');
     const [parsedSections, setParsedSections] = useState<{ summary: string, body: string, conclusions: string }>({ summary: '', body: '', conclusions: '' });
-    
+
     // Using a ref to store payload to access inside event handlers without re-renders
     const payloadRef = useRef<ReportPayload | null>(null);
 
@@ -63,7 +73,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
         // 1. Fix Markdown Bolding (**text** -> <strong>text</strong>)
         cleaned = cleaned.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        
+
         // 2. Fix Markdown Italics (*text* -> <em>text</em>)
         cleaned = cleaned.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
@@ -71,7 +81,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
         // Wrap table in overflow div only if not already wrapped
         cleaned = cleaned.replace(/<table>/g, '<div class="table-container overflow-x-auto rounded-xl border border-slate-100 mb-6"><table class="w-full text-left border-collapse text-xs">');
         cleaned = cleaned.replace(/<\/table>/g, '</table></div>');
-        
+
         // Ensure compact headers
         cleaned = cleaned.replace(/<thead>/g, '<thead class="bg-slate-50/80 border-b border-slate-200">');
         cleaned = cleaned.replace(/<th>/g, '<th class="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-left whitespace-nowrap">');
@@ -80,18 +90,18 @@ export const ReportView: React.FC<ReportViewProps> = ({
         // 4. Split Content into Summary, Body, Conclusions
         const parser = new DOMParser();
         const doc = parser.parseFromString(cleaned, 'text/html');
-        
+
         const summaryEl = doc.getElementById('RESUMEN_EJECUTIVO');
         const conclusionsEl = doc.getElementById('CONCLUSIONES');
-        
+
         let summaryHTML = '';
         let conclusionsHTML = '';
-        
+
         if (summaryEl) {
             summaryHTML = summaryEl.outerHTML;
             summaryEl.remove(); // Remove from body
         }
-        
+
         if (conclusionsEl) {
             conclusionsHTML = conclusionsEl.outerHTML;
             conclusionsEl.remove(); // Remove from body
@@ -115,13 +125,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
         // Generate ToC
         const headers = mainContainerRef.current.querySelectorAll('h2');
-        const newToc: {id: string, text: string, level: number}[] = [];
-        
+        const newToc: { id: string, text: string, level: number }[] = [];
+
         headers.forEach((header, index) => {
             const id = `section-${index}`;
             header.id = id;
             if (header.textContent !== 'Resumen Ejecutivo' && header.textContent !== 'Conclusiones y Próximos Pasos') {
-                 newToc.push({
+                newToc.push({
                     id,
                     text: header.textContent || '',
                     level: header.tagName === 'H2' ? 2 : 3
@@ -141,37 +151,37 @@ export const ReportView: React.FC<ReportViewProps> = ({
     const injectLoadMoreButtons = () => {
         // This is a simplified client-side injection. 
         // In a real app, we'd hydrate properly, but for this "Static HTML View" approach:
-        
+
         // 1. Find all sections that map to data
         const sections = document.querySelectorAll('[id^="analysis-"]');
-        
+
         sections.forEach(section => {
-             // Logic placeholder: 
-             // We need access to the full data payload to know if we can load more.
-             // Since we don't have the full payload in this component's props yet (based on interface),
-             // I will add a button that simply logs for now, or use window object if hacked.
-             // Proper way: Update App.tsx to pass payload.
-             // Assuming we had it:
-             
-             const table = section.nextElementSibling?.querySelector('table');
-             if (table && !section.parentElement?.querySelector('.load-more-btn')) {
-                 const btn = document.createElement('button');
-                 btn.className = "load-more-btn mt-2 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded transition-colors no-print flex items-center gap-1";
-                 btn.innerHTML = `
+            // Logic placeholder: 
+            // We need access to the full data payload to know if we can load more.
+            // Since we don't have the full payload in this component's props yet (based on interface),
+            // I will add a button that simply logs for now, or use window object if hacked.
+            // Proper way: Update App.tsx to pass payload.
+            // Assuming we had it:
+
+            const table = section.nextElementSibling?.querySelector('table');
+            if (table && !section.parentElement?.querySelector('.load-more-btn')) {
+                const btn = document.createElement('button');
+                btn.className = "load-more-btn mt-2 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded transition-colors no-print flex items-center gap-1";
+                btn.innerHTML = `
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Cargar más casos
                  `;
-                 btn.onclick = () => handleLoadMore(section.id, table);
-                 // Append after table container
-                 table.parentElement?.after(btn);
-             }
+                btn.onclick = () => handleLoadMore(section.id, table);
+                // Append after table container
+                table.parentElement?.after(btn);
+            }
         });
     };
 
     const handleLoadMore = (sectionId: string, table: HTMLTableElement) => {
         // This function would fetch next batch from payload and append TRs.
         // Since we are adding the UI element first as requested:
-        
+
         // Mocking the behavior for visual confirmation
         const tbody = table.querySelector('tbody');
         if (tbody) {
@@ -181,7 +191,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <span class="italic text-slate-400">Cargando datos adicionales del dataset local... (Simulado)</span>
             </td>`;
             tbody.appendChild(newRow);
-            
+
             // Remove button after click or keep if pagination
             // (e.target as HTMLElement).remove();
         }
@@ -191,36 +201,36 @@ export const ReportView: React.FC<ReportViewProps> = ({
         if (!mainContainerRef.current || !chartData) return;
 
         const placeholders = mainContainerRef.current.querySelectorAll('.chart-placeholder');
-        
+
         placeholders.forEach((el) => {
             const div = el as HTMLDivElement;
             const urlRaw = div.dataset.chartUrl || '';
             const type = div.dataset.chartType || 'clicks';
             // Allow override of height via class
             const isSmall = div.classList.contains('h-24') || div.classList.contains('h-32') || div.parentElement?.tagName === 'TD';
-            
+
             if (!urlRaw) return;
 
             // Robust Normalization to match ChartData Keys
             const normalize = (u: string) => {
-                 let clean = u.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').toLowerCase().trim();
-                 if (clean === '' || clean === 'home') return 'home'; 
-                 return clean;
+                let clean = u.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').toLowerCase().trim();
+                if (clean === '' || clean === 'home') return 'home';
+                return clean;
             };
             const target = normalize(urlRaw);
-            
+
             // 1. Try finding Cannibalization Data (Keyword based)
             if (type === 'cannibalization') {
                 const key = urlRaw.toLowerCase().trim();
                 const cannibalData = chartData.cannibalizationLookup?.[key];
                 if (cannibalData) {
                     renderChartInDiv(div, (ctx) => createCannibalizationChart(ctx, cannibalData), true);
-                    
+
                     // --- NEW: Add Cannibalization Legend ---
                     const legendDiv = document.createElement('div');
                     legendDiv.className = "mt-2 flex flex-wrap gap-2 justify-start";
                     const colors = ['#f43f5e', '#f59e0b', '#0ea5e9']; // Must match chart colors
-                    
+
                     cannibalData.urls.forEach((u, i) => {
                         const color = colors[i % colors.length];
                         const item = document.createElement('div');
@@ -229,14 +239,14 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         legendDiv.appendChild(item);
                     });
                     div.after(legendDiv);
-                    
+
                     return;
                 }
             }
-            
+
             // 2. Try finding General Data (URL/Keyword based)
             let dataItem = chartData.chartLookup[target];
-            
+
             // Fuzzy Search if exact match fails
             if (!dataItem) {
                 const keys = Object.keys(chartData.chartLookup);
@@ -249,7 +259,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
             if (dataItem) {
                 renderChartInDiv(div, (ctx) => createChart(ctx, dataItem, type, p1Name, p2Name, chartData.dashboardStats.datesP2), isSmall);
-                
+
                 // Add Legend below chart
                 const legend = document.createElement('div');
                 legend.className = "flex items-center gap-3 mt-1 justify-center";
@@ -268,13 +278,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
     const renderChartInDiv = (div: HTMLElement, chartFactory: (ctx: CanvasRenderingContext2D) => Chart, isSmall: boolean = false) => {
         div.innerHTML = '';
-        div.removeAttribute('data-chart-url'); 
-        div.style.height = isSmall ? '80px' : '160px'; 
+        div.removeAttribute('data-chart-url');
+        div.style.height = isSmall ? '80px' : '160px';
         div.style.width = '100%';
-        
+
         const canvas = document.createElement('canvas');
         div.appendChild(canvas);
-        
+
         const ctx = canvas.getContext('2d');
         if (ctx) {
             const newChart = chartFactory(ctx);
@@ -299,7 +309,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     };
 
     const handlePrint = (e: React.MouseEvent) => {
-        e.preventDefault(); 
+        e.preventDefault();
         setIsEditing(false);
         setTimeout(() => window.print(), 100);
     };
@@ -337,7 +347,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     .load-more-btn { display: none !important; }
                 }
             `}</style>
-            
+
             {/* --- Sticky Header --- */}
             <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-2 flex justify-between items-center shadow-sm no-print">
                 <div className="flex items-center gap-3">
@@ -355,9 +365,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         <div className="w-px h-4 bg-slate-300 mx-1"></div>
                         <label className="cursor-pointer relative flex items-center justify-center p-1 hover:bg-slate-200 rounded">
                             <span className="text-xs font-bold text-slate-600">A</span>
-                            <input 
-                                type="color" 
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+                            <input
+                                type="color"
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                                 onChange={(e) => execCmd('foreColor', e.target.value)}
                             />
                         </label>
@@ -369,13 +379,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         {isEditing ? 'Guardar' : 'Editar'}
                     </button>
                     <button onClick={handleDownloadHTML} className="bg-white border border-slate-200 text-slate-700 px-3 py-1.5 rounded text-xs font-bold hover:bg-slate-50">HTML</button>
+                    {user && onSave && (
+                        <button
+                            onClick={onSave}
+                            disabled={isSaving || hasSaved}
+                            className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1 ${hasSaved ? 'bg-green-100 text-green-800' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+                        >
+                            {isSaving ? '...' : (hasSaved ? 'Guardado' : 'Guardar')}
+                        </button>
+                    )}
                     <button onClick={handlePrint} className="bg-slate-900 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-slate-800">PDF</button>
                 </div>
             </div>
 
             {/* --- Main Layout --- */}
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 p-6 md:p-8 print:p-0 print:block">
-                
+
                 {/* ToC Sidebar */}
                 <aside className="hidden md:block w-48 flex-shrink-0 no-print">
                     <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto custom-scrollbar">
@@ -383,7 +402,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         <ul className="space-y-1 border-l border-slate-200">
                             {toc.map((item) => (
                                 <li key={item.id}>
-                                    <button 
+                                    <button
                                         onClick={() => scrollToSection(item.id)}
                                         className={`text-left w-full py-1 pl-3 text-[11px] leading-tight transition-colors border-l-2 -ml-[1px] truncate ${activeSection === item.id ? 'border-indigo-600 text-indigo-600 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'}`}
                                         style={{ marginLeft: item.level === 3 ? '0.75rem' : '0' }}
@@ -398,12 +417,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
                 {/* Content */}
                 <main className="flex-1 min-w-0 print:w-full">
-                    <div 
-                        id="report-printable-area" 
+                    <div
+                        id="report-printable-area"
                         ref={mainContainerRef}
                         className="bg-white rounded-none md:rounded-lg shadow-sm border border-slate-100 overflow-hidden min-h-screen print:shadow-none print:border-none print:overflow-visible"
                     >
-                        
+
                         {/* Dashboard Stats Header */}
                         {dashboardStats && (
                             <div className="break-after-auto p-6 border-b border-slate-100 print:break-inside-avoid">
@@ -412,7 +431,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         )}
 
                         {/* 1. Executive Summary - Editable */}
-                        <div 
+                        <div
                             contentEditable={isEditing}
                             suppressContentEditableWarning={true}
                             className={`px-6 md:px-10 print:px-4 prose prose-sm max-w-none ${editableClass}`}
@@ -420,7 +439,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         />
 
                         {/* 2. Generated Body Content - Editable */}
-                        <div 
+                        <div
                             id="report-view-body"
                             contentEditable={isEditing}
                             suppressContentEditableWarning={true}
@@ -433,11 +452,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
                                 prose-strong:text-slate-800 prose-strong:font-bold
                                 print:prose-headings:text-slate-900 print:prose-p:text-black
                                 ${editableClass}`}
-                            dangerouslySetInnerHTML={{ __html: parsedSections.body }} 
+                            dangerouslySetInnerHTML={{ __html: parsedSections.body }}
                         />
-                        
+
                         {/* 3. Conclusions - Editable */}
-                         <div 
+                        <div
                             contentEditable={isEditing}
                             suppressContentEditableWarning={true}
                             className={`px-6 md:px-10 print:px-4 prose prose-sm max-w-none pb-8 ${editableClass}`}
@@ -454,20 +473,20 @@ export const ReportView: React.FC<ReportViewProps> = ({
             {/* Chat Input */}
             <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-full max-w-lg px-4 z-40 no-print">
                 <div className="bg-white/90 backdrop-blur-xl p-1.5 rounded-full shadow-2xl border border-slate-200/60 ring-1 ring-slate-900/5 flex gap-2">
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         disabled={isRegenerating}
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         placeholder="Refinar con IA..."
                         className="flex-1 bg-transparent border-none focus:ring-0 text-slate-700 placeholder-slate-400 px-4 text-xs font-medium"
                     />
-                    <button 
+                    <button
                         onClick={handleChatSubmit}
                         disabled={isRegenerating || !chatInput.trim()}
                         className="bg-slate-900 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-slate-800 disabled:opacity-50 transition-transform active:scale-95 shadow-md"
                     >
-                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" /></svg>
                     </button>
                 </div>
             </div>
@@ -483,35 +502,35 @@ function createChart(ctx: CanvasRenderingContext2D, data: ComparisonItem, type: 
     const isPos = type === 'position';
     const dataP1 = isPos ? data.dailySeriesPositionP1 : data.dailySeriesClicksP1;
     const dataP2 = isPos ? data.dailySeriesPositionP2 : data.dailySeriesClicksP2;
-    const color = isPos ? '#f43f5e' : '#4f46e5'; 
+    const color = isPos ? '#f43f5e' : '#4f46e5';
     const labels = datesP2 && datesP2.length >= dataP2.length ? datesP2.slice(0, Math.max(dataP1.length, dataP2.length)) : Array.from({ length: Math.max(dataP1.length, dataP2.length) }, (_, i) => `Día ${i + 1}`);
-    
+
     // Updated options: Minimal Axes
-    return new Chart(ctx, { 
-        type: 'line', 
-        data: { 
-            labels, 
+    return new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
             datasets: [
-                { label: `${p1Name}`, data: dataP1, borderColor: '#cbd5e1', backgroundColor: 'transparent', borderWidth: 1, borderDash: [2, 2], tension: 0.3, pointRadius: 0 }, 
+                { label: `${p1Name}`, data: dataP1, borderColor: '#cbd5e1', backgroundColor: 'transparent', borderWidth: 1, borderDash: [2, 2], tension: 0.3, pointRadius: 0 },
                 { label: `${p2Name}`, data: dataP2, borderColor: color, backgroundColor: isPos ? 'transparent' : 'rgba(79, 70, 229, 0.05)', borderWidth: 1.5, tension: 0.3, pointRadius: 0, fill: !isPos }
-            ] 
-        }, 
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            animation: false, 
-            scales: { 
-                y: { 
-                    reverse: isPos, 
-                    beginAtZero: !isPos, 
-                    display: true, 
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            scales: {
+                y: {
+                    reverse: isPos,
+                    beginAtZero: !isPos,
+                    display: true,
                     grid: { display: false },
-                    ticks: { font: { size: 8 }, maxTicksLimit: 3, color: '#94a3b8' } 
-                }, 
-                x: { display: false } 
-            }, 
-            plugins: { legend: { display: false }, tooltip: { enabled: false } } 
-        } 
+                    ticks: { font: { size: 8 }, maxTicksLimit: 3, color: '#94a3b8' }
+                },
+                x: { display: false }
+            },
+            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
     });
 }
 
@@ -519,23 +538,23 @@ function createCannibalizationChart(ctx: CanvasRenderingContext2D, data: Canniba
     const labels = data.dates.map(d => { const dateObj = new Date(d); return dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }); });
     const colors = ['#f43f5e', '#f59e0b', '#0ea5e9'];
     const datasets = data.urls.map((u, index) => ({ label: u.url, data: u.dailyPositions, borderColor: colors[index % colors.length], backgroundColor: 'transparent', borderWidth: 1.5, tension: 0.3, pointRadius: 0 }));
-    return new Chart(ctx, { 
-        type: 'line', 
-        data: { labels, datasets }, 
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            animation: false, 
-            scales: { 
-                y: { 
-                    reverse: true, 
-                    beginAtZero: false, 
+    return new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            scales: {
+                y: {
+                    reverse: true,
+                    beginAtZero: false,
                     display: true,
                     ticks: { font: { size: 8 }, maxTicksLimit: 3, color: '#94a3b8' }
-                }, 
-                x: { display: false } 
-            }, 
-            plugins: { title: { display: false }, legend: { display: false }, tooltip: { enabled: false } } 
-        } 
+                },
+                x: { display: false }
+            },
+            plugins: { title: { display: false }, legend: { display: false }, tooltip: { enabled: false } }
+        }
     });
 }

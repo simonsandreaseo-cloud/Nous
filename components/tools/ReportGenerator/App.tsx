@@ -6,6 +6,8 @@ import { getRelevantSections, generateReportSection, performHolisticReview } fro
 import { DataManager } from './services/dataManager'; // Phase 1.1
 import { AgentService } from './services/agentService'; // Phase 2 Integration
 import { ReportView } from './components/ReportView';
+import { useAuth } from '../../../context/AuthContext';
+import { supabase } from '../../../lib/supabase';
 
 const AVAILABLE_MODELS = [
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recomendado - Rápido)' },
@@ -17,7 +19,7 @@ const AVAILABLE_MODELS = [
 const App: React.FC = () => {
     // State
     const [step, setStep] = useState<number>(1);
-    
+
     // File State
     const [pagesData, setPagesData] = useState<CSVRow[]>([]);
     const [queriesData, setQueriesData] = useState<CSVRow[]>([]);
@@ -29,13 +31,13 @@ const App: React.FC = () => {
     const [userContext, setUserContext] = useState<string>("");
     const [model, setModel] = useState<string>(AVAILABLE_MODELS[0].value);
     const [apiKeysInput, setApiKeysInput] = useState<string>("");
-    
+
     // Analysis State
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [currentStatus, setCurrentStatus] = useState<string>("Iniciando...");
     const [progressPercent, setProgressPercent] = useState<number>(0);
-    
+
     // Result State
     const [reportHTML, setReportHTML] = useState<string>("");
     const [chartData, setChartData] = useState<ChartData | null>(null);
@@ -43,13 +45,18 @@ const App: React.FC = () => {
     const [p1Name, setP1Name] = useState("");
     const [p2Name, setP2Name] = useState("");
 
+    // Auth & Persistence
+    const { user } = useAuth();
+    const [isSaving, setIsSaving] = useState(false);
+    const [hasSaved, setHasSaved] = useState(false);
+
     // Engine References
     const dataManager = useRef<DataManager>(new DataManager());
 
     // Helpers
     const addLog = useCallback((message: string, type: 'info' | 'warn' | 'error' = 'info') => {
         setLogs(prev => [...prev, { message, type, timestamp: new Date().toLocaleTimeString() }]);
-        setCurrentStatus(message); 
+        setCurrentStatus(message);
     }, []);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, type: FileType) => {
@@ -87,21 +94,21 @@ const App: React.FC = () => {
     const handleAnalysis = async (customContext?: string) => {
         const keys = getApiKeys();
         if (keys.length === 0) { alert("Por favor ingresa al menos una API Key de Gemini."); return; }
-        
+
         setIsAnalyzing(true);
-        setStep(3); 
+        setStep(3);
         setProgressPercent(5);
         const activeContext = customContext || userContext;
-        
+
         try {
             addLog(`🔑 Se han cargado ${keys.length} API Keys para rotación automática.`);
-            
+
             addLog("🏗️ Indexando datos...");
             dataManager.current.initialize(pagesData, queriesData, countriesData);
-            
+
             const uniqueTimestamps = Array.from<number>(new Set(pagesData.map(r => r.date.getTime()))).sort((a, b) => a - b);
             if (uniqueTimestamps.length < 2) throw new Error("Dataset insuficiente.");
-            
+
             const midPointIndex = Math.floor(uniqueTimestamps.length / 2);
             const cutoffTime = uniqueTimestamps[midPointIndex];
             const splitData = (data: CSVRow[]) => ({ p1: data.filter(r => r.date.getTime() < cutoffTime), p2: data.filter(r => r.date.getTime() >= cutoffTime) });
@@ -138,19 +145,19 @@ const App: React.FC = () => {
             // Pass the ARRAY of keys to the Gemini Service
             const sections = await getRelevantSections(payload, model, keys);
             addLog(`📋 Estructura: ${sections.length} secciones de datos.`);
-            
+
             let accumulatedBodyHTML = "";
             let completed = 0;
-            
+
             // 1. Generate Data Sections (Draft Mode)
             for (const section of sections) {
                 addLog(`✍️ Generando borrador: ${section}...`);
                 // Simple throttling to help rate limits even with rotation
-                if (completed > 0) await new Promise(r => setTimeout(r, 1000)); 
-                
+                if (completed > 0) await new Promise(r => setTimeout(r, 1000));
+
                 const sectionHTML = await generateReportSection(section, payload, model, keys);
                 accumulatedBodyHTML += sectionHTML;
-                
+
                 completed++;
                 const progress = 45 + Math.floor((completed / sections.length) * 35);
                 setProgressPercent(progress);
@@ -164,12 +171,12 @@ const App: React.FC = () => {
             // 3. Patching the HTML with improvements
             addLog(`✨ Aplicando mejoras y correcciones...`);
             let finalBodyHTML = accumulatedBodyHTML;
-            
+
             if (reviewResult.section_enhancements) {
                 Object.entries(reviewResult.section_enhancements).forEach(([id, newHTML]) => {
                     const regex = new RegExp(`<div id="${id}"[^>]*>.*?<\/div>`, 's');
                     if (finalBodyHTML.match(regex)) {
-                         finalBodyHTML = finalBodyHTML.replace(regex, newHTML);
+                        finalBodyHTML = finalBodyHTML.replace(regex, newHTML);
                     }
                 });
             }
@@ -192,6 +199,36 @@ const App: React.FC = () => {
         handleAnalysis(newContext);
     };
 
+    const handleSaveCloud = async () => {
+        if (!user) return alert("Debes iniciar sesión para guardar.");
+        if (!reportHTML) return;
+        setIsSaving(true);
+        try {
+            const reportData = {
+                user_id: user.id,
+                domain: "Reporte SEO Auto", // Pending: Extract domain from CSV filename properly if possible, or leave generic
+                report_data: {
+                    html: reportHTML,
+                    stats: reportPayload?.dashboardStats,
+                    summary: reportPayload?.executiveSummary,
+                    date_range: p2Name
+                },
+                created_at: new Date().toISOString()
+            };
+
+            const { error } = await supabase.from('seo_reports').insert([reportData]);
+            if (error) throw error;
+
+            setHasSaved(true);
+            alert("¡Informe guardado con éxito en tu tablero!");
+        } catch (e: any) {
+            console.error(e);
+            alert("Error al guardar: " + e.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="font-sans text-slate-800 bg-slate-50 min-h-screen">
             {/* Steps Rendering Unchanged */}
@@ -203,41 +240,41 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="bg-white p-10 rounded-3xl shadow-xl border border-slate-200/60">
-                         <div className="flex items-center gap-4 mb-8">
+                        <div className="flex items-center gap-4 mb-8">
                             <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">1</div>
                             <h2 className="text-xl font-bold text-slate-900">Carga de Datos (CSV)</h2>
-                         </div>
+                        </div>
 
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                             <UploadSlot label="Páginas" type="pages" isUploaded={uploadedStatus.pages} onChange={(e) => handleFileChange(e, 'pages')} />
-                             <UploadSlot label="Consultas" type="queries" isUploaded={uploadedStatus.queries} onChange={(e) => handleFileChange(e, 'queries')} />
-                             <UploadSlot label="Países" type="countries" isUploaded={uploadedStatus.countries} onChange={(e) => handleFileChange(e, 'countries')} />
-                         </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <UploadSlot label="Páginas" type="pages" isUploaded={uploadedStatus.pages} onChange={(e) => handleFileChange(e, 'pages')} />
+                            <UploadSlot label="Consultas" type="queries" isUploaded={uploadedStatus.queries} onChange={(e) => handleFileChange(e, 'queries')} />
+                            <UploadSlot label="Países" type="countries" isUploaded={uploadedStatus.countries} onChange={(e) => handleFileChange(e, 'countries')} />
+                        </div>
 
-                         <div className="flex justify-between items-center pt-6 border-t border-slate-100">
-                             <div className="flex items-center gap-2">
+                        <div className="flex justify-between items-center pt-6 border-t border-slate-100">
+                            <div className="flex items-center gap-2">
                                 <input type="file" id="logo-u" accept="image/png" onChange={handleLogoChange} className="hidden" />
                                 <label htmlFor="logo-u" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 cursor-pointer flex items-center gap-2">
                                     {logo ? <span className="text-green-600">Logo Cargado</span> : <span>+ Subir Logo (Opcional)</span>}
                                 </label>
-                             </div>
-                             <button 
-                                onClick={() => setStep(2)} 
+                            </div>
+                            <button
+                                onClick={() => setStep(2)}
                                 disabled={!uploadedStatus.pages || !uploadedStatus.queries || !uploadedStatus.countries}
                                 className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-95"
                             >
                                 Siguiente
                             </button>
-                         </div>
+                        </div>
                     </div>
                 </div>
             )}
 
             {step === 2 && (
                 <div className="max-w-2xl mx-auto pt-20 px-6">
-                     <div className="bg-white p-10 rounded-3xl shadow-xl border border-slate-200/60">
+                    <div className="bg-white p-10 rounded-3xl shadow-xl border border-slate-200/60">
                         <button onClick={() => setStep(1)} className="text-sm text-slate-400 hover:text-slate-700 mb-8 font-medium">&larr; Volver</button>
-                        
+
                         <div className="flex items-center gap-4 mb-8">
                             <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">2</div>
                             <h2 className="text-xl font-bold text-slate-900">Configuración de Inteligencia</h2>
@@ -247,12 +284,12 @@ const App: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">API Keys (Google Gemini)</label>
                                 <p className="text-[10px] text-slate-500 mb-2">Ingresa una clave por línea. Si una falla por límite de cuota, se usará la siguiente automáticamente.</p>
-                                <textarea 
+                                <textarea
                                     rows={4}
-                                    value={apiKeysInput} 
-                                    onChange={(e) => setApiKeysInput(e.target.value)} 
-                                    placeholder="sk-...\nsk-...\nsk-..." 
-                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm whitespace-pre" 
+                                    value={apiKeysInput}
+                                    onChange={(e) => setApiKeysInput(e.target.value)}
+                                    placeholder="sk-...\nsk-...\nsk-..."
+                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm whitespace-pre"
                                 />
                             </div>
                             <div>
@@ -267,8 +304,8 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
-                        <button 
-                            onClick={() => handleAnalysis()} 
+                        <button
+                            onClick={() => handleAnalysis()}
                             className="w-full mt-8 bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
                         >
                             Generar Informe
@@ -284,9 +321,9 @@ const App: React.FC = () => {
                             <h2 className="text-2xl font-bold">Analizando Datos</h2>
                             <span className="text-indigo-400 font-mono font-bold">{progressPercent}%</span>
                         </div>
-                        
+
                         <div className="w-full bg-slate-800 rounded-full h-2 mb-8 overflow-hidden">
-                            <div 
+                            <div
                                 className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-500 ease-out"
                                 style={{ width: `${progressPercent}%` }}
                             ></div>
@@ -302,14 +339,18 @@ const App: React.FC = () => {
             )}
 
             {reportHTML && !isAnalyzing && (
-                <ReportView 
-                    htmlContent={reportHTML} 
+                <ReportView
+                    htmlContent={reportHTML}
                     chartData={chartData}
                     p1Name={p1Name} p2Name={p2Name}
                     onRegenerate={handleRegenerate}
                     isRegenerating={isAnalyzing}
                     dashboardStats={chartData?.dashboardStats}
                     logo={logo}
+                    onSave={handleSaveCloud}
+                    isSaving={isSaving}
+                    hasSaved={hasSaved}
+                    user={user}
                 />
             )}
         </div>
