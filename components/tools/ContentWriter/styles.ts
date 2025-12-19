@@ -49,9 +49,9 @@ export const styles = {
         cursor: 'not-allowed',
         filter: 'grayscale(1)'
     },
-    
+
     // --- OLD LAYOUTS ADAPTED ---
-    
+
     // FULL SCREEN SETUP HUB (Now fits in flex)
     hubContainer: {
         width: '100%',
@@ -116,7 +116,7 @@ export const styles = {
     sidebarCollapsed: {
         width: '64px',
     },
-    
+
     sidebarHeader: {
         height: '64px',
         borderBottom: '1px solid #F1F5F9',
@@ -150,7 +150,7 @@ export const styles = {
         opacity: 1,
         transition: 'opacity 0.2s',
     },
-    
+
     // Collapsed Icons Rail
     iconRail: {
         display: 'flex',
@@ -227,7 +227,7 @@ export const styles = {
     },
 
     // --- COMPONENTS ---
-    
+
     // Cards for Setup
     stepCard: {
         backgroundColor: '#FFFFFF',
@@ -260,7 +260,7 @@ export const styles = {
         fontSize: '16px',
         fontWeight: '700'
     },
-    
+
     // Form Elements
     label: {
         fontSize: '12px',
@@ -365,12 +365,12 @@ export const styles = {
         boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.1)',
         fontFamily: "'Outfit', sans-serif"
     },
-    
+
     // Magic/Premium Button - NOW SIMPLIFIED
     magicButton: {
         // Just an alias for simple styling now as per request
     },
-    
+
     // Dropzone
     dropzone: {
         border: '2px dashed #CBD5E1',
@@ -389,7 +389,7 @@ export const styles = {
         borderColor: '#0F172A',
         backgroundColor: '#E2E8F0'
     },
-    
+
     // Status
     statusText: {
         textAlign: 'center',
@@ -424,7 +424,7 @@ export const styles = {
         color: 'white',
         border: 'none'
     },
-    
+
     // Right Sidebar Specifics
     inspectorHeader: {
         padding: '20px',
@@ -453,7 +453,7 @@ export const styles = {
         flexDirection: 'column',
         gap: '24px'
     },
-    
+
     // New Tool Card for Sidebar (High Visibility)
     toolCard: {
         marginBottom: '16px',
@@ -503,7 +503,7 @@ export const styles = {
         fontFamily: 'monospace',
         position: 'relative'
     },
-    
+
     // AI Image Cards
     aiImageCard: {
         borderRadius: '8px',
@@ -541,13 +541,13 @@ export const styles = {
         justifyContent: 'center',
         color: '#475569'
     },
-    
+
     aiActions: {
         display: 'flex',
         gap: '8px',
         marginTop: '8px'
     },
-    
+
     // Custom Size Inputs
     customSizeBox: {
         display: 'flex',
@@ -633,7 +633,7 @@ export const styles = {
         gap: '8px',
         fontFamily: "'Outfit', sans-serif"
     },
-    
+
     // Links List (Cleaned)
     linkListContainer: {
         display: 'flex',
@@ -672,7 +672,7 @@ export const styles = {
         textOverflow: 'ellipsis',
         maxWidth: '300px'
     },
-    
+
     // New Strategy Elements
     keywordTag: {
         padding: '6px 10px',
@@ -691,7 +691,7 @@ export const styles = {
         border: '1px solid #FEF3C7',
         fontStyle: 'italic'
     },
-    
+
     // Loading Spinner
     spinner: {
         border: '2px solid rgba(255,255,255,0.3)',
@@ -715,5 +715,125 @@ styleSheet.innerText = `
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-`;
+
+.article-content {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.7;
+    color: #1e293b;
+    font-size: 16px;
+}
+
+.article-content h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 24px;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.article-content h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    margin-top: 40px;
+    margin-bottom: 16px;
+    color: #0f172a;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 8px;
+}
+
+.article-content h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin-top: 32px;
+    margin-bottom: 12px;
+    color: #1e293b;
+}
+
+.article-content h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    color: #334155;
+}
+
+.article-content p {
+    margin-bottom: 20px;
+}
+
+.article-content ul, .article-content ol {
+    margin-bottom: 20px;
+    padding-left: 24px;
+}
+
+.article-content li {
+    margin-bottom: 8px;
+}
+
+.article-content strong {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.article-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0;
+    font-size: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.article-content th {
+    background-color: #f8fafc;
+    font-weight: 700;
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 2px solid #e2e8f0;
+    color: #475569;
+}
+
+.article-content td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #475569;
+}
+
+.article-content tr:last-child td {
+    border-bottom: none;
+}
+
+.article-content tr:hover td {
+    background-color: #f8fafc;
+}
+
+.article-content blockquote {
+    border-left: 4px solid #6366f1;
+    padding: 16px 24px;
+    margin: 24px 0;
+    background-color: #f5f7ff;
+    border-radius: 0 8px 8px 0;
+    font-style: italic;
+    color: #4338ca;
+}
+
+.article-content a {
+    color: #6366f1;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.article-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+    margin: 24px 0;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+\`;
 document.head.appendChild(styleSheet);

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
+import { Link } from 'react-router-dom';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { styles } from './styles';
@@ -34,23 +35,45 @@ const MultiKeyModal = ({ isOpen, onClose, onSave, currentKeys }: { isOpen: boole
     };
 
     return (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', width: '450px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
-                <h3 style={{ marginTop: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'Outfit, sans-serif' }}>
-                    <IconSettings /> Gestión de API Keys
-                </h3>
-                <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '12px' }}>
-                    Ingresa una API Key por línea. Si una se agota (Error 429), el sistema usará automáticamente la siguiente.
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+            <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '20px', width: '500px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h3 style={{ margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'Outfit, sans-serif', fontWeight: 800 }}>
+                        <IconSettings /> Gestión de API Keys
+                    </h3>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>✕</button>
+                </div>
+                <p style={{ fontSize: '14px', color: '#64748B', marginBottom: '20px', lineHeight: '1.5' }}>
+                    Ingresa una API Key de <strong>Google Gemini</strong> por línea. El sistema rotará automáticamente entre ellas si se alcanza el límite de cuota (Error 429).
                 </p>
                 <textarea
-                    style={{ ...styles.input, marginBottom: '16px', height: '150px', fontFamily: 'monospace', fontSize: '12px' }}
+                    style={{
+                        width: '100%',
+                        padding: '16px',
+                        fontSize: '13px',
+                        borderRadius: '12px',
+                        border: '2px solid #F1F5F9',
+                        outline: 'none',
+                        backgroundColor: '#F8FAFC',
+                        color: '#0F172A',
+                        marginBottom: '24px',
+                        height: '180px',
+                        fontFamily: 'monospace',
+                        transition: 'border-color 0.2s',
+                        resize: 'none'
+                    }}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     placeholder="AIzaSy...&#10;AIzaSy...&#10;AIzaSy..."
                 />
-                <div style={{ display: 'flex', justifyContent: 'end', gap: '8px' }}>
-                    <button style={styles.button as any} onClick={onClose}>Cancelar</button>
-                    <button style={{ ...styles.button, backgroundColor: '#0F172A', color: 'white' } as any} onClick={handleSave}>Guardar Keys ({text.split('\n').filter(k => k.trim()).length})</button>
+                <div style={{ display: 'flex', justifyContent: 'end', gap: '12px' }}>
+                    <button style={{ ...styles.button, padding: '12px 20px' } as any} onClick={onClose}>Cancelar</button>
+                    <button
+                        style={{ ...styles.button, backgroundColor: '#6366F1', color: 'white', border: 'none', padding: '12px 24px', fontWeight: 700 } as any}
+                        onClick={handleSave}
+                    >
+                        Guardar {text.split('\n').filter(k => k.trim()).length} Keys
+                    </button>
                 </div>
             </div>
         </div>
@@ -73,8 +96,54 @@ const App = () => {
     const [showKeyModal, setShowKeyModal] = useState(false);
 
     useEffect(() => {
-        if (user) loadUserKeys();
+        if (user) {
+            loadUserKeys();
+            loadDraftFromUrl();
+        }
     }, [user]);
+
+    const loadDraftFromUrl = async () => {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('draftId');
+        if (id) {
+            setStatus("Cargando borrador...");
+            try {
+                const { data, error } = await supabase
+                    .from('content_drafts')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) throw error;
+                if (data) {
+                    setDraftId(data.id);
+                    setHtmlContent(data.html_content || '');
+                    setFullResponse(data.html_content || '');
+                    if (data.strategy_data) {
+                        const sd = data.strategy_data;
+                        setProjectName(sd.projectName || 'Proyecto');
+                        setTargetKeyword(sd.targetKeyword || '');
+                        setDetectedNiche(sd.detectedNiche || '');
+                        setStrategyOutline(sd.strategyOutline || []);
+                        setStrategyTone(sd.strategyTone || 'Profesional');
+                        setMetadata(sd.metadata || null);
+                        setStrategyLSI(sd.strategyLSI || []);
+                        setStrategyLongTail(sd.strategyLongTail || []);
+                        setStrategyQuestions(sd.strategyQuestions || []);
+                        setCreativityLevel(sd.creativityLevel || 'medium');
+                        setStrategyH1(data.title || sd.strategyH1 || '');
+                    }
+                    setViewMode('workspace');
+                    setIsSidebarOpen(false);
+                }
+            } catch (e: any) {
+                console.error("Error loading draft", e);
+                alert("No se pudo cargar el borrador: " + e.message);
+            } finally {
+                setStatus("");
+            }
+        }
+    };
 
     const [model, setModel] = useState('gemini-2.5-flash');
     const [csvData, setCsvData] = useState<any[]>([]);
@@ -244,11 +313,29 @@ const App = () => {
     };
 
     // --- Error Handler Helper ---
-    const handleApiError = (e: any) => {
+    const handleApiError = async (e: any, retryAction?: () => Promise<void>) => {
         console.error("API Error caught:", e);
-        if (e.status === 429 || e.code === 429 || e.status === 403 || e.status === 500 || e.status === 400 || (e.message && e.message.includes('quota'))) {
+        const isQuota = e.isQuota || e.status === 429 || (e.message && e.message.toLowerCase().includes('quota'));
+
+        if (isQuota) {
             setShowKeyModal(true);
-            alert("⚠️ Se han agotado todas las API Keys o ha ocurrido un error de autorización. Por favor añade nuevas keys.");
+            const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash'];
+            const currentIndex = models.indexOf(model);
+            const nextModel = models[(currentIndex + 1) % models.length];
+
+            const msg = `⚠️ Todas las API Keys han agotado su cuota para el modelo "${model}".\n\n¿Deseas intentar con el siguiente modelo disponible ("${nextModel}") usando las mismas keys?`;
+
+            if (confirm(msg)) {
+                setModel(nextModel);
+                if (retryAction) {
+                    setTimeout(async () => {
+                        await retryAction();
+                    }, 500);
+                    return;
+                }
+            } else {
+                alert("Por favor, añade nuevas API Keys para continuar con el modelo actual.");
+            }
         } else {
             alert("Error: " + (e.message || String(e)));
         }
@@ -573,7 +660,7 @@ const App = () => {
             setIsSidebarOpen(false);
 
         } catch (error: any) {
-            handleApiError(error);
+            handleApiError(error, generateArticle);
             setStatus("Error en generación.");
             setHtmlContent(`<p style="color:red">Error: ${error instanceof Error ? error.message : String(error)}. Por favor regenera.</p>`);
         } finally {
@@ -739,7 +826,7 @@ const App = () => {
             setStatus("Humanización completada.");
 
         } catch (e: any) {
-            handleApiError(e);
+            handleApiError(e, handleHumanize);
             setHumanizerStatus("Error: " + (e instanceof Error ? e.message : 'Fallo en la API'));
         } finally {
             setIsHumanizing(false);
@@ -774,7 +861,7 @@ const App = () => {
             setEditorStatus(`✅ Edición completada + Estilos Refinados.`);
             setStatus("Edición completada.");
         } catch (e: any) {
-            handleApiError(e);
+            handleApiError(e, handleSmartEdit);
             setEditorStatus("Error en editor: " + e);
         } finally {
             setIsEditing(false);
@@ -1268,6 +1355,14 @@ const App = () => {
                                     <div style={styles.gridCardTitle}><IconEdit /> Parámetros y Competencia</div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
                                         <div>
+                                            <label style={styles.label}>Modelo Prioritario</label>
+                                            <select style={styles.select as any} value={model} onChange={e => setModel(e.target.value)}>
+                                                <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                                                <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                                                <option value="gemini-3-flash">gemini-3-flash</option>
+                                            </select>
+                                        </div>
+                                        <div>
                                             <label style={styles.label}>Tono de Voz</label>
                                             <select style={styles.select as any} value={strategyTone} onChange={e => setStrategyTone(e.target.value)}>
                                                 <option>Profesional y Estiloso</option>
@@ -1576,6 +1671,15 @@ const App = () => {
                                         <IconPlus /> Nuevo Contenido
                                     </button>
                                     <button onClick={handleSaveCloud} style={{ ...styles.button, background: '#166534', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px' }} disabled={isSaving}><IconCloud /> {isSaving ? "Salvando..." : "Guardar en Nube"}</button>
+
+                                    {draftId && (
+                                        <Link
+                                            to={`/herramientas/blog-viz?draftId=${draftId}`}
+                                            style={{ ...styles.button, background: '#6366F1', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px', textDecoration: 'none' } as any}
+                                        >
+                                            <IconSparkles /> Diseñar con BlogViz AI
+                                        </Link>
+                                    )}
 
                                     <div>
                                         <div style={styles.sectionTitle}>Refinamiento de Artículo</div>

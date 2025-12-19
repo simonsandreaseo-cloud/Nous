@@ -130,8 +130,46 @@ const App: React.FC = () => {
   useEffect(() => {
     if (user) {
       loadUserKeys();
+      loadDraftFromUrl();
     }
   }, [user]);
+
+  const loadDraftFromUrl = async () => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('draftId');
+    if (id) {
+      setStatus(ProcessingStatus.READING_DOC);
+      setStatusMessage(t.reading);
+      try {
+        const { data, error } = await supabase
+          .from('content_drafts')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          const html = data.html_content || '';
+          // Simple HTML to Paragraphs conversion
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          const paras = Array.from(tempDiv.querySelectorAll('h1, h2, h3, h4, p, li'))
+            .map(el => el.textContent || '')
+            .filter(t => t.trim().length > 0);
+
+          setBlogPost({
+            paragraphs: paras,
+            rawText: tempDiv.textContent || ''
+          });
+          setStatus(ProcessingStatus.IDLE);
+        }
+      } catch (e: any) {
+        console.error("Error loading draft", e);
+        setError("No se pudo cargar el borrador: " + e.message);
+        setStatus(ProcessingStatus.ERROR);
+      }
+    }
+  };
 
   const loadUserKeys = async () => {
     try {
@@ -168,14 +206,20 @@ const App: React.FC = () => {
   };
 
   const processArticle = async () => {
-    if (!docxFile) return;
+    if (!docxFile && !blogPost) return;
     try {
       setError(null);
       setGeneratedImages([]);
-      setStatus(ProcessingStatus.READING_DOC);
-      setStatusMessage(t.reading);
-      const post = await parseDocx(docxFile);
-      setBlogPost(post);
+
+      let post = blogPost;
+      if (docxFile) {
+        setStatus(ProcessingStatus.READING_DOC);
+        setStatusMessage(t.reading);
+        post = await parseDocx(docxFile);
+        setBlogPost(post);
+      }
+
+      if (!post) return;
 
       setStatus(ProcessingStatus.ANALYZING_TEXT);
       setStatusMessage(t.analyzing);
@@ -413,7 +457,13 @@ const App: React.FC = () => {
               </div>
             </div>
             {status === ProcessingStatus.IDLE || status === ProcessingStatus.ERROR ? (
-              <button onClick={processArticle} disabled={!docxFile} className={`w-full mt-6 py-3 rounded-xl font-semibold text-white shadow-lg transition-all ${docxFile ? 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-200' : 'bg-slate-300 cursor-not-allowed'}`}>{t.generateBtn}</button>
+              <button
+                onClick={processArticle}
+                disabled={!docxFile && !blogPost}
+                className={`w-full mt-6 py-3 rounded-xl font-semibold text-white shadow-lg transition-all ${docxFile || blogPost ? 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-200' : 'bg-slate-300 cursor-not-allowed'}`}
+              >
+                {t.generateBtn}
+              </button>
             ) : (
               <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex flex-col items-center justify-center text-center space-y-3">
                 {status === ProcessingStatus.COMPLETED ? (

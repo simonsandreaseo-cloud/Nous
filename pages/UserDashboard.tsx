@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Navigate, Link } from 'react-router-dom';
 import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles } from 'lucide-react';
 import ToolWrapper from '../components/layout/ToolWrapper';
@@ -11,6 +11,7 @@ interface Draft {
     title: string;
     created_at: string;
     strategy_data: any;
+    html_content?: string;
 }
 
 interface ApiKey {
@@ -28,6 +29,11 @@ const UserDashboard: React.FC = () => {
     const [isLoadingKeys, setIsLoadingKeys] = useState(true);
     const [newKey, setNewKey] = useState({ provider: 'gemini', key_value: '', label: '' });
     const [showAddKey, setShowAddKey] = useState(false);
+    const [selectedDraft, setSelectedDraft] = useState<Draft | null>(null);
+    const [showViewer, setShowViewer] = useState(false);
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
+    const [editedTitle, setEditedTitle] = useState('');
+    const [editedContent, setEditedContent] = useState('');
 
     useEffect(() => {
         if (user) {
@@ -92,7 +98,7 @@ const UserDashboard: React.FC = () => {
         try {
             const { data, error } = await supabase
                 .from('content_drafts')
-                .select('id, title, created_at, strategy_data')
+                .select('id, title, created_at, strategy_data, html_content')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -101,6 +107,52 @@ const UserDashboard: React.FC = () => {
             console.error('Error fetching drafts:', error);
         } finally {
             setIsLoadingDrafts(false);
+        }
+    };
+
+    const handleOpenDraft = (draft: Draft) => {
+        setSelectedDraft(draft);
+        setEditedTitle(draft.title || '');
+        setEditedContent(draft.html_content || '');
+        setShowViewer(true);
+    };
+
+    const handleSaveEditedDraft = async () => {
+        if (!selectedDraft) return;
+        setIsSavingDraft(true);
+        try {
+            const { error } = await supabase
+                .from('content_drafts')
+                .update({
+                    title: editedTitle,
+                    html_content: editedContent,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', selectedDraft.id);
+
+            if (error) throw error;
+            setShowViewer(false);
+            fetchDrafts();
+        } catch (error: any) {
+            alert("Error al guardar: " + error.message);
+        } finally {
+            setIsSavingDraft(false);
+        }
+    };
+
+    const handleDeleteDraft = async (id: number) => {
+        if (!confirm("¿Seguro que quieres eliminar este artículo?")) return;
+        try {
+            const { error } = await supabase
+                .from('content_drafts')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            setShowViewer(false);
+            fetchDrafts();
+        } catch (error: any) {
+            alert("Error al eliminar: " + error.message);
         }
     };
 
@@ -279,7 +331,11 @@ const UserDashboard: React.FC = () => {
                             ) : drafts.length > 0 ? (
                                 <div className="space-y-3">
                                     {drafts.map((draft) => (
-                                        <div key={draft.id} className="group flex items-center justify-between p-4 rounded-xl border border-brand-power/5 hover:border-brand-accent/30 hover:bg-brand-soft/10 transition-all cursor-pointer">
+                                        <div
+                                            key={draft.id}
+                                            onClick={() => handleOpenDraft(draft)}
+                                            className="group flex items-center justify-between p-4 rounded-xl border border-brand-power/5 hover:border-brand-accent/30 hover:bg-brand-soft/10 transition-all cursor-pointer"
+                                        >
                                             <div className="flex items-center gap-4">
                                                 <div className="w-10 h-10 rounded-lg bg-brand-power/5 text-brand-power/30 flex items-center justify-center group-hover:bg-brand-accent group-hover:text-brand-power transition-colors">
                                                     <FileText size={18} />
@@ -343,6 +399,103 @@ const UserDashboard: React.FC = () => {
 
                 </div>
             </div>
+
+            {/* Draft Viewer Modal */}
+            <AnimatePresence>
+                {showViewer && selectedDraft && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowViewer(false)}
+                            className="absolute inset-0 bg-brand-power/80 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+                        >
+                            {/* ... (rest of the modal content) ... */}
+                            {/* Modal Header */}
+                            <div className="p-6 border-b border-brand-power/5 flex items-center justify-between bg-brand-soft/10">
+                                <div className="flex-1 mr-4">
+                                    <input
+                                        type="text"
+                                        value={editedTitle}
+                                        onChange={(e) => setEditedTitle(e.target.value)}
+                                        className="text-xl font-bold text-brand-power bg-transparent border-none outline-none w-full focus:ring-2 focus:ring-brand-accent rounded px-2"
+                                        placeholder="Título del artículo"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => handleDeleteDraft(selectedDraft.id)}
+                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Eliminar artículo"
+                                    >
+                                        <Trash2 size={20} />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowViewer(false)}
+                                        className="p-2 text-brand-power/30 hover:text-brand-power hover:bg-brand-soft/20 rounded-lg transition-colors"
+                                    >
+                                        <ChevronRight size={24} className="rotate-90" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Modal Toolbar */}
+                            <div className="px-6 py-4 bg-white border-b border-brand-power/5 flex flex-wrap items-center gap-4">
+                                <button
+                                    onClick={handleSaveEditedDraft}
+                                    disabled={isSavingDraft}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-brand-power text-brand-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-accent hover:text-brand-power transition-all shadow-sm"
+                                >
+                                    <Sparkles size={14} /> {isSavingDraft ? 'Guardando...' : 'Guardar Cambios'}
+                                </button>
+
+                                <div className="h-6 w-[1px] bg-brand-power/10 mx-2 hidden sm:block"></div>
+
+                                <Link
+                                    to={`/herramientas/redactor-ia?draftId=${selectedDraft.id}`}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-brand-soft text-brand-power rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-accent transition-all"
+                                >
+                                    <ExternalLink size={14} /> Abrir en Content Writer
+                                </Link>
+
+                                <Link
+                                    to={`/herramientas/blog-viz?draftId=${selectedDraft.id}`}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-brand-soft text-brand-power rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-brand-accent transition-all"
+                                >
+                                    <Sparkles size={14} /> Pasar a BlogViz AI
+                                </Link>
+                            </div>
+
+                            {/* Modal Content Editor */}
+                            <div className="flex-1 overflow-auto p-8 prose prose-slate max-w-none">
+                                <textarea
+                                    value={editedContent}
+                                    onChange={(e) => setEditedContent(e.target.value)}
+                                    className="w-full h-full min-h-[500px] border-none outline-none font-serif text-lg leading-relaxed text-brand-power/80 resize-none bg-transparent"
+                                    placeholder="Escribe aquí el contenido de tu artículo..."
+                                />
+                            </div>
+
+                            {/* Modal Footer Info */}
+                            <div className="px-8 py-4 bg-brand-soft/5 border-t border-brand-power/5 flex items-center justify-between">
+                                <span className="text-[10px] text-brand-power/30 uppercase font-bold tracking-widest">
+                                    ID: {selectedDraft.id} — Creado: {new Date(selectedDraft.created_at).toLocaleString()}
+                                </span>
+                                <span className="text-[10px] text-brand-power/30 uppercase font-bold tracking-widest">
+                                    {editedContent.length} caracteres
+                                </span>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </ToolWrapper>
     );
 };

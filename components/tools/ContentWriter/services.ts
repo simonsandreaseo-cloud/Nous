@@ -107,13 +107,13 @@ const isValidKey = (k: string) => k && k.trim().length > 10;
 
 // Executor that handles rotation across multiple keys
 const executeWithKeyRotation = async <T>(
-    keys: string[] | string, 
+    keys: string[] | string,
     operation: (client: GoogleGenAI) => Promise<T>
 ): Promise<T> => {
     // Normalize to array
     const keyList = Array.isArray(keys) ? keys : [keys];
     const validKeys = keyList.filter(isValidKey);
-    
+
     if (validKeys.length === 0) {
         // Fallback to env if available, otherwise throw
         if (process.env.API_KEY && isValidKey(process.env.API_KEY)) {
@@ -136,24 +136,26 @@ const executeWithKeyRotation = async <T>(
             // Check for Quota (429) or Service Unavailable (503) or generic 500
             const isQuotaError = e.status === 429 || e.code === 429 || (e.message && e.message.includes('quota'));
             const isServerIssue = e.status === 503 || e.status === 500;
-            
+
             if (isQuotaError || isServerIssue) {
                 console.warn(`⚠️ Key ending in ...${currentKey.slice(-4)} failed (${e.status || 'Quota'}). Rotating to next key...`);
                 // If this was the last key, we can't rotate.
                 if (i === validKeys.length - 1) {
-                    throw new Error("Todas las API Keys han agotado su cuota o fallado. Por favor añade nuevas keys.");
+                    const quotaError = new Error("Todas las API Keys han agotado su cuota o fallado. Por favor añade nuevas keys.");
+                    (quotaError as any).isQuota = true;
+                    throw quotaError;
                 }
                 // Otherwise continue loop to next key
                 continue;
             }
-            
+
             // If it's a 400 (Bad Request) or 403 (Permission), it might be the key itself being invalid
             // We should also rotate if it's a key issue
-             if (e.status === 400 || e.status === 403) {
-                 console.warn(`⚠️ Key ending in ...${currentKey.slice(-4)} is invalid. Rotating...`);
-                 if (i === validKeys.length - 1) throw e;
-                 continue;
-             }
+            if (e.status === 400 || e.status === 403) {
+                console.warn(`⚠️ Key ending in ...${currentKey.slice(-4)} is invalid. Rotating...`);
+                if (i === validKeys.length - 1) throw e;
+                continue;
+            }
 
             // For other errors (logic errors), throw immediately
             throw e;
@@ -199,7 +201,7 @@ export const parseCSV = (text: string) => {
         const result = [];
         let startValueIndex = 0;
         let inQuotes = false;
-        
+
         for (let i = 0; i < line.length; i++) {
             if (line[i] === '"') {
                 inQuotes = !inQuotes;
@@ -229,8 +231,8 @@ export const parseCSV = (text: string) => {
             if (!cell || cell.length < 4) return; // Relaxed length check
             const cellContent = cell.trim();
             const isUrl = cellContent.includes('/') && (
-                cellContent.startsWith('http') || 
-                cellContent.startsWith('www') || 
+                cellContent.startsWith('http') ||
+                cellContent.startsWith('www') ||
                 cellContent.startsWith('/')
             );
 
@@ -284,22 +286,22 @@ const retrieveContext = (allData: ContentItem[], topic: string, keywords: string
 
     const cleanText = (topic + " " + keywords).toLowerCase();
     const terms = cleanText
-        .replace(/[^\p{L}\p{N}\s]/gu, '') 
+        .replace(/[^\p{L}\p{N}\s]/gu, '')
         .split(/\s+/)
         .filter(w => w.length > 3);
-    
+
     const scoreItem = (item: ContentItem) => {
         let score = 0;
         const idx = item.search_index || "";
-        
+
         if (idx.includes(topic.toLowerCase())) score += 100;
-        
+
         terms.forEach(term => {
             if (idx.includes(term)) score += 20;
         });
 
         if (item.url.length > 150) score -= 5;
-        
+
         if (item.type === 'collection') score += 5;
         if (item.type === 'product') score += 2;
 
@@ -308,9 +310,9 @@ const retrieveContext = (allData: ContentItem[], topic: string, keywords: string
 
     const scored = allData.map(item => ({ item, score: scoreItem(item) }));
     scored.sort((a, b) => b.score - a.score);
-    
-    const relevant = scored.filter(s => s.score > 10); 
-    const resultPool = relevant.length < 5 ? scored.slice(0, 50) : relevant; 
+
+    const relevant = scored.filter(s => s.score > 10);
+    const resultPool = relevant.length < 5 ? scored.slice(0, 50) : relevant;
 
     return {
         products: resultPool.filter(x => x.item.type === 'product').slice(0, 50).map(x => x.item),
@@ -322,7 +324,7 @@ const retrieveContext = (allData: ContentItem[], topic: string, keywords: string
 export const searchMoreLinks = async (apiKeys: string[] | string, keyword: string, csvData: ContentItem[]): Promise<ContentItem[]> => {
     // Use AI to find related terms to search in the CSV
     const prompt = `Give me 5 search terms to find relevant products in a database for the topic "${keyword}". Return CSV.`;
-    
+
     return executeWithKeyRotation(apiKeys, async (ai) => {
         try {
             const response = await ai.models.generateContent({
@@ -331,7 +333,7 @@ export const searchMoreLinks = async (apiKeys: string[] | string, keyword: strin
             });
             const terms = (response.text || '').split(',').map(t => t.trim());
             const extraString = terms.join(' ');
-            
+
             const context = retrieveContext(csvData, keyword, extraString);
             const mix = [...context.collections.slice(0, 10), ...context.products.slice(0, 10)];
             return mix;
@@ -352,37 +354,37 @@ export const autoInterlink = (html: string, csvData: ContentItem[]): string => {
     let linkedHtml = html;
     const alreadyLinked = new Set<string>();
     let linkCount = 0;
-    
+
     const topCandidates = candidates.slice(0, 300);
 
     for (const item of topCandidates) {
-        if (linkCount >= 15) break; 
-        if (item.title.length < 4) continue; 
+        if (linkCount >= 15) break;
+        if (item.title.length < 4) continue;
         if (alreadyLinked.has(item.url)) continue;
 
         const safeTitle = escapeRegExp(item.title);
         const titleRegex = new RegExp(`(?<!<[^>]*)\\b${safeTitle}\\b`, 'i');
-        
+
         if (titleRegex.test(linkedHtml)) {
-             if (linkedHtml.includes(item.url)) {
-                 alreadyLinked.add(item.url);
-                 continue;
-             }
-             let replaced = false;
-             linkedHtml = linkedHtml.replace(titleRegex, (match) => {
-                 if(replaced) return match;
-                 replaced = true;
-                 alreadyLinked.add(item.url);
-                 linkCount++;
-                 return `<a href="${item.url}" target="_blank" rel="noopener noreferrer" title="Ver ${match}">${match}</a>`;
-             });
+            if (linkedHtml.includes(item.url)) {
+                alreadyLinked.add(item.url);
+                continue;
+            }
+            let replaced = false;
+            linkedHtml = linkedHtml.replace(titleRegex, (match) => {
+                if (replaced) return match;
+                replaced = true;
+                alreadyLinked.add(item.url);
+                linkCount++;
+                return `<a href="${item.url}" target="_blank" rel="noopener noreferrer" title="Ver ${match}">${match}</a>`;
+            });
         }
     }
     return linkedHtml;
 };
 
 function escapeRegExp(string: string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // =================================================================
@@ -398,7 +400,7 @@ export const cleanAndFormatHtml = (html: string): string => {
     cleanString = cleanString.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
     cleanString = cleanString.replace(/^### (.*$)/gm, '<h3>$1</h3>');
     cleanString = cleanString.replace(/^## (.*$)/gm, '<h2>$1</h2>');
-    
+
     doc.body.innerHTML = cleanString;
 
     // 2. LIST FORMATTING
@@ -439,37 +441,37 @@ export const refineStyling = (html: string): string => {
 
         const text = p.textContent || "";
         const words = text.split(/\s+/);
-        
+
         // Only valid for paragraphs of decent length
-        if (words.length < 25) return; 
+        if (words.length < 25) return;
 
         // Rule: Not all paragraphs. 60% chance.
         if (Math.random() > 0.4) {
-             // Calculate safe range to avoid start/end
-             const safeStartMin = Math.floor(words.length * 0.15);
-             const safeStartMax = Math.floor(words.length * 0.70);
-             
-             if (safeStartMax > safeStartMin) {
+            // Calculate safe range to avoid start/end
+            const safeStartMin = Math.floor(words.length * 0.15);
+            const safeStartMax = Math.floor(words.length * 0.70);
+
+            if (safeStartMax > safeStartMin) {
                 const startIdx = Math.floor(Math.random() * (safeStartMax - safeStartMin)) + safeStartMin;
                 // Rule: 4 to 8 words
                 const length = Math.floor(Math.random() * 5) + 4; // 4,5,6,7,8
-                
+
                 const pre = words.slice(0, startIdx).join(' ');
                 const target = words.slice(startIdx, startIdx + length).join(' ');
                 const post = words.slice(startIdx + length).join(' ');
-                
+
                 // Only if target is not empty
                 if (target.trim().length > 0) {
                     p.innerHTML = `${pre} <strong>${target}</strong> ${post}`;
                 }
-             }
+            }
         }
     });
 
     // 3. STYLE & HIERARCHY CHECKS (Programmatic cleaning)
     // Ensure h1 is h1, others follow suit.
     // (Assuming H1 is handled by main render, check internal headers)
-    
+
     // Ensure no empty headers
     doc.querySelectorAll('h2, h3, h4').forEach(h => {
         if (!h.textContent?.trim()) h.remove();
@@ -482,7 +484,7 @@ export const refineStyling = (html: string): string => {
 
 export const buildPrompt = (config: ArticleConfig): string => {
     const { topic, metaTitle, keywords, tone, wordCount, refUrls, refContent, csvData, outlineStructure, approvedLinks, projectName, niche, questions, lsiKeywords, creativityLevel, contextInstructions, isStrictMode, strictFrequency } = config;
-    
+
     let linkingInstructions = "";
     if (approvedLinks && approvedLinks.length > 0) {
         const products = approvedLinks.filter(l => l.type === 'product');
@@ -541,16 +543,16 @@ ${outlineStructure.map(h => `${h.type}: ${h.text} (Objetivo: ${h.wordCount}) [In
     if (isStrictMode) {
         const freq = strictFrequency || 30;
         const faqInstruction = freq > 80 ? "YOU MUST ANSWER ALL FAQs provided." : freq < 30 ? "Answer FAQs only if very relevant." : "Answer most FAQs.";
-        
+
         let keywordInstruction = "";
-        if(freq <= 30) {
-             keywordInstruction = "Ensure keywords appear naturally (1-2% density). Do not force if it hurts readability.";
+        if (freq <= 30) {
+            keywordInstruction = "Ensure keywords appear naturally (1-2% density). Do not force if it hurts readability.";
         } else if (freq <= 60) {
-             keywordInstruction = "Increase keyword density (3-4%). Repeat keywords in headings and first paragraphs.";
+            keywordInstruction = "Increase keyword density (3-4%). Repeat keywords in headings and first paragraphs.";
         } else {
-             keywordInstruction = "MAXIMUM DENSITY. Force keywords into the text repeatedly (Keyword Stuffing). Ignore flow if necessary.";
+            keywordInstruction = "MAXIMUM DENSITY. Force keywords into the text repeatedly (Keyword Stuffing). Ignore flow if necessary.";
         }
-        
+
         strictModeInstruction = `
 ### MODO ESTRICTO DE REDACCIÓN (ACTIVADO)
 Frecuencia/Intensidad: ${freq}%
@@ -624,10 +626,10 @@ export const generateArticleStream = async (apiKeys: string[] | string, model: s
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const stream = await ai.models.generateContentStream({
             // Force Flash model regardless of input to avoid 429 on Pro models
-            model: model, // Use selected model
+            model: model || 'gemini-2.5-flash', // Use selected model or default
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: {
-                temperature: 0.7, 
+                temperature: 0.7,
                 systemInstruction: "Eres un redactor HTML experto. Generas HTML limpio.",
             }
         });
@@ -651,7 +653,7 @@ export const refineArticleContent = async (apiKeys: string[] | string, currentHt
     2. Do NOT strip existing images or links unless instructed.
     3. Apply the requested changes while maintaining tone and style.
     `;
-    
+
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -676,7 +678,7 @@ export const findCampaignAssets = async (apiKeys: string[] | string, query: stri
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash', 
+            model: 'gemini-2.5-flash',
             contents: prompt,
             tools: [{ googleSearch: {} }],
         });
@@ -694,7 +696,7 @@ export const findCampaignAssets = async (apiKeys: string[] | string, query: stri
 };
 
 export const suggestImagePlacements = async (apiKeys: string[] | string, articleHtml: string, count: string): Promise<AIImageRequest[]> => {
-    const truncated = articleHtml.substring(0, 30000); 
+    const truncated = articleHtml.substring(0, 30000);
     const numImages = count === 'auto' ? "3 to 5" : count;
 
     const prompt = `
@@ -720,7 +722,7 @@ export const generateRealImage = async (apiKeys: string[] | string, basePrompt: 
     const userInstruction = config.userPrompt ? `User Instruction: ${config.userPrompt}.` : "";
 
     let finalPrompt = `${basePrompt}. ${styleString} ${colorString} ${userInstruction} Minimalist composition, clean, high quality for web.`;
-    
+
     return executeWithKeyRotation(apiKeys, async (ai) => {
         try {
             const response = await ai.models.generateContent({
@@ -729,15 +731,15 @@ export const generateRealImage = async (apiKeys: string[] | string, basePrompt: 
                     parts: [{ text: finalPrompt }]
                 }
             });
-            
+
             for (const part of response.candidates?.[0]?.content?.parts || []) {
                 if (part.inlineData) {
                     return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
                 }
             }
             throw new Error("No image generated.");
-        } catch(e) {
-             throw e;
+        } catch (e) {
+            throw e;
         }
     });
 };
@@ -761,7 +763,7 @@ export const compositeWatermark = (base64Image: string, base64Watermark: string)
                 const wmWidth = canvas.width * 0.15;
                 const wmAspect = watermark.height / watermark.width;
                 const wmHeight = wmWidth * wmAspect;
-                
+
                 const x = canvas.width - wmWidth - (canvas.width * 0.05);
                 const y = canvas.height - wmHeight - (canvas.height * 0.05);
 
@@ -781,8 +783,8 @@ export const compositeWatermark = (base64Image: string, base64Watermark: string)
 
 
 export const generateSchemaMarkup = async (apiKeys: string[] | string, metadata: any, articleHtml: string, type: 'Article' | 'Product' = 'Article'): Promise<string> => {
-    const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0,500)}. Include 'image' placeholder. Return JSON only.`;
-    
+    const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0, 500)}. Include 'image' placeholder. Return JSON only.`;
+
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -843,7 +845,7 @@ const fetchJinaSearch = async (query: string, apiKey: string): Promise<any> => {
         const text = await res.text();
         return {
             organic_results: [],
-            raw_text: text, 
+            raw_text: text,
             source: 'jina'
         };
     } catch (e) {
@@ -854,7 +856,7 @@ const fetchJinaSearch = async (query: string, apiKey: string): Promise<any> => {
 // --- AI FILTERING GATEKEEPER ---
 const filterQualityResults = async (apiKeys: string[] | string, results: any[], keyword: string): Promise<any[]> => {
     if (!results || results.length === 0) return [];
-    
+
     const candidates = results.map((r, i) => ({
         id: i,
         title: r.title,
@@ -880,26 +882,26 @@ const filterQualityResults = async (apiKeys: string[] | string, results: any[], 
         const goodIds: number[] = JSON.parse(response.text);
         const filtered = results.filter((_, index) => goodIds.includes(index));
         if (filtered.length === 0) return results.slice(0, 3);
-        return filtered.slice(0, 8); 
+        return filtered.slice(0, 8);
     });
 }
 
 export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string, csvData: any[], projectName?: string, serperKey?: string, valueSerpKey?: string, jinaKey?: string): Promise<SEOAnalysisResult> => {
-     // 1. Context Retrieval (Internal Data)
-     const context = retrieveContext(csvData, keyword, "");
-     const productContext = context.products.slice(0, 30).map(p => `- ${p.title} (${p.url})`).join('\n'); 
-     const collectionContext = context.collections.slice(0, 15).map(c => `- ${c.title} (${c.url})`).join('\n');
+    // 1. Context Retrieval (Internal Data)
+    const context = retrieveContext(csvData, keyword, "");
+    const productContext = context.products.slice(0, 30).map(p => `- ${p.title} (${p.url})`).join('\n');
+    const collectionContext = context.collections.slice(0, 15).map(c => `- ${c.title} (${c.url})`).join('\n');
 
-     // 2. GATHER EXTERNAL INTEL (SERP)
-     let serpContext = "";
-     
-     if ((serperKey && serperKey.length > 5) || (valueSerpKey && valueSerpKey.length > 5) || (jinaKey && jinaKey.length > 5)) {
+    // 2. GATHER EXTERNAL INTEL (SERP)
+    let serpContext = "";
+
+    if ((serperKey && serperKey.length > 5) || (valueSerpKey && valueSerpKey.length > 5) || (jinaKey && jinaKey.length > 5)) {
         const intentPrompt = `
         Construct a search query to find LONG-FORM CONTENT (Articles, Blogs, Guides) about "${keyword}".
         Constraint: Exclude e-commerce product pages. Exclude project: ${projectName}.
         Output: ONLY the query string.
         `;
-        
+
         let smartQuery = "";
         try {
             // Use key rotation for this generative step
@@ -910,7 +912,7 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
                 });
                 smartQuery = queryResponse.text?.trim().replace(/^"|"$/g, '') || `${keyword} blog guía`;
             });
-            
+
             if (!smartQuery.includes('-site:amazon')) smartQuery += " -site:amazon.es -site:zalando.es -inurl:cart";
 
             // Fallback strategy: Serper > ValueSERP > Jina AI
@@ -921,23 +923,23 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
                 realSerpData = await fetchSerperSearch(smartQuery, serperKey);
                 source = "serper";
             }
-            
+
             if (!realSerpData && valueSerpKey && valueSerpKey.length > 5) {
                 realSerpData = await fetchRealSERP(smartQuery, valueSerpKey);
                 source = "valueserp";
-            } 
-            
+            }
+
             if (!realSerpData && jinaKey && jinaKey.length > 5) {
                 realSerpData = await fetchJinaSearch(smartQuery, jinaKey);
                 source = "jina";
             }
-            
+
             if (source === 'serper' && realSerpData && realSerpData.organic) {
                 const filteredCompetitors = await filterQualityResults(apiKeys, realSerpData.organic, keyword);
-                serpContext = `REAL SERP DATA (Serper): \n Competitors: ${JSON.stringify(filteredCompetitors.map((r:any) => ({title: r.title, link: r.link, snippet: r.snippet})))} \n People Also Ask: ${JSON.stringify(realSerpData?.peopleAlsoAsk || [])}`;
+                serpContext = `REAL SERP DATA (Serper): \n Competitors: ${JSON.stringify(filteredCompetitors.map((r: any) => ({ title: r.title, link: r.link, snippet: r.snippet })))} \n People Also Ask: ${JSON.stringify(realSerpData?.peopleAlsoAsk || [])}`;
             } else if (source === 'valueserp' && realSerpData && realSerpData.organic_results) {
                 const filteredCompetitors = await filterQualityResults(apiKeys, realSerpData.organic_results, keyword);
-                serpContext = `REAL SERP DATA (ValueSERP): \n Competitors: ${JSON.stringify(filteredCompetitors.map((r:any) => ({title: r.title, link: r.link, snippet: r.snippet})))} \n Related: ${JSON.stringify(realSerpData?.related_searches || [])} \n PAA: ${JSON.stringify(realSerpData?.people_also_ask || [])}`;
+                serpContext = `REAL SERP DATA (ValueSERP): \n Competitors: ${JSON.stringify(filteredCompetitors.map((r: any) => ({ title: r.title, link: r.link, snippet: r.snippet })))} \n Related: ${JSON.stringify(realSerpData?.related_searches || [])} \n PAA: ${JSON.stringify(realSerpData?.people_also_ask || [])}`;
             } else if (source === 'jina' && realSerpData) {
                 serpContext = `REAL SERP DATA (Jina AI): \n Context from top results: ${realSerpData.raw_text.substring(0, 15000)}`;
             } else {
@@ -947,11 +949,11 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
         } catch (e) {
             serpContext = "No External data available (Error). Rely on internal knowledge.";
         }
-     } else {
+    } else {
         serpContext = "No external API keys. Rely on internal knowledge.";
-     }
+    }
 
-     const schema = {
+    const schema = {
         type: Type.OBJECT,
         properties: {
             nicheDetected: { type: Type.STRING },
@@ -992,7 +994,7 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
             recommendedWordCount: { type: Type.STRING }
         },
         required: [
-            "nicheDetected", "keywordIdeas", "autocompleteLongTail", "frequentQuestions", "top10Urls", 
+            "nicheDetected", "keywordIdeas", "autocompleteLongTail", "frequentQuestions", "top10Urls",
             "lsiKeywords", "suggestedInternalLinks"
         ]
     };
@@ -1019,14 +1021,14 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
             }
         });
         const json = JSON.parse(response.text);
-        
+
         if (!json.keywordIdeas) json.keywordIdeas = { shortTail: [], midTail: [] };
         if (!json.top10Urls) json.top10Urls = [];
         if (!json.suggestedInternalLinks) json.suggestedInternalLinks = [];
         if (!json.autocompleteLongTail) json.autocompleteLongTail = [];
         if (!json.frequentQuestions) json.frequentQuestions = [];
         if (!json.lsiKeywords) json.lsiKeywords = [];
-        
+
         json.recommendedWordCount = json.recommendedWordCount || "1500";
         json.snippet = { metaTitle: "", h1: "", metaDescription: "", slug: "" };
         json.outline = { headers: [] };
@@ -1102,31 +1104,31 @@ export const generateOutlineStrategy = async (apiKeys: string[] | string, config
                 responseSchema: schema
             }
         });
-        
+
         return JSON.parse(response.text);
     });
 };
 
 export const runHumanizerPipeline = async (
-    apiKeys: string[] | string, 
-    html: string, 
-    config: HumanizerConfig, 
-    intensity: number, 
+    apiKeys: string[] | string,
+    html: string,
+    config: HumanizerConfig,
+    intensity: number,
     onStatus: (msg: string) => void
-): Promise<{html: string}> => {
+): Promise<{ html: string }> => {
     onStatus("Analyzing content patterns...");
-    
+
     // STRICT MODE LOGIC
     let strictInstructions = "";
     if (config.isStrictMode) {
         const freq = config.strictFrequency || 30;
         let keywordInstruction = "";
-        if(freq <= 30) {
-             keywordInstruction = "Ensure keywords appear naturally (1-2% density). Do not force if it hurts readability.";
+        if (freq <= 30) {
+            keywordInstruction = "Ensure keywords appear naturally (1-2% density). Do not force if it hurts readability.";
         } else if (freq <= 60) {
-             keywordInstruction = "Increase keyword density (3-4%). Repeat keywords in headings and first paragraphs.";
+            keywordInstruction = "Increase keyword density (3-4%). Repeat keywords in headings and first paragraphs.";
         } else {
-             keywordInstruction = "MAXIMUM DENSITY. Force keywords into the text repeatedly (Keyword Stuffing). Ignore flow if necessary.";
+            keywordInstruction = "MAXIMUM DENSITY. Force keywords into the text repeatedly (Keyword Stuffing). Ignore flow if necessary.";
         }
 
         strictInstructions = `
@@ -1166,21 +1168,21 @@ export const runHumanizerPipeline = async (
             model: 'gemini-2.5-flash',
             contents: prompt
         });
-        
+
         let newHtml = response.text || html;
         // Clean markdown block if present
         newHtml = newHtml.replace(/```html/g, '').replace(/```/g, '');
-        
+
         onStatus("Final Polish...");
         return { html: newHtml };
     });
 };
 
 export const runSmartEditor = async (
-    apiKeys: string[] | string, 
-    html: string, 
-    percentage: number, 
-    notes: string, 
+    apiKeys: string[] | string,
+    html: string,
+    percentage: number,
+    notes: string,
     onStatus: (msg: string) => void,
     isStrictMode?: boolean,
     strictFrequency?: number,
@@ -1188,18 +1190,18 @@ export const runSmartEditor = async (
     questions?: string[]
 ): Promise<string> => {
     onStatus("Applying editorial changes...");
-    
+
     // STRICT MODE LOGIC
     let strictInstructions = "";
     if (isStrictMode) {
         const freq = strictFrequency || 30;
         let keywordInstruction = "";
-        if(freq <= 30) {
-             keywordInstruction = "Ensure keywords appear naturally (1-2% density).";
+        if (freq <= 30) {
+            keywordInstruction = "Ensure keywords appear naturally (1-2% density).";
         } else if (freq <= 60) {
-             keywordInstruction = "Ensure high keyword density (3-4%).";
+            keywordInstruction = "Ensure high keyword density (3-4%).";
         } else {
-             keywordInstruction = "Force keyword stuffing (>5%).";
+            keywordInstruction = "Force keyword stuffing (>5%).";
         }
 
         strictInstructions = `
