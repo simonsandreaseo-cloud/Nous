@@ -7,6 +7,7 @@ import SeoSuitePage from '../../pages/tools/SeoSuitePage';
 import BlogVizPage from '../../pages/tools/BlogVizPage';
 import ReportGeneratorPage from '../../pages/tools/ReportGeneratorPage';
 import ContentWriterPage from '../../pages/tools/ContentWriterPage';
+import UserDashboard from '../../../pages/UserDashboard';
 import ServiceDetail from '../../pages/ServiceDetail';
 
 const AnimatedRoutes: React.FC = () => {

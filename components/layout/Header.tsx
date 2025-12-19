@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SITE_CONFIG } from '../../constants';
 import { motion, AnimatePresence } from 'framer-motion';
+import AuthButton from '../auth/AuthButton';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -29,8 +30,8 @@ const Header: React.FC = () => {
   return (
     <header
       className={`absolute top-0 left-0 w-full z-50 transition-all duration-700 ease-[0.22,1,0.36,1] ${isScrolled
-          ? 'py-4 bg-brand-white/95 backdrop-blur-md border-b border-brand-power/5 shadow-sm'
-          : 'py-8 bg-transparent'
+        ? 'py-4 bg-brand-white/95 backdrop-blur-md border-b border-brand-power/5 shadow-sm'
+        : 'py-8 bg-transparent'
         }`}
     >
       <div className="max-w-screen-2xl mx-auto px-6 md:px-12 flex justify-between items-center">
@@ -69,7 +70,9 @@ const Header: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        <div></div>
+        <div>
+          <AuthButton />
+        </div>
 
       </div>
     </header>

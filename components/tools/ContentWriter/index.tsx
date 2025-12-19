@@ -1,5 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../context/AuthContext';
 import { createRoot } from 'react-dom/client';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -43,6 +45,10 @@ const MultiKeyModal = ({ isOpen, onClose, onSave, currentKeys }: { isOpen: boole
 }
 
 const App = () => {
+    const { user } = useAuth();
+    const [draftId, setDraftId] = useState<number | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [viewMode, setViewMode] = useState<'setup' | 'seo-review' | 'structure-review' | 'workspace'>('setup');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [configStep, setConfigStep] = useState<'data' | 'keyword'>('data');
@@ -131,6 +137,64 @@ const App = () => {
             setHtmlContent(cleanAndFormatHtml(cleanText));
         }
     }, [fullResponse]);
+
+    // LOAD DRAFT LOGIC
+    useEffect(() => {
+        // Simple check: if URL has ?draft=ID, load it. (Or just load latest for now if user logged in)
+        // For this iteration, let's just allow loading via parent or auto-load latest if in "setup" mode? 
+        // Better: The UserDashboard handles navigation. If we come here, maybe check URL params later.
+        // For now, let's implement the SAVE logic first.
+    }, []);
+
+    const handleSaveCloud = async () => {
+        if (!user) return alert("Debes iniciar sesión para guardar en la nube.");
+        if (!htmlContent && !strategyH1) return alert("No hay contenido para guardar.");
+
+        setIsSaving(true);
+        try {
+            const draftData = {
+                user_id: user.id,
+                title: strategyH1 || projectName || 'Borrador sin título',
+                html_content: htmlContent,
+                strategy_data: {
+                    projectName,
+                    targetKeyword,
+                    detectedNiche,
+                    strategyOutline,
+                    strategyTone,
+                    apiKeys
+                },
+                updated_at: new Date().toISOString()
+            };
+
+            let error;
+            let data;
+
+            if (draftId) {
+                // Update
+                const res = await supabase.from('content_drafts').update(draftData).eq('id', draftId).select();
+                error = res.error;
+                data = res.data;
+            } else {
+                // Insert
+                const res = await supabase.from('content_drafts').insert([draftData]).select();
+                error = res.error;
+                data = res.data;
+            }
+
+            if (error) throw error;
+
+            if (data && data[0]) {
+                setDraftId(data[0].id);
+                setLastSaved(new Date());
+            }
+        } catch (e: any) {
+            console.error("Error saving to cloud:", e);
+            alert("Error al guardar: " + e.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleApiError = (e: any) => {
         if (e.status === 429 || (e.message && e.message.includes('quota'))) { setShowKeyModal(true); alert("Quota superada. Añade más keys."); }
@@ -446,7 +510,19 @@ const App = () => {
 
                         <div style={styles.main as any}>
                             <header style={styles.header as any}>
-                                <div style={{ display: 'flex', gap: '8px' }}>{status && <><LoadingSpinner /> {status}</>}</div>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    {status && <><LoadingSpinner /> {status}</>}
+                                    {user && (
+                                        <button
+                                            style={{ ...styles.button, backgroundColor: isSaving ? '#E2E8F0' : '#DCFCE7', color: isSaving ? '#64748B' : '#166534', border: '1px solid #BBF7D0' } as any}
+                                            onClick={handleSaveCloud}
+                                            disabled={isSaving}
+                                        >
+                                            {isSaving ? <LoadingSpinner /> : <IconUpload />}
+                                            {isSaving ? 'Guardando...' : (lastSaved ? 'Guardado' : 'Guardar en Nube')}
+                                        </button>
+                                    )}
+                                </div>
                                 <button style={styles.button as any} onClick={() => copyRichText()}><IconCopy /> Copiar</button>
                             </header>
                             <div style={styles.contentArea as any}>
