@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
 
 // Define the schema for the plan
 const imagePlanSchema: Schema = {
@@ -38,21 +38,21 @@ const imagePlanSchema: Schema = {
 };
 
 export const analyzeTextAndPlanImages = async (
-  paragraphs: string[], 
-  instructions: string = "", 
+  paragraphs: string[],
+  instructions: string = "",
   language: SupportedLanguage = 'en',
   inlineImageCount: InlineImageCount = 'auto'
 ): Promise<ImagePlan> => {
   // Combine paragraphs 
   const contentWithIndices = paragraphs.map((p, i) => `[Paragraph ${i}]: ${p}`).join("\n\n");
 
-  const countInstruction = inlineImageCount === 'auto' 
+  const countInstruction = inlineImageCount === 'auto'
     ? "Identify 2 to 4 strategic locations within the text where an inline image would significantly enhance understanding."
     : `Identify EXACTLY ${inlineImageCount} locations within the text for inline images.`;
 
   // Language Specific Instructions
   let langInstruction = "";
-  
+
   if (language === 'es') {
     langInstruction = `
     OUTPUT RULES FOR SPANISH (Español):
@@ -118,7 +118,7 @@ const getClosestSupportedRatio = (ratio: AspectRatio, customWidth?: number, cust
   if (!customWidth || !customHeight) return '16:9'; // Default fallback
 
   const targetRatio = customWidth / customHeight;
-  
+
   const supported = [
     { str: '16:9', val: 1.777 },
     { str: '4:3', val: 1.333 },
@@ -136,9 +136,9 @@ const getClosestSupportedRatio = (ratio: AspectRatio, customWidth?: number, cust
 };
 
 export const generateImage = async (
-  prompt: string, 
-  aspectRatio: AspectRatio = '16:9', 
-  customWidth?: number, 
+  prompt: string,
+  aspectRatio: AspectRatio = '16:9',
+  customWidth?: number,
   customHeight?: number
 ): Promise<string> => {
   try {
@@ -149,7 +149,7 @@ export const generateImage = async (
     // We append a negative constraint implicitly by asking for "clean" composition, 
     // but specifically for custom dimensions, we add the pixel hint.
     if (aspectRatio === 'custom' && customWidth && customHeight) {
-       finalPrompt += ` Composition should fit a ${customWidth}x${customHeight} pixel layout.`;
+      finalPrompt += ` Composition should fit a ${customWidth}x${customHeight} pixel layout.`;
     }
 
     const response = await ai.models.generateContent({
@@ -169,8 +169,8 @@ export const generateImage = async (
     const candidate = response.candidates?.[0];
 
     if (!candidate) {
-       // This usually happens if safety filters blocked the entire response
-       throw new Error("Safety filters blocked the image generation. Please try a different prompt or style.");
+      // This usually happens if safety filters blocked the entire response
+      throw new Error("Safety filters blocked the image generation. Please try a different prompt or style.");
     }
 
     // Extract image
@@ -179,11 +179,11 @@ export const generateImage = async (
         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }
     }
-    
+
     // Check for text refusal
     const textPart = candidate.content?.parts?.find(p => p.text);
     if (textPart && textPart.text) {
-        throw new Error(`AI Refused: ${textPart.text}`);
+      throw new Error(`AI Refused: ${textPart.text}`);
     }
 
     throw new Error("No image data found in response");

@@ -52,7 +52,13 @@ const App = () => {
     const [viewMode, setViewMode] = useState<'setup' | 'seo-review' | 'structure-review' | 'workspace'>('setup');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [configStep, setConfigStep] = useState<'data' | 'keyword'>('data');
-    const [apiKeys, setApiKeys] = useState<string[]>(process.env.API_KEY ? [process.env.API_KEY] : []);
+
+    // SAFE INIT: Check for API Key safely using Vite standard or fallback
+    const initialKey = import.meta.env.VITE_GEMINI_API_KEY || ''; // Prefer VITE_ prefix if available
+    const [apiKeys, setApiKeys] = useState<string[]>(initialKey ? [initialKey] : []);
+
+    console.log("ContentWriter Rendered. ViewMode:", viewMode, "Keys:", apiKeys.length); // DEBUG
+
     const [showKeyModal, setShowKeyModal] = useState(false);
     // Cambiado a gemini-2.5-flash según disponibilidad del usuario
     const [model, setModel] = useState('gemini-2.5-flash');
