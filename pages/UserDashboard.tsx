@@ -100,7 +100,7 @@ const UserDashboard: React.FC = () => {
                                     <FileText className="text-brand-accent" />
                                     Mis Artículos
                                 </h2>
-                                <Link to="/herramientas/content-writer" className="text-xs font-bold text-brand-power/50 hover:text-brand-accent uppercase tracking-widest">
+                                <Link to="/herramientas/redactor-ia" className="text-xs font-bold text-brand-power/50 hover:text-brand-accent uppercase tracking-widest">
                                     Nuevo +
                                 </Link>
                             </div>
@@ -131,7 +131,7 @@ const UserDashboard: React.FC = () => {
                             ) : (
                                 <div className="text-center py-12 border-2 border-dashed border-brand-power/5 rounded-xl">
                                     <p className="text-brand-power/40 text-sm mb-4">No has guardado ningún artículo aún.</p>
-                                    <Link to="/herramientas/content-writer" className="inline-block px-6 py-3 bg-brand-power text-brand-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-brand-accent hover:text-brand-power transition-colors">
+                                    <Link to="/herramientas/redactor-ia" className="inline-block px-6 py-3 bg-brand-power text-brand-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-brand-accent hover:text-brand-power transition-colors">
                                         Crear mi primer artículo
                                     </Link>
                                 </div>
@@ -147,7 +147,7 @@ const UserDashboard: React.FC = () => {
                             <h3 className="font-bold text-lg mb-6 relative z-10">Herramientas</h3>
                             <ul className="space-y-4 relative z-10">
                                 <li>
-                                    <Link to="/herramientas/content-writer" className="flex items-center justify-between group">
+                                    <Link to="/herramientas/redactor-ia" className="flex items-center justify-between group">
                                         <span className="text-brand-white/70 group-hover:text-white transition-colors">Content Writer</span>
                                         <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </Link>
