@@ -1,5 +1,5 @@
 import React, { useState, Suspense, lazy, useEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
 import HeroPhase1 from '../components/sections/HeroPhase1';
@@ -42,18 +42,30 @@ const Home: React.FC = () => {
 
       <ScrollProgress />
       <SideNavigation />
-      
-      <main id="main-content" className="flex-grow focus:outline-none" tabIndex={-1}>
-        <HeroPhase1 />
-        <About />
-        
+
+      <motion.main
+        id="main-content"
+        className="flex-grow focus:outline-none"
+        tabIndex={-1}
+        exit={{ opacity: 0, transition: { duration: 0.5 } }}
+      >
+        <motion.div exit={{ x: '-100vw', transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } }}>
+          <HeroPhase1 />
+        </motion.div>
+
+        <motion.div exit={{ x: '100vw', transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.1 } }}>
+          <About />
+        </motion.div>
+
         <Suspense fallback={<SectionLoader />}>
+          <motion.div exit={{ y: 100, opacity: 0, transition: { duration: 0.5, delay: 0.2 } }}>
             <Services />    {/* Pilar 1: Clara */}
             <Formations />  {/* Pilar 2: Potente */}
             <Tools />       {/* Pilar 3: Creativa */}
             <Contact />
+          </motion.div>
         </Suspense>
-      </main>
+      </motion.main>
     </>
   );
 };

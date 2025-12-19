@@ -59,18 +59,21 @@ export const SERVICES = [
   {
     id: 1,
     title: "Análisis de Viabilidad",
+    slug: "analisis-viabilidad",
     description: "Evaluación realista de tu mercado. Analizamos la competencia y tus activos actuales para determinar si tu plan de asalto es ejecutable o un suicidio financiero.",
     tags: ["Realismo Estratégico", "Due Diligence", "Datos Crudos"]
   },
   {
     id: 2,
     title: "Arquitectura de Dominio",
+    slug: "arquitectura-dominio",
     description: "Diseño estructural de SILOs y flujos de autoridad. Construimos el esqueleto técnico que obliga a Google a entender y priorizar tu negocio.",
     tags: ["Ingeniería Técnica", "Estructura", "Escalabilidad"]
   },
   {
     id: 3,
     title: "Plan de Ejecución Anual",
+    slug: "plan-ejecucion",
     description: "No es un PDF de 80 páginas. Es una hoja de ruta táctica mes a mes basada en lo que Search Console exige para dominar tu sector.",
     tags: ["Acción Directa", "Roadmap", "Resultados"]
   }
