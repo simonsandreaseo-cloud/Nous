@@ -7,7 +7,7 @@ import SeoSuitePage from '../../pages/tools/SeoSuitePage';
 import BlogVizPage from '../../pages/tools/BlogVizPage';
 import ReportGeneratorPage from '../../pages/tools/ReportGeneratorPage';
 import ContentWriterPage from '../../pages/tools/ContentWriterPage';
-import UserDashboard from '../../../pages/UserDashboard';
+import UserDashboard from '../../pages/UserDashboard';
 import ServiceDetail from '../../pages/ServiceDetail';
 
 const AnimatedRoutes: React.FC = () => {
@@ -23,6 +23,7 @@ const AnimatedRoutes: React.FC = () => {
                 <Route path="/herramientas/blog-viz" element={<BlogVizPage />} />
                 <Route path="/herramientas/generador-informes" element={<ReportGeneratorPage />} />
                 <Route path="/herramientas/redactor-ia" element={<ContentWriterPage />} />
+                <Route path="/dashboard" element={<UserDashboard />} />
             </Routes>
         </AnimatePresence>
     );
