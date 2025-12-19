@@ -27,9 +27,8 @@ const Footer: React.FC = () => {
         <nav className="flex gap-8" aria-label="Redes Sociales">
           {/* Social links removed */}
         </nav>
-      </nav>
-    </div>
-    </footer >
+      </div>
+    </footer>
   );
 };
 
