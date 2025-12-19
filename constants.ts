@@ -19,7 +19,7 @@ export const SITE_CONFIG: SiteConfig = {
   role: "Arquitecto-Ejecutor SEO",
   h1: "SEO Inteligente",
   subheadline: "Estrategia Clara, Realista y Potente",
-  contactEmail: "contacto@simonsandrea.com",
+  contactEmail: "contacto@simonsandreaseo.com",
   attributes: [
     {
       id: 'clara',

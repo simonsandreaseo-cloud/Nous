@@ -33,9 +33,10 @@ const AuthButton: React.FC = () => {
                         <User size={14} />
                     )}
                 </div>
-                <span className="text-xs font-medium text-brand-power/70 hidden md:block max-w-[100px] truncate">
-                    {user.email}
-                </span>
+                <div className="hidden md:flex flex-col items-start leading-none">
+                    <span className="text-[10px] font-bold text-brand-power uppercase tracking-widest">Mi Espacio</span>
+                    <span className="text-[10px] font-medium text-brand-power/50 truncate max-w-[100px]">{user.email?.split('@')[0]}</span>
+                </div>
             </Link>
 
             <AnimatePresence>

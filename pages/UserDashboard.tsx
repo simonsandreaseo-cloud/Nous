@@ -139,6 +139,18 @@ const UserDashboard: React.FC = () => {
                                         <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </Link>
                                 </li>
+                                <li>
+                                    <Link to="/herramientas/blog-viz" className="flex items-center justify-between group">
+                                        <span className="text-brand-white/70 group-hover:text-white transition-colors">Blog Viz AI</span>
+                                        <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link to="/herramientas/generador-informes" className="flex items-center justify-between group">
+                                        <span className="text-brand-white/70 group-hover:text-white transition-colors">Generador de Informes</span>
+                                        <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </Link>
+                                </li>
                             </ul>
                         </div>
                     </div>
