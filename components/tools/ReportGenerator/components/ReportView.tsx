@@ -11,7 +11,6 @@ interface ReportViewProps {
     onRegenerate: (message: string) => void;
     isRegenerating: boolean;
     dashboardStats?: DashboardStats;
-    dashboardStats?: DashboardStats;
     logo?: string | null;
     onSave?: () => void;
     isSaving?: boolean;
@@ -35,7 +34,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
     p2Name,
     onRegenerate,
     isRegenerating,
-    dashboardStats,
     dashboardStats,
     logo,
     onSave,
