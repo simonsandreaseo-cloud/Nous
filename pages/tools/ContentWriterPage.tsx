@@ -1,11 +1,12 @@
 import React from 'react';
 import App from '../../components/tools/ContentWriter/index';
+import ToolWrapper from '../../components/layout/ToolWrapper';
 
 const ContentWriterPage: React.FC = () => {
     return (
-        <div className="pt-16 min-h-screen">
+        <ToolWrapper backTo="/" backLabel="Volver al Inicio">
             <App />
-        </div>
+        </ToolWrapper>
     );
 };
 export default ContentWriterPage;

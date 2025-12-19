@@ -313,9 +313,18 @@ const App = () => {
                             <div style={styles.stepCard as any}>
                                 <div style={styles.stepTitle}>Configuración de Proyecto</div>
                                 <input style={styles.input} value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Nombre del proyecto..." />
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <label style={styles.label}>Google AI Keys</label>
-                                    <button onClick={() => setShowKeyModal(true)} style={{ ...styles.button, padding: '4px 8px', fontSize: '11px' }}>Gestionar ({apiKeys.length})</button>
+                                <div style={{ marginBottom: '12px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                        <label style={styles.label}>Google AI Keys</label>
+                                        <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#4F46E5', textDecoration: 'underline', cursor: 'pointer' }}>Obtener Key</a>
+                                    </div>
+                                    <input
+                                        type="password"
+                                        style={styles.input}
+                                        value={apiKeys[0] || ''}
+                                        onChange={(e) => setApiKeys([e.target.value])}
+                                        placeholder="Pega tu API Key aquí..."
+                                    />
                                 </div>
                                 <select style={styles.select as any} value={model} onChange={(e) => setModel(e.target.value)}>
                                     <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recomendado)</option>

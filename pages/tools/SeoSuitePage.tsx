@@ -1,11 +1,12 @@
 import React from 'react';
 import App from '../../components/tools/SeoSuite/App';
+import ToolWrapper from '../../components/layout/ToolWrapper';
 
 const SeoSuitePage: React.FC = () => {
     return (
-        <div className="pt-16 min-h-screen">
+        <ToolWrapper backTo="/" backLabel="Volver al Inicio">
             <App />
-        </div>
+        </ToolWrapper>
     );
 };
 export default SeoSuitePage;

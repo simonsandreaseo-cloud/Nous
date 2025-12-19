@@ -145,6 +145,18 @@ const Tools: React.FC = () => {
             <ToolCard key={tool.id} tool={tool} index={idx} />
           ))}
         </motion.div>
+
+        <motion.div
+          className="mt-16 text-center"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.5 }}
+        >
+          <Link to="/herramientas" className="inline-block px-8 py-4 bg-brand-power text-brand-white font-bold rounded-lg hover:bg-brand-accent hover:text-brand-power transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+            Ver Todas las Herramientas
+          </Link>
+        </motion.div>
       </div>
     </section>
   );
