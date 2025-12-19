@@ -1,0 +1,5 @@
+{
+  "name": "SEO Cannibalization Detector",
+  "description": "A powerful tool to analyze Google Search Console data and detect keyword cannibalization issues where multiple URLs rank for the same query.",
+  "requestFramePermissions": []
+}

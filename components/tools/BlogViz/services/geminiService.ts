@@ -1,0 +1,195 @@
+import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '../types';
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+// Define the schema for the plan
+const imagePlanSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    featuredImage: {
+      type: Type.OBJECT,
+      properties: {
+        prompt: { type: Type.STRING, description: "A highly detailed description for an AI image generator (Imagen 3). STRICTLY FOLLOW LANGUAGE RULES." },
+        filename: { type: Type.STRING, description: "SEO-friendly filename (kebab-case)." },
+        rationale: { type: Type.STRING, description: "Why this image fits the article." },
+        altText: { type: Type.STRING, description: "SEO BEST PRACTICE: Concise description of image content + keyword context. Max 125 chars. No 'Image of' start." },
+        title: { type: Type.STRING, description: "A catchy, relevant title attribute." }
+      },
+      required: ["prompt", "filename", "rationale", "altText", "title"]
+    },
+    inlineImages: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          paragraphIndex: { type: Type.INTEGER, description: "The index of the paragraph after which this image should be inserted." },
+          prompt: { type: Type.STRING, description: "Detailed visual description." },
+          filename: { type: Type.STRING, description: "Semantic filename." },
+          rationale: { type: Type.STRING },
+          altText: { type: Type.STRING, description: "SEO optimized Alt text." },
+          title: { type: Type.STRING, description: "Image Title attribute." }
+        },
+        required: ["paragraphIndex", "prompt", "filename", "rationale", "altText", "title"]
+      }
+    }
+  },
+  required: ["featuredImage", "inlineImages"]
+};
+
+export const analyzeTextAndPlanImages = async (
+  paragraphs: string[], 
+  instructions: string = "", 
+  language: SupportedLanguage = 'en',
+  inlineImageCount: InlineImageCount = 'auto'
+): Promise<ImagePlan> => {
+  // Combine paragraphs 
+  const contentWithIndices = paragraphs.map((p, i) => `[Paragraph ${i}]: ${p}`).join("\n\n");
+
+  const countInstruction = inlineImageCount === 'auto' 
+    ? "Identify 2 to 4 strategic locations within the text where an inline image would significantly enhance understanding."
+    : `Identify EXACTLY ${inlineImageCount} locations within the text for inline images.`;
+
+  // Language Specific Instructions
+  let langInstruction = "";
+  
+  if (language === 'es') {
+    langInstruction = `
+    OUTPUT RULES FOR SPANISH (Español):
+    1. METADATA: 'altText', 'title', and 'rationale' MUST be in Spanish.
+    2. FILENAMES: MUST be in Spanish (kebab-case). KEEP technical Anglicisms (e.g., 'blockchain', 'marketing', 'software') in English within the filename.
+    3. PROMPTS (CRITICAL): 
+       - Write the visual description in English (for better AI generation).
+       - **TEXT IN IMAGE RULE**: STRONGLY AVOID text inside the generated images. Prefer symbolic, iconic, or abstract representations. 
+       - IF text is unavoidable (e.g., a sign, a specific chart label), YOU MUST EXPLICITLY WRITE THE TEXT IN SPANISH in the prompt. Example: "A sign that says 'Oferta'" (NOT 'Sale').
+       - Do not include generic English filler text.
+    `;
+  } else {
+    langInstruction = "OUTPUT RULE: All text fields must be in English.";
+  }
+
+  const prompt = `
+    You are an expert blog editor and SEO specialist. 
+    
+    TASK:
+    1. Analyze the article to identify the "Core Value Proposition" or main hook.
+    2. Create a 'Featured Image' plan that visually represents this core hook metaphorically or literally. It must be specific to this article, not generic.
+    3. ${countInstruction}
+    4. For each image, write a detailed prompt for Imagen 3.
+    5. Generate SEO-optimized metadata (Alt Text, Title, Filename).
+
+    SEO BEST PRACTICES FOR ALT TEXT:
+    - Be specific and descriptive (e.g., "Woman typing on laptop in a modern coffee shop" vs "Woman with laptop").
+    - Naturally include a relevant keyword from the article context if it fits the visual.
+    - Keep it under 125 characters.
+    - NEVER start with "Image of" or "Picture of".
+    - For the Featured Image, the alt text should strongly relate to the article's main topic.
+
+    ${langInstruction}
+
+    USER CUSTOM GUIDELINES:
+    ${instructions ? `The user has provided specific style guidelines. You MUST follow these: "${instructions}"` : "Style: High quality, professional, modern blog aesthetics."}
+
+    ARTICLE TEXT:
+    ${contentWithIndices}
+  `;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: imagePlanSchema,
+      temperature: 0.3 // Lower temperature for better adherence to instructions
+    }
+  });
+
+  if (!response.text) {
+    throw new Error("No plan generated by Gemini.");
+  }
+
+  return JSON.parse(response.text) as ImagePlan;
+};
+
+// Helper to map arbitrary ratios to API supported strings
+const getClosestSupportedRatio = (ratio: AspectRatio, customWidth?: number, customHeight?: number): string => {
+  if (ratio !== 'custom') return ratio;
+
+  if (!customWidth || !customHeight) return '16:9'; // Default fallback
+
+  const targetRatio = customWidth / customHeight;
+  
+  const supported = [
+    { str: '16:9', val: 1.777 },
+    { str: '4:3', val: 1.333 },
+    { str: '1:1', val: 1.0 },
+    { str: '3:4', val: 0.75 },
+    { str: '9:16', val: 0.5625 }
+  ];
+
+  // Find closest
+  const closest = supported.reduce((prev, curr) => {
+    return (Math.abs(curr.val - targetRatio) < Math.abs(prev.val - targetRatio) ? curr : prev);
+  });
+
+  return closest.str;
+};
+
+export const generateImage = async (
+  prompt: string, 
+  aspectRatio: AspectRatio = '16:9', 
+  customWidth?: number, 
+  customHeight?: number
+): Promise<string> => {
+  try {
+    const validRatio = getClosestSupportedRatio(aspectRatio, customWidth, customHeight);
+
+    // Enhance prompt to discourage text artifacts if not explicitly requested
+    let finalPrompt = prompt;
+    // We append a negative constraint implicitly by asking for "clean" composition, 
+    // but specifically for custom dimensions, we add the pixel hint.
+    if (aspectRatio === 'custom' && customWidth && customHeight) {
+       finalPrompt += ` Composition should fit a ${customWidth}x${customHeight} pixel layout.`;
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          { text: finalPrompt }
+        ]
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: validRatio
+        }
+      }
+    });
+
+    const candidate = response.candidates?.[0];
+
+    if (!candidate) {
+       // This usually happens if safety filters blocked the entire response
+       throw new Error("Safety filters blocked the image generation. Please try a different prompt or style.");
+    }
+
+    // Extract image
+    for (const part of candidate.content?.parts || []) {
+      if (part.inlineData && part.inlineData.data) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    
+    // Check for text refusal
+    const textPart = candidate.content?.parts?.find(p => p.text);
+    if (textPart && textPart.text) {
+        throw new Error(`AI Refused: ${textPart.text}`);
+    }
+
+    throw new Error("No image data found in response");
+  } catch (error: any) {
+    console.error("Image generation error:", error);
+    // Return a clearer error message to the UI
+    throw new Error(error.message || "Failed to generate image.");
+  }
+};

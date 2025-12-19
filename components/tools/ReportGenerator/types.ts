@@ -1,0 +1,221 @@
+
+
+export interface CSVRow {
+    date: Date;
+    clicks: number;
+    impressions: number;
+    position: number;
+    // Optional fields depending on the CSV Source
+    page?: string;
+    keyword?: string;
+    country?: string;
+    segment?: string;
+}
+
+export interface MetricSeries {
+    name: string;
+    clicks: number;
+    impressions: number;
+    position: number;
+    keywordCount: number;
+    dailySeriesClicks: number[];
+    dailySeriesPosition: number[];
+}
+
+export interface ComparisonItem extends MetricSeries {
+    clicksP1: number;
+    impressionsP1: number;
+    positionP1: number;
+    keywordCountP1: number;
+    dailySeriesClicksP1: number[];
+    dailySeriesPositionP1: number[];
+    
+    clicksP2: number;
+    impressionsP2: number;
+    positionP2: number;
+    keywordCountP2: number;
+    dailySeriesClicksP2: number[];
+    dailySeriesPositionP2: number[];
+
+    clicksChange: number;
+    impressionsChange: number;
+    positionChange: number;
+    keywordCountChange: number;
+}
+
+export interface SiteWideKPIs {
+    clicksP1: number;
+    clicksP2: number;
+    impressionsP1: number;
+    impressionsP2: number;
+    totalClicksChange: number;
+    totalImpressionsChange: number;
+    ctrP1: number;
+    ctrP2: number;
+    ctrChange: number;
+    avgPosP1: number;
+    avgPosP2: number;
+    avgPosChange: number;
+}
+
+export interface AnomalyPoint {
+    date: string;
+    value: number;
+    type: 'spike' | 'drop';
+    deviation: number; // How many std devs away
+}
+
+export interface DashboardStats {
+    kpis: SiteWideKPIs;
+    datasetStats: {
+        totalClicks: number;
+        totalImpressions: number;
+        totalDays: number;
+    };
+    segmentStats: { name: string; clicks: number; impressions: number }[];
+    dailyTrendP1: number[];
+    dailyTrendP2: number[];
+    datesP2: string[]; // Added for specific chart labels
+    period1Label: string;
+    period2Label: string;
+    anomalies: AnomalyPoint[]; // New field for UI
+}
+
+// Phase 2: Forensic Analysis Interfaces
+export interface KeywordCause {
+    keyword: string;
+    clicksChange: number;
+    impressionsChange: number;
+    positionP1: number;
+    positionP2: number;
+    positionChange: number;
+}
+
+export interface UrlLossDiagnosis {
+    url: string;
+    totalLoss: number;
+    culprits: KeywordCause[];
+}
+
+// Phase 3: Strategic Intelligence
+export interface StrategicOverview {
+    defend: { keyword: string, clicks: number, position: number }[]; // Pos 1-3
+    attack: { keyword: string, impressions: number, position: number }[]; // Pos 4-10
+    expand: { keyword: string, impressions: number, position: number }[]; // Pos 11-20
+    prune: { keyword: string, position: number, status: string }[]; // Decaying or Cannibalized
+}
+
+export interface CannibalizationChartData {
+    keyword: string;
+    urls: {
+        url: string;
+        dailyPositions: number[]; // Can also be clicks, but position shows the "fight" better
+    }[];
+    dates: string[];
+}
+
+// Phase 4: Clustering & Opportunity (Enhanced)
+export interface TopicCluster {
+    name: string; 
+    keywords: string[];
+    topUrls: { url: string, clicks: number, impressions: number }[]; // New field for URL visualization
+    totalImpressions: number;
+    avgPosition: number;
+    avgCtr: number;
+    difficultyScore: number; // 0-100 based on position
+    opportunityScore: number; // Calculated heuristic
+}
+
+// Phase 5: Tactical Actions
+export interface ContentBrief {
+    title: string;
+    targetKeyword: string;
+    intent: string;
+    structure: string[]; // H2s
+    semanticKeywords: string[];
+    audience: string;
+}
+
+export interface SnippetOptimization {
+    originalTitle: string;
+    originalDesc: string; // If inferred
+    variations: {
+        title: string;
+        description: string;
+        reasoning: string;
+    }[];
+}
+
+export interface ReportPayload {
+    period1Name: string;
+    period2Name: string;
+    userContext: string;
+    // Phase 3: Dedicated field for Agent Findings
+    agentInvestigation?: string; 
+    metricsSummary: any;
+    segmentAnalysis: any[];
+    visibilityAnalysis: { winners: any[], losers: any[] };
+    countryAnalysis: any[];
+    outlierAnalysis: any;
+    strikingDistanceOpportunities: any[];
+    keywordCannibalizationAlerts: any[];
+    ctrAnalysis: { redFlags: any[], opportunities: any[] };
+    ghostKeywordAlerts: any[];
+    keywordDecayAlerts: any[];
+    newKeywordDiscovery: any[];
+    page1LoserAlerts: any[];
+    topWinners: any[];
+    topLosers: any[];
+    // Phase 1 Additions: Concentration Analysis
+    concentrationAnalysis: {
+        clickConcentration: { items: any[], percentage: number, totalMetric: number, threshold: number };
+        impressionConcentration: { items: any[], percentage: number, totalMetric: number, threshold: number };
+    };
+    // Phase 2 Additions: Deep Dive / Forensic Analysis
+    lossCauseAnalysis: UrlLossDiagnosis[]; 
+    // Phase 3 Additions: Strategy & Visuals
+    strategicOverview: StrategicOverview;
+    // Phase 4 Additions: Clusters
+    topicClusters: TopicCluster[];
+    anomaliesFound: AnomalyPoint[]; // Send to AI
+    
+    // Critical addition for the "Handshake"
+    availableChartKeys: string[]; 
+}
+
+export interface LogEntry {
+    message: string;
+    type: 'info' | 'warn' | 'error';
+    timestamp: string;
+}
+
+export interface ChartData {
+    topWinners: ComparisonItem[];
+    topLosers: ComparisonItem[];
+    dashboardStats: DashboardStats;
+    chartLookup: Record<string, ComparisonItem>;
+    // Phase 3: Specific charts for conflicts
+    cannibalizationLookup: Record<string, CannibalizationChartData>;
+}
+
+export type FileType = 'pages' | 'queries' | 'countries';
+
+// Phase 1.2: Filter Options for the Query Engine
+export interface FilterOptions {
+    startDate?: Date;
+    endDate?: Date;
+    urlIncludes?: string; // Partial match
+    keywordIncludes?: string; // Partial match
+    country?: string; // Exact match
+    minClicks?: number;
+    minImpressions?: number;
+    limit?: number; // For rankings
+}
+
+export interface AggregatedMetrics {
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    avgPosition: number;
+    count: number;
+}
