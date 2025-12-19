@@ -1,7 +1,13 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
+let geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+
+export const setGeminiApiKey = (key: string) => {
+  geminiApiKey = key;
+};
+
+const getAI = () => new GoogleGenAI({ apiKey: geminiApiKey });
 
 // Define the schema for the plan
 const imagePlanSchema: Schema = {
@@ -94,7 +100,7 @@ export const analyzeTextAndPlanImages = async (
     ${contentWithIndices}
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await getAI().models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
     config: {
@@ -152,7 +158,7 @@ export const generateImage = async (
       finalPrompt += ` Composition should fit a ${customWidth}x${customHeight} pixel layout.`;
     }
 
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [

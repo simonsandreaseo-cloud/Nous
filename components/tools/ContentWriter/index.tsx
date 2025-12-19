@@ -164,12 +164,46 @@ const App = () => {
         }
     }, [fullResponse]);
 
+    // LOAD USER KEYS
+    useEffect(() => {
+        if (user) {
+            loadUserKeys();
+        }
+    }, [user]);
+
+    const loadUserKeys = async () => {
+        try {
+            const { data } = await supabase.from('user_api_keys').select('*');
+            if (data) {
+                const gKeys = data.filter(k => k.provider === 'gemini').map(k => k.key_value);
+                if (gKeys.length > 0) setApiKeys(gKeys);
+
+                const sKey = data.find(k => k.provider === 'serper');
+                if (sKey) setSerperKey(sKey.key_value);
+
+                const vKey = data.find(k => k.provider === 'valueserp');
+                if (vKey) setValueSerpKey(vKey.key_value);
+
+                const jKey = data.find(k => k.provider === 'jina');
+                if (jKey) setJinaKey(jKey.key_value);
+            }
+        } catch (e) { console.error("Error loading keys", e); }
+    };
+
+    const checkIfKeySaved = async (val: string, provider: string) => {
+        if (!user || !val || val.length < 10) return;
+        const { data } = await supabase.from('user_api_keys').select('id').eq('key_value', val).eq('provider', provider);
+        if (!data || data.length === 0) {
+            if (confirm(`¿Deseas guardar esta nueva API Key de ${provider} en tu perfil para usarla automáticamente después?`)) {
+                await supabase.from('user_api_keys').insert([{ user_id: user.id, provider, key_value: val, label: 'Auto-guardada' }]);
+                alert("Clave guardada con éxito.");
+            }
+        }
+    };
+
     // LOAD DRAFT LOGIC
     useEffect(() => {
-        // Simple check: if URL has ?draft=ID, load it. (Or just load latest for now if user logged in)
-        // For this iteration, let's just allow loading via parent or auto-load latest if in "setup" mode? 
-        // Better: The UserDashboard handles navigation. If we come here, maybe check URL params later.
-        // For now, let's implement the SAVE logic first.
+        // ...
     }, []);
 
     const handleSaveCloud = async () => {
@@ -413,17 +447,19 @@ const App = () => {
                                         style={styles.input}
                                         value={apiKeys[0] || ''}
                                         onChange={(e) => setApiKeys([e.target.value])}
+                                        onBlur={(e) => checkIfKeySaved(e.target.value, 'gemini')}
                                         placeholder="Pega tu API Key aquí..."
                                     />
+                                    <p style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px', fontStyle: 'italic' }}>Tus claves guardadas se cargarán automáticamente.</p>
                                 </div>
                                 <select style={styles.select as any} value={model} onChange={(e) => setModel(e.target.value)}>
                                     <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recomendado)</option>
                                     <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Velocidad)</option>
                                 </select>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                                    <input type="password" style={styles.input} value={serperKey} onChange={(e) => setSerperKey(e.target.value)} placeholder="Serper Key" />
-                                    <input type="password" style={styles.input} value={valueSerpKey} onChange={(e) => setValueSerpKey(e.target.value)} placeholder="ValueSERP" />
-                                    <input type="password" style={styles.input} value={jinaKey} onChange={(e) => setJinaKey(e.target.value)} placeholder="Jina AI" />
+                                    <input type="password" style={styles.input} value={serperKey} onChange={(e) => setSerperKey(e.target.value)} onBlur={(e) => checkIfKeySaved(e.target.value, 'serper')} placeholder="Serper Key" />
+                                    <input type="password" style={styles.input} value={valueSerpKey} onChange={(e) => setValueSerpKey(e.target.value)} onBlur={(e) => checkIfKeySaved(e.target.value, 'valueserp')} placeholder="ValueSERP" />
+                                    <input type="password" style={styles.input} value={jinaKey} onChange={(e) => setJinaKey(e.target.value)} onBlur={(e) => checkIfKeySaved(e.target.value, 'jina')} placeholder="Jina AI" />
                                 </div>
                             </div>
                             <div style={styles.stepCard as any}>

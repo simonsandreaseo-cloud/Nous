@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
 import { Navigate, Link } from 'react-router-dom';
-import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight } from 'lucide-react';
+import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles } from 'lucide-react';
 import ToolWrapper from '../components/layout/ToolWrapper';
 
 interface Draft {
@@ -13,16 +13,80 @@ interface Draft {
     strategy_data: any;
 }
 
+interface ApiKey {
+    id: number;
+    provider: string;
+    key_value: string;
+    label?: string;
+}
+
 const UserDashboard: React.FC = () => {
     const { user, loading, signOut } = useAuth();
     const [drafts, setDrafts] = useState<Draft[]>([]);
     const [isLoadingDrafts, setIsLoadingDrafts] = useState(true);
+    const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+    const [isLoadingKeys, setIsLoadingKeys] = useState(true);
+    const [newKey, setNewKey] = useState({ provider: 'gemini', key_value: '', label: '' });
+    const [showAddKey, setShowAddKey] = useState(false);
 
     useEffect(() => {
         if (user) {
             fetchDrafts();
+            fetchKeys();
         }
     }, [user]);
+
+    const fetchKeys = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('user_api_keys')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setApiKeys(data || []);
+        } catch (error) {
+            console.error('Error fetching keys:', error);
+        } finally {
+            setIsLoadingKeys(false);
+        }
+    };
+
+    const handleAddKey = async () => {
+        if (!newKey.key_value) return alert("Ingresa el valor de la clave.");
+        try {
+            const { error } = await supabase
+                .from('user_api_keys')
+                .insert([{
+                    user_id: user?.id,
+                    provider: newKey.provider,
+                    key_value: newKey.key_value,
+                    label: newKey.label
+                }]);
+
+            if (error) throw error;
+            setNewKey({ provider: 'gemini', key_value: '', label: '' });
+            setShowAddKey(false);
+            fetchKeys();
+        } catch (error: any) {
+            alert("Error al guardar clave: " + error.message);
+        }
+    };
+
+    const handleDeleteKey = async (id: number) => {
+        if (!confirm("¿Seguro que quieres eliminar esta clave?")) return;
+        try {
+            const { error } = await supabase
+                .from('user_api_keys')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            fetchKeys();
+        } catch (error: any) {
+            alert("Error al eliminar: " + error.message);
+        }
+    };
 
     const fetchDrafts = async () => {
         try {
@@ -73,6 +137,109 @@ const UserDashboard: React.FC = () => {
 
                     {/* Main Content Area */}
                     <div className="md:col-span-2 space-y-8">
+
+                        {/* API Keys Section */}
+                        <div className="bg-white rounded-3xl p-8 shadow-sm border border-brand-power/5">
+                            <div className="flex items-center justify-between mb-8">
+                                <h2 className="text-xl font-bold text-brand-power flex items-center gap-3">
+                                    <Key className="text-brand-accent" />
+                                    Gestionar API Keys
+                                </h2>
+                                <button
+                                    onClick={() => setShowAddKey(!showAddKey)}
+                                    className="text-xs font-bold text-brand-power hover:text-brand-accent flex items-center gap-1 uppercase tracking-widest transition-colors"
+                                >
+                                    {showAddKey ? 'Cancelar' : <><Plus size={14} /> Nueva Clave</>}
+                                </button>
+                            </div>
+
+                            {showAddKey && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="mb-8 p-6 bg-brand-soft/20 rounded-2xl border border-brand-accent/20"
+                                >
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-widest font-bold text-brand-power/40 mb-2">Proveedor</label>
+                                            <select
+                                                value={newKey.provider}
+                                                onChange={e => setNewKey({ ...newKey, provider: e.target.value })}
+                                                className="w-full bg-white border border-brand-power/10 rounded-lg px-4 py-3 text-sm outline-none focus:border-brand-accent"
+                                            >
+                                                <option value="gemini">Google Gemini / AI Studio</option>
+                                                <option value="serper">Serper.dev (SEO)</option>
+                                                <option value="valueserp">ValueSerp (SERP)</option>
+                                                <option value="jina">Jina AI (Reader)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-widest font-bold text-brand-power/40 mb-2">Etiqueta (Opcional)</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ej. Mi Key Personal"
+                                                value={newKey.label}
+                                                onChange={e => setNewKey({ ...newKey, label: e.target.value })}
+                                                className="w-full bg-white border border-brand-power/10 rounded-lg px-4 py-3 text-sm outline-none focus:border-brand-accent"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="mb-4">
+                                        <label className="block text-[10px] uppercase tracking-widest font-bold text-brand-power/40 mb-2">Valor de la API Key</label>
+                                        <input
+                                            type="password"
+                                            placeholder="AIzaSy..."
+                                            value={newKey.key_value}
+                                            onChange={e => setNewKey({ ...newKey, key_value: e.target.value })}
+                                            className="w-full bg-white border border-brand-power/10 rounded-lg px-4 py-3 text-sm font-mono outline-none focus:border-brand-accent"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleAddKey}
+                                        className="w-full py-4 bg-brand-power text-brand-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-brand-accent hover:text-brand-power transition-all shadow-lg"
+                                    >
+                                        Guardar Clave en Perfil
+                                    </button>
+                                </motion.div>
+                            )}
+
+                            {isLoadingKeys ? (
+                                <div className="space-y-4">
+                                    {[1, 2].map(i => <div key={i} className="h-20 bg-brand-soft/20 rounded-2xl animate-pulse" />)}
+                                </div>
+                            ) : apiKeys.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {apiKeys.map((key) => (
+                                        <div key={key.id} className="p-4 rounded-2xl border border-brand-power/5 bg-brand-soft/5 flex items-center justify-between group hover:border-brand-accent/30 transition-all">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-brand-power/50 group-hover:text-brand-accent">
+                                                    <Sparkles size={18} />
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] uppercase font-bold tracking-widest text-brand-accent">{key.provider}</span>
+                                                        {key.label && <span className="text-[10px] text-brand-power/30 font-medium">— {key.label}</span>}
+                                                    </div>
+                                                    <div className="text-xs font-mono text-brand-power/40 mt-0.5">
+                                                        {key.key_value.substring(0, 8)}••••••••
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteKey(key.id)}
+                                                className="p-2 text-brand-power/20 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-10 border-2 border-dashed border-brand-power/5 rounded-3xl">
+                                    <p className="text-brand-power/40 text-sm">Registra tus API Keys para automatizar el uso de las herramientas.</p>
+                                </div>
+                            )}
+                        </div>
 
                         {/* Reports Section */}
                         <div className="bg-white rounded-2xl p-8 shadow-sm border border-brand-power/5 mb-8">

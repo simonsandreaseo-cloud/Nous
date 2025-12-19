@@ -6,7 +6,7 @@ import { Wand2, Download, FileText, AlertCircle, Loader2, CheckCircle2, Settings
 import { FileUpload } from './components/FileUpload';
 import { ArticlePreview } from './components/ArticlePreview';
 import { parseDocx } from './services/docxService';
-import { analyzeTextAndPlanImages, generateImage } from './services/geminiService';
+import { analyzeTextAndPlanImages, generateImage, setGeminiApiKey } from './services/geminiService';
 import { applyWatermark } from './services/watermarkService';
 import { BlogPost, GeneratedImage, ProcessingStatus, AspectRatio, SupportedLanguage, CustomDimensions, InlineImageCount } from './types';
 import { useAuth } from '../../../context/AuthContext';
@@ -121,10 +121,44 @@ const App: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [localGeminiKey, setLocalGeminiKey] = useState<string>('');
 
   const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadUserKeys();
+    }
+  }, [user]);
+
+  const loadUserKeys = async () => {
+    try {
+      const { data } = await supabase.from('user_api_keys').select('*').eq('provider', 'gemini');
+      if (data && data.length > 0) {
+        const key = data[0].key_value;
+        setLocalGeminiKey(key);
+        setGeminiApiKey(key);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const checkIfKeySaved = async (val: string) => {
+    if (!user || !val || val.length < 10) return;
+    const { data } = await supabase.from('user_api_keys').select('id').eq('key_value', val).eq('provider', 'gemini');
+    if (!data || data.length === 0) {
+      if (confirm(`¿Deseas guardar esta nueva API Key de Gemini en tu perfil para usarla automáticamente después?`)) {
+        await supabase.from('user_api_keys').insert([{ user_id: user.id, provider: 'gemini', key_value: val, label: 'Auto-guardada' }]);
+        alert("Clave guardada.");
+      }
+    }
+  };
+
+  const handleKeyChange = (val: string) => {
+    setLocalGeminiKey(val);
+    setGeminiApiKey(val);
+  };
 
   const handleDocxSelect = (file: File) => setDocxFile(file);
   const handleLogoSelect = (file: File) => {
@@ -315,6 +349,27 @@ const App: React.FC = () => {
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-4 space-y-6">
+          {/* API Keys Management */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 animate-in slide-in-from-left duration-500">
+            <h3 className="font-semibold text-slate-700 mb-6 flex items-center gap-2">
+              <Key size={18} className="text-indigo-600" /> API Keys
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Google Gemini Key</label>
+                <input
+                  type="password"
+                  value={localGeminiKey}
+                  onChange={(e) => handleKeyChange(e.target.value)}
+                  onBlur={(e) => checkIfKeySaved(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full text-sm border border-slate-200 rounded-lg p-3 outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Se cargará de tu perfil si está guardada.</p>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
             <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
               <Settings2 size={18} className="text-slate-500" />

@@ -53,6 +53,36 @@ const App: React.FC = () => {
     // Engine References
     const dataManager = useRef<DataManager>(new DataManager());
 
+    // LOAD USER KEYS
+    React.useEffect(() => {
+        if (user) {
+            loadUserKeys();
+        }
+    }, [user]);
+
+    const loadUserKeys = async () => {
+        try {
+            const { data } = await supabase.from('user_api_keys').select('*').eq('provider', 'gemini');
+            if (data && data.length > 0) {
+                setApiKeysInput(data.map(k => k.key_value).join('\n'));
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const checkIfKeySaved = async (val: string) => {
+        if (!user || !val) return;
+        const keys = val.split('\n').map(k => k.trim()).filter(k => k.length > 10);
+        for (const k of keys) {
+            const { data } = await supabase.from('user_api_keys').select('id').eq('key_value', k).eq('provider', 'gemini');
+            if (!data || data.length === 0) {
+                if (confirm(`¿Deseas guardar la API Key (${k.substring(0, 8)}...) en tu perfil para uso automático?`)) {
+                    await supabase.from('user_api_keys').insert([{ user_id: user.id, provider: 'gemini', key_value: k, label: 'Auto-guardada' }]);
+                }
+            }
+        }
+    };
+
+
     // Helpers
     const addLog = useCallback((message: string, type: 'info' | 'warn' | 'error' = 'info') => {
         setLogs(prev => [...prev, { message, type, timestamp: new Date().toLocaleTimeString() }]);
@@ -288,9 +318,11 @@ const App: React.FC = () => {
                                     rows={4}
                                     value={apiKeysInput}
                                     onChange={(e) => setApiKeysInput(e.target.value)}
+                                    onBlur={(e) => checkIfKeySaved(e.target.value)}
                                     placeholder="sk-...\nsk-...\nsk-..."
                                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm whitespace-pre"
                                 />
+                                <p className="text-[10px] text-slate-400 mt-1 italic">Tus claves guardadas se cargarán automáticamente.</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">Modelo</label>
