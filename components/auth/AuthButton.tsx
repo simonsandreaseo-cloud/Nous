@@ -14,7 +14,7 @@ const AuthButton: React.FC = () => {
                 onClick={signInWithGoogle}
                 className="px-4 py-2 bg-brand-power text-brand-white text-xs font-bold uppercase tracking-widest rounded hover:bg-brand-accent hover:text-brand-power transition-colors"
             >
-                Conectar
+                Mi Espacio
             </button>
         );
     }
