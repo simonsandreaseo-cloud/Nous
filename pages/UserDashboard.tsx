@@ -50,14 +50,14 @@ const UserDashboard: React.FC = () => {
                 {/* Header Profile */}
                 <div className="flex flex-col md:flex-row items-center gap-8 mb-16">
                     <div className="w-24 h-24 rounded-full bg-brand-power text-brand-white flex items-center justify-center text-4xl overflow-hidden shadow-xl border-4 border-white">
-                        {user.user_metadata.avatar_url ? (
+                        {user.user_metadata?.avatar_url ? (
                             <img src={user.user_metadata.avatar_url} alt={user.email} className="w-full h-full object-cover" />
                         ) : (
                             <UserIcon size={40} />
                         )}
                     </div>
                     <div className="text-center md:text-left">
-                        <h1 className="text-3xl font-bold text-brand-power mb-2">Hola, {user.user_metadata.full_name || user.email?.split('@')[0]}</h1>
+                        <h1 className="text-3xl font-bold text-brand-power mb-2">Hola, {user.user_metadata?.full_name || user.email?.split('@')[0]}</h1>
                         <p className="text-brand-power/50 text-sm mb-4">{user.email}</p>
                         <button
                             onClick={signOut}

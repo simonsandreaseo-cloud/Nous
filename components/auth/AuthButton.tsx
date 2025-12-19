@@ -27,7 +27,7 @@ const AuthButton: React.FC = () => {
                 className="flex items-center gap-2 px-3 py-1.5 border border-brand-power/10 rounded hover:bg-brand-soft/50 transition-colors"
             >
                 <div className="w-6 h-6 rounded-full bg-brand-accent/20 flex items-center justify-center text-brand-power overflow-hidden">
-                    {user.user_metadata.avatar_url ? (
+                    {user.user_metadata?.avatar_url ? (
                         <img src={user.user_metadata.avatar_url} alt={user.email} className="w-full h-full object-cover" />
                     ) : (
                         <User size={14} />
