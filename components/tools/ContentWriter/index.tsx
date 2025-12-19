@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import saveAs from 'file-saver';
 import { styles } from './styles';
 import { IconUpload, IconSparkles, IconCopy, IconFile, IconSEO, IconImage, IconDownload, IconRefresh, IconMagic, IconZip, IconSearch, IconChevronLeft, IconMenu, IconArrowRight, IconSettings, IconUser, IconRadar, IconEdit, IconCheck, IconTrash, IconJson, IconLink, IconPlus, IconExternal, IconPalette, IconChevronDown, IconChevronUp, IconGhost, LoadingSpinner } from './components';
 import { MetadataField } from './components';
