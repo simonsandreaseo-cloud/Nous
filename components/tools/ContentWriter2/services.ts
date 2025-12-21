@@ -1262,7 +1262,9 @@ export const analyzeResearchContent = async (apiKeys: string[] | string, fileCon
     Datos que buscamos:
     1. Tema Principal / H1 (Topic)
     2. Palabra Clave Objetivo (Target Keyword)
-    3. Estructura del Artículo (H2, H3, etc.) - Si el documento tiene un índice o headers claros.
+    3. Estructura del Artículo (H2, H3, etc.) - Si el documento tiene un índice o headers claros. ES CRÍTICO QUE SI HAY UNA ESTRUCTURA EN EL DOCUMENTO, LA COPIES EXACTAMENTE IGUAL.
+       - Si los H2/H3 tienen descripciones, pautas o notas debajo, debes incluirlas en el campo 'notes' INTEGRAMENTE. No resumas.
+       - La estructura debe ser fiel al documento original.
     4. Tono de Voz (Tone)
     5. Objetivo de Palabras (Word Count)
     6. Nicho / Industria
@@ -1278,12 +1280,12 @@ export const analyzeResearchContent = async (apiKeys: string[] | string, fileCon
             "tone": "...",
             "wordCount": "...",
             "niche": "...",
-            "competitors": "...", 
+            "competitors": "...",
             "lsiKeywords": ["..."],
             "questions": ["..."]
         },
         "structure": [
-            { "type": "H2", "text": "Titulo Sección", "wordCount": "300", "notes": "..." },
+            { "type": "H2", "text": "Titulo Sección", "wordCount": "300", "notes": "Aquí todo el texto descriptivo/instrucciones del documento para este H2 tal cual." },
             ...
         ],
         "report": "Texto en HTML simple (sin markdown block code, usar tags p, ul, li, strong) dirigido al usuario. Resumen amigable de qué datos encontraste y cuáles agregaste a la configuración. Menciona explícitamente qué datos NO encontraste y que por tanto la herramienta buscará o generará. IMPORTANTE: Al final, añade un párrafo diciendo: 'Si echas en falta que capturemos algún otro dato de tu investigación, escríbenos a contacto@simonsandreaseo.com para incorporarlo en la próxima actualización.'"

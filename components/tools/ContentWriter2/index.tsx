@@ -1423,7 +1423,7 @@ const App = () => {
                                         Estrategia Objetivo
                                     </div>
                                     <div>
-                                        <label style={styles.label}>Palabra Clave Principal</label>
+                                        <label style={styles.label}>Palabra Clave Principal, Idea o Título (H1)</label>
                                         <input
                                             style={styles.inputLarge}
                                             placeholder="ej. Zapatillas Running Baratas"
