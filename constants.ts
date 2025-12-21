@@ -128,6 +128,13 @@ export const TOOLS = [
     status: "Interno",
     function: "Creación automatizada de informes de rendimiento y auditoría.",
     path: "/herramientas/generador-informes"
+  },
+  {
+    id: 5,
+    name: "Redactor IA 2.0",
+    status: "Beta Pro",
+    function: "Versión avanzada con análisis de investigación y reportes automáticos.",
+    path: "/herramientas/redactor-ia-2"
   }
 ];
 
