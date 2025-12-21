@@ -1216,10 +1216,7 @@ const App = () => {
         { id: 'workspace', label: 'Editor & Visuales', icon: <IconEdit />, enabled: true }
     ];
 
-    const canNavigate = (id: string) => {
-        const step = steps.find(s => s.id === id);
-        return step ? step.enabled : false;
-    };
+    const canNavigate = (id: string) => true;
 
     const handleNavClick = (id: any) => {
         if (canNavigate(id)) {
@@ -1457,11 +1454,18 @@ const App = () => {
                                 </div>
                                 <div style={{ display: 'flex', gap: '12px' }}>
                                     <button
+                                        style={{ ...styles.bigButton, padding: '16px 20px', width: 'auto', backgroundColor: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0' } as any}
+                                        onClick={() => setViewMode('structure-review')}
+                                        title="Ir a Estructura sin generar"
+                                    >
+                                        Ir a Estructura <IconArrowRight />
+                                    </button>
+                                    <button
                                         style={{ ...styles.bigButton, padding: '16px 32px', width: 'auto' } as any}
                                         onClick={handlePlanStructure}
                                         disabled={isPlanningStructure}
                                     >
-                                        {isPlanningStructure ? <LoadingSpinner /> : <><IconSEO /> Generar Estructura</>}
+                                        {isPlanningStructure ? <LoadingSpinner /> : (strategyOutline.length > 0 ? <><IconRefresh /> Regenerar Estructura</> : <><IconSEO /> Generar Estructura</>)}
                                     </button>
                                 </div>
                             </div>
