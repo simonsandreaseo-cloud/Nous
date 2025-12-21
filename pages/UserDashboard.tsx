@@ -376,6 +376,12 @@ const UserDashboard: React.FC = () => {
                                     </Link>
                                 </li>
                                 <li>
+                                    <Link to="/herramientas/redactor-ia-2" className="flex items-center justify-between group">
+                                        <span className="text-brand-white/70 group-hover:text-white transition-colors">Redactor IA 2.0</span>
+                                        <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </Link>
+                                </li>
+                                <li>
                                     <Link to="/herramientas/seo-suite" className="flex items-center justify-between group">
                                         <span className="text-brand-white/70 group-hover:text-white transition-colors">Navaja Suiza SEO</span>
                                         <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
