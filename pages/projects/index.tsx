@@ -80,7 +80,7 @@ const ProjectsDashboard: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {projects.map(project => (
                             <Link
-                                to={`/proyectos/${project.id}`}
+                                to={`/proyectos/${project.slug || project.id}`}
                                 key={project.id}
                                 className="group bg-white p-6 rounded-2xl border border-brand-power/5 shadow-sm hover:shadow-xl hover:border-brand-accent/30 transition-all flex flex-col justify-between h-48"
                             >

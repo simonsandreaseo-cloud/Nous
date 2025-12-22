@@ -9,6 +9,7 @@ export interface Project {
     settings?: any;
     created_at: string;
     role?: 'owner' | 'admin' | 'editor' | 'viewer'; // Computed for current user
+    slug?: string;
 }
 
 export interface ProjectMember {
@@ -51,13 +52,21 @@ export const ProjectService = {
         const user = (await supabase.auth.getUser()).data.user;
         if (!user) throw new Error("Not authenticated");
 
+        // Generate Slug
+        const slug = name.toLowerCase()
+            .replace(/[^\w\s-]/g, '') // Remove non-word chars
+            .replace(/\s+/g, '-') // Replace spaces with -
+            .replace(/--+/g, '-') // Replace multiple - with single -
+            .trim();
+
         const { data, error } = await supabase
             .from('projects')
             .insert([{
                 name,
                 description,
                 gsc_property_url: gscUrl,
-                owner_id: user.id
+                owner_id: user.id,
+                slug: slug + '-' + Date.now().toString().slice(-4) // Append partial TS to ensure uniqueness
             }])
             .select()
             .single();
@@ -66,12 +75,29 @@ export const ProjectService = {
         return data;
     },
 
-    async getProjectDetails(id: string | number) {
-        const { data, error } = await supabase
-            .from('projects')
-            .select('*')
-            .eq('id', id)
-            .maybeSingle();
+    async getProjectDetails(identifier: string | number) {
+        let query = supabase.from('projects').select('*');
+
+        // Check if identifier is likely a UUID (basic validation) or ID
+        // But simplifying: assume param is slug if we changed routes to slug.
+        // Or better: try to match either.
+
+        // Since Supabase doesn't support convenient "OR" across columns easily in one chained `eq` without syntax,
+        // and we want to prioritize SLUG if implementation is clean.
+        // Let's assume the 'identifier' IS the slug if we updated the router.
+
+        // However, to support both legacy (UUID/ID) and Slug during transition or mixed use:
+        // We can check if 'identifier' looks like a UUID.
+
+        const isUuid = typeof identifier === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+
+        if (isUuid || typeof identifier === 'number') {
+            query = query.eq('id', identifier);
+        } else {
+            query = query.eq('slug', identifier);
+        }
+
+        const { data, error } = await query.maybeSingle();
 
         if (error) throw error;
         if (!data) throw new Error("Project not found or access denied");
@@ -114,6 +140,18 @@ export const ProjectService = {
                 invited_by: user.id,
                 expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
             }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async updateProject(id: string | number, updates: Partial<Project>) {
+        const { data, error } = await supabase
+            .from('projects')
+            .update(updates)
+            .eq('id', id)
             .select()
             .single();
 

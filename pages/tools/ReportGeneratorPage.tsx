@@ -1,5 +1,5 @@
 import React from 'react';
-import App from '../../components/tools/ReportGenerator/App';
+import App from '../../components/tools/MetricsAnalyst/App';
 import ToolWrapper from '../../components/layout/ToolWrapper';
 
 const ReportGeneratorPage: React.FC = () => {

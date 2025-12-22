@@ -124,9 +124,9 @@ export const TOOLS = [
   },
   {
     id: 4,
-    name: "Generador Informes",
-    status: "Interno",
-    function: "Creación automatizada de informes de rendimiento y auditoría.",
+    name: "Analista de Métricas",
+    status: "Disponible",
+    function: "Análisis estratégico profundo con Agentes IA y Datos de Search Console.",
     path: "/herramientas/generador-informes"
   },
   {

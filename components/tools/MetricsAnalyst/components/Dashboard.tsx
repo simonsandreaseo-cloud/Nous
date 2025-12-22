@@ -19,8 +19,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
 
         if (!stats) return;
 
-        const labels = stats.datesP2 && stats.datesP2.length > 0 
-            ? stats.datesP2 
+        const labels = stats.datesP2 && stats.datesP2.length > 0
+            ? stats.datesP2
             : Array.from({ length: Math.max(stats.dailyTrendP1.length, stats.dailyTrendP2.length) }, (_, i) => `Día ${i + 1}`);
 
         const commonOptions = {
@@ -51,7 +51,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
                     const isAnomaly = stats.anomalies.find(a => a.date === date);
                     return isAnomaly ? '#ef4444' : '#6366f1';
                 });
-                
+
                 const pointRadii = stats.dailyTrendP2.map((val, idx) => {
                     const date = stats.datesP2[idx];
                     const isAnomaly = stats.anomalies.find(a => a.date === date);
@@ -92,10 +92,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
                         interaction: { mode: 'index', intersect: false },
                         plugins: {
                             legend: { position: 'top', align: 'end', labels: { boxWidth: 6, usePointStyle: true, padding: 10 } },
-                            tooltip: { 
-                                mode: 'index', 
+                            tooltip: {
+                                mode: 'index',
                                 intersect: false,
-                                backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                                backgroundColor: 'rgba(15, 23, 42, 0.95)',
                                 padding: 8,
                                 titleFont: { size: 11 },
                                 bodyFont: { size: 10 },
@@ -103,13 +103,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
                             }
                         },
                         scales: {
-                            y: { 
-                                beginAtZero: true, 
+                            y: {
+                                beginAtZero: true,
                                 grid: { color: '#f1f5f9', tickLength: 0 },
                                 border: { display: false },
                                 ticks: { color: '#94a3b8', font: { size: 9 }, padding: 5 }
                             },
-                            x: { 
+                            x: {
                                 grid: { display: false },
                                 ticks: { maxTicksLimit: 8, color: '#94a3b8', font: { size: 9 } }
                             }
@@ -123,20 +123,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
         const topSegments = stats.segmentStats.slice(0, 5);
         const otherClicks = stats.segmentStats.slice(5).reduce((acc, s) => acc + s.clicks, 0);
         const otherImp = stats.segmentStats.slice(5).reduce((acc, s) => acc + s.impressions, 0);
-        
+
         const segmentLabels = [...topSegments.map(s => s.name === '/' ? 'Home' : s.name), 'Otros'];
         const clicksData = [...topSegments.map(s => s.clicks), otherClicks];
         const impData = [...topSegments.map(s => s.impressions), otherImp];
         const bgColors = ['#6366f1', '#3b82f6', '#0ea5e9', '#8b5cf6', '#d946ef', '#f1f5f9'];
 
         const doughnutOptions: any = {
-             ...commonOptions,
-             cutout: '75%',
-             plugins: { 
-                 legend: { position: 'right', labels: { boxWidth: 6, font: { size: 9 }, padding: 10, color: '#475569' } },
-                 title: { display: false } 
-             },
-             layout: { padding: 0 }
+            ...commonOptions,
+            cutout: '75%',
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 6, font: { size: 9 }, padding: 10, color: '#475569' } },
+                title: { display: false }
+            },
+            layout: { padding: 0 }
         };
 
         if (segmentClicksCanvas.current) {
@@ -164,7 +164,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
 
     return (
         <div className="space-y-5 mb-8">
-            
+
             {/* Hero Header: Compact SaaS Style */}
             <div className="relative overflow-hidden rounded-xl bg-[#0B1120] text-white shadow-lg border border-slate-800 p-5 md:p-6">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -175,16 +175,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
                             </div>
                         )}
                         <div>
-                             <div className="flex gap-2 mb-1">
-                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 uppercase tracking-wider border border-indigo-500/30">Informe Ejecutivo</span>
-                                 {stats.anomalies.length > 0 && (
-                                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 uppercase tracking-wider border border-amber-500/30">
-                                         ⚠️ {stats.anomalies.length} Anomalías
-                                     </span>
-                                 )}
+                            <div className="flex gap-2 mb-1">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 uppercase tracking-wider border border-indigo-500/30">Executive Report</span>
+                                {stats.anomalies.length > 0 && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 uppercase tracking-wider border border-amber-500/30">
+                                        ⚠️ {stats.anomalies.length} Anomalías
+                                    </span>
+                                )}
                             </div>
                             <h2 className="text-2xl font-bold tracking-tight text-white leading-none">
-                                Resumen de Rendimiento
+                                Performance Overview
                             </h2>
                             <p className="text-slate-400 text-xs mt-1">
                                 {stats.period1Label} vs {stats.period2Label}
@@ -208,29 +208,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
 
             {/* KPI Grid: Small Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <KPICard 
-                    title="Tráfico" 
-                    value={formatNum(stats.kpis.clicksP2)} 
-                    subValue={formatPerc((stats.kpis.totalClicksChange / stats.kpis.clicksP1) * 100)} 
-                    subColor={getColor(stats.kpis.totalClicksChange)} 
+                <KPICard
+                    title="Tráfico"
+                    value={formatNum(stats.kpis.clicksP2)}
+                    subValue={formatPerc((stats.kpis.totalClicksChange / stats.kpis.clicksP1) * 100)}
+                    subColor={getColor(stats.kpis.totalClicksChange)}
                 />
-                <KPICard 
-                    title="Visibilidad" 
-                    value={formatNum(stats.kpis.impressionsP2)} 
-                    subValue={formatPerc((stats.kpis.totalImpressionsChange / stats.kpis.impressionsP1) * 100)} 
-                    subColor={getColor(stats.kpis.totalImpressionsChange)} 
+                <KPICard
+                    title="Visibilidad"
+                    value={formatNum(stats.kpis.impressionsP2)}
+                    subValue={formatPerc((stats.kpis.totalImpressionsChange / stats.kpis.impressionsP1) * 100)}
+                    subColor={getColor(stats.kpis.totalImpressionsChange)}
                 />
-                <KPICard 
-                    title="CTR" 
-                    value={stats.kpis.ctrP2.toFixed(2) + '%'} 
-                    subValue={formatPerc(stats.kpis.ctrChange)} 
-                    subColor={getColor(stats.kpis.ctrChange)} 
+                <KPICard
+                    title="CTR"
+                    value={stats.kpis.ctrP2.toFixed(2) + '%'}
+                    subValue={formatPerc(stats.kpis.ctrChange)}
+                    subColor={getColor(stats.kpis.ctrChange)}
                 />
-                <KPICard 
-                    title="Posición" 
-                    value={stats.kpis.avgPosP2.toFixed(1)} 
-                    subValue={formatPerc(stats.kpis.avgPosChange)} 
-                    subColor={getColorInv(stats.kpis.avgPosChange)} 
+                <KPICard
+                    title="Posición"
+                    value={stats.kpis.avgPosP2.toFixed(1)}
+                    subValue={formatPerc(stats.kpis.avgPosChange)}
+                    subColor={getColorInv(stats.kpis.avgPosChange)}
                 />
             </div>
 
@@ -264,7 +264,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
                         <canvas ref={segmentImpCanvas} />
                     </div>
                     <div>
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Cuota de Visibilidad</h3>
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Share of Voice</h3>
                         <div className="text-sm font-bold text-slate-800">Por Impresiones</div>
                     </div>
                 </div>

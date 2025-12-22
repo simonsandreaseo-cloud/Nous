@@ -1,5 +1,4 @@
 
-
 export interface CSVRow {
     date: Date;
     clicks: number;
@@ -118,7 +117,6 @@ export interface CannibalizationChartData {
 export interface TopicCluster {
     name: string;
     keywords: string[];
-    topUrls: { url: string, clicks: number, impressions: number }[]; // New field for URL visualization
     totalImpressions: number;
     avgPosition: number;
     avgCtr: number;
@@ -181,27 +179,8 @@ export interface ReportPayload {
 
     // Critical addition for the "Handshake"
     availableChartKeys: string[];
-
-    // Phase 5: Task Intelligence
+    // Phase 5: Task Performance Integration
     taskPerformanceAnalysis?: TaskPerformance[];
-}
-
-export interface TaskPerformance {
-    taskId: number;
-    taskTitle: string;
-    url: string;
-    metrics: {
-        clicks: number;
-        impressions: number;
-        position: number;
-        ctr: number;
-    };
-    comparison: {
-        clicksChange: number;
-        impressionsChange: number;
-        positionChange: number;
-    };
-    status: string; // 'track' | 'decay' | 'growth'
 }
 
 export interface LogEntry {
@@ -239,4 +218,22 @@ export interface AggregatedMetrics {
     ctr: number;
     avgPosition: number;
     count: number;
+}
+
+// Added for Phase 5 Task Integration
+export interface TaskPerformance {
+    taskId: number;
+    taskTitle: string;
+    status: 'growth' | 'decay' | 'stable';
+    metrics: {
+        clicks: number;
+        impressions: number;
+        position: number;
+    };
+    comparison: {
+        clicksChange: number;
+        impressionsChange: number;
+        positionChange: number;
+    };
+    url: string;
 }

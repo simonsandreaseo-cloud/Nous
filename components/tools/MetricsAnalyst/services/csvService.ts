@@ -11,13 +11,13 @@ export const parseCSV = (file: File, type: FileType, onProgress: (msg: string) =
                     const parsedData: CSVRow[] = [];
                     let invalidDateRows = 0;
                     let invalidNumericRows = 0;
-                    
+
                     const firstRow = results.data[0] as any;
                     if (!firstRow) {
-                         reject(new Error("El archivo CSV parece estar vacío."));
-                         return;
+                        reject(new Error("El archivo CSV parece estar vacío."));
+                        return;
                     }
-                    
+
                     const keys = Object.keys(firstRow);
                     const findKey = (candidates: string[]) => keys.find(k => candidates.some(c => k.toLowerCase().includes(c)));
 
@@ -59,9 +59,9 @@ export const parseCSV = (file: File, type: FileType, onProgress: (msg: string) =
                             return;
                         }
 
-                        const clicks = parseNumber(row[clicksKey], true); 
-                        const impressions = parseNumber(row[impKey], true); 
-                        const position = parseNumber(row[posKey], false); 
+                        const clicks = parseNumber(row[clicksKey], true);
+                        const impressions = parseNumber(row[impKey], true);
+                        const position = parseNumber(row[posKey], false);
 
                         if (isNaN(clicks) && isNaN(impressions)) {
                             invalidNumericRows++;
@@ -93,7 +93,7 @@ export const parseCSV = (file: File, type: FileType, onProgress: (msg: string) =
                     if (invalidDateRows > 0) {
                         onProgress(`Advertencia: Se omitieron ${invalidDateRows} filas por fecha no reconocida.`);
                     }
-                    
+
                     if (parsedData.length === 0) {
                         reject(new Error("No se encontraron datos válidos."));
                     } else {
@@ -111,18 +111,18 @@ export const parseCSV = (file: File, type: FileType, onProgress: (msg: string) =
 function parseNumber(val: any, isInteger: boolean): number {
     if (val === null || val === undefined || val === '') return 0;
     if (typeof val === 'number') return val;
-    
+
     let s = val.toString().trim();
-    
+
     if (isInteger) {
-        s = s.replace(/\D/g, ''); 
+        s = s.replace(/\D/g, '');
         return parseInt(s, 10) || 0;
     } else {
         s = s.replace(/['"]/g, '');
         s = s.replace(',', '.');
         if ((s.match(/\./g) || []).length > 1) {
-             const lastDot = s.lastIndexOf('.');
-             s = s.substring(0, lastDot).replace('.', '') + s.substring(lastDot);
+            const lastDot = s.lastIndexOf('.');
+            s = s.substring(0, lastDot).replace('.', '') + s.substring(lastDot);
         }
         return parseFloat(s) || 0;
     }
@@ -143,10 +143,10 @@ function parseDateRobust(dateString: string): Date | null {
     const cleanStr = dateString.toLowerCase().trim();
 
     if (/^\d{5}$/.test(cleanStr)) {
-       const serial = parseInt(cleanStr, 10);
-       const utc_days  = Math.floor(serial - 25569);
-       const utc_value = utc_days * 86400;                                        
-       return new Date(utc_value * 1000);
+        const serial = parseInt(cleanStr, 10);
+        const utc_days = Math.floor(serial - 25569);
+        const utc_value = utc_days * 86400;
+        return new Date(utc_value * 1000);
     }
 
     let match = cleanStr.match(/^(\d{4})[\-\/\.](\d{1,2})[\-\/\.](\d{1,2})/);
@@ -155,7 +155,7 @@ function parseDateRobust(dateString: string): Date | null {
     match = cleanStr.match(/^(\d{1,2})[\s\-\/]([a-z]{3,})[\s\-\/,]*(\d{2,4})$/);
     if (match) {
         const day = parseInt(match[1], 10);
-        const monthStr = match[2]; 
+        const monthStr = match[2];
         let year = parseInt(match[3], 10);
         if (year < 100) year += 2000;
         if (monthMap.hasOwnProperty(monthStr)) {
@@ -181,7 +181,7 @@ function parseDateRobust(dateString: string): Date | null {
         if (y < 100) y += 2000;
         if (n1 > 12) return new Date(Date.UTC(y, n2 - 1, n1));
         if (n2 > 12) return new Date(Date.UTC(y, n1 - 1, n2));
-        return new Date(Date.UTC(y, n2 - 1, n1)); 
+        return new Date(Date.UTC(y, n2 - 1, n1));
     }
 
     const d = new Date(dateString);
@@ -201,12 +201,12 @@ function extractSegment(urlString: string): string | null {
         const url = new URL(urlStr);
         // Exclude homepage
         if (url.pathname === '/' || url.pathname === '') return 'Home';
-        
+
         // Extract first folder
         const parts = url.pathname.split('/').filter(p => p.length > 0);
-        
+
         if (parts.length === 0) return 'Home';
-        
+
         // Return /folder/ format
         return `/${parts[0]}/`;
     } catch (e) {

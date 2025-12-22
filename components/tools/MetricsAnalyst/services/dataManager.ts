@@ -43,7 +43,10 @@ export class DataManager {
 
         this.calculateGlobalTimeRange();
 
-
+        console.log(`[DataManager] Indexing Complete. 
+        - Pages: ${this.pagesByUrl.size} unique URLs
+        - Keywords: ${this.queriesByKeyword.size} unique Terms
+        - Time Range: ${new Date(this.minDate).toISOString()} to ${new Date(this.maxDate).toISOString()}`);
     }
 
     private reset() {

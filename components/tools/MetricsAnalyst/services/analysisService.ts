@@ -1,4 +1,4 @@
-import { CSVRow, MetricSeries, ComparisonItem, SiteWideKPIs, ReportPayload, DashboardStats, UrlLossDiagnosis, KeywordCause, StrategicOverview, CannibalizationChartData, TopicCluster, AnomalyPoint, TaskPerformance } from '../types';
+import { CSVRow, MetricSeries, ComparisonItem, SiteWideKPIs, ReportPayload, DashboardStats, UrlLossDiagnosis, KeywordCause, StrategicOverview, CannibalizationChartData, TopicCluster, AnomalyPoint } from '../types';
 
 interface AnalysisContext {
     pagesP1: CSVRow[];
@@ -9,19 +9,12 @@ interface AnalysisContext {
     countriesP2: CSVRow[];
 }
 
-export interface WatchedTask {
-    id: number;
-    title: string;
-    gsc_property_url?: string;
-}
-
 export const runFullLocalAnalysis = (
     ctx: AnalysisContext,
     p1Name: string,
     p2Name: string,
     userContext: string,
-    log: (msg: string) => void,
-    watchedTasks: WatchedTask[] = []
+    log: (msg: string) => void
 ): { reportPayload: ReportPayload; chartData: { topWinners: ComparisonItem[], topLosers: ComparisonItem[], dashboardStats: DashboardStats, chartLookup: Record<string, ComparisonItem>, cannibalizationLookup: Record<string, CannibalizationChartData> } } => {
 
     // 1. Calculate Aggregations
@@ -38,30 +31,32 @@ export const runFullLocalAnalysis = (
     // 3. Page Analysis
     log("├── Fase 2/7: Análisis Diferencial (Periodo vs Periodo)...");
     const comparedPages = compareAggData(aggPagesP1.main, aggPagesP2.main);
-    const topWinners = [...comparedPages].sort((a, b) => b.clicksChange - a.clicksChange).slice(0, 50);
-    const topLosers = [...comparedPages].sort((a, b) => a.clicksChange - b.clicksChange).slice(0, 50);
+    const topWinners = [...comparedPages].sort((a, b) => b.clicksChange - a.clicksChange).slice(0, 25);
+    const topLosers = [...comparedPages].sort((a, b) => a.clicksChange - b.clicksChange).slice(0, 25);
 
     // --- PHASE 2: Deep Dive Forensic Analysis ---
     log("│   └── 🕵️ Ejecutando Análisis Forense de Caídas (Deep Dive)...");
     const lossCauseAnalysis = analyzeLossCauses(topLosers.slice(0, 5), ctx.queriesP1, ctx.queriesP2);
 
     // --- NEW: Concentration Analysis (Threshold Based) ---
+    // Clics: Only URLs with > 1.5% of total traffic
+    // Impressions: Only URLs with > 1.0% of total visibility
     const clickConcentration = calculateConcentration(comparedPages, 'clicksP2', 1.5);
     const impressionConcentration = calculateConcentration(comparedPages, 'impressionsP2', 1.0);
 
     // 4. Segment Analysis
     const aggSegmentsP1 = buildAggregations(ctx.pagesP1, 'segment');
     const comparedSegments = compareAggData(aggSegmentsP1.main, aggSegmentsP2.main);
-    const topSegmentMovers = [...comparedSegments].sort((a, b) => Math.abs(b.clicksChange) - Math.abs(a.clicksChange)).slice(0, 20);
+    const topSegmentMovers = [...comparedSegments].sort((a, b) => Math.abs(b.clicksChange) - Math.abs(a.clicksChange)).slice(0, 10);
 
-    const topImpressionWinners = [...comparedPages].sort((a, b) => b.impressionsChange - a.impressionsChange).slice(0, 50);
-    const topImpressionLosers = [...comparedPages].sort((a, b) => b.impressionsChange - b.impressionsChange).slice(0, 50);
+    const topImpressionWinners = [...comparedPages].sort((a, b) => b.impressionsChange - a.impressionsChange).slice(0, 25);
+    const topImpressionLosers = [...comparedPages].sort((a, b) => b.impressionsChange - b.impressionsChange).slice(0, 25);
 
     // 5. Country & Keyword Analysis
     log("├── Fase 3/7: Análisis Dimensional (Geografía y Keywords)...");
     const aggCountriesP1 = buildAggregations(ctx.countriesP1, 'country');
     const aggCountriesP2 = buildAggregations(ctx.countriesP2, 'country');
-    const topCountryMovers = [...compareAggData(aggCountriesP1.main, aggCountriesP2.main)].sort((a, b) => Math.abs(b.clicksChange) - Math.abs(a.clicksChange)).slice(0, 20);
+    const topCountryMovers = [...compareAggData(aggCountriesP1.main, aggCountriesP2.main)].sort((a, b) => Math.abs(b.clicksChange) - Math.abs(a.clicksChange)).slice(0, 10);
 
     const aggKeywordsP1 = buildAggregations(ctx.queriesP1, 'keyword');
     const aggKeywordsP2 = buildAggregations(ctx.queriesP2, 'keyword');
@@ -77,13 +72,11 @@ export const runFullLocalAnalysis = (
     const addToLookup = (items: ComparisonItem[]) => {
         items.forEach(item => {
             if (item.name) {
-                const rawName = item.name.trim();
-                chartLookup[rawName] = item;
-                chartLookup[rawName.toLowerCase()] = item;
-                let norm = rawName.toLowerCase().replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
-                if (norm === '' || norm === 'home') norm = 'home';
-                chartLookup[norm] = item;
-                if (!norm.includes('/')) { chartLookup['home'] = item; }
+                // Normalize keys aggressively for lookup
+                const key = item.name.toLowerCase().trim().replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+                chartLookup[key] = item;
+                // Also store raw just in case
+                chartLookup[item.name.toLowerCase().trim()] = item;
             }
         });
     };
@@ -92,7 +85,8 @@ export const runFullLocalAnalysis = (
     addToLookup(topCountryMovers);
     addToLookup(comparedSegments);
 
-    const availableChartKeys = Object.keys(chartLookup).slice(0, 1000);
+    // Pass keys to AI so it knows what charts exist
+    const availableChartKeys = Object.keys(chartLookup).slice(0, 500);
 
     // 9. Detection Engine
     log("├── Fase 6/7: Motor de Detección y Gráficos de Conflicto...");
@@ -104,105 +98,28 @@ export const runFullLocalAnalysis = (
         topLosers
     );
 
-    const cannibalizationLookup = generateCannibalizationCharts(detections.cannibalizationAlerts.slice(0, 10), ctx.queriesP2, dashboardStats.datesP2);
+    // --- PHASE 3: Cannibalization Charts ---
+    const cannibalizationLookup = generateCannibalizationCharts(detections.cannibalizationAlerts.slice(0, 3), ctx.queriesP2, dashboardStats.datesP2);
 
     // --- PHASE 4: CLUSTERING (ENHANCED) ---
     log("├── Fase 7/7: Clustering Semántico de Oportunidades...");
-
-    // FIX: Build a map of Keyword -> Best URL from raw data to ensure coverage
-    const keywordUrlMap = new Map<string, string>();
-    ctx.queriesP2.forEach(row => {
-        if (!row.keyword || !row.page) return;
-        if (!keywordUrlMap.has(row.keyword) || row.clicks > 0) {
-            keywordUrlMap.set(row.keyword, row.page);
-        }
-    });
 
     // 4.1 Clustering
     const opportunityKeywords = [
         ...detections.strikingDistanceCandidates,
         ...detections.newKeywordDiscovery
-    ].map(k => {
-        const keyword = k.keyword || k.name;
-        const page = k.page || keywordUrlMap.get(keyword) || "";
-        return {
-            keyword: keyword,
-            page: page,
-            impressions: k.impressions || k.impressionsP2,
-            position: k.avgPosition || k.positionP2,
-            clicks: k.clicks || k.clicksP2 || 0
-        };
-    });
+    ].map(k => ({
+        keyword: k.keyword || k.name,
+        impressions: k.impressions || k.impressionsP2,
+        position: k.avgPosition || k.positionP2,
+        clicks: k.clicks || k.clicksP2 || 0
+    }));
 
     const topicClusters = generateKeywordClusters(opportunityKeywords);
     log(`│   └── Detectados ${topicClusters.length} clusters temáticos de alto potencial.`);
 
-    // --- PHASE 5: Task Intelligence IntegrationFrom ---
-    log("├── Fase 8/8: Cruzando datos con Tareas Activas...");
-    const taskPerformanceAnalysis: TaskPerformance[] = [];
-
-    if (watchedTasks.length > 0) {
-        watchedTasks.forEach(task => {
-            // Match via exact URL or fuzzy match if URL is empty
-            let matchedItem: ComparisonItem | undefined;
-
-            if (task.gsc_property_url) {
-                // Try exact match on Page first
-                matchedItem = comparedPages.find(p => p.name === task.gsc_property_url || p.name.endsWith(task.gsc_property_url!));
-            }
-
-            // If no URL match, we can't reliably map without more metadata, skipping purely title-based matching for safety in this version to avoid hallucinations
-            // However, we can try to find if the title matches a high-volume keyword for ranking tracking
-            let bestKeywordMatch: ComparisonItem | undefined;
-            // normalized title
-            const normTitle = task.title.toLowerCase();
-            bestKeywordMatch = comparedKeywords.find(k => k.name.toLowerCase() === normTitle);
-
-            if (matchedItem) {
-                taskPerformanceAnalysis.push({
-                    taskId: task.id,
-                    taskTitle: task.title,
-                    url: matchedItem.name,
-                    metrics: {
-                        clicks: matchedItem.clicksP2,
-                        impressions: matchedItem.impressionsP2,
-                        position: matchedItem.positionP2,
-                        ctr: matchedItem.impressionsP2 > 0 ? (matchedItem.clicksP2 / matchedItem.impressionsP2) * 100 : 0
-                    },
-                    comparison: {
-                        clicksChange: matchedItem.clicksChange,
-                        impressionsChange: matchedItem.impressionsChange,
-                        positionChange: matchedItem.positionChange
-                    },
-                    status: matchedItem.clicksChange < -10 ? 'decay' : (matchedItem.clicksChange > 10 ? 'growth' : 'track')
-                });
-            } else if (bestKeywordMatch) {
-                // Keyword Tracking Fallback
-                taskPerformanceAnalysis.push({
-                    taskId: task.id,
-                    taskTitle: task.title,
-                    url: `Keyword: ${bestKeywordMatch.name}`,
-                    metrics: {
-                        clicks: bestKeywordMatch.clicksP2,
-                        impressions: bestKeywordMatch.impressionsP2,
-                        position: bestKeywordMatch.positionP2,
-                        ctr: bestKeywordMatch.impressionsP2 > 0 ? (bestKeywordMatch.clicksP2 / bestKeywordMatch.impressionsP2) * 100 : 0
-                    },
-                    comparison: {
-                        clicksChange: bestKeywordMatch.clicksChange,
-                        impressionsChange: bestKeywordMatch.impressionsChange,
-                        positionChange: bestKeywordMatch.positionChange
-                    },
-                    status: bestKeywordMatch.positionChange > 2 ? 'decay' : (bestKeywordMatch.positionChange < -2 ? 'growth' : 'track') // Position lower is better
-                });
-            }
-        });
-        log(`│   └── ${taskPerformanceAnalysis.length} tareas vinculadas encontradas en la data.`);
-    }
-
     log("└── Dossier de Inteligencia Finalizado.");
 
-    // INCREASE LIMITS FOR LOAD MORE BUTTON
     const reportPayload: ReportPayload = {
         period1Name: p1Name,
         period2Name: p2Name,
@@ -212,22 +129,25 @@ export const runFullLocalAnalysis = (
             clickConcentration,
             impressionConcentration
         },
+        // Phase 2 Payload
         lossCauseAnalysis,
+        // Phase 3 Payload
         strategicOverview,
+        // Phase 4 Payload
         topicClusters,
-        anomaliesFound: dashboardStats.anomalies,
+        anomaliesFound: dashboardStats.anomalies, // Send anomalies to AI
+
         segmentAnalysis: topSegmentMovers.map(s => ({
             segment: s.name,
             clicksChange: s.clicksChange,
             impressionsChange: s.impressionsChange,
         })),
         visibilityAnalysis: {
-            winners: topImpressionWinners.map(w => ({ url: w.name, impressionsChange: w.impressionsChange, clicksChange: w.clicksChange })).slice(0, 20),
-            losers: topImpressionLosers.map(l => ({ url: l.name, impressionsChange: l.impressionsChange, clicksChange: l.clicksChange })).slice(0, 20)
+            winners: topImpressionWinners.map(w => ({ url: w.name, impressionsChange: w.impressionsChange, clicksChange: w.clicksChange })).slice(0, 10),
+            losers: topImpressionLosers.map(l => ({ url: l.name, impressionsChange: l.impressionsChange, clicksChange: l.clicksChange })).slice(0, 10)
         },
         countryAnalysis: topCountryMovers,
         outlierAnalysis: detections.outlierAnalysis,
-        // Increased Limit to 100
         strikingDistanceOpportunities: detections.strikingDistanceCandidates.map(c => ({
             page: c.page,
             keyword: c.keyword,
@@ -235,45 +155,38 @@ export const runFullLocalAnalysis = (
             clicks: c.clicks,
             ctr: parseFloat(c.ctr.toFixed(2)),
             avgPosition: parseFloat(c.avgPosition.toFixed(1))
-        })).slice(0, 100),
-
-        keywordCannibalizationAlerts: detections.cannibalizationAlerts.slice(0, 10),
-
+        })),
+        keywordCannibalizationAlerts: detections.cannibalizationAlerts,
         ctrAnalysis: {
             redFlags: detections.ctrAnalysis.redFlags.map(c => ({
                 page: c.page, keyword: c.keyword, impressions: c.impressions, ctr: parseFloat(c.ctr.toFixed(1)), avgPosition: parseFloat(c.avgPosition.toFixed(1))
-            })).slice(0, 50),
+            })),
             opportunities: detections.ctrAnalysis.opportunities.map(c => ({
                 page: c.page, keyword: c.keyword, impressions: c.impressions, ctr: parseFloat(c.ctr.toFixed(1)), avgPosition: parseFloat(c.avgPosition.toFixed(1))
-            })).slice(0, 50)
+            }))
         },
         ghostKeywordAlerts: detections.ghostKeywordAlerts.map(c => ({
             page: c.page, keyword: c.keyword, impressions: c.impressions, clicks: c.clicks, avgPosition: parseFloat(c.avgPosition.toFixed(1))
-        })).slice(0, 50),
-
+        })),
         keywordDecayAlerts: detections.keywordDecayAlerts.map(k => ({
             keyword: k.name, positionP1: parseFloat(k.positionP1.toFixed(1)), positionP2: parseFloat(k.positionP2.toFixed(1)), positionChange: parseFloat(k.positionChange.toFixed(1)), impressionsP2: k.impressionsP2
-        })).slice(0, 50),
-
+        })),
         newKeywordDiscovery: detections.newKeywordDiscovery.map(k => ({
             keyword: k.name,
             impressionsP2: k.impressionsP2,
             clicksP2: k.clicksP2,
             ctrP2: k.impressionsP2 > 0 ? parseFloat(((k.clicksP2 / k.impressionsP2) * 100).toFixed(2)) : 0,
             avgPositionP2: parseFloat(k.positionP2.toFixed(1))
-        })).slice(0, 100),
-
+        })),
         page1LoserAlerts: detections.page1LoserAlerts.map(k => ({
             keyword: k.name, positionP1: parseFloat(k.positionP1.toFixed(1)), positionP2: parseFloat(k.positionP2.toFixed(1)), impressionsP1: k.impressionsP1
-        })).slice(0, 50),
-
+        })),
         topWinners: topWinners.map(w => ({
             url: w.name, clicksChange: w.clicksChange, positionChange: w.positionChange
-        })).slice(0, 20),
+        })).slice(0, 10),
         topLosers: topLosers.map(l => ({
             url: l.name, clicksChange: l.clicksChange, positionChange: l.positionChange
-        })).slice(0, 20),
-        taskPerformanceAnalysis,
+        })).slice(0, 10),
         availableChartKeys
     };
 
@@ -289,9 +202,13 @@ function detectTimeSeriesAnomalies(dates: string[], values: number[]): AnomalyPo
 
     const anomalies: AnomalyPoint[] = [];
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
+
+    // Standard Deviation
     const sqDiffs = values.map(v => Math.pow(v - mean, 2));
     const avgSqDiff = sqDiffs.reduce((a, b) => a + b, 0) / values.length;
     const stdDev = Math.sqrt(avgSqDiff);
+
+    // Threshold: 2.5 Standard Deviations
     const THRESHOLD = 2.5;
 
     values.forEach((val, idx) => {
@@ -310,9 +227,9 @@ function detectTimeSeriesAnomalies(dates: string[], values: number[]): AnomalyPo
 }
 
 
-function generateKeywordClusters(items: { keyword: string, page?: string, impressions: number, position: number, clicks: number }[]): TopicCluster[] {
+function generateKeywordClusters(items: { keyword: string, impressions: number, position: number, clicks: number }[]): TopicCluster[] {
     const stopWords = new Set(['de', 'el', 'la', 'en', 'para', 'con', 'las', 'los', 'del', 'que', 'una', 'un', 'y', 'a', 'o', 'como', 'mas', 'por', 'sus', 'es', 'mis', 'tus', 'que', 'en', 'los']);
-    const clusters: Map<string, { count: number, impressions: number, clicks: number, keywords: string[], posSum: number, urls: Map<string, { clicks: number, imp: number }> }> = new Map();
+    const clusters: Map<string, { count: number, impressions: number, clicks: number, keywords: string[], posSum: number }> = new Map();
 
     // 1. Tokenize and Count
     items.forEach(item => {
@@ -320,21 +237,13 @@ function generateKeywordClusters(items: { keyword: string, page?: string, impres
         const words = item.keyword.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w));
 
         for (const w of words) {
-            if (!clusters.has(w)) clusters.set(w, { count: 0, impressions: 0, clicks: 0, keywords: [], posSum: 0, urls: new Map() });
+            if (!clusters.has(w)) clusters.set(w, { count: 0, impressions: 0, clicks: 0, keywords: [], posSum: 0 });
             const c = clusters.get(w)!;
             c.count++;
             c.impressions += item.impressions;
             c.clicks += item.clicks;
             c.posSum += item.position;
             c.keywords.push(item.keyword);
-
-            // Track URL stats for this cluster
-            if (item.page) {
-                if (!c.urls.has(item.page)) c.urls.set(item.page, { clicks: 0, imp: 0 });
-                const u = c.urls.get(item.page)!;
-                u.clicks += item.clicks;
-                u.imp += item.impressions;
-            }
         }
     });
 
@@ -352,16 +261,9 @@ function generateKeywordClusters(items: { keyword: string, page?: string, impres
             const difficultyScore = Math.max(0, 100 - (avgPosition * 2));
             const opportunityScore = (data.impressions / 1000) * (difficultyScore / 10);
 
-            // Extract Top URLs
-            const topUrls = Array.from(data.urls.entries())
-                .map(([url, metrics]) => ({ url, clicks: metrics.clicks, impressions: metrics.imp }))
-                .sort((a, b) => b.impressions - a.impressions)
-                .slice(0, 3);
-
             results.push({
                 name: name.charAt(0).toUpperCase() + name.slice(1),
                 keywords: uniqueKws.slice(0, 10),
-                topUrls: topUrls,
                 totalImpressions: data.impressions,
                 avgPosition: avgPosition,
                 avgCtr: avgCtr,
@@ -396,7 +298,7 @@ function generateStrategicOverview(keywords: ComparisonItem[]): StrategicOvervie
         } else if (pos > 10 && pos <= 20 && imp > 500) {
             expand.push({ keyword: k.name, impressions: imp, position: parseFloat(pos.toFixed(1)) });
         } else if (k.positionChange > 5 && k.clicksChange < -5) {
-            prune.push({ keyword: k.name, position: parseFloat(pos.toFixed(1)), status: 'En Riesgo' });
+            prune.push({ keyword: k.name, position: parseFloat(pos.toFixed(1)), status: 'Decaying' });
         }
     }
 
@@ -417,6 +319,7 @@ function generateCannibalizationCharts(
 
     for (const alert of alerts) {
         const keyword = alert.keyword;
+        // Normalize keyword for lookup
         const key = keyword.toLowerCase().trim();
 
         const topPages = alert.competingPages.slice(0, 3).map((p: any) => p.page);
@@ -501,8 +404,10 @@ function analyzeLossCauses(loserUrls: ComparisonItem[], queriesP1: CSVRow[], que
 
 
 function calculateConcentration(items: ComparisonItem[], metricKey: 'clicksP2' | 'impressionsP2', minPercentageThreshold: number) {
+    // 1. Calculate Total Metric
     const totalMetric = items.reduce((sum, item) => sum + item[metricKey], 0);
 
+    // 2. Filter items that contribute more than X% INDIVIDUALLY
     const concentrationItems = items
         .filter(item => {
             const percentage = (item[metricKey] / totalMetric) * 100;
@@ -515,6 +420,7 @@ function calculateConcentration(items: ComparisonItem[], metricKey: 'clicksP2' |
         }))
         .sort((a, b) => b.value - a.value);
 
+    // 3. Calculate accumulated percentage of just these items
     const accumulated = concentrationItems.reduce((acc, item) => acc + item.value, 0);
 
     return {
@@ -592,6 +498,7 @@ function calculateDashboardStats(
         return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
     });
 
+    // Run Anomaly Detection on Period 2 (Active Period)
     const anomalies = detectTimeSeriesAnomalies(datesP2Formatted, d2.values);
 
     return {

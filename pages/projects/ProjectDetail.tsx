@@ -10,10 +10,98 @@ import TaskBoard from '../../components/projects/TaskBoard';
 import { SitemapManager } from '../../components/projects/SitemapManager';
 import { EditorialCalendar } from '../../components/projects/EditorialCalendar';
 
-const ProjectSettings = ({ project, members, onInvite }: { project: Project, members: any, onInvite: (email: string) => void }) => {
+import { GscService } from '../../services/gscService';
+
+const ProjectSettings = ({ project, members, onInvite, onUpdate }: { project: Project, members: any, onInvite: (email: string) => void, onUpdate: () => void }) => {
     const [email, setEmail] = useState('');
+    const [gscSites, setGscSites] = useState<any[]>([]);
+    const [loadingGsc, setLoadingGsc] = useState(false);
+    const [selectedSite, setSelectedSite] = useState(project.gsc_property_url || '');
+
+    const handleLoadGsc = async () => {
+        setLoadingGsc(true);
+        try {
+            const sites = await GscService.getSites();
+            setGscSites(sites);
+        } catch (e: any) {
+            alert("Error cargando GSC: " + e.message);
+        } finally {
+            setLoadingGsc(false);
+        }
+    };
+
+    const handleSaveGsc = async () => {
+        if (!selectedSite) return;
+        try {
+            await ProjectService.updateProject(project.id, { gsc_property_url: selectedSite });
+            onUpdate();
+            alert("Propiedad GSC guardada correctamente.");
+        } catch (e: any) {
+            alert("Error guardando proyecto: " + e.message);
+        }
+    };
+
     return (
         <div className="max-w-2xl bg-white p-6 rounded-2xl shadow-sm border border-brand-power/5">
+            <h3 className="text-lg font-bold text-brand-power mb-4">Integraciones</h3>
+            <div className="mb-8 p-4 bg-brand-soft/10 rounded-xl border border-brand-power/5">
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                        <Search className="w-5 h-5 text-google-blue" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-sm text-brand-power">Google Search Console</h4>
+                        <p className="text-xs text-brand-power/50">Conecta tu propiedad para sincronizar métricas SEO.</p>
+                    </div>
+                </div>
+
+                <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                        <label className="text-xs font-bold text-brand-power/60 uppercase mb-1 block">Propiedad Conectada</label>
+                        {gscSites.length > 0 ? (
+                            <select
+                                value={selectedSite}
+                                onChange={(e) => setSelectedSite(e.target.value)}
+                                className="w-full bg-white border border-brand-power/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand-accent appearance-none"
+                            >
+                                <option value="">Seleccionar Propiedad...</option>
+                                {gscSites.map((s: any) => (
+                                    <option key={s.siteUrl} value={s.siteUrl}>{s.siteUrl} ({s.permissionLevel})</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <input
+                                value={selectedSite}
+                                onChange={(e) => setSelectedSite(e.target.value)}
+                                placeholder="https://ejemplo.com/"
+                                className="w-full bg-white border border-brand-power/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand-accent"
+                            />
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleLoadGsc}
+                            disabled={loadingGsc}
+                            className="px-3 py-2 bg-white border border-brand-power/10 text-brand-power rounded-lg font-bold text-xs uppercase hover:bg-brand-soft transition-colors"
+                        >
+                            {loadingGsc ? '...' : (gscSites.length > 0 ? 'Refrescar' : 'Cargar Sitios')}
+                        </button>
+                        <button
+                            onClick={handleSaveGsc}
+                            className="px-3 py-2 bg-brand-power text-brand-white rounded-lg font-bold text-xs uppercase hover:bg-brand-power/90 transition-colors"
+                        >
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+                {project.gsc_property_url && (
+                    <div className="mt-2 text-xs text-emerald-600 flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Conectado: {project.gsc_property_url}
+                    </div>
+                )}
+            </div>
+
             <h3 className="text-lg font-bold text-brand-power mb-4">Gestionar Acceso</h3>
             <div className="flex gap-2 mb-6">
                 <input
@@ -79,14 +167,18 @@ const ProjectDetail: React.FC = () => {
 
     const loadData = async () => {
         try {
-            const [pData, mData, tData] = await Promise.all([
-                ProjectService.getProjectDetails(projectId),
-                ProjectService.getMembers(projectId),
-                TaskService.getTasks(projectId)
-            ]);
+            // 1. Fetch Project Details first
+            const pData = await ProjectService.getProjectDetails(projectId);
             setProject(pData);
-            setMembers(mData as any);
-            setTasks(tData);
+
+            if (pData && pData.id) {
+                // 2. Use resolved ID (UUID) for other calls
+                const mData = await ProjectService.getMembers(pData.id);
+                const tData = await TaskService.getTasks(pData.id);
+
+                setMembers(mData as any);
+                setTasks(tData);
+            }
         } catch (e) {
             console.error("Error loading project data:", e);
             if (e.message) console.error(e.message);
@@ -96,8 +188,9 @@ const ProjectDetail: React.FC = () => {
     };
 
     const handleInvite = async (email: string) => {
+        if (!project) return;
         try {
-            await ProjectService.inviteMember(projectId, email);
+            await ProjectService.inviteMember(project.id, email);
             loadData();
             alert("Invitación enviada");
         } catch (e: any) {
@@ -166,11 +259,11 @@ const ProjectDetail: React.FC = () => {
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.2 }}
                     >
-                        {activeTab === 'board' && <TaskBoard tasks={tasks} projectId={projectId} onTaskUpdate={loadData} />}
+                        {activeTab === 'board' && <TaskBoard tasks={tasks} projectId={project.id} onTaskUpdate={loadData} />}
                         {activeTab === 'list' && <div>List View Placeholder</div>}
-                        {activeTab === 'calendar' && <EditorialCalendar projectId={projectId} tasks={tasks} onTaskUpdate={loadData} />}
-                        {activeTab === 'sitemap' && <SitemapManager projectId={projectId} />}
-                        {activeTab === 'settings' && <ProjectSettings project={project} members={members} onInvite={handleInvite} />}
+                        {activeTab === 'calendar' && <EditorialCalendar projectId={project.id} tasks={tasks} onTaskUpdate={loadData} />}
+                        {activeTab === 'sitemap' && <SitemapManager projectId={project.id} />}
+                        {activeTab === 'settings' && <ProjectSettings project={project} members={members} onInvite={handleInvite} onUpdate={loadData} />}
                     </motion.div>
                 </AnimatePresence>
 
