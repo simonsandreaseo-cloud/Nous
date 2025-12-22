@@ -63,7 +63,7 @@ const ProjectSettings = ({ project, members, onInvite }: { project: Project, mem
 
 const ProjectDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const projectId = id ? parseInt(id) : 0;
+    const projectId = id || 0;
     const { user } = useAuth();
 
     const [project, setProject] = useState<Project | null>(null);
@@ -88,7 +88,8 @@ const ProjectDetail: React.FC = () => {
             setMembers(mData as any);
             setTasks(tData);
         } catch (e) {
-            console.error(e);
+            console.error("Error loading project data:", e);
+            if (e.message) console.error(e.message);
         } finally {
             setLoading(false);
         }

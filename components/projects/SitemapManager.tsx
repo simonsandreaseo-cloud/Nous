@@ -9,7 +9,7 @@ interface SitemapUrl {
 }
 
 interface SitemapManagerProps {
-    projectId: number;
+    projectId: string | number;
 }
 
 export const SitemapManager: React.FC<SitemapManagerProps> = ({ projectId }) => {

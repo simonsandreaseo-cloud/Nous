@@ -336,7 +336,6 @@ const App: React.FC = () => {
                                     value={apiKeysInput}
                                     onChange={(e) => setApiKeysInput(e.target.value)}
                                 />
-                                    // onBlur={(e) => checkIfKeySaved(e.target.value)}
                                 <p className="text-[10px] text-slate-400 mt-1 italic">Tus claves guardadas se cargarán automáticamente.</p>
                             </div>
                             <div>

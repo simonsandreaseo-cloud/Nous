@@ -4,6 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import mammoth from 'mammoth';
 import { styles } from './styles';
 import { IconUpload, IconSparkles, IconCopy, IconFile, IconSEO, IconImage, IconDownload, IconRefresh, IconMagic, IconZip, IconSearch, IconChevronLeft, IconMenu, IconArrowRight, IconSettings, IconUser, IconRadar, IconEdit, IconCheck, IconTrash, IconJson, IconLink, IconPlus, IconExternal, IconPalette, IconChevronDown, IconChevronUp, IconGhost, LoadingSpinner, IconSave, IconCloud } from './components';
 import { MetadataField } from './components';

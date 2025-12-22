@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 export interface Project {
-    id: number;
+    id: string | number;
     name: string;
     description?: string;
     owner_id: string;
@@ -13,7 +13,7 @@ export interface Project {
 
 export interface ProjectMember {
     id: number;
-    project_id: number;
+    project_id: string | number;
     user_id: string;
     role: 'admin' | 'editor' | 'viewer';
     status: 'active' | 'pending';
@@ -66,18 +66,19 @@ export const ProjectService = {
         return data;
     },
 
-    async getProjectDetails(id: number) {
+    async getProjectDetails(id: string | number) {
         const { data, error } = await supabase
             .from('projects')
             .select('*')
             .eq('id', id)
-            .single();
+            .maybeSingle();
 
         if (error) throw error;
+        if (!data) throw new Error("Project not found or access denied");
         return data;
     },
 
-    async getMembers(projectId: number) {
+    async getMembers(projectId: string | number) {
         // Get active members
         const { data: members, error } = await supabase
             .from('project_members')
@@ -97,7 +98,7 @@ export const ProjectService = {
         return { members: members || [], invites: invites || [] };
     },
 
-    async inviteMember(projectId: number, email: string, role: string = 'editor') {
+    async inviteMember(projectId: string | number, email: string, role: string = 'editor') {
         const user = (await supabase.auth.getUser()).data.user;
         if (!user) throw new Error("Not authenticated");
 
@@ -120,7 +121,7 @@ export const ProjectService = {
         return data;
     },
 
-    async deleteProject(id: number) {
+    async deleteProject(id: string | number) {
         const { error } = await supabase
             .from('projects')
             .delete()
@@ -130,8 +131,8 @@ export const ProjectService = {
 };
 
 export interface Task {
-    id: number;
-    project_id: number;
+    id: string | number;
+    project_id: string | number;
     title: string;
     description?: string;
     status: 'idea' | 'todo' | 'in_progress' | 'review' | 'done';
@@ -146,7 +147,7 @@ export interface Task {
 }
 
 export const TaskService = {
-    async getTasks(projectId: number) {
+    async getTasks(projectId: string | number) {
         const { data, error } = await supabase
             .from('tasks')
             .select('*, assignee:assignee_id(email, user_metadata)')
@@ -157,7 +158,7 @@ export const TaskService = {
         return data as Task[];
     },
 
-    async createTask(projectId: number, task: Partial<Task>) {
+    async createTask(projectId: string | number, task: Partial<Task>) {
         const user = (await supabase.auth.getUser()).data.user;
         if (!user) throw new Error("Not authenticated");
 
@@ -175,7 +176,7 @@ export const TaskService = {
         return data;
     },
 
-    async updateTask(id: number, updates: Partial<Task>) {
+    async updateTask(id: string | number, updates: Partial<Task>) {
         const { data, error } = await supabase
             .from('tasks')
             .update(updates)
@@ -187,7 +188,7 @@ export const TaskService = {
         return data;
     },
 
-    async deleteTask(id: number) {
+    async deleteTask(id: string | number) {
         const { error } = await supabase
             .from('tasks')
             .delete()

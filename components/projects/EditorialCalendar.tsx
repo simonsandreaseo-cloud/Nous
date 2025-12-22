@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Task } from '../../lib/task_manager';
 
 interface EditorialCalendarProps {
-    projectId: number;
+    projectId: string | number;
     tasks: Task[];
     onTaskUpdate: () => void;
 }

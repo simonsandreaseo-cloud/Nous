@@ -14,7 +14,7 @@ const STATUS_COLUMNS = [
 
 interface TaskBoardProps {
     tasks: Task[];
-    projectId: number;
+    projectId: string | number;
     onTaskUpdate: () => void;
 }
 
