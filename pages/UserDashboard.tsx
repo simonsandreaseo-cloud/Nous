@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigate, Link } from 'react-router-dom';
-import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles } from 'lucide-react';
+import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder } from 'lucide-react';
 import ToolWrapper from '../components/layout/ToolWrapper';
 
 interface Draft {
@@ -190,6 +190,32 @@ const UserDashboard: React.FC = () => {
                     {/* Main Content Area */}
                     <div className="md:col-span-2 space-y-8">
 
+
+                        {/* Projects Section - ADDED */}
+                        <div className="bg-white rounded-2xl p-8 shadow-sm border border-brand-power/5">
+                            <div className="flex items-center justify-between mb-8">
+                                <h2 className="text-xl font-bold text-brand-power flex items-center gap-3">
+                                    <Folder className="text-brand-accent" />
+                                    Gestión de Proyectos
+                                </h2>
+                                <Link to="/proyectos" className="text-xs font-bold text-brand-power/50 hover:text-brand-accent uppercase tracking-widest">
+                                    Ver Todo +
+                                </Link>
+                            </div>
+                            <div className="flex items-center gap-4 bg-brand-soft/10 p-6 rounded-xl border border-brand-power/5">
+                                <div className="w-12 h-12 rounded-full bg-brand-accent/10 flex items-center justify-center text-brand-accent">
+                                    <Folder size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-brand-power">Tus Campañas y Tareas</h3>
+                                    <p className="text-sm text-brand-power/50 mb-2">Gestiona tareas, calendario editorial y sitemaps.</p>
+                                    <Link to="/proyectos" className="text-xs font-bold text-brand-accent uppercase tracking-widest hover:underline">
+                                        Ir a Proyectos &rarr;
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* API Keys Section */}
                         <div className="bg-white rounded-3xl p-8 shadow-sm border border-brand-power/5">
                             <div className="flex items-center justify-between mb-8">
@@ -369,6 +395,12 @@ const UserDashboard: React.FC = () => {
                             <div className="absolute top-0 right-0 w-32 h-32 bg-brand-accent blur-[60px] opacity-20 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                             <h3 className="font-bold text-lg mb-6 relative z-10">Herramientas</h3>
                             <ul className="space-y-4 relative z-10">
+                                <li>
+                                    <Link to="/proyectos" className="flex items-center justify-between group">
+                                        <span className="text-brand-white/70 group-hover:text-white transition-colors">Gestor de Proyectos</span>
+                                        <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </Link>
+                                </li>
                                 <li>
                                     <Link to="/herramientas/redactor-ia" className="flex items-center justify-between group">
                                         <span className="text-brand-white/70 group-hover:text-white transition-colors">Content Writer</span>
