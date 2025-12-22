@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { styles } from './styles';
 import { IconUpload, IconSparkles, IconCopy, IconFile, IconSEO, IconImage, IconDownload, IconRefresh, IconMagic, IconZip, IconSearch, IconChevronLeft, IconMenu, IconArrowRight, IconSettings, IconUser, IconRadar, IconEdit, IconCheck, IconTrash, IconJson, IconLink, IconPlus, IconExternal, IconPalette, IconChevronDown, IconChevronUp, IconGhost, LoadingSpinner, IconSave, IconCloud } from './components';
 import { MetadataField } from './components';
 import { parseCSV, parseJSON, buildPrompt, generateArticleStream, findCampaignAssets, suggestImagePlacements, generateRealImage, ArticleConfig, VisualResource, AIImageRequest, runSEOAnalysis, SEOAnalysisResult, generateSchemaMarkup, ContentItem, ImageGenConfig, compositeWatermark, autoInterlink, runHumanizerPipeline, HumanizerConfig, runSmartEditor, generateOutlineStrategy, searchMoreLinks, cleanAndFormatHtml, refineStyling, refineArticleContent, analyzeResearchContent } from './services';
-import mammoth from 'mammoth';
+import { TaskService } from '../../../lib/task_manager';
 
 // --- Simple Save Function ---
 const downloadBlob = (blob: Blob, fileName: string) => {
@@ -21,6 +21,7 @@ const downloadBlob = (blob: Blob, fileName: string) => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 };
+/* ... existing code ... */
 
 // --- Multi API Key Modal Component ---
 const MultiKeyModal = ({ isOpen, onClose, onSave, currentKeys }: { isOpen: boolean, onClose: () => void, onSave: (keys: string[]) => void, currentKeys: string[] }) => {
@@ -114,9 +115,15 @@ const ResearchReportModal = ({ isOpen, onClose, htmlReport }: { isOpen: boolean,
 
 const App = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [draftId, setDraftId] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+    // TASK CONTEXT STATE
+    const [linkedTaskId, setLinkedTaskId] = useState<number | null>(null);
+    const [linkedTaskTitle, setLinkedTaskTitle] = useState<string | null>(null);
+    const [linkedProjectId, setLinkedProjectId] = useState<number | null>(null);
 
     // --- APP STATE ---
     const [viewMode, setViewMode] = useState<'setup' | 'seo-review' | 'structure-review' | 'workspace'>('setup');
@@ -131,8 +138,30 @@ const App = () => {
         if (user) {
             loadUserKeys();
             loadDraftFromUrl();
+            loadTaskFromUrl();
         }
     }, [user]);
+
+    const loadTaskFromUrl = async () => {
+        const params = new URLSearchParams(window.location.search);
+        const tid = params.get('taskId');
+        if (tid) {
+            try {
+                const { data, error } = await supabase.from('tasks').select('*').eq('id', tid).single();
+                if (error) throw error;
+                if (data) {
+                    setLinkedTaskId(data.id);
+                    setLinkedTaskTitle(data.title);
+                    setLinkedProjectId(data.project_id);
+                    if (data.target_keyword) setTargetKeyword(data.target_keyword);
+                    if (data.title && !strategyH1) setStrategyH1(data.title);
+                    setStatus(`Modo Tarea Activo: ${data.title}`);
+                }
+            } catch (e) {
+                console.error("Error loading task", e);
+            }
+        }
+    };
 
     const loadDraftFromUrl = async () => {
         const params = new URLSearchParams(window.location.search);
@@ -1218,6 +1247,69 @@ const App = () => {
 
     const canNavigate = (id: string) => true;
 
+    const handleCompleteTask = async () => {
+        if (!linkedTaskId) return;
+        setIsSaving(true);
+        setStatus("Guardando y vinculando tarea...");
+        try {
+            const draftData = {
+                title: strategyH1 || targetKeyword,
+                html_content: htmlContent,
+                strategy_data: {
+                    projectName,
+                    targetKeyword,
+                    detectedNiche,
+                    strategyOutline,
+                    strategyTone,
+                    metadata,
+                    strategyLSI,
+                    strategyLongTail,
+                    strategyQuestions,
+                    creativityLevel,
+                    strategyH1
+                },
+                user_id: user?.id,
+                updated_at: new Date()
+            };
+
+            let currentDraftId = draftId;
+
+            if (draftId) {
+                await supabase.from('content_drafts').update(draftData).eq('id', draftId);
+            } else {
+                const { data, error } = await supabase.from('content_drafts').insert(draftData).select().single();
+                if (error) throw error;
+                currentDraftId = data.id;
+                setDraftId(data.id);
+            }
+
+            // Link to Task
+            const { error: artifactError } = await supabase.from('task_artifacts').insert({
+                task_id: linkedTaskId,
+                artifact_type: 'draft',
+                artifact_reference: currentDraftId,
+                name: `Borrador: ${strategyH1}`
+            });
+
+            if (artifactError && artifactError.code !== '23505') throw artifactError;
+
+            // Update Task Status
+            await supabase.from('tasks').update({ status: 'review' }).eq('id', linkedTaskId);
+
+            setStatus("Tarea actualizada y borrador vinculado!");
+
+            if (linkedProjectId) {
+                setTimeout(() => navigate(`/proyectos/${linkedProjectId}`), 1000);
+            }
+
+        } catch (e: any) {
+            console.error(e);
+            setStatus("Error al completar tarea: " + e.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleNavClick = (id: any) => {
         if (canNavigate(id)) {
             setViewMode(id);
@@ -1233,6 +1325,18 @@ const App = () => {
     // --- MAIN RENDER ---
     return (
         <div style={styles.appLayout as any}>
+            {linkedTaskId && (
+                <div style={{ backgroundColor: '#4F46E5', color: 'white', padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+                        <IconCheck /> Trabajando en Tarea #{linkedTaskId}: {linkedTaskTitle}
+                    </div>
+                    {linkedProjectId && (
+                        <Link to={`/proyectos/${linkedProjectId}`} style={{ color: 'white', textDecoration: 'underline' }}>
+                            Volver al Proyecto
+                        </Link>
+                    )}
+                </div>
+            )}
             <MultiKeyModal
                 isOpen={showKeyModal}
                 onClose={() => setShowKeyModal(false)}
@@ -1791,6 +1895,16 @@ const App = () => {
                                         <IconPlus /> Nuevo Contenido
                                     </button>
                                     <button onClick={handleSaveCloud} style={{ ...styles.button, background: '#166534', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px' }} disabled={isSaving}><IconCloud /> {isSaving ? "Salvando..." : "Guardar en Nube"}</button>
+
+                                    {linkedTaskId && (
+                                        <button
+                                            onClick={handleCompleteTask}
+                                            style={{ ...styles.button, background: '#4F46E5', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px', border: '1px solid #4338ca' }}
+                                            disabled={isSaving}
+                                        >
+                                            <IconCheck /> {isSaving ? "Procesando..." : "Terminar Tarea"}
+                                        </button>
+                                    )}
 
                                     {draftId && (
                                         <Link

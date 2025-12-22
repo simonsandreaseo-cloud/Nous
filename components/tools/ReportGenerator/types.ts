@@ -29,7 +29,7 @@ export interface ComparisonItem extends MetricSeries {
     keywordCountP1: number;
     dailySeriesClicksP1: number[];
     dailySeriesPositionP1: number[];
-    
+
     clicksP2: number;
     impressionsP2: number;
     positionP2: number;
@@ -116,7 +116,7 @@ export interface CannibalizationChartData {
 
 // Phase 4: Clustering & Opportunity (Enhanced)
 export interface TopicCluster {
-    name: string; 
+    name: string;
     keywords: string[];
     topUrls: { url: string, clicks: number, impressions: number }[]; // New field for URL visualization
     totalImpressions: number;
@@ -151,7 +151,7 @@ export interface ReportPayload {
     period2Name: string;
     userContext: string;
     // Phase 3: Dedicated field for Agent Findings
-    agentInvestigation?: string; 
+    agentInvestigation?: string;
     metricsSummary: any;
     segmentAnalysis: any[];
     visibilityAnalysis: { winners: any[], losers: any[] };
@@ -172,15 +172,36 @@ export interface ReportPayload {
         impressionConcentration: { items: any[], percentage: number, totalMetric: number, threshold: number };
     };
     // Phase 2 Additions: Deep Dive / Forensic Analysis
-    lossCauseAnalysis: UrlLossDiagnosis[]; 
+    lossCauseAnalysis: UrlLossDiagnosis[];
     // Phase 3 Additions: Strategy & Visuals
     strategicOverview: StrategicOverview;
     // Phase 4 Additions: Clusters
     topicClusters: TopicCluster[];
     anomaliesFound: AnomalyPoint[]; // Send to AI
-    
+
     // Critical addition for the "Handshake"
-    availableChartKeys: string[]; 
+    availableChartKeys: string[];
+
+    // Phase 5: Task Intelligence
+    taskPerformanceAnalysis?: TaskPerformance[];
+}
+
+export interface TaskPerformance {
+    taskId: number;
+    taskTitle: string;
+    url: string;
+    metrics: {
+        clicks: number;
+        impressions: number;
+        position: number;
+        ctr: number;
+    };
+    comparison: {
+        clicksChange: number;
+        impressionsChange: number;
+        positionChange: number;
+    };
+    status: string; // 'track' | 'decay' | 'growth'
 }
 
 export interface LogEntry {

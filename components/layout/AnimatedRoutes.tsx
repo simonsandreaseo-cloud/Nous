@@ -6,6 +6,8 @@ import BlogVizPage from '../../pages/tools/BlogVizPage';
 import ReportGeneratorPage from '../../pages/tools/ReportGeneratorPage';
 import ContentWriterPage from '../../pages/tools/ContentWriterPage';
 import ContentWriter2Page from '../../pages/tools/ContentWriter2Page';
+import ProjectsDashboard from '../../pages/projects';
+import ProjectDetail from '../../pages/projects/ProjectDetail';
 import UserDashboard from '../../pages/UserDashboard';
 import ServiceDetail from '../../pages/ServiceDetail';
 
@@ -23,6 +25,10 @@ const AnimatedRoutes: React.FC = () => {
             <Route path="/herramientas/redactor-ia-2" element={<ContentWriter2Page />} />
             {/* Legacy path support */}
             <Route path="/herramientas/content-writer" element={<Navigate to="/herramientas/redactor-ia" replace />} />
+            {/* New Task Manager Routes */}
+            <Route path="/proyectos" element={<ProjectsDashboard />} />
+            <Route path="/proyectos/:id" element={<ProjectDetail />} />
+
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

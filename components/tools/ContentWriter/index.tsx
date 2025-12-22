@@ -1,7 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+// ...
+// (Skipping imports replacement as I can't do partial across file easily with one chunk if they are far apart)
+// Actually I'll do imports separately or assume I can hit it.
+// I'll do imports first.
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { styles } from './styles';
@@ -82,9 +86,15 @@ const MultiKeyModal = ({ isOpen, onClose, onSave, currentKeys }: { isOpen: boole
 
 const App = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [draftId, setDraftId] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+    // TASK CONTEXT STATE
+    const [linkedTaskId, setLinkedTaskId] = useState<number | null>(null);
+    const [linkedTaskTitle, setLinkedTaskTitle] = useState<string | null>(null);
+    const [linkedProjectId, setLinkedProjectId] = useState<number | null>(null);
 
     // --- APP STATE ---
     const [viewMode, setViewMode] = useState<'setup' | 'seo-review' | 'structure-review' | 'workspace'>('setup');
@@ -99,8 +109,30 @@ const App = () => {
         if (user) {
             loadUserKeys();
             loadDraftFromUrl();
+            loadTaskFromUrl();
         }
     }, [user]);
+
+    const loadTaskFromUrl = async () => {
+        const params = new URLSearchParams(window.location.search);
+        const tid = params.get('taskId');
+        if (tid) {
+            try {
+                const { data, error } = await supabase.from('tasks').select('*').eq('id', tid).single();
+                if (error) throw error;
+                if (data) {
+                    setLinkedTaskId(data.id);
+                    setLinkedTaskTitle(data.title);
+                    setLinkedProjectId(data.project_id);
+                    if (data.target_keyword) setTargetKeyword(data.target_keyword);
+                    if (data.title && !strategyH1) setStrategyH1(data.title);
+                    setStatus(`Modo Tarea Activo: ${data.title}`);
+                }
+            } catch (e) {
+                console.error("Error loading task", e);
+            }
+        }
+    };
 
     const loadDraftFromUrl = async () => {
         const params = new URLSearchParams(window.location.search);
@@ -1116,6 +1148,69 @@ const App = () => {
         setTimeout(() => setStatus(""), 2000);
     }
 
+    const handleCompleteTask = async () => {
+        if (!linkedTaskId) return;
+        setIsSaving(true);
+        setStatus("Guardando y vinculando tarea...");
+        try {
+            const draftData = {
+                title: strategyH1 || targetKeyword,
+                html_content: htmlContent,
+                strategy_data: {
+                    projectName,
+                    targetKeyword,
+                    detectedNiche,
+                    strategyOutline,
+                    strategyTone,
+                    metadata,
+                    strategyLSI,
+                    strategyLongTail,
+                    strategyQuestions,
+                    creativityLevel,
+                    strategyH1
+                },
+                user_id: user?.id,
+                updated_at: new Date()
+            };
+
+            let currentDraftId = draftId;
+
+            if (draftId) {
+                await supabase.from('content_drafts').update(draftData).eq('id', draftId);
+            } else {
+                const { data, error } = await supabase.from('content_drafts').insert(draftData).select().single();
+                if (error) throw error;
+                currentDraftId = data.id;
+                setDraftId(data.id);
+            }
+
+            // Link to Task
+            const { error: artifactError } = await supabase.from('task_artifacts').insert({
+                task_id: linkedTaskId,
+                artifact_type: 'draft',
+                artifact_reference: currentDraftId,
+                name: `Borrador: ${strategyH1}`
+            });
+
+            if (artifactError && artifactError.code !== '23505') throw artifactError;
+
+            // Update Task Status
+            await supabase.from('tasks').update({ status: 'review' }).eq('id', linkedTaskId);
+
+            setStatus("Tarea actualizada y borrador vinculado!");
+
+            if (linkedProjectId) {
+                setTimeout(() => navigate(`/proyectos/${linkedProjectId}`), 1000);
+            }
+
+        } catch (e: any) {
+            console.error(e);
+            setStatus("Error al completar tarea: " + e.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     // --- NAVIGATION HELPERS ---
     const steps = [
         { id: 'setup', label: 'Configuración', icon: <IconSettings />, enabled: true },
@@ -1144,6 +1239,21 @@ const App = () => {
     // --- MAIN RENDER ---
     return (
         <div style={styles.appLayout as any}>
+            {/* TASK BANNER */}
+            {linkedTaskId && (
+                <div style={{ backgroundColor: '#EFF6FF', borderBottom: '1px solid #DBEAFE', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1E40AF', fontSize: '13px', fontWeight: 600 }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563EB' }}></div>
+                        VINCUADO A TAREA #{linkedTaskId}: {linkedTaskTitle}
+                    </div>
+                    <button
+                        onClick={() => navigate(`/proyectos/${linkedProjectId}`)}
+                        style={{ background: 'none', border: 'none', color: '#3B82F6', fontSize: '12px', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                        Volver al Proyecto
+                    </button>
+                </div>
+            )}
             <MultiKeyModal
                 isOpen={showKeyModal}
                 onClose={() => setShowKeyModal(false)}
@@ -1671,6 +1781,16 @@ const App = () => {
                                         <IconPlus /> Nuevo Contenido
                                     </button>
                                     <button onClick={handleSaveCloud} style={{ ...styles.button, background: '#166534', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px' }} disabled={isSaving}><IconCloud /> {isSaving ? "Salvando..." : "Guardar en Nube"}</button>
+
+                                    {linkedTaskId && (
+                                        <button
+                                            onClick={handleCompleteTask}
+                                            style={{ ...styles.button, background: '#4F46E5', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px', border: '1px solid #4338ca' }}
+                                            disabled={isSaving}
+                                        >
+                                            <IconCheck /> {isSaving ? "Procesando..." : "Terminar Tarea"}
+                                        </button>
+                                    )}
 
                                     {draftId && (
                                         <Link

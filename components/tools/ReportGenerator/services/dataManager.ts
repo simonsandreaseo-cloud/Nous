@@ -24,7 +24,7 @@ export class DataManager {
     private minDate: number = Infinity;
     private maxDate: number = -Infinity;
 
-    constructor() {}
+    constructor() { }
 
     /**
      * Main entry point to ingest and index data.
@@ -32,7 +32,7 @@ export class DataManager {
      */
     public initialize(pages: CSVRow[], queries: CSVRow[], countries: CSVRow[]) {
         this.reset();
-        
+
         this.pages = pages;
         this.queries = queries;
         this.countries = countries;
@@ -42,11 +42,8 @@ export class DataManager {
         this.buildIndices(this.countries, this.countriesByDate, this.countriesByName, 'country');
 
         this.calculateGlobalTimeRange();
-        
-        console.log(`[DataManager] Indexing Complete. 
-        - Pages: ${this.pagesByUrl.size} unique URLs
-        - Keywords: ${this.queriesByKeyword.size} unique Terms
-        - Time Range: ${new Date(this.minDate).toISOString()} to ${new Date(this.maxDate).toISOString()}`);
+
+
     }
 
     private reset() {
@@ -64,8 +61,8 @@ export class DataManager {
      * Generic Index Builder
      */
     private buildIndices(
-        data: CSVRow[], 
-        dateIndex: Map<DateString, CSVRow[]>, 
+        data: CSVRow[],
+        dateIndex: Map<DateString, CSVRow[]>,
         entityIndex: Map<EntityKey, CSVRow[]>,
         entityField: 'page' | 'keyword' | 'country'
     ) {
@@ -123,11 +120,11 @@ export class DataManager {
     private getDateKeys(start: Date, end: Date): string[] {
         const keys: string[] = [];
         const current = new Date(start);
-        current.setHours(0,0,0,0);
-        
+        current.setHours(0, 0, 0, 0);
+
         // Safety cap to prevent infinite loops if dates are wild
         const endTs = end.getTime();
-        const maxDays = 365 * 5; 
+        const maxDays = 365 * 5;
         let days = 0;
 
         while (current.getTime() <= endTs && days < maxDays) {
@@ -151,24 +148,24 @@ export class DataManager {
         filter: FilterOptions
     ): CSVRow[] {
         let rows: CSVRow[] = [];
-        
+
         // 1. Time Filtering Strategy (Index Scan)
         const start = filter.startDate || new Date(this.minDate);
         const end = filter.endDate || new Date(this.maxDate);
-        
+
         const dateKeys = this.getDateKeys(start, end);
-        
+
         // Select Index
-        const index = source === 'pages' ? this.pagesByDate : 
-                      source === 'queries' ? this.queriesByDate : 
-                      this.countriesByDate;
+        const index = source === 'pages' ? this.pagesByDate :
+            source === 'queries' ? this.queriesByDate :
+                this.countriesByDate;
 
         // Gather candidate rows
         for (const key of dateKeys) {
             const dayRows = index.get(key);
             if (dayRows) {
                 // Pushing references is fast
-                for(let i = 0; i < dayRows.length; i++) {
+                for (let i = 0; i < dayRows.length; i++) {
                     rows.push(dayRows[i]);
                 }
             }
@@ -187,14 +184,14 @@ export class DataManager {
                 return true;
             });
         }
-        
+
         // 3. Metric Filtering
         if (filter.minClicks !== undefined || filter.minImpressions !== undefined) {
-             rows = rows.filter(row => {
-                 if (filter.minClicks !== undefined && row.clicks < filter.minClicks) return false;
-                 if (filter.minImpressions !== undefined && row.impressions < filter.minImpressions) return false;
-                 return true;
-             });
+            rows = rows.filter(row => {
+                if (filter.minClicks !== undefined && row.clicks < filter.minClicks) return false;
+                if (filter.minImpressions !== undefined && row.impressions < filter.minImpressions) return false;
+                return true;
+            });
         }
 
         return rows;
@@ -225,19 +222,19 @@ export class DataManager {
      * Useful for: "What are the top 5 keywords for this URL?"
      */
     public getGroupedRanking(
-        rows: CSVRow[], 
+        rows: CSVRow[],
         groupBy: 'page' | 'keyword' | 'country',
         metric: 'clicks' | 'impressions' = 'clicks',
         limit: number = 10
     ) {
         const map = new Map<string, { clicks: number, impressions: number, posSum: number, count: number }>();
-        
+
         for (const row of rows) {
             let key = '';
             if (groupBy === 'page') key = row.page || '(not set)';
             else if (groupBy === 'keyword') key = row.keyword || '(not set)';
             else if (groupBy === 'country') key = row.country || '(not set)';
-            
+
             if (!map.has(key)) map.set(key, { clicks: 0, impressions: 0, posSum: 0, count: 0 });
             const entry = map.get(key)!;
             entry.clicks += row.clicks;

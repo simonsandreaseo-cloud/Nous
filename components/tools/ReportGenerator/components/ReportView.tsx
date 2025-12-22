@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
-import { ChartData, ComparisonItem, DashboardStats, CannibalizationChartData, ReportPayload } from '../types';
+import { ChartData, ComparisonItem, DashboardStats, CannibalizationChartData, ReportPayload, TaskPerformance } from '../types';
 import { Dashboard } from './Dashboard';
+import { TaskPerformancePanel } from './TaskPerformancePanel';
 
 interface ReportViewProps {
     htmlContent: string;
@@ -16,7 +17,11 @@ interface ReportViewProps {
     isSaving?: boolean;
     hasSaved?: boolean;
     user?: any;
+    taskPerformance?: TaskPerformance[];
+    decayAlerts?: any[];
 }
+
+// Helper to map HTML Section ID to Data Payload Key
 
 // Helper to map HTML Section ID to Data Payload Key
 const SECTION_DATA_MAP: Record<string, keyof ReportPayload> = {
@@ -39,7 +44,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
     onSave,
     isSaving,
     hasSaved,
-    user
+    user,
+    taskPerformance,
+    decayAlerts
 }) => {
     const mainContainerRef = useRef<HTMLDivElement>(null);
     const chartInstances = useRef<Chart[]>([]);
@@ -425,6 +432,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         {dashboardStats && (
                             <div className="break-after-auto p-6 border-b border-slate-100 print:break-inside-avoid">
                                 <Dashboard stats={dashboardStats} logo={logo} />
+                                {(taskPerformance || decayAlerts) && (
+                                    <TaskPerformancePanel
+                                        taskPerformance={taskPerformance || []}
+                                        decayAlerts={decayAlerts || []}
+                                        user={user}
+                                    />
+                                )}
                             </div>
                         )}
 
