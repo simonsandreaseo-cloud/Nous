@@ -333,8 +333,9 @@ const App: React.FC = () => {
                                             rows={4}
                                             value={apiKeysInput}
                                             onChange={(e) => setApiKeysInput(e.target.value)}
+                                        />
                                     // onBlur={(e) => checkIfKeySaved(e.target.value)}
-                                <p className="text-[10px] text-slate-400 mt-1 italic">Tus claves guardadas se cargarán automáticamente.</p>
+                                        <p className="text-[10px] text-slate-400 mt-1 italic">Tus claves guardadas se cargarán automáticamente.</p>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-2">Modelo</label>
