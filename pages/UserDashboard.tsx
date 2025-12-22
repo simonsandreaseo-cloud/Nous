@@ -324,7 +324,7 @@ const UserDashboard: React.FC = () => {
                             <div className="flex items-center justify-between mb-8">
                                 <h2 className="text-xl font-bold text-brand-power flex items-center gap-3">
                                     <FileText className="text-brand-accent" />
-                                    Mis Informes SEO
+                                    Mis Informes SEO (Analista)
                                 </h2>
                                 <Link to="/herramientas/generador-informes" className="text-xs font-bold text-brand-power/50 hover:text-brand-accent uppercase tracking-widest">
                                     Nuevo +
@@ -427,7 +427,7 @@ const UserDashboard: React.FC = () => {
                                 </li>
                                 <li>
                                     <Link to="/herramientas/generador-informes" className="flex items-center justify-between group">
-                                        <span className="text-brand-white/70 group-hover:text-white transition-colors">Generador de Informes</span>
+                                        <span className="text-brand-white/70 group-hover:text-white transition-colors">Analista de Métricas</span>
                                         <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </Link>
                                 </li>

@@ -25,6 +25,13 @@ const AVAILABLE_MODELS = [
 const App: React.FC = () => {
     // State
     const [step, setStep] = useState<number>(1);
+    // Standard Deviation
+    // The following lines appear to be part of a helper function for standard deviation calculation
+    // and are placed here as per user instruction, but are not syntactically valid in this scope.
+    // If this is intended to be a helper function, it should be defined outside the component or within a useCallback/useMemo.
+    // For now, placing it as instructed, but noting the potential syntax issue.
+    // if (values.length < 2) return []; // Cannot calc stddev on 1 point
+    // const sqDiffs = values.map(v => Math.pow(v - mean, 2));
     const [analysisMode, setAnalysisMode] = useState<'csv' | 'gsc'>('csv'); // NEW
 
     // File State (CSV Mode)
@@ -181,8 +188,8 @@ const App: React.FC = () => {
                 const date = new Date(d);
                 return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
             };
-            setP1Name(`${fmt(startP1)} - ${fmt(endP1)}`);
-            setP2Name(`${fmt(startP2)} - ${fmt(endP2)}`);
+            setP1Name(startP1 === endP1 ? fmt(startP1) : `${fmt(startP1)} - ${fmt(endP1)}`);
+            setP2Name(startP2 === endP2 ? fmt(startP2) : `${fmt(startP2)} - ${fmt(endP2)}`);
 
             addLog("✅ Datos descargados exitosamente.");
             setGscLoading(false);
@@ -216,7 +223,7 @@ const App: React.FC = () => {
 
 
             const uniqueTimestamps = Array.from<number>(new Set(pagesData.map(r => r.date.getTime()))).sort((a, b) => a - b);
-            if (uniqueTimestamps.length < 2) throw new Error("Dataset insuficiente.");
+            if (uniqueTimestamps.length < 1) throw new Error("Dataset insuficiente."); // Modified for single day support
 
             const midPointIndex = Math.floor(uniqueTimestamps.length / 2);
             const cutoffTime = uniqueTimestamps[midPointIndex];

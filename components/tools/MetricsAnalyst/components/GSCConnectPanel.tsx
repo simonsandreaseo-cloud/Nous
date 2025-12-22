@@ -61,27 +61,41 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
 
     const handleAnalyzeClick = () => {
         if (!selectedSite) return alert("Selecciona una propiedad.");
-        onAnalyze(selectedSite, dateRangeP1.start, dateRangeP1.end, dateRangeP2.start, dateRangeP2.end);
+        if (compareMode === 'day') {
+            onAnalyze(selectedSite, dayP1, dayP1, dayP2, dayP2);
+        } else {
+            onAnalyze(selectedSite, dateRangeP1.start, dateRangeP1.end, dateRangeP2.start, dateRangeP2.end);
+        }
     };
 
     // Quick Selectors
-    const applyQuickRange = (months: number) => {
+    const applyQuickRange = (months?: number, type?: 'prev_year' | 'prev_period') => {
         const end = new Date();
         end.setDate(end.getDate() - 3);
-        const start = new Date(end);
-        start.setMonth(start.getMonth() - months);
 
-        // P2 (Current)
-        const p2S = start.toISOString().split('T')[0];
-        const p2E = end.toISOString().split('T')[0];
+        let start, p2S, p2E, startP1, endP1;
 
-        // P1 (Previous equivalent)
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        const endP1 = new Date(start.getTime() - 86400000);
-        const startP1 = new Date(endP1.getTime() - diffTime);
+        if (type === 'prev_year') {
+            // Same dates last year
+            start = new Date(dateRangeP2.start);
+            end.setTime(new Date(dateRangeP2.end).getTime());
 
-        setDateRangeP2({ start: p2S, end: p2E });
-        setDateRangeP1({ start: startP1.toISOString().split('T')[0], end: endP1.toISOString().split('T')[0] });
+            startP1 = new Date(start);
+            startP1.setFullYear(startP1.getFullYear() - 1);
+            endP1 = new Date(end);
+            endP1.setFullYear(endP1.getFullYear() - 1);
+        } else if (months) {
+            start = new Date(end);
+            start.setMonth(start.getMonth() - months);
+            const diffTime = Math.abs(end.getTime() - start.getTime());
+            endP1 = new Date(start.getTime() - 86400000);
+            startP1 = new Date(endP1.getTime() - diffTime);
+        }
+
+        if (start && endP1 && startP1) {
+            setDateRangeP2({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] });
+            setDateRangeP1({ start: startP1.toISOString().split('T')[0], end: endP1.toISOString().split('T')[0] });
+        }
     };
 
     if (!session || !session.provider_token) {
@@ -101,8 +115,29 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
         );
     }
 
+    const [compareMode, setCompareMode] = useState<'range' | 'day'>('range');
+    const [dayP1, setDayP1] = useState(defaults.p1End);
+    const [dayP2, setDayP2] = useState(defaults.p2End);
+
+    // ... (rest of quick actions)
+
     return (
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            {/* 0. Mode Tabs */}
+            <div className="flex gap-2 mb-6 bg-slate-100 p-1.5 rounded-xl self-start inline-flex">
+                <button
+                    onClick={() => setCompareMode('range')}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'range' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:bg-white/50'}`}
+                >
+                    Rango de Fechas
+                </button>
+                <button
+                    onClick={() => setCompareMode('day')}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'day' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-white/50'}`}
+                >
+                    Día vs Día
+                </button>
+            </div>
             {/* 1. Property Selector */}
             <div className="mb-8">
                 <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Propiedad de Search Console</label>
@@ -123,67 +158,58 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
 
             {/* 2. Date Comparison Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Period 1 (Previous/Baseline) */}
+                {/* Period 1 */}
                 <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50 relative group">
                     <div className="absolute top-0 right-0 left-0 h-1 bg-slate-300 rounded-t-2xl"></div>
                     <div className="text-xs font-bold text-slate-500 uppercase mb-3 flex justify-between">
-                        <span>Periodo Base (Anterior)</span>
+                        <span>{compareMode === 'range' ? 'Periodo Base' : 'Día Base'} (Anterior)</span>
                         <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px]">Comparativa</span>
                     </div>
-                    <div className="flex gap-2">
-                        <input
-                            type="date"
-                            value={dateRangeP1.start}
-                            onChange={(e) => setDateRangeP1({ ...dateRangeP1, start: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-slate-200 text-sm font-mono text-slate-600 focus:border-indigo-500 outline-none"
-                        />
-                        <span className="self-center text-slate-400">-</span>
-                        <input
-                            type="date"
-                            value={dateRangeP1.end}
-                            onChange={(e) => setDateRangeP1({ ...dateRangeP1, end: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-slate-200 text-sm font-mono text-slate-600 focus:border-indigo-500 outline-none"
-                        />
-                    </div>
+                    {compareMode === 'range' ? (
+                        <div className="flex gap-2">
+                            <input type="date" value={dateRangeP1.start} onChange={(e) => setDateRangeP1({ ...dateRangeP1, start: e.target.value })} className="w-full p-2 rounded-lg border border-slate-200 text-sm font-mono text-slate-600 focus:border-indigo-500 outline-none" />
+                            <span className="self-center text-slate-400">-</span>
+                            <input type="date" value={dateRangeP1.end} onChange={(e) => setDateRangeP1({ ...dateRangeP1, end: e.target.value })} className="w-full p-2 rounded-lg border border-slate-200 text-sm font-mono text-slate-600 focus:border-indigo-500 outline-none" />
+                        </div>
+                    ) : (
+                        <input type="date" value={dayP1} onChange={(e) => setDayP1(e.target.value)} className="w-full p-2 rounded-lg border border-slate-200 text-sm font-mono text-slate-600 focus:border-indigo-500 outline-none" />
+                    )}
                 </div>
 
-                {/* Period 2 (Current/Focus) */}
+                {/* Period 2 */}
                 <div className="p-5 rounded-2xl border border-indigo-200 bg-indigo-50/30 relative group shadow-sm">
                     <div className="absolute top-0 right-0 left-0 h-1 bg-indigo-500 rounded-t-2xl"></div>
                     <div className="text-xs font-bold text-indigo-800 uppercase mb-3 flex justify-between">
-                        <span>Periodo Actual (Foco)</span>
+                        <span>{compareMode === 'range' ? 'Periodo Actual' : 'Día Objetivo'} (Foco)</span>
                         <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px]">Principal</span>
                     </div>
-                    <div className="flex gap-2">
-                        <input
-                            type="date"
-                            value={dateRangeP2.start}
-                            onChange={(e) => setDateRangeP2({ ...dateRangeP2, start: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-indigo-200 text-sm font-mono text-slate-900 font-bold focus:border-indigo-500 outline-none bg-white"
-                        />
-                        <span className="self-center text-slate-400">-</span>
-                        <input
-                            type="date"
-                            value={dateRangeP2.end}
-                            onChange={(e) => setDateRangeP2({ ...dateRangeP2, end: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-indigo-200 text-sm font-mono text-slate-900 font-bold focus:border-indigo-500 outline-none bg-white"
-                        />
-                    </div>
+                    {compareMode === 'range' ? (
+                        <div className="flex gap-2">
+                            <input type="date" value={dateRangeP2.start} onChange={(e) => setDateRangeP2({ ...dateRangeP2, start: e.target.value })} className="w-full p-2 rounded-lg border border-indigo-200 text-sm font-mono text-slate-900 font-bold focus:border-indigo-500 outline-none bg-white" />
+                            <span className="self-center text-slate-400">-</span>
+                            <input type="date" value={dateRangeP2.end} onChange={(e) => setDateRangeP2({ ...dateRangeP2, end: e.target.value })} className="w-full p-2 rounded-lg border border-indigo-200 text-sm font-mono text-slate-900 font-bold focus:border-indigo-500 outline-none bg-white" />
+                        </div>
+                    ) : (
+                        <input type="date" value={dayP2} onChange={(e) => setDayP2(e.target.value)} className="w-full p-2 rounded-lg border border-indigo-200 text-sm font-mono text-slate-900 font-bold focus:border-indigo-500 outline-none bg-white" />
+                    )}
                 </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
-                {[1, 3, 6, 12].map(m => (
-                    <button
-                        key={m}
-                        onClick={() => applyQuickRange(m)}
-                        className="px-4 py-1.5 rounded-full border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition whitespace-nowrap"
-                    >
-                        Últimos {m} Meses
-                    </button>
-                ))}
-            </div>
+            {compareMode === 'range' && (
+                <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+                    {[1, 3, 6, 12].map(m => (
+                        <button
+                            key={m}
+                            onClick={() => applyQuickRange(m)}
+                            className="px-4 py-1.5 rounded-full border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition whitespace-nowrap"
+                        >
+                            Últimos {m} Meses
+                        </button>
+                    ))}
+                    <button onClick={() => applyQuickRange(undefined, 'prev_year')} className="px-4 py-1.5 rounded-full border border-indigo-100 bg-indigo-50 text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition whitespace-nowrap">Vs Año Anterior</button>
+                </div>
+            )}
 
             {/* Action Button */}
             <button

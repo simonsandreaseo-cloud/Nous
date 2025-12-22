@@ -5,11 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import TaskDetailModal from './TaskDetailModal';
 
 const STATUS_COLUMNS = [
-    { id: 'idea', label: 'Ideas', color: 'bg-yellow-500' },
-    { id: 'todo', label: 'Por Hacer', color: 'bg-gray-500' },
+    { id: 'idea', label: 'Ideas', color: 'bg-amber-400' },
+    { id: 'todo', label: 'Por Hacer', color: 'bg-slate-400' },
     { id: 'in_progress', label: 'En Progreso', color: 'bg-blue-500' },
     { id: 'review', label: 'Revisión', color: 'bg-purple-500' },
-    { id: 'done', label: 'Publicado', color: 'bg-green-500' }
+    { id: 'done', label: 'Publicado', color: 'bg-emerald-500' }
 ];
 
 interface TaskBoardProps {

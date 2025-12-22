@@ -179,6 +179,8 @@ export interface Task {
     target_keyword?: string;
     target_url_slug?: string;
     associated_url?: string;
+    locked_by?: string;
+    locked_until?: string;
     created_at: string;
     assignee?: { email: string; user_metadata: any };
 }
@@ -187,7 +189,7 @@ export const TaskService = {
     async getTasks(projectId: string | number) {
         const { data, error } = await supabase
             .from('tasks')
-            .select('*, assignee:assignee_id(email, user_metadata)')
+            .select('*')
             .eq('project_id', projectId)
             .order('created_at', { ascending: false });
 

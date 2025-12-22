@@ -44,7 +44,7 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({ suggestedSecti
             >
                 <div className="p-8 border-b border-slate-100 bg-slate-50/50">
                     <h2 className="text-2xl font-bold text-slate-800 mb-2">Personaliza tu Informe</h2>
-                    <p className="text-slate-500">El Agente ha sugerido <strong>{suggestedSections.length}</strong> secciones basándose en tus datos. Añade o quita lo que necesites.</p>
+                    <p className="text-slate-500">El Agente ha sugerido <strong>{suggestedSections.length}</strong> secciones basándose en tus datos, pero puedes <strong>activar todas las que desees</strong> manualmente.</p>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30">

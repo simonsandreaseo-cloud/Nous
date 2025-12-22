@@ -165,7 +165,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     return (
         <div className="max-w-6xl mx-auto py-10 px-6 print:px-0">
             {/* Header / Save Bar */}
-            <div className="flex justify-between items-center mb-8 no-print">
+            <div className="flex justify-between items-center mb-8 print:hidden">
                 <button
                     onClick={() => window.location.reload()}
                     className="text-sm font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-2"
@@ -204,7 +204,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
             )}
 
             {/* Editor Toolbar (New) */}
-            <div className="sticky top-4 z-40 bg-white shadow-lg rounded-xl border border-slate-200 p-2 mb-6 flex gap-2 items-center justify-between no-print transition-all">
+            <div className="sticky top-4 z-40 bg-white shadow-lg rounded-xl border border-slate-200 p-2 mb-6 flex gap-2 items-center justify-between print:hidden transition-all">
                 <div className="flex gap-1">
                     <EditorButton icon="B" onClick={() => document.execCommand('bold')} label="Negrita" />
                     <EditorButton icon="I" onClick={() => document.execCommand('italic')} label="Cursiva" />
@@ -285,7 +285,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
             </div>
 
             {/* Chat / Refinement Interface */}
-            <div className="mt-12 bg-white p-6 rounded-xl border border-slate-200 shadow-sm no-print">
+            <div className="mt-12 bg-white p-6 rounded-xl border border-slate-200 shadow-sm print:hidden">
                 <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                     💬 Refinar con IA
                 </h3>

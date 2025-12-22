@@ -40,12 +40,40 @@ export const GscService = {
      * @param endDate Format: 'YYYY-MM-DD'
      * @param dimensions Array of dimensions: ['date', 'query', 'page', 'country', 'device']
      */
-    async getSearchAnalytics(siteUrl: string, startDate: string, endDate: string, dimensions: string[] = ['date']) {
+    async getSearchAnalytics(siteUrl: string, startDate: string, endDate: string, dimensions: string[] = ['date'], filters: { page?: string, query?: string } = {}) {
         const token = await this.getAccessToken();
         if (!token) throw new Error('No access token');
 
         // Site URL must be URL-encoded for the path
         const encodedSiteUrl = encodeURIComponent(siteUrl);
+
+        const requestBody: any = {
+            startDate,
+            endDate,
+            dimensions,
+            rowLimit: 5000,
+        };
+
+        if (filters.page || filters.query) {
+            requestBody.dimensionFilterGroups = [{
+                filters: []
+            }];
+
+            if (filters.page) {
+                requestBody.dimensionFilterGroups[0].filters.push({
+                    dimension: 'page',
+                    operator: 'equals',
+                    expression: filters.page
+                });
+            }
+            if (filters.query) {
+                requestBody.dimensionFilterGroups[0].filters.push({
+                    dimension: 'query',
+                    operator: 'contains',
+                    expression: filters.query
+                });
+            }
+        }
 
         const response = await fetch(`${GSC_API_BASE}/sites/${encodedSiteUrl}/searchAnalytics/query`, {
             method: 'POST',
@@ -53,12 +81,7 @@ export const GscService = {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                startDate,
-                endDate,
-                dimensions,
-                rowLimit: 5000,
-            }),
+            body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -69,5 +92,25 @@ export const GscService = {
 
         const data = await response.json();
         return data.rows || [];
+    }
+    /**
+     * Get sitemaps for a specific site.
+     */
+    async getSitemaps(siteUrl: string) {
+        const token = await this.getAccessToken();
+        if (!token) throw new Error('No access token');
+
+        const encodedSiteUrl = encodeURIComponent(siteUrl);
+        const response = await fetch(`${GSC_API_BASE}/sites/${encodedSiteUrl}/sitemaps`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Error fetching sitemaps');
+        }
+
+        const data = await response.json();
+        return data.sitemap || [];
     }
 };

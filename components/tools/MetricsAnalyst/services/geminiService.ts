@@ -55,6 +55,7 @@ const SYSTEM_PROMPT_SECTION_WRITER = `You are a "Lead Product Designer" for a Fi
 - **ALERTA_CANIBALIZACION**: Table. Row: Keyword | URLs | Chart.
 - **ANALISIS_CONCENTRACION**: 2-col layout. Left: Risk Text. Right: Dense Table (URL | % Share).
 - **ANALISIS_CAUSAS_CAIDA**: Table. Cols: URL | Lost Clicks | Diagnosis.
+- **ANALISIS_SEGMENTOS**: Table. Cols: Segment | Clicks Change (Color Red/Green) | Impressions Change. Use \`text-emerald-600\` for positive change and \`text-rose-600\` for negative change.
 
 Output RAW HTML only.`;
 

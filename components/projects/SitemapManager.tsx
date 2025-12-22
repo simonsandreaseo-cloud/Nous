@@ -8,16 +8,19 @@ interface SitemapUrl {
     created_at: string;
 }
 
+import { GscService } from '../../services/gscService';
+
 interface SitemapManagerProps {
     projectId: string | number;
+    gscUrl?: string;
 }
 
-export const SitemapManager: React.FC<SitemapManagerProps> = ({ projectId }) => {
+export const SitemapManager: React.FC<SitemapManagerProps> = ({ projectId, gscUrl }) => {
     const [urls, setUrls] = useState<SitemapUrl[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
     const [inputText, setInputText] = useState('');
-    const [uploadMode, setUploadMode] = useState<'text' | 'file'>('text');
+    const [uploadMode, setUploadMode] = useState<'text' | 'file' | 'gsc'>('text');
 
     useEffect(() => {
         loadUrls();
@@ -37,6 +40,39 @@ export const SitemapManager: React.FC<SitemapManagerProps> = ({ projectId }) => 
             console.error('Error loading sitemap:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleFetchGsc = async () => {
+        if (!gscUrl) {
+            alert("Conecta GSC primero en la sección de integraciones.");
+            return;
+        }
+        setIsUploading(true);
+        setUploadMode('gsc'); // Set mode to GSC when fetching
+        try {
+            const sitemaps = await GscService.getSitemaps(gscUrl);
+            if (sitemaps.length === 0) {
+                alert("No sitemaps found in GSC.");
+            } else {
+                // Determine which one to use? For MVP use the first one 'path'
+                const target = sitemaps[0].path;
+                if (confirm(`Encontrado sitemap: ${target}. ¿Intentar procesarlo?`)) {
+                    // Start fetching via proxy or direct (might fail CORS)
+                    try {
+                        const res = await fetch(target);
+                        const text = await res.text();
+                        await processContent(text, 'text/xml');
+                    } catch (e) {
+                        // Fallback instructions
+                        prompt(`No se pudo descargar automáticamente por restricciones de seguridad (CORS). Copia la URL y úsala, o descarga el archivo manualmente:`, target);
+                    }
+                }
+            }
+        } catch (e: any) {
+            alert("Error GSC: " + e.message);
+        } finally {
+            setIsUploading(false);
         }
     };
 

@@ -204,6 +204,8 @@ function detectTimeSeriesAnomalies(dates: string[], values: number[]): AnomalyPo
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
 
     // Standard Deviation
+    if (values.length < 2) return [];
+
     const sqDiffs = values.map(v => Math.pow(v - mean, 2));
     const avgSqDiff = sqDiffs.reduce((a, b) => a + b, 0) / values.length;
     const stdDev = Math.sqrt(avgSqDiff);
@@ -654,7 +656,7 @@ function runDetectionsInOnePass(
     for (const item of comparedKeywords) {
         if (!item.name) continue;
         if (item.positionChange > 5 && item.impressionsP2 > 500 && item.positionP1 > 0) keywordDecayAlerts.push(item);
-        if (item.impressionsP1 < 10 && item.impressionsP2 > 50) newKeywordDiscovery.push(item);
+        if (item.impressionsP1 === 0 && item.impressionsP2 > 50) newKeywordDiscovery.push(item);
         if (item.positionP1 > 0 && item.positionP1 <= 10 && item.positionP2 >= 10.1 && item.impressionsP1 > 100) page1LoserAlerts.push(item);
     }
 

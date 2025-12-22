@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Task, TaskService } from '../../lib/task_manager';
+import { ContentService } from '../../lib/ContentService';
 import { motion } from 'framer-motion';
-import { X, Calendar, User, Save, Trash2, ExternalLink } from 'lucide-react';
+import { X, Calendar, User, Save, Trash2, ExternalLink, Lock, Edit3 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 interface TaskDetailModalProps {
     task: Task;
@@ -10,11 +13,16 @@ interface TaskDetailModalProps {
 }
 
 const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, onClose, onUpdate }) => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [title, setTitle] = useState(task.title);
     const [desc, setDesc] = useState(task.description || '');
     const [status, setStatus] = useState(task.status);
     const [priority, setPriority] = useState(task.priority);
     const [isSaving, setIsSaving] = useState(false);
+    const [lockedBy, setLockedBy] = useState<string | null>(task.locked_by || null);
+
+    const isLocked = ContentService.isLocked(task as any, user?.id || '');
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -46,6 +54,30 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, onClose, onUpda
         }
     };
 
+    const handleEditContent = async () => {
+        if (!user) return;
+        if (isLocked) {
+            alert("Contenido bloqueado por otro usuario.");
+            return;
+        }
+        try {
+            await ContentService.lockContent(task.id);
+            navigate(`/herramientas/redactor-ia?draftId=${task.id}&context=project`);
+        } catch (e: any) {
+            alert("Error al bloquear: " + e.message);
+        }
+    };
+
+    const handleUnlock = async () => {
+        try {
+            await ContentService.unlockContent(task.id);
+            setLockedBy(null);
+            onUpdate();
+        } catch (e: any) {
+            alert("Error: " + e.message);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
             <motion.div
@@ -67,6 +99,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, onClose, onUpda
                         <div className="flex items-center gap-4 mt-2 text-xs text-brand-power/50">
                             <span>ID: #{task.id}</span>
                             <span>Creado: {new Date(task.created_at).toLocaleDateString()}</span>
+                            {lockedBy && (
+                                <span className="flex items-center gap-1 text-red-500 font-bold bg-red-50 px-2 py-0.5 rounded">
+                                    <Lock size={10} /> Bloqueado
+                                </span>
+                            )}
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-brand-soft rounded-full text-brand-power/40 hover:text-brand-power">
@@ -86,15 +123,28 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, onClose, onUpda
                             />
                         </div>
 
-                        {/* Artifacts / Attachments Placeholder */}
-                        <div className="bg-brand-soft/10 rounded-xl p-4 border border-brand-power/5">
-                            <h4 className="text-sm font-bold text-brand-power mb-2 flex items-center gap-2">
-                                <ExternalLink size={14} /> Adjuntos Generados
-                            </h4>
-                            <p className="text-xs text-brand-power/40 italic">
-                                Próximamente: Artículos de Content Writer se vincularán aquí.
-                            </p>
+                        {/* Content Action */}
+                        <div className="bg-gradient-to-br from-brand-power/5 to-transparent rounded-xl p-6 border border-brand-power/5 flex items-center justify-between">
+                            <div>
+                                <h4 className="font-bold text-brand-power mb-1">Contenido del Artículo</h4>
+                                <p className="text-xs text-brand-power/60">Gestiona la redacción y optimización.</p>
+                            </div>
+                            <button
+                                onClick={handleEditContent}
+                                disabled={isLocked}
+                                className="px-4 py-2 bg-brand-accent text-white rounded-lg shadow-lg shadow-brand-accent/20 font-bold text-xs uppercase tracking-wider hover:bg-brand-accent/90 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                <Edit3 size={14} /> {isLocked ? 'Bloqueado' : 'Editar / Redactar'}
+                            </button>
                         </div>
+
+                        {lockedBy === user?.id && (
+                            <div className="text-center">
+                                <button onClick={handleUnlock} className="text-xs text-slate-400 underline hover:text-slate-600">
+                                    Liberar Bloqueo Manualmente
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-6">
@@ -150,5 +200,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, onClose, onUpda
         </div>
     );
 };
+
 
 export default TaskDetailModal;
