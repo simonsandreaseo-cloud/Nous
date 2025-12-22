@@ -7,8 +7,8 @@ import { DataManager } from './services/dataManager';
 import { AgentService } from './services/agentService';
 import { ReportView } from './components/ReportView';
 import { LiveConsole } from './components/LiveConsole';
-import { useAuth } from '../../../context/AuthContext';
-import { supabase } from '../../../lib/supabase';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { ModeSelector } from './components/ModeSelector';
 import { GSCConnectPanel } from './components/GSCConnectPanel';
 import { fetchSearchAnalytics } from './services/gscService';
@@ -57,6 +57,10 @@ const App: React.FC = () => {
     const [reportPayload, setReportPayload] = useState<ReportPayload | null>(null);
     const [p1Name, setP1Name] = useState("");
     const [p2Name, setP2Name] = useState("");
+
+    // Section Selector State
+    const [showSectionSelector, setShowSectionSelector] = useState(false);
+    const [suggestedSections, setSuggestedSections] = useState<string[]>([]);
 
     // Auth & Persistence
     const { user, session } = useAuth(); // Needed session for GSC
@@ -299,37 +303,46 @@ const App: React.FC = () => {
             const sections = await getRelevantSections(payload, model, keys); // Pass KEYS
             addLog(`📋 Estructura: ${sections.length} secciones de datos.`);
 
+            setSuggestedSections(sections);
+            setIsAnalyzing(false); // Pause loading screen
+            setShowSectionSelector(true); // Show selector
+
+        } catch (err: any) {
+            addLog(`Fallo crítico: ${err.message}`, 'error');
+            console.error(err);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    const handleConfirmGeneration = async (selectedSections: string[]) => {
+        const keys = getApiKeys();
+        const activeContext = userContext;
+        setShowSectionSelector(false);
+        setIsAnalyzing(true);
+
+        try {
+            if (!reportPayload) throw new Error("Payload perdido.");
+
             let accumulatedBodyHTML = "";
             let completed = 0;
 
             // 1. Generate Data Sections
-            for (const section of sections) {
+            for (const section of selectedSections) {
                 addLog(`✍️ Generando: ${section}...`);
                 if (completed > 0) await new Promise(r => setTimeout(r, 1000));
 
-                const sectionHTML = await generateReportSection(section, payload, model, keys);
+                const sectionHTML = await generateReportSection(section, reportPayload, model, keys);
                 accumulatedBodyHTML += sectionHTML;
 
                 completed++;
-                const progress = 45 + Math.floor((completed / sections.length) * 35);
+                const progress = 45 + Math.floor((completed / selectedSections.length) * 35);
                 setProgressPercent(progress);
             }
 
             // 2. Final Refinement (Abstract & Conclusion)
             addLog(`👓 Generando Resumen Ejecutivo y Conclusiones...`);
             const refinedSummary = await generateFinalRefinement(accumulatedBodyHTML, activeContext, model, keys);
-
-            // Assemble: Summary + Body + (Conclusion is usually part of refinement text)
-            // The Refiner prompt produces BOTH Summary and Conclusion sections.
-            // But we need to put them in order.
-            // The prompt says output raw HTML sections.
-            // We'll just prepend it or append it?
-            // Usually the Refiner output contains "RESUMEN_EJECUTIVO" and "CONCLUSIONES".
-            // We can prepend the RESUMEN and append CONCLUSIONES if we parsed it, or just stick it all at the top?
-            // ReportGenerator typically put Summary at top, Conclusion at bottom.
-            // Informes SEO prompt output one block with both.
-            // I'll just prepend the refined block to the body for safety, or parse if I was smarter.
-            // Let's just prepend.
 
             setReportHTML(refinedSummary + accumulatedBodyHTML);
             setProgressPercent(100);
@@ -338,7 +351,9 @@ const App: React.FC = () => {
         } catch (err: any) {
             addLog(`Fallo crítico: ${err.message}`, 'error');
             console.error(err);
+            setIsAnalyzing(false);
         } finally {
+            if (reportHTML) setIsAnalyzing(false);
             setIsAnalyzing(false);
         }
     };

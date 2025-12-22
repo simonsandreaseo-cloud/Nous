@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GSCProperty, fetchSites } from '../services/gscService';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface GSCConnectPanelProps {
     onAnalyze: (siteUrl: string, startDateP1: string, endDateP1: string, startDateP2: string, endDateP2: string) => void;
