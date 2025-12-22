@@ -18,6 +18,9 @@ const ProjectsDashboard: React.FC = () => {
     const [newGsc, setNewGsc] = useState('');
     const [isCreating, setIsCreating] = useState(false);
 
+    const [gscSites, setGscSites] = useState<any[]>([]);
+    const [isLoadingGsc, setIsLoadingGsc] = useState(false);
+
     useEffect(() => {
         if (user) loadProjects();
     }, [user]);
@@ -33,6 +36,18 @@ const ProjectsDashboard: React.FC = () => {
         }
     };
 
+    const handleLoadGsc = async () => {
+        setIsLoadingGsc(true);
+        try {
+            const sites = await GscService.getSites();
+            setGscSites(sites);
+        } catch (e: any) {
+            console.error("Error loading GSC in creation:", e);
+        } finally {
+            setIsLoadingGsc(false);
+        }
+    };
+
     const handleCreateProject = async () => {
         if (!newName.trim()) return alert("Nombre requerido");
         setIsCreating(true);
@@ -41,12 +56,27 @@ const ProjectsDashboard: React.FC = () => {
             setNewName('');
             setNewDesc('');
             setNewGsc('');
+            setGscSites([]);
             setShowNewProjectModal(false);
             loadProjects();
         } catch (e: any) {
             alert("Error: " + e.message);
         } finally {
             setIsCreating(false);
+        }
+    };
+
+    const handleDeleteProject = async (e: React.MouseEvent, project: Project) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (confirm(`¿Estás seguro de que deseas eliminar el proyecto "${project.name}"?`)) {
+            try {
+                await ProjectService.deleteProject(project.id);
+                loadProjects();
+            } catch (e: any) {
+                alert("Error eliminando proyecto: " + e.message);
+            }
         }
     };
 
@@ -63,7 +93,7 @@ const ProjectsDashboard: React.FC = () => {
                         </p>
                     </div>
                     <button
-                        onClick={() => setShowNewProjectModal(true)}
+                        onClick={() => { setShowNewProjectModal(true); handleLoadGsc(); }}
                         className="px-6 py-3 bg-brand-power text-brand-white rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-brand-accent hover:text-brand-power transition-all shadow-lg flex items-center gap-2"
                     >
                         <Plus size={18} /> Nuevo Proyecto
@@ -79,37 +109,48 @@ const ProjectsDashboard: React.FC = () => {
                 ) : projects.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {projects.map(project => (
-                            <Link
-                                to={`/proyectos/${project.slug || project.id}`}
-                                key={project.id}
-                                className="group bg-white p-6 rounded-2xl border border-brand-power/5 shadow-sm hover:shadow-xl hover:border-brand-accent/30 transition-all flex flex-col justify-between h-48"
-                            >
-                                <div>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 rounded-lg bg-brand-soft flex items-center justify-center text-brand-power font-bold text-lg group-hover:bg-brand-accent group-hover:text-white transition-colors">
-                                            {project.name.substring(0, 2).toUpperCase()}
+                            <div key={project.id} className="relative group">
+                                <Link
+                                    to={`/proyectos/${project.slug || project.id}`}
+                                    className="block bg-white p-6 rounded-2xl border border-brand-power/5 shadow-sm hover:shadow-xl hover:border-brand-accent/30 transition-all flex flex-col justify-between h-48"
+                                >
+                                    <div>
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="w-10 h-10 rounded-lg bg-brand-soft flex items-center justify-center text-brand-power font-bold text-lg group-hover:bg-brand-accent group-hover:text-white transition-colors">
+                                                {project.name.substring(0, 2).toUpperCase()}
+                                            </div>
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${project.role === 'owner' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600'
+                                                }`}>
+                                                {project.role === 'owner' ? 'Propietario' : project.role}
+                                            </span>
                                         </div>
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${project.role === 'owner' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600'
-                                            }`}>
-                                            {project.role === 'owner' ? 'Propietario' : project.role}
+                                        <h3 className="text-xl font-bold text-brand-power mb-2 truncate">{project.name}</h3>
+                                        <p className="text-sm text-brand-power/50 line-clamp-2">
+                                            {project.description || "Sin descripción"}
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-4 border-t border-brand-power/5 mt-4">
+                                        <div className="flex items-center gap-4 text-xs text-brand-power/40 font-mono">
+                                            <span className="flex items-center gap-1"><Users size={12} /> --</span>
+                                            {project.gsc_property_url && <span className="flex items-center gap-1 text-green-600/60"><BarChart2 size={12} /> GSC</span>}
+                                        </div>
+                                        <span className="text-brand-power/20 group-hover:translate-x-1 transition-transform">
+                                            <ChevronRight size={18} />
                                         </span>
                                     </div>
-                                    <h3 className="text-xl font-bold text-brand-power mb-2 truncate">{project.name}</h3>
-                                    <p className="text-sm text-brand-power/50 line-clamp-2">
-                                        {project.description || "Sin descripción"}
-                                    </p>
-                                </div>
+                                </Link>
 
-                                <div className="flex items-center justify-between pt-4 border-t border-brand-power/5 mt-4">
-                                    <div className="flex items-center gap-4 text-xs text-brand-power/40 font-mono">
-                                        <span className="flex items-center gap-1"><Users size={12} /> --</span>
-                                        {project.gsc_property_url && <span className="flex items-center gap-1 text-green-600/60"><BarChart2 size={12} /> GSC</span>}
-                                    </div>
-                                    <span className="text-brand-power/20 group-hover:translate-x-1 transition-transform">
-                                        <ChevronRight size={18} />
-                                    </span>
-                                </div>
-                            </Link>
+                                {project.role === 'owner' && (
+                                    <button
+                                        onClick={(e) => handleDeleteProject(e, project)}
+                                        className="absolute top-2 right-2 p-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 rounded-lg"
+                                        title="Eliminar Proyecto"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
+                                    </button>
+                                )}
+                            </div>
                         ))}
                     </div>
                 ) : (
@@ -162,12 +203,37 @@ const ProjectsDashboard: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold uppercase tracking-widest text-brand-power/50 mb-2">Dominio GSC (Opcional)</label>
-                                        <input
-                                            value={newGsc} onChange={e => setNewGsc(e.target.value)}
-                                            className="w-full bg-brand-soft/20 border border-brand-power/10 rounded-lg p-3 text-brand-power outline-none focus:border-brand-accent font-mono text-sm"
-                                            placeholder="https://misitio.com"
-                                        />
+                                        <label className="block text-xs font-bold uppercase tracking-widest text-brand-power/50 mb-2">Propiedad Google Search Console</label>
+                                        {isLoadingGsc ? (
+                                            <div className="p-3 bg-brand-soft/10 border border-dashed rounded-lg text-xs text-brand-power/50 text-center">
+                                                Cargando tus propiedades...
+                                            </div>
+                                        ) : gscSites.length > 0 ? (
+                                            <select
+                                                value={newGsc}
+                                                onChange={e => setNewGsc(e.target.value)}
+                                                className="w-full bg-brand-soft/20 border border-brand-power/10 rounded-lg p-3 text-brand-power outline-none focus:border-brand-accent appearance-none text-sm"
+                                            >
+                                                <option value="">Seleccionar Propiedad...</option>
+                                                {gscSites.map((s: any) => (
+                                                    <option key={s.siteUrl} value={s.siteUrl}>{s.siteUrl}</option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                <input
+                                                    value={newGsc} onChange={e => setNewGsc(e.target.value)}
+                                                    className="w-full bg-brand-soft/20 border border-brand-power/10 rounded-lg p-3 text-brand-power outline-none focus:border-brand-accent font-mono text-sm"
+                                                    placeholder="https://misitio.com"
+                                                />
+                                                <button
+                                                    onClick={handleLoadGsc}
+                                                    className="text-[10px] text-brand-accent hover:underline font-bold uppercase tracking-widest"
+                                                >
+                                                    Cargar mis propiedades de Google
+                                                </button>
+                                            </div>
+                                        )}
                                         <p className="text-[10px] text-brand-power/40 mt-1">Necesario para las métricas automáticas.</p>
                                     </div>
 

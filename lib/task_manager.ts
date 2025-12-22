@@ -105,11 +105,9 @@ export const ProjectService = {
     },
 
     async getMembers(projectId: string | number) {
-        // Get active members
+        // Get active members using secure RPC
         const { data: members, error } = await supabase
-            .from('project_members')
-            .select('*, user:user_id(email, user_metadata)')
-            .eq('project_id', projectId);
+            .rpc('get_project_members', { p_project_id: projectId });
 
         if (error) throw error;
 
