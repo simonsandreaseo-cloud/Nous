@@ -5,6 +5,7 @@ import ToolWrapper from '../../components/layout/ToolWrapper';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Folder, Users, Search, ChevronRight, BarChart2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { GscService } from '../../services/gscService';
 
 const ProjectsDashboard: React.FC = () => {
     const { user } = useAuth();
