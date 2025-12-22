@@ -153,9 +153,10 @@ export const ProjectService = {
             .update(updates)
             .eq('id', id)
             .select()
-            .single();
+            .maybeSingle(); // Use maybeSingle to avoid crash if 0 rows (though it should be 1)
 
         if (error) throw error;
+        if (!data) throw new Error("No se pudo actualizar el proyecto. Verifica permisos o si existe.");
         return data;
     },
 

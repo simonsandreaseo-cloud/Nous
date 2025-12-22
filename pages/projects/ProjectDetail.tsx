@@ -161,6 +161,9 @@ const ProjectDetail: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'board' | 'list' | 'calendar' | 'sitemap' | 'settings'>('board');
 
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteConfirmName, setDeleteConfirmName] = useState('');
+
     useEffect(() => {
         if (projectId && user) loadData();
     }, [projectId, user]);
@@ -194,7 +197,28 @@ const ProjectDetail: React.FC = () => {
             loadData();
             alert("Invitación enviada");
         } catch (e: any) {
-            alert(e.message);
+            // Translate common RLS error if possible, though detailed message is good
+            if (e.message?.includes('row-level security')) {
+                alert("Error de permisos: No tienes autorización para invitar miembros.");
+            } else {
+                alert(e.message);
+            }
+        }
+    };
+
+    const handleDeleteProject = async () => {
+        if (!project) return;
+        if (deleteConfirmName !== project.name) {
+            alert("El nombre del proyecto no coincide");
+            return;
+        }
+
+        try {
+            await ProjectService.deleteProject(project.id);
+            // Redirect to dashboard
+            window.location.href = '/proyectos';
+        } catch (e: any) {
+            alert("Error eliminando proyecto: " + e.message);
         }
     };
 
@@ -263,9 +287,63 @@ const ProjectDetail: React.FC = () => {
                         {activeTab === 'list' && <div>List View Placeholder</div>}
                         {activeTab === 'calendar' && <EditorialCalendar projectId={project.id} tasks={tasks} onTaskUpdate={loadData} />}
                         {activeTab === 'sitemap' && <SitemapManager projectId={project.id} />}
-                        {activeTab === 'settings' && <ProjectSettings project={project} members={members} onInvite={handleInvite} onUpdate={loadData} />}
+                        {activeTab === 'settings' && (
+                            <div className="space-y-8">
+                                <ProjectSettings project={project} members={members} onInvite={handleInvite} onUpdate={loadData} />
+
+                                {/* Danger Zone */}
+                                <div className="max-w-2xl bg-red-50 p-6 rounded-2xl border border-red-100">
+                                    <h3 className="text-lg font-bold text-red-800 mb-2">Zona de Peligro</h3>
+                                    <p className="text-sm text-red-600 mb-4">Estas acciones no se pueden deshacer.</p>
+                                    <button
+                                        onClick={() => setShowDeleteModal(true)}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs uppercase hover:bg-red-700 transition-colors"
+                                    >
+                                        Eliminar Proyecto
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 </AnimatePresence>
+
+                {/* Delete Modal */}
+                {showDeleteModal && (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                            <h3 className="text-xl font-bold text-brand-power mb-4">¿Eliminar Proyecto?</h3>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Esta acción eliminará permanentemente el proyecto <strong>{project.name}</strong> y todos sus datos asociados.
+                            </p>
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                                    Escribe "{project.name}" para confirmar
+                                </label>
+                                <input
+                                    value={deleteConfirmName}
+                                    onChange={e => setDeleteConfirmName(e.target.value)}
+                                    placeholder={project.name}
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 outline-none focus:border-red-500"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => { setShowDeleteModal(false); setDeleteConfirmName(''); }}
+                                    className="px-4 py-2 text-gray-600 font-bold text-sm hover:bg-gray-100 rounded-lg"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleDeleteProject}
+                                    disabled={deleteConfirmName !== project.name}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Confirmar Eliminación
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </div>
         </ToolWrapper>
@@ -283,3 +361,4 @@ const TabButton = ({ active, onClick, icon, label }: any) => (
 );
 
 export default ProjectDetail;
+
