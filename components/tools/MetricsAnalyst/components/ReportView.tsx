@@ -16,7 +16,7 @@ interface ReportViewProps {
     isRegenerating: boolean;
     dashboardStats?: DashboardStats;
     logo?: string | null;
-    onSave: () => void;
+    onSave: (currentHtml?: string) => void;
     isSaving: boolean;
     hasSaved: boolean;
     user?: any;
@@ -180,7 +180,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         🖨️ PDF
                     </button>
                     <button
-                        onClick={onSave}
+                        onClick={() => {
+                            if (containerRef.current) {
+                                onSave(containerRef.current.innerHTML);
+                            }
+                        }}
                         disabled={isSaving || hasSaved}
                         className={`px - 4 py - 2 rounded - lg text - sm font - bold shadow - sm transition flex items - center gap - 2 text - white ${ hasSaved ? 'bg-emerald-500 cursor-default' : 'bg-indigo-600 hover:bg-indigo-700' } `}
                     >
@@ -199,9 +203,85 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <TaskPerformancePanel taskPerformance={taskPerformance} decayAlerts={decayAlerts || []} user={user} />
             )}
 
-            {/* Main AI Report */}
-            <div className="bg-white p-12 shadow-sm border border-slate-100 min-h-screen print:shadow-none print:border-none print:p-0">
-                <div ref={containerRef} className="report-content space-y-8 animate-fade-in" dangerouslySetInnerHTML={{ __html: htmlContent }} />
+            {/* Editor Toolbar (New) */}
+            <div className="sticky top-4 z-40 bg-white shadow-lg rounded-xl border border-slate-200 p-2 mb-6 flex gap-2 items-center justify-between no-print transition-all">
+                <div className="flex gap-1">
+                    <EditorButton icon="B" onClick={() => document.execCommand('bold')} label="Negrita" />
+                    <EditorButton icon="I" onClick={() => document.execCommand('italic')} label="Cursiva" />
+                    <EditorButton icon="U" onClick={() => document.execCommand('underline')} label="Subrayado" />
+                    <div className="w-px h-6 bg-slate-200 mx-2"></div>
+                    <EditorButton icon="H1" onClick={() => document.execCommand('formatBlock', false, 'h2')} label="Título" />
+                    <EditorButton icon="H2" onClick={() => document.execCommand('formatBlock', false, 'h3')} label="Subtítulo" />
+                    <EditorButton icon="P" onClick={() => document.execCommand('formatBlock', false, 'p')} label="Texto" />
+                    <div className="w-px h-6 bg-slate-200 mx-2"></div>
+                    <EditorButton icon="🔢" onClick={() => document.execCommand('insertOrderedList')} label="Lista Num." />
+                    <EditorButton icon="•" onClick={() => document.execCommand('insertUnorderedList')} label="Lista" />
+                    <div className="w-px h-6 bg-slate-200 mx-2"></div>
+                    <EditorButton icon="⬅" onClick={() => document.execCommand('justifyLeft')} label="Izq." />
+                    <EditorButton icon="↔" onClick={() => document.execCommand('justifyCenter')} label="Centro" />
+                </div>
+                <div className="flex gap-2">
+                    <button 
+                         onClick={() => {
+                            const range = window.getSelection()?.getRangeAt(0);
+                            if(range) {
+                                const el = document.createElement('div');
+                                el.className = "p-6 border border-dashed border-slate-300 rounded-xl my-4 bg-slate-50";
+                                el.innerHTML = "<h3 class='font-bold text-slate-400'>Nuevo Módulo (Editable)</h3><p>Escribe aquí tu análisis...</p>";
+                                range.insertNode(el);
+                            }
+                         }}
+                         className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg hover:bg-indigo-100 transition"
+                    >
+                        + Módulo
+                    </button>
+                    <button 
+                        onClick={() => {
+                           // Trigger manual format of numbers in selection if needed, 
+                           // but system prompt should handle it. 
+                           // We can add a button to toggle color?
+                           // For now, let's keep it simple.
+                        }}
+                        className="text-xs text-slate-400 hover:text-slate-600"
+                    >
+                        🎨
+                    </button>
+                </div>
+            </div>
+
+            {/* Main AI Report (Editable) */}
+            <div className="bg-white p-12 shadow-sm border border-slate-100 min-h-screen print:shadow-none print:border-none print:p-0 relative">
+                <div 
+                    ref={containerRef} 
+                    contentEditable 
+                    suppressContentEditableWarning
+                    className="report-content space-y-8 animate-fade-in outline-none focus:ring-0" 
+                    dangerouslySetInnerHTML={{ __html: htmlContent }} 
+                    onBlur={(e) => {
+                         // Optional: Sync back changes to parent if we wanted to persist EDITS to Cloud
+                         // But ReportView props are read-only for htmlContent currently.
+                         // Ideally we should have a `onContentChange` prop.
+                         // But for printing/saving via onSave(), we usually read the current DOM or stored state.
+                         // The `onSave` logic in App.tsx reads `reportHTML` STATE. 
+                         // To save EDITS, we must update the state!
+                         // Since we are in a Controlled Component pattern mostly,
+                         // we need to expose an onChange.
+                         // But `dangerouslySetInnerHTML` updates are one-way.
+                         // We must manually listen to input and update parent.
+                         // HOWEVER, updating parent causes re-render which resets cursor in contentEditable!
+                         // Solution: Don't update parent on every keystroke. Update parent on SAVE or BLUR.
+                         // But `App.tsx` handleSaveCloud reads `reportHTML`.
+                         // So we need to lift state up.
+                         // Let's assume onSave reads from `htmlContent` prop, which is STALE if we edit here.
+                         // FIX: App.tsx needs `setReportHTML` exposed to ReportView? 
+                         // Or ReportView handles the saving by passing the curent DOM HTML to `onSave(html)`.
+                         // Let's update `onSave` signature in ReportView.
+                    }}
+                    onInput={(e) => {
+                        // We will rely on a Ref to capture the current HTML when clicking Save.
+                        // We won't trigger re-renders.
+                    }}
+                />
             </div>
 
             {/* Chat / Refinement Interface */}
@@ -230,3 +310,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
         </div>
     );
 };
+
+const EditorButton = ({ icon, onClick, label }: any) => (
+    <button 
+        onClick={onClick}
+        title={label}
+        className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100 text-slate-600 font-bold text-sm transition"
+    >
+        {icon}
+    </button>
+);

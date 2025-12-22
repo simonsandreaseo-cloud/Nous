@@ -12,6 +12,7 @@ import { supabase } from '../../../lib/supabase';
 import { ModeSelector } from './components/ModeSelector';
 import { GSCConnectPanel } from './components/GSCConnectPanel';
 import { fetchSearchAnalytics } from './services/gscService';
+import { SectionSelector } from './components/SectionSelector';
 
 // Available Models
 const AVAILABLE_MODELS = [
@@ -348,9 +349,10 @@ const App: React.FC = () => {
         handleAnalysis(newContext);
     };
 
-    const handleSaveCloud = async () => {
+    const handleSaveCloud = async (overrideHTML?: string) => {
         if (!user) return alert("Debes iniciar sesión para guardar.");
-        if (!reportHTML) return;
+        const contentToSave = overrideHTML || reportHTML;
+        if (!contentToSave) return;
         setIsSaving(true);
         try {
             const reportData = {
@@ -505,7 +507,17 @@ const App: React.FC = () => {
             }
 
             {
-                reportHTML && !isAnalyzing && (
+                showSectionSelector && (
+                    <SectionSelector
+                        suggestedSections={suggestedSections}
+                        onConfirm={handleConfirmGeneration}
+                        onCancel={() => { setShowSectionSelector(false); setIsAnalyzing(false); }}
+                    />
+                )
+            }
+
+            {
+                reportHTML && !isAnalyzing && !showSectionSelector && (
                     <ReportView
                         htmlContent={reportHTML}
                         chartData={chartData!}

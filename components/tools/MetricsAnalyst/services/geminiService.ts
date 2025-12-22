@@ -1,8 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { ReportPayload, ContentBrief, SnippetOptimization } from "../types";
 
 // 1. Dispatcher: Strict Rules for Section Inclusion (FROM INFORMES SEO - FULL LOGIC)
-const SYSTEM_PROMPT_DISPATCHER = \`You are a "Chief Editor" for an SEO Agency. 
+const SYSTEM_PROMPT_DISPATCHER = `You are a "Chief Editor" for an SEO Agency. 
 Your job is to decide the EXACT list of JSON keys for the report sections to generate.
 
 MANDATORY RULES based on input data (Check values carefully):
@@ -17,10 +17,10 @@ MANDATORY RULES based on input data (Check values carefully):
 9. 'ANALISIS_SEGMENTOS': Include if segments > 0.
 10. **NEVER** include 'RESUMEN_EJECUTIVO' or 'CONCLUSIONES' here. (They are generated in the final step).
 
-Return ONLY a JSON Array of strings. Example: ["ANALISIS_ESTRATEGICO", "ANALISIS_CTR"]\`;
+Return ONLY a JSON Array of strings. Example: ["ANALISIS_ESTRATEGICO", "ANALISIS_CTR"]`;
 
 // 2. Section Writer: High Density & Robust Charting (FROM INFORMES SEO)
-const SYSTEM_PROMPT_SECTION_WRITER = \`You are a "Lead Product Designer" for a Financial/SEO SaaS. Generate **ONE specific HTML component**.
+const SYSTEM_PROMPT_SECTION_WRITER = `You are a "Lead Product Designer" for a Financial/SEO SaaS. Generate **ONE specific HTML component**.
 
 --- DESIGN SYSTEM: "High-Density Professional" ---
 1. **Layout**: Use \`grid grid-cols-1 md:grid-cols-2 gap-6\` to put data tables side-by-side with charts or text. Reduce whitespace.
@@ -43,6 +43,12 @@ const SYSTEM_PROMPT_SECTION_WRITER = \`You are a "Lead Product Designer" for a F
 
 6. **Language**: Ensure all analysis text is in **SPANISH**.
 
+7. **COLOR CODING (CRITICAL)**:
+   - For POSITIVE metrics (e.g. Growth, Improvement, Click Increase), wrap the number in \`<span class="text-emerald-600 font-bold">\` (e.g., +15%).
+   - For NEGATIVE metrics (e.g. Decay, Click Loss), wrap the number in \`<span class="text-rose-600 font-bold">\` (e.g., -23%).
+   - Remember: For POSITION, LESS is BETTER. So -3.2 (Position improved) is \`text-emerald-600\`, while +5.1 (Position worsened) is \`text-rose-600\`.
+
+
 --- SECTION SPECIFICS ---
 - **OPORTUNIDADES_CONTENIDO_CLUSTERS**: 3-col grid. Cards: \`border border-slate-200 p-2 rounded shadow-sm bg-white\`.
 - **ANALISIS_ESTRATEGICO**: 2x2 Grid. Boxes with colored top borders. Dense lists.
@@ -50,10 +56,10 @@ const SYSTEM_PROMPT_SECTION_WRITER = \`You are a "Lead Product Designer" for a F
 - **ANALISIS_CONCENTRACION**: 2-col layout. Left: Risk Text. Right: Dense Table (URL | % Share).
 - **ANALISIS_CAUSAS_CAIDA**: Table. Cols: URL | Lost Clicks | Diagnosis.
 
-Output RAW HTML only.\`;
+Output RAW HTML only.`;
 
 // 3. Final Refiner: The "Editor in Chief" (FROM INFORMES SEO)
-const SYSTEM_PROMPT_REFINER = \`You are the Editor in Chief. 
+const SYSTEM_PROMPT_REFINER = `You are the Editor in Chief. 
 Your job is to write the **Executive Abstract** and **Final Verdict**.
 
 Input: The raw HTML content of the generated sections.
@@ -69,17 +75,17 @@ Task:
      Use a bordered box: \`border border-indigo-100 bg-indigo-50/30 p-4 rounded-lg\`.
      Title: "Plan de Acción Prioritario". Content: 3-4 bullet points with **bold** starts. Actionable. Write in SPANISH.
 
-Output RAW HTML only.\`;
+Output RAW HTML only.`;
 
 // Helper for retry logic with Key Rotation (FROM REPORT GENERATOR)
 async function generateWithRetry(apiKeys: string[], model: string, contents: any, config: any) {
     let lastError;
-    
+
     // Iterate through all provided keys
     for (let k = 0; k < apiKeys.length; k++) {
         const currentKey = apiKeys[k];
         const ai = new GoogleGenAI({ apiKey: currentKey });
-        
+
         // Try up to 3 times per key for transient network errors
         for (let i = 0; i < 3; i++) {
             try {
@@ -92,29 +98,29 @@ async function generateWithRetry(apiKeys: string[], model: string, contents: any
                 lastError = e;
                 const status = e.status || e.code;
                 const msg = e.message || "";
-                
+
                 // If it's a Quota Limit (429) or Service Unavailable (503), we handle specially
                 const isQuota = status === 429 || msg.includes('429') || msg.includes('Quota') || msg.includes('Resource has been exhausted');
-                
+
                 if (isQuota) {
                     // Break inner loop (retries) and Continue outer loop (next key)
-                    console.warn(\`⚠️ API Key index \${k} exhausted. Rotating to next key...\`);
-                    break; 
-                }
-                
-                // If it's a transient 503, wait and retry with SAME key
-                if (status === 503) {
-                     const delay = 2000 * Math.pow(2, i);
-                     await new Promise(r => setTimeout(r, delay));
-                     continue;
-                }
-                
-                // Other errors (400, 401 invalid key, etc) -> try next key just in case
-                if (status === 400 || status === 401) {
-                    console.warn(\`⚠️ API Key index \${k} invalid. Rotating...\`);
+                    console.warn(`⚠️ API Key index ${k} exhausted. Rotating to next key...`);
                     break;
                 }
-                
+
+                // If it's a transient 503, wait and retry with SAME key
+                if (status === 503) {
+                    const delay = 2000 * Math.pow(2, i);
+                    await new Promise(r => setTimeout(r, delay));
+                    continue;
+                }
+
+                // Other errors (400, 401 invalid key, etc) -> try next key just in case
+                if (status === 400 || status === 401) {
+                    console.warn(`⚠️ API Key index ${k} invalid. Rotating...`);
+                    break;
+                }
+
                 throw e; // Unknown fatal error
             }
         }
@@ -131,8 +137,8 @@ export const getRelevantSections = async (payload: ReportPayload, model: string,
         clickConcentration: payload.concentrationAnalysis?.clickConcentration,
         impressionConcentration: payload.concentrationAnalysis?.impressionConcentration,
         strategicOverview: payload.strategicOverview?.attack?.length + payload.strategicOverview?.defend?.length || 0,
-        topicClusters: payload.topicClusters || [], 
-        lossDiagnosis: payload.lossCauseAnalysis?.length || 0, 
+        topicClusters: payload.topicClusters || [],
+        lossDiagnosis: payload.lossCauseAnalysis?.length || 0,
         cannibalization: payload.keywordCannibalizationAlerts.length,
         ctrRedFlags: payload.ctrAnalysis.redFlags.length,
         strikingDistance: payload.strikingDistanceOpportunities.length,
@@ -142,9 +148,9 @@ export const getRelevantSections = async (payload: ReportPayload, model: string,
 
     try {
         const response = await generateWithRetry(
-            apiKeys, 
-            model, 
-            \`Based on these findings, return the JSON array of DATA sections (exclude summary/conclusion):\n\${JSON.stringify(findingsSummary)}\`, 
+            apiKeys,
+            model,
+            `Based on these findings, return the JSON array of DATA sections (exclude summary/conclusion):\n${JSON.stringify(findingsSummary)}`,
             {
                 systemInstruction: SYSTEM_PROMPT_DISPATCHER,
                 responseMimeType: "application/json"
@@ -152,14 +158,14 @@ export const getRelevantSections = async (payload: ReportPayload, model: string,
         );
         const text = response.text;
         if (!text) return ['ANALISIS_ESTRATEGICO'];
-        
-        const cleanText = text.replace(/```json / g, '').replace(/```/g, '').trim();
-return JSON.parse(cleanText);
+
+        const cleanText = text.replace(/```json /g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanText);
     } catch (e) {
-    console.error("Dispatcher failed", e);
-    // Fallback to essential sections if dispatcher fails
-    return ['ANALISIS_ESTRATEGICO', 'OPORTUNIDADES_CONTENIDO_CLUSTERS'];
-}
+        console.error("Dispatcher failed", e);
+        // Fallback to essential sections if dispatcher fails
+        return ['ANALISIS_ESTRATEGICO', 'OPORTUNIDADES_CONTENIDO_CLUSTERS'];
+    }
 };
 
 export const generateReportSection = async (
@@ -174,30 +180,30 @@ export const generateReportSection = async (
         availableChartKeys: payload.availableChartKeys // Handshake keys
     };
 
-    const prompt = \`
-    TASK: Generate HTML for section "\${sectionName}".
-    CONTEXT: \${payload.userContext || 'Standard Analysis'}
-    DATA: \${JSON.stringify(writerPayload)}
+    const prompt = `
+    TASK: Generate HTML for section "${sectionName}".
+    CONTEXT: ${payload.userContext || 'Standard Analysis'}
+    DATA: ${JSON.stringify(writerPayload)}
     
     IMPORTANT: 
     1. Start with a <h2 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4 uppercase tracking-tight flex items-center gap-2">
        <span class="w-2 h-2 rounded-full bg-indigo-500"></span> [Title in Spanish]
        </h2>
     2. Use the "availableChartKeys" to find exact URLs for charts.
-    \`;
+    `;
 
     try {
         const response = await generateWithRetry(
-            apiKeys, 
-            model, 
-            prompt, 
+            apiKeys,
+            model,
+            prompt,
             { systemInstruction: SYSTEM_PROMPT_SECTION_WRITER }
         );
         let html = response.text || "";
-        html = html.replace(/```html / g, '').replace(/```/g, '').trim();
-    return html;
-} catch (e) {
-    return \`<!-- Error generating \${sectionName} -->\`;
+        html = html.replace(/```html /g, '').replace(/```/g, '').trim();
+        return html;
+    } catch (e) {
+        return `<!-- Error generating ${sectionName} -->`;
     }
 };
 
@@ -207,30 +213,30 @@ export const generateFinalRefinement = async (
     model: string,
     apiKeys: string[]
 ): Promise<string> => {
-    
-    const prompt = \`
+
+    const prompt = `
     The report data sections have been generated.
-    USER CONTEXT: \${userContext}
+    USER CONTEXT: ${userContext}
     
     REPORT CONTENT:
-    \${generatedHTML.substring(0, 45000)} 
+    ${generatedHTML.substring(0, 45000)} 
     
     Write the RESUMEN_EJECUTIVO (Abstract) and CONCLUSIONES sections.
-    \`;
+    `;
 
     try {
         const response = await generateWithRetry(
-            apiKeys, 
-            model, 
-            prompt, 
+            apiKeys,
+            model,
+            prompt,
             { systemInstruction: SYSTEM_PROMPT_REFINER }
         );
         let html = response.text || "";
-        html = html.replace(/```html / g, '').replace(/```/g, '').trim();
-    return html;
-} catch (e) {
-    console.error("Refinement failed", e);
-    return \`<section id="RESUMEN_EJECUTIVO" class="mb-6"><div class="p-6 bg-slate-900 text-white rounded-xl"><h2>Informe Generado</h2><p>Resumen no disponible.</p></div></section>\`;
+        html = html.replace(/```html /g, '').replace(/```/g, '').trim();
+        return html;
+    } catch (e) {
+        console.error("Refinement failed", e);
+        return `<section id="RESUMEN_EJECUTIVO" class="mb-6"><div class="p-6 bg-slate-900 text-white rounded-xl"><h2>Informe Generado</h2><p>Resumen no disponible.</p></div></section>`;
     }
 };
 
