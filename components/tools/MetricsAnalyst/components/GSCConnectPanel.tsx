@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { GSCProperty, fetchSites } from '../services/gscService';
+import { GscService, GSCProperty } from '../services/gscService';
 import { useAuth } from '@/context/AuthContext';
-import { GscService } from '@/services/gscService';
 
 interface GSCConnectPanelProps {
     onAnalyze: (siteUrl: string, startDateP1: string, endDateP1: string, startDateP2: string, endDateP2: string) => void;
@@ -68,7 +67,7 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
     const loadSites = async (token: string) => {
         setLoadingSites(true);
         try {
-            const list = await fetchSites(token);
+            const list = await GscService.getSites(token);
             setSites(list);
             if (list.length > 0) setSelectedSite(list[0].siteUrl);
         } catch (e) {
