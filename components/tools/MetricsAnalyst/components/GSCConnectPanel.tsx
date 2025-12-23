@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GSCProperty, fetchSites } from '../services/gscService';
 import { useAuth } from '@/context/AuthContext';
+import { GscService } from '@/services/gscService';
 
 interface GSCConnectPanelProps {
     onAnalyze: (siteUrl: string, startDateP1: string, endDateP1: string, startDateP2: string, endDateP2: string) => void;
@@ -12,6 +13,7 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
     const [sites, setSites] = useState<GSCProperty[]>([]);
     const [selectedSite, setSelectedSite] = useState<string>('');
     const [loadingSites, setLoadingSites] = useState(false);
+    const [hasToken, setHasToken] = useState<boolean | null>(null);
 
     // Dates State
     // Default: P2 = Last 28 Days, P1 = Previous Period
@@ -37,23 +39,40 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
     const defaults = calculateDefaultDates();
     const [dateRangeP1, setDateRangeP1] = useState({ start: defaults.p1Start, end: defaults.p1End });
     const [dateRangeP2, setDateRangeP2] = useState({ start: defaults.p2Start, end: defaults.p2End });
+    const [compareMode, setCompareMode] = useState<'range' | 'day'>('range');
+    const [dayP1, setDayP1] = useState(defaults.p1End);
+    const [dayP2, setDayP2] = useState(defaults.p2End);
 
     useEffect(() => {
-        if (session?.provider_token) {
-            loadSites();
-        }
+        checkToken();
     }, [session]);
 
-    const loadSites = async () => {
-        if (!session?.provider_token) return;
+    const checkToken = async () => {
         setLoadingSites(true);
         try {
-            const list = await fetchSites(session.provider_token);
+            const token = await GscService.getAccessToken();
+            if (token) {
+                setHasToken(true);
+                await loadSites(token);
+            } else {
+                setHasToken(false);
+            }
+        } catch (e) {
+            console.error("Token check failed", e);
+            setHasToken(false);
+        } finally {
+            setLoadingSites(false);
+        }
+    };
+
+    const loadSites = async (token: string) => {
+        setLoadingSites(true);
+        try {
+            const list = await fetchSites(token);
             setSites(list);
             if (list.length > 0) setSelectedSite(list[0].siteUrl);
         } catch (e) {
             console.error("Failed to load sites", e);
-            alert("No se pudieron cargar las propiedades. Verifica que diste permisos de Search Console.");
         } finally {
             setLoadingSites(false);
         }
@@ -98,7 +117,7 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
         }
     };
 
-    if (!session || !session.provider_token) {
+    if (hasToken === false) {
         return (
             <div className="text-center py-12 bg-brand-soft/50 rounded-2xl border border-brand-power/10">
                 <div className="text-4xl mb-4">🔐</div>
@@ -115,9 +134,15 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
         );
     }
 
-    const [compareMode, setCompareMode] = useState<'range' | 'day'>('range');
-    const [dayP1, setDayP1] = useState(defaults.p1End);
-    const [dayP2, setDayP2] = useState(defaults.p2End);
+    if (hasToken === null || loadingSites) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <div className="w-12 h-12 border-4 border-brand-power border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-brand-power/50 font-bold animate-pulse">Verificando acceso a Google...</p>
+            </div>
+        );
+    }
+
 
     // ... (rest of quick actions)
 

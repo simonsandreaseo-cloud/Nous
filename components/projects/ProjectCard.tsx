@@ -71,7 +71,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
 
         } catch (err: any) {
             console.error("Error fetching GSC metrics:", err);
-            setError("No connected"); // Keep concise
+            const msg = err.message || '';
+            if (msg.includes('No access token') || msg.includes('sign in')) {
+                setError("Re-auth Required");
+            } else {
+                setError("Error metrics");
+            }
         } finally {
             setLoading(false);
         }

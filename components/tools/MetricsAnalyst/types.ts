@@ -237,3 +237,15 @@ export interface TaskPerformance {
     };
     url: string;
 }
+
+export interface SectionConfig {
+    id: string;
+    caseCount?: number;
+}
+
+export interface TaskImpactConfig {
+    enabled: boolean;
+    startDate: string;
+    endDate: string;
+    selectedTaskIds: number[];
+}

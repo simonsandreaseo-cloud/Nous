@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { CSVRow, ReportPayload, ChartData, LogEntry, FileType } from './types';
+import { CSVRow, ReportPayload, ChartData, LogEntry, FileType, SectionConfig, TaskImpactConfig } from './types';
 import { parseCSV } from './services/csvService';
 import { runFullLocalAnalysis } from './services/analysisService';
 import { getRelevantSections, generateReportSection, generateFinalRefinement } from './services/geminiService';
@@ -13,6 +13,8 @@ import { ModeSelector } from './components/ModeSelector';
 import { GSCConnectPanel } from './components/GSCConnectPanel';
 import { fetchSearchAnalytics } from './services/gscService';
 import { SectionSelector } from './components/SectionSelector';
+import { useAutoSave } from '@/lib/useAutoSave';
+import HistoryModal from '@/components/shared/HistoryModal';
 
 // Available Models
 const AVAILABLE_MODELS = [
@@ -43,7 +45,7 @@ const App: React.FC = () => {
     const [apiKeysInput, setApiKeysInput] = useState<string>("");
 
     // Phase 5: Task Intelligence State
-    const [watchedTasks, setWatchedTasks] = useState<{ id: number; title: string; gsc_property_url?: string }[]>([]);
+    const [watchedTasks, setWatchedTasks] = useState<{ id: number; title: string; description?: string; gsc_property_url?: string; secondary_url?: string; completed_at?: string }[]>([]);
 
     // Analysis State
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -61,6 +63,8 @@ const App: React.FC = () => {
     // Section Selector State
     const [showSectionSelector, setShowSectionSelector] = useState(false);
     const [suggestedSections, setSuggestedSections] = useState<string[]>([]);
+    const [activeSectionsConfig, setActiveSectionsConfig] = useState<SectionConfig[]>([]);
+    const [activeTaskImpact, setActiveTaskImpact] = useState<TaskImpactConfig | null>(null);
 
     // Auth & Persistence
     const { user, session } = useAuth(); // Needed session for GSC
@@ -69,6 +73,29 @@ const App: React.FC = () => {
 
     // Engine References
     const dataManager = useRef<DataManager>(new DataManager());
+
+    // History & AutoSave State
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+    // AUTOSAVE HOOK
+    useAutoSave(
+        'seo_report',
+        reportPayload?.projectName || 'temp-report',
+        {
+            reportHTML,
+            chartData,
+            reportPayload,
+            userContext,
+            model,
+            p1Name,
+            p2Name
+        },
+        {
+            enabled: !!reportHTML && step === 3,
+            interval: 60000,
+            onSaveSuccess: () => console.log("Report auto-saved")
+        }
+    );
 
     // LOAD USER KEYS & TASKS
     React.useEffect(() => {
@@ -81,7 +108,10 @@ const App: React.FC = () => {
     // ... (rest of loaders)
     const loadActiveTasks = async () => {
         try {
-            const { data } = await supabase.from('tasks').select('id, title, gsc_property_url').neq('status', 'done');
+            const { data } = await supabase
+                .from('tasks')
+                .select('id, title, description, gsc_property_url, secondary_url, completed_at')
+                .neq('status', 'draft');
             if (data) setWatchedTasks(data);
         } catch (e) { console.error("Error loading tasks", e); }
     };
@@ -265,9 +295,11 @@ const App: React.FC = () => {
         }
     };
 
-    const handleConfirmGeneration = async (selectedSections: string[]) => {
+    const handleConfirmGeneration = async (selectedSections: SectionConfig[], taskImpact: TaskImpactConfig) => {
         const keys = getApiKeys();
         const activeContext = userContext;
+        setActiveSectionsConfig(selectedSections);
+        setActiveTaskImpact(taskImpact);
         setShowSectionSelector(false);
         setIsAnalyzing(true);
 
@@ -279,15 +311,29 @@ const App: React.FC = () => {
 
             // 1. Generate Data Sections
             for (const section of selectedSections) {
-                addLog(`✍️ Generando: ${section}...`);
+                addLog(`✍️ Generando: ${section.id}...`);
                 if (completed > 0) await new Promise(r => setTimeout(r, 1000));
 
-                const sectionHTML = await generateReportSection(section, reportPayload, model, keys);
+                const sectionHTML = await generateReportSection(section.id, reportPayload, model, keys, section.caseCount);
                 accumulatedBodyHTML += sectionHTML;
 
                 completed++;
-                const progress = 45 + Math.floor((completed / selectedSections.length) * 35);
+                const progress = 45 + Math.floor((completed / (selectedSections.length + (taskImpact.enabled ? 1 : 0))) * 35);
                 setProgressPercent(progress);
+            }
+
+            // 1.5 Task Impact Section
+            if (taskImpact.enabled) {
+                addLog(`🎯 Analizando Impacto de Tareas...`);
+                // Enrich payload with selected tasks data
+                const tasksDetails = watchedTasks.filter(t => taskImpact.selectedTaskIds.includes(t.id));
+                const taskSectionPayload = {
+                    ...reportPayload,
+                    taskImpactDetails: tasksDetails
+                };
+                const taskImpactHTML = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
+                accumulatedBodyHTML += taskImpactHTML;
+                setProgressPercent(80);
             }
 
             // 2. Final Refinement (Abstract & Conclusion)
@@ -306,6 +352,19 @@ const App: React.FC = () => {
             if (reportHTML) setIsAnalyzing(false);
             setIsAnalyzing(false);
         }
+    };
+
+    const handleRestore = (content: any) => {
+        if (content.reportHTML) setReportHTML(content.reportHTML);
+        if (content.chartData) setChartData(content.chartData);
+        if (content.reportPayload) setReportPayload(content.reportPayload);
+        if (content.userContext) setUserContext(content.userContext);
+        if (content.model) setModel(content.model);
+        if (content.p1Name) setP1Name(content.p1Name);
+        if (content.p2Name) setP2Name(content.p2Name);
+
+        setCurrentStatus("Versión del informe restaurada.");
+        setTimeout(() => setCurrentStatus(""), 3000);
     };
 
     const handleRegenerate = (newMessage: string) => {
@@ -477,6 +536,7 @@ const App: React.FC = () => {
                         suggestedSections={suggestedSections}
                         onConfirm={handleConfirmGeneration}
                         onCancel={() => { setShowSectionSelector(false); setIsAnalyzing(false); }}
+                        availableTasks={watchedTasks as any}
                     />
                 )
             }
@@ -492,6 +552,7 @@ const App: React.FC = () => {
                         dashboardStats={chartData?.dashboardStats}
                         logo={logo}
                         onSave={handleSaveCloud}
+                        onShowHistory={() => setIsHistoryOpen(true)}
                         isSaving={isSaving}
                         hasSaved={hasSaved}
                         user={user}
@@ -502,6 +563,14 @@ const App: React.FC = () => {
                     />
                 )
             }
+
+            <HistoryModal
+                isOpen={isHistoryOpen}
+                onClose={() => setIsHistoryOpen(false)}
+                resourceType="seo_report"
+                resourceId={reportPayload?.projectName || 'temp-report'}
+                onRestore={handleRestore}
+            />
         </div>
     );
 };

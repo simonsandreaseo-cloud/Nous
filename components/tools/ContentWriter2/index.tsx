@@ -10,6 +10,8 @@ import { IconUpload, IconSparkles, IconCopy, IconFile, IconSEO, IconImage, IconD
 import { MetadataField } from './components';
 import { parseCSV, parseJSON, buildPrompt, generateArticleStream, findCampaignAssets, suggestImagePlacements, generateRealImage, ArticleConfig, VisualResource, AIImageRequest, runSEOAnalysis, SEOAnalysisResult, generateSchemaMarkup, ContentItem, ImageGenConfig, compositeWatermark, autoInterlink, runHumanizerPipeline, HumanizerConfig, runSmartEditor, generateOutlineStrategy, searchMoreLinks, cleanAndFormatHtml, refineStyling, refineArticleContent, analyzeResearchContent } from './services';
 import { TaskService } from '../../../lib/task_manager';
+import { useAutoSave } from '../../../lib/useAutoSave';
+import HistoryModal from '../../shared/HistoryModal';
 
 // --- Simple Save Function ---
 const downloadBlob = (blob: Blob, fileName: string) => {
@@ -313,6 +315,38 @@ const App = () => {
     const watermarkInputRef = useRef<HTMLInputElement>(null);
     const previewRef = useRef<HTMLDivElement>(null);
 
+    // History & AutoSave State
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+    // AUTOSAVE HOOK
+    // We save the full state of the workspace
+    useAutoSave(
+        'content_draft',
+        draftId || (linkedTaskId ? `task-${linkedTaskId}` : 'temp-new'),
+        {
+            htmlContent,
+            strategyH1,
+            strategyTitle,
+            strategySlug,
+            strategyDesc,
+            strategyOutline,
+            strategyLSI,
+            strategyLongTail,
+            strategyQuestions,
+            metadata,
+            projectName,
+            targetKeyword,
+            detectedNiche,
+            creativityLevel,
+            apiKeys,
+        },
+        {
+            enabled: !!(htmlContent || strategyH1) && (!!draftId || !!linkedTaskId),
+            interval: 60000, // Every 1 minute for draft tools
+            onSaveSuccess: () => setLastSaved(new Date())
+        }
+    );
+
     // --- Effects ---
 
     useEffect(() => {
@@ -411,6 +445,28 @@ const App = () => {
         setApiKeys(keys);
         setShowKeyModal(false);
         alert(`Guardadas ${keys.length} API Keys. Puedes reintentar la acción.`);
+    };
+
+    const handleRestore = (content: any) => {
+        if (content.htmlContent) setHtmlContent(content.htmlContent);
+        if (content.fullResponse) setFullResponse(content.fullResponse || content.htmlContent);
+        if (content.strategyH1) setStrategyH1(content.strategyH1);
+        if (content.strategyTitle) setStrategyTitle(content.strategyTitle);
+        if (content.strategySlug) setStrategySlug(content.strategySlug);
+        if (content.strategyDesc) setStrategyDesc(content.strategyDesc);
+        if (content.strategyOutline) setStrategyOutline(content.strategyOutline);
+        if (content.strategyLSI) setStrategyLSI(content.strategyLSI);
+        if (content.strategyLongTail) setStrategyLongTail(content.strategyLongTail);
+        if (content.strategyQuestions) setStrategyQuestions(content.strategyQuestions);
+        if (content.metadata) setMetadata(content.metadata);
+        if (content.projectName) setProjectName(content.projectName);
+        if (content.targetKeyword) setTargetKeyword(content.targetKeyword);
+        if (content.detectedNiche) setDetectedNiche(content.detectedNiche);
+        if (content.creativityLevel) setCreativityLevel(content.creativityLevel);
+        if (content.apiKeys) setApiKeys(content.apiKeys);
+
+        setStatus("Versión restaurada correctamente.");
+        setTimeout(() => setStatus(""), 3000);
     };
 
     const handleSaveCloud = async () => {
@@ -1349,6 +1405,13 @@ const App = () => {
                 onClose={() => setIsResearchReportOpen(false)}
                 htmlReport={researchReport}
             />
+            <HistoryModal
+                isOpen={isHistoryOpen}
+                onClose={() => setIsHistoryOpen(false)}
+                resourceType="content_draft"
+                resourceId={draftId || (linkedTaskId ? `task-${linkedTaskId}` : 'temp-new')}
+                onRestore={handleRestore}
+            />
 
             {/* TOP NAVIGATION BAR - CLEANED */}
             <div style={styles.navBar as any}>
@@ -1896,6 +1959,7 @@ const App = () => {
                                         <IconPlus /> Nuevo Contenido
                                     </button>
                                     <button onClick={handleSaveCloud} style={{ ...styles.button, background: '#166534', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px' }} disabled={isSaving}><IconCloud /> {isSaving ? "Salvando..." : "Guardar en Nube"}</button>
+                                    <button onClick={() => setIsHistoryOpen(true)} style={{ ...styles.button, background: '#F8FAFC', color: '#475569', width: '100%', justifyContent: 'center', marginTop: '8px', border: '1px solid #E2E8F0' }}><IconRefresh /> Ver Historial</button>
 
                                     {linkedTaskId && (
                                         <button
@@ -1947,6 +2011,7 @@ const App = () => {
                             ) : (
                                 <div style={styles.iconRail as any}>
                                     <div style={styles.railIcon} title="Guardar" onClick={handleSaveCloud}><IconSave /></div>
+                                    <div style={styles.railIcon} title="Historial" onClick={() => setIsHistoryOpen(true)}><IconRefresh /></div>
                                     <div style={styles.railIcon} title="Nuevo" onClick={handleNewContent}><IconPlus /></div>
                                     <div style={styles.railIcon} title="Regenerar" onClick={() => setIsSidebarOpen(true)}><IconRefresh /></div>
                                 </div>

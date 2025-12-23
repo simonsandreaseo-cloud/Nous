@@ -7,8 +7,24 @@ export const GscService = {
      * Get the current user's provider token (Google Access Token) from the session.
      */
     async getAccessToken() {
+        // 1. Check active session
         const { data: { session } } = await supabase.auth.getSession();
-        return session?.provider_token;
+        if (session?.provider_token) return session.provider_token;
+
+        // 2. Fallback to persisted token in database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+
+        const { data, error } = await supabase
+            .from('user_gsc_tokens')
+            .select('access_token, refresh_token, expires_at')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (error || !data) return null;
+
+        // If we had an Edge Function for refreshing, we would call it here if expires_at < now()
+        return data.access_token;
     },
 
     /**
@@ -42,7 +58,7 @@ export const GscService = {
      */
     async getSearchAnalytics(siteUrl: string, startDate: string, endDate: string, dimensions: string[] = ['date'], filters: { page?: string, query?: string, operator?: 'equals' | 'contains' | 'includingRegex' } = {}) {
         const token = await this.getAccessToken();
-        if (!token) throw new Error('No access token');
+        if (!token) throw new Error('No access token. Please sign in with Google.');
 
         // Site URL must be URL-encoded for the path
         const encodedSiteUrl = encodeURIComponent(siteUrl);
@@ -98,7 +114,7 @@ export const GscService = {
      */
     async getSitemaps(siteUrl: string) {
         const token = await this.getAccessToken();
-        if (!token) throw new Error('No access token');
+        if (!token) throw new Error('No access token. Please sign in with Google.');
 
         const encodedSiteUrl = encodeURIComponent(siteUrl);
         const response = await fetch(`${GSC_API_BASE}/sites/${encodedSiteUrl}/sitemaps`, {

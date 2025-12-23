@@ -171,9 +171,10 @@ export const getRelevantSections = async (payload: ReportPayload, model: string,
 
 export const generateReportSection = async (
     sectionName: string,
-    payload: ReportPayload,
+    payload: ReportPayload & { taskImpactDetails?: any[] },
     model: string,
-    apiKeys: string[]
+    apiKeys: string[],
+    caseCount?: number
 ): Promise<string> => {
 
     const writerPayload = {
@@ -181,9 +182,22 @@ export const generateReportSection = async (
         availableChartKeys: payload.availableChartKeys // Handshake keys
     };
 
+    let sectionContext = "";
+    if (sectionName === 'ANALISIS_IMPACTO_TAREAS') {
+        sectionContext = `
+        ANALYSIS GOAL: You are looking at SEO tasks completed in a specific date range. 
+        TASK DETAILS: ${JSON.stringify(payload.taskImpactDetails)}
+        INSTRUCTIONS: 
+        1. For each task, check if the associated URL (gsc_property_url) is present in the "availableChartKeys".
+        2. Analyze if there was growth or decay for these specific URLs in the period.
+        3. Explain to the user the direct or indirect impact of these tasks on the metrics.
+        `;
+    }
+
     const prompt = `
     TASK: Generate HTML for section "${sectionName}".
     CONTEXT: ${payload.userContext || 'Standard Analysis'}
+    ${sectionContext}
     DATA: ${JSON.stringify(writerPayload)}
     
     IMPORTANT: 
@@ -191,6 +205,8 @@ export const generateReportSection = async (
        <span class="w-2 h-2 rounded-full bg-indigo-500"></span> [Title in Spanish]
        </h2>
     2. Use the "availableChartKeys" to find exact URLs for charts.
+    3. ${caseCount ? `CRITICAL: Limit your list/table to only the TOP ${caseCount} cases.` : 'Show the most important data points available.'}
+    4. Write detailed analysis in professional Spanish.
     `;
 
     try {

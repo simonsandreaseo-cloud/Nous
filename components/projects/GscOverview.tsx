@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import { GscService } from '../../services/gscService';
-import { ArrowUp, ArrowDown, Minus, MousePointer2, Eye, Activity, Hash, Loader2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, MousePointer2, Eye, Activity, Hash, Loader2, Key } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { Project } from '../../lib/task_manager';
 
 interface GscOverviewProps {
@@ -22,6 +23,7 @@ interface ComparisonData {
 }
 
 export const GscOverview: React.FC<GscOverviewProps> = ({ project }) => {
+    const { signInWithGoogle } = useAuth();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<ComparisonData | null>(null);
@@ -230,9 +232,30 @@ export const GscOverview: React.FC<GscOverviewProps> = ({ project }) => {
     }
 
     if (error) {
+        const isAuthError = error.includes('No access token') || error.includes('sign in with Google') || error.includes('permissions');
+
         return (
-            <div className="p-6 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-sm">
-                <strong>Error:</strong> {error}
+            <div className="p-8 bg-white border border-brand-power/5 rounded-2xl shadow-sm flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                    <Key size={32} />
+                </div>
+                <h3 className="text-lg font-bold text-brand-power mb-2">
+                    {isAuthError ? 'Conexión con Google Requerida' : 'Error de Conexión'}
+                </h3>
+                <p className="text-sm text-brand-power/50 mb-6 max-w-md">
+                    {isAuthError
+                        ? 'Para ver las métricas de Search Console, necesitamos que inicies sesión con tu cuenta de Google y concedas permisos de lectura.'
+                        : error}
+                </p>
+                {isAuthError && (
+                    <button
+                        onClick={() => signInWithGoogle(window.location.href)}
+                        className="flex items-center gap-2 px-6 py-3 bg-brand-power text-white rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg"
+                    >
+                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-4 h-4" alt="G" />
+                        Conectar Google Search Console
+                    </button>
+                )}
             </div>
         );
     }

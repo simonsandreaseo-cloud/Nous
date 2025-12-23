@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Task, Project } from '../../lib/task_manager';
+import { Task, Project, TaskService } from '../../lib/task_manager';
 import { ContentService, ContentItem } from '../../lib/ContentService';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Lock, Unlock, User, Calendar as CalIcon, Edit3, X, FileText, Sparkles } from 'lucide-react';
@@ -63,28 +63,25 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     };
 
     const handleCreateTask = async (day: number) => {
-        const title = prompt(`New Task for ${day} ${monthName}:`);
+        const title = prompt(`Nuevo artículo para el ${day} de ${monthName}:`);
         if (!title) return;
 
-        const year = currentDate.getFullYear();
-        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const dayStr = String(day).padStart(2, '0');
-        const dueDate = `${year}-${month}-${dayStr}`;
+        // Use local date at noon to avoid timezone shifts
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day, 12, 0, 0);
+        const dueDate = date.toISOString();
 
         try {
-            if (!user) return;
-            const { error } = await supabase.from('tasks').insert({
-                project_id: projectId,
+            await TaskService.createTask(projectId, {
                 title,
                 status: 'idea',
                 type: 'content',
                 due_date: dueDate,
-                created_by: user.id
+                priority: 'medium'
             });
-            if (error) throw error;
             onTaskUpdate();
         } catch (e: any) {
-            alert(e.message);
+            console.error("Error creating task:", e);
+            alert("Error al crear contenido: " + (e.message || "Error desconocido"));
         }
     };
 

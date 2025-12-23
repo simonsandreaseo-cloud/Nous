@@ -11,6 +11,9 @@ import { applyWatermark } from './services/watermarkService';
 import { BlogPost, GeneratedImage, ProcessingStatus, AspectRatio, SupportedLanguage, CustomDimensions, InlineImageCount } from './types';
 import { useAuth } from '../../../context/AuthContext';
 import { supabase } from '../../../lib/supabase';
+import { useAutoSave } from '../../../lib/useAutoSave';
+import HistoryModal from '../../shared/HistoryModal';
+import { Clock } from 'lucide-react';
 
 // Simple Translation Dictionary
 const TRANSLATIONS = {
@@ -126,6 +129,30 @@ const App: React.FC = () => {
   const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
+
+  // History State
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // AUTOSAVE HOOK
+  useAutoSave(
+    'blog_viz_project',
+    blogPost ? (new URLSearchParams(window.location.search).get('draftId') || 'new-viz') : null,
+    {
+      blogPost,
+      generatedImages,
+      instructions,
+      featuredRatio,
+      inlineRatio,
+      inlineImageCount,
+      featuredDim,
+      inlineDim
+    },
+    {
+      enabled: !!blogPost && user !== null,
+      interval: 60000,
+      onSaveSuccess: () => console.log("BlogViz project auto-saved")
+    }
+  );
 
   useEffect(() => {
     if (user) {
@@ -307,6 +334,21 @@ const App: React.FC = () => {
     saveAs(content, "blog-images-package.zip");
   };
 
+  const handleRestore = (content: any) => {
+    if (content.blogPost) setBlogPost(content.blogPost);
+    if (content.generatedImages) setGeneratedImages(content.generatedImages);
+    if (content.instructions) setInstructions(content.instructions);
+    if (content.featuredRatio) setFeaturedRatio(content.featuredRatio);
+    if (content.inlineRatio) setInlineRatio(content.inlineRatio);
+    if (content.inlineImageCount) setInlineImageCount(content.inlineImageCount);
+    if (content.featuredDim) setFeaturedDim(content.featuredDim);
+    if (content.inlineDim) setInlineDim(content.inlineDim);
+
+    setStatus(ProcessingStatus.COMPLETED);
+    setStatusMessage("Versión restaurada.");
+    setTimeout(() => setStatus(ProcessingStatus.IDLE), 3000);
+  };
+
   const reset = () => {
     setDocxFile(null);
     setLogoFile(null);
@@ -386,6 +428,16 @@ const App: React.FC = () => {
                   <span className="hidden sm:inline">{t.downloadAll}</span>
                 </button>
               </div>
+            )}
+
+            {user && blogPost && (
+              <button
+                onClick={() => setIsHistoryOpen(true)}
+                className="flex items-center gap-2 bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                <Clock size={16} />
+                <span className="hidden sm:inline">Historial</span>
+              </button>
             )}
           </div>
         </div>
@@ -525,6 +577,14 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
+
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        resourceType="blog_viz_project"
+        resourceId={new URLSearchParams(window.location.search).get('draftId') || 'new-viz'}
+        onRestore={handleRestore}
+      />
     </div>
   );
 };

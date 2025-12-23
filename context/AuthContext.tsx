@@ -25,11 +25,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const saveGscTokens = async (session: Session | null) => {
+        if (!session?.user || !session.provider_token) return;
+
+        try {
+            // Only upsert if we actually have data to update
+            const updateData: any = {
+                user_id: session.user.id,
+                access_token: session.provider_token,
+                expires_at: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
+                updated_at: new Date().toISOString()
+            };
+
+            // Only update refresh token if it's provided (usually only on first login or re-consent)
+            if (session.provider_refresh_token) {
+                updateData.refresh_token = session.provider_refresh_token;
+            }
+
+            await supabase
+                .from('user_gsc_tokens')
+                .upsert(updateData);
+        } catch (err) {
+            console.error('Failed to sync GSC tokens:', err);
+        }
+    };
+
     useEffect(() => {
         // Check active session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setUser(session?.user ?? null);
+            if (session) saveGscTokens(session);
             setLoading(false);
         });
 
@@ -39,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
+            if (session) saveGscTokens(session);
             setLoading(false);
         });
 

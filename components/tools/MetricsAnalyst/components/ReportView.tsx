@@ -25,7 +25,8 @@ interface ReportViewProps {
     user?: any;
     taskPerformance?: TaskPerformance[];
     decayAlerts?: any[];
-    concentrationAnalysis?: any; // Add prop
+    concentrationAnalysis?: any;
+    onShowHistory?: () => void;
 }
 
 export const ReportView: React.FC<ReportViewProps> = ({
@@ -43,7 +44,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
     user,
     taskPerformance,
     decayAlerts,
-    concentrationAnalysis
+    concentrationAnalysis,
+    onShowHistory
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const chartsRef = useRef<Chart[]>([]);
@@ -179,6 +181,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     &larr; Nuevo Análisis
                 </button>
                 <div className="flex gap-3">
+                    <button
+                        onClick={onShowHistory}
+                        className="bg-brand-white border border-brand-power/10 text-brand-power px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-brand-soft/50 transition"
+                    >
+                        🕒 Historial
+                    </button>
                     <button
                         onClick={() => window.print()}
                         className="bg-brand-white border border-brand-power/10 text-brand-power px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-brand-soft/50 transition"
