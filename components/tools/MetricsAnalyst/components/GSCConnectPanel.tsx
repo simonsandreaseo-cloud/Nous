@@ -100,13 +100,13 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
 
     if (!session || !session.provider_token) {
         return (
-            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+            <div className="text-center py-12 bg-brand-soft/50 rounded-2xl border border-brand-power/10">
                 <div className="text-4xl mb-4">🔐</div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Conexión Requerida</h3>
-                <p className="text-slate-500 mb-6 max-w-sm mx-auto">Para analizar tus datos automáticamente, necesitamos acceso de lectura a tu Google Search Console.</p>
+                <h3 className="text-xl font-bold text-brand-power mb-2">Conexión Requerida</h3>
+                <p className="text-brand-power/60 mb-6 max-w-sm mx-auto">Para analizar tus datos automáticamente, necesitamos acceso de lectura a tu Google Search Console.</p>
                 <button
-                    onClick={signInWithGoogle}
-                    className="bg-white border border-slate-300 text-slate-700 font-bold py-3 px-6 rounded-xl hover:bg-slate-50 flex items-center gap-3 mx-auto shadow-sm transition-transform active:scale-95"
+                    onClick={() => signInWithGoogle(`${window.location.origin}/herramientas/generador-informes`)}
+                    className="bg-brand-white border border-brand-power/10 text-brand-power font-bold py-3 px-6 rounded-xl hover:bg-brand-soft flex items-center gap-3 mx-auto shadow-sm transition-transform active:scale-95"
                 >
                     <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="G" />
                     Iniciar Sesión con Google
@@ -122,32 +122,32 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
     // ... (rest of quick actions)
 
     return (
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+        <div className="w-full">
             {/* 0. Mode Tabs */}
-            <div className="flex gap-2 mb-6 bg-slate-100 p-1.5 rounded-xl self-start inline-flex">
+            <div className="flex gap-2 mb-6 bg-brand-power/5 p-1.5 rounded-xl self-start inline-flex">
                 <button
                     onClick={() => setCompareMode('range')}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'range' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:bg-white/50'}`}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'range' ? 'bg-brand-white shadow text-brand-power' : 'text-brand-power/50 hover:bg-brand-white/50'}`}
                 >
                     Rango de Fechas
                 </button>
                 <button
                     onClick={() => setCompareMode('day')}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'day' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-white/50'}`}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'day' ? 'bg-brand-white shadow text-brand-power' : 'text-brand-power/50 hover:bg-brand-white/50'}`}
                 >
                     Día vs Día
                 </button>
             </div>
             {/* 1. Property Selector */}
             <div className="mb-8">
-                <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Propiedad de Search Console</label>
+                <label className="block text-sm font-bold text-brand-power mb-2 uppercase tracking-wide">Propiedad de Search Console</label>
                 {loadingSites ? (
-                    <div className="animate-pulse h-12 bg-slate-100 rounded-xl w-full"></div>
+                    <div className="animate-pulse h-12 bg-brand-soft rounded-xl w-full"></div>
                 ) : (
                     <select
                         value={selectedSite}
                         onChange={(e) => setSelectedSite(e.target.value)}
-                        className="w-full text-lg p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                        className="w-full text-lg p-3 bg-brand-soft/50 border border-brand-power/10 rounded-xl focus:ring-2 focus:ring-brand-power/30 outline-none font-medium text-brand-power"
                     >
                         {sites.map(s => (
                             <option key={s.siteUrl} value={s.siteUrl}>{s.siteUrl}</option>
@@ -159,38 +159,38 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
             {/* 2. Date Comparison Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 {/* Period 1 */}
-                <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50 relative group">
-                    <div className="absolute top-0 right-0 left-0 h-1 bg-slate-300 rounded-t-2xl"></div>
-                    <div className="text-xs font-bold text-slate-500 uppercase mb-3 flex justify-between">
+                <div className="p-5 rounded-2xl border border-brand-power/10 bg-brand-soft/50 relative group">
+                    <div className="absolute top-0 right-0 left-0 h-1 bg-brand-power/20 rounded-t-2xl"></div>
+                    <div className="text-xs font-bold text-brand-power/60 uppercase mb-3 flex justify-between">
                         <span>{compareMode === 'range' ? 'Periodo Base' : 'Día Base'} (Anterior)</span>
-                        <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded text-[10px]">Comparativa</span>
+                        <span className="bg-brand-power/10 text-brand-power px-2 py-0.5 rounded text-[10px]">Comparativa</span>
                     </div>
                     {compareMode === 'range' ? (
                         <div className="flex gap-2">
-                            <input type="date" value={dateRangeP1.start} onChange={(e) => setDateRangeP1({ ...dateRangeP1, start: e.target.value })} className="w-full p-2 rounded-lg border border-slate-200 text-sm font-mono text-slate-600 focus:border-indigo-500 outline-none" />
-                            <span className="self-center text-slate-400">-</span>
-                            <input type="date" value={dateRangeP1.end} onChange={(e) => setDateRangeP1({ ...dateRangeP1, end: e.target.value })} className="w-full p-2 rounded-lg border border-slate-200 text-sm font-mono text-slate-600 focus:border-indigo-500 outline-none" />
+                            <input type="date" value={dateRangeP1.start} onChange={(e) => setDateRangeP1({ ...dateRangeP1, start: e.target.value })} className="w-full p-2 rounded-lg border border-brand-power/10 text-sm font-mono text-brand-power focus:border-brand-power/50 outline-none bg-transparent" />
+                            <span className="self-center text-brand-power/40">-</span>
+                            <input type="date" value={dateRangeP1.end} onChange={(e) => setDateRangeP1({ ...dateRangeP1, end: e.target.value })} className="w-full p-2 rounded-lg border border-brand-power/10 text-sm font-mono text-brand-power focus:border-brand-power/50 outline-none bg-transparent" />
                         </div>
                     ) : (
-                        <input type="date" value={dayP1} onChange={(e) => setDayP1(e.target.value)} className="w-full p-2 rounded-lg border border-slate-200 text-sm font-mono text-slate-600 focus:border-indigo-500 outline-none" />
+                        <input type="date" value={dayP1} onChange={(e) => setDayP1(e.target.value)} className="w-full p-2 rounded-lg border border-brand-power/10 text-sm font-mono text-brand-power focus:border-brand-power/50 outline-none bg-transparent" />
                     )}
                 </div>
 
                 {/* Period 2 */}
-                <div className="p-5 rounded-2xl border border-indigo-200 bg-indigo-50/30 relative group shadow-sm">
-                    <div className="absolute top-0 right-0 left-0 h-1 bg-indigo-500 rounded-t-2xl"></div>
-                    <div className="text-xs font-bold text-indigo-800 uppercase mb-3 flex justify-between">
+                <div className="p-5 rounded-2xl border border-brand-accent/50 bg-brand-accent/10 relative group shadow-sm">
+                    <div className="absolute top-0 right-0 left-0 h-1 bg-brand-accent rounded-t-2xl"></div>
+                    <div className="text-xs font-bold text-brand-power uppercase mb-3 flex justify-between">
                         <span>{compareMode === 'range' ? 'Periodo Actual' : 'Día Objetivo'} (Foco)</span>
-                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px]">Principal</span>
+                        <span className="bg-brand-accent/30 text-brand-power px-2 py-0.5 rounded text-[10px]">Principal</span>
                     </div>
                     {compareMode === 'range' ? (
                         <div className="flex gap-2">
-                            <input type="date" value={dateRangeP2.start} onChange={(e) => setDateRangeP2({ ...dateRangeP2, start: e.target.value })} className="w-full p-2 rounded-lg border border-indigo-200 text-sm font-mono text-slate-900 font-bold focus:border-indigo-500 outline-none bg-white" />
-                            <span className="self-center text-slate-400">-</span>
-                            <input type="date" value={dateRangeP2.end} onChange={(e) => setDateRangeP2({ ...dateRangeP2, end: e.target.value })} className="w-full p-2 rounded-lg border border-indigo-200 text-sm font-mono text-slate-900 font-bold focus:border-indigo-500 outline-none bg-white" />
+                            <input type="date" value={dateRangeP2.start} onChange={(e) => setDateRangeP2({ ...dateRangeP2, start: e.target.value })} className="w-full p-2 rounded-lg border border-brand-accent/30 text-sm font-mono text-brand-power font-bold focus:border-brand-accent outline-none bg-brand-white/50" />
+                            <span className="self-center text-brand-power/40">-</span>
+                            <input type="date" value={dateRangeP2.end} onChange={(e) => setDateRangeP2({ ...dateRangeP2, end: e.target.value })} className="w-full p-2 rounded-lg border border-brand-accent/30 text-sm font-mono text-brand-power font-bold focus:border-brand-accent outline-none bg-brand-white/50" />
                         </div>
                     ) : (
-                        <input type="date" value={dayP2} onChange={(e) => setDayP2(e.target.value)} className="w-full p-2 rounded-lg border border-indigo-200 text-sm font-mono text-slate-900 font-bold focus:border-indigo-500 outline-none bg-white" />
+                        <input type="date" value={dayP2} onChange={(e) => setDayP2(e.target.value)} className="w-full p-2 rounded-lg border border-brand-accent/30 text-sm font-mono text-brand-power font-bold focus:border-brand-accent outline-none bg-brand-white/50" />
                     )}
                 </div>
             </div>
@@ -202,12 +202,12 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
                         <button
                             key={m}
                             onClick={() => applyQuickRange(m)}
-                            className="px-4 py-1.5 rounded-full border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition whitespace-nowrap"
+                            className="px-4 py-1.5 rounded-full border border-brand-power/10 text-xs font-bold text-brand-power/70 hover:bg-brand-soft hover:border-brand-power/30 transition whitespace-nowrap"
                         >
                             Últimos {m} Meses
                         </button>
                     ))}
-                    <button onClick={() => applyQuickRange(undefined, 'prev_year')} className="px-4 py-1.5 rounded-full border border-indigo-100 bg-indigo-50 text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition whitespace-nowrap">Vs Año Anterior</button>
+                    <button onClick={() => applyQuickRange(undefined, 'prev_year')} className="px-4 py-1.5 rounded-full border border-brand-accent/30 bg-brand-accent/10 text-xs font-bold text-brand-power hover:bg-brand-accent/20 transition whitespace-nowrap">Vs Año Anterior</button>
                 </div>
             )}
 
@@ -215,7 +215,7 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
             <button
                 onClick={handleAnalyzeClick}
                 disabled={isLoading}
-                className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-brand-power text-brand-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-lg shadow-brand-power/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
                 {isLoading ? (
                     <>

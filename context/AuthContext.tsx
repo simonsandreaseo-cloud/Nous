@@ -6,7 +6,7 @@ interface AuthContextType {
     user: User | null;
     session: Session | null;
     loading: boolean;
-    signInWithGoogle: () => Promise<void>;
+    signInWithGoogle: (redirectUrl?: string) => Promise<void>;
     signOut: () => Promise<void>;
 }
 
@@ -45,12 +45,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return () => subscription.unsubscribe();
     }, []);
 
-    const signInWithGoogle = async () => {
+    const signInWithGoogle = async (redirectUrl?: string) => {
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/dashboard`,
+                    redirectTo: redirectUrl || `${window.location.origin}/dashboard`,
                     queryParams: {
                         access_type: 'offline',
                         prompt: 'consent',

@@ -533,7 +533,7 @@ function buildAggregations(data: CSVRow[], keyType: AggregationKey) {
     for (const row of data) {
         let keyVal = '';
         if (keyType === 'page') keyVal = row.page || '';
-        else if (keyType === 'keyword') keyVal = row.keyword || '';
+        else if (keyType === 'keyword') keyVal = (row.keyword || '').toLowerCase().trim();
         else if (keyType === 'country') keyVal = row.country || '';
         else if (keyType === 'segment') keyVal = row.segment || '';
         if (keyVal) updateMap(mainMap, keyVal, row);

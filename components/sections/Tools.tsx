@@ -81,7 +81,7 @@ const ToolCard: React.FC<{ tool: typeof TOOLS[0]; index: number }> = ({ tool, in
   );
 };
 
-const Tools: React.FC = () => {
+const Tools: React.FC<{ showHeader?: boolean; showButton?: boolean }> = ({ showHeader = true, showButton = true }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [particleCount, setParticleCount] = useState(0);
 
@@ -122,15 +122,17 @@ const Tools: React.FC = () => {
       </motion.div>
 
       <div className="max-w-screen-2xl mx-auto px-6 md:px-12 relative z-10">
-        <div className="mb-20">
-          <SectionHeading
-            number="03"
-            eyebrow="Creativa"
-            title="Herramientas Propias"
-            description="Software desarrollado in-house para resolver problemas que las herramientas comerciales ignoran."
-            align="center"
-          />
-        </div>
+        {showHeader && (
+          <div className="mb-20">
+            <SectionHeading
+              number="03"
+              eyebrow="Creativa"
+              title="Herramientas Propias"
+              description="Software desarrollado in-house para resolver problemas que las herramientas comerciales ignoran."
+              align="center"
+            />
+          </div>
+        )}
 
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
@@ -146,17 +148,19 @@ const Tools: React.FC = () => {
           ))}
         </motion.div>
 
-        <motion.div
-          className="mt-16 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.5 }}
-        >
-          <Link to="/herramientas" className="inline-block px-8 py-4 bg-brand-power text-brand-white font-bold rounded-lg hover:bg-brand-accent hover:text-brand-power transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-            Ver Todas las Herramientas
-          </Link>
-        </motion.div>
+        {showButton && (
+          <motion.div
+            className="mt-16 text-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.5 }}
+          >
+            <Link to="/herramientas" className="inline-block px-8 py-4 bg-brand-power text-brand-white font-bold rounded-lg hover:bg-brand-accent hover:text-brand-power transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+              Ver Todas las Herramientas
+            </Link>
+          </motion.div>
+        )}
       </div>
     </section>
   );

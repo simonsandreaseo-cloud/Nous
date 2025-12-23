@@ -13,7 +13,7 @@ const ToolsDashboard: React.FC = () => {
             exit={{ opacity: 0, transition: { duration: 0.5 } }}
             transition={ANIMATION_CONFIG.transition}
         >
-            <Tools />
+            <Tools showHeader={false} showButton={false} />
         </motion.div>
     );
 };

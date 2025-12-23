@@ -1,22 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Task } from '../../lib/task_manager';
+import { Task, Project } from '../../lib/task_manager';
 import { ContentService, ContentItem } from '../../lib/ContentService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Lock, Unlock, User, Calendar as CalIcon, Edit3, X, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface EditorialCalendarProps {
-    projectId: string | number;
-    tasks: Task[];
-    onTaskUpdate: () => void;
+    projectId?: string | number;
+    tasks?: Task[];
+    onTaskUpdate?: () => void;
 }
 
-export const EditorialCalendar: React.FC<EditorialCalendarProps> = ({ projectId, tasks, onTaskUpdate }) => {
+export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
+    // Try to get from Context (if rendered via Outlet)
+    const context = useOutletContext<{ project: Project, tasks: Task[], refreshTasks: () => void }>();
+
+    // Determine data source (Props > Context)
+    const tasks = props.tasks || context?.tasks || [];
+    const projectId = props.projectId || context?.project?.id;
+    const onTaskUpdate = props.onTaskUpdate || context?.refreshTasks || (() => { });
+
     const { user } = useAuth();
     const navigate = useNavigate();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedTask, setSelectedTask] = useState<ContentItem | null>(null);
+
+    // If still no project ID, show loading
+    if (!projectId) return <div className="p-8 text-center text-slate-400">Cargando calendario...</div>;
 
     // Helper to get days in month
     const getDaysInMonth = (date: Date) => {

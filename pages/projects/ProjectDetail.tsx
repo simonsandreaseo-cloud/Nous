@@ -149,6 +149,96 @@ const ProjectSettings = ({ project, members, onInvite, onUpdate }: { project: Pr
     )
 };
 
+const ProjectOverview = ({ project, tasks, members, onNavigate }: any) => {
+    const taskStats = {
+        todo: tasks.filter((t: any) => t.status === 'todo').length,
+        inProgress: tasks.filter((t: any) => t.status === 'in_progress').length,
+        done: tasks.filter((t: any) => t.status === 'done').length,
+        total: tasks.length
+    };
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Task Summary Card */}
+            <div
+                onClick={() => onNavigate('board')}
+                className="bg-white p-6 rounded-2xl shadow-sm border border-brand-power/5 cursor-pointer hover:shadow-md transition-all group"
+            >
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-brand-power group-hover:text-brand-accent transition-colors">Tareas</h3>
+                    <Layout className="text-brand-power/20 group-hover:text-brand-accent transition-colors" />
+                </div>
+                <div className="flex gap-4">
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-brand-power">{taskStats.todo}</div>
+                        <div className="text-[10px] uppercase font-bold text-slate-400">Por Hacer</div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-500">{taskStats.inProgress}</div>
+                        <div className="text-[10px] uppercase font-bold text-blue-400">En Curso</div>
+                    </div>
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-emerald-500">{taskStats.done}</div>
+                        <div className="text-[10px] uppercase font-bold text-emerald-400">Hecho</div>
+                    </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-brand-power/5 text-xs text-brand-power/50 font-medium">
+                    {taskStats.total} tareas en total
+                </div>
+            </div>
+
+            {/* Calendar Summary */}
+            <div
+                onClick={() => onNavigate('calendar')}
+                className="bg-white p-6 rounded-2xl shadow-sm border border-brand-power/5 cursor-pointer hover:shadow-md transition-all group"
+            >
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-brand-power group-hover:text-brand-accent transition-colors">Calendario</h3>
+                    <Calendar className="text-brand-power/20 group-hover:text-brand-accent transition-colors" />
+                </div>
+                <div className="flex flex-col items-center justify-center h-20 text-brand-power/40 text-sm font-medium">
+                    Ver Planificación Editorial
+                </div>
+            </div>
+
+            {/* Sitemap Summary */}
+            <div
+                onClick={() => onNavigate('sitemap')}
+                className="bg-white p-6 rounded-2xl shadow-sm border border-brand-power/5 cursor-pointer hover:shadow-md transition-all group"
+            >
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-brand-power group-hover:text-brand-accent transition-colors">Sitemap</h3>
+                    <Search className="text-brand-power/20 group-hover:text-brand-accent transition-colors" />
+                </div>
+                <div className="flex flex-col items-center justify-center h-20 text-brand-power/40 text-sm font-medium">
+                    Gestionar URLs indexadas
+                </div>
+            </div>
+
+            {/* Settings / Integrations Summary */}
+            <div
+                onClick={() => onNavigate('settings')}
+                className="bg-white p-6 rounded-2xl shadow-sm border border-brand-power/5 cursor-pointer hover:shadow-md transition-all group"
+            >
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-brand-power group-hover:text-brand-accent transition-colors">Configuración</h3>
+                    <Settings className="text-brand-power/20 group-hover:text-brand-accent transition-colors" />
+                </div>
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-brand-power/70">
+                        <span className={`w-2 h-2 rounded-full ${project.gsc_property_url ? 'bg-emerald-500' : 'bg-red-400'}`}></span>
+                        {project.gsc_property_url ? 'GSC Conectado' : 'Sin GSC'}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-brand-power/70">
+                        <Users size={14} />
+                        {members.members.length} Miembros
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ProjectDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const projectId = id || 0;
@@ -159,7 +249,7 @@ const ProjectDetail: React.FC = () => {
     const [tasks, setTasks] = useState<Task[]>([]);
 
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'board' | 'list' | 'calendar' | 'sitemap' | 'settings'>('board');
+    const [activeTab, setActiveTab] = useState<'overview' | 'board' | 'list' | 'calendar' | 'sitemap' | 'settings'>('overview');
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteConfirmName, setDeleteConfirmName] = useState('');
@@ -177,7 +267,11 @@ const ProjectDetail: React.FC = () => {
             if (pData && pData.id) {
                 // 2. Use resolved ID (UUID) for other calls
                 const mData = await ProjectService.getMembers(pData.id);
-                const tData = await TaskService.getTasks(pData.id);
+                // Wrap task fetching to prevent total failure if one fails
+                let tData: Task[] = [];
+                try {
+                    tData = await TaskService.getTasks(pData.id);
+                } catch (e) { console.error("Error loading tasks", e); }
 
                 setMembers(mData as any);
                 setTasks(tData);
@@ -282,6 +376,7 @@ const ProjectDetail: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.2 }}
+                        className="min-h-[500px]"
                     >
                         {activeTab === 'board' && <TaskBoard tasks={tasks} projectId={project.id} onTaskUpdate={loadData} />}
                         {activeTab === 'list' && <div>List View Placeholder</div>}

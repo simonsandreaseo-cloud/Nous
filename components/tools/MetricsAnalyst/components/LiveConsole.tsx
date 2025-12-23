@@ -13,11 +13,14 @@ export const LiveConsole: React.FC<LiveConsoleProps> = ({ logs }) => {
     }, [logs]);
 
     return (
-        <div className="bg-gray-800 text-gray-300 font-mono text-sm h-48 overflow-y-auto rounded-lg p-4 border border-gray-700 shadow-inner">
-            {logs.length === 0 && <p className="text-gray-500 italic">Ready to analyze...</p>}
+        <div className="h-full w-full overflow-y-auto custom-scrollbar pr-2 font-mono text-xs leading-relaxed">
+            {logs.length === 0 && <p className="text-brand-white/20 italic">Esperando inicio del proceso...</p>}
             {logs.map((log, idx) => (
-                <div key={idx} className={`mb-1 break-words ${log.type === 'error' ? 'text-red-400' : log.type === 'warn' ? 'text-amber-400' : ''}`}>
-                    <span className="opacity-50 mr-2">[{log.timestamp}]</span>
+                <div key={idx} className={`mb-2 break-words border-l-2 pl-3 py-0.5 animate-fade-in ${log.type === 'error' ? 'text-red-400 border-red-400/50 bg-red-400/5' :
+                        log.type === 'warn' ? 'text-amber-400 border-amber-400/50' :
+                            'text-brand-white/80 border-brand-white/10 hover:border-brand-white/30 hover:bg-brand-white/5 transition-colors'
+                    }`}>
+                    <span className="text-brand-white/30 mr-2 text-[10px] uppercase font-bold tracking-wider">[{log.timestamp}]</span>
                     {log.message}
                 </div>
             ))}

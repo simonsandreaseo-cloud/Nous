@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Task, TaskService } from '../../lib/task_manager';
+import { Task, TaskService, Project } from '../../lib/task_manager';
 import { Plus, MoreHorizontal, Calendar, User, ArrowRight, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import TaskDetailModal from './TaskDetailModal';
+import { useOutletContext } from 'react-router-dom';
 
 const STATUS_COLUMNS = [
     { id: 'idea', label: 'Ideas', color: 'bg-amber-400' },
@@ -13,16 +14,26 @@ const STATUS_COLUMNS = [
 ];
 
 interface TaskBoardProps {
-    tasks: Task[];
-    projectId: string | number;
-    onTaskUpdate: () => void;
+    tasks?: Task[];
+    projectId?: string | number;
+    onTaskUpdate?: () => void;
 }
 
-const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, projectId, onTaskUpdate }) => {
+const TaskBoard: React.FC<TaskBoardProps> = (props) => {
+    // Try to get from Context (if rendered via Outlet)
+    const context = useOutletContext<{ project: Project, tasks: Task[], refreshTasks: () => void }>();
+
+    // Determine data source (Props > Context)
+    const tasks = props.tasks || context?.tasks || [];
+    const projectId = props.projectId || context?.project?.id;
+    const onTaskUpdate = props.onTaskUpdate || context?.refreshTasks || (() => { });
+
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [creationStatus, setCreationStatus] = useState('idea');
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+    if (!projectId) return <div className="p-8 text-center text-slate-400">Cargando tablero...</div>;
 
     const handleCreateTask = async () => {
         if (!newTaskTitle.trim()) return;

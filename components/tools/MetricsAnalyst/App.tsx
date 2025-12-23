@@ -25,13 +25,6 @@ const AVAILABLE_MODELS = [
 const App: React.FC = () => {
     // State
     const [step, setStep] = useState<number>(1);
-    // Standard Deviation
-    // The following lines appear to be part of a helper function for standard deviation calculation
-    // and are placed here as per user instruction, but are not syntactically valid in this scope.
-    // If this is intended to be a helper function, it should be defined outside the component or within a useCallback/useMemo.
-    // For now, placing it as instructed, but noting the potential syntax issue.
-    // if (values.length < 2) return []; // Cannot calc stddev on 1 point
-    // const sqDiffs = values.map(v => Math.pow(v - mean, 2));
     const [analysisMode, setAnalysisMode] = useState<'csv' | 'gsc'>('csv'); // NEW
 
     // File State (CSV Mode)
@@ -76,11 +69,6 @@ const App: React.FC = () => {
 
     // Engine References
     const dataManager = useRef<DataManager>(new DataManager());
-
-    // ... imports required ...
-    // import { ModeSelector } from './components/ModeSelector';
-    // import { GSCConnectPanel } from './components/GSCConnectPanel';
-    // import { fetchSearchAnalytics } from './services/gscService';
 
     // LOAD USER KEYS & TASKS
     React.useEffect(() => {
@@ -145,9 +133,6 @@ const App: React.FC = () => {
             .filter(k => k.length > 10);
     };
 
-    // Helpers
-    // ...
-
     // Handlers
     const handleGSCAnalyze = async (siteUrl: string, startP1: string, endP1: string, startP2: string, endP2: string) => {
         if (!session?.provider_token) return alert("Error de sesión GSC.");
@@ -175,10 +160,6 @@ const App: React.FC = () => {
             ]);
 
             // Set Data
-            // We manually merge them for the "Data Manager" which expects a single huge array per type
-            // But wait, the current handleAnalysis logic splits them by date!
-            // So we can just concatenate p1 and p2 arrays.
-
             setPagesData([...p1Pages, ...p2Pages]);
             setQueriesData([...p1Queries, ...p2Queries]);
             setCountriesData([...p1Countries, ...p2Countries]);
@@ -228,24 +209,6 @@ const App: React.FC = () => {
             const midPointIndex = Math.floor(uniqueTimestamps.length / 2);
             const cutoffTime = uniqueTimestamps[midPointIndex];
 
-            // If GSC mode was used, p1Name and p2Name are already set validly.
-            // But we need to SPLIT the data correctly based on those names (which contain dates) or just split by time?
-            // In GSC mode, we loaded P1 and P2 data sequentially. 
-            // However, they are now merged in 'pagesData'. 
-            // The safest way is to trust the date range split.
-
-            // Heuristic: If we are in CSV mode, we use the midpoint.
-            // If we are in GSC mode, we should ideally have stored the split timestamp or ranges.
-            // For now, let's keep using the midpoint logic BUT if p1Name is set, we respect it visually.
-            // Actually, `runFullLocalAnalysis` expects P1/P2 ARRAYS.
-
-            // Let's improve the split logic.
-            // If analysisMode === 'gsc', we might have overlapping dates (rare but possible in custom ranges).
-            // But usually P1 < P2.
-            // Let's stick to the midpoint split for simplicity as it usually works if ranges are distinct.
-            // IMPROVEMENT: If GSC mode, we might want to ensure the split is accurate to the user selection.
-            // For this iteration, reusing the midpoint is acceptable as long as ranges are distinct.
-
             const splitData = (data: CSVRow[]) => ({ p1: data.filter(r => r.date.getTime() < cutoffTime), p2: data.filter(r => r.date.getTime() >= cutoffTime) });
 
             const pagesSplit = splitData(pagesData);
@@ -274,32 +237,12 @@ const App: React.FC = () => {
 
             if (agentFindings) payload.agentInvestigation = agentFindings;
 
-            // Phase 5: Integrate Task Intelligence manually before payload setting if needed
-            // Currently runFullLocalAnalysis doesn't accept watchedTasks in the logic of MetricsAnalyst (unlike ReportGenerator)
-            // But we can add it here if we want to augment the payload.
-            // For now, we will trust the logic of runFullLocalAnalysis and maybe just pass watchedTasks later?
-            // Actually, let's keep it simple. If MetricsAnalyst analysisService didn't use watchedTasks, we skip it in the Payload calculation,
-            // BUT we pass it to ReportView for rendering!
-            // Wait, ReportGenerator passed watchedTasks to runFullLocalAnalysis!
-            // I didn't see that in the MetricsAnalyst/analysisService.ts I copied.
-            // Ah, because I copied from Informes SEO!
-            // So the *logic* for matching tasks to URLs is missing in analysisService.
-            // User said "ReportGenerator dropped logic", implying Informes SEO had BETTER logic.
-            // But ReportGenerator HAD the task logic.
-            // So I should arguably COPY that task logic into analysisService too?
-            // Or just do it in the UI?
-            // I will do a quick "Task Matcher" here in App.tsx to hydrate the payload with task info.
-
             // Hydrate Task Performance
             const taskPerf = watchedTasks.map(t => {
                 // Find matching page in cData
                 const matchingPage = cData.topWinners.find(p => p.name === t.gsc_property_url) || cData.topLosers.find(p => p.name === t.gsc_property_url) || cData.chartLookup[t.gsc_property_url || '']; // Simplistic
-                // Better: Check all pages
-                // For MVP: We just rely on what ReportView does with passed props.
                 return null; // Placeholder
-            }).filter(Boolean); // Actually ReportGenerator had complex logic for this inside analysisService.
-            // I will skip deep integration for now to preserve SAFETY of the migration (Informes SEO logic is priority).
-            // But I will pass the raw tasks to ReportView if it can use them.
+            }).filter(Boolean);
 
             setReportPayload(payload);
             setChartData(cData);
@@ -403,24 +346,24 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="font-sans text-slate-800 bg-slate-50 min-h-screen">
+        <div className="font-sans text-brand-power bg-brand-soft min-h-screen">
             {step === 1 && (
-                <div className="max-w-4xl mx-auto pt-20 px-6">
+                <div className="max-w-4xl mx-auto pt-20 px-6 animate-fade-in-up">
                     <div className="text-center mb-16 relative">
                         <button
                             onClick={() => window.history.back()}
-                            className="absolute left-0 top-0 text-indigo-600 font-bold hover:underline flex items-center gap-2"
+                            className="absolute left-0 top-0 text-brand-power/50 font-bold hover:text-brand-power flex items-center gap-2 transition-colors"
                         >
                             &larr; Volver
                         </button>
-                        <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight mb-4">Analista de Métricas</h1>
-                        <p className="text-xl text-slate-500 font-light">Análisis Profundo + Integración Cloud</p>
+                        <h1 className="text-5xl font-extrabold text-brand-power tracking-tight mb-4">Analista de Métricas</h1>
+                        <p className="text-xl text-brand-power/60 font-medium">Análisis Profundo + Integración Cloud</p>
                     </div>
 
-                    <div className="bg-white p-10 rounded-3xl shadow-xl border border-slate-200/60">
+                    <div className="bg-brand-white/80 backdrop-blur-md p-10 rounded-3xl shadow-sm border border-brand-power/5">
                         <div className="flex items-center gap-4 mb-8">
-                            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">1</div>
-                            <h2 className="text-xl font-bold text-slate-900">Origen de Datos</h2>
+                            <div className="w-10 h-10 rounded-full bg-brand-power text-brand-white flex items-center justify-center font-bold">1</div>
+                            <h2 className="text-xl font-bold text-brand-power">Origen de Datos</h2>
                         </div>
 
                         <ModeSelector mode={analysisMode} onChange={setAnalysisMode} />
@@ -433,17 +376,17 @@ const App: React.FC = () => {
                                     <UploadSlot label="Países" type="countries" isUploaded={uploadedStatus.countries} onChange={(e: any) => handleFileChange(e, 'countries')} />
                                 </div>
 
-                                <div className="flex justify-between items-center pt-6 border-t border-slate-100">
+                                <div className="flex justify-between items-center pt-6 border-t border-brand-power/5">
                                     <div className="flex items-center gap-2">
                                         <input type="file" id="logo-u" accept="image/png" onChange={handleLogoChange} className="hidden" />
-                                        <label htmlFor="logo-u" className="text-sm font-semibold text-slate-500 hover:text-indigo-600 cursor-pointer flex items-center gap-2">
+                                        <label htmlFor="logo-u" className="text-sm font-semibold text-brand-power/60 hover:text-brand-power cursor-pointer flex items-center gap-2 transition">
                                             {logo ? <span className="text-green-600">Logo Cargado</span> : <span>+ Subir Logo (Opcional)</span>}
                                         </label>
                                     </div>
                                     <button
                                         onClick={() => setStep(2)}
                                         disabled={!uploadedStatus.pages || !uploadedStatus.queries || !uploadedStatus.countries}
-                                        className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-95"
+                                        className="bg-brand-power text-brand-white px-8 py-3 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
                                     >
                                         Siguiente
                                     </button>
@@ -459,37 +402,37 @@ const App: React.FC = () => {
             {step === 2 && (
                 <div className="max-w-7xl mx-auto pt-10 px-6 grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-80px)]">
                     {/* Left: Configuration */}
-                    <div className="bg-white p-10 rounded-3xl shadow-xl border border-slate-200/60 flex flex-col">
-                        <button onClick={() => setStep(1)} className="text-sm text-slate-400 hover:text-slate-700 mb-6 font-medium self-start">&larr; Volver</button>
+                    <div className="bg-brand-white/80 backdrop-blur-md p-10 rounded-3xl shadow-sm border border-brand-power/5 flex flex-col">
+                        <button onClick={() => setStep(1)} className="text-sm text-brand-power/40 hover:text-brand-power mb-6 font-medium self-start">&larr; Volver</button>
 
-                        <h2 className="text-2xl font-bold text-slate-900 mb-6">Configuración de Inteligencia</h2>
+                        <h2 className="text-2xl font-bold text-brand-power mb-6">Configuración de Inteligencia</h2>
 
-                        <div className="space-y-6 flex-1 overflow-y-auto pr-2">
+                        <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">API Keys (Gemini)</label>
+                                <label className="block text-sm font-bold text-brand-power mb-2">API Keys (Gemini)</label>
                                 <textarea
                                     rows={3}
                                     placeholder="Ingresa tus API Keys (una por línea)..."
                                     value={apiKeysInput}
                                     onChange={(e) => setApiKeysInput(e.target.value)}
-                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-mono"
+                                    className="w-full p-4 bg-brand-soft/50 border border-brand-power/10 rounded-xl focus:ring-2 focus:ring-brand-power/20 outline-none text-xs font-mono text-brand-power"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Modelo</label>
-                                <select value={model} onChange={(e) => setModel(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                                <label className="block text-sm font-bold text-brand-power mb-2">Modelo</label>
+                                <select value={model} onChange={(e) => setModel(e.target.value)} className="w-full p-4 bg-brand-soft/50 border border-brand-power/10 rounded-xl focus:ring-2 focus:ring-brand-power/20 outline-none text-sm text-brand-power font-medium">
                                     {AVAILABLE_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Contexto de Investigación</label>
-                                <textarea rows={4} value={userContext} onChange={(e) => setUserContext(e.target.value)} placeholder="Ej: Analiza caídas en móviles..." className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                                <label className="block text-sm font-bold text-brand-power mb-2">Contexto de Investigación</label>
+                                <textarea rows={4} value={userContext} onChange={(e) => setUserContext(e.target.value)} placeholder="Ej: Analiza caídas en móviles..." className="w-full p-4 bg-brand-soft/50 border border-brand-power/10 rounded-xl focus:ring-2 focus:ring-brand-power/20 outline-none text-sm text-brand-power" />
                             </div>
                         </div>
 
                         <button
                             onClick={() => handleAnalysis()}
-                            className="w-full mt-8 bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+                            className="w-full mt-8 bg-brand-power text-brand-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-lg shadow-brand-power/20"
                         >
                             Generar Informe
                         </button>
@@ -497,8 +440,8 @@ const App: React.FC = () => {
 
                     {/* Right: Live Console */}
                     <div className="flex flex-col gap-4">
-                        <div className="bg-slate-900 p-6 rounded-3xl shadow-xl flex-1 flex flex-col border border-slate-800">
-                            <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+                        <div className="bg-brand-power p-6 rounded-3xl shadow-xl flex-1 flex flex-col border border-brand-power">
+                            <h3 className="text-brand-white font-bold mb-4 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                                 Consola de Agente
                             </h3>
@@ -512,17 +455,17 @@ const App: React.FC = () => {
 
             {
                 isAnalyzing && step === 3 && (
-                    <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center text-white px-4">
+                    <div className="fixed inset-0 z-50 bg-brand-power/95 backdrop-blur-md flex flex-col items-center justify-center text-white px-4">
                         <div className="w-full max-w-md text-center">
-                            <div className="text-4xl mb-4">🚀</div>
-                            <h2 className="text-2xl font-bold mb-2">Analizando Datos</h2>
-                            <p className="text-slate-400 mb-8">{currentStatus}</p>
+                            <div className="text-4xl mb-6 animate-bounce">⚡</div>
+                            <h2 className="text-3xl font-extrabold mb-2 tracking-tight">Analizando Datos</h2>
+                            <p className="text-brand-white/60 mb-8 font-medium">{currentStatus}</p>
 
-                            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden relative">
-                                <div className="absolute inset-0 bg-indigo-500/20 animate-pulse"></div>
-                                <div className="bg-indigo-500 h-full transition-all duration-300" style={{ width: `${progressPercent}%` }}></div>
+                            <div className="w-full bg-brand-white/10 rounded-full h-1.5 overflow-hidden relative">
+                                <div className="absolute inset-0 bg-brand-white/20 animate-pulse"></div>
+                                <div className="bg-brand-white h-full transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }}></div>
                             </div>
-                            <div className="mt-2 text-right text-xs font-mono text-indigo-400">{progressPercent}%</div>
+                            <div className="mt-4 text-right text-xs font-mono text-brand-white/60">{progressPercent}%</div>
                         </div>
                     </div>
                 )
@@ -555,6 +498,7 @@ const App: React.FC = () => {
                         // For MVP: Pass empty tasks if not integrated fully yet, or simple mapping
                         taskPerformance={[]} // Logic disabled for safety to prioritize Informes SEO stability
                         decayAlerts={reportPayload?.keywordDecayAlerts}
+                        concentrationAnalysis={reportPayload?.concentrationAnalysis}
                     />
                 )
             }
@@ -563,15 +507,15 @@ const App: React.FC = () => {
 };
 
 const UploadSlot = ({ label, type, isUploaded, onChange }: any) => (
-    <div className={`relative group cursor-pointer border-2 border-dashed rounded-2xl h-32 flex flex-col items-center justify-center transition-all ${isUploaded ? 'border-emerald-400 bg-emerald-50' : 'border-slate-300 hover:border-indigo-400 hover:bg-slate-50'}`}>
+    <div className={`relative group cursor-pointer border-2 border-dashed rounded-2xl h-32 flex flex-col items-center justify-center transition-all ${isUploaded ? 'border-emerald-500 bg-emerald-50/50' : 'border-brand-power/10 hover:border-brand-power/40 hover:bg-brand-white'}`}>
         <input type="file" accept=".csv" onChange={onChange} className="absolute inset-0 opacity-0 cursor-pointer" />
         {isUploaded ? (
-            <div className="text-emerald-600 flex flex-col items-center">
+            <div className="text-emerald-700 flex flex-col items-center">
                 <svg className="w-8 h-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                 <span className="text-xs font-bold uppercase tracking-wider">Cargado</span>
             </div>
         ) : (
-            <div className="text-slate-400 group-hover:text-indigo-500 flex flex-col items-center">
+            <div className="text-brand-power/40 group-hover:text-brand-power flex flex-col items-center transition-colors">
                 <span className="text-sm font-medium">{label}</span>
                 <span className="text-[10px] mt-1 opacity-70">Arrastra o clic</span>
             </div>

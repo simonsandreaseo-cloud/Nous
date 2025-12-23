@@ -1,28 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout, Calendar, List, Settings, Search, BarChart2, Target, ArrowLeft, Menu, X } from 'lucide-react';
-import { ProjectService, Project } from '../../lib/task_manager';
+import { ProjectService, Project, TaskService, Task } from '../../lib/task_manager';
 
 const ProjectLayout: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [project, setProject] = useState<Project | null>(null);
+    const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     useEffect(() => {
-        if (id) loadProject();
+        if (id) loadData();
     }, [id]);
 
-    const loadProject = async () => {
+    const loadData = async () => {
         try {
-            const data = await ProjectService.getProjectDetails(id!);
-            setProject(data);
+            // Fetch Project first to get the ID (if slug is used in future, but assuming ID for now)
+            const pData = await ProjectService.getProjectDetails(id!);
+            setProject(pData);
+
+            if (pData && pData.id) {
+                const tData = await TaskService.getTasks(pData.id);
+                setTasks(tData);
+            }
         } catch (e) {
-            console.error("Error loading project:", e);
-            // navigate('/proyectos'); // Optional: redirect on error
+            console.error("Error loading project/tasks:", e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Explicit refresh function for children to call
+    const refreshTasks = async () => {
+        if (project?.id) {
+            const tData = await TaskService.getTasks(project.id);
+            setTasks(tData);
         }
     };
 
@@ -30,7 +44,7 @@ const ProjectLayout: React.FC = () => {
     if (!project) return <div className="min-h-screen flex items-center justify-center bg-brand-white text-brand-power font-bold">Proyecto no encontrado</div>;
 
     const navItems = [
-        { path: 'dashboard', label: 'Dashboard', icon: <BarChart2 size={20} /> },
+        { path: 'dashboard', label: 'Resumen', icon: <Layout size={20} /> },
         { path: 'tareas', label: 'Tareas', icon: <List size={20} /> },
         { path: 'calendario', label: 'Calendario', icon: <Calendar size={20} /> },
         { path: 'estrategia', label: 'Estrategia', icon: <Target size={20} /> },
@@ -114,7 +128,7 @@ const ProjectLayout: React.FC = () => {
 
                 {/* Content Scroll Area */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-8">
-                    <Outlet context={{ project, loadProject }} />
+                    <Outlet context={{ project, tasks, loadData, refreshTasks }} />
                 </div>
             </main>
         </div>
