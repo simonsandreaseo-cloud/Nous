@@ -451,19 +451,27 @@ function calculateDashboardStats(
 
     const s1 = sum(dataP1);
     const s2 = sum(dataP2);
+
+    // Unique Keywords "Recuento Diferenciado"
+    const uniqueKwP1 = new Set(dataP1.filter(r => r.keyword).map(r => r.keyword)).size;
+    const uniqueKwP2 = new Set(dataP2.filter(r => r.keyword).map(r => r.keyword)).size;
+
     const kpis: SiteWideKPIs = {
         clicksP1: s1.clicks,
         clicksP2: s2.clicks,
         impressionsP1: s1.impressions,
         impressionsP2: s2.impressions,
-        totalClicksChange: s2.clicks - s1.clicks,
-        totalImpressionsChange: s2.impressions - s1.impressions,
+        totalClicksChange: s2.clicks - s1.clicks, // Absolute Change
+        totalImpressionsChange: s2.impressions - s1.impressions, // Absolute Change
         ctrP1: s1.impressions > 0 ? (s1.clicks / s1.impressions) * 100 : 0,
         ctrP2: s2.impressions > 0 ? (s2.clicks / s2.impressions) * 100 : 0,
         ctrChange: 0,
         avgPosP1: s1.count > 0 ? s1.posSum / s1.count : 0,
         avgPosP2: s2.count > 0 ? s2.posSum / s2.count : 0,
-        avgPosChange: 0
+        avgPosChange: 0,
+        uniqueKeywordsP1: uniqueKwP1,
+        uniqueKeywordsP2: uniqueKwP2,
+        uniqueKeywordsChange: uniqueKwP2 - uniqueKwP1
     };
     kpis.ctrChange = kpis.ctrP2 - kpis.ctrP1;
     kpis.avgPosChange = kpis.avgPosP2 - kpis.avgPosP1;
@@ -481,15 +489,32 @@ function calculateDashboardStats(
     })).sort((a: any, b: any) => b.clicks - a.clicks);
 
     const getDailyTotal = (data: CSVRow[]) => {
-        const dailyMap = new Map<string, number>();
+        const dailyMap = new Map<string, { clicks: number, impressions: number, posSum: number, count: number, keywords: Set<string> }>();
+
         data.forEach(row => {
             const d = row.date.toISOString().split('T')[0];
-            dailyMap.set(d, (dailyMap.get(d) || 0) + row.clicks);
+            if (!dailyMap.has(d)) {
+                dailyMap.set(d, { clicks: 0, impressions: 0, posSum: 0, count: 0, keywords: new Set() });
+            }
+            const entry = dailyMap.get(d)!;
+            entry.clicks += row.clicks;
+            entry.impressions += row.impressions;
+            entry.posSum += row.position;
+            entry.count += 1;
+            if (row.keyword) entry.keywords.add(row.keyword);
         });
+
         const sortedKeys = Array.from(dailyMap.keys()).sort();
+
         return {
-            values: sortedKeys.map(d => dailyMap.get(d) || 0),
-            dates: sortedKeys
+            dates: sortedKeys,
+            clicks: sortedKeys.map(d => dailyMap.get(d)!.clicks),
+            impressions: sortedKeys.map(d => dailyMap.get(d)!.impressions),
+            position: sortedKeys.map(d => {
+                const e = dailyMap.get(d)!;
+                return e.count > 0 ? e.posSum / e.count : 0;
+            }),
+            uniqueKeywords: sortedKeys.map(d => dailyMap.get(d)!.keywords.size)
         };
     };
 
@@ -501,10 +526,22 @@ function calculateDashboardStats(
     });
 
     // Run Anomaly Detection on Period 2 (Active Period)
-    const anomalies = detectTimeSeriesAnomalies(datesP2Formatted, d2.values);
+    const anomalies = detectTimeSeriesAnomalies(datesP2Formatted, d2.clicks);
 
     return {
-        kpis, datasetStats, segmentStats, dailyTrendP1: d1.values, dailyTrendP2: d2.values, datesP2: datesP2Formatted, period1Label: p1Label, period2Label: p2Label, anomalies
+        kpis,
+        datasetStats,
+        segmentStats,
+        dailyTrendP1: d1.clicks,
+        dailyTrendP2: d2.clicks,
+        dailyClicks: d2.clicks,
+        dailyImpressions: d2.impressions,
+        dailyPosition: d2.position,
+        dailyUniqueKeywords: d2.uniqueKeywords,
+        datesP2: datesP2Formatted,
+        period1Label: p1Label,
+        period2Label: p2Label,
+        anomalies
     };
 }
 

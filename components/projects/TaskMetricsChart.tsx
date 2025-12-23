@@ -175,7 +175,7 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
                     borderColor: '#6366f1',
                     backgroundColor: 'rgba(99, 102, 241, 0.1)',
                     borderWidth: 2,
-                    tension: 0.3,
+                    tension: 0,
                     fill: true,
                     pointRadius: 0,
                     pointHoverRadius: 5

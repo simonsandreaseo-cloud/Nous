@@ -43,7 +43,7 @@ const GscChart: React.FC<GscChartProps> = ({ data }) => {
                         backgroundColor: 'rgba(129, 140, 248, 0.1)',
                         yAxisID: 'y_impressions',
                         fill: true,
-                        tension: 0.4,
+                        tension: 0,
                         order: 2
                     },
                     {
@@ -62,7 +62,7 @@ const GscChart: React.FC<GscChartProps> = ({ data }) => {
                         borderColor: '#fbbf24', // Amber 400
                         borderDash: [5, 5],
                         yAxisID: 'y_ctr',
-                        tension: 0.4,
+                        tension: 0,
                         pointRadius: 0,
                         borderWidth: 2,
                         hidden: true // Hidden by default to avoid clutter
@@ -72,7 +72,7 @@ const GscChart: React.FC<GscChartProps> = ({ data }) => {
                         data: position,
                         borderColor: '#f87171', // Red 400
                         yAxisID: 'y_position',
-                        tension: 0.4,
+                        tension: 0,
                         pointRadius: 0,
                         borderWidth: 2,
                         hidden: true // Hidden by default

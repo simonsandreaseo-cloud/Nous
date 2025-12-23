@@ -14,13 +14,11 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
     const [loadingSites, setLoadingSites] = useState(false);
     const [hasToken, setHasToken] = useState<boolean | null>(null);
 
-    // Dates State
-    // Default: P2 = Last 28 Days, P1 = Previous Period
     const calculateDefaultDates = () => {
         const end = new Date();
-        end.setDate(end.getDate() - 3); // GSC usually has ~2-3 days lag
+        end.setDate(end.getDate() - 3);
         const start = new Date(end);
-        start.setDate(start.getDate() - 27); // 28 days total
+        start.setDate(start.getDate() - 27);
 
         const endP1 = new Date(start);
         endP1.setDate(endP1.getDate() - 1);
@@ -86,21 +84,19 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
         }
     };
 
-    // Quick Selectors
     const applyQuickRange = (months?: number, type?: 'prev_year' | 'prev_period') => {
         const end = new Date();
         end.setDate(end.getDate() - 3);
 
-        let start, p2S, p2E, startP1, endP1;
+        let start, startP1, endP1;
 
         if (type === 'prev_year') {
-            // Same dates last year
             start = new Date(dateRangeP2.start);
-            end.setTime(new Date(dateRangeP2.end).getTime());
+            const p2End = new Date(dateRangeP2.end);
 
             startP1 = new Date(start);
             startP1.setFullYear(startP1.getFullYear() - 1);
-            endP1 = new Date(end);
+            endP1 = new Date(p2End);
             endP1.setFullYear(endP1.getFullYear() - 1);
         } else if (months) {
             start = new Date(end);
@@ -118,16 +114,18 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
 
     if (hasToken === false) {
         return (
-            <div className="text-center py-12 bg-brand-soft/50 rounded-2xl border border-brand-power/10">
-                <div className="text-4xl mb-4">🔐</div>
-                <h3 className="text-xl font-bold text-brand-power mb-2">Conexión Requerida</h3>
-                <p className="text-brand-power/60 mb-6 max-w-sm mx-auto">Para analizar tus datos automáticamente, necesitamos acceso de lectura a tu Google Search Console.</p>
+            <div className="text-center py-16 bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50">
+                <div className="bg-indigo-50 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <span className="text-4xl animate-pulse">🔒</span>
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">Conexión con Search Console</h3>
+                <p className="text-slate-500 mb-8 max-w-sm mx-auto leading-relaxed">Necesitamos acceso a tus propiedades de Google para automatizar el análisis.</p>
                 <button
                     onClick={() => signInWithGoogle(`${window.location.origin}/herramientas/generador-informes`)}
-                    className="bg-brand-white border border-brand-power/10 text-brand-power font-bold py-3 px-6 rounded-xl hover:bg-brand-soft flex items-center gap-3 mx-auto shadow-sm transition-transform active:scale-95"
+                    className="bg-indigo-600 text-white font-bold py-4 px-8 rounded-2xl hover:bg-indigo-700 flex items-center gap-3 mx-auto shadow-lg shadow-indigo-200 transition-all active:scale-95"
                 >
-                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="G" />
-                    Iniciar Sesión con Google
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6 p-1 bg-white rounded-full shadow-sm" alt="G" />
+                    Conectar con Google
                 </button>
             </div>
         );
@@ -135,103 +133,98 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
 
     if (hasToken === null || loadingSites) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-                <div className="w-12 h-12 border-4 border-brand-power border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-brand-power/50 font-bold animate-pulse">Verificando acceso a Google...</p>
+            <div className="flex flex-col items-center justify-center py-20 gap-6">
+                <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin shadow-inner"></div>
+                <div className="text-center">
+                    <p className="text-indigo-600 font-extrabold tracking-wide uppercase text-xs mb-1">Cargando propiedades</p>
+                    <p className="text-slate-400 text-sm">Sincronizando con Google Cloud...</p>
+                </div>
             </div>
         );
     }
 
-
-    // ... (rest of quick actions)
-
     return (
-        <div className="w-full">
-            {/* 0. Mode Tabs */}
-            <div className="flex gap-2 mb-6 bg-brand-power/5 p-1.5 rounded-xl self-start inline-flex">
+        <div className="w-full space-y-8 animate-fade-in">
+            {/* Mode Tabs */}
+            <div className="p-1 bg-slate-100 rounded-2xl self-start inline-flex border border-slate-200/50">
                 <button
                     onClick={() => setCompareMode('range')}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'range' ? 'bg-brand-white shadow text-brand-power' : 'text-brand-power/50 hover:bg-brand-white/50'}`}
+                    className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'range' ? 'bg-white shadow-sm text-indigo-600 ring-1 ring-black/5' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     Rango de Fechas
                 </button>
                 <button
                     onClick={() => setCompareMode('day')}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'day' ? 'bg-brand-white shadow text-brand-power' : 'text-brand-power/50 hover:bg-brand-white/50'}`}
+                    className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${compareMode === 'day' ? 'bg-white shadow-sm text-indigo-600 ring-1 ring-black/5' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    Día vs Día
+                    Comparador de Días
                 </button>
             </div>
-            {/* 1. Property Selector */}
-            <div className="mb-8">
-                <label className="block text-sm font-bold text-brand-power mb-2 uppercase tracking-wide">Propiedad de Search Console</label>
-                {loadingSites ? (
-                    <div className="animate-pulse h-12 bg-brand-soft rounded-xl w-full"></div>
-                ) : (
-                    <select
-                        value={selectedSite}
-                        onChange={(e) => setSelectedSite(e.target.value)}
-                        className="w-full text-lg p-3 bg-brand-soft/50 border border-brand-power/10 rounded-xl focus:ring-2 focus:ring-brand-power/30 outline-none font-medium text-brand-power"
-                    >
-                        {sites.map(s => (
-                            <option key={s.siteUrl} value={s.siteUrl}>{s.siteUrl}</option>
-                        ))}
-                    </select>
-                )}
+
+            {/* Property Selector */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <label className="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-widest">PROPIEDAD GSC</label>
+                <select
+                    value={selectedSite}
+                    onChange={(e) => setSelectedSite(e.target.value)}
+                    className="w-full text-lg p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none font-bold text-slate-800 transition-all appearance-none cursor-pointer"
+                >
+                    {sites.map(s => (
+                        <option key={s.siteUrl} value={s.siteUrl}>{s.siteUrl}</option>
+                    ))}
+                </select>
             </div>
 
-            {/* 2. Date Comparison Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* Date Comparison Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Period 1 */}
-                <div className="p-5 rounded-2xl border border-brand-power/10 bg-brand-soft/50 relative group">
-                    <div className="absolute top-0 right-0 left-0 h-1 bg-brand-power/20 rounded-t-2xl"></div>
-                    <div className="text-xs font-bold text-brand-power/60 uppercase mb-3 flex justify-between">
-                        <span>{compareMode === 'range' ? 'Periodo Base' : 'Día Base'} (Anterior)</span>
-                        <span className="bg-brand-power/10 text-brand-power px-2 py-0.5 rounded text-[10px]">Comparativa</span>
+                <div className="p-6 rounded-2xl border border-slate-200 bg-white group shadow-sm transition-all hover:border-slate-300">
+                    <div className="text-[10px] font-extrabold text-slate-400 uppercase mb-4 flex justify-between items-center tracking-widest">
+                        <span>{compareMode === 'range' ? 'Periodo 1' : 'Día 1'} (Base)</span>
+                        <span className="w-2 h-2 rounded-full bg-slate-200"></span>
                     </div>
                     {compareMode === 'range' ? (
-                        <div className="flex gap-2">
-                            <input type="date" value={dateRangeP1.start} onChange={(e) => setDateRangeP1({ ...dateRangeP1, start: e.target.value })} className="w-full p-2 rounded-lg border border-brand-power/10 text-sm font-mono text-brand-power focus:border-brand-power/50 outline-none bg-transparent" />
-                            <span className="self-center text-brand-power/40">-</span>
-                            <input type="date" value={dateRangeP1.end} onChange={(e) => setDateRangeP1({ ...dateRangeP1, end: e.target.value })} className="w-full p-2 rounded-lg border border-brand-power/10 text-sm font-mono text-brand-power focus:border-brand-power/50 outline-none bg-transparent" />
+                        <div className="flex gap-4">
+                            <input type="date" value={dateRangeP1.start} onChange={(e) => setDateRangeP1({ ...dateRangeP1, start: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-100 bg-slate-50 text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-100 focus:border-slate-300 outline-none transition-all" />
+                            <span className="self-center text-slate-300">→</span>
+                            <input type="date" value={dateRangeP1.end} onChange={(e) => setDateRangeP1({ ...dateRangeP1, end: e.target.value })} className="w-full p-2.5 rounded-xl border border-slate-100 bg-slate-50 text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-100 focus:border-slate-300 outline-none transition-all" />
                         </div>
                     ) : (
-                        <input type="date" value={dayP1} onChange={(e) => setDayP1(e.target.value)} className="w-full p-2 rounded-lg border border-brand-power/10 text-sm font-mono text-brand-power focus:border-brand-power/50 outline-none bg-transparent" />
+                        <input type="date" value={dayP1} onChange={(e) => setDayP1(e.target.value)} className="w-full p-2.5 rounded-xl border border-slate-100 bg-slate-50 text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-100 focus:border-slate-300 outline-none transition-all" />
                     )}
                 </div>
 
                 {/* Period 2 */}
-                <div className="p-5 rounded-2xl border border-brand-accent/50 bg-brand-accent/10 relative group shadow-sm">
-                    <div className="absolute top-0 right-0 left-0 h-1 bg-brand-accent rounded-t-2xl"></div>
-                    <div className="text-xs font-bold text-brand-power uppercase mb-3 flex justify-between">
-                        <span>{compareMode === 'range' ? 'Periodo Actual' : 'Día Objetivo'} (Foco)</span>
-                        <span className="bg-brand-accent/30 text-brand-power px-2 py-0.5 rounded text-[10px]">Principal</span>
+                <div className="p-6 rounded-2xl border border-indigo-100 bg-indigo-50/20 group shadow-sm transition-all hover:border-indigo-200">
+                    <div className="text-[10px] font-extrabold text-indigo-500 uppercase mb-4 flex justify-between items-center tracking-widest">
+                        <span>{compareMode === 'range' ? 'Periodo 2' : 'Día 2'} (Target)</span>
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
                     </div>
                     {compareMode === 'range' ? (
-                        <div className="flex gap-2">
-                            <input type="date" value={dateRangeP2.start} onChange={(e) => setDateRangeP2({ ...dateRangeP2, start: e.target.value })} className="w-full p-2 rounded-lg border border-brand-accent/30 text-sm font-mono text-brand-power font-bold focus:border-brand-accent outline-none bg-brand-white/50" />
-                            <span className="self-center text-brand-power/40">-</span>
-                            <input type="date" value={dateRangeP2.end} onChange={(e) => setDateRangeP2({ ...dateRangeP2, end: e.target.value })} className="w-full p-2 rounded-lg border border-brand-accent/30 text-sm font-mono text-brand-power font-bold focus:border-brand-accent outline-none bg-brand-white/50" />
+                        <div className="flex gap-4">
+                            <input type="date" value={dateRangeP2.start} onChange={(e) => setDateRangeP2({ ...dateRangeP2, start: e.target.value })} className="w-full p-2.5 rounded-xl border border-indigo-100 bg-white text-sm font-mono text-indigo-700 font-bold focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm" />
+                            <span className="self-center text-indigo-300">→</span>
+                            <input type="date" value={dateRangeP2.end} onChange={(e) => setDateRangeP2({ ...dateRangeP2, end: e.target.value })} className="w-full p-2.5 rounded-xl border border-indigo-100 bg-white text-sm font-mono text-indigo-700 font-bold focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm" />
                         </div>
                     ) : (
-                        <input type="date" value={dayP2} onChange={(e) => setDayP2(e.target.value)} className="w-full p-2 rounded-lg border border-brand-accent/30 text-sm font-mono text-brand-power font-bold focus:border-brand-accent outline-none bg-brand-white/50" />
+                        <input type="date" value={dayP2} onChange={(e) => setDayP2(e.target.value)} className="w-full p-2.5 rounded-xl border border-indigo-100 bg-white text-sm font-mono text-indigo-700 font-bold focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm" />
                     )}
                 </div>
             </div>
 
             {/* Quick Actions */}
             {compareMode === 'range' && (
-                <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+                <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar py-2">
                     {[1, 3, 6, 12].map(m => (
                         <button
                             key={m}
                             onClick={() => applyQuickRange(m)}
-                            className="px-4 py-1.5 rounded-full border border-brand-power/10 text-xs font-bold text-brand-power/70 hover:bg-brand-soft hover:border-brand-power/30 transition whitespace-nowrap"
+                            className="px-5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 hover:shadow-md transition whitespace-nowrap"
                         >
-                            Últimos {m} Meses
+                            {m} {m === 1 ? 'Mes' : 'Meses'}
                         </button>
                     ))}
-                    <button onClick={() => applyQuickRange(undefined, 'prev_year')} className="px-4 py-1.5 rounded-full border border-brand-accent/30 bg-brand-accent/10 text-xs font-bold text-brand-power hover:bg-brand-accent/20 transition whitespace-nowrap">Vs Año Anterior</button>
+                    <button onClick={() => applyQuickRange(undefined, 'prev_year')} className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-md shadow-indigo-200 transition whitespace-nowrap">Año Anterior</button>
                 </div>
             )}
 
@@ -239,16 +232,17 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
             <button
                 onClick={handleAnalyzeClick}
                 disabled={isLoading}
-                className="w-full bg-brand-power text-brand-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-lg shadow-brand-power/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold text-lg hover:bg-black transition-all shadow-xl shadow-slate-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 overflow-hidden relative group"
             >
                 {isLoading ? (
                     <>
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Descargando Datos...
+                        Obteniendo información...
                     </>
                 ) : (
                     <>
-                        🚀 Iniciar Análisis Automático
+                        <span>🚀</span> Analizar con IA
+                        <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none"></div>
                     </>
                 )}
             </button>

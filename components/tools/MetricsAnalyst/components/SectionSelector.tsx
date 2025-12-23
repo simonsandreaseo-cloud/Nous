@@ -42,7 +42,6 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
     onProjectChange
 }) => {
     const [selected, setSelected] = useState<SectionConfig[]>([]);
-    // UI State for filtering
     const [useDateFilter, setUseDateFilter] = useState(false);
 
     const [taskImpact, setTaskImpact] = useState<TaskImpactConfig>({
@@ -50,13 +49,12 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0],
         selectedTaskIds: [],
-        measurementMode: 'completion', // Default
+        measurementMode: 'completion',
         customDate: '',
         projectId: selectedProjectId || undefined
     });
 
     useEffect(() => {
-        // Pre-select suggestions
         const initialSelected = ALL_SECTIONS
             .filter(s => suggestedSections.includes(s.id))
             .map(s => ({ id: s.id, caseCount: s.defaultCount }));
@@ -87,31 +85,22 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
         setSelected(selected.map(s => s.id === id ? { ...s, caseCount: count } : s));
     };
 
-    // Filter and Sort Tasks
     const visibleTasks = useMemo(() => {
         let tasks = [...availableTasks];
-
-        // 1. Sort by Updated At (Desc)
         tasks.sort((a, b) => {
             const dateA = new Date(a.updated_at || a.created_at).getTime();
             const dateB = new Date(b.updated_at || b.created_at).getTime();
             return dateB - dateA;
         });
 
-        // 2. Filter by Date (Optional)
         if (useDateFilter && taskImpact.startDate && taskImpact.endDate) {
             tasks = tasks.filter(t => {
-                // Which date to filter by? Usually Completion Date for "Impact", 
-                // but user might want to see tasks *started* in that period.
-                // Let's stick to the semantics of the measurement mode if possible, or just default to updated/completed.
-                // User said "filtrado por fechas sea una opción".
                 const dateToCheck = taskImpact.measurementMode === 'start' ? t.created_at : (t.completed_at || t.updated_at);
                 if (!dateToCheck) return false;
                 const d = new Date(dateToCheck).toISOString().split('T')[0];
                 return d >= taskImpact.startDate && d <= taskImpact.endDate;
             });
         }
-
         return tasks;
     }, [availableTasks, taskImpact.startDate, taskImpact.endDate, useDateFilter, taskImpact.measurementMode]);
 
@@ -135,37 +124,42 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-brand-power/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
             <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-brand-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[95vh] flex flex-col overflow-hidden border border-brand-power/5"
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="bg-white rounded-[2.5rem] shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-white/20"
             >
-                <div className="p-8 border-b border-brand-power/5 bg-brand-soft/20 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-bold text-brand-power mb-1">Personaliza tu Informe</h2>
-                        <p className="text-brand-power/60 text-sm">Configura los módulos y el alcance del análisis.</p>
+                <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                    <div className="relative z-10">
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-1">Configurar Informe</h2>
+                        <p className="text-slate-500 font-medium text-sm">Escoge los módulos tácticos que quieres que la IA procese.</p>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 bg-brand-white custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-10 bg-white custom-scrollbar space-y-10">
                     {/* Task Impact Configuration */}
-                    <div className="mb-8 p-6 rounded-2xl border-2 border-brand-accent/20 bg-brand-accent/5">
-                        <div className="flex items-start justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${taskImpact.enabled ? 'bg-brand-power text-brand-white' : 'bg-brand-power/10 text-brand-power/40'}`}>
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                    <div className="p-8 rounded-3xl border border-indigo-100 bg-indigo-50/30 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-500">
+                            <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" /></svg>
+                        </div>
+
+                        <div className="flex items-start justify-between mb-8 relative z-10">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg ${taskImpact.enabled ? 'bg-indigo-600 text-white rotate-3' : 'bg-slate-200 text-slate-400'}`}>
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-brand-power">Impacto de Tareas</h3>
-                                    <p className="text-xs text-brand-power/60">Cruza el historial de tareas con las métricas de GSC.</p>
+                                    <h3 className="font-black text-slate-900 text-lg">Inteligencia de Tareas</h3>
+                                    <p className="text-xs text-slate-500 font-medium">Cruza tus tareas completadas con el impacto real en GSC.</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setTaskImpact(prev => ({ ...prev, enabled: !prev.enabled }))}
-                                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${taskImpact.enabled ? 'bg-brand-power text-white shadow-md' : 'bg-brand-power/5 text-brand-power/40 hover:bg-brand-power/10'}`}
+                                className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${taskImpact.enabled ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-white border border-slate-200 text-slate-400 hover:border-indigo-400 hover:text-indigo-600'}`}
                             >
-                                {taskImpact.enabled ? 'Activado' : 'Activar'}
+                                {taskImpact.enabled ? 'Activado' : 'Configurar'}
                             </button>
                         </div>
 
@@ -177,149 +171,84 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                                     exit={{ height: 0, opacity: 0 }}
                                     className="overflow-hidden"
                                 >
-                                    <div className="pt-4 border-t border-brand-power/10 space-y-6">
-
-                                        {/* Project Selector */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="pt-8 border-t border-indigo-100/50 space-y-8">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             <div>
-                                                <label className="block text-xs font-bold text-brand-power/60 uppercase mb-2">Proyecto de Referencia</label>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Proyecto de Referencia</label>
                                                 <select
                                                     value={selectedProjectId || ''}
                                                     onChange={(e) => onProjectChange?.(parseInt(e.target.value))}
-                                                    className="w-full p-2.5 bg-white border border-brand-power/10 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-power/20"
+                                                    className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold shadow-sm focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
                                                 >
                                                     <option value="" disabled>Seleccionar Proyecto...</option>
                                                     {projects.map(p => (
                                                         <option key={p.id} value={p.id}>{p.name}</option>
                                                     ))}
                                                 </select>
-                                                <p className="text-[10px] text-brand-power/40 mt-1">
-                                                    Se usarán la base de datos de métricas de este proyecto.
-                                                </p>
                                             </div>
 
-                                            {/* Measurement Mode */}
                                             <div>
-                                                <label className="block text-xs font-bold text-brand-power/60 uppercase mb-2">Punto de Medición</label>
-                                                <div className="flex gap-2">
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Punto de Medición</label>
+                                                <div className="flex gap-2 p-1 bg-white border border-slate-200 rounded-2xl shadow-sm">
                                                     {['start', 'completion', 'custom'].map((mode) => (
                                                         <button
                                                             key={mode}
                                                             onClick={() => setTaskImpact(prev => ({ ...prev, measurementMode: mode as any }))}
-                                                            className={`flex-1 py-2 px-1 text-xs font-bold rounded-lg transition-colors
+                                                            className={`flex-1 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all
                                                                 ${taskImpact.measurementMode === mode
-                                                                    ? 'bg-brand-power text-white shadow-sm'
-                                                                    : 'bg-white border border-brand-power/10 text-brand-power/60 hover:bg-brand-soft'
+                                                                    ? 'bg-indigo-600 text-white shadow-md'
+                                                                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                                                 }
                                                             `}
                                                         >
-                                                            {mode === 'start' ? 'Desde Inicio' : mode === 'completion' ? 'Al Completar' : 'Personalizado'}
+                                                            {mode === 'start' ? 'Inicio' : mode === 'completion' ? 'Fin' : 'Fecha'}
                                                         </button>
                                                     ))}
                                                 </div>
-                                                {taskImpact.measurementMode === 'custom' && (
-                                                    <input
-                                                        type="date"
-                                                        value={taskImpact.customDate || ''}
-                                                        onChange={(e) => setTaskImpact(prev => ({ ...prev, customDate: e.target.value }))}
-                                                        className="mt-2 w-full p-2 bg-white border border-brand-power/10 rounded-lg text-xs"
-                                                    />
-                                                )}
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-col md:flex-row gap-6">
-                                            {/* Left: Filter Controls */}
+                                        <div className="flex flex-col md:flex-row gap-8">
                                             <div className="md:w-1/3 space-y-4">
                                                 <div className="flex items-center justify-between">
-                                                    <label className="text-xs font-bold text-brand-power/60 uppercase">Filtrar Tareas</label>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-bold text-brand-power/50">Por Fecha</span>
-                                                        <button
-                                                            onClick={() => setUseDateFilter(!useDateFilter)}
-                                                            className={`w-8 h-4 rounded-full p-0.5 transition-colors ${useDateFilter ? 'bg-brand-power' : 'bg-brand-power/20'}`}
-                                                        >
-                                                            <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${useDateFilter ? 'translate-x-4' : ''}`} />
-                                                        </button>
-                                                    </div>
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtros</label>
+                                                    <button
+                                                        onClick={() => setUseDateFilter(!useDateFilter)}
+                                                        className={`w-10 h-5 rounded-full p-1 transition-colors ${useDateFilter ? 'bg-indigo-500' : 'bg-slate-300'}`}
+                                                    >
+                                                        <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${useDateFilter ? 'translate-x-5' : ''}`} />
+                                                    </button>
                                                 </div>
 
                                                 {useDateFilter && (
-                                                    <div className="flex gap-2 animate-fade-in-down">
-                                                        <div className="flex-1">
-                                                            <span className="text-[10px] text-brand-power/40 block mb-1">Desde</span>
-                                                            <input
-                                                                type="date"
-                                                                value={taskImpact.startDate}
-                                                                onChange={(e) => setTaskImpact({ ...taskImpact, startDate: e.target.value })}
-                                                                className="w-full p-2 bg-white border border-brand-power/10 rounded-lg text-xs outline-none focus:ring-2 focus:ring-brand-power/20"
-                                                            />
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <span className="text-[10px] text-brand-power/40 block mb-1">Hasta</span>
-                                                            <input
-                                                                type="date"
-                                                                value={taskImpact.endDate}
-                                                                onChange={(e) => setTaskImpact({ ...taskImpact, endDate: e.target.value })}
-                                                                className="w-full p-2 bg-white border border-brand-power/10 rounded-lg text-xs outline-none focus:ring-2 focus:ring-brand-power/20"
-                                                            />
-                                                        </div>
+                                                    <div className="grid grid-cols-2 gap-2 animate-fade-in-down">
+                                                        <input type="date" value={taskImpact.startDate} onChange={(e) => setTaskImpact({ ...taskImpact, startDate: e.target.value })} className="p-2 border border-slate-200 rounded-xl text-[11px] font-bold outline-none focus:ring-2 focus:ring-indigo-100" />
+                                                        <input type="date" value={taskImpact.endDate} onChange={(e) => setTaskImpact({ ...taskImpact, endDate: e.target.value })} className="p-2 border border-slate-200 rounded-xl text-[11px] font-bold outline-none focus:ring-2 focus:ring-indigo-100" />
                                                     </div>
                                                 )}
 
-                                                <button
-                                                    onClick={toggleAllTasks}
-                                                    className="w-full mt-2 py-1.5 text-xs font-bold text-brand-power/60 bg-white border border-brand-power/10 rounded-lg hover:bg-brand-soft transition-colors"
-                                                >
-                                                    {taskImpact.selectedTaskIds.length === visibleTasks.length ? 'Deseleccionar Todas' : 'Seleccionar Todas'}
+                                                <button onClick={toggleAllTasks} className="w-full py-3 text-xs font-black uppercase tracking-widest text-slate-500 bg-white border border-slate-200 rounded-2xl hover:border-indigo-400 transition-all">
+                                                    {taskImpact.selectedTaskIds.length === visibleTasks.length ? 'Limpiar Todo' : 'Check All'}
                                                 </button>
                                             </div>
 
-                                            {/* Right: Task List */}
-                                            <div className="md:w-2/3 bg-white/50 rounded-xl p-4 border border-brand-power/5 flex flex-col h-64">
-                                                <div className="flex justify-between items-center mb-3">
-                                                    <label className="text-xs font-bold text-brand-power/60 uppercase">
-                                                        Lista de Tareas ({taskImpact.selectedTaskIds.length} seleccionadas)
-                                                    </label>
-                                                    <span className="text-[10px] text-brand-power/40">Ordenado por modificación reciente</span>
-                                                </div>
-
-                                                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                            <div className="md:w-2/3 bg-white rounded-[2rem] p-6 border border-slate-100 shadow-inner flex flex-col h-[300px]">
+                                                <div className="overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                                                     {visibleTasks.length > 0 ? visibleTasks.map(task => (
-                                                        <label
-                                                            key={task.id}
-                                                            className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer group
-                                                                ${taskImpact.selectedTaskIds.includes(task.id)
-                                                                    ? 'bg-brand-power/5 border-brand-power/30'
-                                                                    : 'bg-white border-brand-power/5 hover:border-brand-power/20'
-                                                                }
-                                                            `}
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={taskImpact.selectedTaskIds.includes(task.id)}
-                                                                onChange={() => toggleTaskSelection(task.id)}
-                                                                className="mt-0.5 w-4 h-4 rounded text-brand-power focus:ring-brand-power cursor-pointer"
-                                                            />
+                                                        <label key={task.id} className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer group ${taskImpact.selectedTaskIds.includes(task.id) ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' : 'bg-slate-50/50 border-transparent hover:bg-white hover:border-slate-200'}`}>
+                                                            <div className={`mt-1 w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${taskImpact.selectedTaskIds.includes(task.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 bg-white'}`}>
+                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                                            </div>
+                                                            <input type="checkbox" checked={taskImpact.selectedTaskIds.includes(task.id)} onChange={() => toggleTaskSelection(task.id)} className="hidden" />
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center gap-2 mb-0.5">
-                                                                    <span className="font-bold text-xs text-brand-power/80 truncate">{task.title}</span>
-                                                                    <span className="text-[10px] text-brand-power/40 ml-auto whitespace-nowrap">
-                                                                        {new Date(task.updated_at || task.created_at).toLocaleDateString()}
-                                                                    </span>
+                                                                <div className="flex justify-between items-start gap-4 mb-1">
+                                                                    <span className="font-bold text-xs text-slate-900 group-hover:text-indigo-600 transition-colors uppercase leading-tight">{task.title}</span>
+                                                                    <span className="text-[10px] font-mono text-slate-400 whitespace-nowrap">{new Date(task.updated_at || task.created_at).toLocaleDateString()}</span>
                                                                 </div>
-                                                                {task.gsc_property_url && (
-                                                                    <div className="text-[10px] text-brand-power/40 truncate flex items-center gap-1">
-                                                                        <span>🔗</span> {task.gsc_property_url.replace(/https?:\/\//, '')}
-                                                                    </div>
-                                                                )}
+                                                                {task.gsc_property_url && <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate block">{task.gsc_property_url.replace(/https?:\/\//, '')}</span>}
                                                             </div>
                                                         </label>
-                                                    )) : (
-                                                        <div className="text-center py-10 text-brand-power/40 text-xs italic">
-                                                            No hay tareas {useDateFilter ? 'en este rango de fechas' : 'disponibles'}.
-                                                        </div>
-                                                    )}
+                                                    )) : <div className="text-center py-20 text-slate-300 font-bold uppercase text-[10px] tracking-[0.2em] italic">No hay tareas encontradas</div>}
                                                 </div>
                                             </div>
                                         </div>
@@ -329,108 +258,53 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                         </AnimatePresence>
                     </div>
 
-                    <label className="block text-xs font-bold text-brand-power/60 uppercase mb-4">Módulos de Análisis</label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {ALL_SECTIONS.filter(s => s.id !== 'ANALISIS_IMPACTO_TAREAS').map((section) => {
-                            const config = selected.find(s => s.id === section.id);
-                            const isSelected = !!config;
-                            const isSuggested = suggestedSections.includes(section.id);
+                    <div className="space-y-6">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Módulos de Datos Disponibles</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {ALL_SECTIONS.filter(s => s.id !== 'ANALISIS_IMPACTO_TAREAS').map((section) => {
+                                const config = selected.find(s => s.id === section.id);
+                                const isSelected = !!config;
+                                const isSuggested = suggestedSections.includes(section.id);
 
-                            return (
-                                <div
-                                    key={section.id}
-                                    className={`
-                                        relative p-5 rounded-2xl border-2 transition-all duration-300
-                                        ${isSelected
-                                            ? 'border-brand-power bg-brand-soft/30 shadow-lg shadow-brand-power/5 scale-[1.02]'
-                                            : 'border-brand-power/5 bg-brand-white hover:border-brand-power/20'
-                                        }
-                                    `}
-                                >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div
-                                            onClick={() => toggleSection(section.id, section.defaultCount)}
-                                            className="cursor-pointer flex-1"
-                                        >
-                                            {isSuggested && (
-                                                <span className="inline-block bg-brand-accent text-brand-power text-[9px] font-bold px-2 py-0.5 rounded-full mb-2 uppercase tracking-wider">
-                                                    ✨ Recomendado
-                                                </span>
-                                            )}
-                                            <h3 className={`font-bold text-sm leading-tight ${isSelected ? 'text-brand-power' : 'text-brand-power/70'}`}>{section.label}</h3>
-                                        </div>
-                                        <div
-                                            onClick={() => toggleSection(section.id, section.defaultCount)}
-                                            className={`
-                                                cursor-pointer w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
-                                                ${isSelected
-                                                    ? 'bg-brand-power border-brand-power text-white'
-                                                    : 'border-brand-power/20 bg-transparent text-transparent'
-                                                }
-                                            `}
-                                        >
-                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                        </div>
-                                    </div>
-
-                                    <p className="text-xs text-brand-power/50 leading-snug mb-4 h-10 overflow-hidden">{section.desc}</p>
-
-                                    {isSelected && (
-                                        <div className="pt-4 border-t border-brand-power/10 flex items-center justify-between">
-                                            <span className="text-[10px] font-bold text-brand-power/40 uppercase">Casos a mostrar</span>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => updateCaseCount(section.id, Math.max(1, (config.caseCount || 0) - 1))}
-                                                    className="w-6 h-6 rounded-lg bg-brand-white border border-brand-power/10 flex items-center justify-center hover:bg-brand-power hover:text-white transition-colors"
-                                                >
-                                                    -
-                                                </button>
-                                                <input
-                                                    type="number"
-                                                    value={config.caseCount}
-                                                    onChange={(e) => updateCaseCount(section.id, parseInt(e.target.value) || 1)}
-                                                    className="w-10 text-center text-xs font-bold bg-transparent outline-none"
-                                                />
-                                                <button
-                                                    onClick={() => updateCaseCount(section.id, (config.caseCount || 0) + 1)}
-                                                    className="w-6 h-6 rounded-lg bg-brand-white border border-brand-power/10 flex items-center justify-center hover:bg-brand-power hover:text-white transition-colors"
-                                                >
-                                                    +
-                                                </button>
+                                return (
+                                    <div key={section.id} className={`p-6 rounded-3xl border-2 transition-all duration-500 cursor-pointer flex flex-col ${isSelected ? 'border-indigo-600 bg-indigo-50/20 shadow-xl shadow-indigo-100' : 'border-slate-100 bg-white hover:border-indigo-200'}`} onClick={() => toggleSection(section.id, section.defaultCount)}>
+                                        <div className="flex justify-between mb-4">
+                                            {isSuggested && <span className="bg-indigo-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">AI Pick ✨</span>}
+                                            <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white scale-110' : 'border-slate-200 bg-white'}`}>
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                                             </div>
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                        <h3 className="font-black text-slate-900 text-sm uppercase leading-tight mb-2">{section.label}</h3>
+                                        <p className="text-[11px] text-slate-500 font-medium leading-relaxed mb-6 line-clamp-2">{section.desc}</p>
+
+                                        {isSelected && (
+                                            <div className="mt-auto pt-4 border-t border-indigo-100 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                                                <span className="text-[9px] font-black text-indigo-400 uppercase">Profundidad</span>
+                                                <div className="flex items-center gap-3">
+                                                    <button onClick={() => updateCaseCount(section.id, Math.max(1, (config.caseCount || 0) - 1))} className="w-6 h-6 rounded-lg bg-white border border-slate-200 font-bold text-slate-400 hover:text-indigo-600 transition-colors">-</button>
+                                                    <span className="text-sm font-black text-slate-800 font-mono">{config.caseCount}</span>
+                                                    <button onClick={() => updateCaseCount(section.id, (config.caseCount || 0) + 1)} className="w-6 h-6 rounded-lg bg-white border border-slate-200 font-bold text-slate-400 hover:text-indigo-600 transition-colors">+</button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
-                <div className="p-6 border-t border-brand-power/5 bg-brand-white flex justify-between items-center">
-                    <div className="flex flex-col">
-                        <span className="text-sm font-bold text-brand-power">
-                            {selected.length + (taskImpact.enabled ? 1 : 0)} Módulos Seleccionados
-                        </span>
-                        <span className="text-[10px] text-brand-power/40 uppercase font-medium">Personalización completa activa</span>
-                    </div>
+                <div className="p-8 border-t border-slate-100 bg-white flex justify-between items-center">
                     <div className="flex gap-4">
-                        <button
-                            onClick={onCancel}
-                            className="text-brand-power/50 hover:text-brand-power font-bold px-6 py-2 text-sm transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={() => onConfirm(selected, taskImpact)}
-                            disabled={selected.length === 0 && !taskImpact.enabled}
-                            className={`
-                                bg-brand-power text-brand-white px-10 py-4 rounded-2xl font-bold transition-all shadow-xl shadow-brand-power/20
-                                ${selected.length === 0 && !taskImpact.enabled ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90 hover:-translate-y-1 active:scale-95'}
-                            `}
-                        >
-                            Generar con IA 🚀
-                        </button>
+                        <button onClick={onCancel} className="text-slate-400 hover:text-slate-900 font-black uppercase text-[10px] tracking-widest transition-colors px-6">Ignorar</button>
                     </div>
+                    <button
+                        onClick={() => onConfirm(selected, taskImpact)}
+                        disabled={selected.length === 0 && !taskImpact.enabled}
+                        className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black text-lg hover:bg-indigo-600 shadow-2xl shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-20 flex items-center gap-4"
+                    >
+                        Generar con Neuro-IA 🪄
+                    </button>
                 </div>
             </motion.div>
         </div>

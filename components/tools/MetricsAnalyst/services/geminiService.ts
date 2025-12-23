@@ -20,44 +20,35 @@ MANDATORY RULES based on input data (Check values carefully):
 Return ONLY a JSON Array of strings. Example: ["ANALISIS_ESTRATEGICO", "ANALISIS_CTR"]`;
 
 // 2. Section Writer: High Density & Robust Charting (FROM INFORMES SEO)
-const SYSTEM_PROMPT_SECTION_WRITER = `You are a "Lead Product Designer" for a Financial/SEO SaaS. Generate **ONE specific HTML component**.
+const SYSTEM_PROMPT_SECTION_WRITER = `You are a "Lead Product Designer" for a Financial/SEO SaaS. Generate **ONE specific HTML component** that feels premium and data-rich.
 
---- DESIGN SYSTEM: "High-Density Professional" ---
-1. **Layout**: Use \`grid grid-cols-1 md:grid-cols-2 gap-6\` to put data tables side-by-side with charts or text. Reduce whitespace.
-2. **Typography**: Use \`text-slate-800\` for headings, \`text-slate-600\` for body. Use \`font-mono text-[10px]\` for numbers.
-3. **Tables**:
-   - Class: \`w-full text-left border-collapse table-fixed text-[11px]\`
-   - Headers: \`bg-slate-50 border-b border-slate-200 text-[9px] uppercase tracking-wider font-bold text-slate-500 py-1 px-2\`
-   - Cells: \`border-b border-slate-50 py-1 px-2 truncate\`
-   - Numbers: \`font-mono text-slate-700\`
-4. **Charts**: CRITICAL. 
-   To render a chart, you MUST output this EXACT HTML (do not change the structure):
-   \`<div class="chart-placeholder w-full h-32 bg-slate-50/50 rounded border border-slate-100" data-chart-type="clicks" data-chart-url="EXACT_URL_FROM_DATA"></div>\`
-   
-   *IMPORTANT*: 
-   - Replace 'EXACT_URL_FROM_DATA' with the exact string from the JSON (e.g., 'https://site.com/page'). 
-   - Do NOT shorten it, do NOT add www if missing. Copy/Paste it.
-   - For Cannibalization, use \`data-chart-type="cannibalization"\` and the *Keyword* as the url.
-
-5. **No Markdown**: Output RAW HTML only.
-
-6. **Language**: Ensure all analysis text is in **SPANISH**.
-
-7. **COLOR CODING (CRITICAL)**:
-   - For POSITIVE metrics (e.g. Growth, Improvement, Click Increase), wrap the number in \`<span class="text-emerald-600 font-bold">\` (e.g., +15%).
-   - For NEGATIVE metrics (e.g. Decay, Click Loss), wrap the number in \`<span class="text-rose-600 font-bold">\` (e.g., -23%).
-   - Remember: For POSITION, LESS is BETTER. So -3.2 (Position improved) is \`text-emerald-600\`, while +5.1 (Position worsened) is \`text-rose-600\`.
-
+--- DESIGN SYSTEM: "Premium High-Density" ---
+1. **Layout**: Use \`grid grid-cols-1 md:grid-cols-2 gap-8\` to mix data tables with visual components. Ensure the layout doesn't feel like a wall of text.
+2. **Typography**: 
+   - Body: \`text-slate-600 font-medium leading-relaxed\`.
+   - Data: Use \`<span class="font-mono text-[11px] text-slate-500 bg-slate-50 px-1 rounded border border-slate-100">\` for URLs or technical IDs.
+3. **Visual Indicators (MANDATORY)**:
+   - Use 🟢 for positive trends, 🔴 for negative trends, ⚠️ for alerts, and 🚀 for opportunities in your analysis text.
+4. **Tables**:
+   - Class: \`w-full text-left border-collapse table-fixed text-[12px] bg-white rounded-xl shadow-sm overflow-hidden\`
+   - Headers: \`bg-slate-50/80 border-b border-slate-100 text-[10px] uppercase tracking-widest font-bold text-slate-400 py-3 px-4\`
+   - Cells: \`border-b border-slate-50 py-3 px-4 truncate font-medium\`
+   - Numbers: \`font-mono font-bold text-slate-700\`
+5. **Emphasis (MANDATORY)**:
+   - For POSITIVE growth/wins: Wrap in \`<span class="highlight-positive">...</span>\`.
+   - For NEGATIVE decay/losses: Wrap in \`<span class="highlight-negative">...</span>\`.
+6. **Charts (VITAL)**:
+   - Output charts for any URL or Keyword being analyzed.
+   - HTML: \`<div class="chart-placeholder w-full h-40" data-chart-type="clicks" data-chart-url="EXACT_URL_FROM_DATA"></div>\`
+   - For Cannibalization or Trends, use \`data-chart-type="cannibalization"\` and the *Keyword* as the url.
 
 --- SECTION SPECIFICS ---
-- **OPORTUNIDADES_CONTENIDO_CLUSTERS**: 3-col grid. Cards: \`border border-slate-200 p-2 rounded shadow-sm bg-white\`.
-- **ANALISIS_ESTRATEGICO**: 2x2 Grid. Boxes with colored top borders. Dense lists.
-- **ALERTA_CANIBALIZACION**: Table. Row: Keyword | URLs | Chart.
-- **ANALISIS_CONCENTRACION**: 2-col layout. Left: Risk Text. Right: Dense Table (URL | % Share).
-- **ANALISIS_CAUSAS_CAIDA**: Table. Cols: URL | Lost Clicks | Diagnosis.
-- **ANALISIS_SEGMENTOS**: Table. Cols: Segment | Clicks Change (Color Red/Green) | Impressions Change. Use \`text-emerald-600\` for positive change and \`text-rose-600\` for negative change.
+- **OPORTUNIDADES_CONTENIDO_CLUSTERS**: Use a card-based grid (3 cols). Cards should have a subtle border and shadow.
+- **ALERTA_CANIBALIZACION**: Must include a chart for every major keyword conflict.
+- **ANALISIS_ESTRATEGICO**: Focus on "Matriz de Ataque/Defensa". Bold headers, lists with icons.
+- **ANALISIS_IMPACTO_TAREAS**: Show a before/after comparison with high visual emphasis on the \`clicksChange\`.
 
-Output RAW HTML only.`;
+Output RAW HTML only. Avoid any Markdown. All content in professional Spanish.`;
 
 // 3. Final Refiner: The "Editor in Chief" (FROM INFORMES SEO)
 const SYSTEM_PROMPT_REFINER = `You are the Editor in Chief. 
@@ -201,12 +192,13 @@ export const generateReportSection = async (
     DATA: ${JSON.stringify(writerPayload)}
     
     IMPORTANT: 
-    1. Start with a <h2 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4 uppercase tracking-tight flex items-center gap-2">
-       <span class="w-2 h-2 rounded-full bg-indigo-500"></span> [Title in Spanish]
+    1. Start with a <h2 class="text-xl font-bold text-slate-900 border-b border-slate-100 pb-3 mb-6 uppercase tracking-tight flex items-center gap-3">
+       <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span> [Title in Spanish]
        </h2>
     2. Use the "availableChartKeys" to find exact URLs for charts.
     3. ${caseCount ? `CRITICAL: Limit your list/table to only the TOP ${caseCount} cases.` : 'Show the most important data points available.'}
     4. Write detailed analysis in professional Spanish.
+    5. Always prefer using a table alongside a chart placeholder if data is available.
     `;
 
     try {

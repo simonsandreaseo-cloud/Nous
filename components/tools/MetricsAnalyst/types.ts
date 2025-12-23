@@ -55,6 +55,9 @@ export interface SiteWideKPIs {
     avgPosP1: number;
     avgPosP2: number;
     avgPosChange: number;
+    uniqueKeywordsP1: number;
+    uniqueKeywordsP2: number;
+    uniqueKeywordsChange: number;
 }
 
 export interface AnomalyPoint {
@@ -74,6 +77,10 @@ export interface DashboardStats {
     segmentStats: { name: string; clicks: number; impressions: number }[];
     dailyTrendP1: number[];
     dailyTrendP2: number[];
+    dailyClicks: number[];
+    dailyImpressions: number[];
+    dailyPosition: number[];
+    dailyUniqueKeywords: number[];
     datesP2: string[]; // Added for specific chart labels
     period1Label: string;
     period2Label: string;

@@ -5,9 +5,10 @@ import { DashboardStats } from '../types';
 interface DashboardProps {
     stats: DashboardStats;
     logo?: string | null;
+    onDateRangeChange?: (range: string) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ stats, logo, onDateRangeChange }) => {
     const trendCanvas = useRef<HTMLCanvasElement>(null);
     const segmentClicksCanvas = useRef<HTMLCanvasElement>(null);
     const segmentImpCanvas = useRef<HTMLCanvasElement>(null);
@@ -28,35 +29,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    labels: {
-                        font: { family: "'Inter', sans-serif", size: 10, weight: 600 },
-                        usePointStyle: true,
-                        boxWidth: 6,
-                        color: '#64748b'
-                    }
+                    display: false // We will handle labels via UI or custom legend
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#1e293b',
+                    bodyColor: '#475569',
+                    borderColor: '#e2e8f0',
+                    borderWidth: 1,
+                    padding: 12,
+                    boxPadding: 4,
+                    usePointStyle: true,
+                }
+            },
+            elements: {
+                line: { tension: 0.2 }, // Slightly smoother for premium feel
+                point: { radius: 0, hoverRadius: 5 }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { maxTicksLimit: 8, color: '#94a3b8', font: { size: 10 } }
                 }
             }
         };
 
-        // 1. Trend Chart
+        // 1. Main Trend Chart
         if (trendCanvas.current) {
             const ctx = trendCanvas.current.getContext('2d');
             if (ctx) {
-                const gradientP2 = ctx.createLinearGradient(0, 0, 0, 300);
-                gradientP2.addColorStop(0, 'rgba(99, 102, 241, 0.25)');
-                gradientP2.addColorStop(1, 'rgba(99, 102, 241, 0)');
-
-                const pointBackgroundColors = stats.dailyTrendP2.map((val, idx) => {
-                    const date = stats.datesP2[idx];
-                    const isAnomaly = stats.anomalies.find(a => a.date === date);
-                    return isAnomaly ? '#ef4444' : '#6366f1';
-                });
-
-                const pointRadii = stats.dailyTrendP2.map((val, idx) => {
-                    const date = stats.datesP2[idx];
-                    const isAnomaly = stats.anomalies.find(a => a.date === date);
-                    return isAnomaly ? 3 : 0;
-                });
+                const gradIndigo = ctx.createLinearGradient(0, 0, 0, 300);
+                gradIndigo.addColorStop(0, 'rgba(99, 102, 241, 0.1)');
+                gradIndigo.addColorStop(1, 'rgba(99, 102, 241, 0)');
 
                 chartInstances.current.push(new Chart(ctx, {
                     type: 'line',
@@ -64,54 +68,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
                         labels,
                         datasets: [
                             {
-                                label: `${stats.period1Label}`,
-                                data: stats.dailyTrendP1,
-                                borderColor: '#cbd5e1',
-                                backgroundColor: 'transparent',
-                                borderDash: [2, 2],
-                                borderWidth: 1.5,
-                                pointRadius: 0,
-                                tension: 0.3
+                                label: 'Clics',
+                                data: stats.dailyClicks,
+                                borderColor: '#6366f1',
+                                backgroundColor: gradIndigo,
+                                borderWidth: 3,
+                                fill: true,
+                                yAxisID: 'y'
                             },
                             {
-                                label: `${stats.period2Label}`,
-                                data: stats.dailyTrendP2,
-                                borderColor: '#6366f1',
-                                backgroundColor: gradientP2,
+                                label: 'Impresiones',
+                                data: stats.dailyImpressions,
+                                borderColor: '#0ea5e9',
                                 borderWidth: 2,
-                                pointRadius: pointRadii,
-                                pointBackgroundColor: pointBackgroundColors,
-                                pointHoverRadius: 4,
-                                tension: 0.3,
-                                fill: true
+                                borderDash: [5, 5],
+                                fill: false,
+                                yAxisID: 'y1'
                             }
                         ]
                     },
                     options: {
                         ...commonOptions,
                         interaction: { mode: 'index', intersect: false },
-                        plugins: {
-                            legend: { position: 'top', align: 'end', labels: { boxWidth: 6, usePointStyle: true, padding: 10 } },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                                backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                                padding: 8,
-                                titleFont: { size: 11 },
-                                bodyFont: { size: 10 },
-                                cornerRadius: 4
-                            }
-                        },
                         scales: {
+                            ...commonOptions.scales,
                             y: {
-                                beginAtZero: true,
-                                grid: { color: '#f1f5f9', tickLength: 0 },
-                                border: { display: false },
-                                ticks: { color: '#94a3b8', font: { size: 9 }, padding: 5 }
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                grid: { color: '#f1f5f9' },
+                                ticks: { color: '#6366f1', font: { size: 10, weight: '600' } }
                             },
-                            x: {
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
                                 grid: { display: false },
-                                ticks: { maxTicksLimit: 8, color: '#94a3b8', font: { size: 9 } }
+                                ticks: { color: '#0ea5e9', font: { size: 10, weight: '600' } }
                             }
                         }
                     }
@@ -119,166 +112,203 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo }) => {
             }
         }
 
-        // 2. Doughnut Charts
+        // 2. Segment Doughnuts
+        const doughnutOptions = (color: string): any => ({
+            ...commonOptions,
+            cutout: '80%',
+            scales: { x: { display: false }, y: { display: false } },
+            plugins: {
+                ...commonOptions.plugins,
+                legend: { display: false }
+            }
+        });
+
         const topSegments = stats.segmentStats.slice(0, 5);
         const otherClicks = stats.segmentStats.slice(5).reduce((acc, s) => acc + s.clicks, 0);
         const otherImp = stats.segmentStats.slice(5).reduce((acc, s) => acc + s.impressions, 0);
-
         const segmentLabels = [...topSegments.map(s => s.name === '/' ? 'Home' : s.name), 'Otros'];
         const clicksData = [...topSegments.map(s => s.clicks), otherClicks];
         const impData = [...topSegments.map(s => s.impressions), otherImp];
-        const bgColors = ['#6366f1', '#3b82f6', '#0ea5e9', '#8b5cf6', '#d946ef', '#f1f5f9'];
-
-        const doughnutOptions: any = {
-            ...commonOptions,
-            cutout: '75%',
-            plugins: {
-                legend: { position: 'right', labels: { boxWidth: 6, font: { size: 9 }, padding: 10, color: '#475569' } },
-                title: { display: false }
-            },
-            layout: { padding: 0 }
-        };
+        const bgColors = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff', '#f1f5f9'];
 
         if (segmentClicksCanvas.current) {
             chartInstances.current.push(new Chart(segmentClicksCanvas.current, {
                 type: 'doughnut',
-                data: { labels: segmentLabels, datasets: [{ data: clicksData, backgroundColor: bgColors, borderWidth: 0, hoverOffset: 4 }] },
-                options: doughnutOptions
+                data: { labels: segmentLabels, datasets: [{ data: clicksData, backgroundColor: bgColors, borderWidth: 0 }] },
+                options: doughnutOptions('#6366f1')
             }));
         }
 
         if (segmentImpCanvas.current) {
             chartInstances.current.push(new Chart(segmentImpCanvas.current, {
                 type: 'doughnut',
-                data: { labels: segmentLabels, datasets: [{ data: impData, backgroundColor: bgColors, borderWidth: 0, hoverOffset: 4 }] },
-                options: doughnutOptions
+                data: { labels: segmentLabels, datasets: [{ data: impData, backgroundColor: bgColors, borderWidth: 0 }] },
+                options: doughnutOptions('#0ea5e9')
             }));
         }
 
     }, [stats]);
 
     const formatNum = (n: number) => n.toLocaleString('es-ES');
-    const formatPerc = (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`;
-    const getColor = (n: number) => n >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
-    const getColorInv = (n: number) => n <= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+    const formatPerc = (val: number, base: number) => {
+        if (!base) return '0%';
+        const p = (val / base) * 100;
+        return `${p > 0 ? '+' : ''}${p.toFixed(1)}%`;
+    };
 
     return (
-        <div className="space-y-5 mb-8">
+        <div className="space-y-6">
+            {/* Header Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+                    <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" /></svg>
+                </div>
 
-            {/* Hero Header: Compact SaaS Style */}
-            <div className="relative overflow-hidden rounded-xl bg-[#0B1120] text-white shadow-lg border border-slate-800 p-5 md:p-6">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-4 flex-1">
-                        {logo && (
-                            <div className="bg-white p-1.5 rounded-lg shadow h-10 w-10 flex items-center justify-center">
-                                <img src={logo} alt="Logo" className="h-6 w-6 object-contain" />
+                <div className="p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+                    <div className="flex items-center gap-5">
+                        {logo ? (
+                            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
+                                <img src={logo} alt="Project" className="h-12 w-12 object-contain" />
+                            </div>
+                        ) : (
+                            <div className="bg-indigo-600 p-3 rounded-xl text-white shadow-lg shadow-indigo-200">
+                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                             </div>
                         )}
                         <div>
-                            <div className="flex gap-2 mb-1">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 uppercase tracking-wider border border-indigo-500/30">Executive Report</span>
-                                {stats.anomalies.length > 0 && (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 uppercase tracking-wider border border-amber-500/30">
-                                        ⚠️ {stats.anomalies.length} Anomalías
-                                    </span>
-                                )}
+                            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-none mb-2">Análisis de Métrcas</h2>
+                            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
+                                <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-slate-200">GSC Insights</span>
+                                <span>{stats.period2Label} vs {stats.period1Label}</span>
                             </div>
-                            <h2 className="text-2xl font-bold tracking-tight text-white leading-none">
-                                Performance Overview
-                            </h2>
-                            <p className="text-slate-400 text-xs mt-1">
-                                {stats.period1Label} vs {stats.period2Label}
-                            </p>
                         </div>
                     </div>
 
-                    {/* Top Line Stats Compact */}
-                    <div className="flex gap-8 border-l border-white/10 pl-8">
-                        <div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Clics</div>
-                            <div className="text-2xl font-bold text-white leading-tight">{formatNum(stats.datasetStats.totalClicks)}</div>
+                    <div className="flex gap-4 print:hidden">
+                        {onDateRangeChange && (
+                            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200 flex gap-1">
+                                {[
+                                    { label: '28D', val: '28d' },
+                                    { label: 'Mes', val: 'last_month' },
+                                    { label: 'Trim.', val: 'last_quarter' }
+                                ].map(opt => (
+                                    <button
+                                        key={opt.val}
+                                        onClick={() => onDateRangeChange(opt.val)}
+                                        className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:text-indigo-600 rounded-lg hover:bg-white transition"
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-slate-100 bg-slate-50/30">
+                    <MetricBlock
+                        label="Total Clics"
+                        value={formatNum(stats.kpis.clicksP2)}
+                        change={formatPerc(stats.kpis.totalClicksChange, stats.kpis.clicksP1)}
+                        positive={stats.kpis.totalClicksChange >= 0}
+                    />
+                    <MetricBlock
+                        label="Impresiones"
+                        value={formatNum(stats.kpis.impressionsP2)}
+                        change={formatPerc(stats.kpis.totalImpressionsChange, stats.kpis.impressionsP1)}
+                        positive={stats.kpis.totalImpressionsChange >= 0}
+                    />
+                    <MetricBlock
+                        label="CTR Promedio"
+                        value={stats.kpis.ctrP2.toFixed(2) + '%'}
+                        change={stats.kpis.ctrChange.toFixed(1) + '%'}
+                        positive={stats.kpis.ctrChange >= 0}
+                    />
+                    <MetricBlock
+                        label="Posición Media"
+                        value={stats.kpis.avgPosP2.toFixed(1)}
+                        change={Math.abs(stats.kpis.avgPosChange).toFixed(1)}
+                        positive={stats.kpis.avgPosChange <= 0}
+                        isPos
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                            Tendencia Temporal
+                        </h3>
+                        <div className="flex gap-4 text-[10px] font-bold uppercase text-slate-400">
+                            <span className="flex items-center gap-1.5"><span className="w-2 h-0.5 bg-indigo-500"></span> Clics</span>
+                            <span className="flex items-center gap-1.5"><span className="w-2 h-0.5 bg-sky-400 border-b border-dashed border-sky-400"></span> Imp.</span>
                         </div>
-                        <div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Impresiones</div>
-                            <div className="text-2xl font-bold text-white leading-tight">{formatNum(stats.datasetStats.totalImpressions)}</div>
-                        </div>
+                    </div>
+                    <div className="h-72 w-full">
+                        <canvas ref={trendCanvas} />
                     </div>
                 </div>
-            </div>
 
-            {/* KPI Grid: Small Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <KPICard
-                    title="Tráfico"
-                    value={formatNum(stats.kpis.clicksP2)}
-                    subValue={formatPerc((stats.kpis.totalClicksChange / stats.kpis.clicksP1) * 100)}
-                    subColor={getColor(stats.kpis.totalClicksChange)}
-                />
-                <KPICard
-                    title="Visibilidad"
-                    value={formatNum(stats.kpis.impressionsP2)}
-                    subValue={formatPerc((stats.kpis.totalImpressionsChange / stats.kpis.impressionsP1) * 100)}
-                    subColor={getColor(stats.kpis.totalImpressionsChange)}
-                />
-                <KPICard
-                    title="CTR"
-                    value={stats.kpis.ctrP2.toFixed(2) + '%'}
-                    subValue={formatPerc(stats.kpis.ctrChange)}
-                    subColor={getColor(stats.kpis.ctrChange)}
-                />
-                <KPICard
-                    title="Posición"
-                    value={stats.kpis.avgPosP2.toFixed(1)}
-                    subValue={formatPerc(stats.kpis.avgPosChange)}
-                    subColor={getColorInv(stats.kpis.avgPosChange)}
-                />
-            </div>
-
-            {/* Main Trend Chart: Reduced Height */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-                <div className="flex justify-between items-center mb-2 border-b border-slate-50 pb-2">
-                    <h3 className="text-sm font-bold text-slate-800">Evolución de Tráfico (Diario)</h3>
-                    <div className="flex gap-3 text-[10px] font-semibold text-slate-500">
-                        <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div> Actual</span>
-                        <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div> Anterior</span>
-                    </div>
-                </div>
-                <div className="h-64 w-full relative">
-                    <canvas ref={trendCanvas} />
-                </div>
-            </div>
-
-            {/* Segments: Side-by-side Grid with Reduced Height */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                    <div className="h-40 w-40 relative flex-shrink-0">
-                        <canvas ref={segmentClicksCanvas} />
-                    </div>
-                    <div>
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Top Segmentos</h3>
-                        <div className="text-sm font-bold text-slate-800">Por Clics</div>
-                    </div>
-                </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                    <div className="h-40 w-40 relative flex-shrink-0">
-                        <canvas ref={segmentImpCanvas} />
-                    </div>
-                    <div>
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Share of Voice</h3>
-                        <div className="text-sm font-bold text-slate-800">Por Impresiones</div>
-                    </div>
+                <div className="space-y-6">
+                    <DonutCard
+                        title="Top Segmentos (Clics)"
+                        canvasRef={segmentClicksCanvas}
+                        stats={topSegments}
+                        metric="clicks"
+                        total={stats.kpis.clicksP2}
+                        color="#6366f1"
+                    />
+                    <DonutCard
+                        title="Share of Voice (Imp.)"
+                        canvasRef={segmentImpCanvas}
+                        stats={topSegments}
+                        metric="impressions"
+                        total={stats.kpis.impressionsP2}
+                        color="#0ea5e9"
+                    />
                 </div>
             </div>
         </div>
     );
 };
 
-const KPICard = ({ title, value, subValue, subColor }: any) => (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between h-24">
-        <div className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{title}</div>
-        <div className="text-2xl font-bold text-slate-900 tracking-tight leading-none">{value}</div>
-        <div className={`text-[10px] font-bold inline-flex self-start px-1.5 py-0.5 rounded ${subColor}`}>
-            {subValue} vs anterior
+const MetricBlock = ({ label, value, change, positive, isPos }: any) => (
+    <div className="p-6 border-r border-slate-100 last:border-r-0">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+        <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-slate-900">{value}</span>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${positive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                {isPos ? (positive ? '↑' : '↓') : (positive ? '+' : '')}{change}
+            </span>
+        </div>
+    </div>
+);
+
+const DonutCard = ({ title, canvasRef, stats, metric, total, color }: any) => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">{title}</h3>
+        <div className="flex items-center gap-4">
+            <div className="h-32 w-32 relative shrink-0">
+                <canvas ref={canvasRef} />
+            </div>
+            <div className="flex-1 space-y-2 overflow-hidden">
+                {stats.slice(0, 3).map((s: any, i: number) => {
+                    const pct = ((s[metric] / total) * 100).toFixed(0);
+                    return (
+                        <div key={i} className="flex flex-col">
+                            <div className="flex justify-between text-[10px] items-baseline font-medium">
+                                <span className="truncate text-slate-600 w-24">{s.name === '/' ? 'Home' : s.name}</span>
+                                <span className="font-bold text-slate-900">{pct}%</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-1 rounded-full mt-1">
+                                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color, opacity: 1 - (i * 0.2) }}></div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     </div>
 );
