@@ -3,8 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigate, Link } from 'react-router-dom';
-import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder } from 'lucide-react';
+import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder, Globe, TrendingUp, BarChart2 } from 'lucide-react';
 import ToolWrapper from '../components/layout/ToolWrapper';
+import { ProjectService, Project } from '../lib/task_manager';
+import ProjectCard from '../components/projects/ProjectCard';
+import ShareModal from '../components/shared/ShareModal';
 
 interface Draft {
     id: number;
@@ -12,6 +15,8 @@ interface Draft {
     created_at: string;
     strategy_data: any;
     html_content?: string;
+    share_token?: string;
+    public_access_level?: 'none' | 'view' | 'edit';
 }
 
 interface ApiKey {
@@ -34,13 +39,33 @@ const UserDashboard: React.FC = () => {
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [editedTitle, setEditedTitle] = useState('');
     const [editedContent, setEditedContent] = useState('');
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+
+    // Sharing State
+    const [sharingItem, setSharingItem] = useState<{ type: 'draft' | 'report', id: any, initialAccess: any, initialToken: any } | null>(null);
+    const [reports, setReports] = useState<any[]>([]);
+    const [isLoadingReports, setIsLoadingReports] = useState(true);
 
     useEffect(() => {
         if (user) {
             fetchDrafts();
             fetchKeys();
+            fetchProjects();
+            fetchReports();
         }
     }, [user]);
+
+    const fetchProjects = async () => {
+        try {
+            const data = await ProjectService.getProjects();
+            setProjects(data);
+        } catch (error) {
+            console.error('Error fetching projects:', error);
+        } finally {
+            setIsLoadingProjects(false);
+        }
+    };
 
     const fetchKeys = async () => {
         try {
@@ -98,7 +123,7 @@ const UserDashboard: React.FC = () => {
         try {
             const { data, error } = await supabase
                 .from('content_drafts')
-                .select('id, title, created_at, strategy_data, html_content')
+                .select('id, title, created_at, strategy_data, html_content, share_token, public_access_level')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -107,6 +132,36 @@ const UserDashboard: React.FC = () => {
             console.error('Error fetching drafts:', error);
         } finally {
             setIsLoadingDrafts(false);
+        }
+    };
+
+    const fetchReports = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('seo_reports')
+                .select('id, domain, created_at, report_data, share_token, public_access_level')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setReports(data || []);
+        } catch (error) {
+            console.error('Error fetching reports:', error);
+        } finally {
+            setIsLoadingReports(false);
+        }
+    };
+
+    const handleDeleteReport = async (id: number) => {
+        if (!confirm('¿Estás seguro de que quieres eliminar este informe?')) return;
+        try {
+            const { error } = await supabase
+                .from('seo_reports')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+            fetchReports();
+        } catch (error) {
+            console.error('Error deleting report:', error);
         }
     };
 
@@ -191,7 +246,7 @@ const UserDashboard: React.FC = () => {
                     <div className="md:col-span-2 space-y-8">
 
 
-                        {/* Projects Section - ADDED */}
+                        {/* Projects Section */}
                         <div className="bg-white rounded-2xl p-8 shadow-sm border border-brand-power/5">
                             <div className="flex items-center justify-between mb-8">
                                 <h2 className="text-xl font-bold text-brand-power flex items-center gap-3">
@@ -202,18 +257,33 @@ const UserDashboard: React.FC = () => {
                                     Ver Todo +
                                 </Link>
                             </div>
-                            <div className="flex items-center gap-4 bg-brand-soft/10 p-6 rounded-xl border border-brand-power/5">
-                                <div className="w-12 h-12 rounded-full bg-brand-accent/10 flex items-center justify-center text-brand-accent">
-                                    <Folder size={24} />
+
+                            {isLoadingProjects ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {[1, 2].map(i => <div key={i} className="h-32 bg-brand-soft/20 rounded-xl animate-pulse" />)}
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-brand-power">Tus Campañas y Tareas</h3>
-                                    <p className="text-sm text-brand-power/50 mb-2">Gestiona tareas, calendario editorial y sitemaps.</p>
-                                    <Link to="/proyectos" className="text-xs font-bold text-brand-accent uppercase tracking-widest hover:underline">
-                                        Ir a Proyectos &rarr;
-                                    </Link>
+                            ) : projects.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {projects.slice(0, 4).map(project => (
+                                        <div key={project.id} className="h-full">
+                                            <ProjectCard project={project} />
+                                        </div>
+                                    ))}
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="flex items-center gap-4 bg-brand-soft/10 p-6 rounded-xl border border-brand-power/5">
+                                    <div className="w-12 h-12 rounded-full bg-brand-accent/10 flex items-center justify-center text-brand-accent">
+                                        <Folder size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-brand-power">Tus Campañas y Tareas</h3>
+                                        <p className="text-sm text-brand-power/50 mb-2">Gestiona tareas, calendario editorial y sitemaps.</p>
+                                        <Link to="/proyectos" className="text-xs font-bold text-brand-accent uppercase tracking-widest hover:underline">
+                                            Ir a Proyectos &rarr;
+                                        </Link>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* API Keys Section */}
@@ -323,19 +393,58 @@ const UserDashboard: React.FC = () => {
                         <div className="bg-white rounded-2xl p-8 shadow-sm border border-brand-power/5 mb-8">
                             <div className="flex items-center justify-between mb-8">
                                 <h2 className="text-xl font-bold text-brand-power flex items-center gap-3">
-                                    <FileText className="text-brand-accent" />
+                                    <TrendingUp className="text-brand-accent" />
                                     Mis Informes SEO (Analista)
                                 </h2>
                                 <Link to="/herramientas/generador-informes" className="text-xs font-bold text-brand-power/50 hover:text-brand-accent uppercase tracking-widest">
                                     Nuevo +
                                 </Link>
                             </div>
-                            <div className="text-center py-8 border-2 border-dashed border-brand-power/5 rounded-xl">
-                                <p className="text-brand-power/40 text-sm mb-4">No hay informes guardados.</p>
-                                <Link to="/herramientas/generador-informes" className="inline-block px-4 py-2 bg-brand-soft text-brand-power rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-brand-accent transition-colors">
-                                    Generar Informe
-                                </Link>
-                            </div>
+
+                            {reports.length > 0 ? (
+                                <div className="space-y-3">
+                                    {reports.map((report) => (
+                                        <div
+                                            key={report.id}
+                                            className="group flex items-center justify-between p-4 rounded-xl border border-brand-power/5 hover:border-brand-accent/30 hover:bg-brand-soft/10 transition-all"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                                    <TrendingUp size={18} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-brand-power text-sm">{report.domain || 'Informe SEO'}</h3>
+                                                    <p className="text-xs text-brand-power/40 flex items-center gap-1 mt-1">
+                                                        <Clock size={10} /> {new Date(report.created_at).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                                <button
+                                                    onClick={() => setSharingItem({ type: 'report', id: report.id, initialAccess: report.public_access_level, initialToken: report.share_token })}
+                                                    className="p-2 text-brand-power/40 hover:text-brand-accent hover:bg-white rounded-lg transition-colors"
+                                                    title="Compartir Informe"
+                                                >
+                                                    <Globe size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteReport(report.id)}
+                                                    className="p-2 text-brand-power/40 hover:text-red-500 hover:bg-white rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 border-2 border-dashed border-brand-power/5 rounded-xl">
+                                    <p className="text-brand-power/40 text-sm mb-4">No hay informes guardados.</p>
+                                    <Link to="/herramientas/generador-informes" className="inline-block px-4 py-2 bg-brand-soft text-brand-power rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-brand-accent transition-colors">
+                                        Generar Informe
+                                    </Link>
+                                </div>
+                            )}
                         </div>
 
                         {/* Saved Content Section */}
@@ -373,7 +482,19 @@ const UserDashboard: React.FC = () => {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <ChevronRight size={16} className="text-brand-power/20 group-hover:translate-x-1 transition-transform" />
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSharingItem({ type: 'draft', id: draft.id, initialAccess: draft.public_access_level, initialToken: draft.share_token });
+                                                    }}
+                                                    className="p-2 text-brand-power/20 hover:text-brand-accent hover:bg-white rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                    title="Compartir Artículo"
+                                                >
+                                                    <Globe size={16} />
+                                                </button>
+                                                <ChevronRight size={16} className="text-brand-power/20 group-hover:translate-x-1 transition-transform" />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -534,7 +655,20 @@ const UserDashboard: React.FC = () => {
                     </div>
                 )}
             </AnimatePresence>
-        </ToolWrapper>
+
+            <ShareModal
+                isOpen={!!sharingItem}
+                onClose={() => {
+                    setSharingItem(null);
+                    fetchDrafts();
+                    fetchReports();
+                }}
+                itemType={sharingItem?.type || 'draft'}
+                itemId={sharingItem?.id}
+                initialPublicAccess={sharingItem?.initialAccess}
+                initialShareToken={sharingItem?.initialToken}
+            />
+        </ToolWrapper >
     );
 };
 

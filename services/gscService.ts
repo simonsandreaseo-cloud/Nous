@@ -40,7 +40,7 @@ export const GscService = {
      * @param endDate Format: 'YYYY-MM-DD'
      * @param dimensions Array of dimensions: ['date', 'query', 'page', 'country', 'device']
      */
-    async getSearchAnalytics(siteUrl: string, startDate: string, endDate: string, dimensions: string[] = ['date'], filters: { page?: string, query?: string } = {}) {
+    async getSearchAnalytics(siteUrl: string, startDate: string, endDate: string, dimensions: string[] = ['date'], filters: { page?: string, query?: string, operator?: 'equals' | 'contains' | 'includingRegex' } = {}) {
         const token = await this.getAccessToken();
         if (!token) throw new Error('No access token');
 
@@ -62,7 +62,7 @@ export const GscService = {
             if (filters.page) {
                 requestBody.dimensionFilterGroups[0].filters.push({
                     dimension: 'page',
-                    operator: 'equals',
+                    operator: filters.operator || 'equals',
                     expression: filters.page
                 });
             }

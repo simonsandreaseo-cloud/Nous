@@ -8,6 +8,8 @@ import ReportGeneratorPage from '../../pages/tools/ReportGeneratorPage';
 import ContentWriterPage from '../../pages/tools/ContentWriterPage';
 import ContentWriter2Page from '../../pages/tools/ContentWriter2Page';
 import ProjectsDashboard from '../../pages/projects';
+import PublicView from '../../pages/shared/PublicView';
+
 
 // Project Layout & Pages
 import ProjectLayout from '../../components/layouts/ProjectLayout';
@@ -49,6 +51,10 @@ const AnimatedRoutes: React.FC = () => {
             </Route>
 
             <Route path="/dashboard" element={<UserDashboard />} />
+
+            {/* Public Shared Views */}
+            <Route path="/compartir/:type/:token" element={<PublicView />} />
+
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

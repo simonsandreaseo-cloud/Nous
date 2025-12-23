@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Folder, Users, Search, ChevronRight, BarChart2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { GscService } from '../../services/gscService';
+import ProjectCard from '../../components/projects/ProjectCard';
 
 const ProjectsDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -110,47 +111,11 @@ const ProjectsDashboard: React.FC = () => {
                 ) : projects.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {projects.map(project => (
-                            <div key={project.id} className="relative group">
-                                <Link
-                                    to={`/proyectos/${project.slug || project.id}`}
-                                    className="block bg-white p-6 rounded-2xl border border-brand-power/5 shadow-sm hover:shadow-xl hover:border-brand-accent/30 transition-all flex flex-col justify-between h-48"
-                                >
-                                    <div>
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="w-10 h-10 rounded-lg bg-brand-soft flex items-center justify-center text-brand-power font-bold text-lg group-hover:bg-brand-accent group-hover:text-white transition-colors">
-                                                {project.name.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${project.role === 'owner' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600'
-                                                }`}>
-                                                {project.role === 'owner' ? 'Propietario' : project.role}
-                                            </span>
-                                        </div>
-                                        <h3 className="text-xl font-bold text-brand-power mb-2 truncate">{project.name}</h3>
-                                        <p className="text-sm text-brand-power/50 line-clamp-2">
-                                            {project.description || "Sin descripción"}
-                                        </p>
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-4 border-t border-brand-power/5 mt-4">
-                                        <div className="flex items-center gap-4 text-xs text-brand-power/40 font-mono">
-                                            <span className="flex items-center gap-1"><Users size={12} /> --</span>
-                                            {project.gsc_property_url && <span className="flex items-center gap-1 text-green-600/60"><BarChart2 size={12} /> GSC</span>}
-                                        </div>
-                                        <span className="text-brand-power/20 group-hover:translate-x-1 transition-transform">
-                                            <ChevronRight size={18} />
-                                        </span>
-                                    </div>
-                                </Link>
-
-                                {project.role === 'owner' && (
-                                    <button
-                                        onClick={(e) => handleDeleteProject(e, project)}
-                                        className="absolute top-2 right-2 p-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 rounded-lg"
-                                        title="Eliminar Proyecto"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
-                                    </button>
-                                )}
+                            <div key={project.id} className="h-48">
+                                <ProjectCard
+                                    project={project}
+                                    onDelete={handleDeleteProject}
+                                />
                             </div>
                         ))}
                     </div>

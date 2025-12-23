@@ -3,11 +3,13 @@ import { supabase } from '../../lib/supabase';
 import { Task, Project } from '../../lib/task_manager';
 import { ContentService, ContentItem } from '../../lib/ContentService';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Lock, Unlock, User, Calendar as CalIcon, Edit3, X, FileText } from 'lucide-react';
+import { Lock, Unlock, User, Calendar as CalIcon, Edit3, X, FileText, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import TaskDetailModal from './TaskDetailModal';
 
 interface EditorialCalendarProps {
     projectId?: string | number;
+    project?: Project;
     tasks?: Task[];
     onTaskUpdate?: () => void;
 }
@@ -18,7 +20,8 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
     // Determine data source (Props > Context)
     const tasks = props.tasks || context?.tasks || [];
-    const projectId = props.projectId || context?.project?.id;
+    const project = props.project || context?.project;
+    const projectId = props.projectId || project?.id;
     const onTaskUpdate = props.onTaskUpdate || context?.refreshTasks || (() => { });
 
     const { user } = useAuth();
@@ -74,6 +77,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                 project_id: projectId,
                 title,
                 status: 'idea',
+                type: 'content',
                 due_date: dueDate,
                 created_by: user.id
             });
@@ -88,7 +92,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
         setSelectedTask(task as ContentItem);
     };
 
-    const handleEditContent = async () => {
+    const handleEditContent = async (version: 1 | 2) => {
         if (!selectedTask || !user) return;
 
         // Check Lock
@@ -101,7 +105,11 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
             // Lock logic
             await ContentService.lockContent(selectedTask.id);
             // Navigate to Writer with ID
-            navigate(`/herramientas/redactor-ia?draftId=${selectedTask.id}&context=project`);
+            if (version === 1) {
+                navigate(`/herramientas/redactor-ia?draftId=${selectedTask.id}&context=project`);
+            } else {
+                navigate(`/herramientas/redactor-ia-2?taskId=${selectedTask.id}`);
+            }
         } catch (e: any) {
             alert("Error al bloquear contenido: " + e.message);
         }
@@ -214,81 +222,14 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
             {/* Task Detail Modal */}
             {selectedTask && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-power/20 backdrop-blur-sm" onClick={() => setSelectedTask(null)}>
-                    <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-6 border-b border-brand-power/5 flex justify-between items-start">
-                            <div>
-                                <h3 className="text-xl font-bold text-brand-power mb-1">{selectedTask.title}</h3>
-                                <div className="flex items-center gap-2 text-xs text-brand-power/50">
-                                    <span className={`px-2 py-0.5 rounded uppercase font-bold tracking-wider ${selectedTask.status === 'done' ? 'bg-emerald-100 text-emerald-700' : 'bg-brand-soft text-brand-power'
-                                        }`}>
-                                        {selectedTask.status}
-                                    </span>
-                                    <span>•</span>
-                                    <span className="flex items-center gap-1"><CalIcon size={12} /> {selectedTask.due_date}</span>
-                                </div>
-                            </div>
-                            <button onClick={() => setSelectedTask(null)} className="text-brand-power/30 hover:text-brand-power">
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-6">
-                            {/* Assignee Section */}
-                            <div className="flex items-center justify-between p-4 bg-brand-soft/10 rounded-xl border border-brand-power/5">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-brand-accent text-white flex items-center justify-center font-bold">
-                                        {selectedTask.assignee?.email?.[0].toUpperCase() || '?'}
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-brand-power/40 uppercase tracking-wider block">Asignado a</label>
-                                        <div className="font-bold text-brand-power text-sm">
-                                            {selectedTask.assignee?.email || 'Sin asignar'}
-                                        </div>
-                                    </div>
-                                </div>
-                                {!selectedTask.assignee_id && (
-                                    <button
-                                        onClick={handleAssignMe}
-                                        className="text-xs font-bold text-brand-accent hover:underline flex items-center gap-1"
-                                    >
-                                        Asignarme <User size={12} />
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <button
-                                    onClick={handleEditContent}
-                                    disabled={ContentService.isLocked(selectedTask, user?.id || '')}
-                                    className="flex items-center justify-center gap-2 py-3 px-4 bg-brand-power text-white rounded-xl font-bold text-sm hover:bg-brand-power/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                >
-                                    {ContentService.isLocked(selectedTask, user?.id || '') ? (
-                                        <>
-                                            <Lock size={16} /> Bloqueado
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Edit3 size={16} /> Editar Contenido
-                                        </>
-                                    )}
-                                </button>
-                                <button className="flex items-center justify-center gap-2 py-3 px-4 bg-white border border-brand-power/10 text-brand-power rounded-xl font-bold text-sm hover:bg-brand-soft transition-all">
-                                    <FileText size={16} /> Ver Detalles
-                                </button>
-                            </div>
-
-                            {/* Lock Info */}
-                            {selectedTask.locked_by && (
-                                <div className="text-xs text-red-500 flex items-center gap-1 justify-center bg-red-50 py-2 rounded-lg">
-                                    <Lock size={12} />
-                                    Bloqueado por {selectedTask.locked_by === user?.id ? 'ti' : 'otro usuario'} hasta {new Date(selectedTask.locked_until!).toLocaleTimeString()}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                <TaskDetailModal
+                    task={selectedTask}
+                    project={project}
+                    onClose={() => setSelectedTask(null)}
+                    onUpdate={() => {
+                        onTaskUpdate();
+                    }}
+                />
             )}
         </div>
     );

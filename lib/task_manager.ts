@@ -10,6 +10,8 @@ export interface Project {
     created_at: string;
     role?: 'owner' | 'admin' | 'editor' | 'viewer'; // Computed for current user
     slug?: string;
+    share_token?: string;
+    public_access_level?: 'none' | 'view' | 'edit';
 }
 
 export interface ProjectMember {
@@ -174,15 +176,21 @@ export interface Task {
     description?: string;
     status: 'idea' | 'todo' | 'in_progress' | 'review' | 'done';
     priority: 'low' | 'medium' | 'high' | 'critical';
+    type?: 'task' | 'content'; // New field to distinguish types
     assignee_id?: string;
     due_date?: string;
     target_keyword?: string;
     target_url_slug?: string;
     associated_url?: string;
+    secondary_url?: string; // New field for metrics tracking
+    tracking_metrics?: boolean; // New field to enable GSC tracking
+    completed_at?: string; // New field for completion timestamp
     locked_by?: string;
     locked_until?: string;
     created_at: string;
     assignee?: { email: string; user_metadata: any };
+    share_token?: string;
+    public_access_level?: 'none' | 'view' | 'edit';
 }
 
 export const TaskService = {

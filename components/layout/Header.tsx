@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { SITE_CONFIG } from '../../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuthButton from '../auth/AuthButton';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const location = useLocation();
+
+  // Hide header on project workspace routes (but keep on project list /proyectos)
+  const isProjectWorkspace = /^\/proyectos\/.+/.test(location.pathname);
+  if (isProjectWorkspace) return null;
 
   useEffect(() => {
     let ticking = false;

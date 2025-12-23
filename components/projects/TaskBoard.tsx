@@ -15,8 +15,10 @@ const STATUS_COLUMNS = [
 
 interface TaskBoardProps {
     tasks?: Task[];
+    project?: Project;
     projectId?: string | number;
     onTaskUpdate?: () => void;
+    defaultType?: 'task' | 'content';
 }
 
 const TaskBoard: React.FC<TaskBoardProps> = (props) => {
@@ -25,7 +27,8 @@ const TaskBoard: React.FC<TaskBoardProps> = (props) => {
 
     // Determine data source (Props > Context)
     const tasks = props.tasks || context?.tasks || [];
-    const projectId = props.projectId || context?.project?.id;
+    const project = props.project || context?.project;
+    const projectId = props.projectId || project?.id;
     const onTaskUpdate = props.onTaskUpdate || context?.refreshTasks || (() => { });
 
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -41,7 +44,8 @@ const TaskBoard: React.FC<TaskBoardProps> = (props) => {
             await TaskService.createTask(projectId, {
                 title: newTaskTitle,
                 status: creationStatus as any,
-                priority: 'medium'
+                priority: 'medium',
+                type: props.defaultType || 'task'
             });
             setNewTaskTitle('');
             setShowCreateModal(false);
@@ -103,7 +107,12 @@ const TaskBoard: React.FC<TaskBoardProps> = (props) => {
                                                     task.priority === 'medium' ? 'bg-blue-400' : 'bg-gray-300'
                                                 }`} title={`Prioridad: ${task.priority}`} />
 
-                                            <h4 className="font-bold text-brand-power text-sm mb-3 pr-4">{task.title}</h4>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                {task.type === 'content' && (
+                                                    <span className="text-[8px] font-bold uppercase tracking-tighter bg-brand-accent/20 text-brand-accent px-1 rounded">Contenido</span>
+                                                )}
+                                                <h4 className="font-bold text-brand-power text-sm pr-4 truncate">{task.title}</h4>
+                                            </div>
 
                                             <div className="flex items-center justify-between mt-4 border-t border-brand-power/5 pt-3">
                                                 <div className="flex items-center gap-2">
@@ -194,6 +203,7 @@ const TaskBoard: React.FC<TaskBoardProps> = (props) => {
                 {selectedTask && (
                     <TaskDetailModal
                         task={selectedTask}
+                        project={project}
                         onClose={() => setSelectedTask(null)}
                         onUpdate={() => {
                             onTaskUpdate();

@@ -2,6 +2,7 @@ import React from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { Project, Task } from '../../lib/task_manager';
 import { Layout, Calendar, Settings, Search, Users, BarChart2 } from 'lucide-react';
+import { GscOverview } from '../../components/projects/GscOverview';
 
 const ProjectDashboard: React.FC = () => {
     const { project, tasks } = useOutletContext<{ project: Project, tasks: Task[] }>();
@@ -118,6 +119,13 @@ const ProjectDashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* GSC Overview Section */}
+            {project.gsc_property_url && (
+                <div className="mt-8">
+                    <GscOverview project={project} />
+                </div>
+            )}
         </div>
     );
 };

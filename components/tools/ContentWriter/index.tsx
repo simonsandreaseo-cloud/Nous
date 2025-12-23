@@ -12,6 +12,8 @@ import { styles } from './styles';
 import { IconUpload, IconSparkles, IconCopy, IconFile, IconSEO, IconImage, IconDownload, IconRefresh, IconMagic, IconZip, IconSearch, IconChevronLeft, IconMenu, IconArrowRight, IconSettings, IconUser, IconRadar, IconEdit, IconCheck, IconTrash, IconJson, IconLink, IconPlus, IconExternal, IconPalette, IconChevronDown, IconChevronUp, IconGhost, LoadingSpinner, IconSave, IconCloud } from './components';
 import { MetadataField } from './components';
 import { parseCSV, parseJSON, buildPrompt, generateArticleStream, findCampaignAssets, suggestImagePlacements, generateRealImage, ArticleConfig, VisualResource, AIImageRequest, runSEOAnalysis, SEOAnalysisResult, generateSchemaMarkup, ContentItem, ImageGenConfig, compositeWatermark, autoInterlink, runHumanizerPipeline, HumanizerConfig, runSmartEditor, generateOutlineStrategy, searchMoreLinks, cleanAndFormatHtml, refineStyling, refineArticleContent } from './services';
+import ShareModal from '../../shared/ShareModal';
+import { Globe } from 'lucide-react';
 
 // --- Simple Save Function ---
 const downloadBlob = (blob: Blob, fileName: string) => {
@@ -95,6 +97,9 @@ const App = () => {
     const [linkedTaskId, setLinkedTaskId] = useState<number | null>(null);
     const [linkedTaskTitle, setLinkedTaskTitle] = useState<string | null>(null);
     const [linkedProjectId, setLinkedProjectId] = useState<number | null>(null);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [publicAccess, setPublicAccess] = useState<'none' | 'view' | 'edit'>('none');
+    const [shareToken, setShareToken] = useState<string | null>(null);
 
     // --- APP STATE ---
     const [viewMode, setViewMode] = useState<'setup' | 'seo-review' | 'structure-review' | 'workspace'>('setup');
@@ -151,6 +156,8 @@ const App = () => {
                     setDraftId(data.id);
                     setHtmlContent(data.html_content || '');
                     setFullResponse(data.html_content || '');
+                    setPublicAccess(data.public_access_level || 'none');
+                    setShareToken(data.share_token || null);
                     if (data.strategy_data) {
                         const sd = data.strategy_data;
                         setProjectName(sd.projectName || 'Proyecto');
@@ -1782,6 +1789,15 @@ const App = () => {
                                     </button>
                                     <button onClick={handleSaveCloud} style={{ ...styles.button, background: '#166534', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px' }} disabled={isSaving}><IconCloud /> {isSaving ? "Salvando..." : "Guardar en Nube"}</button>
 
+                                    {draftId && (
+                                        <button
+                                            onClick={() => setShowShareModal(true)}
+                                            style={{ ...styles.button, width: '100%', justifyContent: 'center', marginTop: '8px' }}
+                                        >
+                                            <Globe size={16} /> Compartir Borrador
+                                        </button>
+                                    )}
+
                                     {linkedTaskId && (
                                         <button
                                             onClick={handleCompleteTask}
@@ -1843,6 +1859,7 @@ const App = () => {
                             <header style={styles.header as any}>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                     {status ? <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}><LoadingSpinner /><span style={{ fontSize: '13px', color: '#6366F1', fontWeight: 500 }}>{status}</span></div> : null}
+                                    {draftId && <PresenceAvatars itemType="draft" channelId={draftId.toString()} />}
                                 </div>
                                 <div style={{ display: 'flex', gap: '12px' }}>
                                     {metadata && (
@@ -2120,6 +2137,14 @@ const App = () => {
                     </div>
                 )}
             </div>
+            <ShareModal
+                isOpen={showShareModal}
+                onClose={() => setShowShareModal(false)}
+                itemType="draft"
+                itemId={draftId}
+                initialPublicAccess={publicAccess}
+                initialShareToken={shareToken || undefined}
+            />
         </div>
     );
 };

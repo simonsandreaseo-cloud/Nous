@@ -4,13 +4,14 @@ import { useAuth } from '../../context/AuthContext';
 import { ProjectService, Project, ProjectMember, TaskService, Task } from '../../lib/task_manager';
 import ToolWrapper from '../../components/layout/ToolWrapper';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layout, Calendar, List, Settings, Plus, Users, Search, Filter, Share2, Mail } from 'lucide-react';
+import { Layout, Calendar, List, Settings, Plus, Users, Search, Filter, Share2, Mail, FileText } from 'lucide-react';
 
 import TaskBoard from '../../components/projects/TaskBoard';
 import { SitemapManager } from '../../components/projects/SitemapManager';
 import { EditorialCalendar } from '../../components/projects/EditorialCalendar';
 
 import { GscService } from '../../services/gscService';
+import { TaskImpactOverview } from '../../components/projects/TaskImpactOverview';
 
 const ProjectSettings = ({ project, members, onInvite, onUpdate }: { project: Project, members: any, onInvite: (email: string) => void, onUpdate: () => void }) => {
     const [email, setEmail] = useState('');
@@ -152,8 +153,10 @@ const ProjectSettings = ({ project, members, onInvite, onUpdate }: { project: Pr
 const ProjectOverview = ({ project, tasks, members, onNavigate }: any) => {
     const taskStats = {
         todo: tasks.filter((t: any) => t.status === 'todo').length,
-        inProgress: tasks.filter((t: any) => t.status === 'in_progress').length,
+        inProgress: tasks.filter((t: any) => (t.status === 'in_progress' || t.status === 'todo')).length, // Simplified
         done: tasks.filter((t: any) => t.status === 'done').length,
+        general: tasks.filter((t: any) => t.type !== 'content').length,
+        content: tasks.filter((t: any) => t.type === 'content').length,
         total: tasks.length
     };
 
@@ -165,25 +168,43 @@ const ProjectOverview = ({ project, tasks, members, onNavigate }: any) => {
                 className="bg-white p-6 rounded-2xl shadow-sm border border-brand-power/5 cursor-pointer hover:shadow-md transition-all group"
             >
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold text-brand-power group-hover:text-brand-accent transition-colors">Tareas</h3>
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-brand-power group-hover:text-brand-accent transition-colors">Tareas SEO</h3>
+                        <span className="bg-brand-soft text-brand-power/50 text-[10px] px-1.5 py-0.5 rounded-full font-bold">{taskStats.general}</span>
+                    </div>
                     <Layout className="text-brand-power/20 group-hover:text-brand-accent transition-colors" />
                 </div>
                 <div className="flex gap-4">
                     <div className="text-center">
-                        <div className="text-2xl font-bold text-brand-power">{taskStats.todo}</div>
-                        <div className="text-[10px] uppercase font-bold text-slate-400">Por Hacer</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-500">{taskStats.inProgress}</div>
-                        <div className="text-[10px] uppercase font-bold text-blue-400">En Curso</div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-emerald-500">{taskStats.done}</div>
-                        <div className="text-[10px] uppercase font-bold text-emerald-400">Hecho</div>
+                        <div className="text-2xl font-bold text-brand-power">{tasks.filter((t: any) => t.type !== 'content' && t.status !== 'done').length}</div>
+                        <div className="text-[10px] uppercase font-bold text-slate-400">Pendientes</div>
                     </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-brand-power/5 text-xs text-brand-power/50 font-medium">
-                    {taskStats.total} tareas en total
+                    Gestión de optimizaciones y tareas técnicas.
+                </div>
+            </div>
+
+            {/* Content Summary Card */}
+            <div
+                onClick={() => onNavigate('content')}
+                className="bg-white p-6 rounded-2xl shadow-sm border border-brand-power/5 cursor-pointer hover:shadow-md transition-all group"
+            >
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-brand-power group-hover:text-brand-accent transition-colors">Contenidos</h3>
+                        <span className="bg-brand-accent/20 text-brand-accent text-[10px] px-1.5 py-0.5 rounded-full font-bold">{taskStats.content}</span>
+                    </div>
+                    <FileText className="text-brand-power/20 group-hover:text-brand-accent transition-colors" />
+                </div>
+                <div className="flex gap-4">
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-brand-power">{tasks.filter((t: any) => t.type === 'content' && t.status !== 'done').length}</div>
+                        <div className="text-[10px] uppercase font-bold text-slate-400">Por Redactar</div>
+                    </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-brand-power/5 text-xs text-brand-power/50 font-medium">
+                    Calendario editorial y redacción IA 2.0.
                 </div>
             </div>
 
@@ -235,6 +256,11 @@ const ProjectOverview = ({ project, tasks, members, onNavigate }: any) => {
                     </div>
                 </div>
             </div>
+
+            {/* Task Impact Summary */}
+            <div className="lg:col-span-3">
+                <TaskImpactOverview project={project} tasks={tasks} />
+            </div>
         </div>
     );
 };
@@ -249,7 +275,7 @@ const ProjectDetail: React.FC = () => {
     const [tasks, setTasks] = useState<Task[]>([]);
 
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'board' | 'list' | 'calendar' | 'sitemap' | 'settings'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'board' | 'list' | 'calendar' | 'sitemap' | 'settings' | 'content'>('overview');
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteConfirmName, setDeleteConfirmName] = useState('');
@@ -361,8 +387,9 @@ const ProjectDetail: React.FC = () => {
 
                 {/* Tabs */}
                 <div className="flex items-center gap-6 border-b border-brand-power/10 mb-8 overflow-x-auto">
-                    <TabButton active={activeTab === 'board'} onClick={() => setActiveTab('board')} icon={<Layout size={16} />} label="Tablero" />
-                    <TabButton active={activeTab === 'list'} onClick={() => setActiveTab('list')} icon={<List size={16} />} label="Lista" />
+                    <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<List size={16} />} label="Resumen" />
+                    <TabButton active={activeTab === 'board'} onClick={() => setActiveTab('board')} icon={<Layout size={16} />} label="Tareas" />
+                    <TabButton active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={<FileText size={16} />} label="Contenidos" />
                     <TabButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<Calendar size={16} />} label="Calendario" />
                     <TabButton active={activeTab === 'sitemap'} onClick={() => setActiveTab('sitemap')} icon={<Search size={16} />} label="Sitemap" />
                     <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<Settings size={16} />} label="Configuración" />
@@ -378,9 +405,41 @@ const ProjectDetail: React.FC = () => {
                         transition={{ duration: 0.2 }}
                         className="min-h-[500px]"
                     >
-                        {activeTab === 'board' && <TaskBoard tasks={tasks} projectId={project.id} onTaskUpdate={loadData} />}
-                        {activeTab === 'list' && <div>List View Placeholder</div>}
-                        {activeTab === 'calendar' && <EditorialCalendar projectId={project.id} tasks={tasks} onTaskUpdate={loadData} />}
+                        {activeTab === 'overview' && <ProjectOverview project={project} tasks={tasks} members={members} onNavigate={setActiveTab} />}
+                        {activeTab === 'board' && (
+                            <div>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-xl font-bold text-brand-power">Tareas Generales</h2>
+                                    <div className="text-xs text-brand-power/50 font-medium">Mostrando todas las tareas del proyecto</div>
+                                </div>
+                                <TaskBoard tasks={tasks} project={project} projectId={project.id} onTaskUpdate={loadData} />
+                            </div>
+                        )}
+                        {activeTab === 'content' && (
+                            <div>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-xl font-bold text-brand-power">Calendario Editorial y Contenidos</h2>
+                                    <div className="text-xs text-brand-power/50 font-medium">Filtrado por tipo: Contenido</div>
+                                </div>
+                                <TaskBoard
+                                    tasks={tasks.filter(t => t.type === 'content')}
+                                    project={project}
+                                    projectId={project.id}
+                                    onTaskUpdate={loadData}
+                                    defaultType="content"
+                                />
+                            </div>
+                        )}
+                        {activeTab === 'calendar' && (
+                            <div>
+                                <EditorialCalendar
+                                    projectId={project.id}
+                                    project={project}
+                                    tasks={tasks.filter(t => t.type === 'content' || !t.type)}
+                                    onTaskUpdate={loadData}
+                                />
+                            </div>
+                        )}
                         {activeTab === 'sitemap' && <SitemapManager projectId={project.id} />}
                         {activeTab === 'settings' && (
                             <div className="space-y-8">
