@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { SERVICES, ANIMATION_CONFIG } from '../constants';
-import { ArrowLeft } from 'lucide-react';
+import { Breadcrumbs } from '../components/ui/Breadcrumbs';
 
 const ServiceDetail: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
@@ -28,9 +28,7 @@ const ServiceDetail: React.FC = () => {
             className="min-h-screen pt-32 pb-20 px-6 md:px-12 bg-brand-white"
         >
             <div className="max-w-4xl mx-auto">
-                <Link to="/" className="inline-flex items-center text-brand-power/50 hover:text-brand-power mb-8 transition-colors">
-                    <ArrowLeft className="mr-2 w-4 h-4" /> Volver
-                </Link>
+                <Breadcrumbs items={[{ label: service.title }]} className="mb-8" />
 
                 <motion.h1
                     className="text-6xl md:text-8xl font-bold text-brand-power mb-8 tracking-tighter"

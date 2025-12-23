@@ -3,14 +3,16 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { ANIMATION_CONFIG } from '../../constants';
+import { Breadcrumbs, BreadcrumbItem } from '../ui/Breadcrumbs';
 
 interface ToolWrapperProps {
     children: React.ReactNode;
     backTo?: string;
     backLabel?: string;
+    breadcrumbs?: BreadcrumbItem[];
 }
 
-const ToolWrapper: React.FC<ToolWrapperProps> = ({ children, backTo = "/herramientas", backLabel = "Volver al Dashboard" }) => {
+const ToolWrapper: React.FC<ToolWrapperProps> = ({ children, backTo, backLabel, breadcrumbs }) => {
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -21,9 +23,13 @@ const ToolWrapper: React.FC<ToolWrapperProps> = ({ children, backTo = "/herramie
         >
             <div className="max-w-screen-2xl mx-auto w-full flex-1 flex flex-col">
                 <div className="mb-6">
-                    <Link to={backTo} className="inline-flex items-center text-sm font-bold text-brand-power/50 hover:text-brand-accent transition-colors">
-                        <ArrowLeft className="mr-2 w-4 h-4" /> {backLabel}
-                    </Link>
+                    {breadcrumbs ? (
+                        <Breadcrumbs items={breadcrumbs} />
+                    ) : backTo ? (
+                        <Link to={backTo} className="inline-flex items-center text-sm font-bold text-brand-power/50 hover:text-brand-accent transition-colors">
+                            <ArrowLeft className="mr-2 w-4 h-4" /> {backLabel || "Volver"}
+                        </Link>
+                    ) : null}
                 </div>
                 {children}
             </div>

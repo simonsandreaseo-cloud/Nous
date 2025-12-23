@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useParams, Link, useNavigate } from 'react-router-dom';
-import { Layout, Calendar, List, Settings, Search, BarChart2, Target, ArrowLeft, Menu, X } from 'lucide-react';
+import { Layout, Calendar, List, Settings, Search, BarChart2, Target, Menu, X } from 'lucide-react';
 import { ProjectService, Project, TaskService, Task } from '../../lib/task_manager';
+import { Breadcrumbs } from '../ui/Breadcrumbs';
 
 const ProjectLayout: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -65,9 +66,13 @@ const ProjectLayout: React.FC = () => {
                 <div className="flex flex-col h-full">
                     {/* Project Header in Sidebar */}
                     <div className="p-6 border-b border-brand-power/5">
-                        <Link to="/proyectos" className="flex items-center gap-2 text-brand-power/40 hover:text-brand-power text-xs font-bold uppercase tracking-widest mb-4 transition-colors">
-                            <ArrowLeft size={12} /> Volver
-                        </Link>
+                        <Breadcrumbs
+                            items={[
+                                { label: 'Proyectos', path: '/proyectos' },
+                                { label: project.name }
+                            ]}
+                            className="mb-4"
+                        />
                         <h2 className="text-xl font-bold text-brand-power truncate" title={project.name}>{project.name}</h2>
                         <div className="flex items-center gap-2 mt-2">
                             <span className="px-2 py-0.5 bg-brand-accent/10 text-brand-accent rounded text-[10px] font-bold uppercase tracking-wider">

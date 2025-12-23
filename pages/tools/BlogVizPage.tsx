@@ -4,7 +4,10 @@ import ToolWrapper from '../../components/layout/ToolWrapper';
 
 const BlogVizPage: React.FC = () => {
     return (
-        <ToolWrapper backTo="/" backLabel="Volver al Inicio">
+        <ToolWrapper breadcrumbs={[
+            { label: 'Herramientas', path: '/herramientas' },
+            { label: 'Blog Viz AI' }
+        ]}>
             <App />
         </ToolWrapper>
     );

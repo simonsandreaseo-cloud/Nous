@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { SITE_CONFIG } from '../../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuthButton from '../auth/AuthButton';
+import { NotificationBell } from './NotificationBell';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -76,7 +77,8 @@ const Header: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        <div>
+        <div className="flex items-center gap-4">
+          <NotificationBell />
           <AuthButton />
         </div>
 

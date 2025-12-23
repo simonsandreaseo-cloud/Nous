@@ -32,6 +32,10 @@ const Home: React.FC = () => {
     } else {
       document.body.style.overflow = 'unset';
     }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [loading]);
 
   return (

@@ -44,8 +44,22 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
             const endDate = new Date().toISOString().split('T')[0];
             const startDate = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-            // Fetch date series for charts
-            const rows = await GscService.getSearchAnalytics(project.gsc_property_url!, startDate, endDate, ['date']);
+            // Try Local Data First
+            let rows: any[] = [];
+            const localData = await GscService.getLocalAnalytics(project.id, startDate, endDate);
+
+            if (localData && localData.length > 0) {
+                rows = localData.map((d: any) => ({
+                    keys: [d.date],
+                    clicks: d.clicks,
+                    impressions: d.impressions,
+                    ctr: d.ctr,
+                    position: d.position
+                }));
+            } else {
+                // Fetch date series for charts from API
+                rows = await GscService.getSearchAnalytics(project.gsc_property_url!, startDate, endDate, ['date']);
+            }
 
             // Calculate totals
             const totals = rows.reduce((acc: any, row: any) => ({

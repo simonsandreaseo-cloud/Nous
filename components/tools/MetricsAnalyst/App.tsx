@@ -104,9 +104,16 @@ const App: React.FC = () => {
     useEffect(() => {
         if (user) {
             loadUserKeys();
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
             loadActiveTasks();
         }
+    }, [user, selectedProjectId]);
 
+    useEffect(() => {
         const pId = searchParams.get('projectId');
         if (pId) setSelectedProjectId(pId);
 
@@ -116,15 +123,21 @@ const App: React.FC = () => {
             setAnalysisMode('gsc');
             // We could potentially auto-trigger fetching if we had default dates
         }
-    }, [user, searchParams]);
+    }, [searchParams]);
 
     // ... (rest of loaders)
     const loadActiveTasks = async () => {
         try {
-            const { data } = await supabase
+            let query = supabase
                 .from('tasks')
-                .select('id, title, description, gsc_property_url, secondary_url, completed_at')
+                .select('id, title, description, gsc_property_url, secondary_url, completed_at, status')
                 .neq('status', 'draft');
+
+            if (selectedProjectId) {
+                query = query.eq('project_id', parseInt(selectedProjectId));
+            }
+
+            const { data } = await query;
             if (data) setWatchedTasks(data);
         } catch (e) { console.error("Error loading tasks", e); }
     };
@@ -282,10 +295,39 @@ const App: React.FC = () => {
 
             // Hydrate Task Performance
             const taskPerf = watchedTasks.map(t => {
-                // Find matching page in cData
-                const matchingPage = cData.topWinners.find(p => p.name === t.gsc_property_url) || cData.topLosers.find(p => p.name === t.gsc_property_url) || cData.chartLookup[t.gsc_property_url || '']; // Simplistic
-                return null; // Placeholder
-            }).filter(Boolean);
+                const url = t.gsc_property_url || t.secondary_url;
+                if (!url) return null;
+
+                // Normalize for lookup
+                const lookupKey = url.toLowerCase().trim().replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+
+                // Find matching data in our lookups
+                const dataItem = cData.chartLookup[lookupKey] ||
+                    cData.topWinners.find(p => p.name.includes(lookupKey)) ||
+                    cData.topLosers.find(p => p.name.includes(lookupKey));
+
+                if (!dataItem) return null;
+
+                return {
+                    taskId: t.id,
+                    taskTitle: t.title,
+                    status: dataItem.clicksChange > 0 ? 'growth' : dataItem.clicksChange < 0 ? 'decay' : 'stable',
+                    metrics: {
+                        clicks: dataItem.clicksP2,
+                        impressions: dataItem.impressionsP2,
+                        position: dataItem.positionP2
+                    },
+                    comparison: {
+                        clicksChange: dataItem.clicksChange,
+                        impressionsChange: dataItem.impressionsChange,
+                        positionChange: dataItem.positionChange
+                    },
+                    url: url
+                };
+            }).filter((t): t is any => t !== null);
+
+            // Add to payload for reference
+            payload.taskPerformanceAnalysis = taskPerf;
 
             setReportPayload(payload);
             setChartData(cData);
@@ -621,7 +663,7 @@ const App: React.FC = () => {
                         hasSaved={hasSaved}
                         user={user}
                         // For MVP: Pass empty tasks if not integrated fully yet, or simple mapping
-                        taskPerformance={[]} // Logic disabled for safety to prioritize Informes SEO stability
+                        taskPerformance={reportPayload?.taskPerformanceAnalysis || []}
                         decayAlerts={reportPayload?.keywordDecayAlerts}
                         concentrationAnalysis={reportPayload?.concentrationAnalysis}
                         selectedProjectId={selectedProjectId}

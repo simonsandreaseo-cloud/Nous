@@ -3,10 +3,12 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import { Project, Task } from '../../lib/task_manager';
 import { Layout, Calendar, Settings, Search, Users, BarChart2 } from 'lucide-react';
 import { GscOverview } from '../../components/projects/GscOverview';
+import { ChatPanel } from '../../components/chat/ChatPanel';
 
 const ProjectDashboard: React.FC = () => {
     const { project, tasks } = useOutletContext<{ project: Project, tasks: Task[] }>();
     const navigate = useNavigate();
+    const [isChatOpen, setIsChatOpen] = React.useState(false);
 
     // Calculate Summary Stats from context data
     const taskList = tasks?.filter(t => t.type === 'task' || !t.type) || [];
@@ -29,10 +31,25 @@ const ProjectDashboard: React.FC = () => {
     return (
         <div className="space-y-8 pb-20">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-brand-power">Resumen del Proyecto</h1>
-                <p className="text-brand-power/50 text-sm">Vista general de actividad y estado.</p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <h1 className="text-2xl font-bold text-brand-power">Resumen del Proyecto</h1>
+                    <p className="text-brand-power/50 text-sm">Vista general de actividad y estado.</p>
+                </div>
+                <button
+                    onClick={() => setIsChatOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                    <Users size={18} />
+                    <span className="text-sm font-medium">Chat de Proyecto</span>
+                </button>
             </div>
+
+            <ChatPanel
+                projectId={Number(project.id)}
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 

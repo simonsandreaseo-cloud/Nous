@@ -9,6 +9,7 @@ import { TaskMetricsChart } from './TaskMetricsChart';
 import MetadataGeneratorModal from './MetadataGeneratorModal';
 import { TaskMetadata } from '../../services/metadataService';
 import { ProjectService } from '../../lib/task_manager';
+import { NotificationService } from '../../services/NotificationService';
 
 interface TaskDetailModalProps {
     task: Task;
@@ -42,10 +43,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
     const isAdmin = project?.role === 'owner' || project?.role === 'admin';
 
     useEffect(() => {
-        if (isAdmin && project?.id) {
+        if (project?.id) {
             fetchMembers();
         }
-    }, [project?.id, isAdmin]);
+    }, [project?.id]);
 
     const fetchMembers = async () => {
         if (!project?.id) return;
@@ -110,6 +111,41 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
             console.log('[TaskDetailModal] Calling TaskService.updateTask with:', updates);
 
             await TaskService.updateTask(task.id, updates);
+
+            // Handle Mentions/Tags in Description
+            const mentionRegex = /@([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g;
+            const matches = desc.match(mentionRegex);
+
+            if (matches && matches.length > 0) {
+                const uniqueEmails = [...new Set(matches.map(m => m.substring(1)))]; // remove @
+
+                // Find users by email from projectMembers
+                // Note: projectMembers might not be fully loaded if fetch failed or race condition, 
+                // but usually it should be if modal is open.
+
+                for (const email of uniqueEmails) {
+                    const member = projectMembers.find(m => m.email === email);
+                    if (member) {
+                        // Avoid re-notifying if description hasn't changed? 
+                        // Hard to track specifically new mentions without previous value diff. 
+                        // For MVP, we might notify. Or just accept it.
+                        // Ideally we check if this mention wasn't in the old description.
+
+                        // Simple check: Only notify if it's a NEW save (which this is).
+                        // Refinement: Check if old description had it.
+                        const oldDesc = task.description || '';
+                        if (!oldDesc.includes(`@${email}`)) {
+                            await NotificationService.createNotification(
+                                member.user_id,
+                                'mention',
+                                'Te han mencionado en una tarea',
+                                `${user?.email} te mencionó en la tarea "${title}"`,
+                                `/proyectos/${project?.id}/tareas` // Deep link needs logic to open modal? Or just go to list.
+                            );
+                        }
+                    }
+                }
+            }
 
             console.log('[TaskDetailModal] Save successful, calling callbacks');
             onUpdate();

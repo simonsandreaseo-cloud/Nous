@@ -4,7 +4,10 @@ import ToolWrapper from '../../components/layout/ToolWrapper';
 
 const ContentWriterPage: React.FC = () => {
     return (
-        <ToolWrapper backTo="/" backLabel="Volver al Inicio">
+        <ToolWrapper breadcrumbs={[
+            { label: 'Herramientas', path: '/herramientas' },
+            { label: 'Content Writer' }
+        ]}>
             <App />
         </ToolWrapper>
     );

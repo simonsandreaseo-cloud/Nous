@@ -83,7 +83,10 @@ const ProjectsDashboard: React.FC = () => {
     };
 
     return (
-        <ToolWrapper backTo="/dashboard" backLabel="Volver al Dashboard">
+        <ToolWrapper breadcrumbs={[
+            { label: 'Dashboard', path: '/dashboard' },
+            { label: 'Mis Proyectos' }
+        ]}>
             <div className="max-w-6xl mx-auto pb-20">
                 <div className="flex justify-between items-end mb-10">
                     <div>

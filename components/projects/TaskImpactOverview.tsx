@@ -120,6 +120,7 @@ export const TaskImpactOverview: React.FC<TaskImpactOverviewProps> = ({ project,
                             const impPct = item.previous.impressions ? (impDelta / item.previous.impressions) * 100 : 0;
 
                             const posDelta = item.current.position - item.previous.position;
+                            const posPct = item.previous.position ? (posDelta / item.previous.position) * 100 : 0;
                             const isPosBetter = posDelta < 0; // Lower position is better
 
                             return (
@@ -139,7 +140,7 @@ export const TaskImpactOverview: React.FC<TaskImpactOverviewProps> = ({ project,
                                                 <div className="text-sm font-bold text-brand-power">{item.current.clicks}</div>
                                                 <div className={`text-[10px] font-bold flex items-center justify-center gap-0.5 ${clicksDelta > 0 ? 'text-emerald-500' : clicksDelta < 0 ? 'text-rose-500' : 'text-slate-400'}`}>
                                                     {clicksDelta !== 0 && (clicksDelta > 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
-                                                    {Math.abs(clicksPct).toFixed(1)}%
+                                                    {Math.abs(clicksDelta).toLocaleString()} ({Math.abs(clicksPct).toFixed(1)}%)
                                                 </div>
                                             </div>
                                         )}
@@ -150,7 +151,7 @@ export const TaskImpactOverview: React.FC<TaskImpactOverviewProps> = ({ project,
                                                 <div className="text-sm font-bold text-brand-power">{item.current.impressions.toLocaleString()}</div>
                                                 <div className={`text-[10px] font-bold flex items-center justify-center gap-0.5 ${impDelta > 0 ? 'text-emerald-500' : impDelta < 0 ? 'text-rose-500' : 'text-slate-400'}`}>
                                                     {impDelta !== 0 && (impDelta > 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
-                                                    {Math.abs(impPct).toFixed(1)}%
+                                                    {Math.abs(impDelta).toLocaleString()} ({Math.abs(impPct).toFixed(1)}%)
                                                 </div>
                                             </div>
                                         )}
@@ -161,7 +162,7 @@ export const TaskImpactOverview: React.FC<TaskImpactOverviewProps> = ({ project,
                                                 <div className="text-sm font-bold text-brand-power">{item.current.position.toFixed(1)}</div>
                                                 <div className={`text-[10px] font-bold flex items-center justify-center gap-0.5 ${posDelta === 0 ? 'text-slate-400' : isPosBetter ? 'text-emerald-500' : 'text-rose-500'}`}>
                                                     {posDelta !== 0 && (isPosBetter ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
-                                                    {Math.abs(posDelta).toFixed(1)} pos
+                                                    {Math.abs(posDelta).toFixed(1)} ({Math.abs(posPct).toFixed(1)}%)
                                                 </div>
                                             </div>
                                         )}

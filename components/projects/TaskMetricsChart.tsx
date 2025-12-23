@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import { GscService } from '../../services/gscService';
-import { ArrowUp, ArrowDown, Activity, Eye, MousePointer2, Hash, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowUp, ArrowDown, Activity, Eye, MousePointer2, Hash, Loader2, AlertCircle, Search } from 'lucide-react';
 import { Project, Task } from '../../lib/task_manager';
 
 interface TaskMetricsChartProps {
@@ -111,17 +111,21 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
 
             console.log('Fetching metrics for:', { start: fmt(start), end: fmt(end), prevStart: fmt(prevStart), prevEnd: fmt(prevEnd) });
 
+            // Changed dimensions to include 'query' to count unique keywords
             const [currentRows, prevRows] = await Promise.all([
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['date'], { page: regexFilter, operator: 'includingRegex' }),
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(prevStart), fmt(prevEnd), ['date'], { page: regexFilter, operator: 'includingRegex' })
+                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['date', 'query'], { page: regexFilter, operator: 'includingRegex' }),
+                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(prevStart), fmt(prevEnd), ['date', 'query'], { page: regexFilter, operator: 'includingRegex' })
             ]);
 
             const agg = (rows: any[]) => {
                 const totalClicks = rows.reduce((a, b) => a + b.clicks, 0);
                 const totalImp = rows.reduce((a, b) => a + b.impressions, 0);
-                const avgCtr = rows.length ? rows.reduce((a, b) => a + b.ctr, 0) / rows.length : 0;
                 const avgPos = rows.length ? rows.reduce((a, b) => a + b.position, 0) / rows.length : 0;
-                return { clicks: totalClicks, impressions: totalImp, ctr: avgCtr * 100, position: avgPos };
+
+                // Count unique keywords (keys[1] is the query)
+                const uniqueKeywords = new Set(rows.map(r => r.keys[1])).size;
+
+                return { clicks: totalClicks, impressions: totalImp, position: avgPos, uniqueKeywords };
             };
 
             setData({
@@ -148,9 +152,18 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
         const ctx = chartRef.current.getContext('2d');
         if (!ctx) return;
 
-        const sortedRows = [...data.rows].sort((a, b) => new Date(a.keys[0]).getTime() - new Date(b.keys[0]).getTime());
-        const labels = sortedRows.map(r => new Date(r.keys[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }));
-        const clicks = sortedRows.map(r => r.clicks);
+        // Group rows by date (since we now have multiple rows per date due to 'query' dimension)
+        const groupedByDate: Record<string, number> = {};
+        data.rows.forEach((r: any) => {
+            const date = r.keys[0];
+            groupedByDate[date] = (groupedByDate[date] || 0) + r.clicks;
+        });
+
+        // Sort dates
+        const sortedDates = Object.keys(groupedByDate).sort();
+
+        const labels = sortedDates.map(d => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }));
+        const clicks = sortedDates.map(d => groupedByDate[d]);
 
         chartInstance.current = new Chart(ctx, {
             type: 'line',
@@ -214,16 +227,15 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
                         <Icon size={16} />
                     </div>
                     <div>
-                        <div className="text-sm font-bold text-brand-power">{format(value)}</div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-brand-power">{format(value)}</span>
+                            <span className={`flex items-center gap-0.5 text-[10px] font-bold ${isNeutral ? 'text-slate-400' : isBetter ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {delta !== 0 && (isPositive ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                                {delta === 0 ? '-' : `${fmtDelta(Math.abs(delta))} (${Math.abs(pct).toFixed(1)}%)`}
+                            </span>
+                        </div>
                         <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{label}</div>
                     </div>
-                </div>
-                <div className="text-right">
-                    <div className={`flex items-center justify-end gap-1 text-xs font-bold ${isNeutral ? 'text-slate-400' : isBetter ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {delta !== 0 && (isPositive ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
-                        {delta === 0 ? '-' : `${fmtDelta(Math.abs(delta))} (${Math.abs(pct).toFixed(1)}%)`}
-                    </div>
-                    <div className="text-[9px] text-slate-300 font-medium">vs periodo anterior</div>
                 </div>
             </div>
         );
@@ -301,11 +313,11 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
                         reverse={true}
                     />
                     <MetricRow
-                        label="CTR"
-                        value={data.current.ctr}
-                        prevValue={data.previous.ctr}
-                        format={(v: number) => `${v.toFixed(2)}%`}
-                        icon={Activity}
+                        label="Nº Keywords"
+                        value={data.current.uniqueKeywords}
+                        prevValue={data.previous.uniqueKeywords}
+                        format={(v: number) => v.toLocaleString()}
+                        icon={Search}
                     />
                 </div>
             </div>

@@ -217,7 +217,7 @@ const UserDashboard: React.FC = () => {
     if (!user) return <Navigate to="/" />;
 
     return (
-        <ToolWrapper backTo="/" backLabel="Volver al Inicio">
+        <ToolWrapper breadcrumbs={[{ label: 'Dashboard' }]}>
             <div className="max-w-5xl mx-auto pb-20">
                 {/* Header Profile */}
                 <div className="flex flex-col md:flex-row items-center gap-8 mb-16">

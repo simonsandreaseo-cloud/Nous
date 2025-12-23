@@ -346,7 +346,10 @@ const ProjectDetail: React.FC = () => {
     if (!project) return <div className="min-h-screen flex items-center justify-center">Proyecto no encontrado</div>;
 
     return (
-        <ToolWrapper backTo="/proyectos" backLabel="Todos los Proyectos">
+        <ToolWrapper breadcrumbs={[
+            { label: 'Proyectos', path: '/proyectos' },
+            { label: project.name }
+        ]}>
             <div className="max-w-7xl mx-auto pb-20">
 
                 {/* Header */}
