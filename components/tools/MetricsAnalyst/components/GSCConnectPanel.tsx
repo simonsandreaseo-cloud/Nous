@@ -5,9 +5,10 @@ import { useAuth } from '@/context/AuthContext';
 interface GSCConnectPanelProps {
     onAnalyze: (siteUrl: string, startDateP1: string, endDateP1: string, startDateP2: string, endDateP2: string) => void;
     isLoading: boolean;
+    initialSiteUrl?: string;
 }
 
-export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isLoading }) => {
+export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isLoading, initialSiteUrl }) => {
     const { session, signInWithGoogle } = useAuth();
     const [sites, setSites] = useState<GSCProperty[]>([]);
     const [selectedSite, setSelectedSite] = useState<string>('');
@@ -67,7 +68,11 @@ export const GSCConnectPanel: React.FC<GSCConnectPanelProps> = ({ onAnalyze, isL
         try {
             const list = await GscService.getSites(token);
             setSites(list);
-            if (list.length > 0) setSelectedSite(list[0].siteUrl);
+            if (list.length > 0) {
+                // If we have an initial site and it's in the list, select it.
+                const preSelect = initialSiteUrl ? list.find(s => s.siteUrl === initialSiteUrl) : null;
+                setSelectedSite(preSelect ? preSelect.siteUrl : list[0].siteUrl);
+            }
         } catch (e) {
             console.error("Failed to load sites", e);
         } finally {

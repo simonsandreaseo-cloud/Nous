@@ -88,17 +88,29 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
     const visibleTasks = useMemo(() => {
         let tasks = [...availableTasks];
         tasks.sort((a, b) => {
-            const dateA = new Date(a.updated_at || a.created_at).getTime();
-            const dateB = new Date(b.updated_at || b.created_at).getTime();
-            return dateB - dateA;
+            try {
+                const dateA = new Date(a.updated_at || a.created_at).getTime();
+                const dateB = new Date(b.updated_at || b.created_at).getTime();
+                if (isNaN(dateA)) return 1;
+                if (isNaN(dateB)) return -1;
+                return dateB - dateA;
+            } catch (e) {
+                return 0;
+            }
         });
 
         if (useDateFilter && taskImpact.startDate && taskImpact.endDate) {
             tasks = tasks.filter(t => {
-                const dateToCheck = taskImpact.measurementMode === 'start' ? t.created_at : (t.completed_at || t.updated_at);
-                if (!dateToCheck) return false;
-                const d = new Date(dateToCheck).toISOString().split('T')[0];
-                return d >= taskImpact.startDate && d <= taskImpact.endDate;
+                try {
+                    const dateToCheck = taskImpact.measurementMode === 'start' ? t.created_at : (t.completed_at || t.updated_at);
+                    if (!dateToCheck) return false;
+                    const d = new Date(dateToCheck);
+                    if (isNaN(d.getTime())) return false;
+                    const dStr = d.toISOString().split('T')[0];
+                    return dStr >= taskImpact.startDate && dStr <= taskImpact.endDate;
+                } catch (e) {
+                    return false;
+                }
             });
         }
         return tasks;
@@ -243,7 +255,14 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex justify-between items-start gap-4 mb-1">
                                                                     <span className="font-bold text-xs text-slate-900 group-hover:text-indigo-600 transition-colors uppercase leading-tight">{task.title}</span>
-                                                                    <span className="text-[10px] font-mono text-slate-400 whitespace-nowrap">{new Date(task.updated_at || task.created_at).toLocaleDateString()}</span>
+                                                                    <span className="text-[10px] font-mono text-slate-400 whitespace-nowrap">
+                                                                        {(() => {
+                                                                            try {
+                                                                                const d = new Date(task.updated_at || task.created_at);
+                                                                                return isNaN(d.getTime()) ? 'S/F' : d.toLocaleDateString();
+                                                                            } catch (e) { return 'S/F'; }
+                                                                        })()}
+                                                                    </span>
                                                                 </div>
                                                                 {task.gsc_property_url && <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate block">{task.gsc_property_url.replace(/https?:\/\//, '')}</span>}
                                                             </div>

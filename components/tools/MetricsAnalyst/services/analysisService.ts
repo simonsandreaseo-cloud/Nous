@@ -50,7 +50,7 @@ export const runFullLocalAnalysis = (
     const topSegmentMovers = [...comparedSegments].sort((a, b) => Math.abs(b.clicksChange) - Math.abs(a.clicksChange)).slice(0, 10);
 
     const topImpressionWinners = [...comparedPages].sort((a, b) => b.impressionsChange - a.impressionsChange).slice(0, 25);
-    const topImpressionLosers = [...comparedPages].sort((a, b) => b.impressionsChange - b.impressionsChange).slice(0, 25);
+    const topImpressionLosers = [...comparedPages].sort((a, b) => a.impressionsChange - b.impressionsChange).slice(0, 25);
 
     // 5. Country & Keyword Analysis
     log("├── Fase 3/7: Análisis Dimensional (Geografía y Keywords)...");

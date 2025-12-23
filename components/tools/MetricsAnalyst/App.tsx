@@ -289,7 +289,16 @@ const App: React.FC = () => {
             setSuggestedSections(sections);
             setIsAnalyzing(false);
             setShowSectionSelector(true);
-        } catch (err: any) { addLog(`Fallo crítico: ${err.message}`, 'error'); setIsAnalyzing(false); }
+        } catch (err: any) {
+            console.error("Fallo crítico en análisis:", err);
+            addLog(`Fallo crítico: ${err.message}`, 'error');
+            setIsAnalyzing(false);
+            // Don't stay in white screen Step 3 if we have no report and no selector
+            if (!reportHTML && !showSectionSelector) {
+                setStep(2);
+                alert(`Error en el análisis: ${err.message}. Revisa los logs en la consola del agente.`);
+            }
+        }
     };
 
     const handleConfirmGeneration = async (selectedSections: SectionConfig[], taskImpact: TaskImpactConfig) => {
@@ -398,7 +407,6 @@ const App: React.FC = () => {
                                     <UploadSlot label="Consultas" type="queries" isUploaded={uploadedStatus.queries} onChange={(e: any) => handleFileChange(e, 'queries')} />
                                     <UploadSlot label="Países" type="countries" isUploaded={uploadedStatus.countries} onChange={(e: any) => handleFileChange(e, 'countries')} />
                                 </div>
-
                                 <div className="flex flex-col lg:flex-row gap-10 items-center bg-slate-50 p-8 rounded-3xl border border-slate-200/50">
                                     <div className="lg:w-1/2 space-y-6">
                                         <h3 className="text-lg font-bold text-slate-900 flex items-center gap-3">
@@ -425,7 +433,7 @@ const App: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            <GSCConnectPanel onAnalyze={handleGSCAnalyze} isLoading={gscLoading} />
+                            <GSCConnectPanel onAnalyze={handleGSCAnalyze} isLoading={gscLoading} initialSiteUrl={searchParams.get('url') || undefined} />
                         )}
                     </div>
                 </div>
@@ -543,6 +551,17 @@ const App: React.FC = () => {
                         // and re-running the analysis automatically.
                     }}
                 />
+            )}
+
+            {step === 3 && !reportHTML && !isAnalyzing && !showSectionSelector && (
+                <div className="flex flex-col items-center justify-center min-h-screen py-20 animate-fade-in">
+                    <div className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 text-center max-w-lg">
+                        <div className="text-6xl mb-6">🏜️</div>
+                        <h2 className="text-2xl font-black text-slate-900 mb-4">Estado Inconsistente</h2>
+                        <p className="text-slate-500 mb-8 font-medium">No se ha podido procesar el informe o los datos son insuficientes para generar una vista.</p>
+                        <button onClick={() => setStep(1)} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">Configurar de nuevo</button>
+                    </div>
+                </div>
             )}
 
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} resourceType="seo_report" resourceId={reportPayload?.projectName || 'temp-report'} onRestore={handleRestore} />
