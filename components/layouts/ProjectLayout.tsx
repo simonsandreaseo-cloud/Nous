@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useParams, Link, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Calendar, List, Settings, Search, BarChart2, Target, Menu, X } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import PageTransition from '../layout/PageTransition';
 import { ProjectService, Project, TaskService, Task } from '../../lib/task_manager';
 import { Breadcrumbs } from '../ui/Breadcrumbs';
 
 const ProjectLayout: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const [project, setProject] = useState<Project | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
@@ -137,7 +140,11 @@ const ProjectLayout: React.FC = () => {
 
                 {/* Content Scroll Area */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-8">
-                    <Outlet context={{ project, tasks, loadProject: loadData, refreshTasks }} />
+                    <AnimatePresence mode="wait">
+                        <PageTransition key={location.pathname} className="w-full">
+                            <Outlet context={{ project, tasks, loadProject: loadData, refreshTasks }} />
+                        </PageTransition>
+                    </AnimatePresence>
                 </div>
             </main>
         </div>

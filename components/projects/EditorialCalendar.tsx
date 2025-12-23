@@ -6,6 +6,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Lock, Unlock, User, Calendar as CalIcon, Edit3, X, FileText, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import TaskDetailModal from './TaskDetailModal';
+import { GoalTrackingWidget } from './GoalTrackingWidget';
 
 interface EditorialCalendarProps {
     projectId?: string | number;
@@ -227,6 +228,10 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
             </div>
 
             {/* Content Body */}
+            <div className="px-4 pt-4">
+                <GoalTrackingWidget project={project} tasks={tasks} currentDate={currentDate} />
+            </div>
+
             {viewMode === 'calendar' ? (
                 <>
                     {/* Grid Header */}

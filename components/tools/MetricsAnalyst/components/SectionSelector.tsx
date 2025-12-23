@@ -1,13 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SectionConfig, TaskImpactConfig } from '../types';
-import { supabase } from '@/lib/supabase';
 
 interface SectionSelectorProps {
     suggestedSections: string[];
     onConfirm: (sections: SectionConfig[], taskImpact: TaskImpactConfig) => void;
     onCancel: () => void;
-    availableTasks: { id: number; title: string; completed_at?: string; gsc_property_url?: string }[];
+    availableTasks: {
+        id: number;
+        title: string;
+        completed_at?: string;
+        created_at: string;
+        updated_at?: string;
+        gsc_property_url?: string
+    }[];
+    projects?: { id: number; name: string }[];
+    selectedProjectId?: number | null;
+    onProjectChange?: (id: number) => void;
 }
 
 const ALL_SECTIONS = [
@@ -23,13 +32,27 @@ const ALL_SECTIONS = [
     { id: 'ANALISIS_IMPACTO_TAREAS', label: 'Impacto de Tareas', desc: 'Analiza cómo han afectado las tareas completadas al tráfico.', defaultCount: 0 }
 ];
 
-export const SectionSelector: React.FC<SectionSelectorProps> = ({ suggestedSections, onConfirm, onCancel, availableTasks }) => {
+export const SectionSelector: React.FC<SectionSelectorProps> = ({
+    suggestedSections,
+    onConfirm,
+    onCancel,
+    availableTasks,
+    projects = [],
+    selectedProjectId,
+    onProjectChange
+}) => {
     const [selected, setSelected] = useState<SectionConfig[]>([]);
+    // UI State for filtering
+    const [useDateFilter, setUseDateFilter] = useState(false);
+
     const [taskImpact, setTaskImpact] = useState<TaskImpactConfig>({
         enabled: false,
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         endDate: new Date().toISOString().split('T')[0],
-        selectedTaskIds: []
+        selectedTaskIds: [],
+        measurementMode: 'completion', // Default
+        customDate: '',
+        projectId: selectedProjectId || undefined
     });
 
     useEffect(() => {
@@ -39,6 +62,12 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({ suggestedSecti
             .map(s => ({ id: s.id, caseCount: s.defaultCount }));
         setSelected(initialSelected);
     }, [suggestedSections]);
+
+    useEffect(() => {
+        if (selectedProjectId) {
+            setTaskImpact(prev => ({ ...prev, projectId: selectedProjectId }));
+        }
+    }, [selectedProjectId]);
 
     const toggleSection = (id: string, defaultCount: number) => {
         if (id === 'ANALISIS_IMPACTO_TAREAS') {
@@ -58,24 +87,52 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({ suggestedSecti
         setSelected(selected.map(s => s.id === id ? { ...s, caseCount: count } : s));
     };
 
-    const filteredTasks = useMemo(() => {
-        if (!taskImpact.startDate || !taskImpact.endDate) return [];
-        return availableTasks.filter(t => {
-            if (!t.completed_at) return false;
-            const completedDate = new Date(t.completed_at).toISOString().split('T')[0];
-            return completedDate >= taskImpact.startDate && completedDate <= taskImpact.endDate;
-        });
-    }, [availableTasks, taskImpact.startDate, taskImpact.endDate]);
+    // Filter and Sort Tasks
+    const visibleTasks = useMemo(() => {
+        let tasks = [...availableTasks];
 
-    // Automatically select tasks in range if enabled
-    useEffect(() => {
-        if (taskImpact.enabled) {
-            setTaskImpact(prev => ({
-                ...prev,
-                selectedTaskIds: filteredTasks.map(t => t.id)
-            }));
+        // 1. Sort by Updated At (Desc)
+        tasks.sort((a, b) => {
+            const dateA = new Date(a.updated_at || a.created_at).getTime();
+            const dateB = new Date(b.updated_at || b.created_at).getTime();
+            return dateB - dateA;
+        });
+
+        // 2. Filter by Date (Optional)
+        if (useDateFilter && taskImpact.startDate && taskImpact.endDate) {
+            tasks = tasks.filter(t => {
+                // Which date to filter by? Usually Completion Date for "Impact", 
+                // but user might want to see tasks *started* in that period.
+                // Let's stick to the semantics of the measurement mode if possible, or just default to updated/completed.
+                // User said "filtrado por fechas sea una opción".
+                const dateToCheck = taskImpact.measurementMode === 'start' ? t.created_at : (t.completed_at || t.updated_at);
+                if (!dateToCheck) return false;
+                const d = new Date(dateToCheck).toISOString().split('T')[0];
+                return d >= taskImpact.startDate && d <= taskImpact.endDate;
+            });
         }
-    }, [taskImpact.enabled, filteredTasks]);
+
+        return tasks;
+    }, [availableTasks, taskImpact.startDate, taskImpact.endDate, useDateFilter, taskImpact.measurementMode]);
+
+    const toggleTaskSelection = (taskId: number) => {
+        setTaskImpact(prev => {
+            const current = prev.selectedTaskIds;
+            if (current.includes(taskId)) {
+                return { ...prev, selectedTaskIds: current.filter(id => id !== taskId) };
+            } else {
+                return { ...prev, selectedTaskIds: [...current, taskId] };
+            }
+        });
+    };
+
+    const toggleAllTasks = () => {
+        if (taskImpact.selectedTaskIds.length === visibleTasks.length) {
+            setTaskImpact(prev => ({ ...prev, selectedTaskIds: [] }));
+        } else {
+            setTaskImpact(prev => ({ ...prev, selectedTaskIds: visibleTasks.map(t => t.id) }));
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 bg-brand-power/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -120,57 +177,150 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({ suggestedSecti
                                     exit={{ height: 0, opacity: 0 }}
                                     className="overflow-hidden"
                                 >
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-brand-power/10">
-                                        <div className="space-y-4">
-                                            <label className="block text-xs font-bold text-brand-power/60 uppercase">Rango de Tareas</label>
-                                            <div className="flex gap-4">
-                                                <div className="flex-1">
-                                                    <span className="text-[10px] text-brand-power/40 block mb-1">Desde</span>
-                                                    <input
-                                                        type="date"
-                                                        value={taskImpact.startDate}
-                                                        onChange={(e) => setTaskImpact({ ...taskImpact, startDate: e.target.value })}
-                                                        className="w-full p-2.5 bg-white border border-brand-power/10 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-power/20"
-                                                    />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <span className="text-[10px] text-brand-power/40 block mb-1">Hasta</span>
-                                                    <input
-                                                        type="date"
-                                                        value={taskImpact.endDate}
-                                                        onChange={(e) => setTaskImpact({ ...taskImpact, endDate: e.target.value })}
-                                                        className="w-full p-2.5 bg-white border border-brand-power/10 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-power/20"
-                                                    />
-                                                </div>
+                                    <div className="pt-4 border-t border-brand-power/10 space-y-6">
+
+                                        {/* Project Selector */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="block text-xs font-bold text-brand-power/60 uppercase mb-2">Proyecto de Referencia</label>
+                                                <select
+                                                    value={selectedProjectId || ''}
+                                                    onChange={(e) => onProjectChange?.(parseInt(e.target.value))}
+                                                    className="w-full p-2.5 bg-white border border-brand-power/10 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-power/20"
+                                                >
+                                                    <option value="" disabled>Seleccionar Proyecto...</option>
+                                                    {projects.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))}
+                                                </select>
+                                                <p className="text-[10px] text-brand-power/40 mt-1">
+                                                    Se usarán la base de datos de métricas de este proyecto.
+                                                </p>
                                             </div>
-                                            <p className="text-[11px] text-brand-power/50 italic">
-                                                Se incluirán métricas de GSC para las URLs asociadas a las tareas en este rango.
-                                            </p>
+
+                                            {/* Measurement Mode */}
+                                            <div>
+                                                <label className="block text-xs font-bold text-brand-power/60 uppercase mb-2">Punto de Medición</label>
+                                                <div className="flex gap-2">
+                                                    {['start', 'completion', 'custom'].map((mode) => (
+                                                        <button
+                                                            key={mode}
+                                                            onClick={() => setTaskImpact(prev => ({ ...prev, measurementMode: mode as any }))}
+                                                            className={`flex-1 py-2 px-1 text-xs font-bold rounded-lg transition-colors
+                                                                ${taskImpact.measurementMode === mode
+                                                                    ? 'bg-brand-power text-white shadow-sm'
+                                                                    : 'bg-white border border-brand-power/10 text-brand-power/60 hover:bg-brand-soft'
+                                                                }
+                                                            `}
+                                                        >
+                                                            {mode === 'start' ? 'Desde Inicio' : mode === 'completion' ? 'Al Completar' : 'Personalizado'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {taskImpact.measurementMode === 'custom' && (
+                                                    <input
+                                                        type="date"
+                                                        value={taskImpact.customDate || ''}
+                                                        onChange={(e) => setTaskImpact(prev => ({ ...prev, customDate: e.target.value }))}
+                                                        className="mt-2 w-full p-2 bg-white border border-brand-power/10 rounded-lg text-xs"
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
 
-                                        <div className="bg-white/50 rounded-xl p-4 border border-brand-power/5">
-                                            <label className="block text-xs font-bold text-brand-power/60 uppercase mb-3">Tareas a considerar ({filteredTasks.length})</label>
-                                            <div className="max-h-32 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                                                {filteredTasks.length > 0 ? filteredTasks.map(task => (
-                                                    <div key={task.id} className="flex flex-col gap-1 p-3 rounded-xl bg-white border border-brand-power/5 text-xs">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                            <span className="font-bold text-brand-power/80 truncate">{task.title}</span>
-                                                            <span className="ml-auto text-[10px] text-brand-power/40 whitespace-nowrap">
-                                                                {new Date(task.completed_at!).toLocaleDateString()}
-                                                            </span>
-                                                        </div>
-                                                        {task.gsc_property_url && (
-                                                            <div className="text-[10px] text-brand-power/40 truncate ml-3.5">
-                                                                🔗 {task.gsc_property_url.replace(/https?:\/\//, '')}
-                                                            </div>
-                                                        )}
+                                        <div className="flex flex-col md:flex-row gap-6">
+                                            {/* Left: Filter Controls */}
+                                            <div className="md:w-1/3 space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-xs font-bold text-brand-power/60 uppercase">Filtrar Tareas</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-bold text-brand-power/50">Por Fecha</span>
+                                                        <button
+                                                            onClick={() => setUseDateFilter(!useDateFilter)}
+                                                            className={`w-8 h-4 rounded-full p-0.5 transition-colors ${useDateFilter ? 'bg-brand-power' : 'bg-brand-power/20'}`}
+                                                        >
+                                                            <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${useDateFilter ? 'translate-x-4' : ''}`} />
+                                                        </button>
                                                     </div>
-                                                )) : (
-                                                    <div className="text-center py-4 text-brand-power/40 text-xs italic">
-                                                        No hay tareas completadas en este rango.
+                                                </div>
+
+                                                {useDateFilter && (
+                                                    <div className="flex gap-2 animate-fade-in-down">
+                                                        <div className="flex-1">
+                                                            <span className="text-[10px] text-brand-power/40 block mb-1">Desde</span>
+                                                            <input
+                                                                type="date"
+                                                                value={taskImpact.startDate}
+                                                                onChange={(e) => setTaskImpact({ ...taskImpact, startDate: e.target.value })}
+                                                                className="w-full p-2 bg-white border border-brand-power/10 rounded-lg text-xs outline-none focus:ring-2 focus:ring-brand-power/20"
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <span className="text-[10px] text-brand-power/40 block mb-1">Hasta</span>
+                                                            <input
+                                                                type="date"
+                                                                value={taskImpact.endDate}
+                                                                onChange={(e) => setTaskImpact({ ...taskImpact, endDate: e.target.value })}
+                                                                className="w-full p-2 bg-white border border-brand-power/10 rounded-lg text-xs outline-none focus:ring-2 focus:ring-brand-power/20"
+                                                            />
+                                                        </div>
                                                     </div>
                                                 )}
+
+                                                <button
+                                                    onClick={toggleAllTasks}
+                                                    className="w-full mt-2 py-1.5 text-xs font-bold text-brand-power/60 bg-white border border-brand-power/10 rounded-lg hover:bg-brand-soft transition-colors"
+                                                >
+                                                    {taskImpact.selectedTaskIds.length === visibleTasks.length ? 'Deseleccionar Todas' : 'Seleccionar Todas'}
+                                                </button>
+                                            </div>
+
+                                            {/* Right: Task List */}
+                                            <div className="md:w-2/3 bg-white/50 rounded-xl p-4 border border-brand-power/5 flex flex-col h-64">
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <label className="text-xs font-bold text-brand-power/60 uppercase">
+                                                        Lista de Tareas ({taskImpact.selectedTaskIds.length} seleccionadas)
+                                                    </label>
+                                                    <span className="text-[10px] text-brand-power/40">Ordenado por modificación reciente</span>
+                                                </div>
+
+                                                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                                    {visibleTasks.length > 0 ? visibleTasks.map(task => (
+                                                        <label
+                                                            key={task.id}
+                                                            className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer group
+                                                                ${taskImpact.selectedTaskIds.includes(task.id)
+                                                                    ? 'bg-brand-power/5 border-brand-power/30'
+                                                                    : 'bg-white border-brand-power/5 hover:border-brand-power/20'
+                                                                }
+                                                            `}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={taskImpact.selectedTaskIds.includes(task.id)}
+                                                                onChange={() => toggleTaskSelection(task.id)}
+                                                                className="mt-0.5 w-4 h-4 rounded text-brand-power focus:ring-brand-power cursor-pointer"
+                                                            />
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-0.5">
+                                                                    <span className="font-bold text-xs text-brand-power/80 truncate">{task.title}</span>
+                                                                    <span className="text-[10px] text-brand-power/40 ml-auto whitespace-nowrap">
+                                                                        {new Date(task.updated_at || task.created_at).toLocaleDateString()}
+                                                                    </span>
+                                                                </div>
+                                                                {task.gsc_property_url && (
+                                                                    <div className="text-[10px] text-brand-power/40 truncate flex items-center gap-1">
+                                                                        <span>🔗</span> {task.gsc_property_url.replace(/https?:\/\//, '')}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </label>
+                                                    )) : (
+                                                        <div className="text-center py-10 text-brand-power/40 text-xs italic">
+                                                            No hay tareas {useDateFilter ? 'en este rango de fechas' : 'disponibles'}.
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

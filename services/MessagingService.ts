@@ -18,7 +18,7 @@ export const MessagingService = {
     async getProjectMessages(projectId: number) {
         const { data, error } = await supabase
             .from('messages')
-            .select('*, sender:sender_id(email)')
+            .select('*, sender:profiles(email)')
             .eq('project_id', projectId)
             .order('created_at', { ascending: true });
 
@@ -46,7 +46,7 @@ export const MessagingService = {
                     project_id: projectId,
                     sender_id: user.id
                 })
-                .select('*, sender:sender_id(email)')
+                .select('*, sender:profiles(email)')
                 .single();
 
             if (error) {
@@ -57,6 +57,55 @@ export const MessagingService = {
             return data as Message;
         } catch (err) {
             console.error('MessagingService: Unexpected error in sendProjectMessage', err);
+            throw err;
+        }
+    },
+
+    /**
+     * Send a direct message to a user
+     */
+    async sendDirectMessage(recipientId: string, content: string) {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('User not authenticated');
+
+            const { data, error } = await supabase
+                .from('messages')
+                .insert({
+                    content,
+                    recipient_id: recipientId,
+                    sender_id: user.id,
+                    project_id: null
+                })
+                .select('*, sender:profiles(email)')
+                .single();
+
+            if (error) throw error;
+            return data as Message;
+        } catch (err) {
+            console.error('MessagingService: Error sending DM', err);
+            throw err;
+        }
+    },
+
+    /**
+     * Get conversation with a specific user
+     */
+    async getDirectMessages(otherUserId: string) {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('User not authenticated');
+
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*, sender:profiles(email)')
+                .or(`and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            return data as Message[];
+        } catch (err) {
+            console.error('MessagingService: Error fetching DMs', err);
             throw err;
         }
     },

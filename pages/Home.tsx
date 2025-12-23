@@ -8,6 +8,7 @@ import Preloader from '../components/layout/Preloader';
 import ScrollProgress from '../components/ui/ScrollProgress';
 import SideNavigation from '../components/ui/SideNavigation';
 import CustomCursor from '../components/ui/CustomCursor';
+import PageTransition from '../components/layout/PageTransition';
 
 // Lazy load heavy/below-the-fold components for Performance (Phase 3 Requirement)
 const Services = lazy(() => import('../components/sections/Services'));     // Clara
@@ -47,29 +48,30 @@ const Home: React.FC = () => {
       <ScrollProgress />
       <SideNavigation />
 
-      <motion.main
-        id="main-content"
-        className="flex-grow focus:outline-none"
-        tabIndex={-1}
-        exit={{ opacity: 0, transition: { duration: 0.5 } }}
-      >
-        <motion.div exit={{ x: '-100vw', transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } }}>
-          <HeroPhase1 />
-        </motion.div>
+      <PageTransition>
+        <main
+          id="main-content"
+          className="flex-grow focus:outline-none"
+          tabIndex={-1}
+        >
+          <div>
+            <HeroPhase1 />
+          </div>
 
-        <motion.div exit={{ x: '100vw', transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.1 } }}>
-          <About />
-        </motion.div>
+          <div>
+            <About />
+          </div>
 
-        <Suspense fallback={<SectionLoader />}>
-          <motion.div exit={{ y: 100, opacity: 0, transition: { duration: 0.5, delay: 0.2 } }}>
-            <Services />    {/* Pilar 1: Clara */}
-            <Formations />  {/* Pilar 2: Potente */}
-            <Tools />       {/* Pilar 3: Creativa */}
-            <Contact />
-          </motion.div>
-        </Suspense>
-      </motion.main>
+          <Suspense fallback={<SectionLoader />}>
+            <div>
+              <Services />    {/* Pilar 1: Clara */}
+              <Formations />  {/* Pilar 2: Potente */}
+              <Tools />       {/* Pilar 3: Creativa */}
+              <Contact />
+            </div>
+          </Suspense>
+        </main>
+      </PageTransition>
     </>
   );
 };

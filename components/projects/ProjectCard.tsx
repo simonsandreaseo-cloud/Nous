@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, BarChart2, ChevronRight, Trash2, MousePointer2, Eye, ListOrdered, Search, RefreshCw, AlertCircle, Globe } from 'lucide-react';
+import { Users, BarChart2, ChevronRight, Trash2, MousePointer2, Eye, ListOrdered, Search, RefreshCw, AlertCircle, Globe, Settings } from 'lucide-react';
 import { Project } from '../../lib/task_manager';
 import { GscService } from '../../services/gscService';
 import ShareModal from '../shared/ShareModal';
+import { ProjectSettingsModal } from './ProjectSettingsModal';
 
 interface ProjectCardProps {
     project: Project;
@@ -23,6 +24,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
 
     // Random color for decoration (or based on project ID hash)
     const cardColor = useMemo(() => {
@@ -268,6 +270,17 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            setShowSettingsModal(true);
+                        }}
+                        className="p-2 text-brand-power/20 hover:text-brand-accent hover:bg-brand-soft rounded-lg"
+                        title="Configuración"
+                    >
+                        <Settings size={16} />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setShowShareModal(true);
                         }}
                         className="p-2 text-brand-power/20 hover:text-brand-accent hover:bg-brand-soft rounded-lg"
@@ -292,6 +305,13 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
                 itemId={project.id}
                 initialPublicAccess={project.public_access_level}
                 initialShareToken={project.share_token}
+            />
+
+            <ProjectSettingsModal
+                project={project}
+                isOpen={showSettingsModal}
+                onClose={() => setShowSettingsModal(false)}
+                onUpdate={() => window.location.reload()} // Temporary simple refresh, ideally should use a callback prop
             />
         </div>
     );

@@ -6,7 +6,7 @@ export interface Project {
     description?: string;
     owner_id: string;
     gsc_property_url?: string;
-    settings?: any;
+    settings?: ProjectSettings;
     created_at: string;
     role?: 'owner' | 'admin' | 'editor' | 'viewer'; // Computed for current user
     slug?: string;
@@ -21,6 +21,27 @@ export interface ProjectMember {
     role: 'admin' | 'editor' | 'viewer';
     status: 'active' | 'pending';
     email?: string; // Joined from auth.users or invites
+}
+
+export interface Team {
+    id: string; // UUID
+    name: string;
+    member_ids: string[];
+    color?: string;
+}
+
+export interface ContentGoal {
+    id: string;
+    type: 'project' | 'team' | 'user';
+    target_id?: string; // Team ID or User ID (undefined for project)
+    monthly_count_target?: number;
+    monthly_word_count_target?: number;
+}
+
+export interface ProjectSettings {
+    teams?: Team[];
+    content_goals?: ContentGoal[];
+    [key: string]: any;
 }
 
 export const ProjectService = {

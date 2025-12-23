@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { ModeSelector } from './components/ModeSelector';
 import { GSCConnectPanel } from './components/GSCConnectPanel';
-import { fetchSearchAnalytics } from './services/gscService';
+import { GscService } from './services/gscService';
 import { SectionSelector } from './components/SectionSelector';
 import { useAutoSave } from '@/lib/useAutoSave';
 import HistoryModal from '@/components/shared/HistoryModal';
@@ -48,7 +48,8 @@ const App: React.FC = () => {
     const [apiKeysInput, setApiKeysInput] = useState<string>("");
 
     // Phase 5: Task Intelligence State
-    const [watchedTasks, setWatchedTasks] = useState<{ id: number; title: string; description?: string; gsc_property_url?: string; secondary_url?: string; completed_at?: string }[]>([]);
+    const [watchedTasks, setWatchedTasks] = useState<{ id: number; title: string; description?: string; gsc_property_url?: string; secondary_url?: string; completed_at?: string; created_at: string; updated_at?: string }[]>([]);
+    const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
 
     // Analysis State
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -110,6 +111,7 @@ const App: React.FC = () => {
     useEffect(() => {
         if (user) {
             loadActiveTasks();
+            loadProjects();
         }
     }, [user, selectedProjectId]);
 
@@ -130,7 +132,7 @@ const App: React.FC = () => {
         try {
             let query = supabase
                 .from('tasks')
-                .select('id, title, description, gsc_property_url, secondary_url, completed_at, status')
+                .select('id, title, description, gsc_property_url, secondary_url, completed_at, status, created_at, updated_at')
                 .neq('status', 'draft');
 
             if (selectedProjectId) {
@@ -140,6 +142,13 @@ const App: React.FC = () => {
             const { data } = await query;
             if (data) setWatchedTasks(data);
         } catch (e) { console.error("Error loading tasks", e); }
+    };
+
+    const loadProjects = async () => {
+        try {
+            const { data } = await supabase.from('projects').select('id, name');
+            if (data) setProjects(data);
+        } catch (e) { console.error("Error loading projects", e); }
     };
 
     const loadUserKeys = async () => {
@@ -199,7 +208,8 @@ const App: React.FC = () => {
 
             // Parallel Fetching for Speed
             // We need Pages, Queries, Countries for both periods.
-            const fetchDim = (s: string, e: string, dims: string[]) => fetchSearchAnalytics(token, siteUrl, s, e, dims);
+            // Using GscService which handles token internally
+            const fetchDim = (s: string, e: string, dims: string[]) => GscService.getSearchAnalytics(siteUrl, s, e, dims);
 
             addLog(`⏳ Obteniendo periodo ${startP1} - ${endP1}...`);
             const [p1Pages, p1Queries, p1Countries] = await Promise.all([
@@ -381,13 +391,111 @@ const App: React.FC = () => {
             if (taskImpact.enabled) {
                 addLog(`🎯 Analizando Impacto de Tareas...`);
                 // Enrich payload with selected tasks data
-                const tasksDetails = watchedTasks.filter(t => taskImpact.selectedTaskIds.includes(t.id));
-                const taskSectionPayload = {
-                    ...reportPayload,
-                    taskImpactDetails: tasksDetails
-                };
-                const taskImpactHTML = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
-                accumulatedBodyHTML += taskImpactHTML;
+                let tasksDetails = watchedTasks.filter(t => taskImpact.selectedTaskIds.includes(t.id));
+
+                // ENHANCED: Fetch metrics from DB if available
+                const projectIdToUse = taskImpact.projectId || (selectedProjectId ? parseInt(selectedProjectId) : null);
+
+                if (projectIdToUse) {
+                    addLog("🔄 Buscando métricas históricas en base de datos...");
+                    const enhancedTasks = await Promise.all(tasksDetails.map(async (task) => {
+                        try {
+                            // 1. Determine Event Date
+                            let eventDateStr = task.completed_at;
+                            if (taskImpact.measurementMode === 'start') eventDateStr = task.created_at;
+                            if (taskImpact.measurementMode === 'custom' && taskImpact.customDate) eventDateStr = taskImpact.customDate;
+
+                            if (!eventDateStr) return null; // Fallback to CSV logic if no date
+
+                            const eventDate = new Date(eventDateStr);
+                            const periodLen = 28; // Default comparison window
+
+                            // Periods
+                            const postStart = new Date(eventDate);
+                            const postEnd = new Date(eventDate); postEnd.setDate(postEnd.getDate() + periodLen);
+
+                            const preEnd = new Date(eventDate); preEnd.setDate(preEnd.getDate() - 1);
+                            const preStart = new Date(preEnd); preStart.setDate(preStart.getDate() - periodLen);
+
+                            const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+                            // Fetch Data
+                            const [preData, postData] = await Promise.all([
+                                GscService.getLocalAnalytics(projectIdToUse.toString(), formatDate(preStart), formatDate(preEnd)),
+                                GscService.getLocalAnalytics(projectIdToUse.toString(), formatDate(postStart), formatDate(postEnd))
+                            ]);
+
+                            if (preData.length === 0 || postData.length === 0) return null; // No DB data, fallback
+
+                            // Aggregate
+                            const sumMetrics = (rows: any[]) => rows.reduce((acc, r) => ({
+                                clicks: acc.clicks + r.clicks,
+                                impressions: acc.impressions + r.impressions,
+                                positionSum: acc.positionSum + r.position,
+                                count: acc.count + 1
+                            }), { clicks: 0, impressions: 0, positionSum: 0, count: 0 });
+
+                            const preStats = sumMetrics(preData);
+                            const postStats = sumMetrics(postData);
+
+                            const prePos = preStats.count ? preStats.positionSum / preStats.count : 0;
+                            const postPos = postStats.count ? postStats.positionSum / postStats.count : 0;
+
+                            return {
+                                taskId: task.id,
+                                taskTitle: task.title,
+                                status: postStats.clicks > preStats.clicks ? 'growth' : postStats.clicks < preStats.clicks ? 'decay' : 'stable',
+                                metrics: {
+                                    clicks: postStats.clicks,
+                                    impressions: postStats.impressions,
+                                    position: postPos
+                                },
+                                comparison: {
+                                    clicksChange: postStats.clicks - preStats.clicks,
+                                    impressionsChange: postStats.impressions - preStats.impressions,
+                                    positionChange: prePos - postPos // Positive change good for pos? Usually lower is better, so pre - post.
+                                },
+                                url: task.gsc_property_url || task.secondary_url || '',
+                                dataSource: 'database'
+                            };
+                        } catch (e) {
+                            console.error("Error determining impact for task", task.id, e);
+                            return null;
+                        }
+                    }));
+
+                    // Merge DB results with CSV results
+                    // If enhancedTask is valid, use it. Otherwise use existing CSV data from reportPayload
+                    const lookup = new Map(enhancedTasks.filter(t => t).map(t => [t!.taskId, t]));
+
+                    // We need to pass a list of "TaskPerformance" objects.
+                    // If we have DB data, use it. If not, try to find in existing CSV analysis.
+                    const finalTaskAnalysis = tasksDetails.map(t => {
+                        if (lookup.has(t.id)) return lookup.get(t.id);
+                        return reportPayload.taskPerformanceAnalysis?.find(existing => existing.taskId === t.id);
+                    }).filter(t => t); // Filter out nulls if neither found
+
+                    if (finalTaskAnalysis.length > 0) {
+                        const taskSectionPayload = {
+                            ...reportPayload,
+                            taskImpactDetails: tasksDetails, // Metadata
+                            taskPerformanceAnalysis: finalTaskAnalysis // Actual Metrics
+                        };
+                        const taskImpactHTML = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
+                        accumulatedBodyHTML += taskImpactHTML;
+                    } else {
+                        addLog("⚠️ No se encontraron datos suficientes (DB o CSV) para las tareas seleccionadas.", 'warn');
+                    }
+
+                } else {
+                    // Fallback to purely CSV based if no project selected (shouldn't happen with new selector but...)
+                    const taskSectionPayload = {
+                        ...reportPayload,
+                        taskImpactDetails: tasksDetails
+                    };
+                    const taskImpactHTML = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
+                    accumulatedBodyHTML += taskImpactHTML;
+                }
                 setProgressPercent(80);
             }
 
@@ -643,6 +751,9 @@ const App: React.FC = () => {
                         onConfirm={handleConfirmGeneration}
                         onCancel={() => { setShowSectionSelector(false); setIsAnalyzing(false); }}
                         availableTasks={watchedTasks as any}
+                        projects={projects}
+                        selectedProjectId={selectedProjectId ? parseInt(selectedProjectId) : null}
+                        onProjectChange={(id) => setSelectedProjectId(id.toString())}
                     />
                 )
             }

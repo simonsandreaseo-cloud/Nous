@@ -248,4 +248,7 @@ export interface TaskImpactConfig {
     startDate: string;
     endDate: string;
     selectedTaskIds: number[];
+    measurementMode: 'start' | 'completion' | 'custom';
+    customDate?: string;
+    projectId?: number;
 }
