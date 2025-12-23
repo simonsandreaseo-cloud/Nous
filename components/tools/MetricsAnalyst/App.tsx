@@ -18,16 +18,18 @@ import { useAutoSave } from '@/lib/useAutoSave';
 import HistoryModal from '@/components/shared/HistoryModal';
 import ShareModal from '@/components/shared/ShareModal';
 
-// Available Models
+// Available Models (Updated per User Screenshot)
 const AVAILABLE_MODELS = [
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Recomendado - Rápido)' },
-    { value: 'gemini-2.0-pro-exp-02-05', label: 'Gemini 2.0 Pro Experimental (Máximo Razonamiento)' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Estable)' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Velocidad)' }
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Recomendado - Mayor Estabilidad)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Nuevo)' },
+    { value: 'gemini-3-flash', label: 'Gemini 3 Flash (Preview)' },
+    { value: 'gemma-3-27b-it', label: 'Gemma 3 27B (Open Model)' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }
 ];
 
 const App: React.FC = () => {
-    // State
+    // ... State declarations remain same ...
     const [step, setStep] = useState<number>(1);
     const [analysisMode, setAnalysisMode] = useState<'csv' | 'gsc'>('csv');
     const [searchParams] = useSearchParams();
@@ -327,6 +329,9 @@ const App: React.FC = () => {
             for (const section of selectedSections) {
                 addLog(`✍️ Generando sección: ${section.title || section.id}...`);
                 try {
+                    // Rate Limit Prevention: Wait 3 seconds between sections
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+
                     const sectionHTML = await generateReportSection(section.id, reportPayload, model, keys, section.caseCount);
                     accumulatedBodyHTML += sectionHTML;
                 } catch (secErr) {

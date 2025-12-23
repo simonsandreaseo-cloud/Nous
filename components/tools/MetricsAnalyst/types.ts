@@ -247,6 +247,7 @@ export interface TaskPerformance {
 
 export interface SectionConfig {
     id: string;
+    title?: string;
     caseCount?: number;
 }
 

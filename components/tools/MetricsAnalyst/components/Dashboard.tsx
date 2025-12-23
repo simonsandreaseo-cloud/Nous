@@ -14,6 +14,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo, onDateRangeCh
     const segmentImpCanvas = useRef<HTMLCanvasElement>(null);
     const chartInstances = useRef<Chart[]>([]);
 
+    // Data Preparation (Memoized or Direct)
+    const safeSegments = Array.isArray(stats.segmentStats) ? stats.segmentStats : [];
+    const topSegments = safeSegments.slice(0, 5);
+
     useEffect(() => {
         chartInstances.current.forEach(c => c.destroy());
         chartInstances.current = [];
@@ -28,9 +32,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo, onDateRangeCh
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    display: false // We will handle labels via UI or custom legend
-                },
+                legend: { display: false },
                 tooltip: {
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
                     titleColor: '#1e293b',
@@ -43,7 +45,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo, onDateRangeCh
                 }
             },
             elements: {
-                line: { tension: 0.2 }, // Slightly smoother for premium feel
+                line: { tension: 0.2 },
                 point: { radius: 0, hoverRadius: 5 }
             },
             scales: {
@@ -97,14 +99,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo, onDateRangeCh
                                 display: true,
                                 position: 'left',
                                 grid: { color: '#f1f5f9' },
-                                ticks: { color: '#6366f1', font: { size: 10, weight: '600' } }
+                                ticks: { color: '#6366f1', font: { size: 10, weight: 'bold' } }
                             },
                             y1: {
                                 type: 'linear',
                                 display: true,
                                 position: 'right',
                                 grid: { display: false },
-                                ticks: { color: '#0ea5e9', font: { size: 10, weight: '600' } }
+                                ticks: { color: '#0ea5e9', font: { size: 10, weight: 'bold' } }
                             }
                         }
                     }
@@ -123,9 +125,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo, onDateRangeCh
             }
         });
 
-        const topSegments = stats.segmentStats.slice(0, 5);
-        const otherClicks = stats.segmentStats.slice(5).reduce((acc, s) => acc + s.clicks, 0);
-        const otherImp = stats.segmentStats.slice(5).reduce((acc, s) => acc + s.impressions, 0);
+        const otherClicks = safeSegments.slice(5).reduce((acc, s) => acc + s.clicks, 0);
+        const otherImp = safeSegments.slice(5).reduce((acc, s) => acc + s.impressions, 0);
         const segmentLabels = [...topSegments.map(s => s.name === '/' ? 'Home' : s.name), 'Otros'];
         const clicksData = [...topSegments.map(s => s.clicks), otherClicks];
         const impData = [...topSegments.map(s => s.impressions), otherImp];
