@@ -18,14 +18,12 @@ import { useAutoSave } from '@/lib/useAutoSave';
 import HistoryModal from '@/components/shared/HistoryModal';
 import ShareModal from '@/components/shared/ShareModal';
 
-// Available Models (Updated per User Screenshot)
 const AVAILABLE_MODELS = [
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Recomendado - Mayor Estabilidad)' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Nuevo)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recomendado)' },
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Rápido)' },
     { value: 'gemini-3-flash', label: 'Gemini 3 Flash (Preview)' },
-    { value: 'gemma-3-27b-it', label: 'Gemma 3 27B (Open Model)' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }
+    { value: 'gemma-3-27b-it', label: 'Gemma 3 27B' }, // Assuming IT variant for chat/instruct
+    { value: 'gemini-2.5-flash-native-audio-dialog', label: 'Gemini 2.5 Audio Dialog' }
 ];
 
 const App: React.FC = () => {

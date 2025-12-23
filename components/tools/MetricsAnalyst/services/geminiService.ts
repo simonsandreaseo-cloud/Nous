@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ReportPayload, ContentBrief, SnippetOptimization } from "../types";
 
 // 1. Dispatcher: Strict Rules for Section Inclusion (FROM INFORMES SEO - FULL LOGIC)
@@ -69,71 +69,92 @@ Task:
 
 Output RAW HTML only.`;
 
-const FALLBACK_MODELS = ['gemini-1.5-flash-001', 'gemini-1.5-pro-001', 'gemini-1.5-flash'];
+const FALLBACK_MODELS = ['gemini-2.5-flash-lite', 'gemma-3-27b', 'gemini-2.5-flash'];
 
-// Helper for retry logic with Key Rotation & Model Fallback (ROBUST)
-async function generateWithRetry(apiKeys: string[], requestedModel: string, contents: any, config: any) {
+// Helper for retry logic with Key Rotation & Model Fallback (ROBUST - USING STANDARDIZED SDK)
+async function generateWithRetry(apiKeys: string[], requestedModel: string, promptText: string, config: any) {
     let lastError;
-    // Create a prioritized list of models to try: [Requested, ...Fallbacks]
-    // Remove duplicates to avoid retrying the same model if it was the requested one
     const modelsToTry = Array.from(new Set([requestedModel, ...FALLBACK_MODELS]));
 
-    // Iterate through models (fallback strategy)
+    // Iterate through models
     for (const model of modelsToTry) {
-        // Iterate through all provided keys
+        // Iterate through keys
         for (let k = 0; k < apiKeys.length; k++) {
             const currentKey = apiKeys[k];
-            const ai = new GoogleGenAI({ apiKey: currentKey });
 
-            // Try up to 3 times per key for transient network errors
-            for (let i = 0; i < 3; i++) {
-                try {
-                    return await ai.models.generateContent({
-                        model,
-                        contents,
-                        config
-                    });
-                } catch (e: any) {
-                    lastError = e;
-                    const status = e.status || e.code;
-                    const msg = e.message || "";
+            try {
+                // Initialize Client per key
+                const genAI = new GoogleGenerativeAI(currentKey);
 
-                    // CRITICAL: Handle 404 (Model Not Found) -> Break retries, Break Key loop, Try Next Model
-                    if (status === 404 || msg.includes('not found') || msg.includes('not supported')) {
-                        console.warn(`⚠️ Model ${model} not found (404). Switching to fallback...`);
-                        // Break the inner retries (i) and key loop (k) to advance to the next model
-                        k = apiKeys.length; // Force exit key loop
-                        break; // Exit retry loop
-                    }
+                // Configure Model
+                const modelConfig: any = {
+                    model: model,
+                };
 
-                    // Handle Quota Limit (429) -> Try next KEY (continue outer k loop)
-                    const isQuota = status === 429 || msg.includes('429') || msg.includes('Quota') || msg.includes('Resource has been exhausted');
-                    if (isQuota) {
-                        console.warn(`⚠️ API Key index ${k} exhausted for ${model}. Rotating to next key...`);
-                        break; // Break retry loop (i), continue key loop (k)
-                    }
-
-                    // Transient 503 -> Wait and retry same key/model
-                    if (status === 503) {
-                        const delay = 2000 * Math.pow(2, i);
-                        await new Promise(r => setTimeout(r, delay));
-                        continue;
-                    }
-
-                    // Invalid Key (400/401) -> Try next key
-                    if (status === 400 || status === 401) {
-                        console.warn(`⚠️ API Key index ${k} invalid. Rotating...`);
-                        break;
-                    }
-
-                    throw e; // Unknown fatal error
+                // Extract system instruction if present (SDK handles it at model init)
+                if (config?.systemInstruction) {
+                    modelConfig.systemInstruction = config.systemInstruction;
                 }
+
+                const generativeModel = genAI.getGenerativeModel(modelConfig);
+
+                // Configure Generation Options
+                const generationConfig: any = {};
+                if (config?.responseMimeType) {
+                    generationConfig.responseMimeType = config.responseMimeType;
+                }
+
+                // Try up to 3 times per key/model pair for network issues
+                for (let i = 0; i < 3; i++) {
+                    try {
+                        const result = await generativeModel.generateContent({
+                            contents: [{ role: 'user', parts: [{ text: promptText }] }],
+                            generationConfig: generationConfig
+                        });
+                        const response = await result.response;
+                        return { text: response.text() };
+                    } catch (innerE: any) {
+                        const status = innerE.status || innerE.response?.status;
+                        const msg = innerE.message || "";
+
+                        // Handle 503 (Transient)
+                        if (status === 503) {
+                            const delay = 2000 * Math.pow(2, i);
+                            await new Promise(r => setTimeout(r, delay));
+                            continue;
+                        }
+                        throw innerE; // Propagate to key loop handler
+                    }
+                }
+
+            } catch (e: any) {
+                lastError = e;
+                const msg = e.message || "";
+
+                // 404: Model not found. BREAK KEY LOOP -> Next Model
+                if (msg.includes('404') || msg.includes('not found') || msg.includes('not supported')) {
+                    console.warn(`⚠️ Model ${model} not found (404) with key ${k}. Switching model...`);
+                    k = apiKeys.length; // Abort key loop for this model
+                    break;
+                }
+
+                // 429: Quota. Continue to NEXT KEY.
+                if (msg.includes('429') || msg.includes('Quota') || msg.includes('exhausted')) {
+                    console.warn(`⚠️ API Key ${k} exhausted for ${model}. Rotating...`);
+                    continue; // Next key
+                }
+
+                // 400/401: Invalid Key. Continue to NEXT KEY.
+                if (msg.includes('400') || msg.includes('401') || msg.includes('API key')) {
+                    console.warn(`⚠️ API Key ${k} invalid. Rotating...`);
+                    continue;
+                }
+
+                // If undefined error, try next key just in case
+                console.warn(`⚠️ Unknown error with key ${k}: ${msg}. Rotating...`);
             }
         }
-        // If we finished the key loop without success for this model, and it wasn't a 404, we might want to try the next model if it was a quota issue on ALL keys?
-        // Current logic: If 404, we try next model. If 429 on all keys, we ALSO try next model (as different models have different quotas).
     }
-
     throw lastError || new Error("All API keys and fallback models exhausted.");
 }
 
