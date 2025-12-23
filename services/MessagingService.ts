@@ -30,21 +30,35 @@ export const MessagingService = {
      * Send a message to a project
      */
     async sendProjectMessage(projectId: number, content: string) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                console.error('MessagingService: User not authenticated');
+                throw new Error('User not authenticated');
+            }
 
-        const { data, error } = await supabase
-            .from('messages')
-            .insert({
-                content,
-                project_id: projectId,
-                sender_id: user.id
-            })
-            .select('*, sender:sender_id(email)')
-            .single();
+            console.log('Sending message:', { projectId, userId: user.id, content });
 
-        if (error) throw error;
-        return data as Message;
+            const { data, error } = await supabase
+                .from('messages')
+                .insert({
+                    content,
+                    project_id: projectId,
+                    sender_id: user.id
+                })
+                .select('*, sender:sender_id(email)')
+                .single();
+
+            if (error) {
+                console.error('MessagingService: Error sending message', error);
+                throw error;
+            }
+
+            return data as Message;
+        } catch (err) {
+            console.error('MessagingService: Unexpected error in sendProjectMessage', err);
+            throw err;
+        }
     },
 
     /**

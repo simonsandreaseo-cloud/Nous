@@ -14,6 +14,7 @@ import {
     DragOverEvent,
     DragEndEvent,
     closestCorners,
+    useDroppable,
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -29,6 +30,66 @@ const STATUS_COLUMNS = [
     { id: 'review', label: 'Revisión', color: 'bg-purple-500' },
     { id: 'done', label: 'Publicado', color: 'bg-emerald-500' }
 ];
+
+interface TaskColumnProps {
+    col: typeof STATUS_COLUMNS[0];
+    tasks: Task[];
+    onAddTask: () => void;
+    onTaskClick: (task: Task) => void;
+}
+
+const TaskColumn = ({ col, tasks, onAddTask, onTaskClick }: TaskColumnProps) => {
+    const { setNodeRef } = useDroppable({
+        id: col.id,
+    });
+
+    return (
+        <div className="flex-1 min-w-[280px]">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${col.color}`} />
+                    <h3 className="font-bold text-brand-power text-sm uppercase tracking-widest">{col.label}</h3>
+                    <span className="text-xs font-bold text-brand-power/30 bg-brand-soft px-2 py-0.5 rounded-full">{tasks.length}</span>
+                </div>
+                <button
+                    onClick={onAddTask}
+                    className="text-brand-power/30 hover:text-brand-accent transition-colors"
+                >
+                    <Plus size={18} />
+                </button>
+            </div>
+
+            <div
+                ref={setNodeRef}
+                className="bg-brand-soft/30 rounded-xl p-2 min-h-[500px]"
+            >
+                <SortableContext
+                    id={col.id}
+                    items={tasks.map(t => t.id)}
+                    strategy={verticalListSortingStrategy}
+                >
+                    <div className="space-y-3 min-h-[100px]" >
+                        {tasks.map(task => (
+                            <SortableTaskCard
+                                key={task.id}
+                                task={task}
+                                onClick={() => onTaskClick(task)}
+                            />
+                        ))}
+                        {tasks.length === 0 && (
+                            <div
+                                onClick={onAddTask}
+                                className="border-2 border-dashed border-brand-power/5 rounded-lg p-4 text-center text-xs text-brand-power/30 hover:border-brand-accent/30 hover:text-brand-accent cursor-pointer transition-all"
+                            >
+                                + Añadir Tarea
+                            </div>
+                        )}
+                    </div>
+                </SortableContext>
+            </div>
+        </div>
+    );
+};
 
 interface TaskBoardProps {
     tasks?: Task[];
@@ -187,7 +248,7 @@ const TaskBoard: React.FC<TaskBoardProps> = (props) => {
 
         if (!activeTask) return;
 
-        // If hovering over a column (that is empty or just the columns container)
+        // If hovering over a column
         const isOverColumn = STATUS_COLUMNS.some(col => col.id === overId);
 
         if (isOverColumn) {
@@ -219,18 +280,19 @@ const TaskBoard: React.FC<TaskBoardProps> = (props) => {
         if (!activeTask) return;
 
         // At the end of drag, activeTask in localTasks ALREADY has the new status due to handleDragOver
-        // So we just need to persist it.
+        // So we just need to verify and persist it.
 
-        // Check original source tasks to see if it changed
         const originalTask = sourceTasks.find(t => t.id === active.id);
+
+        // If the task status changed compared to the source
         if (originalTask && originalTask.status !== activeTask.status) {
             try {
                 await TaskService.updateTask(activeTask.id, { status: activeTask.status });
                 onTaskUpdate();
             } catch (error) {
                 console.error("Failed to move task", error);
-                // Revert
-                onTaskUpdate(); // This will reset localTasks to valid server state
+                // Revert to original state via refresh
+                onTaskUpdate();
             }
         }
     };
@@ -247,53 +309,15 @@ const TaskBoard: React.FC<TaskBoardProps> = (props) => {
         >
             <div className="h-full overflow-x-auto pb-4">
                 <div className="flex gap-6 min-w-[1200px]">
-                    {STATUS_COLUMNS.map(col => {
-                        const colTasks = localTasks.filter(t => t.status === col.id);
-                        return (
-                            <div key={col.id} className="flex-1 min-w-[280px]">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-3 h-3 rounded-full ${col.color}`} />
-                                        <h3 className="font-bold text-brand-power text-sm uppercase tracking-widest">{col.label}</h3>
-                                        <span className="text-xs font-bold text-brand-power/30 bg-brand-soft px-2 py-0.5 rounded-full">{colTasks.length}</span>
-                                    </div>
-                                    <button
-                                        onClick={() => { setCreationStatus(col.id); setShowCreateModal(true); }}
-                                        className="text-brand-power/30 hover:text-brand-accent transition-colors"
-                                    >
-                                        <Plus size={18} />
-                                    </button>
-                                </div>
-
-                                <div className="bg-brand-soft/30 rounded-xl p-2 min-h-[500px]">
-                                    <SortableContext
-                                        id={col.id}
-                                        items={colTasks.map(t => t.id)}
-                                        strategy={verticalListSortingStrategy}
-                                    >
-                                        <div className="space-y-3 min-h-[100px]" >
-                                            {/* If empty, SortableContext needs a droppable area, controlled by parent div or SortableContext id */}
-                                            {colTasks.map(task => (
-                                                <SortableTaskCard
-                                                    key={task.id}
-                                                    task={task}
-                                                    onClick={() => setSelectedTask(task)}
-                                                />
-                                            ))}
-                                            {colTasks.length === 0 && (
-                                                <div
-                                                    onClick={() => { setCreationStatus(col.id); setShowCreateModal(true); }}
-                                                    className="border-2 border-dashed border-brand-power/5 rounded-lg p-4 text-center text-xs text-brand-power/30 hover:border-brand-accent/30 hover:text-brand-accent cursor-pointer transition-all"
-                                                >
-                                                    + Añadir Tarea
-                                                </div>
-                                            )}
-                                        </div>
-                                    </SortableContext>
-                                </div>
-                            </div>
-                        );
-                    })}
+                    {STATUS_COLUMNS.map(col => (
+                        <TaskColumn
+                            key={col.id}
+                            col={col}
+                            tasks={localTasks.filter(t => t.status === col.id)}
+                            onAddTask={() => { setCreationStatus(col.id); setShowCreateModal(true); }}
+                            onTaskClick={setSelectedTask}
+                        />
+                    ))}
                 </div>
 
                 <DragOverlay>

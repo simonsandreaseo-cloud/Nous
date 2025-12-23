@@ -147,6 +147,46 @@ export const ProjectService = {
         return data;
     },
 
+    async cancelInvite(inviteId: number) {
+        const { error } = await supabase
+            .from('project_invites')
+            .delete()
+            .eq('id', inviteId);
+
+        if (error) throw error;
+    },
+
+    async getUserInvitations() {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (!user) return [];
+
+        const { data, error } = await supabase
+            .from('project_invites')
+            .select('*, projects(name)')
+            .eq('email', user.email)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    },
+
+    async acceptInvitation(inviteId: number) {
+        const { data, error } = await supabase
+            .rpc('accept_project_invite', { invite_id: inviteId });
+
+        if (error) throw error;
+        return data;
+    },
+
+    async declineInvitation(inviteId: number) {
+        const { error } = await supabase
+            .from('project_invites')
+            .delete()
+            .eq('id', inviteId);
+
+        if (error) throw error;
+    },
+
     async updateProject(id: string | number, updates: Partial<Project>) {
         const { data, error } = await supabase
             .from('projects')
@@ -158,6 +198,16 @@ export const ProjectService = {
         if (error) throw error;
         if (!data) throw new Error("No se pudo actualizar el proyecto. Verifica permisos o si existe.");
         return data;
+    },
+
+    async removeMember(projectId: string | number, userId: string) {
+        const { error } = await supabase
+            .from('project_members')
+            .delete()
+            .eq('project_id', projectId)
+            .eq('user_id', userId);
+
+        if (error) throw error;
     },
 
     async deleteProject(id: string | number) {
@@ -189,6 +239,7 @@ export interface Task {
     locked_until?: string;
     metadata?: any; // JSONB field for SEO metadata (metaTitle, h1, metaDescription, slug)
     created_at: string;
+    created_by?: string;
     assignee?: { email: string; user_metadata: any };
     share_token?: string;
     public_access_level?: 'none' | 'view' | 'edit';

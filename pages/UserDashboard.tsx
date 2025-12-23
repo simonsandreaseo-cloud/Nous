@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigate, Link } from 'react-router-dom';
-import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder, Globe, TrendingUp, BarChart2, CheckSquare } from 'lucide-react';
+import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder, Globe, TrendingUp, BarChart2, CheckSquare, Mail } from 'lucide-react';
 import ToolWrapper from '../components/layout/ToolWrapper';
 import { ProjectService, Project } from '../lib/task_manager';
 import ProjectCard from '../components/projects/ProjectCard';
@@ -66,6 +66,83 @@ const UserDashboard: React.FC = () => {
         } finally {
             setIsLoadingProjects(false);
         }
+    };
+
+    const InvitationsCard = () => {
+        const [invites, setInvites] = useState<any[]>([]);
+        const [loadingInvites, setLoadingInvites] = useState(true);
+
+        useEffect(() => {
+            loadInvites();
+        }, []);
+
+        const loadInvites = async () => {
+            try {
+                const data = await ProjectService.getUserInvitations();
+                setInvites(data || []);
+            } catch (e) {
+                console.error("Error loading invites", e);
+            } finally {
+                setLoadingInvites(false);
+            }
+        };
+
+        const handleAccept = async (id: number) => {
+            try {
+                await ProjectService.acceptInvitation(id);
+                loadInvites();
+                fetchProjects(); // Refresh projects to show new one
+                alert("Has aceptado la invitación. ¡Bienvenido al proyecto!");
+            } catch (e: any) {
+                alert("Error al aceptar: " + e.message);
+            }
+        };
+
+        const handleDecline = async (id: number) => {
+            if (!confirm("¿Rechazar esta invitación?")) return;
+            try {
+                await ProjectService.declineInvitation(id);
+                loadInvites();
+            } catch (e: any) {
+                alert("Error: " + e.message);
+            }
+        };
+
+        if (loadingInvites) return null; // Or skeleton
+        if (invites.length === 0) return null;
+
+        return (
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 shadow-lg text-white mb-6">
+                <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
+                    <Mail size={20} />
+                    Invitaciones Pendientes
+                </h2>
+                <div className="space-y-3">
+                    {invites.map(inv => (
+                        <div key={inv.id} className="bg-white/10 backdrop-blur-md rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border border-white/10">
+                            <div>
+                                <h3 className="font-bold text-lg">{inv.projects?.name || 'Proyecto desconocido'}</h3>
+                                <p className="text-white/70 text-sm">Te han invitado como <span className="font-bold uppercase text-xs tracking-wider">{inv.role}</span></p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleDecline(inv.id)}
+                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-bold transition-colors"
+                                >
+                                    Rechazar
+                                </button>
+                                <button
+                                    onClick={() => handleAccept(inv.id)}
+                                    className="px-4 py-2 bg-white text-indigo-600 hover:bg-gray-100 rounded-lg text-sm font-bold shadow-sm transition-colors"
+                                >
+                                    Aceptar Invitación
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
     };
 
     const fetchKeys = async () => {
@@ -245,6 +322,9 @@ const UserDashboard: React.FC = () => {
 
                     {/* Main Content Area */}
                     <div className="md:col-span-2 space-y-8">
+
+                        {/* Invitations Section */}
+                        <InvitationsCard />
 
 
                         {/* Projects Section */}

@@ -41,6 +41,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
     const [isLoadingMembers, setIsLoadingMembers] = useState(false);
 
     const isAdmin = project?.role === 'owner' || project?.role === 'admin';
+    const isCreator = task.created_by === user?.id; // Check if current user created the task
+    const canAssign = isAdmin || isCreator;
 
     useEffect(() => {
         if (project?.id) {
@@ -594,9 +596,9 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                     </div>
                                 )}
 
-                                {isAdmin && (
+                                {canAssign && (
                                     <div className="mt-4 pt-4 border-t border-brand-accent/20">
-                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-power/40 mb-2">Asignación Administrativa</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-power/40 mb-2">Asignar Tarea</label>
                                         <select
                                             value={task.assignee_id || ''}
                                             onChange={(e) => handleAdminAssign(e.target.value || null)}
@@ -610,7 +612,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                                 </option>
                                             ))}
                                         </select>
-                                        <p className="text-[9px] text-brand-power/40 mt-1 italic leading-tight">Como administrador puedes asignar esta tarea a cualquier miembro.</p>
+                                        <p className="text-[9px] text-brand-power/40 mt-1 italic leading-tight">Puedes asignar esta tarea porque eres administrador o su creador.</p>
                                     </div>
                                 )}
                             </div>

@@ -28,6 +28,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     const navigate = useNavigate();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedTask, setSelectedTask] = useState<ContentItem | null>(null);
+    const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
 
     // If still no project ID, show loading
     if (!projectId) return <div className="p-8 text-center text-slate-400">Cargando calendario...</div>;
@@ -71,7 +72,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
         const dueDate = date.toISOString();
 
         try {
-            await TaskService.createTask(projectId, {
+            const newTask = await TaskService.createTask(projectId, {
                 title,
                 status: 'idea',
                 type: 'content',
@@ -79,6 +80,10 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                 priority: 'medium'
             });
             onTaskUpdate();
+            // Open modal immediately
+            if (newTask) {
+                setSelectedTask(newTask as ContentItem);
+            }
         } catch (e: any) {
             console.error("Error creating task:", e);
             alert("Error al crear contenido: " + (e.message || "Error desconocido"));
@@ -174,6 +179,24 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
             {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-slate-100">
                 <div className="flex items-center gap-4">
+                    {/* View Toggles */}
+                    <div className="flex bg-slate-100 p-1 rounded-lg mr-2">
+                        <button
+                            onClick={() => setViewMode('calendar')}
+                            className={`p-1.5 rounded transition-all ${viewMode === 'calendar' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            title="Vista Calendario"
+                        >
+                            <CalIcon size={16} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('table')}
+                            className={`p-1.5 rounded transition-all ${viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            title="Vista Tabla"
+                        >
+                            <FileText size={16} />
+                        </button>
+                    </div>
+
                     <h2 className="text-lg font-bold text-slate-800 capitalize">{monthName}</h2>
                     <div className="flex gap-1">
                         <button onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded text-slate-500">
@@ -203,19 +226,145 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                 </div>
             </div>
 
-            {/* Grid Header */}
-            <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50">
-                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
-                    <div key={d} className="py-2 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        {d}
+            {/* Content Body */}
+            {viewMode === 'calendar' ? (
+                <>
+                    {/* Grid Header */}
+                    <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50">
+                        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+                            <div key={d} className="py-2 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                {d}
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
 
-            {/* Grid Body */}
-            <div className="grid grid-cols-7">
-                {calendarGrid}
-            </div>
+                    {/* Grid Body */}
+                    <div className="grid grid-cols-7">
+                        {calendarGrid}
+                    </div>
+                </>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[30%]">Título</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Palabra Clave</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">URL Objetivo</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[50px]"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {tasks
+                                .filter(t => t.type === 'content')
+                                .sort((a, b) => new Date(a.due_date || '').getTime() - new Date(b.due_date || '').getTime())
+                                .map(task => {
+                                    const isLocked = ContentService.isLocked(task as ContentItem, user?.id || '');
+
+                                    const updateField = async (field: keyof Task, value: any) => {
+                                        try {
+                                            await TaskService.updateTask(task.id, { [field]: value });
+                                            onTaskUpdate();
+                                        } catch (e: any) {
+                                            alert(`Error al actualizar ${field}: ${e.message}`);
+                                        }
+                                    };
+
+                                    return (
+                                        <tr key={task.id} className="hover:bg-slate-50 group transition-colors">
+                                            <td className="p-3">
+                                                <input
+                                                    className="w-full bg-transparent border-transparent border-b hover:border-slate-300 focus:border-brand-accent focus:ring-0 text-sm font-medium text-slate-700 transition-colors py-1"
+                                                    defaultValue={task.title}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value !== task.title) updateField('title', e.target.value);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                                    }}
+                                                />
+                                            </td>
+                                            <td className="p-3">
+                                                <select
+                                                    value={task.status}
+                                                    onChange={(e) => updateField('status', e.target.value)}
+                                                    className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full border border-transparent hover:border-slate-200 cursor-pointer outline-none
+                                                        ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600' :
+                                                            task.status === 'review' ? 'bg-amber-50 text-amber-600' :
+                                                                task.status === 'in_progress' ? 'bg-blue-50 text-blue-600' :
+                                                                    'bg-slate-100 text-slate-500'}`}
+                                                >
+                                                    <option value="idea">Idea</option>
+                                                    <option value="todo">Por Hacer</option>
+                                                    <option value="in_progress">En Progreso</option>
+                                                    <option value="review">Revisión</option>
+                                                    <option value="done">Publicado</option>
+                                                </select>
+                                            </td>
+                                            <td className="p-3">
+                                                <input
+                                                    type="date"
+                                                    className="bg-transparent text-xs text-slate-500 font-medium outline-none hover:text-brand-power cursor-pointer"
+                                                    value={task.due_date ? new Date(task.due_date).toLocaleDateString('en-CA') : ''}
+                                                    onChange={(e) => {
+                                                        if (e.target.value) {
+                                                            const [y, m, d] = e.target.value.split('-').map(Number);
+                                                            // Keep time if exists or default to noon
+                                                            const originalDate = task.due_date ? new Date(task.due_date) : new Date(y, m - 1, d, 12, 0, 0);
+                                                            const newDate = new Date(y, m - 1, d, originalDate.getHours(), originalDate.getMinutes());
+                                                            updateField('due_date', newDate.toISOString());
+                                                        }
+                                                    }}
+                                                />
+                                            </td>
+                                            <td className="p-3">
+                                                <div className="flex items-center gap-2">
+                                                    {task.target_keyword ? (
+                                                        <span className="bg-slate-100 text-slate-600 text-[10px] px-2 py-1 rounded-md border border-slate-200 truncate max-w-[150px]" title={task.target_keyword}>
+                                                            {task.target_keyword}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-300 italic">--</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="p-3">
+                                                <input
+                                                    className="w-full bg-transparent text-xs text-slate-500 font-mono outline-none border-b border-transparent hover:border-slate-300 focus:border-brand-accent transition-colors py-1 truncate"
+                                                    placeholder="URL..."
+                                                    defaultValue={task.secondary_url || ''}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value !== (task.secondary_url || '')) updateField('secondary_url', e.target.value);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                                    }}
+                                                />
+                                            </td>
+                                            <td className="p-3">
+                                                <button
+                                                    onClick={() => handleOpenTask(task)}
+                                                    className="p-1.5 text-slate-400 hover:text-brand-accent hover:bg-brand-accent/5 rounded-lg transition-colors"
+                                                >
+                                                    <Edit3 size={14} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            {tasks.filter(t => t.type === 'content').length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="p-8 text-center text-slate-400 text-sm">
+                                        No hay contenidos planificados. Usa la vista de calendario para agregar nuevos.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             {/* Task Detail Modal */}
             {selectedTask && (

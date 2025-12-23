@@ -44,8 +44,7 @@ alter table notifications enable row level security;
 -- MESSAGES POLICIES
 
 -- Policy: Select (View) Messages
--- 1. Project Messages: User must be a member of the project OR owner.
--- 2. Direct Messages: User must be sender OR recipient.
+drop policy if exists "View messages" on messages;
 create policy "View messages" on messages
   for select using (
     (project_id is not null and (
@@ -59,8 +58,7 @@ create policy "View messages" on messages
   );
 
 -- Policy: Insert Messages
--- 1. Project Messages: User must be a member of the project OR owner.
--- 2. Direct Messages: User can send to anyone (for now, or restrict if needed).
+drop policy if exists "Insert messages" on messages;
 create policy "Insert messages" on messages
   for insert with check (
     auth.uid() = sender_id and (
@@ -73,8 +71,8 @@ create policy "Insert messages" on messages
     )
   );
 
--- Policy: Update content (Optional, e.g., edit message) - Let's allow sender to edit for now? 
--- Actually, let's keep it immutable for MVP or only allow sender.
+-- Policy: Update content
+drop policy if exists "Update own messages" on messages;
 create policy "Update own messages" on messages
   for update using (auth.uid() = sender_id);
 
@@ -82,16 +80,17 @@ create policy "Update own messages" on messages
 -- NOTIFICATIONS POLICIES
 
 -- Policy: View Own Notifications
+drop policy if exists "View own notifications" on notifications;
 create policy "View own notifications" on notifications
   for select using (auth.uid() = user_id);
 
 -- Policy: Update Own Notifications (Mark as read)
+drop policy if exists "Update own notifications" on notifications;
 create policy "Update own notifications" on notifications
   for update using (auth.uid() = user_id);
 
 -- Policy: Insert Notifications
--- Usually backend/triggers insert, but if we do client-side triggering (e.g. from chat service), we need this.
--- Allow authenticated users to create notifications for others (e.g. mentions).
+drop policy if exists "Insert notifications" on notifications;
 create policy "Insert notifications" on notifications
   for insert with check (auth.role() = 'authenticated'); 
   -- Ideally restrict so you can't spam, but ok for MVP trusted users.
