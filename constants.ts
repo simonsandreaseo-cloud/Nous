@@ -112,7 +112,7 @@ export const TOOLS = [
     id: 2,
     name: "BlogViz AI",
     status: "Disponible",
-    function: "Generación de imágenes optimizadas para blogs y artículos.",
+    function: "Generación de imágenes optimizadas para blogs y contenidos.",
     path: "/herramientas/blog-viz"
   },
   {

@@ -111,6 +111,11 @@ const TaskBoard: React.FC<TaskBoardProps> = (props) => {
                                                 {task.type === 'content' && (
                                                     <span className="text-[8px] font-bold uppercase tracking-tighter bg-brand-accent/20 text-brand-accent px-1 rounded">Contenido</span>
                                                 )}
+                                                {task.assignee_id && (
+                                                    <span className="text-[8px] font-bold uppercase tracking-tighter bg-blue-100 text-blue-600 px-1 rounded flex items-center gap-0.5">
+                                                        <User size={8} /> Asignada
+                                                    </span>
+                                                )}
                                                 <h4 className="font-bold text-brand-power text-sm pr-4 truncate">{task.title}</h4>
                                             </div>
 

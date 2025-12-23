@@ -19,20 +19,20 @@ const Insights: React.FC = () => {
               Insights Técnicos
             </h2>
           </motion.div>
-          <motion.a 
-            href="#" 
+          <motion.a
+            href="#"
             className="hidden md:inline-block text-brand-power font-bold border-b-2 border-brand-accent hover:border-brand-power transition-colors pb-1"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
           >
-            Ver todos los artículos
+            Ver todos los contenidos
           </motion.a>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-y-12 gap-x-8">
           {INSIGHTS.map((insight, idx) => (
-            <motion.article 
+            <motion.article
               key={insight.id}
               className="group cursor-pointer flex flex-col h-full justify-between"
               initial={{ opacity: 0, y: 30 }}
@@ -53,17 +53,17 @@ const Insights: React.FC = () => {
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand-accent">
-                Leer Artículo
+                Leer Contenido
                 <span className="group-hover:translate-x-1 transition-transform duration-300">→</span>
               </div>
             </motion.article>
           ))}
         </div>
-        
+
         <div className="mt-12 md:hidden text-center">
-            <a href="#" className="inline-block text-brand-power font-bold border-b-2 border-brand-accent pb-1">
-                Ver archivo completo
-            </a>
+          <a href="#" className="inline-block text-brand-power font-bold border-b-2 border-brand-accent pb-1">
+            Ver archivo completo
+          </a>
         </div>
       </div>
     </section>

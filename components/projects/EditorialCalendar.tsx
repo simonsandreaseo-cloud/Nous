@@ -63,7 +63,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     };
 
     const handleCreateTask = async (day: number) => {
-        const title = prompt(`Nuevo artículo para el ${day} de ${monthName}:`);
+        const title = prompt(`Nuevo contenido para el ${day} de ${monthName}:`);
         if (!title) return;
 
         // Use local date at noon to avoid timezone shifts

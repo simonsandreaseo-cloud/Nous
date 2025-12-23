@@ -204,7 +204,7 @@ const ProjectOverview = ({ project, tasks, members, onNavigate }: any) => {
                     </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-brand-power/5 text-xs text-brand-power/50 font-medium">
-                    Calendario editorial y redacción IA 2.0.
+                    Calendario de contenidos y redacción IA 2.0.
                 </div>
             </div>
 
@@ -418,7 +418,7 @@ const ProjectDetail: React.FC = () => {
                         {activeTab === 'content' && (
                             <div>
                                 <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-xl font-bold text-brand-power">Calendario Editorial y Contenidos</h2>
+                                    <h2 className="text-xl font-bold text-brand-power">Calendario de Contenidos</h2>
                                     <div className="text-xs text-brand-power/50 font-medium">Filtrado por tipo: Contenido</div>
                                 </div>
                                 <TaskBoard

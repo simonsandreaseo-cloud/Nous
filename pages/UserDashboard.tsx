@@ -196,7 +196,7 @@ const UserDashboard: React.FC = () => {
     };
 
     const handleDeleteDraft = async (id: number) => {
-        if (!confirm("¿Seguro que quieres eliminar este artículo?")) return;
+        if (!confirm("¿Seguro que quieres eliminar este contenido?")) return;
         try {
             const { error } = await supabase
                 .from('content_drafts')
@@ -277,7 +277,7 @@ const UserDashboard: React.FC = () => {
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-brand-power">Tus Campañas y Tareas</h3>
-                                        <p className="text-sm text-brand-power/50 mb-2">Gestiona tareas, calendario editorial y sitemaps.</p>
+                                        <p className="text-sm text-brand-power/50 mb-2">Gestiona tareas, calendario de contenidos y sitemaps.</p>
                                         <Link to="/proyectos" className="text-xs font-bold text-brand-accent uppercase tracking-widest hover:underline">
                                             Ir a Proyectos &rarr;
                                         </Link>
@@ -452,7 +452,7 @@ const UserDashboard: React.FC = () => {
                             <div className="flex items-center justify-between mb-8">
                                 <h2 className="text-xl font-bold text-brand-power flex items-center gap-3">
                                     <FileText className="text-brand-accent" />
-                                    Mis Artículos
+                                    Mis Contenidos
                                 </h2>
                                 <Link to="/herramientas/redactor-ia" className="text-xs font-bold text-brand-power/50 hover:text-brand-accent uppercase tracking-widest">
                                     Nuevo +
@@ -489,7 +489,7 @@ const UserDashboard: React.FC = () => {
                                                         setSharingItem({ type: 'draft', id: draft.id, initialAccess: draft.public_access_level, initialToken: draft.share_token });
                                                     }}
                                                     className="p-2 text-brand-power/20 hover:text-brand-accent hover:bg-white rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                    title="Compartir Artículo"
+                                                    title="Compartir Contenido"
                                                 >
                                                     <Globe size={16} />
                                                 </button>
@@ -500,9 +500,9 @@ const UserDashboard: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="text-center py-12 border-2 border-dashed border-brand-power/5 rounded-xl">
-                                    <p className="text-brand-power/40 text-sm mb-4">No has guardado ningún artículo aún.</p>
+                                    <p className="text-brand-power/40 text-sm mb-4">No has guardado ningún contenido aún.</p>
                                     <Link to="/herramientas/redactor-ia" className="inline-block px-6 py-3 bg-brand-power text-brand-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-brand-accent hover:text-brand-power transition-colors">
-                                        Crear mi primer artículo
+                                        Crear mi primer contenido
                                     </Link>
                                 </div>
                             )}
@@ -585,14 +585,14 @@ const UserDashboard: React.FC = () => {
                                         value={editedTitle}
                                         onChange={(e) => setEditedTitle(e.target.value)}
                                         className="text-xl font-bold text-brand-power bg-transparent border-none outline-none w-full focus:ring-2 focus:ring-brand-accent rounded px-2"
-                                        placeholder="Título del artículo"
+                                        placeholder="Título del contenido"
                                     />
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={() => handleDeleteDraft(selectedDraft.id)}
                                         className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="Eliminar artículo"
+                                        title="Eliminar contenido"
                                     >
                                         <Trash2 size={20} />
                                     </button>
@@ -638,7 +638,7 @@ const UserDashboard: React.FC = () => {
                                     value={editedContent}
                                     onChange={(e) => setEditedContent(e.target.value)}
                                     className="w-full h-full min-h-[500px] border-none outline-none font-serif text-lg leading-relaxed text-brand-power/80 resize-none bg-transparent"
-                                    placeholder="Escribe aquí el contenido de tu artículo..."
+                                    placeholder="Escribe aquí tu contenido..."
                                 />
                             </div>
 

@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Project, Task, TaskService } from '../../lib/task_manager';
 import { ContentService } from '../../lib/ContentService';
 import { motion } from 'framer-motion';
-import { X, Calendar, User, Save, Trash2, ExternalLink, Lock, Edit3, Sparkles, Activity } from 'lucide-react';
+import { X, Calendar, User, Save, Trash2, ExternalLink, Lock, Edit3, Sparkles, Activity, UserPlus, UserMinus, Wand2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { TaskMetricsChart } from './TaskMetricsChart';
+import MetadataGeneratorModal from './MetadataGeneratorModal';
+import { TaskMetadata } from '../../services/metadataService';
 
 interface TaskDetailModalProps {
     task: Task;
@@ -28,8 +30,14 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
     const [completedAt, setCompletedAt] = useState(task.completed_at || '');
     const [isSaving, setIsSaving] = useState(false);
     const [lockedBy, setLockedBy] = useState<string | null>(task.locked_by || null);
+    const [metadata, setMetadata] = useState<TaskMetadata>(task.metadata || {});
+    const [showMetadataModal, setShowMetadataModal] = useState(false);
+    const [isAssigning, setIsAssigning] = useState(false);
 
     const isLocked = ContentService.isLocked(task, user?.id || '');
+    const isAssignedToMe = task.assignee_id === user?.id;
+    const isAssignedToOther = task.assignee_id && task.assignee_id !== user?.id;
+    const canEdit = !isAssignedToOther;
 
     useEffect(() => {
         // If status changes to done, set completed_at
@@ -44,8 +52,22 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
 
     const handleSave = async () => {
         setIsSaving(true);
+
+        console.log('[TaskDetailModal] Starting save operation for task:', task.id);
+        console.log('[TaskDetailModal] Current values:', {
+            title,
+            description: desc,
+            status,
+            priority,
+            type,
+            secondary_url: secondaryUrl,
+            target_keyword: keyword,
+            tracking_metrics: trackingMetrics,
+            completed_at: completedAt
+        });
+
         try {
-            await TaskService.updateTask(task.id, {
+            const updates = {
                 title,
                 description: desc,
                 status,
@@ -54,13 +76,37 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                 secondary_url: secondaryUrl,
                 target_keyword: keyword,
                 tracking_metrics: trackingMetrics,
-                completed_at: completedAt
-            });
+                completed_at: completedAt,
+                metadata: metadata
+            };
+
+            console.log('[TaskDetailModal] Calling TaskService.updateTask with:', updates);
+
+            await TaskService.updateTask(task.id, updates);
+
+            console.log('[TaskDetailModal] Save successful, calling callbacks');
             onUpdate();
             onClose();
-        } catch (error) {
-            console.error(error);
-            alert("Error al actualizar tarea");
+        } catch (error: any) {
+            console.error('[TaskDetailModal] Save failed:', error);
+
+            // Show more specific error message to user
+            let errorMessage = "Error al actualizar tarea";
+
+            if (error.message) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+
+            // Show detailed error in console for debugging
+            console.error('[TaskDetailModal] Error details:', {
+                error,
+                taskId: task.id,
+                projectId: task.project_id
+            });
+
+            alert(errorMessage);
         } finally {
             setIsSaving(false);
         }
@@ -95,6 +141,35 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
         }
     };
 
+    const handleAssignToMe = async () => {
+        setIsAssigning(true);
+        try {
+            await TaskService.assignTaskToMe(task.id);
+            onUpdate();
+            // Don't close modal, just refresh
+        } catch (error: any) {
+            console.error('[TaskDetailModal] Assign failed:', error);
+            alert(error.message || 'Error al tomar la tarea');
+        } finally {
+            setIsAssigning(false);
+        }
+    };
+
+    const handleReleaseTask = async () => {
+        if (!confirm('¿Seguro que quieres liberar esta tarea para que otros puedan tomarla?')) return;
+        setIsAssigning(true);
+        try {
+            await TaskService.releaseTask(task.id);
+            onUpdate();
+            // Don't close modal, just refresh
+        } catch (error: any) {
+            console.error('[TaskDetailModal] Release failed:', error);
+            alert(error.message || 'Error al liberar la tarea');
+        } finally {
+            setIsAssigning(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
@@ -111,12 +186,19 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                     <div className="flex-1 mr-4">
                         <input
                             value={title} onChange={e => setTitle(e.target.value)}
-                            className="text-2xl font-bold text-brand-power bg-transparent border-none outline-none w-full focus:ring-2 focus:ring-brand-accent/20 rounded-lg px-2 -ml-2"
+                            disabled={!canEdit}
+                            className="text-2xl font-bold text-brand-power bg-transparent border-none outline-none w-full focus:ring-2 focus:ring-brand-accent/20 rounded-lg px-2 -ml-2 disabled:opacity-50"
                         />
                         <div className="flex items-center gap-4 mt-2 text-xs text-brand-power/40 font-bold uppercase tracking-widest">
                             <span className="flex items-center gap-1"><Calendar size={12} /> Creada: {new Date(task.created_at).toLocaleDateString()}</span>
                             {completedAt && (
                                 <span className="flex items-center gap-1 text-emerald-500"><Activity size={12} /> Finalizada: {new Date(completedAt).toLocaleDateString()}</span>
+                            )}
+                            {isAssignedToMe && (
+                                <span className="flex items-center gap-1 text-brand-accent"><User size={12} /> Asignada a ti</span>
+                            )}
+                            {isAssignedToOther && (
+                                <span className="flex items-center gap-1 text-orange-500"><Lock size={12} /> Asignada a otro usuario</span>
                             )}
                         </div>
                     </div>
@@ -134,12 +216,24 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Main Content */}
                         <div className="lg:col-span-2 space-y-8">
+                            {/* Assignment Warning */}
+                            {isAssignedToOther && (
+                                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
+                                    <Lock className="text-orange-500 mt-0.5" size={18} />
+                                    <div>
+                                        <h4 className="font-bold text-orange-900 text-sm mb-1">Tarea Asignada</h4>
+                                        <p className="text-xs text-orange-700">Esta tarea está asignada a otro usuario. No puedes editarla hasta que sea liberada.</p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-xs font-bold uppercase tracking-widest text-brand-power/40 mb-3">Descripción / Notas</label>
                                 <textarea
                                     value={desc} onChange={e => setDesc(e.target.value)}
+                                    disabled={!canEdit}
                                     placeholder="Detalles sobre la tarea..."
-                                    className="w-full bg-brand-soft/10 border border-brand-power/5 rounded-2xl p-4 text-sm outline-none focus:border-brand-accent min-h-[120px] resize-none"
+                                    className="w-full bg-brand-soft/10 border border-brand-power/5 rounded-2xl p-4 text-sm outline-none focus:border-brand-accent min-h-[120px] resize-none disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                             </div>
 
@@ -154,11 +248,59 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                             className="w-full bg-brand-soft/20 border border-brand-power/10 rounded-lg p-3 text-sm outline-none focus:border-brand-accent"
                                         />
                                     </div>
+
+                                    {/* Metadata Section */}
+                                    <div className="bg-gradient-to-br from-purple-50 to-transparent rounded-xl p-6 border border-purple-200">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <h4 className="font-bold text-brand-power mb-1 flex items-center gap-2">
+                                                    <Wand2 size={16} className="text-purple-500" />
+                                                    Metadatos SEO
+                                                </h4>
+                                                <p className="text-xs text-brand-power/60">Genera metadatos optimizados analizando el SERP</p>
+                                            </div>
+                                            <Sparkles className="text-purple-500 animate-pulse" />
+                                        </div>
+
+                                        {metadata.metaTitle ? (
+                                            <div className="space-y-3 mb-4">
+                                                <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                    <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Meta Title</label>
+                                                    <p className="text-sm text-brand-power">{metadata.metaTitle}</p>
+                                                </div>
+                                                <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                    <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">H1</label>
+                                                    <p className="text-sm text-brand-power">{metadata.h1}</p>
+                                                </div>
+                                                <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                    <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Meta Description</label>
+                                                    <p className="text-sm text-brand-power">{metadata.metaDescription}</p>
+                                                </div>
+                                                <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                    <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Slug</label>
+                                                    <p className="text-sm text-brand-power font-mono">{metadata.slug}</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-purple-50 rounded-lg p-4 mb-4 text-center">
+                                                <p className="text-xs text-purple-700">No hay metadatos generados aún</p>
+                                            </div>
+                                        )}
+
+                                        <button
+                                            onClick={() => setShowMetadataModal(true)}
+                                            className="w-full px-3 py-2.5 bg-purple-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <Wand2 size={14} />
+                                            {metadata.metaTitle ? 'Regenerar Metadatos' : 'Generar Metadatos con IA'}
+                                        </button>
+                                    </div>
+
                                     <div className="bg-gradient-to-br from-brand-power/5 to-transparent rounded-xl p-6 border border-brand-power/5">
                                         <div className="flex items-center justify-between mb-4">
                                             <div>
                                                 <h4 className="font-bold text-brand-power mb-1">Redacción de Contenido</h4>
-                                                <p className="text-xs text-brand-power/60">Usa la IA para generar el artículo.</p>
+                                                <p className="text-xs text-brand-power/60">Usa la IA para generar el contenido.</p>
                                             </div>
                                             <Sparkles className="text-brand-accent animate-pulse" />
                                         </div>
@@ -234,12 +376,41 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
 
                         {/* Sidebar Settings */}
                         <div className="space-y-6">
+                            {/* Assignment Controls */}
+                            <div className="bg-gradient-to-br from-brand-accent/10 to-transparent rounded-2xl p-6 border border-brand-accent/20">
+                                <h4 className="text-xs font-bold uppercase tracking-widest text-brand-power/40 mb-4 flex items-center gap-2">
+                                    <User size={14} /> Asignación
+                                </h4>
+                                {!task.assignee_id ? (
+                                    <button
+                                        onClick={handleAssignToMe}
+                                        disabled={isAssigning}
+                                        className="w-full bg-brand-power text-white font-bold py-3 rounded-xl shadow-lg hover:bg-brand-accent hover:text-brand-power transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        <UserPlus size={18} /> {isAssigning ? 'Asignando...' : 'Tomar Tarea'}
+                                    </button>
+                                ) : isAssignedToMe ? (
+                                    <button
+                                        onClick={handleReleaseTask}
+                                        disabled={isAssigning}
+                                        className="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-orange-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        <UserMinus size={18} /> {isAssigning ? 'Liberando...' : 'Liberar Tarea'}
+                                    </button>
+                                ) : (
+                                    <div className="text-center py-3 bg-orange-50 rounded-xl border border-orange-200">
+                                        <p className="text-xs text-orange-700 font-medium">Asignada a otro usuario</p>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="bg-slate-50 rounded-2xl p-6 space-y-6 border border-brand-power/5">
                                 <div>
                                     <label className="block text-xs font-bold uppercase tracking-widest text-brand-power/40 mb-2">Tipo de Tarea</label>
                                     <select
                                         value={type} onChange={e => setType(e.target.value as any)}
-                                        className="w-full bg-white border border-brand-power/10 rounded-lg p-2 text-sm outline-none focus:border-brand-accent font-bold text-brand-power"
+                                        disabled={!canEdit}
+                                        className="w-full bg-white border border-brand-power/10 rounded-lg p-2 text-sm outline-none focus:border-brand-accent font-bold text-brand-power disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <option value="task">General / SEO</option>
                                         <option value="content">Editorial / Contenido</option>
@@ -250,7 +421,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                     <label className="block text-xs font-bold uppercase tracking-widest text-brand-power/40 mb-2">Estado</label>
                                     <select
                                         value={status} onChange={e => setStatus(e.target.value as any)}
-                                        className="w-full bg-white border border-brand-power/10 rounded-lg p-2 text-sm outline-none focus:border-brand-accent font-bold text-brand-power"
+                                        disabled={!canEdit}
+                                        className="w-full bg-white border border-brand-power/10 rounded-lg p-2 text-sm outline-none focus:border-brand-accent font-bold text-brand-power disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <option value="idea">Idea</option>
                                         <option value="todo">Por Hacer</option>
@@ -267,7 +439,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                             <button
                                                 key={p}
                                                 onClick={() => setPriority(p as any)}
-                                                className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${priority === p
+                                                disabled={!canEdit}
+                                                className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border disabled:opacity-50 disabled:cursor-not-allowed ${priority === p
                                                     ? 'bg-brand-power text-white border-brand-power'
                                                     : 'bg-white text-brand-power/50 border-brand-power/10 hover:border-brand-accent'
                                                     }`}
@@ -281,8 +454,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
 
                             <button
                                 onClick={handleSave}
-                                disabled={isSaving}
-                                className="w-full bg-brand-accent text-brand-power font-bold py-4 rounded-2xl shadow-lg shadow-brand-accent/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                                disabled={isSaving || !canEdit}
+                                className="w-full bg-brand-accent text-brand-power font-bold py-4 rounded-2xl shadow-lg shadow-brand-accent/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Save size={18} /> {isSaving ? 'Guardando...' : 'Guardar Cambios'}
                             </button>
@@ -290,6 +463,21 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                     </div>
                 </div>
             </motion.div>
+
+            {/* Metadata Generator Modal */}
+            {showMetadataModal && (
+                <MetadataGeneratorModal
+                    taskId={task.id}
+                    taskTitle={title}
+                    targetKeyword={keyword}
+                    currentMetadata={metadata}
+                    onClose={() => setShowMetadataModal(false)}
+                    onSave={(newMetadata) => {
+                        setMetadata(newMetadata);
+                        setShowMetadataModal(false);
+                    }}
+                />
+            )}
         </div>
     );
 };

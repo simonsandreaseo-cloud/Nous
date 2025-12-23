@@ -187,6 +187,7 @@ export interface Task {
     completed_at?: string; // New field for completion timestamp
     locked_by?: string;
     locked_until?: string;
+    metadata?: any; // JSONB field for SEO metadata (metaTitle, h1, metaDescription, slug)
     created_at: string;
     assignee?: { email: string; user_metadata: any };
     share_token?: string;
@@ -224,14 +225,56 @@ export const TaskService = {
     },
 
     async updateTask(id: string | number, updates: Partial<Task>) {
+        console.log('[TaskService.updateTask] Attempting to update task:', { id, updates });
+
+        // Validate that we have an ID
+        if (!id) {
+            const error = new Error('Task ID is required for update');
+            console.error('[TaskService.updateTask] Validation error:', error);
+            throw error;
+        }
+
+        // Clean up undefined values to avoid Supabase issues
+        const cleanUpdates = Object.fromEntries(
+            Object.entries(updates).filter(([_, v]) => v !== undefined)
+        );
+
+        console.log('[TaskService.updateTask] Clean updates:', cleanUpdates);
+
         const { data, error } = await supabase
             .from('tasks')
-            .update(updates)
+            .update(cleanUpdates)
             .eq('id', id)
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('[TaskService.updateTask] Supabase error:', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code
+            });
+
+            // Provide more specific error messages
+            if (error.code === 'PGRST116') {
+                throw new Error(`No se encontró la tarea con ID ${id} o no tienes permisos para actualizarla`);
+            } else if (error.code === '42501') {
+                throw new Error('No tienes permisos para actualizar esta tarea. Verifica las políticas RLS.');
+            } else if (error.message.includes('violates')) {
+                throw new Error(`Error de validación: ${error.message}`);
+            }
+
+            throw new Error(`Error al actualizar tarea: ${error.message}`);
+        }
+
+        if (!data) {
+            const error = new Error('La actualización no devolvió datos. Posible problema de permisos RLS.');
+            console.error('[TaskService.updateTask] No data returned:', error);
+            throw error;
+        }
+
+        console.log('[TaskService.updateTask] Task updated successfully:', data);
         return data;
     },
 
@@ -241,5 +284,73 @@ export const TaskService = {
             .delete()
             .eq('id', id);
         if (error) throw error;
+    },
+
+    /**
+     * Assigns a task to the current user if it's available
+     */
+    async assignTaskToMe(taskId: string | number) {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (!user) throw new Error("Not authenticated");
+
+        console.log('[TaskService.assignTaskToMe] Attempting to assign task:', taskId);
+
+        // Use RPC function for atomic assignment
+        const { data, error } = await supabase
+            .rpc('assign_task_to_user', { task_id_param: taskId });
+
+        if (error) {
+            console.error('[TaskService.assignTaskToMe] Error:', error);
+
+            if (error.message.includes('already assigned')) {
+                throw new Error('Esta tarea ya está asignada a otro usuario');
+            } else if (error.message.includes('not found')) {
+                throw new Error('Tarea no encontrada');
+            }
+
+            throw new Error(`Error al asignar tarea: ${error.message}`);
+        }
+
+        console.log('[TaskService.assignTaskToMe] Task assigned successfully:', data);
+        return data;
+    },
+
+    /**
+     * Releases a task assignment, making it available for others
+     */
+    async releaseTask(taskId: string | number) {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (!user) throw new Error("Not authenticated");
+
+        console.log('[TaskService.releaseTask] Attempting to release task:', taskId);
+
+        // Use RPC function for secure release
+        const { data, error } = await supabase
+            .rpc('release_task_assignment', { task_id_param: taskId });
+
+        if (error) {
+            console.error('[TaskService.releaseTask] Error:', error);
+
+            if (error.message.includes('only release tasks assigned to you')) {
+                throw new Error('Solo puedes liberar tareas asignadas a ti o si eres administrador del proyecto');
+            } else if (error.message.includes('not found')) {
+                throw new Error('Tarea no encontrada');
+            }
+
+            throw new Error(`Error al liberar tarea: ${error.message}`);
+        }
+
+        console.log('[TaskService.releaseTask] Task released successfully:', data);
+        return data;
+    },
+
+    /**
+     * Checks if the current user can assign a task to themselves
+     */
+    canAssignTask(task: Task, userId: string): boolean {
+        // Can assign if:
+        // 1. Task has no assignee
+        // 2. Task is already assigned to this user
+        return !task.assignee_id || task.assignee_id === userId;
     }
 };

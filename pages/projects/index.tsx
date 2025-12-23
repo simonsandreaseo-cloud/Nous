@@ -91,7 +91,7 @@ const ProjectsDashboard: React.FC = () => {
                             <Folder className="text-brand-accent" size={32} /> Mis Proyectos
                         </h1>
                         <p className="text-brand-power/60 max-w-2xl">
-                            Gestiona tus campañas SEO, colabora con tu equipo y organiza tu calendario editorial.
+                            Gestiona tus campañas SEO, colabora con tu equipo y organiza tu calendario de contenidos.
                         </p>
                     </div>
                     <button
