@@ -20,10 +20,10 @@ import ShareModal from '@/components/shared/ShareModal';
 
 // Available Models
 const AVAILABLE_MODELS = [
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recomendado - Rápido)' },
-    { value: 'gemini-3-pro-preview', label: 'Gemini 3.0 Pro Preview (Máximo Razonamiento)' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Estable)' },
-    { value: 'gemini-2.0-pro-exp-02-05', label: 'Gemini 2.0 Pro Experimental' }
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Recomendado - Rápido)' },
+    { value: 'gemini-2.0-pro-exp-02-05', label: 'Gemini 2.0 Pro Experimental (Máximo Razonamiento)' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Estable)' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Velocidad)' }
 ];
 
 const App: React.FC = () => {
@@ -83,6 +83,17 @@ const App: React.FC = () => {
 
     // History & AutoSave State
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+    const handleRestore = (content: any) => {
+        if (content.reportHTML) setReportHTML(content.reportHTML);
+        if (content.chartData) setChartData(content.chartData);
+        if (content.reportPayload) setReportPayload(content.reportPayload);
+        if (content.userContext) setUserContext(content.userContext);
+        if (content.model) setModel(content.model);
+        if (content.p1Name) setP1Name(content.p1Name);
+        if (content.p2Name) setP2Name(content.p2Name);
+        if (content.reportHTML) setStep(3);
+    };
 
     // AUTOSAVE HOOK
     useAutoSave(
@@ -507,9 +518,31 @@ const App: React.FC = () => {
             )}
 
             {reportHTML && !isAnalyzing && !showSectionSelector && (
-                <ReportView htmlContent={reportHTML} chartData={chartData!} p1Name={p1Name} p2Name={p2Name} onRegenerate={handleRegenerate} isRegenerating={isAnalyzing} dashboardStats={chartData?.dashboardStats} logo={logo} onSave={handleSaveCloud} onShowHistory={() => setIsHistoryOpen(true)} isSaving={isSaving} hasSaved={hasSaved} user={user} taskPerformance={reportPayload?.taskPerformanceAnalysis || []} decayAlerts={reportPayload?.keywordDecayAlerts} concentrationAnalysis={reportPayload?.concentrationAnalysis} selectedProjectId={selectedProjectId} onSelectProject={setSelectedProjectId} onDateRangeChange={(range) => {
-                    // Date filtering logic remains same as provided
-                }} />
+                <ReportView
+                    htmlContent={reportHTML}
+                    chartData={chartData!}
+                    p1Name={p1Name}
+                    p2Name={p2Name}
+                    onRegenerate={handleRegenerate}
+                    isRegenerating={isAnalyzing}
+                    dashboardStats={chartData?.dashboardStats}
+                    logo={logo}
+                    onSave={handleSaveCloud}
+                    onShowHistory={() => setIsHistoryOpen(true)}
+                    isSaving={isSaving}
+                    hasSaved={hasSaved}
+                    user={user}
+                    taskPerformance={reportPayload?.taskPerformanceAnalysis || []}
+                    decayAlerts={reportPayload?.keywordDecayAlerts}
+                    concentrationAnalysis={reportPayload?.concentrationAnalysis}
+                    selectedProjectId={selectedProjectId}
+                    onSelectProject={setSelectedProjectId}
+                    onDateRangeChange={(range) => {
+                        console.log("Date range changed to:", range);
+                        // In the future, this could trigger a re-fetching of GSC data for those ranges
+                        // and re-running the analysis automatically.
+                    }}
+                />
             )}
 
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} resourceType="seo_report" resourceId={reportPayload?.projectName || 'temp-report'} onRestore={handleRestore} />
