@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { fetchSerpWithJina } from '../components/tools/SeoSuite/services/jinaService';
 import { ExternalApiKeys, ProviderConfig } from '../components/tools/SeoSuite/types';
-import { GoogleGenAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export interface TaskMetadata {
     metaTitle?: string;
@@ -155,7 +155,7 @@ Responde SOLO con un objeto JSON válido, sin markdown ni explicaciones adiciona
     // Try with key rotation
     for (const apiKey of geminiApiKeys) {
         try {
-            const ai = new GoogleGenAI({ apiKey });
+            const ai = new GoogleGenerativeAI(apiKey);
             const model = ai.getGenerativeModel({
                 model: 'gemini-2.0-flash-exp',
                 generationConfig: {
