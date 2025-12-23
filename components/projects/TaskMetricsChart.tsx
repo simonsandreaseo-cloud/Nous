@@ -7,14 +7,40 @@ import { Project, Task } from '../../lib/task_manager';
 interface TaskMetricsChartProps {
     project: Project;
     task: Task;
+    metricsConfig?: { startDate?: string; endDate?: string };
+    onConfigChange?: (config: { startDate?: string; endDate?: string }) => void;
 }
 
-export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, task }) => {
+export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, task, metricsConfig, onConfigChange }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [data, setData] = useState<any>(null);
     const chartRef = useRef<HTMLCanvasElement>(null);
     const chartInstance = useRef<Chart | null>(null);
+
+    // Initial default dates
+    const getDefaultDates = () => {
+        const end = new Date();
+        end.setDate(end.getDate() - 3); // Default end: today - 3 days
+
+        let start = task.completed_at ? new Date(task.completed_at) : new Date();
+        if (!task.completed_at) {
+            start.setDate(end.getDate() - 28);
+        }
+        return { start, end };
+    };
+
+    const fmtDateInfo = (d: Date) => d.toISOString().split('T')[0];
+
+    // Local state for dates (initialized from config or defaults)
+    const [startDate, setStartDate] = useState<string>(metricsConfig?.startDate || fmtDateInfo(getDefaultDates().start));
+    const [endDate, setEndDate] = useState<string>(metricsConfig?.endDate || fmtDateInfo(getDefaultDates().end));
+
+    // Update local state if config changes externally (though unlikely in this modal flow)
+    useEffect(() => {
+        if (metricsConfig?.startDate) setStartDate(metricsConfig.startDate);
+        if (metricsConfig?.endDate) setEndDate(metricsConfig.endDate);
+    }, [metricsConfig]);
 
     useEffect(() => {
         if (project.gsc_property_url && (task.secondary_url || task.associated_url)) {
@@ -24,7 +50,7 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
             if (!project.gsc_property_url) setError("Configura una propiedad de GSC en los ajustes del proyecto.");
             else setError("Asigna una URL de trabajo a la tarea para ver métricas.");
         }
-    }, [project.gsc_property_url, task.secondary_url, task.associated_url, task.completed_at]);
+    }, [project.gsc_property_url, task.secondary_url, task.associated_url, startDate, endDate]);
 
     useEffect(() => {
         if (data && chartRef.current) {
@@ -37,35 +63,53 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
         };
     }, [data]);
 
+    const handleDateChange = (type: 'start' | 'end', value: string) => {
+        if (type === 'start') setStartDate(value);
+        else setEndDate(value);
+
+        // Notify parent to save config
+        if (onConfigChange) {
+            onConfigChange({
+                startDate: type === 'start' ? value : startDate,
+                endDate: type === 'end' ? value : endDate
+            });
+        }
+    };
+
     const fetchData = async () => {
         setLoading(true);
         setError(null);
         try {
-            // End date: Latest available is roughly 2-3 days ago
-            const end = new Date();
-            end.setDate(end.getDate() - 2);
+            const start = new Date(startDate);
+            const end = new Date(endDate);
 
-            // Start date: When task was completed, or 28 days ago if not completed
-            let start = task.completed_at ? new Date(task.completed_at) : new Date();
-            if (!task.completed_at) {
-                start.setDate(end.getDate() - 28);
+            // Validate dates
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                throw new Error("Fechas inválidas");
             }
 
             // Duration in days
             const diffTime = Math.abs(end.getTime() - start.getTime());
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
-            // Previous Period
+            // Previous Period immediately before start
             const prevEnd = new Date(start);
             prevEnd.setDate(prevEnd.getDate() - 1);
             const prevStart = new Date(prevEnd);
-            prevStart.setDate(prevEnd.getDate() - diffDays);
+            prevStart.setDate(prevEnd.getDate() - diffDays); // Exact same duration
 
-            const fmt = (d: Date) => d.toISOString().split('T')[0];
+            const fmt = (d: Date) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
 
             // Filter URLs
             const urls = (task.secondary_url || task.associated_url || "").split(',').map(u => u.trim());
             const regexFilter = urls.map(u => `^${u.replace(/\//g, '\\/')}$`).join('|');
+
+            console.log('Fetching metrics for:', { start: fmt(start), end: fmt(end), prevStart: fmt(prevStart), prevEnd: fmt(prevEnd) });
 
             const [currentRows, prevRows] = await Promise.all([
                 GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['date'], { page: regexFilter, operator: 'includingRegex' }),
@@ -84,10 +128,13 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
                 current: agg(currentRows),
                 previous: agg(prevRows),
                 rows: currentRows,
-                periodDays: diffDays
+                periodDays: diffDays,
+                prevStart: prevStart,
+                prevEnd: prevEnd
             });
 
         } catch (err: any) {
+            console.error(err);
             setError(err.message || 'Error al conectar con Search Console');
         } finally {
             setLoading(false);
@@ -102,7 +149,7 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
         if (!ctx) return;
 
         const sortedRows = [...data.rows].sort((a, b) => new Date(a.keys[0]).getTime() - new Date(b.keys[0]).getTime());
-        const labels = sortedRows.map(r => new Date(r.keys[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+        const labels = sortedRows.map(r => new Date(r.keys[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }));
         const clicks = sortedRows.map(r => r.clicks);
 
         chartInstance.current = new Chart(ctx, {
@@ -151,6 +198,14 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
         const pct = prevValue ? (delta / prevValue) * 100 : 0;
         const isPositive = delta > 0;
         const isBetter = reverse ? !isPositive : isPositive;
+        const isNeutral = delta === 0;
+
+        // Formatter for absolute change
+        const fmtDelta = (d: number) => {
+            // Basic formatting for integers vs floats
+            if (Math.abs(d) < 1 && d !== 0) return d.toFixed(1);
+            return Math.round(d).toLocaleString();
+        };
 
         return (
             <div className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
@@ -163,9 +218,12 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
                         <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{label}</div>
                     </div>
                 </div>
-                <div className={`flex items-center gap-1 text-xs font-bold ${isBetter ? 'text-emerald-500' : delta === 0 ? 'text-slate-400' : 'text-rose-500'}`}>
-                    {delta !== 0 && (isPositive ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
-                    {delta === 0 ? '-' : `${Math.abs(pct).toFixed(1)}%`}
+                <div className="text-right">
+                    <div className={`flex items-center justify-end gap-1 text-xs font-bold ${isNeutral ? 'text-slate-400' : isBetter ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {delta !== 0 && (isPositive ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+                        {delta === 0 ? '-' : `${fmtDelta(Math.abs(delta))} (${Math.abs(pct).toFixed(1)}%)`}
+                    </div>
+                    <div className="text-[9px] text-slate-300 font-medium">vs periodo anterior</div>
                 </div>
             </div>
         );
@@ -188,12 +246,29 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
     return (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-50 bg-slate-50/30">
-                <div className="flex justify-between items-center mb-1">
-                    <h3 className="text-sm font-bold text-brand-power">Rendimiento SEO</h3>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Tracking Activo</span>
+                <div className="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 className="text-sm font-bold text-brand-power">Rendimiento SEO</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => handleDateChange('start', e.target.value)}
+                                className="text-[10px] bg-white border border-slate-200 rounded px-2 py-1 text-slate-600 focus:border-brand-accent outline-none"
+                            />
+                            <span className="text-[10px] text-slate-400">a</span>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => handleDateChange('end', e.target.value)}
+                                className="text-[10px] bg-white border border-slate-200 rounded px-2 py-1 text-slate-600 focus:border-brand-accent outline-none"
+                            />
+                        </div>
+                    </div>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest shrink-0 ml-2">Tracking Activo</span>
                 </div>
                 <p className="text-[10px] text-slate-400 font-medium italic">
-                    {task.completed_at ? `Desde finalización (${new Date(task.completed_at).toLocaleDateString()})` : `Últimos ${data.periodDays} días`}
+                    {data?.periodDays ? `Periodo de ${data.periodDays} días comparado con ${data.prevStart?.toLocaleDateString()} - ${data.prevEnd?.toLocaleDateString()}` : 'Cargando datos...'}
                 </p>
             </div>
 
@@ -207,7 +282,7 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
                         label="Clics"
                         value={data.current.clicks}
                         prevValue={data.previous.clicks}
-                        format={(v: number) => v}
+                        format={(v: number) => v.toLocaleString()}
                         icon={MousePointer2}
                     />
                     <MetricRow
@@ -225,8 +300,17 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
                         icon={Hash}
                         reverse={true}
                     />
+                    <MetricRow
+                        label="CTR"
+                        value={data.current.ctr}
+                        prevValue={data.previous.ctr}
+                        format={(v: number) => `${v.toFixed(2)}%`}
+                        icon={Activity}
+                    />
                 </div>
             </div>
         </div>
     );
 };
+
+

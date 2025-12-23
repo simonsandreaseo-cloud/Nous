@@ -149,7 +149,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
                     </div>
 
                     {/* Metrics Grid */}
-                    <div className="space-y-4 min-h-[160px]">
+                    <div className="space-y-3 min-h-[200px]">
                         {!project.gsc_property_url ? (
                             <div className="flex flex-col items-center justify-center h-full py-8 text-center opacity-60">
                                 <BarChart2 size={32} className="text-brand-power/20 mb-2" />

@@ -3,11 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigate, Link } from 'react-router-dom';
-import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder, Globe, TrendingUp, BarChart2 } from 'lucide-react';
+import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder, Globe, TrendingUp, BarChart2, CheckSquare } from 'lucide-react';
 import ToolWrapper from '../components/layout/ToolWrapper';
 import { ProjectService, Project } from '../lib/task_manager';
 import ProjectCard from '../components/projects/ProjectCard';
 import ShareModal from '../components/shared/ShareModal';
+import TasksDashboard from '../components/dashboard/TasksDashboard';
 
 interface Draft {
     id: number;

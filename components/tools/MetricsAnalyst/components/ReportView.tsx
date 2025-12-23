@@ -3,6 +3,7 @@ import Chart from 'chart.js/auto';
 import { ComparisonItem, CannibalizationChartData, TaskPerformance, DashboardStats } from '../types';
 import { TaskPerformancePanel } from './TaskPerformancePanel';
 import { Dashboard } from './Dashboard';
+import { ProjectSelector } from '../../../shared/ProjectSelector';
 import { ConcentrationPanel } from './ConcentrationPanel';
 
 // ... (props definition)
@@ -27,6 +28,8 @@ interface ReportViewProps {
     decayAlerts?: any[];
     concentrationAnalysis?: any;
     onShowHistory?: () => void;
+    selectedProjectId?: string | null;
+    onSelectProject?: (id: string) => void;
 }
 
 export const ReportView: React.FC<ReportViewProps> = ({
@@ -45,7 +48,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
     taskPerformance,
     decayAlerts,
     concentrationAnalysis,
-    onShowHistory
+    onShowHistory,
+    selectedProjectId,
+    onSelectProject
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const chartsRef = useRef<Chart[]>([]);
@@ -204,6 +209,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     >
                         {isSaving ? 'Guardando...' : hasSaved ? '✅ Guardado' : '☁️ Guardar en Nube'}
                     </button>
+                    {onSelectProject && (
+                        <ProjectSelector
+                            selectedProjectId={selectedProjectId || null}
+                            onSelectProject={onSelectProject}
+                            className="h-full"
+                        />
+                    )}
                 </div>
             </div>
 

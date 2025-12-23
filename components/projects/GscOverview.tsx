@@ -60,7 +60,12 @@ export const GscOverview: React.FC<GscOverviewProps> = ({ project }) => {
             const prevStart = new Date(prevEnd);
             prevStart.setDate(prevEnd.getDate() - 28);
 
-            const fmt = (d: Date) => d.toISOString().split('T')[0];
+            const fmt = (d: Date) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
 
             const [currentRows, prevRows] = await Promise.all([
                 GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['date']),
@@ -101,7 +106,7 @@ export const GscOverview: React.FC<GscOverviewProps> = ({ project }) => {
 
         // Sort by date
         const sortedRows = [...data.rows].sort((a, b) => new Date(a.keys[0]).getTime() - new Date(b.keys[0]).getTime());
-        const labels = sortedRows.map(r => new Date(r.keys[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+        const labels = sortedRows.map(r => new Date(r.keys[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }));
         const clicks = sortedRows.map(r => r.clicks);
         const impressions = sortedRows.map(r => r.impressions);
 
@@ -232,7 +237,7 @@ export const GscOverview: React.FC<GscOverviewProps> = ({ project }) => {
     }
 
     if (error) {
-        const isAuthError = error.includes('No access token') || error.includes('sign in with Google') || error.includes('permissions');
+        const isAuthError = error.includes('No access token') || error.includes('sign in with Google') || error.includes('permissions') || error.includes('invalid authentication credentials') || error.includes('Expected OAuth 2');
 
         return (
             <div className="p-8 bg-white border border-brand-power/5 rounded-2xl shadow-sm flex flex-col items-center text-center">

@@ -25,7 +25,7 @@ const GscChart: React.FC<GscChartProps> = ({ data }) => {
         // Sort by date just in case
         const sortedData = [...data].sort((a, b) => new Date(a.keys[0]).getTime() - new Date(b.keys[0]).getTime());
 
-        const labels = sortedData.map(d => new Date(d.keys[0]).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
+        const labels = sortedData.map(d => new Date(d.keys[0]).toLocaleDateString('es-ES', { month: 'short', day: 'numeric', timeZone: 'UTC' }));
         const clicks = sortedData.map(d => d.clicks);
         const impressions = sortedData.map(d => d.impressions);
         const ctr = sortedData.map(d => d.ctr * 100); // Convert to %

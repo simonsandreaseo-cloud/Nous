@@ -9,12 +9,22 @@ const ProjectDashboard: React.FC = () => {
     const navigate = useNavigate();
 
     // Calculate Summary Stats from context data
-    const taskStats = tasks ? {
-        todo: tasks.filter(t => t.status === 'todo').length,
-        inProgress: tasks.filter(t => t.status === 'in_progress').length,
-        done: tasks.filter(t => t.status === 'done').length,
-        total: tasks.length
-    } : { todo: 0, inProgress: 0, done: 0, total: 0 };
+    const taskList = tasks?.filter(t => t.type === 'task' || !t.type) || [];
+    const contentList = tasks?.filter(t => t.type === 'content') || [];
+
+    const taskStats = {
+        todo: taskList.filter(t => t.status === 'todo').length,
+        inProgress: taskList.filter(t => t.status === 'in_progress').length,
+        done: taskList.filter(t => t.status === 'done').length,
+        total: taskList.length
+    };
+
+    const contentStats = {
+        todo: contentList.filter(t => t.status === 'todo' || t.status === 'idea').length,
+        inProgress: contentList.filter(t => t.status === 'in_progress' || t.status === 'review').length,
+        done: contentList.filter(t => t.status === 'done').length,
+        total: contentList.length
+    };
 
     return (
         <div className="space-y-8 pb-20">
@@ -72,16 +82,31 @@ const ProjectDashboard: React.FC = () => {
                         <Calendar size={64} className="text-brand-accent transform -rotate-12" />
                     </div>
 
-                    <div className="flex justify-between items-center mb-4 relative z-10">
-                        <h3 className="text-lg font-bold text-brand-power group-hover:text-brand-accent transition-colors">Calendario</h3>
+                    <div className="flex justify-between items-center mb-6 relative z-10">
+                        <h3 className="text-lg font-bold text-brand-power group-hover:text-brand-accent transition-colors">Cronograma</h3>
                         <div className="w-8 h-8 rounded-lg bg-brand-soft/50 flex items-center justify-center text-brand-power/40 group-hover:bg-brand-accent/10 group-hover:text-brand-accent transition-colors">
                             <Calendar size={18} />
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center h-24 text-brand-power/40 text-sm font-medium relative z-10 bg-brand-soft/5 rounded-xl border border-dashed border-brand-power/5 group-hover:border-brand-accent/20 transition-colors">
-                        <span>Planificación Editorial</span>
-                        <span className="text-xs opacity-60 mt-1">Ver cronograma</span>
+                    <div className="flex justify-between items-end relative z-10">
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-brand-power">{contentStats.todo}</div>
+                            <div className="text-[10px] uppercase font-bold text-slate-400">Planificado</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-500">{contentStats.inProgress}</div>
+                            <div className="text-[10px] uppercase font-bold text-blue-400">En Proceso</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-emerald-500">{contentStats.done}</div>
+                            <div className="text-[10px] uppercase font-bold text-emerald-400">Publicado</div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-brand-power/5 flex justify-between items-center text-xs font-medium relative z-10">
+                        <span className="text-brand-power/50">{contentStats.total} contenidos en total</span>
+                        <span className="text-brand-accent opacity-0 group-hover:opacity-100 transition-opacity">Ver cronograma &rarr;</span>
                     </div>
                 </div>
 

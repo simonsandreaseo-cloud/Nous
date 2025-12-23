@@ -10,6 +10,7 @@ import SerpPreview from './SerpPreview';
 import AiControlBar from './AiControlBar';
 import TaskView from './TaskView';
 import ErrorModal, { ErrorDetails } from './ErrorModal';
+import NewKeywordsView from './NewKeywordsView';
 
 interface ModuleResultsProps {
     moduleId: ModuleId;
@@ -75,9 +76,9 @@ const MetricCell = React.memo(({ current, prev, delta, inverse = false, isPercen
         const sign = n > 0 ? '+' : '';
         if (isDuration) return sign + formatDuration(n);
         if (isPercent) return sign + n.toFixed(1) + '%';
-        return sign + n.toFixed(0); 
+        return sign + n.toFixed(0);
     };
-    
+
     if (isLostMode) {
         return (
             <div className="flex flex-col items-end">
@@ -94,11 +95,11 @@ const MetricCell = React.memo(({ current, prev, delta, inverse = false, isPercen
 
     const colorClass = delta === 0 ? 'text-slate-300' : isGood ? 'text-emerald-600' : 'text-rose-600';
     const isRelevantDelta = isDuration ? Math.abs(delta) >= 1 : Math.abs(delta) > 0.01;
-    const valueClass = isChild 
-        ? "text-xs font-medium text-slate-600" 
-        : "text-sm font-bold text-slate-800"; 
-    const deltaClass = isChild 
-        ? "text-[10px] font-medium" 
+    const valueClass = isChild
+        ? "text-xs font-medium text-slate-600"
+        : "text-sm font-bold text-slate-800";
+    const deltaClass = isChild
+        ? "text-[10px] font-medium"
         : "text-[10px] font-bold";
 
     return (
@@ -115,10 +116,10 @@ const MetricCell = React.memo(({ current, prev, delta, inverse = false, isPercen
 
 // OPTIMIZATION: Extract Row to standalone memoized component
 const ModuleRow = React.memo(({ row, colConfig, isAiEnabled, trendResult, onTrendAnalysis, onHide, onSerp, onToggleExpand, isExpanded }: any) => {
-    const displayUrl = row.urlBreakdown && row.urlBreakdown.length > 0 
-        ? row.urlBreakdown[0].url 
+    const displayUrl = row.urlBreakdown && row.urlBreakdown.length > 0
+        ? row.urlBreakdown[0].url
         : (row as any).urls ? (row as any).urls[0] : '';
-    
+
     return (
         <React.Fragment>
             <tr className={`hover:bg-slate-50 transition-colors group ${isExpanded ? 'bg-indigo-50/20' : ''}`}>
@@ -129,7 +130,7 @@ const ModuleRow = React.memo(({ row, colConfig, isAiEnabled, trendResult, onTren
                             <button onClick={(e) => { e.stopPropagation(); onSerp(row.query); }} className="p-1 rounded text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 transition-colors"><Search className="w-3.5 h-3.5" /></button>
                         </div>
                         <div className="flex items-center gap-2">
-                                <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-500 hover:text-indigo-600 font-mono flex items-center gap-1 truncate max-w-[90%]">
+                            <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-500 hover:text-indigo-600 font-mono flex items-center gap-1 truncate max-w-[90%]">
                                 <span className="truncate">{displayUrl}</span><ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 flex-shrink-0" />
                             </a>
                             {row.urlBreakdown && row.urlBreakdown.length > 1 && <button onClick={onToggleExpand} className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold rounded transition-colors whitespace-nowrap ${isExpanded ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}><Layers className="w-3 h-3" />{isExpanded ? 'Hide' : `+${row.urlBreakdown.length - 1}`}</button>}
@@ -151,52 +152,52 @@ const ModuleRow = React.memo(({ row, colConfig, isAiEnabled, trendResult, onTren
                 )}
                 <td className="px-4 py-3 align-middle text-center"><button onClick={onHide} className="p-2 rounded-full text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button></td>
             </tr>
-            
+
             {/* Child rows logic */}
             {isExpanded && row.urlBreakdown && row.urlBreakdown.map((ub: any, idx2: number) => {
-                    const p = colConfig.isLostModule ? ub.periodA : ub.periodB;
-                    if (p.impressions === 0 && !colConfig.isLostModule) return null;
-                    if (colConfig.isLostModule && ub.periodA.impressions === 0) return null;
-                    const dImp = ub.periodB.impressions - ub.periodA.impressions;
-                    const dClicks = ub.periodB.clicks - ub.periodA.clicks;
-                    const dCtr = ub.periodB.ctr - ub.periodA.ctr;
-                    const dPos = ub.periodB.position - ub.periodA.position;
-                    return (
-                        <tr key={`${row.query}-child-${idx2}`} className="bg-slate-50/60 hover:bg-slate-100 transition-colors">
-                            <td className="px-6 py-2 pl-12 font-mono text-xs text-slate-500 truncate border-l-4 border-indigo-200">
-                                <div className="flex items-center gap-2 max-w-full">
-                                    <Layers className="w-3 h-3 text-indigo-300 flex-shrink-0" />
-                                    <span className="truncate" title={ub.url}>{ub.url}</span>
-                                </div>
-                            </td>
-                            {colConfig.showImp && <td className="px-4 py-2 align-top"><MetricCell current={p.impressions} prev={0} delta={dImp} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
-                            {colConfig.showClicks && <td className="px-4 py-2 align-top"><MetricCell current={p.clicks} prev={0} delta={dClicks} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
-                            {colConfig.showCtr && <td className="px-4 py-2 align-top"><MetricCell current={p.ctr} prev={0} delta={dCtr} isPercent={true} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
-                            {colConfig.showPos && <td className="px-6 py-2 align-top"><MetricCell current={p.position} prev={0} delta={dPos} inverse={true} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
-                            {colConfig.showBounce && <td className="px-4 py-2 align-top"><MetricCell current={colConfig.isLostModule ? ub.periodA.bounceRate || 0 : ub.periodB.bounceRate || 0} prev={0} delta={colConfig.isLostModule ? 0 : ub.diffBounce} inverse={true} isPercent={true} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
-                            {colConfig.showTime && <td className="px-4 py-2 align-top"><MetricCell current={colConfig.isLostModule ? ub.periodA.sessionDuration || 0 : ub.periodB.sessionDuration || 0} prev={0} delta={colConfig.isLostModule ? 0 : ub.diffTime} isDuration={true} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
-                            <td colSpan={isAiEnabled ? 2 : 1}></td>
-                        </tr>
-                    )
+                const p = colConfig.isLostModule ? ub.periodA : ub.periodB;
+                if (p.impressions === 0 && !colConfig.isLostModule) return null;
+                if (colConfig.isLostModule && ub.periodA.impressions === 0) return null;
+                const dImp = ub.periodB.impressions - ub.periodA.impressions;
+                const dClicks = ub.periodB.clicks - ub.periodA.clicks;
+                const dCtr = ub.periodB.ctr - ub.periodA.ctr;
+                const dPos = ub.periodB.position - ub.periodA.position;
+                return (
+                    <tr key={`${row.query}-child-${idx2}`} className="bg-slate-50/60 hover:bg-slate-100 transition-colors">
+                        <td className="px-6 py-2 pl-12 font-mono text-xs text-slate-500 truncate border-l-4 border-indigo-200">
+                            <div className="flex items-center gap-2 max-w-full">
+                                <Layers className="w-3 h-3 text-indigo-300 flex-shrink-0" />
+                                <span className="truncate" title={ub.url}>{ub.url}</span>
+                            </div>
+                        </td>
+                        {colConfig.showImp && <td className="px-4 py-2 align-top"><MetricCell current={p.impressions} prev={0} delta={dImp} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
+                        {colConfig.showClicks && <td className="px-4 py-2 align-top"><MetricCell current={p.clicks} prev={0} delta={dClicks} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
+                        {colConfig.showCtr && <td className="px-4 py-2 align-top"><MetricCell current={p.ctr} prev={0} delta={dCtr} isPercent={true} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
+                        {colConfig.showPos && <td className="px-6 py-2 align-top"><MetricCell current={p.position} prev={0} delta={dPos} inverse={true} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
+                        {colConfig.showBounce && <td className="px-4 py-2 align-top"><MetricCell current={colConfig.isLostModule ? ub.periodA.bounceRate || 0 : ub.periodB.bounceRate || 0} prev={0} delta={colConfig.isLostModule ? 0 : ub.diffBounce} inverse={true} isPercent={true} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
+                        {colConfig.showTime && <td className="px-4 py-2 align-top"><MetricCell current={colConfig.isLostModule ? ub.periodA.sessionDuration || 0 : ub.periodB.sessionDuration || 0} prev={0} delta={colConfig.isLostModule ? 0 : ub.diffTime} isDuration={true} isLostMode={colConfig.isLostModule} isChild={true} /></td>}
+                        <td colSpan={isAiEnabled ? 2 : 1}></td>
+                    </tr>
+                )
             })}
         </React.Fragment>
     );
 });
 
 
-const ModuleResults: React.FC<ModuleResultsProps> = ({ 
-    moduleId, rows, stats, lang, onBack, savedState, onSaveState, isAiEnabled, apiKeys, externalKeys, providerConfig, model, onUpdateRows 
+const ModuleResults: React.FC<ModuleResultsProps> = ({
+    moduleId, rows, stats, lang, onBack, savedState, onSaveState, isAiEnabled, apiKeys, externalKeys, providerConfig, model, onUpdateRows
 }) => {
-    
+
     const rawResults = useMemo(() => {
         return analyzeModule(moduleId, rows, stats);
     }, [moduleId, rows, stats]);
 
     const config = useMemo(() => {
-        const defaults = { 
-            imp: {min:0, max:100, start:0, end:100}, 
-            pos: {min:1, max:100, start:1, end:100}, 
-            ctr: {min:0, max:100, start:0, end:100} 
+        const defaults = {
+            imp: { min: 0, max: 100, start: 0, end: 100 },
+            pos: { min: 1, max: 100, start: 1, end: 100 },
+            ctr: { min: 0, max: 100, start: 0, end: 100 }
         };
         if (rawResults.length === 0) return defaults;
 
@@ -214,7 +215,7 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
         const absMinPos = Math.floor(minPos);
         const absMaxCtr = Math.ceil(maxCtr + 1);
 
-        return { 
+        return {
             imp: { min: 0, max: absMaxImp, start: 0, end: absMaxImp },
             pos: { min: absMinPos, max: absMaxPos, start: absMinPos, end: absMaxPos },
             ctr: { min: 0, max: absMaxCtr, start: 0, end: absMaxCtr }
@@ -224,7 +225,7 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
     // UI States
     const [hiddenQueries, setHiddenQueries] = useState<Set<string>>(savedState ? new Set(savedState.hiddenQueries) : new Set());
     const [expandedQueries, setExpandedQueries] = useState<Set<string>>(savedState ? new Set(savedState.expandedQueries) : new Set());
-    const [impRange, setImpRange] = useState<[number, number]>(savedState ? savedState.filters.imp : [config.imp.start, config.imp.end]); 
+    const [impRange, setImpRange] = useState<[number, number]>(savedState ? savedState.filters.imp : [config.imp.start, config.imp.end]);
     const [posRange, setPosRange] = useState<[number, number]>(savedState ? savedState.filters.pos : [config.pos.start, config.pos.end]);
     const [ctrRange, setCtrRange] = useState<[number, number]>(savedState ? savedState.filters.ctr : [config.ctr.start, config.ctr.end]);
     const [sortKey, setSortKey] = useState<SortKey>((savedState ? savedState.sort.key : 'IMP') as SortKey);
@@ -232,7 +233,7 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
     const [viewMode, setViewMode] = useState<ViewMode>(savedState?.viewMode || 'list');
     const [editorMode, setEditorMode] = useState(false);
     const [showSortMenu, setShowSortMenu] = useState(false);
-    
+
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -244,7 +245,7 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
     const [siteContext, setSiteContext] = useState('');
     const stopAnalysisRef = useRef(false);
     const [errorPopup, setErrorPopup] = useState<ErrorDetails | null>(null);
-    
+
     const [analyzingTrendId, setAnalyzingTrendId] = useState<string | null>(null);
     const [trendResults, setTrendResults] = useState<Record<string, TrendAnalysis>>({});
     const [serpQuery, setSerpQuery] = useState<string | null>(null);
@@ -291,23 +292,23 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
             switch (sortKey) {
                 case 'IMP': valA = refA.impressions; valB = refB.impressions; break;
                 case 'IMP_DELTA': valA = a.diffImp; valB = b.diffImp; break;
-                
+
                 case 'CLICKS': valA = refA.clicks; valB = refB.clicks; break;
                 case 'CLICKS_DELTA': valA = a.diffClicks; valB = b.diffClicks; break;
-                
+
                 case 'POS': valA = refA.position; valB = refB.position; break;
                 case 'POS_DELTA': valA = a.diffPos; valB = b.diffPos; break;
-                
+
                 case 'CTR': valA = refA.ctr; valB = refB.ctr; break;
                 case 'CTR_DELTA': valA = a.periodB.ctr - a.periodA.ctr; valB = b.periodB.ctr - b.periodA.ctr; break;
-                
+
                 case 'BOUNCE': valA = refA.bounceRate || 0; valB = refB.bounceRate || 0; break;
                 case 'BOUNCE_DELTA': valA = a.diffBounce || 0; valB = b.diffBounce || 0; break;
-                
+
                 case 'DURATION': valA = refA.sessionDuration || 0; valB = refB.sessionDuration || 0; break;
                 case 'DURATION_DELTA': valA = a.diffTime || 0; valB = b.diffTime || 0; break;
             }
-            
+
             if (sortOrder === 'asc') return valA - valB;
             return valB - valA;
         });
@@ -332,10 +333,10 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
         let msg = error.message || "Unknown error";
         if (error.error && error.error.message) msg = error.error.message;
         const isQuota = JSON.stringify(error).includes('429') || msg.includes('Quota') || msg.includes('RESOURCE_EXHAUSTED');
-        
+
         setErrorPopup({
             title: isQuota ? 'API Quota Exceeded' : 'AI Analysis Error',
-            cause: isQuota 
+            cause: isQuota
                 ? (lang === 'es' ? 'Se ha alcanzado el límite de solicitudes de la API de Gemini.' : 'Gemini API request limit reached.')
                 : (lang === 'es' ? 'Ocurrió un error inesperado al comunicarse con Gemini.' : 'An unexpected error occurred communicating with Gemini.'),
             solution: isQuota
@@ -373,7 +374,7 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
         setProgress({ processed: 0, total });
 
         const aiOptions: AiBatchOptions = {
-            apiKeys: keysToUse, 
+            apiKeys: keysToUse,
             externalKeys,
             providerConfig,
             lang,
@@ -384,17 +385,17 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
         try {
             for (let i = 0; i < total; i++) {
                 if (stopAnalysisRef.current) break;
-                
+
                 const row = rowsToAnalyze[i];
                 const res = await analyzeSeoCase(row, moduleId, aiOptions);
-                
+
                 if (res) {
                     // Update Row in place (needs to propagate up to parent if we want persistence)
                     row.aiDiagnosis = res.diagnosis;
                     row.aiActions = res.actions;
                     row.aiAnalyzed = true;
                 }
-                
+
                 setProgress(prev => ({ ...prev, processed: i + 1 }));
                 // Rate limit niceness
                 await new Promise(r => setTimeout(r, 800));
@@ -423,31 +424,62 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
         setAnalyzingTrendId(null);
     };
 
+    const handleAnalyzeSingleRow = async (query: string) => {
+        if (!isAiEnabled || activeApiKeys.length === 0) return;
+
+        const row = rows.find(r => r.query === query);
+        if (!row) return;
+
+        setIsAnalyzing(true);
+        try {
+            const aiOptions: AiBatchOptions = {
+                apiKeys: activeApiKeys,
+                externalKeys,
+                providerConfig,
+                lang,
+                model: activeModel,
+                siteContext
+            };
+
+            const res = await analyzeSeoCase(row, moduleId, aiOptions);
+            if (res) {
+                row.aiDiagnosis = res.diagnosis;
+                row.aiActions = res.actions;
+                row.aiAnalyzed = true;
+                handleRowUpdate(row);
+            }
+        } catch (error) {
+            handleAiError(error);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
     const handleDownloadCsv = () => {
         if (processedResults.length === 0) return;
-        
+
         const csvRows = ["Query,URL,Status,RootCause,Diagnosis,ActionTitle,ActionContent,Imp,Pos"];
-        
+
         processedResults.forEach(r => {
-             const diag = r.aiDiagnosis;
-             const act = r.aiActions?.[0];
-             
-             // Escape CSV fields
-             const esc = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
-             
-             csvRows.push([
-                 esc(r.query),
-                 esc(r.urlBreakdown[0]?.url),
-                 esc(diag?.status),
-                 esc(diag?.rootCause),
-                 esc(diag?.explanation),
-                 esc(act?.title),
-                 esc(act?.content), // Include rich content
-                 moduleId === 'LOST_KEYWORDS' ? r.periodA.impressions : r.periodB.impressions,
-                 moduleId === 'LOST_KEYWORDS' ? r.periodA.position.toFixed(1) : r.periodB.position.toFixed(1)
-             ].join(','));
+            const diag = r.aiDiagnosis;
+            const act = r.aiActions?.[0];
+
+            // Escape CSV fields
+            const esc = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
+
+            csvRows.push([
+                esc(r.query),
+                esc(r.urlBreakdown[0]?.url),
+                esc(diag?.status),
+                esc(diag?.rootCause),
+                esc(diag?.explanation),
+                esc(act?.title),
+                esc(act?.content), // Include rich content
+                moduleId === 'LOST_KEYWORDS' ? r.periodA.impressions : r.periodB.impressions,
+                moduleId === 'LOST_KEYWORDS' ? r.periodA.position.toFixed(1) : r.periodB.position.toFixed(1)
+            ].join(','));
         });
-        
+
         const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -455,11 +487,11 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
         a.download = `${moduleId.toLowerCase()}_analysis.csv`;
         a.click();
     };
-    
+
     const handleCleanPrint = () => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
-        
+
         const html = `
         <html>
         <head>
@@ -559,21 +591,21 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
                 </div>
 
                 {isAiEnabled && (
-                    <AiControlBar 
+                    <AiControlBar
                         lang={lang}
                         isAnalyzing={isAnalyzing}
                         progress={progress}
                         onStart={() => handleBatchAnalysis()}
                         onStop={() => stopAnalysisRef.current = true}
                         apiKey={activeApiKeys[0] || '***'}
-                        setApiKey={() => {}} 
+                        setApiKey={() => { }}
                         model={activeModel}
                         setModel={setActiveModel}
                         siteContext={siteContext}
                         setSiteContext={setSiteContext}
                     />
                 )}
-                
+
                 {/* View Mode Toggle */}
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -582,7 +614,7 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
                         </button>
                     </div>
 
-                     <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                    <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
                         <button onClick={() => setViewMode('list')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-all ${viewMode === 'list' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                             <List className="w-3.5 h-3.5" />{t.listMode}
                         </button>
@@ -600,57 +632,65 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
                         {colConfig.showPos && <RangeSlider label="Position" min={config.pos.min} max={config.pos.max} initialStart={posRange[0]} initialEnd={posRange[1]} onChange={setPosRange} />}
                         {colConfig.showCtr && <RangeSlider label="CTR (%)" min={config.ctr.min} max={config.ctr.max} initialStart={ctrRange[0]} initialEnd={ctrRange[1]} onChange={setCtrRange} />}
                     </div>
-                    
+
                     {/* Summary & Buttons */}
                     <div className="flex items-center gap-4 ml-auto border-l border-gray-100 pl-4">
-                         <div className="hidden lg:flex flex-col items-end mr-2">
-                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{t.summaryImp}</span>
-                             <span className="text-sm font-bold text-slate-700">{new Intl.NumberFormat('en-US', { notation: "compact" }).format(summary.totalImp)}</span>
-                         </div>
-                         
-                         {viewMode === 'list' && (
-                             <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                                 <div className="relative">
-                                     <button onClick={() => setShowSortMenu(!showSortMenu)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-indigo-600 rounded hover:bg-white transition-all">
+                        <div className="hidden lg:flex flex-col items-end mr-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{t.summaryImp}</span>
+                            <span className="text-sm font-bold text-slate-700">{new Intl.NumberFormat('en-US', { notation: "compact" }).format(summary.totalImp)}</span>
+                        </div>
+
+                        {viewMode === 'list' && (
+                            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                                <div className="relative">
+                                    <button onClick={() => setShowSortMenu(!showSortMenu)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-indigo-600 rounded hover:bg-white transition-all">
                                         <ArrowUpDown className="w-3.5 h-3.5" />
                                         <span>{sortKey.replace('_', ' ')}</span>
-                                     </button>
-                                     {showSortMenu && (
-                                         <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1 overflow-hidden">
-                                             <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border-b border-gray-100">{t.sortBy}</div>
-                                             <div className="max-h-64 overflow-y-auto">
+                                    </button>
+                                    {showSortMenu && (
+                                        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-50 py-1 overflow-hidden">
+                                            <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border-b border-gray-100">{t.sortBy}</div>
+                                            <div className="max-h-64 overflow-y-auto">
                                                 {/* Metrics */}
                                                 <div className="px-3 py-1 text-[9px] font-bold text-indigo-400 uppercase tracking-wide mt-1">Metrics</div>
                                                 <button onClick={() => handleSortSelect('IMP')} className="w-full text-left px-4 py-1.5 text-xs hover:bg-indigo-50 text-slate-700">Impressions</button>
                                                 {/* ... other sort options */}
-                                             </div>
-                                         </div>
-                                     )}
-                                 </div>
-                                 <div className="w-px h-4 bg-slate-200"></div>
-                                 <button 
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="w-px h-4 bg-slate-200"></div>
+                                <button
                                     onClick={toggleSortOrder}
                                     className="p-1.5 hover:bg-white rounded text-slate-500 hover:text-indigo-600 transition-colors"
                                     title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
                                 >
                                     {sortOrder === 'asc' ? <SortAsc className="w-3.5 h-3.5" /> : <SortDesc className="w-3.5 h-3.5" />}
-                                 </button>
-                             </div>
-                         )}
+                                </button>
+                            </div>
+                        )}
 
-                         <button onClick={handleCleanPrint} className="p-2 rounded-lg hover:bg-slate-50 text-slate-500 border border-transparent hover:border-gray-200 transition-all"><Printer className="w-4 h-4" /></button>
-                         <button onClick={handleDownloadCsv} className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all"><Download className="w-4 h-4" /></button>
+                        <button onClick={handleCleanPrint} className="p-2 rounded-lg hover:bg-slate-50 text-slate-500 border border-transparent hover:border-gray-200 transition-all"><Printer className="w-4 h-4" /></button>
+                        <button onClick={handleDownloadCsv} className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all"><Download className="w-4 h-4" /></button>
                     </div>
                 </div>
             </div>
 
             {/* Table or Task View */}
-            {viewMode === 'tasks' ? (
-                <TaskView 
-                    mode="GENERIC" 
-                    rows={processedResults} 
-                    lang={lang} 
-                    isEditorMode={editorMode} 
+            {moduleId === 'NEW_KEYWORDS' && viewMode === 'list' ? (
+                <NewKeywordsView
+                    rows={processedResults}
+                    lang={lang}
+                    isAiEnabled={isAiEnabled}
+                    onAnalyzeBatch={() => handleBatchAnalysis()}
+                    onAnalyzeSingle={handleAnalyzeSingleRow}
+                />
+            ) : viewMode === 'tasks' ? (
+                <TaskView
+                    mode="GENERIC"
+                    rows={processedResults}
+                    lang={lang}
+                    isEditorMode={editorMode}
                     onDismiss={handleDismiss}
                     onUpdateRow={handleRowUpdate}
                 />
@@ -677,7 +717,7 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
                                     </thead>
                                     <tbody className="divide-y divide-gray-50 text-sm">
                                         {paginatedResults.map((row, idx) => (
-                                            <ModuleRow 
+                                            <ModuleRow
                                                 key={`${row.query}-${idx}`}
                                                 row={row}
                                                 colConfig={colConfig}
@@ -693,8 +733,8 @@ const ModuleResults: React.FC<ModuleResultsProps> = ({
                                     </tbody>
                                 </table>
                             </div>
-                            
-                             {totalPages > 1 && (
+
+                            {totalPages > 1 && (
                                 <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-slate-50/50">
                                     <div className="text-xs text-slate-500">
                                         Showing <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> - <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, processedResults.length)}</span> {t.of} <span className="font-medium">{processedResults.length}</span> results

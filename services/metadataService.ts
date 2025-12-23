@@ -9,6 +9,10 @@ export interface TaskMetadata {
     metaDescription?: string;
     slug?: string;
     generatedAt?: string;
+    metricsConfig?: {
+        startDate?: string;
+        endDate?: string;
+    };
     serpProvider?: string;
 }
 

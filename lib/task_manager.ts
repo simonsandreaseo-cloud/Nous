@@ -352,5 +352,44 @@ export const TaskService = {
         // 1. Task has no assignee
         // 2. Task is already assigned to this user
         return !task.assignee_id || task.assignee_id === userId;
+    },
+
+    /**
+     * Gets all tasks assigned to the current user across all projects
+     */
+    async getMyAssignedTasks() {
+        const user = (await supabase.auth.getUser()).data.user;
+        if (!user) throw new Error("Not authenticated");
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*, projects(name, slug)')
+            .eq('assignee_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data as (Task & { projects: { name: string, slug: string } })[];
+    },
+
+    /**
+     * Admin/Owner assign a task to a specific user
+     */
+    async assignTaskToUser(taskId: string | number, userId: string | null) {
+        console.log('[TaskService.assignTaskToUser] Attempting to assign task:', taskId, 'to user:', userId);
+
+        // Use RPC function for atomic assignment by admin
+        const { data, error } = await supabase
+            .rpc('admin_assign_task', {
+                task_id_param: taskId,
+                target_user_id: userId
+            });
+
+        if (error) {
+            console.error('[TaskService.assignTaskToUser] Error:', error);
+            throw new Error(`Error al asignar tarea: ${error.message}`);
+        }
+
+        console.log('[TaskService.assignTaskToUser] Task assigned successfully:', data);
+        return data;
     }
 };

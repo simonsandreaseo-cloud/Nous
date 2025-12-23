@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { TaskMetricsChart } from './TaskMetricsChart';
 import MetadataGeneratorModal from './MetadataGeneratorModal';
 import { TaskMetadata } from '../../services/metadataService';
+import { ProjectService } from '../../lib/task_manager';
 
 interface TaskDetailModalProps {
     task: Task;
@@ -28,11 +29,36 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
     const [keyword, setKeyword] = useState(task.target_keyword || '');
     const [trackingMetrics, setTrackingMetrics] = useState(task.tracking_metrics || false);
     const [completedAt, setCompletedAt] = useState(task.completed_at || '');
+    const [createdAt, setCreatedAt] = useState(task.created_at);
     const [isSaving, setIsSaving] = useState(false);
     const [lockedBy, setLockedBy] = useState<string | null>(task.locked_by || null);
     const [metadata, setMetadata] = useState<TaskMetadata>(task.metadata || {});
     const [showMetadataModal, setShowMetadataModal] = useState(false);
+    const [isEditingMetadata, setIsEditingMetadata] = useState(false);
     const [isAssigning, setIsAssigning] = useState(false);
+    const [projectMembers, setProjectMembers] = useState<any[]>([]);
+    const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+
+    const isAdmin = project?.role === 'owner' || project?.role === 'admin';
+
+    useEffect(() => {
+        if (isAdmin && project?.id) {
+            fetchMembers();
+        }
+    }, [project?.id, isAdmin]);
+
+    const fetchMembers = async () => {
+        if (!project?.id) return;
+        setIsLoadingMembers(true);
+        try {
+            const { members } = await ProjectService.getMembers(project.id);
+            setProjectMembers(members);
+        } catch (error) {
+            console.error('Error fetching project members:', error);
+        } finally {
+            setIsLoadingMembers(false);
+        }
+    };
 
     const isLocked = ContentService.isLocked(task, user?.id || '');
     const isAssignedToMe = task.assignee_id === user?.id;
@@ -77,6 +103,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                 target_keyword: keyword,
                 tracking_metrics: trackingMetrics,
                 completed_at: completedAt,
+                created_at: createdAt,
                 metadata: metadata
             };
 
@@ -170,6 +197,18 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
         }
     };
 
+    const handleAdminAssign = async (targetUserId: string | null) => {
+        setIsAssigning(true);
+        try {
+            await TaskService.assignTaskToUser(task.id, targetUserId);
+            onUpdate();
+        } catch (error: any) {
+            alert(error.message || 'Error al asignar tarea');
+        } finally {
+            setIsAssigning(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
@@ -189,11 +228,53 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                             disabled={!canEdit}
                             className="text-2xl font-bold text-brand-power bg-transparent border-none outline-none w-full focus:ring-2 focus:ring-brand-accent/20 rounded-lg px-2 -ml-2 disabled:opacity-50"
                         />
-                        <div className="flex items-center gap-4 mt-2 text-xs text-brand-power/40 font-bold uppercase tracking-widest">
-                            <span className="flex items-center gap-1"><Calendar size={12} /> Creada: {new Date(task.created_at).toLocaleDateString()}</span>
-                            {completedAt && (
-                                <span className="flex items-center gap-1 text-emerald-500"><Activity size={12} /> Finalizada: {new Date(completedAt).toLocaleDateString()}</span>
-                            )}
+                        <div className="flex items-center gap-4 mt-2 text-xs text-brand-power/40 font-bold uppercase tracking-widest flex-wrap">
+                            <div className="flex items-center gap-1 group relative">
+                                <Calendar size={12} />
+                                <span>Creada:</span>
+                                {canEdit ? (
+                                    <input
+                                        type="date"
+                                        value={createdAt ? new Date(createdAt).toLocaleDateString('en-CA') : ''}
+                                        onChange={(e) => {
+                                            if (e.target.value) {
+                                                const [y, m, d] = e.target.value.split('-').map(Number);
+                                                const date = new Date(y, m - 1, d);
+                                                setCreatedAt(date.toISOString());
+                                            }
+                                        }}
+                                        className="bg-transparent border-b border-dashed border-brand-power/20 outline-none hover:border-brand-power/50 focus:border-brand-power transition-colors w-[110px]"
+                                    />
+                                ) : (
+                                    <span>{new Date(createdAt).toLocaleDateString()}</span>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-1 text-emerald-500 group relative">
+                                <Activity size={12} />
+                                <span>Finalizada:</span>
+                                {canEdit ? (
+                                    <input
+                                        type="date"
+                                        value={completedAt ? new Date(completedAt).toLocaleDateString('en-CA') : ''}
+                                        onChange={(e) => {
+                                            if (!e.target.value) {
+                                                setCompletedAt('');
+                                            } else {
+                                                const [y, m, d] = e.target.value.split('-').map(Number);
+                                                const date = new Date(y, m - 1, d);
+                                                setCompletedAt(date.toISOString());
+                                            }
+                                        }}
+                                        className="bg-transparent border-b border-dashed border-emerald-500/20 outline-none hover:border-emerald-500/50 focus:border-emerald-500 transition-colors w-[110px] text-emerald-600"
+                                    />
+                                ) : completedAt ? (
+                                    <span>{new Date(completedAt).toLocaleDateString()}</span>
+                                ) : (
+                                    <span className="text-brand-power/20 italic">No finalizada</span>
+                                )}
+                            </div>
+
                             {isAssignedToMe && (
                                 <span className="flex items-center gap-1 text-brand-accent"><User size={12} /> Asignada a ti</span>
                             )}
@@ -257,43 +338,113 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                                     <Wand2 size={16} className="text-purple-500" />
                                                     Metadatos SEO
                                                 </h4>
-                                                <p className="text-xs text-brand-power/60">Genera metadatos optimizados analizando el SERP</p>
+                                                <p className="text-xs text-brand-power/60">
+                                                    {isEditingMetadata ? 'Edita los metadatos manualmente' : 'Genera metadatos optimizados analizando el SERP'}
+                                                </p>
                                             </div>
-                                            <Sparkles className="text-purple-500 animate-pulse" />
+                                            <div className="flex items-center gap-2">
+                                                {!isEditingMetadata && metadata.metaTitle && (
+                                                    <button
+                                                        onClick={() => setIsEditingMetadata(true)}
+                                                        className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
+                                                        title="Editar manualmente"
+                                                    >
+                                                        <Edit3 size={16} />
+                                                    </button>
+                                                )}
+                                                <Sparkles className="text-purple-500 animate-pulse" />
+                                            </div>
                                         </div>
 
-                                        {metadata.metaTitle ? (
-                                            <div className="space-y-3 mb-4">
-                                                <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                        {isEditingMetadata ? (
+                                            <div className="space-y-4 mb-4">
+                                                <div>
                                                     <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Meta Title</label>
-                                                    <p className="text-sm text-brand-power">{metadata.metaTitle}</p>
+                                                    <input
+                                                        value={metadata.metaTitle || ''}
+                                                        onChange={(e) => setMetadata({ ...metadata, metaTitle: e.target.value })}
+                                                        placeholder="Meta Title optimizado..."
+                                                        className="w-full bg-white border border-purple-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-200"
+                                                    />
                                                 </div>
-                                                <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                <div>
                                                     <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">H1</label>
-                                                    <p className="text-sm text-brand-power">{metadata.h1}</p>
+                                                    <input
+                                                        value={metadata.h1 || ''}
+                                                        onChange={(e) => setMetadata({ ...metadata, h1: e.target.value })}
+                                                        placeholder="Encabezado H1..."
+                                                        className="w-full bg-white border border-purple-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-200"
+                                                    />
                                                 </div>
-                                                <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                <div>
                                                     <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Meta Description</label>
-                                                    <p className="text-sm text-brand-power">{metadata.metaDescription}</p>
+                                                    <textarea
+                                                        value={metadata.metaDescription || ''}
+                                                        onChange={(e) => setMetadata({ ...metadata, metaDescription: e.target.value })}
+                                                        placeholder="Descripción persuasiva..."
+                                                        className="w-full bg-white border border-purple-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-200 min-h-[80px] resize-none"
+                                                    />
                                                 </div>
-                                                <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                <div>
                                                     <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Slug</label>
-                                                    <p className="text-sm text-brand-power font-mono">{metadata.slug}</p>
+                                                    <input
+                                                        value={metadata.slug || ''}
+                                                        onChange={(e) => setMetadata({ ...metadata, slug: e.target.value })}
+                                                        placeholder="url-amigable-ejemplo"
+                                                        className="w-full bg-white border border-purple-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-200 font-mono"
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2 pt-2">
+                                                    <button
+                                                        onClick={() => setIsEditingMetadata(false)}
+                                                        className="flex-1 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg font-bold text-xs uppercase hover:bg-purple-200 transition-colors"
+                                                    >
+                                                        Listo
+                                                    </button>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="bg-purple-50 rounded-lg p-4 mb-4 text-center">
-                                                <p className="text-xs text-purple-700">No hay metadatos generados aún</p>
-                                            </div>
-                                        )}
+                                            <>
+                                                {metadata.metaTitle ? (
+                                                    <div className="space-y-3 mb-4">
+                                                        <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                            <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Meta Title</label>
+                                                            <p className="text-sm text-brand-power">{metadata.metaTitle}</p>
+                                                        </div>
+                                                        <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                            <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">H1</label>
+                                                            <p className="text-sm text-brand-power">{metadata.h1}</p>
+                                                        </div>
+                                                        <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                            <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Meta Description</label>
+                                                            <p className="text-sm text-brand-power">{metadata.metaDescription}</p>
+                                                        </div>
+                                                        <div className="bg-white rounded-lg p-3 border border-purple-100">
+                                                            <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Slug</label>
+                                                            <p className="text-sm text-brand-power font-mono">{metadata.slug}</p>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="bg-purple-50 rounded-lg p-4 mb-4 text-center">
+                                                        <p className="text-xs text-purple-700">No hay metadatos generados aún</p>
+                                                        <button
+                                                            onClick={() => setIsEditingMetadata(true)}
+                                                            className="text-[10px] font-bold text-purple-600 mt-2 hover:underline uppercase tracking-wider"
+                                                        >
+                                                            O agregar manualmente
+                                                        </button>
+                                                    </div>
+                                                )}
 
-                                        <button
-                                            onClick={() => setShowMetadataModal(true)}
-                                            className="w-full px-3 py-2.5 bg-purple-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <Wand2 size={14} />
-                                            {metadata.metaTitle ? 'Regenerar Metadatos' : 'Generar Metadatos con IA'}
-                                        </button>
+                                                <button
+                                                    onClick={() => setShowMetadataModal(true)}
+                                                    className="w-full px-3 py-2.5 bg-purple-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    <Wand2 size={14} />
+                                                    {metadata.metaTitle ? 'Regenerar Metadatos' : 'Generar Metadatos con IA'}
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
 
                                     <div className="bg-gradient-to-br from-brand-power/5 to-transparent rounded-xl p-6 border border-brand-power/5">
@@ -356,6 +507,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                             <TaskMetricsChart
                                                 project={project}
                                                 task={{ ...task, secondary_url: secondaryUrl, tracking_metrics: trackingMetrics, completed_at: completedAt }}
+                                                metricsConfig={metadata.metricsConfig}
+                                                onConfigChange={(newConfig) => setMetadata({ ...metadata, metricsConfig: newConfig })}
                                             />
                                         </div>
                                     )}
@@ -399,7 +552,29 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                     </button>
                                 ) : (
                                     <div className="text-center py-3 bg-orange-50 rounded-xl border border-orange-200">
-                                        <p className="text-xs text-orange-700 font-medium">Asignada a otro usuario</p>
+                                        <p className="text-xs text-orange-700 font-medium whitespace-nowrap overflow-hidden text-ellipsis px-2">
+                                            Asignada a: {task.assignee?.email || 'Otro usuario'}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {isAdmin && (
+                                    <div className="mt-4 pt-4 border-t border-brand-accent/20">
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-power/40 mb-2">Asignación Administrativa</label>
+                                        <select
+                                            value={task.assignee_id || ''}
+                                            onChange={(e) => handleAdminAssign(e.target.value || null)}
+                                            disabled={isAssigning || isLoadingMembers}
+                                            className="w-full bg-white border border-brand-power/10 rounded-lg p-2 text-xs outline-none focus:border-brand-accent font-bold text-brand-power"
+                                        >
+                                            <option value="">— Sin asignar —</option>
+                                            {projectMembers.map((member) => (
+                                                <option key={member.user_id} value={member.user_id}>
+                                                    {member.email} {member.user_id === user?.id ? '(Tú)' : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[9px] text-brand-power/40 mt-1 italic leading-tight">Como administrador puedes asignar esta tarea a cualquier miembro.</p>
                                     </div>
                                 )}
                             </div>

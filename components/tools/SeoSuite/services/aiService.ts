@@ -49,7 +49,7 @@ const getCountryCode = (countryName: string): string => {
 // STRICT TAG CONSOLIDATION (8 Core Tags)
 const TRANSLATE_TAGS_ES = (tag: string) => {
     const t = tag.toUpperCase().trim();
-    
+
     if (t.includes('WINNER') || t.includes('GANADORA')) return 'GANADORA';
     if (t.includes('REDIRECT')) return 'REDIRECCIONAR 301';
     if (t.includes('MERGE') || t.includes('FUSION')) return 'FUSIONAR';
@@ -57,19 +57,19 @@ const TRANSLATE_TAGS_ES = (tag: string) => {
     if (t.includes('KEEP') || t.includes('MANTENER') || t.includes('MIXED') || t.includes('MIXTO') || t.includes('IGNORAR')) return 'MANTENER';
     if (t.includes('DELETE') || t.includes('ELIMINAR') || t.includes('404')) return 'ELIMINAR (404)';
     if (t.includes('CANONICAL')) return 'CANONICALIZAR';
-    
+
     // Default fallback
     return 'REVISIÓN MANUAL';
 };
 
 export const getOpportunityPriority = (
     moduleId: ModuleId,
-    currentPos: number, 
-    currentImp: number, 
+    currentPos: number,
+    currentImp: number,
     diffPos: number,
     pastImp: number = 0
 ): 'HIGH' | 'MEDIUM' | 'LOW' => {
-    
+
     // Module Specific Priorities
     if (moduleId === 'LOST_KEYWORDS') {
         // For Lost Keywords, current metrics are 0. Use past impressions.
@@ -95,7 +95,7 @@ export const getOpportunityPriority = (
     // High impact decay or very high volume keywords
     if ((currentPos < 20 && currentImp > 800) || Math.abs(diffPos) > 5) return 'HIGH';
     if (currentPos >= 20 && currentPos <= 40 && currentImp > 200) return 'MEDIUM';
-    
+
     return 'LOW';
 };
 
@@ -103,7 +103,7 @@ export const getOpportunityPriority = (
 
 const compressContentForAnalysis = (markdown: string): string => {
     if (!markdown) return "No content available.";
-    
+
     const lines = markdown.split('\n');
     let skeleton = "";
     let introCaptured = false;
@@ -134,7 +134,7 @@ const compressContentForAnalysis = (markdown: string): string => {
 
 const compressSerpContext = (serpMarkdown: string): string => {
     // Take first 3000 chars which covers top organic results usually
-    return serpMarkdown.substring(0, 3000); 
+    return serpMarkdown.substring(0, 3000);
 };
 
 // --- HELPER: KEY ROTATION ---
@@ -144,7 +144,7 @@ const executeWithKeyRotation = async <T>(
     operation: (key: string) => Promise<T>
 ): Promise<T> => {
     let lastError: any = null;
-    
+
     // Loop through keys. If one fails with 429, try next.
     for (const apiKey of keys) {
         try {
@@ -153,7 +153,7 @@ const executeWithKeyRotation = async <T>(
             lastError = error;
             const msg = error.message || JSON.stringify(error);
             const isQuota = msg.includes('429') || msg.includes('Quota') || msg.includes('RESOURCE_EXHAUSTED');
-            
+
             if (isQuota) {
                 console.warn(`Key ${apiKey.substring(0, 8)}... exhausted. Rotating...`);
                 continue; // Try next key
@@ -162,7 +162,7 @@ const executeWithKeyRotation = async <T>(
             }
         }
     }
-    
+
     throw lastError; // All keys failed
 };
 
@@ -192,6 +192,7 @@ NEGATIVE CONSTRAINTS:
 - DO NOT suggest "checking the SERP". I have provided the SERP URLs and content. USE IT.
 - YOUR ACTIONS MUST BE DELIVERABLES (Text, Code, HTML), NOT ADVICE.
 - IF GENERATING CODE (JSON-LD, HTML), INCLUDE A "CONTEXT/INSTALLATION" NOTE telling the user where to place it.
+- **EXTREME CONCISENESS**: DIAGNOSIS explanation must be < 40 words. Action Titles < 10 words. Action Content must be direct and to the point.
 `;
 
 const MODULE_INSTRUCTIONS: Record<string, string> = {
@@ -243,12 +244,12 @@ const MODULE_INSTRUCTIONS: Record<string, string> = {
     - Action: "Content Expansion" (The actual H2 and text to add).
     `,
     'NEW_KEYWORDS': `
-    TASK: Ranking for new term.
-    1. Analyze if my current URL satisfies this new keyword intent based on competitors.
-    2. If yes, Optimize H2. If no, suggest New Page Structure.
+    TASK: New ranking term.
+    1. Confirm if intent matches current URL.
+    2. Optimize H2 or suggest simpler outline.
     OUTPUT:
     - RootCause: INTENT.
-    - Action: "Optimization" (Rewrite an existing H2) OR "New Page Outline".
+    - Action: "Optimization" (Exact H2 text change) OR "Outline" (Bullet points only).
     `,
     'CTR_OPPORTUNITIES': `
     TASK: High CTR on Pg2.
@@ -271,7 +272,7 @@ const MODULE_INSTRUCTIONS: Record<string, string> = {
 const getModulePrompt = (moduleId: string, context: Record<string, string>) => {
     const specificInstructions = MODULE_INSTRUCTIONS[moduleId] || "Analyze SEO gap and generate missing content.";
     let p = BASE_PROMPT + "\n### INSTRUCTIONS:\n" + specificInstructions;
-    
+
     // Interpolate
     Object.keys(context).forEach(key => {
         p = p.replace(new RegExp(`{${key}}`, 'g'), context[key]);
@@ -327,18 +328,18 @@ export const analyzeSeoCase = async (
     let engagement = 'Unknown';
     let country = 'Global';
 
-    if ('urls' in row) { 
-         return null; 
-    } else { 
-         const metrics = row.periodB;
-         url = preferredUrl || row.urlBreakdown[0]?.url || '';
-         pos = metrics.position;
-         ctr = metrics.ctr;
-         time = metrics.sessionDuration || 0;
-         country = row.dominantCountry;
-         if (metrics.bounceRate) {
-             engagement = metrics.bounceRate < 0.6 ? 'High' : 'Low';
-         }
+    if ('urls' in row) {
+        return null;
+    } else {
+        const metrics = row.periodB;
+        url = preferredUrl || row.urlBreakdown[0]?.url || '';
+        pos = metrics.position;
+        ctr = metrics.ctr;
+        time = metrics.sessionDuration || 0;
+        country = row.dominantCountry;
+        if (metrics.bounceRate) {
+            engagement = metrics.bounceRate < 0.6 ? 'High' : 'Low';
+        }
     }
 
     if (!url) return null;
@@ -346,34 +347,34 @@ export const analyzeSeoCase = async (
     let myContent = '';
     let competitorsContext = '';
     let competitorUrls: string[] = [];
-    
+
     // Check if we have any enabled provider key
     const hasExternalKey = options.externalKeys.jina || options.externalKeys.firecrawl || options.externalKeys.tavily || options.externalKeys.serper;
 
     try {
         if (hasExternalKey) {
             const isoCountry = getCountryCode(country);
-            
+
             // 1. Fetch My Content
             const myContentPromise = fetchContentWithJina(url, options.externalKeys, options.providerConfig.reader);
-            
+
             // 2. Fetch SERP to get Competitor URLs
             const serpResult = await fetchSerpWithJina(keyword, isoCountry, options.lang, options.externalKeys, options.providerConfig.serp);
-            
+
             // 3. Extract Top 3-5 Competitors from SERP Result
             competitorUrls = serpResult.urls.slice(0, 3); // Top 3 is usually enough context and saves tokens/time
-            
+
             // 4. Fetch Competitor Content in Parallel
             const competitorPromises = competitorUrls.map(u => fetchContentWithJina(u, options.externalKeys, options.providerConfig.reader));
-            
+
             const [myC, ...compCs] = await Promise.all([myContentPromise, ...competitorPromises]);
-            
+
             myContent = compressContentForAnalysis(myC);
-            
+
             competitorsContext = compCs.map((c, i) => {
-                return `COMPETITOR ${i+1} (${competitorUrls[i]}):\n${compressContentForAnalysis(c)}\n---\n`;
+                return `COMPETITOR ${i + 1} (${competitorUrls[i]}):\n${compressContentForAnalysis(c)}\n---\n`;
             }).join('\n');
-            
+
             // Fallback if content fetch fails but we have SERP markdown
             if (!competitorsContext && serpResult.markdown) {
                 competitorsContext = compressSerpContext(serpResult.markdown);
@@ -384,7 +385,7 @@ export const analyzeSeoCase = async (
     }
 
     const targetLang = options.lang === 'es' ? 'SPANISH' : 'ENGLISH';
-    
+
     const prompt = getModulePrompt(moduleId, {
         target_lang: targetLang,
         case_module: moduleId,
@@ -431,7 +432,7 @@ export const analyzeSeoCase = async (
                     if (contextKey) str += `CONTEXT: ${action.content[contextKey]}\n\n`;
                     if (codeKey) str += action.content[codeKey];
                     else if (!contextKey) str = JSON.stringify(action.content, null, 2);
-                    
+
                     action.content = str;
                 }
                 // Ensure it is strictly a string
@@ -458,28 +459,28 @@ export const analyzeCannibalizationMaster = async (
     group: CannibalizationGroup,
     options: AiBatchOptions
 ): Promise<AiAnalysisResult | null> => {
-     if (options.apiKeys.length === 0) throw new Error("API Key required");
-     
-     const hasExternalKey = options.externalKeys.jina || options.externalKeys.firecrawl || options.externalKeys.tavily || options.externalKeys.serper;
-     const topUrls = group.urls.slice(0, 2);
-     let contextStr = "";
-     
-     if (hasExternalKey) {
-         try {
-             const isoCountry = getCountryCode(group.dominantCountry);
-             for (const u of topUrls) {
-                 const c = await fetchContentWithJina(u.url, options.externalKeys, options.providerConfig.reader);
-                 const skeleton = compressContentForAnalysis(c);
-                 contextStr += `URL: ${u.url}\nContent Structure:\n${skeleton}\n\n`;
-             }
-             const serp = await fetchSerpWithJina(group.query, isoCountry, options.lang, options.externalKeys, options.providerConfig.serp);
-             contextStr += `SERP:\n${compressSerpContext(serp.markdown)}\n`;
-         } catch (e) {
-             console.warn("External fetch error", e);
-         }
-     }
+    if (options.apiKeys.length === 0) throw new Error("API Key required");
 
-     const prompt = `
+    const hasExternalKey = options.externalKeys.jina || options.externalKeys.firecrawl || options.externalKeys.tavily || options.externalKeys.serper;
+    const topUrls = group.urls.slice(0, 2);
+    let contextStr = "";
+
+    if (hasExternalKey) {
+        try {
+            const isoCountry = getCountryCode(group.dominantCountry);
+            for (const u of topUrls) {
+                const c = await fetchContentWithJina(u.url, options.externalKeys, options.providerConfig.reader);
+                const skeleton = compressContentForAnalysis(c);
+                contextStr += `URL: ${u.url}\nContent Structure:\n${skeleton}\n\n`;
+            }
+            const serp = await fetchSerpWithJina(group.query, isoCountry, options.lang, options.externalKeys, options.providerConfig.serp);
+            contextStr += `SERP:\n${compressSerpContext(serp.markdown)}\n`;
+        } catch (e) {
+            console.warn("External fetch error", e);
+        }
+    }
+
+    const prompt = `
      Task: Solve Cannibalization. Query: "${group.query}".
      Lang: ${options.lang === 'es' ? 'SPANISH' : 'ENGLISH'} (STRICT).
      Site Context: ${options.siteContext || "General Website"}.
@@ -512,51 +513,51 @@ export const analyzeCannibalizationMaster = async (
      `;
 
     return await executeWithKeyRotation(options.apiKeys, async (apiKey) => {
-         const ai = new GoogleGenAI({ apiKey });
-         const response = await ai.models.generateContent({
-             model: options.model,
-             contents: prompt,
-             config: { responseMimeType: "application/json" }
-         });
-         const text = response.text;
-         if (!text) return null;
-         let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-         const start = cleaned.indexOf('{');
-         const end = cleaned.lastIndexOf('}');
-         if (start !== -1 && end !== -1) cleaned = cleaned.substring(start, end + 1);
-         
-         const result = JSON.parse(cleaned) as AiAnalysisResult;
-         
-         if (options.lang === 'es') {
-             result.classifications.forEach(c => {
-                 c.tag = TRANSLATE_TAGS_ES(c.tag);
-             });
-         }
-         return result;
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+            model: options.model,
+            contents: prompt,
+            config: { responseMimeType: "application/json" }
+        });
+        const text = response.text;
+        if (!text) return null;
+        let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const start = cleaned.indexOf('{');
+        const end = cleaned.lastIndexOf('}');
+        if (start !== -1 && end !== -1) cleaned = cleaned.substring(start, end + 1);
+
+        const result = JSON.parse(cleaned) as AiAnalysisResult;
+
+        if (options.lang === 'es') {
+            result.classifications.forEach(c => {
+                c.tag = TRANSLATE_TAGS_ES(c.tag);
+            });
+        }
+        return result;
     });
 };
 
 export const analyzeBatchWithAi = async (
-  groups: CannibalizationGroup[],
-  options: AiBatchOptions
+    groups: CannibalizationGroup[],
+    options: AiBatchOptions
 ): Promise<AiAnalysisResult[]> => {
-  if (options.apiKeys.length === 0) throw new Error("API Key is required");
-  const results: AiAnalysisResult[] = [];
-  for (const group of groups) {
-      try {
-        const res = await analyzeCannibalizationMaster(group, options);
-        if (res) results.push(res);
-      } catch (e) {
-        console.error("Batch Item Failed", e);
-        // Continue to next item even if one fails
-      }
-      await delay(500);
-  }
-  return results;
+    if (options.apiKeys.length === 0) throw new Error("API Key is required");
+    const results: AiAnalysisResult[] = [];
+    for (const group of groups) {
+        try {
+            const res = await analyzeCannibalizationMaster(group, options);
+            if (res) results.push(res);
+        } catch (e) {
+            console.error("Batch Item Failed", e);
+            // Continue to next item even if one fails
+        }
+        await delay(500);
+    }
+    return results;
 };
 
 export const auditConflictsWithAi = async (
-    conflicts: { url: string, contexts: {query: string, currentTag: string, stats: string}[] }[],
+    conflicts: { url: string, contexts: { query: string, currentTag: string, stats: string }[] }[],
     options: AiBatchOptions
 ): Promise<any[]> => { return []; }
 
@@ -595,12 +596,12 @@ const fetchVoyageEmbeddings = async (texts: string[], apiKey: string): Promise<n
             model: "voyage-3-lite"
         })
     });
-    
+
     if (!response.ok) {
         const err = await response.text();
         throw new Error(`Voyage API Error: ${response.status} - ${err}`);
     }
-    
+
     const json = await response.json();
     return json.data.map((d: any) => d.embedding);
 };
@@ -647,7 +648,7 @@ export const clusterKeywordsWithAi = async (
     keywords: string[],
     options: AiBatchOptions
 ): Promise<ClusterGroupResult> => {
-    
+
     let clusters: ClusterGroup[] = [];
 
     // BRANCH: USE VOYAGE AI (VECTOR CLUSTERING)
@@ -656,7 +657,7 @@ export const clusterKeywordsWithAi = async (
             // Voyage accepts batch inputs. Max 128 per request usually, so chunk it.
             const BATCH_SIZE = 128;
             const allEmbeddings: number[][] = [];
-            
+
             for (let i = 0; i < keywords.length; i += BATCH_SIZE) {
                 const chunk = keywords.slice(i, i + BATCH_SIZE);
                 const chunkEmbeddings = await fetchVoyageEmbeddings(chunk, options.externalKeys.voyage);
@@ -665,28 +666,28 @@ export const clusterKeywordsWithAi = async (
 
             const items = keywords.map((k, i) => ({ text: k, vector: allEmbeddings[i] }));
             clusters = clusterVectors(items);
-            
+
         } catch (e) {
             console.error("Voyage Clustering Failed", e);
-            throw e; 
+            throw e;
         }
     } else {
         // BRANCH: USE GEMINI (GENERATIVE CLUSTERING)
         const prompt = `Group keywords by Intent. Keywords: ${keywords.join(', ')}. Output JSON: { "clusters": [ { "name": "...", "intent": "...", "keywords": [...] } ] }`;
         const result = await executeWithKeyRotation(options.apiKeys, async (apiKey) => {
-             const ai = new GoogleGenAI({ apiKey });
-             const response = await ai.models.generateContent({
-                 model: options.model,
-                 contents: prompt,
-                 config: { responseMimeType: "application/json" }
-             });
-             const text = response.text;
-             if (!text) throw new Error("No response");
-             let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-             const start = cleaned.indexOf('{');
-             const end = cleaned.lastIndexOf('}');
-             if (start !== -1 && end !== -1) cleaned = cleaned.substring(start, end + 1);
-             return JSON.parse(cleaned) as ClusterGroupResult;
+            const ai = new GoogleGenAI({ apiKey });
+            const response = await ai.models.generateContent({
+                model: options.model,
+                contents: prompt,
+                config: { responseMimeType: "application/json" }
+            });
+            const text = response.text;
+            if (!text) throw new Error("No response");
+            let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const start = cleaned.indexOf('{');
+            const end = cleaned.lastIndexOf('}');
+            if (start !== -1 && end !== -1) cleaned = cleaned.substring(start, end + 1);
+            return JSON.parse(cleaned) as ClusterGroupResult;
         });
         clusters = result.clusters;
     }
@@ -695,13 +696,13 @@ export const clusterKeywordsWithAi = async (
     // We check the SERP for the *cluster name* (main keyword) to determine real intent
     if (options.externalKeys.jina || options.externalKeys.tavily || options.externalKeys.serper) {
         // Process top 5 largest clusters to save time/tokens, or all if small count
-        const clustersToCheck = clusters.sort((a,b) => b.keywords.length - a.keywords.length).slice(0, 5); 
-        
+        const clustersToCheck = clusters.sort((a, b) => b.keywords.length - a.keywords.length).slice(0, 5);
+
         for (const cluster of clustersToCheck) {
-             try {
+            try {
                 const serp = await fetchSerpWithJina(cluster.name, 'us', options.lang, options.externalKeys, options.providerConfig.serp);
                 const serpSummary = compressSerpContext(serp.markdown);
-                
+
                 const intentPrompt = `
                 Based on this SERP for "${cluster.name}", classify intent:
                 - INFORMATIONAL (Guides, Wiki, Blogs)
@@ -714,19 +715,19 @@ export const clusterKeywordsWithAi = async (
                 
                 OUTPUT: Just the word.
                 `;
-                
+
                 const intentRes = await executeWithKeyRotation(options.apiKeys, async (key) => {
-                     const ai = new GoogleGenAI({ apiKey: key });
-                     const r = await ai.models.generateContent({ model: 'gemini-2.0-flash', contents: intentPrompt });
-                     return r.text?.trim().toUpperCase() || "UNKNOWN";
+                    const ai = new GoogleGenAI({ apiKey: key });
+                    const r = await ai.models.generateContent({ model: 'gemini-2.0-flash', contents: intentPrompt });
+                    return r.text?.trim().toUpperCase() || "UNKNOWN";
                 });
-                
+
                 if (intentRes && intentRes.length < 20) {
-                     cluster.intent = intentRes;
+                    cluster.intent = intentRes;
                 }
-             } catch (e) {
-                 // Ignore SERP failures for clustering, fallback to heuristic or basic
-             }
+            } catch (e) {
+                // Ignore SERP failures for clustering, fallback to heuristic or basic
+            }
         }
     }
 

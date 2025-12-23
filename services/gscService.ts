@@ -41,6 +41,9 @@ export const GscService = {
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('No access token. Please sign in with Google.');
+            }
             const error = await response.json();
             throw new Error(error.error?.message || 'Error fetching sites');
         }
@@ -101,6 +104,9 @@ export const GscService = {
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('No access token. Please sign in with Google.');
+            }
             const error = await response.json();
             // Handle "User does not have sufficient permissions" etc.
             throw new Error(error.error?.message || 'Error fetching analytics');
@@ -122,6 +128,9 @@ export const GscService = {
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('No access token. Please sign in with Google.');
+            }
             const error = await response.json();
             throw new Error(error.error?.message || 'Error fetching sitemaps');
         }

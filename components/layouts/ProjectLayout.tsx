@@ -12,7 +12,11 @@ const ProjectLayout: React.FC = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     useEffect(() => {
-        if (id) loadData();
+        if (id) {
+            setLoading(true);
+            setProject(null); // Reset project to avoid showing stale data during transition
+            loadData();
+        }
     }, [id]);
 
     const loadData = async () => {
@@ -128,7 +132,7 @@ const ProjectLayout: React.FC = () => {
 
                 {/* Content Scroll Area */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-8">
-                    <Outlet context={{ project, tasks, loadData, refreshTasks }} />
+                    <Outlet context={{ project, tasks, loadProject: loadData, refreshTasks }} />
                 </div>
             </main>
         </div>

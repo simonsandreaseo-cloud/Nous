@@ -1,5 +1,5 @@
 import React from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import { Project } from '../../lib/task_manager';
 import { MindMap } from '../../components/projects/strategy/MindMap';
 import { ImpactAnalysis } from '../../components/projects/strategy/ImpactAnalysis';
@@ -18,6 +18,7 @@ const StrategyView: React.FC = () => {
 
     // For now, I will assume we can fetch tasks here.
     const { project, loadProject } = useOutletContext<{ project: Project; loadProject: () => void }>();
+    const navigate = useNavigate();
 
     // Quick fetch tasks for this view
     const [tasks, setTasks] = React.useState<any[]>([]);
@@ -46,9 +47,17 @@ const StrategyView: React.FC = () => {
             <section className="bg-white p-8 rounded-2xl shadow-sm border border-brand-power/5">
                 <h3 className="font-bold text-brand-power text-xl mb-4">Informes de Analista</h3>
                 <p className="text-sm text-brand-power/50 mb-4">Aquí aparecerán los informes generados con la herramienta de Analista de Métricas.</p>
-                <button className="px-4 py-2 bg-brand-soft text-brand-power font-bold rounded-lg text-xs uppercase tracking-wider">
-                    Conectar Informe
-                </button>
+                <div className="flex gap-4">
+                    <button className="px-4 py-2 bg-brand-soft text-brand-power font-bold rounded-lg text-xs uppercase tracking-wider opacity-50 cursor-not-allowed" title="Función no implementada">
+                        Conectar Informe
+                    </button>
+                    <button
+                        onClick={() => navigate(`/herramientas/generador-informes?projectId=${project.id}&url=${encodeURIComponent(project.gsc_property_url || '')}`)}
+                        className="px-4 py-2 bg-brand-power text-brand-white font-bold rounded-lg text-xs uppercase tracking-wider hover:bg-brand-accent hover:text-brand-power transition-colors shadow-lg"
+                    >
+                        Crear Informe
+                    </button>
+                </div>
             </section>
         </div>
     );

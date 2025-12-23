@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CSVRow, ReportPayload, ChartData, LogEntry, FileType, SectionConfig, TaskImpactConfig } from './types';
 import { parseCSV } from './services/csvService';
 import { runFullLocalAnalysis } from './services/analysisService';
@@ -28,6 +29,8 @@ const App: React.FC = () => {
     // State
     const [step, setStep] = useState<number>(1);
     const [analysisMode, setAnalysisMode] = useState<'csv' | 'gsc'>('csv'); // NEW
+    const [searchParams] = useSearchParams();
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
     // File State (CSV Mode)
     const [pagesData, setPagesData] = useState<CSVRow[]>([]);
@@ -98,12 +101,22 @@ const App: React.FC = () => {
     );
 
     // LOAD USER KEYS & TASKS
-    React.useEffect(() => {
+    useEffect(() => {
         if (user) {
             loadUserKeys();
             loadActiveTasks();
         }
-    }, [user]);
+
+        const pId = searchParams.get('projectId');
+        if (pId) setSelectedProjectId(pId);
+
+        // Optional: If URL provided, maybe switch to GSC mode automatically?
+        const urlParam = searchParams.get('url');
+        if (urlParam) {
+            setAnalysisMode('gsc');
+            // We could potentially auto-trigger fetching if we had default dates
+        }
+    }, [user, searchParams]);
 
     // ... (rest of loaders)
     const loadActiveTasks = async () => {
@@ -388,7 +401,8 @@ const App: React.FC = () => {
                     summary: "Resumen (Ver HTML)",
                     date_range: p2Name
                 },
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                project_id: selectedProjectId ? parseInt(selectedProjectId) : null // Ensure DB supports this
             };
 
             const { error } = await supabase.from('seo_reports').insert([reportData]);
@@ -433,6 +447,56 @@ const App: React.FC = () => {
                                     <UploadSlot label="Páginas" type="pages" isUploaded={uploadedStatus.pages} onChange={(e: any) => handleFileChange(e, 'pages')} />
                                     <UploadSlot label="Consultas" type="queries" isUploaded={uploadedStatus.queries} onChange={(e: any) => handleFileChange(e, 'queries')} />
                                     <UploadSlot label="Países" type="countries" isUploaded={uploadedStatus.countries} onChange={(e: any) => handleFileChange(e, 'countries')} />
+                                </div>
+
+                                {/* Looker Studio & Tutorial Section */}
+                                <div className="mb-8 p-6 bg-brand-soft/50 rounded-2xl border border-brand-power/5">
+                                    <div className="flex flex-col lg:flex-row gap-8">
+                                        {/* Left: Tutorial */}
+                                        <div className="lg:w-1/3 space-y-4">
+                                            <h3 className="text-lg font-bold text-brand-power flex items-center gap-2">
+                                                <span className="bg-brand-power text-brand-white w-6 h-6 rounded-full flex items-center justify-center text-xs">?</span>
+                                                ¿Cómo obtener los datos?
+                                            </h3>
+                                            <p className="text-sm text-brand-power/70 leading-relaxed">
+                                                Usa nuestro reporte oficial de Looker Studio para extraer tus datos de Search Console limpios y listos para el análisis.
+                                            </p>
+
+                                            <div className="space-y-3 mt-4">
+                                                <div className="flex gap-3 items-start">
+                                                    <div className="min-w-[20px] h-5 rounded bg-brand-accent/20 text-brand-accent font-bold text-xs flex items-center justify-center mt-0.5">1</div>
+                                                    <p className="text-xs text-brand-power/80">Selecciona tu propiedad y el periodo de fechas en el reporte.</p>
+                                                </div>
+                                                <div className="flex gap-3 items-start">
+                                                    <div className="min-w-[20px] h-5 rounded bg-brand-accent/20 text-brand-accent font-bold text-xs flex items-center justify-center mt-0.5">2</div>
+                                                    <p className="text-xs text-brand-power/80">Haz <strong>clic derecho</strong> sobre cualquier tabla (Páginas, Consultas, etc.).</p>
+                                                </div>
+                                                <div className="flex gap-3 items-start">
+                                                    <div className="min-w-[20px] h-5 rounded bg-brand-accent/20 text-brand-accent font-bold text-xs flex items-center justify-center mt-0.5">3</div>
+                                                    <p className="text-xs text-brand-power/80">Selecciona <strong>Exportar</strong> y elige formato <strong>CSV</strong>.</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="text-xs bg-yellow-50 text-yellow-800 p-3 rounded-lg border border-yellow-100 mt-2">
+                                                ⚠️ Importante: Exporta cada tabla por separado (Páginas, Consultas, Países) y cárgalas arriba.
+                                            </div>
+                                        </div>
+
+                                        {/* Right: Embed */}
+                                        <div className="lg:w-2/3 h-[400px] bg-white rounded-xl overflow-hidden shadow-inner border border-brand-power/5 relative group">
+                                            <iframe
+                                                src="https://lookerstudio.google.com/embed/reporting/d1ee3885-13c0-4e98-9f51-2f522dfda494/page/0ludF"
+                                                frameBorder="0"
+                                                allowFullScreen
+                                                sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                                                className="absolute inset-0 w-full h-full"
+                                            />
+                                            {/* Overlay hint */}
+                                            <div className="absolute top-0 right-0 bg-brand-power/90 text-white text-[10px] px-2 py-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                                Reporte Oficial GSC
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="flex justify-between items-center pt-6 border-t border-brand-power/5">
@@ -560,6 +624,8 @@ const App: React.FC = () => {
                         taskPerformance={[]} // Logic disabled for safety to prioritize Informes SEO stability
                         decayAlerts={reportPayload?.keywordDecayAlerts}
                         concentrationAnalysis={reportPayload?.concentrationAnalysis}
+                        selectedProjectId={selectedProjectId}
+                        onSelectProject={setSelectedProjectId}
                     />
                 )
             }

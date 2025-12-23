@@ -22,7 +22,7 @@ END $$;
 -- 2. Create RPC function to assign task to current user
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION assign_task_to_user(task_id_param UUID)
+CREATE OR REPLACE FUNCTION assign_task_to_user(task_id_param BIGINT)
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -64,7 +64,7 @@ $$;
 -- 3. Create RPC function to release task assignment
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION release_task_assignment(task_id_param UUID)
+CREATE OR REPLACE FUNCTION release_task_assignment(task_id_param BIGINT)
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -122,8 +122,8 @@ $$;
 -- (This should already be covered by existing UPDATE policies)
 
 -- Grant execute permissions on the new functions
-GRANT EXECUTE ON FUNCTION assign_task_to_user(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION release_task_assignment(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION assign_task_to_user(BIGINT) TO authenticated;
+GRANT EXECUTE ON FUNCTION release_task_assignment(BIGINT) TO authenticated;
 
 -- ============================================================================
 -- 5. Add helpful comment
