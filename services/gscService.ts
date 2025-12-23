@@ -92,7 +92,7 @@ export const GscService = {
 
         const data = await response.json();
         return data.rows || [];
-    }
+    },
     /**
      * Get sitemaps for a specific site.
      */
