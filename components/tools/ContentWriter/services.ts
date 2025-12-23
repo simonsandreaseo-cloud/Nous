@@ -328,7 +328,7 @@ export const searchMoreLinks = async (apiKeys: string[] | string, keyword: strin
     return executeWithKeyRotation(apiKeys, async (ai) => {
         try {
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-2.0-flash',
                 contents: prompt
             });
             const terms = (response.text || '').split(',').map(t => t.trim());
@@ -626,7 +626,7 @@ export const generateArticleStream = async (apiKeys: string[] | string, model: s
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const stream = await ai.models.generateContentStream({
             // Force Flash model regardless of input to avoid 429 on Pro models
-            model: model || 'gemini-2.5-flash', // Use selected model or default
+            model: model || 'gemini-2.0-flash', // Use selected model or default
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: {
                 temperature: 0.7,
@@ -726,7 +726,7 @@ export const generateRealImage = async (apiKeys: string[] | string, basePrompt: 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         try {
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
+                model: 'gemini-2.0-flash',
                 contents: {
                     parts: [{ text: finalPrompt }]
                 }
@@ -907,7 +907,7 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
             // Use key rotation for this generative step
             await executeWithKeyRotation(apiKeys, async (ai) => {
                 const queryResponse = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
+                    model: 'gemini-2.0-flash',
                     contents: intentPrompt
                 });
                 smartQuery = queryResponse.text?.trim().replace(/^"|"$/g, '') || `${keyword} blog guía`;

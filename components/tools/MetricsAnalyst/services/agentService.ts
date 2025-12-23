@@ -55,7 +55,7 @@ export class AgentService {
     constructor(dataManager: DataManager, modelName: string, apiKey: string) {
         this.ai = new GoogleGenAI({ apiKey: apiKey });
         this.dataManager = dataManager;
-        this.modelName = modelName.includes("flash") ? "gemini-2.5-flash" : "gemini-3-pro-preview"; // Force concise tools models
+        this.modelName = modelName;
     }
 
     /**

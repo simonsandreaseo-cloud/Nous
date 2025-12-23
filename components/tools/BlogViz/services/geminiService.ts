@@ -101,7 +101,7 @@ export const analyzeTextAndPlanImages = async (
   `;
 
   const response = await getAI().models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.0-flash',
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -159,7 +159,7 @@ export const generateImage = async (
     }
 
     const response = await getAI().models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-2.0-flash',
       contents: {
         parts: [
           { text: finalPrompt }

@@ -13,6 +13,7 @@ import { IconUpload, IconSparkles, IconCopy, IconFile, IconSEO, IconImage, IconD
 import { MetadataField } from './components';
 import { parseCSV, parseJSON, buildPrompt, generateArticleStream, findCampaignAssets, suggestImagePlacements, generateRealImage, ArticleConfig, VisualResource, AIImageRequest, runSEOAnalysis, SEOAnalysisResult, generateSchemaMarkup, ContentItem, ImageGenConfig, compositeWatermark, autoInterlink, runHumanizerPipeline, HumanizerConfig, runSmartEditor, generateOutlineStrategy, searchMoreLinks, cleanAndFormatHtml, refineStyling, refineArticleContent } from './services';
 import ShareModal from '../../shared/ShareModal';
+import PresenceAvatars from '../../shared/PresenceAvatars';
 import { Globe } from 'lucide-react';
 
 // --- Simple Save Function ---
@@ -1341,8 +1342,7 @@ const App = () => {
                                 <div>
                                     <label style={styles.label}>Modelo Generativo</label>
                                     <select style={styles.select as any} value={model} onChange={(e) => setModel(e.target.value)}>
-                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recomendado)</option>
-                                        <option value="gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado)</option>
                                         <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                                         <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                                     </select>
@@ -1474,9 +1474,9 @@ const App = () => {
                                         <div>
                                             <label style={styles.label}>Modelo Prioritario</label>
                                             <select style={styles.select as any} value={model} onChange={e => setModel(e.target.value)}>
-                                                <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
-                                                <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                                                <option value="gemini-3-flash">gemini-3-flash</option>
+                                                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                                             </select>
                                         </div>
                                         <div>

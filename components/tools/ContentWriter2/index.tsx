@@ -209,7 +209,7 @@ const App = () => {
         }
     };
 
-    const [model, setModel] = useState('gemini-2.5-flash');
+    const [model, setModel] = useState('gemini-2.0-flash');
     const [csvData, setCsvData] = useState<any[]>([]);
     const [csvFileName, setCsvFileName] = useState<string | null>(null);
     const [projectName, setProjectName] = useState('Optica Bassol');
@@ -1645,9 +1645,9 @@ const App = () => {
                                         <div>
                                             <label style={styles.label}>Modelo Prioritario</label>
                                             <select style={styles.select as any} value={model} onChange={e => setModel(e.target.value)}>
-                                                <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
-                                                <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                                                <option value="gemini-3-flash">gemini-3-flash</option>
+                                                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                                             </select>
                                         </div>
                                         <div>
