@@ -304,39 +304,75 @@ const App: React.FC = () => {
     const handleConfirmGeneration = async (selectedSections: SectionConfig[], taskImpact: TaskImpactConfig) => {
         const keys = getApiKeys();
         const activeContext = userContext;
+
+        // 1. Validate State Requirements before starting
+        if (!reportPayload) {
+            alert("Error de estado: No hay datos de análisis (Payload perdido). Por favor reinicia el proceso.");
+            setStep(2);
+            return;
+        }
+
+        // 2. Update UI Transition
         setActiveSectionsConfig(selectedSections);
         setActiveTaskImpact(taskImpact);
-        setShowSectionSelector(false);
-        setIsAnalyzing(true);
+        setShowSectionSelector(false); // Hide selector
+        setIsAnalyzing(true); // Show progress
 
         try {
-            if (!reportPayload) throw new Error("Payload perdido.");
             let accumulatedBodyHTML = "";
             let completed = 0;
+            const totalSteps = selectedSections.length + (taskImpact.enabled ? 1 : 0) + 1; // +1 for final refinement
 
+            // 3. Generate Sections
             for (const section of selectedSections) {
-                addLog(`✍️ Generando: ${section.id}...`);
-                const sectionHTML = await generateReportSection(section.id, reportPayload, model, keys, section.caseCount);
-                accumulatedBodyHTML += sectionHTML;
+                addLog(`✍️ Generando sección: ${section.title || section.id}...`);
+                try {
+                    const sectionHTML = await generateReportSection(section.id, reportPayload, model, keys, section.caseCount);
+                    accumulatedBodyHTML += sectionHTML;
+                } catch (secErr) {
+                    console.error(`Error generando sección ${section.id}`, secErr);
+                    accumulatedBodyHTML += `<div class="p-4 bg-red-50 text-red-600 border border-red-200 rounded">Error generando sección ${section.id}</div>`;
+                }
+
                 completed++;
-                setProgressPercent(45 + Math.floor((completed / (selectedSections.length + (taskImpact.enabled ? 1 : 0))) * 35));
+                const p = Math.floor(45 + ((completed / totalSteps) * 55));
+                setProgressPercent(Math.min(p, 99));
             }
 
+            // 4. Task Impact Analysis (Optional)
             if (taskImpact.enabled) {
                 addLog(`🎯 Analizando Impacto de Tareas...`);
-                let tasksDetails = watchedTasks.filter(t => taskImpact.selectedTaskIds.includes(t.id));
-                const taskSectionPayload = { ...reportPayload, taskImpactDetails: tasksDetails };
-                const taskImpactHTML = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
-                accumulatedBodyHTML += taskImpactHTML;
-                setProgressPercent(80);
+                try {
+                    let tasksDetails = watchedTasks.filter(t => taskImpact.selectedTaskIds.includes(t.id));
+                    const taskSectionPayload = { ...reportPayload, taskImpactDetails: tasksDetails };
+                    const taskImpactHTML = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
+                    accumulatedBodyHTML += taskImpactHTML;
+                } catch (taskErr) {
+                    console.error("Error en task impact", taskErr);
+                }
+                setProgressPercent(90);
             }
 
-            addLog(`👓 Finalizando Informe...`);
+            // 5. Final Refinement (Abstract & Conclusions)
+            addLog(`👓 Redactando Resumen Ejecutivo y Conclusiones...`);
             const refinedSummary = await generateFinalRefinement(accumulatedBodyHTML, activeContext, model, keys);
+
+            // 6. Final success state
             setReportHTML(refinedSummary + accumulatedBodyHTML);
             setProgressPercent(100);
-            addLog("¡Informe Finalizado!");
-        } catch (err: any) { addLog(`Error: ${err.message}`, 'error'); } finally { setIsAnalyzing(false); }
+            addLog("¡Informe Finalizado con Éxito!");
+
+        } catch (err: any) {
+            console.error("CRITICAL GENERATION ERROR:", err);
+            addLog(`Error Crítico: ${err.message}`, 'error');
+            alert(`Ocurrió un error generando el informe: ${err.message}\n\nSe restaurará la selección.`);
+
+            // RESTORE STATE TO AVOID BLANK SCREEN
+            setIsAnalyzing(false);
+            setShowSectionSelector(true); // Go back to allow retry
+        } finally {
+            setIsAnalyzing(false);
+        }
     };
 
     const handleRegenerate = (newMessage: string) => {
