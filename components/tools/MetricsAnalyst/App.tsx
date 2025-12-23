@@ -345,15 +345,33 @@ const App: React.FC = () => {
             }
 
             // 4. Task Impact Analysis (Optional)
+            // 4. Task Impact Analysis (Optional)
             if (taskImpact.enabled) {
                 addLog(`🎯 Analizando Impacto de Tareas...`);
+
+                // Rate Limit Prevention for this section too
+                await new Promise(resolve => setTimeout(resolve, 3000));
+
                 try {
                     let tasksDetails = watchedTasks.filter(t => taskImpact.selectedTaskIds.includes(t.id));
-                    const taskSectionPayload = { ...reportPayload, taskImpactDetails: tasksDetails };
-                    const taskImpactHTML = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
-                    accumulatedBodyHTML += taskImpactHTML;
+
+                    // Fallback: If enabled but no specific tasks selected, take top 5 recent tasks
+                    if (tasksDetails.length === 0 && watchedTasks.length > 0) {
+                        addLog("⚠️ No seleccionaste tareas específicas, analizando las 5 más recientes.", 'warn');
+                        tasksDetails = watchedTasks.slice(0, 5);
+                    }
+
+                    if (tasksDetails.length > 0) {
+                        addLog(`Analizando ${tasksDetails.length} tareas completadas.`);
+                        const taskSectionPayload = { ...reportPayload, taskImpactDetails: tasksDetails };
+                        const taskImpactHTML = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
+                        accumulatedBodyHTML += taskImpactHTML;
+                    } else {
+                        addLog("No hay tareas para analizar en este proyecto/periodo.", 'warn');
+                    }
                 } catch (taskErr) {
-                    console.error("Error en task impact", taskErr);
+                    console.error("Error en módulo de tareas", taskErr);
+                    addLog(`Error generando impacto de tareas: ${(taskErr as any).message}`, 'error');
                 }
                 setProgressPercent(90);
             }

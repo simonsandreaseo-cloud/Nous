@@ -69,55 +69,72 @@ Task:
 
 Output RAW HTML only.`;
 
-// Helper for retry logic with Key Rotation (FROM REPORT GENERATOR)
-async function generateWithRetry(apiKeys: string[], model: string, contents: any, config: any) {
+const FALLBACK_MODELS = ['gemini-1.5-flash-001', 'gemini-1.5-pro-001', 'gemini-1.5-flash'];
+
+// Helper for retry logic with Key Rotation & Model Fallback (ROBUST)
+async function generateWithRetry(apiKeys: string[], requestedModel: string, contents: any, config: any) {
     let lastError;
+    // Create a prioritized list of models to try: [Requested, ...Fallbacks]
+    // Remove duplicates to avoid retrying the same model if it was the requested one
+    const modelsToTry = Array.from(new Set([requestedModel, ...FALLBACK_MODELS]));
 
-    // Iterate through all provided keys
-    for (let k = 0; k < apiKeys.length; k++) {
-        const currentKey = apiKeys[k];
-        const ai = new GoogleGenAI({ apiKey: currentKey });
+    // Iterate through models (fallback strategy)
+    for (const model of modelsToTry) {
+        // Iterate through all provided keys
+        for (let k = 0; k < apiKeys.length; k++) {
+            const currentKey = apiKeys[k];
+            const ai = new GoogleGenAI({ apiKey: currentKey });
 
-        // Try up to 3 times per key for transient network errors
-        for (let i = 0; i < 3; i++) {
-            try {
-                return await ai.models.generateContent({
-                    model,
-                    contents,
-                    config
-                });
-            } catch (e: any) {
-                lastError = e;
-                const status = e.status || e.code;
-                const msg = e.message || "";
+            // Try up to 3 times per key for transient network errors
+            for (let i = 0; i < 3; i++) {
+                try {
+                    return await ai.models.generateContent({
+                        model,
+                        contents,
+                        config
+                    });
+                } catch (e: any) {
+                    lastError = e;
+                    const status = e.status || e.code;
+                    const msg = e.message || "";
 
-                // If it's a Quota Limit (429) or Service Unavailable (503), we handle specially
-                const isQuota = status === 429 || msg.includes('429') || msg.includes('Quota') || msg.includes('Resource has been exhausted');
+                    // CRITICAL: Handle 404 (Model Not Found) -> Break retries, Break Key loop, Try Next Model
+                    if (status === 404 || msg.includes('not found') || msg.includes('not supported')) {
+                        console.warn(`⚠️ Model ${model} not found (404). Switching to fallback...`);
+                        // Break the inner retries (i) and key loop (k) to advance to the next model
+                        k = apiKeys.length; // Force exit key loop
+                        break; // Exit retry loop
+                    }
 
-                if (isQuota) {
-                    // Break inner loop (retries) and Continue outer loop (next key)
-                    console.warn(`⚠️ API Key index ${k} exhausted. Rotating to next key...`);
-                    break;
+                    // Handle Quota Limit (429) -> Try next KEY (continue outer k loop)
+                    const isQuota = status === 429 || msg.includes('429') || msg.includes('Quota') || msg.includes('Resource has been exhausted');
+                    if (isQuota) {
+                        console.warn(`⚠️ API Key index ${k} exhausted for ${model}. Rotating to next key...`);
+                        break; // Break retry loop (i), continue key loop (k)
+                    }
+
+                    // Transient 503 -> Wait and retry same key/model
+                    if (status === 503) {
+                        const delay = 2000 * Math.pow(2, i);
+                        await new Promise(r => setTimeout(r, delay));
+                        continue;
+                    }
+
+                    // Invalid Key (400/401) -> Try next key
+                    if (status === 400 || status === 401) {
+                        console.warn(`⚠️ API Key index ${k} invalid. Rotating...`);
+                        break;
+                    }
+
+                    throw e; // Unknown fatal error
                 }
-
-                // If it's a transient 503, wait and retry with SAME key
-                if (status === 503) {
-                    const delay = 2000 * Math.pow(2, i);
-                    await new Promise(r => setTimeout(r, delay));
-                    continue;
-                }
-
-                // Other errors (400, 401 invalid key, etc) -> try next key just in case
-                if (status === 400 || status === 401) {
-                    console.warn(`⚠️ API Key index ${k} invalid. Rotating...`);
-                    break;
-                }
-
-                throw e; // Unknown fatal error
             }
         }
+        // If we finished the key loop without success for this model, and it wasn't a 404, we might want to try the next model if it was a quota issue on ALL keys?
+        // Current logic: If 404, we try next model. If 429 on all keys, we ALSO try next model (as different models have different quotas).
     }
-    throw lastError || new Error("All API keys exhausted or failed.");
+
+    throw lastError || new Error("All API keys and fallback models exhausted.");
 }
 
 export const getRelevantSections = async (payload: ReportPayload, model: string, apiKeys: string[]): Promise<string[]> => {
@@ -168,20 +185,27 @@ export const generateReportSection = async (
     caseCount?: number
 ): Promise<string> => {
 
+    // Exclude taskImpactDetails from the main data payload to avoid duplication/overhead
+    const { taskImpactDetails, ...cleanPayload } = payload;
+
     const writerPayload = {
-        ...payload,
+        ...cleanPayload,
         availableChartKeys: payload.availableChartKeys // Handshake keys
     };
 
     let sectionContext = "";
     if (sectionName === 'ANALISIS_IMPACTO_TAREAS') {
         sectionContext = `
-        ANALYSIS GOAL: You are looking at SEO tasks completed in a specific date range. 
+        ANALYSIS GOAL: You are looking at SEO tasks (from project management) and their potential impact on traffic.
         TASK DETAILS: ${JSON.stringify(payload.taskImpactDetails)}
         INSTRUCTIONS: 
-        1. For each task, check if the associated URL (gsc_property_url) is present in the "availableChartKeys".
-        2. Analyze if there was growth or decay for these specific URLs in the period.
-        3. Explain to the user the direct or indirect impact of these tasks on the metrics.
+        1. List ALL distinct tasks provided in 'TASK DETAILS'. 
+        2. For each task:
+           - Display its Title and Completion Date.
+           - Check if the task's URL (gsc_property_url) exists in "availableChartKeys".
+           - IF EXISTS: Plot a chart using data-chart-url="URL" and describe the trend (Growth/Decay).
+           - IF NOT EXISTS: State "Indirect Impact / URL data not top-ranked" and provide a theoretical impact analysis based on the task description.
+        3. Conclude with a "Correlation Score" (High/Medium/Low) based on the observation.
         `;
     }
 
