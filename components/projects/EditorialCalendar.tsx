@@ -629,7 +629,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                     >
                         <Edit3 size={12} /> Sugerencias IA
                     </button>
-                    {project?.role === 'owner' || project?.role === 'admin' ? (
+                    {finalProject?.role === 'owner' || finalProject?.role === 'admin' ? (
                         <button
                             onClick={() => setShowSettings(true)}
                             className="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200"
@@ -639,15 +639,15 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         </button>
                     ) : null}
                     <div className="text-xs text-slate-400 font-medium border-l border-slate-200 pl-3">
-                        {tasks.filter(t => t.due_date).length} Tareas
+                        {finalTasks.filter(t => t.due_date).length} Tareas
                     </div>
                 </div>
             </div>
 
             {/* Content Body */}
             <div className="px-4 pt-4">
-                {project && <ContentPerformanceDashboard project={project} tasks={tasks} />}
-                <GoalTrackingWidget project={project} tasks={tasks} currentDate={currentDate} />
+                {finalProject && <ContentPerformanceDashboard project={finalProject} tasks={finalTasks} />}
+                <GoalTrackingWidget project={finalProject} tasks={finalTasks} currentDate={currentDate} />
             </div>
 
             {viewMode === 'calendar' ? (
@@ -688,7 +688,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                 const updateField = async (field: keyof Task, value: any) => {
                                     try {
                                         await TaskService.updateTask(task.id, { [field]: value });
-                                        onTaskUpdate();
+                                        finalOnTaskUpdate();
                                     } catch (e: any) {
                                         alert(`Error al actualizar ${field}: ${e.message}`);
                                     }
@@ -802,7 +802,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                 onChange={async (e) => {
                                                     const newDir = e.target.value;
                                                     const slug = task.target_url_slug || '';
-                                                    const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                                                    const domain = finalProject?.gsc_property_url?.replace(/\/$/, '') || '';
                                                     const fullUrl = `${domain}${newDir}${slug}`;
 
                                                     try {
@@ -810,13 +810,13 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                             secondary_url: fullUrl,
                                                             metadata: { ...task.metadata, directory: newDir }
                                                         });
-                                                        onTaskUpdate();
+                                                        finalOnTaskUpdate();
                                                     } catch (e: any) { console.error(e); }
                                                 }}
                                                 className="w-full bg-transparent text-xs text-slate-500 font-medium outline-none border-b border-transparent hover:border-slate-300 focus:border-brand-accent cursor-pointer py-1"
                                             >
                                                 <option value="/">/ (Raíz)</option>
-                                                {project?.settings?.content_directories?.map((d: string) => (
+                                                {finalProject?.settings?.content_directories?.map((d: string) => (
                                                     <option key={d} value={d}>{d}</option>
                                                 ))}
                                             </select>
@@ -838,7 +838,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                     const newSlug = e.target.value;
                                                     if (newSlug !== task.target_url_slug) {
                                                         const dir = task.metadata?.directory || '/';
-                                                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                                                        const domain = finalProject?.gsc_property_url?.replace(/\/$/, '') || '';
                                                         const fullUrl = `${domain}${dir}${newSlug}`;
 
                                                         try {
@@ -846,7 +846,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                                 target_url_slug: newSlug,
                                                                 secondary_url: fullUrl
                                                             });
-                                                            onTaskUpdate();
+                                                            finalOnTaskUpdate();
                                                         } catch (e: any) { console.error(e); }
                                                     }
                                                 }}
@@ -873,7 +873,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                         if (!confirm(`¿Estás seguro de que quieres eliminar "${task.title}"?`)) return;
                                                         try {
                                                             await TaskService.deleteTask(task.id);
-                                                            onTaskUpdate();
+                                                            finalOnTaskUpdate();
                                                         } catch (e: any) {
                                                             alert("Error al eliminar: " + e.message);
                                                         }
@@ -888,7 +888,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                     </tr>
                                 );
                             })}
-                            {tasks.filter(t => t.type === 'content').length === 0 && (
+                            {finalTasks.filter(t => t.type === 'content').length === 0 && (
                                 <tr>
                                     <td colSpan={6} className="p-8 text-center text-slate-400 text-sm">
                                         No hay contenidos planificados. Usa el botón de abajo o pega filas desde Excel.
@@ -901,14 +901,14 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                await TaskService.createTask(projectId, {
+                                                await TaskService.createTask(finalProjectId, {
                                                     title: '', // Empty title so user can type
                                                     status: 'idea',
                                                     type: 'content',
                                                     due_date: new Date().toISOString(),
                                                     priority: 'medium'
                                                 });
-                                                onTaskUpdate();
+                                                finalOnTaskUpdate();
                                             } catch (e: any) { alert("Error al crear fila: " + e.message); }
                                         }}
                                         className="w-full py-2 text-xs font-bold text-slate-400 hover:text-indigo-600 border border-dashed border-slate-300 hover:border-indigo-300 rounded-lg flex items-center justify-center gap-2 transition-all"
@@ -926,10 +926,10 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
             {selectedTask && (
                 <TaskDetailModal
                     task={selectedTask}
-                    project={project}
+                    project={finalProject}
                     onClose={() => setSelectedTask(null)}
                     onUpdate={() => {
-                        onTaskUpdate();
+                        finalOnTaskUpdate();
                     }}
                 />
             )}
@@ -1015,15 +1015,14 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
             )}
 
             {/* Project Settings Modal */}
-            {project && (
+            {finalProject && (
                 <ProjectSettingsModal
-                    project={project}
+                    project={finalProject}
                     isOpen={showSettings}
                     onClose={() => setShowSettings(false)}
-                    onUpdate={onTaskUpdate}
+                    onUpdate={() => finalOnTaskUpdate()}
                 />
             )}
         </div>
     );
 };
-
