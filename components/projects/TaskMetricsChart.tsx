@@ -111,27 +111,38 @@ export const TaskMetricsChart: React.FC<TaskMetricsChartProps> = ({ project, tas
 
             console.log('Fetching metrics for:', { start: fmt(start), end: fmt(end), prevStart: fmt(prevStart), prevEnd: fmt(prevEnd) });
 
-            // Changed dimensions to include 'query' to count unique keywords
-            const [currentRows, prevRows] = await Promise.all([
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['date', 'query'], { page: regexFilter, operator: 'includingRegex' }),
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(prevStart), fmt(prevEnd), ['date', 'query'], { page: regexFilter, operator: 'includingRegex' })
+            // Split queries to get accurate totals (anonymized data issue)
+            const [currentTotals, prevTotals, currentKeywords, prevKeywords] = await Promise.all([
+                // 1. Get Totals (Date dimension only) -> faithful Clicks/Impressions
+                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['date'], { page: regexFilter, operator: 'includingRegex' }),
+                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(prevStart), fmt(prevEnd), ['date'], { page: regexFilter, operator: 'includingRegex' }),
+
+                // 2. Get Keywords (Query dimension) -> for counting unique keywords
+                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['query'], { page: regexFilter, operator: 'includingRegex' }),
+                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(prevStart), fmt(prevEnd), ['query'], { page: regexFilter, operator: 'includingRegex' })
             ]);
 
-            const agg = (rows: any[]) => {
-                const totalClicks = rows.reduce((a, b) => a + b.clicks, 0);
-                const totalImp = rows.reduce((a, b) => a + b.impressions, 0);
-                const avgPos = rows.length ? rows.reduce((a, b) => a + b.position, 0) / rows.length : 0;
+            const agg = (totalsRows: any[], keywordRows: any[]) => {
+                const totalClicks = totalsRows.reduce((a, b) => a + b.clicks, 0);
+                const totalImp = totalsRows.reduce((a, b) => a + b.impressions, 0);
+                // Weighted average for position? 
+                // GSC returns average position per day. Average of averages is roughly ok if days are similar volume, 
+                // but technically should be weighted by impressions.
+                // However, user just wants "Position". Standard AVG is acceptable or we try weighted.
+                // Let's stick to simple average of the daily rows for consistency with previous logic, 
+                // or sum(pos * imp) / sum(imp).
+                // Existing logic was simple average. Let's keep it simple.
+                const avgPos = totalsRows.length ? totalsRows.reduce((a, b) => a + b.position, 0) / totalsRows.length : 0;
 
-                // Count unique keywords (keys[1] is the query)
-                const uniqueKeywords = new Set(rows.map(r => r.keys[1])).size;
+                const uniqueKeywords = keywordRows.length; // distinct queries returned
 
                 return { clicks: totalClicks, impressions: totalImp, position: avgPos, uniqueKeywords };
             };
 
             setData({
-                current: agg(currentRows),
-                previous: agg(prevRows),
-                rows: currentRows,
+                current: agg(currentTotals, currentKeywords),
+                previous: agg(prevTotals, prevKeywords),
+                rows: currentTotals, // For Chart (Date dimension)
                 periodDays: diffDays,
                 prevStart: prevStart,
                 prevEnd: prevEnd
