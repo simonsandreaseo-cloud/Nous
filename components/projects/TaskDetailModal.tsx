@@ -26,7 +26,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
     const [desc, setDesc] = useState(task.description || '');
     const [status, setStatus] = useState(task.status);
     const [priority, setPriority] = useState(task.priority);
-    const [priority, setPriority] = useState(task.priority);
     const [type, setType] = useState<'task' | 'content'>(task.type || 'task');
     const [dueDate, setDueDate] = useState(task.due_date || '');
     const [secondaryUrl, setSecondaryUrl] = useState(task.secondary_url || '');
@@ -139,7 +138,6 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
             const updates = {
                 title,
                 description: desc,
-                status,
                 status,
                 priority,
                 type,
