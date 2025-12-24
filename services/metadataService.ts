@@ -8,10 +8,12 @@ export interface TaskMetadata {
     h1?: string;
     metaDescription?: string;
     slug?: string;
+    directory?: string;
     generatedAt?: string;
     metricsConfig?: {
         startDate?: string;
         endDate?: string;
+        interval?: string;
     };
     serpProvider?: string;
 }

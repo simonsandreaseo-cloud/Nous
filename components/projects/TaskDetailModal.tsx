@@ -26,7 +26,9 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
     const [desc, setDesc] = useState(task.description || '');
     const [status, setStatus] = useState(task.status);
     const [priority, setPriority] = useState(task.priority);
+    const [priority, setPriority] = useState(task.priority);
     const [type, setType] = useState<'task' | 'content'>(task.type || 'task');
+    const [dueDate, setDueDate] = useState(task.due_date || '');
     const [secondaryUrl, setSecondaryUrl] = useState(task.secondary_url || '');
     const [keyword, setKeyword] = useState(task.target_keyword || '');
     const [trackingMetrics, setTrackingMetrics] = useState(task.tracking_metrics || false);
@@ -138,8 +140,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                 title,
                 description: desc,
                 status,
+                status,
                 priority,
                 type,
+                due_date: dueDate,
                 secondary_url: secondaryUrl,
                 target_keyword: keyword,
                 tracking_metrics: trackingMetrics,
@@ -328,6 +332,28 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                     />
                                 ) : (
                                     <span>{new Date(createdAt).toLocaleDateString()}</span>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-1 group relative text-indigo-500">
+                                <Calendar size={12} />
+                                <span>Objetivo:</span>
+                                {canEdit ? (
+                                    <input
+                                        type="date"
+                                        value={dueDate ? new Date(dueDate).toLocaleDateString('en-CA') : ''}
+                                        onChange={(e) => {
+                                            if (!e.target.value) setDueDate('');
+                                            else {
+                                                const [y, m, d] = e.target.value.split('-').map(Number);
+                                                const date = new Date(y, m - 1, d, 12, 0, 0); // Noon to avoid timezone shifts
+                                                setDueDate(date.toISOString());
+                                            }
+                                        }}
+                                        className="bg-transparent border-b border-dashed border-indigo-500/20 outline-none hover:border-indigo-500/50 focus:border-indigo-500 transition-colors w-[110px] text-indigo-600 font-bold"
+                                    />
+                                ) : (
+                                    <span className="font-bold">{dueDate ? new Date(dueDate).toLocaleDateString() : '--'}</span>
                                 )}
                             </div>
 

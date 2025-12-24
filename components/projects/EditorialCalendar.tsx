@@ -237,7 +237,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
     const [isCreating, setIsCreating] = useState(false);
 
-    const COLUMN_MAPPING = ['title', 'status', 'due_date', 'target_keyword', 'directory', 'slug'];
+    const COLUMN_MAPPING = ['title', 'status', 'created_at', 'due_date', 'target_keyword', 'directory', 'slug'];
 
     const handlePaste = async (e: React.ClipboardEvent) => {
         const text = e.clipboardData.getData('text');
@@ -286,10 +286,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
                         const field = COLUMN_MAPPING[targetColIndex];
                         if (value === undefined) continue; // Should not happen with split
-
-                        hasChanges = true;
-
-                        if (field === 'title') payload.title = value;
+                        else if (field === 'title') payload.title = value;
                         else if (field === 'status') {
                             // Normalize status
                             const s = value.toLowerCase();
@@ -298,7 +295,11 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                             else if (['review', 'revisión', 'revision'].includes(s)) payload.status = 'review';
                             else if (['done', 'publicado', 'finalizado'].includes(s)) payload.status = 'done';
                             else if (['idea'].includes(s)) payload.status = 'idea';
-                            else payload.status = 'idea'; // Default or keep?
+                            else payload.status = 'idea'; // Default
+                        }
+                        else if (field === 'created_at') {
+                            const d = new Date(value);
+                            if (!isNaN(d.getTime())) payload.created_at = d.toISOString();
                         }
                         else if (field === 'due_date') {
                             const d = new Date(value);
@@ -345,6 +346,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         const newTitle = payload.title || 'Nuevo Contenido';
                         const newStatus = payload.status || 'idea';
                         const newDate = payload.due_date || new Date().toISOString();
+                        const newCreatedAt = payload.created_at || new Date().toISOString(); // Use current date if not provided
 
                         const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
                         const finalDir = payload.metadata?.directory || '/';
@@ -353,14 +355,19 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
                         const creationPayload = {
                             title: newTitle,
-                            status: newStatus,
+                            status: newStatus as any,
                             due_date: newDate,
-                            type: 'content',
-                            priority: 'medium',
+                            created_at: newCreatedAt,
+                            updated_at: new Date().toISOString(),
+                            priority: 'medium' as const,
+                            type: 'content' as const,
                             target_keyword: payload.target_keyword || '',
                             target_url_slug: finalSlug,
                             secondary_url: secondaryUrl,
-                            metadata: { directory: finalDir }
+                            metadata: {
+                                slug: finalSlug,
+                                directory: finalDir
+                            }
                         };
 
                         creations.push(TaskService.createTask(projectId, creationPayload));
@@ -600,7 +607,8 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                             <tr className="bg-slate-50 border-b border-slate-200">
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[30%]">Título</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
-                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Creada</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha Obj.</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Palabra Clave</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Directorio</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Slug</th>
@@ -667,14 +675,36 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                             {renderDragHandle(rowIndex, 'status', task.status)}
                                         </td>
 
-                                        {/* DATE */}
-                                        <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'due_date') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
+                                        {/* CREATED AT */}
+                                        <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'created_at') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
                                             onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
                                         >
                                             <input
                                                 type="date"
                                                 data-row-index={rowIndex}
                                                 data-col-index={2}
+                                                data-field="created_at"
+                                                className="bg-transparent text-xs text-slate-500 font-medium outline-none hover:text-brand-power cursor-pointer w-full"
+                                                value={task.created_at ? new Date(task.created_at).toLocaleDateString('en-CA') : ''}
+                                                onChange={(e) => {
+                                                    if (e.target.value) {
+                                                        const [y, m, d] = e.target.value.split('-').map(Number);
+                                                        const date = new Date(y, m - 1, d, 12, 0, 0);
+                                                        updateField('created_at', date.toISOString());
+                                                    }
+                                                }}
+                                            />
+                                            {renderDragHandle(rowIndex, 'created_at', task.created_at)}
+                                        </td>
+
+                                        {/* DUE DATE */}
+                                        <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'due_date') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
+                                            onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
+                                        >
+                                            <input
+                                                type="date"
+                                                data-row-index={rowIndex}
+                                                data-col-index={3}
                                                 data-field="due_date"
                                                 className="bg-transparent text-xs text-slate-500 font-medium outline-none hover:text-brand-power cursor-pointer w-full"
                                                 value={task.due_date ? new Date(task.due_date).toLocaleDateString('en-CA') : ''}
@@ -684,6 +714,10 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                         const originalDate = task.due_date ? new Date(task.due_date) : new Date(y, m - 1, d, 12, 0, 0);
                                                         const newDate = new Date(y, m - 1, d, originalDate.getHours(), originalDate.getMinutes());
                                                         updateField('due_date', newDate.toISOString());
+                                                        // Sync completed_at if status is done
+                                                        if (task.status === 'done') {
+                                                            updateField('completed_at', newDate.toISOString());
+                                                        }
                                                     }
                                                 }}
                                             />
@@ -710,7 +744,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                             <select
                                                 value={task.metadata?.directory || '/'}
                                                 data-row-index={rowIndex}
-                                                data-col-index={4}
+                                                data-col-index={5}
                                                 data-field="directory"
                                                 onChange={async (e) => {
                                                     const newDir = e.target.value;
@@ -745,7 +779,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                 placeholder="slug-del-articulo"
                                                 defaultValue={task.target_url_slug || ''}
                                                 data-row-index={rowIndex}
-                                                data-col-index={5}
+                                                data-col-index={6}
                                                 data-field="slug"
                                                 onBlur={async (e) => {
                                                     const newSlug = e.target.value;
