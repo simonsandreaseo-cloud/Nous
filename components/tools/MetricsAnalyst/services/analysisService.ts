@@ -134,6 +134,7 @@ export const runFullLocalAnalysis = (
     log("└── Dossier de Inteligencia Finalizado.");
 
     const reportPayload: ReportPayload = {
+        projectName: 'Project Name',
         period1Name: p1Name,
         period2Name: p2Name,
         userContext: userContext,
@@ -730,8 +731,7 @@ function runDetectionsInOnePass(
         page1LoserAlerts: page1LoserAlerts.sort((a, b) => b.impressionsP1 - a.impressionsP1).slice(0, 10)
     };
 }
-    };
-}
+
 
 // --- HELPER: Process AI Traffic ---
 function processAiTraffic(
