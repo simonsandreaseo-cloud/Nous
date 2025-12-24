@@ -257,7 +257,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
     const [isCreating, setIsCreating] = useState(false);
 
-    const COLUMN_MAPPING = ['title', 'status', 'created_at', 'due_date', 'target_keyword', 'directory', 'slug'];
+    const COLUMN_MAPPING = ['title', 'status', 'created_at', 'due_date', 'completed_at', 'target_keyword', 'directory', 'slug'];
 
     const handlePaste = async (e: React.ClipboardEvent) => {
         const text = e.clipboardData.getData('text');
@@ -326,6 +326,11 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         else if (field === 'due_date') {
                             const d = new Date(value);
                             if (!isNaN(d.getTime())) payload.due_date = d.toISOString();
+                            hasChanges = true;
+                        }
+                        else if (field === 'completed_at') {
+                            const d = new Date(value);
+                            if (!isNaN(d.getTime())) payload.completed_at = d.toISOString();
                             hasChanges = true;
                         }
                         else if (field === 'target_keyword') { payload.target_keyword = value; hasChanges = true; }
@@ -502,7 +507,10 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         {day}
                     </span>
                     <div className="opacity-0 group-hover/day:opacity-100 transform translate-y-1 group-hover/day:translate-y-0 transition-all pointer-events-auto">
-                        <button className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all duration-300 active:scale-90">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleCreateTask(day); }}
+                            className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all duration-300 active:scale-90"
+                        >
                             <Plus size={14} />
                         </button>
                     </div>
@@ -675,6 +683,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Creada</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha Obj.</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Publicada</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Palabra Clave</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Directorio</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Slug</th>
@@ -775,6 +784,26 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                 <Calendar size={12} className="opacity-40" />
                                             </div>
                                             {renderDragHandle(rowIndex, 'due_date', task.due_date)}
+                                        </td>
+
+                                        {/* COMPLETED AT (PUBLISHED) */}
+                                        <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'completed_at') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
+                                            onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
+                                        >
+                                            <div
+                                                className="bg-transparent text-[11px] text-slate-500 font-medium py-1 px-2 rounded-lg hover:bg-slate-100 hover:text-brand-power transition-all cursor-pointer border border-transparent hover:border-slate-200 flex items-center justify-between"
+                                                onClick={(e) => {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setActiveDatePicker({ rowIndex, field: 'completed_at', rect, value: task.completed_at || '' });
+                                                    setPickerDate(task.completed_at ? new Date(task.completed_at) : new Date());
+                                                }}
+                                            >
+                                                <span className={`${task.status === 'done' ? 'text-emerald-600 font-bold' : ''}`}>
+                                                    {task.completed_at ? new Date(task.completed_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '--/--/----'}
+                                                </span>
+                                                <Calendar size={12} className="opacity-40" />
+                                            </div>
+                                            {renderDragHandle(rowIndex, 'completed_at', task.completed_at)}
                                         </td>
 
                                         {/* KEYWORD */}
@@ -948,7 +977,8 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                     >
                         <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                             <span className="text-xs font-bold text-slate-600 uppercase tracking-wider px-2 py-0.5 bg-slate-200/50 rounded-md">
-                                {activeDatePicker.field === 'created_at' ? 'Fecha Creación' : 'Fecha Objetivo'}
+                                {activeDatePicker.field === 'created_at' ? 'Fecha Creación' :
+                                    activeDatePicker.field === 'completed_at' ? 'Fecha Publicación' : 'Fecha Objetivo'}
                             </span>
                             <div className="flex gap-1">
                                 <button
