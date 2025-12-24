@@ -82,7 +82,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
             if (tasksToUpdate.length <= 1 && minIndex === startRowIndex) return;
 
             // Format date for display if field is a date
-            const displayValue = (field.includes('date') || field === 'created_at')
+            const displayValue = (field.includes('date') || field.includes('_at'))
                 ? new Date(value).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
                 : value;
 
@@ -114,6 +114,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                     else if (field === 'status') updatePayload.status = value;
                     else if (field === 'due_date') updatePayload.due_date = value;
                     else if (field === 'created_at') updatePayload.created_at = value;
+                    else if (field === 'completed_at') updatePayload.completed_at = value;
                     else if (field === 'keyword') updatePayload.target_keyword = value;
 
                     return TaskService.updateTask(task.id, updatePayload);
