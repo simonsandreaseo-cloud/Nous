@@ -5,6 +5,8 @@ on:
       - main
     paths:
       - 'supabase/**'
+      - '.github/workflows/supabase-functions.yml'
+  workflow_dispatch:
 
 jobs:
   deploy:
