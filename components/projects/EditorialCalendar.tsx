@@ -34,6 +34,109 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
     const [showSettings, setShowSettings] = useState(false);
 
+    // --- Drag to Fill State ---
+    const [dragState, setDragState] = useState<{
+        active: boolean;
+        startRowIndex: number; // Index in contentTasks
+        currentRowIndex: number;
+        field: string; // 'title' | 'status' | 'due_date' | 'directory' | 'slug'
+        value: any;
+    } | null>(null);
+
+    // Memoized sorted tasks to ensure stable indices during interactions
+    const contentTasks = React.useMemo(() => {
+        return tasks
+            .filter(t => t.type === 'content')
+            .sort((a, b) => new Date(a.due_date || '').getTime() - new Date(b.due_date || '').getTime());
+    }, [tasks]);
+
+    // Handle Drag End (Execute Bulk Update)
+    useEffect(() => {
+        const handleGlobalMouseUp = async () => {
+            if (!dragState?.active) return;
+
+            const { startRowIndex, currentRowIndex, field, value } = dragState;
+            setDragState(null); // Clear state immediately
+
+            const minIndex = Math.min(startRowIndex, currentRowIndex);
+            const maxIndex = Math.max(startRowIndex, currentRowIndex);
+
+            // Identify tasks to update
+            const tasksToUpdate = contentTasks.slice(minIndex, maxIndex + 1);
+
+            // Don't update the source one if it's the only one (click without drag)
+            if (tasksToUpdate.length <= 1 && minIndex === startRowIndex) return;
+
+            if (!confirm(`¿Actualizar ${tasksToUpdate.length} filas con el valor "${value}"?`)) return;
+
+            try {
+                const updates = tasksToUpdate.map(task => {
+                    const updatePayload: any = {};
+
+                    if (field === 'directory') {
+                        // Special case: Metadata Directory + Update URL
+                        const newDir = value;
+                        const slug = task.target_url_slug || '';
+                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                        updatePayload.metadata = { ...task.metadata, directory: newDir };
+                        updatePayload.secondary_url = `${domain}${newDir}${slug}`;
+                    }
+                    else if (field === 'slug') {
+                        // Special case: Slug + Update URL
+                        // Note: If value is copypasted slug, we use it. But slugs should be unique? 
+                        // Google sheets usually increments if number? For now exact copy.
+                        const newSlug = value;
+                        const dir = task.metadata?.directory || '/';
+                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                        updatePayload.target_url_slug = newSlug;
+                        updatePayload.secondary_url = `${domain}${dir}${newSlug}`;
+                    }
+                    else if (field === 'title') updatePayload.title = value;
+                    else if (field === 'status') updatePayload.status = value;
+                    else if (field === 'due_date') updatePayload.due_date = value;
+                    else if (field === 'keyword') updatePayload.target_keyword = value;
+
+                    return TaskService.updateTask(task.id, updatePayload);
+                });
+
+                await Promise.all(updates);
+                onTaskUpdate();
+            } catch (e: any) {
+                alert("Error en actualización masiva: " + e.message);
+            }
+        };
+
+        window.addEventListener('mouseup', handleGlobalMouseUp);
+        return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+    }, [dragState, contentTasks, project, onTaskUpdate]);
+
+    // Helper to render the drag handle
+    const renderDragHandle = (rowIndex: number, field: string, value: any) => (
+        <div
+            className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-indigo-600 rounded-sm cursor-crosshair z-20 opacity-0 group-hover:opacity-100 transition-opacity ring-1 ring-white"
+            onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault(); // Prevent text selection
+                setDragState({
+                    active: true,
+                    startRowIndex: rowIndex,
+                    currentRowIndex: rowIndex,
+                    field,
+                    value
+                });
+            }}
+        />
+    );
+
+    // Helper to check if cell is in drag range
+    const isInDragRange = (rowIndex: number, field: string) => {
+        if (!dragState || dragState.field !== field) return false;
+        const min = Math.min(dragState.startRowIndex, dragState.currentRowIndex);
+        const max = Math.max(dragState.startRowIndex, dragState.currentRowIndex);
+        if (rowIndex >= min && rowIndex <= max) return true;
+        return false;
+    };
+
     // If still no project ID, show loading
     if (!projectId) return <div className="p-8 text-center text-slate-400">Cargando calendario...</div>;
 
@@ -150,7 +253,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
         // If tabular, we intercept even if focused on input
         if (isTabular) {
             e.preventDefault();
-            if (!confirm(`Se han detectado ${rows.length} filas en el portapapeles. \n¿Deseas importarlas como nuevos contenidos?\n\nFormato esperado: Título | Estado | Fecha | Keywod | URL`)) return;
+            if (!confirm(`Se han detectado ${rows.length} filas en el portapapeles. \n¿Deseas importarlas como nuevos contenidos?\n\nFormato esperado: Título | Estado | Fecha | Keyword | Slug`)) return;
 
             setIsCreating(true);
             try {
@@ -182,7 +285,9 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         due_date: dueDate || new Date().toISOString(),
                         priority: 'medium',
                         target_keyword: cols[3] || '',
-                        secondary_url: cols[4] || ''
+                        target_url_slug: cols[4] || '',
+                        // Construct tentative URL
+                        secondary_url: cols[4] ? (project?.gsc_property_url || '') + (cols[4].startsWith('/') ? '' : '/') + cols[4] : ''
                     });
                     createdCount++;
                 }
@@ -309,7 +414,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                     {viewMode === 'table' && (
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] text-slate-400 hidden lg:inline-block mr-2">
-                                💡 Tip: Pega filas de Excel/Sheets (Título | Estado | Fecha...)
+                                💡 Tip: Pega filas de Excel/Sheets (Título | Estado | Fecha | KW | Slug)
                             </span>
                             <button
                                 onClick={handleQuickAdd}
@@ -378,108 +483,172 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Palabra Clave</th>
-                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">URL Objetivo</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Directorio</th>
+                                <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Slug</th>
                                 <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-[50px]"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {tasks
-                                .filter(t => t.type === 'content')
-                                .sort((a, b) => new Date(a.due_date || '').getTime() - new Date(b.due_date || '').getTime())
-                                .map(task => {
-                                    const isLocked = ContentService.isLocked(task as ContentItem, user?.id || '');
+                            {contentTasks.map((task, rowIndex) => {
+                                const isLocked = ContentService.isLocked(task as ContentItem, user?.id || '');
 
-                                    const updateField = async (field: keyof Task, value: any) => {
-                                        try {
-                                            await TaskService.updateTask(task.id, { [field]: value });
-                                            onTaskUpdate();
-                                        } catch (e: any) {
-                                            alert(`Error al actualizar ${field}: ${e.message}`);
-                                        }
-                                    };
+                                const updateField = async (field: keyof Task, value: any) => {
+                                    try {
+                                        await TaskService.updateTask(task.id, { [field]: value });
+                                        onTaskUpdate();
+                                    } catch (e: any) {
+                                        alert(`Error al actualizar ${field}: ${e.message}`);
+                                    }
+                                };
 
-                                    return (
-                                        <tr key={task.id} className="hover:bg-slate-50 group transition-colors">
-                                            <td className="p-3">
-                                                <input
-                                                    className="w-full bg-transparent border-transparent border-b hover:border-slate-300 focus:border-brand-accent focus:ring-0 text-sm font-medium text-slate-700 transition-colors py-1"
-                                                    defaultValue={task.title}
-                                                    onBlur={(e) => {
-                                                        if (e.target.value !== task.title) updateField('title', e.target.value);
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                                                    }}
-                                                />
-                                            </td>
-                                            <td className="p-3">
-                                                <select
-                                                    value={task.status}
-                                                    onChange={(e) => updateField('status', e.target.value)}
-                                                    className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full border border-transparent hover:border-slate-200 cursor-pointer outline-none
+                                return (
+                                    <tr key={task.id} className="hover:bg-slate-50 group transition-colors">
+                                        {/* TITLE */}
+                                        <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'title') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
+                                            onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
+                                        >
+                                            <input
+                                                className="w-full bg-transparent border-transparent border-b hover:border-slate-300 focus:border-brand-accent focus:ring-0 text-sm font-medium text-slate-700 transition-colors py-1"
+                                                defaultValue={task.title}
+                                                onBlur={(e) => {
+                                                    if (e.target.value !== task.title) updateField('title', e.target.value);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                                }}
+                                            />
+                                            {renderDragHandle(rowIndex, 'title', task.title)}
+                                        </td>
+
+                                        {/* STATUS */}
+                                        <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'status') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
+                                            onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
+                                        >
+                                            <select
+                                                value={task.status}
+                                                onChange={(e) => updateField('status', e.target.value)}
+                                                className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full border border-transparent hover:border-slate-200 cursor-pointer outline-none w-full
                                                         ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600' :
-                                                            task.status === 'review' ? 'bg-amber-50 text-amber-600' :
-                                                                task.status === 'in_progress' ? 'bg-blue-50 text-blue-600' :
-                                                                    'bg-slate-100 text-slate-500'}`}
-                                                >
-                                                    <option value="idea">Idea</option>
-                                                    <option value="todo">Por Hacer</option>
-                                                    <option value="in_progress">En Progreso</option>
-                                                    <option value="review">Revisión</option>
-                                                    <option value="done">Publicado</option>
-                                                </select>
-                                            </td>
-                                            <td className="p-3">
-                                                <input
-                                                    type="date"
-                                                    className="bg-transparent text-xs text-slate-500 font-medium outline-none hover:text-brand-power cursor-pointer"
-                                                    value={task.due_date ? new Date(task.due_date).toLocaleDateString('en-CA') : ''}
-                                                    onChange={(e) => {
-                                                        if (e.target.value) {
-                                                            const [y, m, d] = e.target.value.split('-').map(Number);
-                                                            // Keep time if exists or default to noon
-                                                            const originalDate = task.due_date ? new Date(task.due_date) : new Date(y, m - 1, d, 12, 0, 0);
-                                                            const newDate = new Date(y, m - 1, d, originalDate.getHours(), originalDate.getMinutes());
-                                                            updateField('due_date', newDate.toISOString());
-                                                        }
-                                                    }}
-                                                />
-                                            </td>
-                                            <td className="p-3">
-                                                <div className="flex items-center gap-2">
-                                                    {task.target_keyword ? (
-                                                        <span className="bg-slate-100 text-slate-600 text-[10px] px-2 py-1 rounded-md border border-slate-200 truncate max-w-[150px]" title={task.target_keyword}>
-                                                            {task.target_keyword}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[10px] text-slate-300 italic">--</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="p-3">
-                                                <input
-                                                    className="w-full bg-transparent text-xs text-slate-500 font-mono outline-none border-b border-transparent hover:border-slate-300 focus:border-brand-accent transition-colors py-1 truncate"
-                                                    placeholder="URL..."
-                                                    defaultValue={task.secondary_url || ''}
-                                                    onBlur={(e) => {
-                                                        if (e.target.value !== (task.secondary_url || '')) updateField('secondary_url', e.target.value);
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                                                    }}
-                                                />
-                                            </td>
-                                            <td className="p-3">
-                                                <button
-                                                    onClick={() => handleOpenTask(task)}
-                                                    className="p-1.5 text-slate-400 hover:text-brand-accent hover:bg-brand-accent/5 rounded-lg transition-colors"
-                                                >
-                                                    <Edit3 size={14} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                                        task.status === 'review' ? 'bg-amber-50 text-amber-600' :
+                                                            task.status === 'in_progress' ? 'bg-blue-50 text-blue-600' :
+                                                                'bg-slate-100 text-slate-500'}`}
+                                            >
+                                                <option value="idea">Idea</option>
+                                                <option value="todo">Por Hacer</option>
+                                                <option value="in_progress">En Progreso</option>
+                                                <option value="review">Revisión</option>
+                                                <option value="done">Publicado</option>
+                                            </select>
+                                            {renderDragHandle(rowIndex, 'status', task.status)}
+                                        </td>
+
+                                        {/* DATE */}
+                                        <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'due_date') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
+                                            onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
+                                        >
+                                            <input
+                                                type="date"
+                                                className="bg-transparent text-xs text-slate-500 font-medium outline-none hover:text-brand-power cursor-pointer w-full"
+                                                value={task.due_date ? new Date(task.due_date).toLocaleDateString('en-CA') : ''}
+                                                onChange={(e) => {
+                                                    if (e.target.value) {
+                                                        const [y, m, d] = e.target.value.split('-').map(Number);
+                                                        const originalDate = task.due_date ? new Date(task.due_date) : new Date(y, m - 1, d, 12, 0, 0);
+                                                        const newDate = new Date(y, m - 1, d, originalDate.getHours(), originalDate.getMinutes());
+                                                        updateField('due_date', newDate.toISOString());
+                                                    }
+                                                }}
+                                            />
+                                            {/* Store ISO string or raw value? Dragging date usually copies the exact date */}
+                                            {renderDragHandle(rowIndex, 'due_date', task.due_date)}
+                                        </td>
+
+                                        {/* KEYWORD - NOT EDITABLE BUT DRAGGABLE? Let's skip drag for non-editable for now to match UI */}
+                                        <td className="p-3">
+                                            <div className="flex items-center gap-2">
+                                                {task.target_keyword ? (
+                                                    <span className="bg-slate-100 text-slate-600 text-[10px] px-2 py-1 rounded-md border border-slate-200 truncate max-w-[150px]" title={task.target_keyword}>
+                                                        {task.target_keyword}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] text-slate-300 italic">--</span>
+                                                )}
+                                            </div>
+                                        </td>
+
+                                        {/* DIRECTORY */}
+                                        <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'directory') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
+                                            onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
+                                        >
+                                            <select
+                                                value={task.metadata?.directory || '/'}
+                                                onChange={async (e) => {
+                                                    const newDir = e.target.value;
+                                                    const slug = task.target_url_slug || '';
+                                                    const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                                                    const fullUrl = `${domain}${newDir}${slug}`;
+
+                                                    try {
+                                                        await TaskService.updateTask(task.id, {
+                                                            secondary_url: fullUrl,
+                                                            metadata: { ...task.metadata, directory: newDir }
+                                                        });
+                                                        onTaskUpdate();
+                                                    } catch (e: any) { console.error(e); }
+                                                }}
+                                                className="w-full bg-transparent text-xs text-slate-500 font-medium outline-none border-b border-transparent hover:border-slate-300 focus:border-brand-accent cursor-pointer py-1"
+                                            >
+                                                <option value="/">/ (Raíz)</option>
+                                                {project?.settings?.content_directories?.map((d: string) => (
+                                                    <option key={d} value={d}>{d}</option>
+                                                ))}
+                                            </select>
+                                            {renderDragHandle(rowIndex, 'directory', task.metadata?.directory || '/')}
+                                        </td>
+
+                                        {/* SLUG */}
+                                        <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'slug') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
+                                            onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
+                                        >
+                                            <input
+                                                className="w-full bg-transparent text-xs text-slate-500 font-mono outline-none border-b border-transparent hover:border-slate-300 focus:border-brand-accent transition-colors py-1 truncate"
+                                                placeholder="slug-del-articulo"
+                                                defaultValue={task.target_url_slug || ''}
+                                                onBlur={async (e) => {
+                                                    const newSlug = e.target.value;
+                                                    if (newSlug !== task.target_url_slug) {
+                                                        const dir = task.metadata?.directory || '/';
+                                                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                                                        const fullUrl = `${domain}${dir}${newSlug}`;
+
+                                                        try {
+                                                            await TaskService.updateTask(task.id, {
+                                                                target_url_slug: newSlug,
+                                                                secondary_url: fullUrl
+                                                            });
+                                                            onTaskUpdate();
+                                                        } catch (e: any) { console.error(e); }
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                                }}
+                                            />
+                                            {renderDragHandle(rowIndex, 'slug', task.target_url_slug || '')}
+                                        </td>
+
+                                        {/* ACTIONS */}
+                                        <td className="p-3">
+                                            <button
+                                                onClick={() => handleOpenTask(task)}
+                                                className="p-1.5 text-slate-400 hover:text-brand-accent hover:bg-brand-accent/5 rounded-lg transition-colors"
+                                            >
+                                                <Edit3 size={14} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                             {tasks.filter(t => t.type === 'content').length === 0 && (
                                 <tr>
                                     <td colSpan={6} className="p-8 text-center text-slate-400 text-sm">

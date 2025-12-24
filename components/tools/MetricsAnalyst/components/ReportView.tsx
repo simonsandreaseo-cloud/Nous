@@ -5,6 +5,7 @@ import { TaskPerformancePanel } from './TaskPerformancePanel';
 import { Dashboard } from './Dashboard';
 import { ProjectSelector } from '../../../shared/ProjectSelector';
 import { ConcentrationPanel } from './ConcentrationPanel';
+import { createPortal } from 'react-dom';
 
 interface ReportViewProps {
     htmlContent: string;
@@ -32,6 +33,16 @@ interface ReportViewProps {
     onShare?: () => void;
 }
 
+const EditorIconButton = ({ icon, onClick, label, bold, italic, underline }: any) => (
+    <button
+        onClick={onClick}
+        title={label}
+        className={`w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-sm ${bold ? 'font-bold' : ''} ${italic ? 'italic' : ''} ${underline ? 'underline' : ''}`}
+    >
+        {icon}
+    </button>
+);
+
 export const ReportView: React.FC<ReportViewProps> = ({
     htmlContent,
     chartData,
@@ -57,6 +68,36 @@ export const ReportView: React.FC<ReportViewProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const chartsRef = useRef<Chart[]>([]);
     const [userFeedback, setUserFeedback] = React.useState("");
+    const [toolbarState, setToolbarState] = React.useState({ show: false, top: 0, left: 0 });
+
+    // Handle Floating Toolbar
+    useEffect(() => {
+        const handleSelection = () => {
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+                setToolbarState(s => ({ ...s, show: false }));
+                return;
+            }
+
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+
+            // Verify selection is within our editor
+            if (containerRef.current && !containerRef.current.contains(selection.anchorNode)) {
+                setToolbarState(s => ({ ...s, show: false }));
+                return;
+            }
+
+            setToolbarState({
+                show: true,
+                top: rect.top - 60, // Position above text
+                left: rect.left + (rect.width / 2)
+            });
+        };
+
+        document.addEventListener('selectionchange', handleSelection);
+        return () => document.removeEventListener('selectionchange', handleSelection);
+    }, []);
 
     // 1. Render Charts into Placeholders
     useEffect(() => {
@@ -268,37 +309,33 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
                 {/* Main Content Area */}
                 <div className="relative">
-                    {/* Editor Toolbar (Floating) */}
-                    <div className="sticky top-4 z-50 bg-white/90 backdrop-blur-md shadow-lg rounded-2xl border border-slate-200/60 p-2 flex gap-2 items-center justify-between print:hidden transition-all ring-1 ring-black/5 mb-8 max-w-4xl mx-auto">
-                        <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                            <EditorButton icon={<span className="font-bold font-serif">B</span>} onClick={() => document.execCommand('bold')} label="Negrita" />
-                            <EditorButton icon={<span className="italic font-serif">I</span>} onClick={() => document.execCommand('italic')} label="Cursiva" />
-                            <EditorButton icon={<span className="underline font-serif">U</span>} onClick={() => document.execCommand('underline')} label="Subrayado" />
-                            <div className="w-px h-5 bg-slate-200 mx-1 self-center"></div>
-                            <EditorButton icon={<span className="font-bold">H1</span>} onClick={() => document.execCommand('formatBlock', false, 'h2')} label="Título" />
-                            <EditorButton icon={<span className="font-semibold text-sm">H2</span>} onClick={() => document.execCommand('formatBlock', false, 'h3')} label="Subtítulo" />
-                            <EditorButton icon={<span className="text-xs">¶</span>} onClick={() => document.execCommand('formatBlock', false, 'p')} label="Texto" />
-                            <div className="w-px h-5 bg-slate-200 mx-1 self-center"></div>
-                            <EditorButton icon="1." onClick={() => document.execCommand('insertOrderedList')} label="Lista Num." />
-                            <EditorButton icon="•" onClick={() => document.execCommand('insertUnorderedList')} label="Lista" />
-                        </div>
-                        <div className="flex gap-2 shrink-0">
-                            <button
-                                onClick={() => {
-                                    const range = window.getSelection()?.getRangeAt(0);
-                                    if (range) {
-                                        const el = document.createElement('div');
-                                        el.className = "p-6 border-2 border-dashed border-indigo-200 rounded-xl my-6 bg-indigo-50/30";
-                                        el.innerHTML = "<h3 class='text-lg font-bold text-indigo-900 mb-2'>Nuevo Análisis</h3><p class='text-slate-600'>Escribe aquí...</p>";
-                                        range.insertNode(el);
-                                    }
-                                }}
-                                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs font-bold rounded-lg hover:bg-indigo-100 transition whitespace-nowrap"
-                            >
-                                + Módulo
-                            </button>
-                        </div>
-                    </div>
+                    {/* Floating Selection Toolbar (Portal) */}
+                    {toolbarState.show && createPortal(
+                        <div
+                            className="fixed z-[9999] bg-slate-900/90 text-white backdrop-blur shadow-xl rounded-full px-4 py-2 flex items-center gap-2 animate-fade-in-up transition-all transform -translate-x-1/2"
+                            style={{ top: toolbarState.top, left: toolbarState.left }}
+                            onMouseDown={(e) => e.preventDefault()} // Prevent losing focus
+                        >
+                            <EditorIconButton icon="B" onClick={() => document.execCommand('bold')} label="Negrita" bold />
+                            <EditorIconButton icon="I" onClick={() => document.execCommand('italic')} label="Cursiva" italic />
+                            <EditorIconButton icon="U" onClick={() => document.execCommand('underline')} label="Subrayado" underline />
+                            <div className="w-px h-4 bg-white/20 mx-1"></div>
+                            <EditorIconButton icon="H2" onClick={() => document.execCommand('formatBlock', false, 'h2')} label="Título" />
+                            <EditorIconButton icon="H3" onClick={() => document.execCommand('formatBlock', false, 'h3')} label="Subtítulo" />
+                            <EditorIconButton icon="¶" onClick={() => document.execCommand('formatBlock', false, 'p')} label="Texto" />
+                            <div className="w-px h-4 bg-white/20 mx-1"></div>
+                            <div className="relative group flex items-center justify-center w-8 h-8 cursor-pointer hover:bg-white/10 rounded-full transition-colors">
+                                <span className="text-lg">🎨</span>
+                                <input
+                                    type="color"
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                    onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
+                                    title="Color de texto"
+                                />
+                            </div>
+                        </div>,
+                        document.body
+                    )}
 
                     {/* Main AI Report (Editable Paper) */}
                     <div className="bg-white p-8 md:p-20 shadow-xl shadow-slate-200/50 rounded-[2rem] border border-slate-100 min-h-[800px] print:shadow-none print:border-none print:p-0 relative font-sans text-slate-700 max-w-5xl mx-auto">
@@ -335,40 +372,54 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     </div>
                 </div>
 
-                {/* Agent Chat / Refinement (Moved to bottom) */}
-                <div className="max-w-4xl mx-auto print:hidden">
-                    <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/30 transition-all duration-1000"></div>
-                        <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
-                            <div className="md:w-1/3">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-indigo-500/50">✨</div>
-                                    <h3 className="text-xl font-bold text-white leading-tight">Agente Editor</h3>
-                                </div>
-                                <p className="text-slate-400 text-sm leading-relaxed">
-                                    ¿Necesitas reescribir una sección? Pídele ajustes al agente y regenará el contenido.
-                                </p>
-                            </div>
-                            <div className="md:w-2/3 w-full">
-                                <div className="relative">
-                                    <textarea
-                                        value={userFeedback}
-                                        onChange={(e) => setUserFeedback(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && !isRegenerating && onRegenerate(userFeedback)}
-                                        placeholder="Ej: 'Añade una conclusión más agresiva sobre las ventas'..."
-                                        className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-6 py-4 pb-14 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-200 placeholder-slate-500 resize-none h-32 transition-all"
-                                    />
-                                    <div className="absolute bottom-3 right-3">
-                                        <button
-                                            onClick={() => onRegenerate(userFeedback)}
-                                            disabled={isRegenerating || !userFeedback}
-                                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold disabled:opacity-50 hover:bg-indigo-500 transition shadow-lg flex items-center gap-2 text-xs uppercase tracking-wider"
-                                        >
-                                            {isRegenerating ? <span className="animate-spin">↻ Procesando</span> : '➤ Enviar Instrucción'}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+
+                {/* Fixed Compressed Agent Bar */}
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4 print:hidden">
+                    <div className="bg-white/90 backdrop-blur-xl shadow-2xl shadow-indigo-900/20 border border-indigo-100 rounded-full p-2 pl-6 flex items-center gap-3 ring-1 ring-slate-900/5 transition-all hover:scale-[1.01] hover:shadow-indigo-500/20">
+                        <div className="relative group">
+                            <div className="w-8 h-8 bg-gradient-to-tr from-indigo-600 to-purple-500 rounded-full flex items-center justify-center text-white text-xs animate-pulse shadow-lg shadow-indigo-500/30">✨</div>
+                        </div>
+
+                        <input
+                            value={userFeedback}
+                            onChange={(e) => setUserFeedback(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && !isRegenerating && onRegenerate(userFeedback)}
+                            placeholder="Pide ajustes a la IA (ej. 'Resume más la introducción')..."
+                            className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-slate-700 placeholder:text-slate-400 h-10"
+                        />
+
+                        <div className="flex gap-2 shrink-0">
+                            <button
+                                onClick={() => {
+                                    if (containerRef.current) containerRef.current.focus();
+                                    const range = window.getSelection()?.getRangeAt(0);
+                                    if (range) {
+                                        const el = document.createElement('div');
+                                        el.className = "p-6 border-2 border-dashed border-indigo-200 rounded-xl my-6 bg-indigo-50/30";
+                                        el.innerHTML = "<h3 class='text-lg font-bold text-indigo-900 mb-2'>Nuevo Análisis</h3><p class='text-slate-600'>Escribe aquí...</p>";
+                                        range.insertNode(el);
+                                    } else {
+                                        // Fallback if no selection: append to end
+                                        if (containerRef.current) {
+                                            const el = document.createElement('div');
+                                            el.className = "p-6 border-2 border-dashed border-indigo-200 rounded-xl my-6 bg-indigo-50/30";
+                                            el.innerHTML = "<h3 class='text-lg font-bold text-indigo-900 mb-2'>Nuevo Análisis</h3><p class='text-slate-600'>Escribe aquí...</p>";
+                                            containerRef.current.appendChild(el);
+                                        }
+                                    }
+                                }}
+                                className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                                title="Insertar bloque manual"
+                            >
+                                <span className="text-xl leading-none mb-1">+</span>
+                            </button>
+                            <button
+                                onClick={() => onRegenerate(userFeedback)}
+                                disabled={isRegenerating || !userFeedback}
+                                className="h-10 px-6 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-slate-900/20"
+                            >
+                                {isRegenerating ? '...' : 'Enviar'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -377,12 +428,4 @@ export const ReportView: React.FC<ReportViewProps> = ({
     );
 };
 
-const EditorButton = ({ icon, onClick, label }: any) => (
-    <button
-        onClick={onClick}
-        title={label}
-        className="h-8 min-w-[32px] px-2 flex items-center justify-center rounded hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 font-medium text-sm transition"
-    >
-        {icon}
-    </button>
-);
+
