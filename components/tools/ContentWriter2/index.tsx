@@ -418,7 +418,7 @@ const App = () => {
 
         if (isQuota) {
             setShowKeyModal(true);
-            const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash'];
+            const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash', 'gemma-3-27b', 'gemma-3-12b', 'gemma-3-4b'];
             const currentIndex = models.indexOf(model);
             const nextModel = models[(currentIndex + 1) % models.length];
 
@@ -1490,6 +1490,10 @@ const App = () => {
                                         <option value="gemini-2.0-flash-001">Gemini 2.0 Flash</option>
                                         <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                                         <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                        <option value="gemini-3-flash">Gemini 3 Flash</option>
+                                        <option value="gemma-3-27b">Gemma 3 27B</option>
+                                        <option value="gemma-3-12b">Gemma 3 12B</option>
+                                        <option value="gemma-3-4b">Gemma 3 4B</option>
                                     </select>
                                 </div>
 
@@ -1645,9 +1649,14 @@ const App = () => {
                                         <div>
                                             <label style={styles.label}>Modelo Prioritario</label>
                                             <select style={styles.select as any} value={model} onChange={e => setModel(e.target.value)}>
+                                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                                                 <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
                                                 <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                                                 <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                                <option value="gemini-3-flash">Gemini 3 Flash</option>
+                                                <option value="gemma-3-27b">Gemma 3 27B</option>
+                                                <option value="gemma-3-12b">Gemma 3 12B</option>
+                                                <option value="gemma-3-4b">Gemma 3 4B</option>
                                             </select>
                                         </div>
                                         <div>

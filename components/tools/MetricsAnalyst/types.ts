@@ -67,6 +67,16 @@ export interface AnomalyPoint {
     deviation: number; // How many std devs away
 }
 
+export interface Ga4Stats {
+    sessions: number;
+    activeUsers: number;
+    newUsers: number;
+    bounceRate: number;
+    avgSessionDuration: number;
+    aiSessions: number;
+    topSources: { name: string; sessions: number }[];
+}
+
 export interface DashboardStats {
     kpis: SiteWideKPIs;
     datasetStats: {
@@ -85,6 +95,7 @@ export interface DashboardStats {
     period1Label: string;
     period2Label: string;
     anomalies: AnomalyPoint[]; // New field for UI
+    ga4Stats?: Ga4Stats;
 }
 
 // Phase 2: Forensic Analysis Interfaces
@@ -188,6 +199,12 @@ export interface ReportPayload {
     availableChartKeys: string[];
     // Phase 5: Task Performance Integration
     taskPerformanceAnalysis?: TaskPerformance[];
+    // Phase 5.1: Content Analysis
+    contentAnalysis?: {
+        config: ContentAnalysisConfig;
+        overview: any;
+        items: any[];
+    };
 }
 
 export interface LogEntry {
@@ -236,6 +253,9 @@ export interface TaskPerformance {
         clicks: number;
         impressions: number;
         position: number;
+        sessions?: number;
+        bounceRate?: number;
+        avgDuration?: number;
     };
     comparison: {
         clicksChange: number;
@@ -259,4 +279,11 @@ export interface TaskImpactConfig {
     measurementMode: 'start' | 'completion' | 'custom';
     customDate?: string;
     projectId?: number;
+}
+
+export interface ContentAnalysisConfig {
+    enabled: boolean;
+    mode: 'month' | 'items';
+    selectedMonth?: string;
+    selectedTaskIds: number[];
 }

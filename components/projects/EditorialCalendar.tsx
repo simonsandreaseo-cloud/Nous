@@ -6,7 +6,9 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Lock, Unlock, User, Calendar as CalIcon, Edit3, X, FileText, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import TaskDetailModal from './TaskDetailModal';
+import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { GoalTrackingWidget } from './GoalTrackingWidget';
+import { ContentPerformanceDashboard } from './ContentPerformanceDashboard';
 
 interface EditorialCalendarProps {
     projectId?: string | number;
@@ -30,6 +32,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedTask, setSelectedTask] = useState<ContentItem | null>(null);
     const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
+    const [showSettings, setShowSettings] = useState(false);
 
     // If still no project ID, show loading
     if (!projectId) return <div className="p-8 text-center text-slate-400">Cargando calendario...</div>;
@@ -221,6 +224,15 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                     >
                         <Edit3 size={12} /> Generar Ideas (IA)
                     </button>
+                    {project?.role === 'owner' || project?.role === 'admin' ? (
+                        <button
+                            onClick={() => setShowSettings(true)}
+                            className="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200"
+                            title="Configurar Calendario"
+                        >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        </button>
+                    ) : null}
                     <div className="text-xs text-slate-400 font-medium border-l border-slate-200 pl-3">
                         {tasks.filter(t => t.due_date).length} Tareas
                     </div>
@@ -229,6 +241,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
             {/* Content Body */}
             <div className="px-4 pt-4">
+                {project && <ContentPerformanceDashboard project={project} tasks={tasks} />}
                 <GoalTrackingWidget project={project} tasks={tasks} currentDate={currentDate} />
             </div>
 
@@ -380,6 +393,16 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                     onUpdate={() => {
                         onTaskUpdate();
                     }}
+                />
+            )}
+
+            {/* Project Settings Modal */}
+            {project && (
+                <ProjectSettingsModal
+                    project={project}
+                    isOpen={showSettings}
+                    onClose={() => setShowSettings(false)}
+                    onUpdate={onTaskUpdate}
                 />
             )}
         </div>

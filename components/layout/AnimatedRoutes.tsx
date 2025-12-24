@@ -7,6 +7,7 @@ import BlogVizPage from '../../pages/tools/BlogVizPage';
 import ReportGeneratorPage from '../../pages/tools/ReportGeneratorPage';
 import ContentWriterPage from '../../pages/tools/ContentWriterPage';
 import ContentWriter2Page from '../../pages/tools/ContentWriter2Page';
+import TimeTrackerPage from '../../pages/tools/TimeTrackerPage';
 import ProjectsDashboard from '../../pages/projects';
 import PublicView from '../../pages/shared/PublicView';
 
@@ -18,6 +19,7 @@ import StrategyView from '../../pages/projects/StrategyView';
 import ProjectSettings from '../../pages/projects/ProjectSettings';
 import TaskBoard from '../../components/projects/TaskBoard';
 import { EditorialCalendar } from '../../components/projects/EditorialCalendar';
+import VirtualOfficePage from '../virtual-office/VirtualOfficePage';
 
 import UserDashboard from '../../pages/UserDashboard';
 import ServiceDetail from '../../pages/ServiceDetail';
@@ -34,6 +36,7 @@ const AnimatedRoutes: React.FC = () => {
             <Route path="/herramientas/redactor-ia" element={<ContentWriterPage />} />
             <Route path="/herramientas/redactor-ia/" element={<ContentWriterPage />} />
             <Route path="/herramientas/redactor-ia-2" element={<ContentWriter2Page />} />
+            <Route path="/herramientas/time-tracker" element={<TimeTrackerPage />} />
             {/* Legacy path support */}
             <Route path="/herramientas/content-writer" element={<Navigate to="/herramientas/redactor-ia" replace />} />
 
@@ -47,6 +50,7 @@ const AnimatedRoutes: React.FC = () => {
                 <Route path="tareas" element={<TaskBoard />} />
                 <Route path="calendario" element={<EditorialCalendar />} />
                 <Route path="estrategia" element={<StrategyView />} />
+                <Route path="oficina" element={<VirtualOfficePage />} />
                 <Route path="configuracion" element={<ProjectSettings />} />
             </Route>
 

@@ -56,6 +56,7 @@ const ProjectLayout: React.FC = () => {
         { path: 'tareas', label: 'Tareas', icon: <List size={20} /> },
         { path: 'calendario', label: 'Calendario', icon: <Calendar size={20} /> },
         { path: 'estrategia', label: 'Estrategia', icon: <Target size={20} /> },
+        { path: 'oficina', label: 'Oficina Virtual', icon: <div className="relative"><span className="absolute -top-1 -right-1 w-2 h-2 bg-brand-accent rounded-full animate-pulse"></span><Menu size={20} /></div> }, // Temporary icon, should import Users or Map
         { path: 'configuracion', label: 'Configuración', icon: <Settings size={20} /> },
     ];
 

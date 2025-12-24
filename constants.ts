@@ -135,6 +135,13 @@ export const TOOLS = [
     status: "Beta Pro",
     function: "Versión avanzada con análisis de investigación y reportes automáticos.",
     path: "/herramientas/redactor-ia-2"
+  },
+  {
+    id: 6,
+    name: "Time Tracker",
+    status: "Nuevo",
+    function: "App de escritorio con seguimiento automático y capturas privadas (Blur).",
+    path: "/herramientas/time-tracker"
   }
 ];
 

@@ -7,7 +7,11 @@ export const AVAILABLE_MODELS = [
     "gemini-2.0-flash",
     "gemini-1.5-pro",
     "gemini-1.5-flash",
-    "gemini-2.0-pro-exp-02-05"
+    "gemini-2.0-pro-exp-02-05",
+    "gemini-3-flash",
+    "gemma-3-27b",
+    "gemma-3-12b",
+    "gemma-3-4b"
 ];
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

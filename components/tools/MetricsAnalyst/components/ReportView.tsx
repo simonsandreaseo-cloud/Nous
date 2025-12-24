@@ -29,6 +29,7 @@ interface ReportViewProps {
     selectedProjectId?: string | null;
     onSelectProject?: (id: string) => void;
     onDateRangeChange?: (range: string) => void;
+    onShare?: () => void;
 }
 
 export const ReportView: React.FC<ReportViewProps> = ({
@@ -50,7 +51,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
     onShowHistory,
     selectedProjectId,
     onSelectProject,
-    onDateRangeChange
+    onDateRangeChange,
+    onShare
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const chartsRef = useRef<Chart[]>([]);
@@ -217,6 +219,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         🖨️ PDF
                     </button>
                     <button
+                        onClick={onShare}
+                        className="bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:border-indigo-200 transition flex items-center gap-2"
+                    >
+                        🔗 Compartir
+                    </button>
+                    <button
                         onClick={() => {
                             if (containerRef.current) {
                                 onSave(containerRef.current.innerHTML);
@@ -237,11 +245,31 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Column: Report */}
-                <div className="lg:col-span-2 space-y-8">
+            {/* Magazine Layout: Integrated Visuals */}
+            <div className="space-y-12">
+                {/* Visuals Row (Task Impact & Concentration) */}
+                {(taskPerformance?.length! > 0 || concentrationAnalysis) && (
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 print:break-inside-avoid">
+                        {taskPerformance && taskPerformance.length > 0 && user && (
+                            <div className="contents">
+                                <TaskPerformancePanel taskPerformance={taskPerformance} decayAlerts={decayAlerts || []} user={user} />
+                            </div>
+                        )}
+                        {concentrationAnalysis && (
+                            <div className="contents">
+                                <ConcentrationPanel
+                                    clickConcentration={concentrationAnalysis.clickConcentration}
+                                    impressionConcentration={concentrationAnalysis.impressionConcentration}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Main Content Area */}
+                <div className="relative">
                     {/* Editor Toolbar (Floating) */}
-                    <div className="sticky top-4 z-50 bg-white/90 backdrop-blur-md shadow-lg rounded-2xl border border-slate-200/60 p-2 flex gap-2 items-center justify-between print:hidden transition-all ring-1 ring-black/5">
+                    <div className="sticky top-4 z-50 bg-white/90 backdrop-blur-md shadow-lg rounded-2xl border border-slate-200/60 p-2 flex gap-2 items-center justify-between print:hidden transition-all ring-1 ring-black/5 mb-8 max-w-4xl mx-auto">
                         <div className="flex gap-1 overflow-x-auto no-scrollbar">
                             <EditorButton icon={<span className="font-bold font-serif">B</span>} onClick={() => document.execCommand('bold')} label="Negrita" />
                             <EditorButton icon={<span className="italic font-serif">I</span>} onClick={() => document.execCommand('italic')} label="Cursiva" />
@@ -273,83 +301,76 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     </div>
 
                     {/* Main AI Report (Editable Paper) */}
-                    <div className="bg-white p-8 md:p-16 shadow-sm rounded-xl border border-slate-200 min-h-[800px] print:shadow-none print:border-none print:p-0 relative font-sans text-slate-700">
+                    <div className="bg-white p-8 md:p-20 shadow-xl shadow-slate-200/50 rounded-[2rem] border border-slate-100 min-h-[800px] print:shadow-none print:border-none print:p-0 relative font-sans text-slate-700 max-w-5xl mx-auto">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-bl-[4rem] opacity-50 pointer-events-none print:hidden"></div>
+
                         {/* Style Injection for rendered HTML content */}
                         <style dangerouslySetInnerHTML={{
                             __html: `
-                            .report-content h1 { font-size: 2em; font-weight: 800; color: #1e293b; letter-spacing: -0.02em; margin-bottom: 0.8em; margin-top: 1em; }
-                            .report-content h2 { font-size: 1.5em; font-weight: 700; color: #334155; letter-spacing: -0.01em; margin-bottom: 0.6em; margin-top: 1.2em; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.3em; }
-                            .report-content h3 { font-size: 1.25em; font-weight: 600; color: #475569; margin-bottom: 0.5em; margin-top: 1em; }
-                            .report-content p { margin-bottom: 1.25em; line-height: 1.6; color: #4b5563; font-size: 1.05em; }
-                            .report-content ul, .report-content ol { margin-bottom: 1.25em; padding-left: 1.5em; color: #4b5563; }
+                            .report-content h1 { font-size: 2.5em; font-weight: 900; color: #0f172a; letter-spacing: -0.03em; margin-bottom: 0.8em; margin-top: 1em; line-height: 1.1; }
+                            .report-content h2 { font-size: 1.75em; font-weight: 800; color: #1e293b; letter-spacing: -0.02em; margin-bottom: 0.8em; margin-top: 2em; display: flex; align-items: center; gap: 0.5em; }
+                            .report-content h2::before { content: ''; display: block; width: 6px; height: 1.2em; background: #6366f1; border-radius: 4px; }
+                            .report-content h3 { font-size: 1.35em; font-weight: 700; color: #334155; margin-bottom: 0.6em; margin-top: 1.5em; }
+                            .report-content p { margin-bottom: 1.5em; line-height: 1.8; color: #475569; font-size: 1.1em; }
+                            .report-content ul, .report-content ol { margin-bottom: 1.5em; padding-left: 1.5em; color: #475569; }
                             .report-content li { margin-bottom: 0.5em; }
-                            .report-content strong { color: #1e293b; font-weight: 700; }
-                            .report-content table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 1.5em 0; border: 1px solid #e2e8f0; border-radius: 0.5rem; overflow: hidden; }
-                            .report-content th { background: #f8fafc; font-weight: 600; text-transform: uppercase; font-size: 0.75em; letter-spacing: 0.05em; color: #64748b; padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
-                            .report-content td { padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.9em; color: #334155; }
+                            .report-content strong { color: #0f172a; font-weight: 700; }
+                            .report-content table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 2em 0; border: 1px solid #e2e8f0; border-radius: 1rem; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+                            .report-content th { background: #f8fafc; font-weight: 700; text-transform: uppercase; font-size: 0.75em; letter-spacing: 0.05em; color: #64748b; padding: 1rem 1.25rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+                            .report-content td { padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; font-size: 0.95em; color: #334155; }
                             .report-content tr:last-child td { border-bottom: none; }
                             .report-content tr:hover td { background: #f8fafc; }
-                            .report-content blockquote { border-left: 4px solid #6366f1; background: #eff6ff; padding: 1em; border-radius: 0 0.5rem 0.5rem 0; color: #1e40af; font-style: italic; margin-bottom: 1.5em; }
-                            .report-content .highlight-positive { color: #10b981; font-weight: bold; background: #ecfdf5; padding: 0.1em 0.3em; border-radius: 4px; }
-                            .report-content .highlight-negative { color: #f43f5e; font-weight: bold; background: #fff1f2; padding: 0.1em 0.3em; border-radius: 4px; }
+                            .report-content blockquote { border-left: 4px solid #6366f1; background: #f5f3ff; padding: 1.5em; border-radius: 0 1rem 1rem 0; color: #4f46e5; font-style: italic; margin-bottom: 2em; font-size: 1.1em; }
+                            .report-content .highlight-positive { color: #059669; font-weight: bold; background: #d1fae5; padding: 0.1em 0.4em; border-radius: 4px; }
+                            .report-content .highlight-negative { color: #e11d48; font-weight: bold; background: #ffe4e6; padding: 0.1em 0.4em; border-radius: 4px; }
                         `}} />
 
                         <div
                             ref={containerRef}
                             contentEditable
                             suppressContentEditableWarning
-                            className="report-content outline-none focus:ring-0 max-w-none prose prose-slate prose-headings:font-bold prose-a:text-indigo-600"
+                            className="report-content outline-none focus:ring-0 max-w-none prose prose-slate prose-lg md:prose-xl prose-headings:font-bold prose-a:text-indigo-600 font-serif"
                             dangerouslySetInnerHTML={{ __html: htmlContent }}
                         />
                     </div>
                 </div>
 
-                {/* Sidebar Column: Widgets */}
-                <div className="space-y-8 print:hidden">
-                    {/* Chat / Refinement Interface */}
-                    <div className="bg-white p-6 rounded-xl border border-indigo-100 shadow-lg shadow-indigo-500/5 sticky top-24">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 w-10 h-10 rounded-lg flex items-center justify-center text-white text-xl">✨</div>
-                            <h3 className="text-lg font-bold text-slate-800 leading-tight">
-                                Agente de Análisis
-                            </h3>
-                        </div>
-                        <p className="text-sm text-slate-500 mb-4">
-                            ¿Necesitas ajustar el tono o profundizar en un punto? Pídeselo a la IA.
-                        </p>
-
-                        <div className="relative">
-                            <textarea
-                                value={userFeedback}
-                                onChange={(e) => setUserFeedback(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && !isRegenerating && onRegenerate(userFeedback)}
-                                placeholder="Ej: 'Añade una tabla comparativa de keywords'..."
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 pb-12 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm resize-none h-32"
-                            />
-                            <div className="absolute bottom-3 right-3">
-                                <button
-                                    onClick={() => onRegenerate(userFeedback)}
-                                    disabled={isRegenerating || !userFeedback}
-                                    className="bg-indigo-600 text-white p-2 rounded-lg font-bold disabled:opacity-50 hover:bg-indigo-700 transition shadow-md"
-                                >
-                                    {isRegenerating ? <span className="animate-spin">↻</span> : '➤'}
-                                </button>
+                {/* Agent Chat / Refinement (Moved to bottom) */}
+                <div className="max-w-4xl mx-auto print:hidden">
+                    <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/30 transition-all duration-1000"></div>
+                        <div className="relative z-10 flex flex-col md:flex-row gap-8 items-start">
+                            <div className="md:w-1/3">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-indigo-500/50">✨</div>
+                                    <h3 className="text-xl font-bold text-white leading-tight">Agente Editor</h3>
+                                </div>
+                                <p className="text-slate-400 text-sm leading-relaxed">
+                                    ¿Necesitas reescribir una sección? Pídele ajustes al agente y regenará el contenido.
+                                </p>
+                            </div>
+                            <div className="md:w-2/3 w-full">
+                                <div className="relative">
+                                    <textarea
+                                        value={userFeedback}
+                                        onChange={(e) => setUserFeedback(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && !isRegenerating && onRegenerate(userFeedback)}
+                                        placeholder="Ej: 'Añade una conclusión más agresiva sobre las ventas'..."
+                                        className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl px-6 py-4 pb-14 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-200 placeholder-slate-500 resize-none h-32 transition-all"
+                                    />
+                                    <div className="absolute bottom-3 right-3">
+                                        <button
+                                            onClick={() => onRegenerate(userFeedback)}
+                                            disabled={isRegenerating || !userFeedback}
+                                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold disabled:opacity-50 hover:bg-indigo-500 transition shadow-lg flex items-center gap-2 text-xs uppercase tracking-wider"
+                                        >
+                                            {isRegenerating ? <span className="animate-spin">↻ Procesando</span> : '➤ Enviar Instrucción'}
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-
-                    {/* Task Intelligence Panel (Phase 5) */}
-                    {taskPerformance && taskPerformance.length > 0 && user && (
-                        <TaskPerformancePanel taskPerformance={taskPerformance} decayAlerts={decayAlerts || []} user={user} />
-                    )}
-
-                    {/* Concentration Map */}
-                    {concentrationAnalysis && (
-                        <ConcentrationPanel
-                            clickConcentration={concentrationAnalysis.clickConcentration}
-                            impressionConcentration={concentrationAnalysis.impressionConcentration}
-                        />
-                    )}
                 </div>
             </div>
         </div>

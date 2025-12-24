@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Project, ProjectService, ProjectMember, Team, ContentGoal } from '../../lib/task_manager';
-import { X, Plus, Trash2, Users, Target, Save, User as UserIcon, Shield } from 'lucide-react';
+import { X, Plus, Trash2, Users, Target, Save, User as UserIcon, Shield, FolderGit2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface ProjectSettingsModalProps {
@@ -11,7 +11,11 @@ interface ProjectSettingsModalProps {
 }
 
 export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ project, isOpen, onClose, onUpdate }) => {
-    const [activeTab, setActiveTab] = useState<'general' | 'teams' | 'goals'>('teams');
+    const [activeTab, setActiveTab] = useState<'general' | 'teams' | 'goals' | 'directories'>('general');
+    const [name, setName] = useState(project.name);
+    const [description, setDescription] = useState(project.description || '');
+    const [logoUrl, setLogoUrl] = useState(project.logo_url || '');
+    const [uploading, setUploading] = useState(false);
     const [members, setMembers] = useState<ProjectMember[]>([]);
     const [settings, setSettings] = useState<any>(project.settings || {});
     const [loading, setLoading] = useState(false);
@@ -42,7 +46,12 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
     const handleSave = async () => {
         setLoading(true);
         try {
-            await ProjectService.updateProject(project.id, { settings });
+            await ProjectService.updateProject(project.id, {
+                name,
+                description,
+                logo_url: logoUrl,
+                settings
+            });
             onUpdate();
             onClose();
         } catch (e: any) {
@@ -121,6 +130,56 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
         });
     };
 
+    // --- Directory Management Helpers ---
+    const [newDir, setNewDir] = useState("");
+    const addDirectory = () => {
+        if (!newDir.trim()) return;
+        let formatted = newDir.trim();
+        if (!formatted.startsWith('/')) formatted = '/' + formatted;
+        if (!formatted.endsWith('/')) formatted = formatted + '/';
+
+        const currentDirs = settings.content_directories || [];
+        if (currentDirs.includes(formatted)) {
+            alert("Este directorio ya existe");
+            return;
+        }
+        setSettings({ ...settings, content_directories: [...currentDirs, formatted] });
+        setNewDir("");
+    };
+
+    const removeDirectory = (dir: string) => {
+        const currentDirs = settings.content_directories || [];
+        setSettings({ ...settings, content_directories: currentDirs.filter((d: string) => d !== dir) });
+    };
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        setUploading(true);
+
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${project.id}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+            const filePath = `logos/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('project-logos')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('project-logos')
+                .getPublicUrl(filePath);
+
+            setLogoUrl(publicUrl);
+        } catch (error: any) {
+            alert("Error al subir logo: " + error.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -140,6 +199,13 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
                     {/* Sidebar */}
                     <div className="w-64 bg-slate-50 border-r border-slate-100 p-4 space-y-2">
                         <button
+                            onClick={() => setActiveTab('general')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'general' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                        >
+                            <Shield size={18} /> General
+                        </button>
+                        <button
                             onClick={() => setActiveTab('teams')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'teams' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-600 hover:bg-slate-100'
                                 }`}
@@ -153,6 +219,13 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
                         >
                             <Target size={18} /> Objetivos
                         </button>
+                        <button
+                            onClick={() => setActiveTab('directories')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'directories' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                        >
+                            <FolderGit2 size={18} /> Categorías
+                        </button>
                         {/* Placeholder for General if needed */}
                         {/* <button disabled className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-slate-400 cursor-not-allowed">
                             <Settings size={18} /> General
@@ -161,6 +234,66 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
 
                     {/* Content */}
                     <div className="flex-1 overflow-y-auto p-8 bg-white">
+
+                        {activeTab === 'general' && (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800">Información General</h3>
+                                    <p className="text-sm text-slate-500 mt-1">Nombre, descripción y logo del proyecto.</p>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="flex items-start gap-8">
+                                        <div className="space-y-2">
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Logo del Proyecto</label>
+                                            <div className="relative group">
+                                                <div className="w-24 h-24 rounded-2xl bg-slate-100 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-indigo-300">
+                                                    {logoUrl ? (
+                                                        <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <FolderGit2 className="text-slate-300" size={32} />
+                                                    )}
+                                                </div>
+                                                <label className="absolute inset-0 cursor-pointer flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl text-[10px] font-bold uppercase tracking-wider">
+                                                    {uploading ? 'Subiendo...' : 'Cambiar'}
+                                                    <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} disabled={uploading} />
+                                                </label>
+                                            </div>
+                                            {logoUrl && (
+                                                <button
+                                                    onClick={() => setLogoUrl('')}
+                                                    className="text-[10px] text-red-500 font-bold uppercase tracking-wider hover:underline"
+                                                >
+                                                    Eliminar Logo
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="flex-1 space-y-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nombre del Proyecto</label>
+                                                <input
+                                                    value={name}
+                                                    onChange={(e) => setName(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                                                    placeholder="Mi Gran Proyecto..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Descripción (Opcional)</label>
+                                                <textarea
+                                                    value={description}
+                                                    onChange={(e) => setDescription(e.target.value)}
+                                                    rows={3}
+                                                    className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all resize-none"
+                                                    placeholder="Breve descripción del proyecto..."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {activeTab === 'teams' && (
                             <div className="space-y-8">
@@ -209,8 +342,8 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
                                                                 key={member.id}
                                                                 onClick={() => toggleTeamMember(team.id, member.user_id)}
                                                                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-2 ${isSelected
-                                                                        ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
-                                                                        : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                                                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm'
+                                                                    : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
                                                                     }`}
                                                             >
                                                                 {isSelected ? <Shield size={12} fill="currentColor" /> : <UserIcon size={12} />}
@@ -325,6 +458,72 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
                                 </div>
                             </div>
                         )}
+
+
+                        {activeTab === 'directories' && (
+                            <div className="space-y-8">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800">Directorios de Contenido</h3>
+                                    <p className="text-sm text-slate-500 mt-1">
+                                        Define las categorías o carpetas donde se publicarán los contenidos (ej: /blog/, /glosario/).
+                                        Estos servirán para construir la URL final.
+                                    </p>
+                                </div>
+
+                                <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                                    <div className="flex gap-4 mb-6">
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nuevo Directorio</label>
+                                            <input
+                                                value={newDir}
+                                                onChange={(e) => setNewDir(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && addDirectory()}
+                                                placeholder="/ejemplo/"
+                                                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-mono"
+                                            />
+                                            <p className="text-[10px] text-slate-400 mt-1 px-1">Formato sugerido: /categoria/</p>
+                                        </div>
+                                        <div className="flex items-end pb-[26px]">
+                                            <button
+                                                onClick={addDirectory}
+                                                disabled={!newDir}
+                                                className="px-4 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow"
+                                            >
+                                                <Plus size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {(settings.content_directories || []).length === 0 && (
+                                            <div className="col-span-2 text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-lg">
+                                                No hay directorios configurados.
+                                            </div>
+                                        )}
+                                        {(settings.content_directories || []).map((dir: string) => (
+                                            <div key={dir} className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm group hover:border-indigo-200 transition-colors">
+                                                <span className="font-mono text-sm text-slate-700 font-medium">{dir}</span>
+                                                <button
+                                                    onClick={() => removeDirectory(dir)}
+                                                    className="text-slate-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded transition-colors"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="bg-amber-50 rounded-lg p-4 border border-amber-100 flex gap-3 text-amber-800 text-xs">
+                                    <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                                    <p>
+                                        <strong>Nota:</strong> Al redactar un contenido, podrás seleccionar uno de estos directorios.
+                                        La URL se construirá automáticamente como: <code>Dominio + Directorio + Slug</code>.
+                                        También existirá la opción "Ninguno" para URLs en la raíz.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -344,6 +543,6 @@ export const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ proj
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };

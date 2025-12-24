@@ -5,6 +5,7 @@ export interface Project {
     name: string;
     description?: string;
     owner_id: string;
+    logo_url?: string; // New: Project logo
     gsc_property_url?: string;
     settings?: ProjectSettings;
     created_at: string;
@@ -12,6 +13,11 @@ export interface Project {
     slug?: string;
     share_token?: string;
     public_access_level?: 'none' | 'view' | 'edit';
+    owner_profile?: {
+        full_name?: string;
+        avatar_url?: string;
+        email?: string;
+    };
 }
 
 export interface ProjectMember {
@@ -41,34 +47,38 @@ export interface ContentGoal {
 export interface ProjectSettings {
     teams?: Team[];
     content_goals?: ContentGoal[];
+    content_directories?: string[];
     [key: string]: any;
 }
 
 export const ProjectService = {
 
     async getProjects() {
-        // Fetch projects where user is owner
-        const { data: ownedData, error: ownedError } = await supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        // Single query approach: Fetch projects the user has access to
+        // and include their membership info for this project
+        const { data, error } = await supabase
             .from('projects')
-            .select('*')
+            .select(`
+                *,
+                owner_profile:profiles!projects_owner_id_profiles_fkey(full_name, avatar_url, email),
+                members:project_members(role, status, user_id)
+            `)
             .order('created_at', { ascending: false });
 
-        if (ownedError) throw ownedError;
+        if (error) throw error;
 
-        // Fetch projects where user is a member
-        const { data: memberData, error: memberError } = await supabase
-            .from('project_members')
-            .select('project_id, role, projects(*)')
-            .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        return (data || []).map((p: any) => {
+            const isOwner = p.owner_id === user.id;
+            const myMembership = p.members?.find((m: any) => m.user_id === user.id);
 
-        if (memberError) throw memberError;
-
-        // Combine and format
-        const ownedProjects = ownedData.map((p: any) => ({ ...p, role: 'owner' }));
-        const memberProjects = memberData.map((m: any) => ({ ...m.projects, role: m.role }));
-
-        // Dedup logic if needed (though queries shouldn't overlap usually if RLS is strict, but safe to filter)
-        return [...ownedProjects, ...memberProjects];
+            return {
+                ...p,
+                role: isOwner ? 'owner' : (myMembership?.role || 'viewer'),
+            } as Project;
+        });
     },
 
     async createProject(name: string, description?: string, gscUrl?: string) {

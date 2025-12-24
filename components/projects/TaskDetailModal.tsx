@@ -40,6 +40,44 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
     const [projectMembers, setProjectMembers] = useState<any[]>([]);
     const [isLoadingMembers, setIsLoadingMembers] = useState(false);
 
+    // Directory & URL handling
+    const [selectedDirectory, setSelectedDirectory] = useState(metadata.directory || '');
+    const directories = project?.settings?.content_directories || [];
+
+    // Base URL calculation
+    const getBaseUrl = () => {
+        if (!project?.gsc_property_url) return '';
+        let url = project.gsc_property_url;
+        if (url.startsWith('sc-domain:')) return 'https://' + url.replace('sc-domain:', '');
+        if (url.endsWith('/')) url = url.slice(0, -1);
+        return url;
+    };
+    const baseUrl = getBaseUrl();
+
+    // Auto-construct URL
+    useEffect(() => {
+        if (type !== 'content') return;
+
+        let dir = selectedDirectory;
+        if (dir) {
+            if (!dir.startsWith('/')) dir = '/' + dir;
+            if (!dir.endsWith('/')) dir = dir + '/';
+        } else {
+            dir = '/';
+        }
+
+        const slug = metadata.slug || '';
+        // If "None" is selected (empty directory), logic handles it (just slash?)
+        // If dir is empty and not home, maybe we assume root.
+
+        if (baseUrl && slug) {
+            const fullUrl = `${baseUrl}${dir}${slug}`;
+            if (fullUrl !== secondaryUrl) {
+                setSecondaryUrl(fullUrl);
+            }
+        }
+    }, [selectedDirectory, metadata.slug, baseUrl, type]);
+
     const isAdmin = project?.role === 'owner' || project?.role === 'admin';
     const isCreator = task.created_by === user?.id; // Check if current user created the task
     const canAssign = isAdmin || isCreator;
@@ -107,7 +145,10 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                 tracking_metrics: trackingMetrics,
                 completed_at: completedAt,
                 created_at: createdAt,
-                metadata: metadata
+                metadata: {
+                    ...metadata,
+                    directory: selectedDirectory
+                }
             };
 
             console.log('[TaskDetailModal] Calling TaskService.updateTask with:', updates);
@@ -366,6 +407,48 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                             placeholder="Ej: mejores zapatillas running 2024"
                                             className="w-full bg-brand-soft/20 border border-brand-power/10 rounded-lg p-3 text-sm outline-none focus:border-brand-accent"
                                         />
+                                    </div>
+
+                                    {/* URL / Directory Config */}
+                                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <ExternalLink size={14} className="text-slate-400" />
+                                            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Ubicación y URL</h4>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 mb-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Directorio / Categoría</label>
+                                                <select
+                                                    value={selectedDirectory}
+                                                    onChange={(e) => setSelectedDirectory(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 font-medium"
+                                                >
+                                                    <option value="">(Raíz) /</option>
+                                                    {directories.map((dir: string) => (
+                                                        <option key={dir} value={dir}>{dir}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Slug</label>
+                                                <input
+                                                    value={metadata.slug || ''}
+                                                    onChange={(e) => setMetadata({ ...metadata, slug: e.target.value })}
+                                                    placeholder="titulo-del-post"
+                                                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 font-mono"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-2 text-xs text-slate-600 font-mono break-all">
+                                            <span className="text-slate-400 select-none">{baseUrl}</span>
+                                            <span className="text-indigo-600 font-bold">{selectedDirectory}</span>
+                                            <span className="text-slate-800">{metadata.slug}</span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 mt-2 px-1">
+                                            Esta URL se usará para rastrear métricas automáticamente.
+                                        </p>
                                     </div>
 
                                     {/* Metadata Section */}

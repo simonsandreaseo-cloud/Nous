@@ -142,7 +142,14 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
                 className="block bg-white rounded-2xl border border-brand-power/5 shadow-sm hover:shadow-xl hover:border-brand-accent/30 transition-all flex flex-col justify-between h-full overflow-hidden"
             >
                 {/* Header Strip */}
-                <div className={`h-2 w-full ${cardColor}`}></div>
+                {project.logo_url ? (
+                    <div className="h-24 w-full relative overflow-hidden bg-slate-100">
+                        <img src={project.logo_url} alt={project.name} className="w-full h-full object-cover opacity-80" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-transparent"></div>
+                    </div>
+                ) : (
+                    <div className={`h-2 w-full ${cardColor}`}></div>
+                )}
 
                 <div className="p-6 pb-2">
                     <div className="flex justify-between items-start mb-4">
@@ -158,10 +165,28 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onDelete }) => {
                                 {project.gsc_property_url || "Sin vincular"}
                             </a>
                         </div>
-                        {/* Status / Role pill */}
-                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest ${project.role === 'owner' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600'}`}>
-                            {project.role === 'owner' ? 'Owner' : 'Team'}
-                        </span>
+                        {/* Status / Role pill and Owner Avatar */}
+                        <div className="flex flex-col items-end gap-2">
+                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest ${project.role === 'owner' ? 'bg-indigo-50 text-indigo-600' : 'bg-green-50 text-green-600'}`}>
+                                {project.role === 'owner' ? 'Owner' : 'Team'}
+                            </span>
+                            {project.owner_profile && (
+                                <div className="flex items-center gap-1.5" title={`Creado por ${project.owner_profile.full_name || project.owner_profile.email}`}>
+                                    <span className="text-[9px] text-brand-power/30 font-bold uppercase truncate max-w-[60px]">
+                                        {project.owner_profile.full_name?.split(' ')[0] || project.owner_profile.email?.split('@')[0]}
+                                    </span>
+                                    <div className="w-6 h-6 rounded-full border border-white shadow-sm overflow-hidden bg-brand-soft">
+                                        {project.owner_profile.avatar_url ? (
+                                            <img src={project.owner_profile.avatar_url} alt="Owner" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-brand-power text-white text-[8px] font-bold">
+                                                {(project.owner_profile.full_name || project.owner_profile.email || '?')[0].toUpperCase()}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Metrics Grid */}

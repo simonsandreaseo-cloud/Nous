@@ -136,7 +136,7 @@ const ConcentrationCard = ({ title, data, color, metricLabel }: { title: string,
 
             <div className="flex-1 overflow-hidden flex flex-col">
                 <h5 className="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wider">Top Contribuyentes</h5>
-                <div className="overflow-y-auto pr-1 space-y-2 custom-scrollbar max-h-[180px]">
+                <div className="overflow-y-auto pr-1 space-y-2 custom-scrollbar max-h-[180px] print:max-h-none print:overflow-visible">
                     {data.items.slice(0, 10).map((item, idx) => (
                         <div key={idx} className="group relative">
                             <div className="flex justify-between items-center text-[11px] mb-1">

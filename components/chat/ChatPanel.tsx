@@ -14,6 +14,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, isOpen, onClose
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState<string | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -21,16 +22,54 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, isOpen, onClose
     }, []);
 
     useEffect(() => {
+        if (currentUser && projectId) {
+            checkUserRole();
+        }
+    }, [currentUser, projectId]);
+
+    const checkUserRole = async () => {
+        try {
+            // Check if user is owner
+            const { data: project } = await supabase
+                .from('projects')
+                .select('owner_id')
+                .eq('id', projectId)
+                .single();
+
+            if (project?.owner_id === currentUser) {
+                setIsAdmin(true);
+                return;
+            }
+
+            // Check if user is admin member
+            const { data: member } = await supabase
+                .from('project_members')
+                .select('role')
+                .eq('project_id', projectId)
+                .eq('user_id', currentUser)
+                .single();
+
+            setIsAdmin(member?.role === 'admin');
+        } catch (error) {
+            console.error('Error checking user role:', error);
+            setIsAdmin(false);
+        }
+    };
+
+    useEffect(() => {
         if (isOpen && projectId) {
             loadMessages();
             const subscription = MessagingService.subscribeToProjectMessages(projectId, (payload) => {
-                // Quick hack: payload.new doesn't have sender email, so for now we might append without it 
-                // or re-fetch. Re-fetching is safer for data consistency but slower.
-                // Let's optimistic update or just fetch single.
-                // For now, simpler to re-fetch or append basic.
-                console.log('New message received', payload);
-                // Refresh to get full sender info
-                MessagingService.getProjectMessages(projectId).then(setMessages);
+                const { eventType, new: newRecord, old: oldRecord } = payload;
+
+                if (eventType === 'INSERT') {
+                    // Re-fetch messages to get sender details
+                    MessagingService.getProjectMessages(projectId).then(setMessages);
+                } else if (eventType === 'UPDATE') {
+                    setMessages(prev => prev.map(msg => msg.id === newRecord.id ? { ...msg, ...newRecord } : msg));
+                } else if (eventType === 'DELETE') {
+                    setMessages(prev => prev.filter(msg => msg.id === oldRecord.id));
+                }
             });
 
             return () => {
@@ -53,7 +92,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, isOpen, onClose
     };
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (isOpen) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
     };
 
     useEffect(() => {
@@ -111,6 +152,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, isOpen, onClose
                                     key={msg.id}
                                     message={msg}
                                     isOwnMessage={msg.sender_id === currentUser}
+                                    isAdmin={isAdmin}
                                 />
                             ))
                         )}

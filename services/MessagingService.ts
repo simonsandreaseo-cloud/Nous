@@ -7,8 +7,10 @@ export interface Message {
     project_id?: number;
     recipient_id?: string;
     created_at: string;
+    updated_at?: string;
     read_at?: string;
     sender?: { email: string };
+    is_edited?: boolean;
 }
 
 export const MessagingService = {
@@ -111,6 +113,38 @@ export const MessagingService = {
     },
 
     /**
+     * Delete a message
+     */
+    async deleteMessage(messageId: number) {
+        const { error } = await supabase
+            .from('messages')
+            .delete()
+            .eq('id', messageId);
+
+        if (error) throw error;
+        return true;
+    },
+
+    /**
+     * Update a message content
+     */
+    async updateMessage(messageId: number, content: string) {
+        const { data, error } = await supabase
+            .from('messages')
+            .update({
+                content,
+                is_edited: true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', messageId)
+            .select('*, sender:profiles(email)')
+            .single();
+
+        if (error) throw error;
+        return data as Message;
+    },
+
+    /**
      * Subscribe to real-time messages for a project
      */
     subscribeToProjectMessages(projectId: number, callback: (payload: any) => void) {
@@ -119,13 +153,12 @@ export const MessagingService = {
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*', // Listen to INSERT, UPDATE, DELETE
                     schema: 'public',
                     table: 'messages',
                     filter: `project_id=eq.${projectId}`
                 },
                 (payload) => {
-                    // Ideally we fetch the sender email here or handle it in UI
                     callback(payload);
                 }
             )

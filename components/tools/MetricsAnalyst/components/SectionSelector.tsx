@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SectionConfig, TaskImpactConfig } from '../types';
+import { SectionConfig, TaskImpactConfig, ContentAnalysisConfig } from '../types';
 
 interface SectionSelectorProps {
     suggestedSections: string[];
-    onConfirm: (sections: SectionConfig[], taskImpact: TaskImpactConfig) => void;
+    onConfirm: (sections: SectionConfig[], taskImpact: TaskImpactConfig, contentAnalysis: ContentAnalysisConfig) => void;
     onCancel: () => void;
     availableTasks: {
         id: number;
@@ -52,6 +52,14 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
         measurementMode: 'completion',
         customDate: '',
         projectId: selectedProjectId || undefined
+    });
+
+    // Content Analysis Config
+    const [contentAnalysis, setContentAnalysis] = useState<ContentAnalysisConfig>({
+        enabled: false,
+        mode: 'month',
+        selectedMonth: new Date().toISOString().slice(0, 7),
+        selectedTaskIds: []
     });
 
     useEffect(() => {
@@ -132,6 +140,26 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
             setTaskImpact(prev => ({ ...prev, selectedTaskIds: [] }));
         } else {
             setTaskImpact(prev => ({ ...prev, selectedTaskIds: visibleTasks.map(t => t.id) }));
+        }
+    };
+
+    // Helper for Content Analysis Task Selection
+    const toggleContentTask = (taskId: number) => {
+        setContentAnalysis(prev => {
+            const current = prev.selectedTaskIds;
+            if (current.includes(taskId)) {
+                return { ...prev, selectedTaskIds: current.filter(id => id !== taskId) };
+            } else {
+                return { ...prev, selectedTaskIds: [...current, taskId] };
+            }
+        });
+    };
+
+    const toggleAllContentTasks = () => {
+        if (contentAnalysis.selectedTaskIds.length === visibleTasks.length) {
+            setContentAnalysis(prev => ({ ...prev, selectedTaskIds: [] }));
+        } else {
+            setContentAnalysis(prev => ({ ...prev, selectedTaskIds: visibleTasks.map(t => t.id) }));
         }
     };
 
@@ -277,6 +305,100 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                         </AnimatePresence>
                     </div>
 
+                    {/* Content Analysis Configuration */}
+                    <div className="p-8 rounded-3xl border border-emerald-100 bg-emerald-50/30 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-500">
+                            <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" /></svg>
+                        </div>
+
+                        <div className="flex items-start justify-between mb-8 relative z-10">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg ${contentAnalysis.enabled ? 'bg-emerald-600 text-white rotate-3' : 'bg-slate-200 text-slate-400'}`}>
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-slate-900 text-lg">Análisis de Contenidos</h3>
+                                    <p className="text-xs text-slate-500 font-medium">Evalúa grupos de contenidos por mes o selección.</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setContentAnalysis(prev => ({ ...prev, enabled: !prev.enabled }))}
+                                className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${contentAnalysis.enabled ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-200' : 'bg-white border border-slate-200 text-slate-400 hover:border-emerald-400 hover:text-emerald-600'}`}
+                            >
+                                {contentAnalysis.enabled ? 'Activado' : 'Configurar'}
+                            </button>
+                        </div>
+
+                        <AnimatePresence>
+                            {contentAnalysis.enabled && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="pt-8 border-t border-emerald-100/50 space-y-8">
+                                        <div className="flex gap-4 p-1 bg-white border border-slate-200 rounded-2xl shadow-sm w-fit">
+                                            <button
+                                                onClick={() => setContentAnalysis(prev => ({ ...prev, mode: 'month' }))}
+                                                className={`px-6 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${contentAnalysis.mode === 'month' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                            >
+                                                Por Mes
+                                            </button>
+                                            <button
+                                                onClick={() => setContentAnalysis(prev => ({ ...prev, mode: 'items' }))}
+                                                className={`px-6 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${contentAnalysis.mode === 'items' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                            >
+                                                Selección
+                                            </button>
+                                        </div>
+
+                                        {contentAnalysis.mode === 'month' ? (
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Mes a Analizar</label>
+                                                <input
+                                                    type="month"
+                                                    value={contentAnalysis.selectedMonth}
+                                                    onChange={(e) => setContentAnalysis(prev => ({ ...prev, selectedMonth: e.target.value }))}
+                                                    className="p-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold shadow-sm focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col md:flex-row gap-8">
+                                                <div className="md:w-1/3 space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Seleccionar Contenidos</label>
+                                                        <button onClick={toggleAllContentTasks} className="text-[10px] text-emerald-600 font-bold hover:underline">
+                                                            {contentAnalysis.selectedTaskIds.length === visibleTasks.length ? 'Desmarcar Todo' : 'Marcar Todo'}
+                                                        </button>
+                                                    </div>
+                                                    <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-inner flex flex-col h-[300px]">
+                                                        <div className="overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                                            {visibleTasks.length > 0 ? visibleTasks.map(task => (
+                                                                <label key={task.id} className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer group ${contentAnalysis.selectedTaskIds.includes(task.id) ? 'bg-emerald-50/50 border-emerald-200 shadow-sm' : 'bg-slate-50/50 border-transparent hover:bg-white hover:border-slate-200'}`}>
+                                                                    <div className={`mt-1 w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${contentAnalysis.selectedTaskIds.includes(task.id) ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 bg-white'}`}>
+                                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                                                    </div>
+                                                                    <input type="checkbox" checked={contentAnalysis.selectedTaskIds.includes(task.id)} onChange={() => toggleContentTask(task.id)} className="hidden" />
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex justify-between items-start gap-4 mb-1">
+                                                                            <span className="font-bold text-xs text-slate-900 group-hover:text-emerald-600 transition-colors uppercase leading-tight">{task.title}</span>
+                                                                        </div>
+                                                                        {task.gsc_property_url && <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate block">{task.gsc_property_url.replace(/https?:\/\//, '')}</span>}
+                                                                    </div>
+                                                                </label>
+                                                            )) : <div className="text-center py-20 text-slate-300 font-bold uppercase text-[10px] tracking-[0.2em] italic">No hay contenidos</div>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
                     <div className="space-y-6">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Módulos de Datos Disponibles</label>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -318,8 +440,8 @@ export const SectionSelector: React.FC<SectionSelectorProps> = ({
                         <button onClick={onCancel} className="text-slate-400 hover:text-slate-900 font-black uppercase text-[10px] tracking-widest transition-colors px-6">Ignorar</button>
                     </div>
                     <button
-                        onClick={() => onConfirm(selected, taskImpact)}
-                        disabled={selected.length === 0 && !taskImpact.enabled}
+                        onClick={() => onConfirm(selected, taskImpact, contentAnalysis)}
+                        disabled={selected.length === 0 && !taskImpact.enabled && !contentAnalysis.enabled}
                         className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black text-lg hover:bg-indigo-600 shadow-2xl shadow-slate-200 transition-all active:scale-[0.98] disabled:opacity-20 flex items-center gap-4"
                     >
                         Generar con Neuro-IA 🪄

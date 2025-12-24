@@ -22,7 +22,9 @@ const AVAILABLE_MODELS = [
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recomendado)' },
     { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Rápido)' },
     { value: 'gemini-3-flash', label: 'Gemini 3 Flash (Preview)' },
-    { value: 'gemma-3-27b-it', label: 'Gemma 3 27B' }, // Assuming IT variant for chat/instruct
+    { value: 'gemma-3-27b', label: 'Gemma 3 27B' },
+    { value: 'gemma-3-12b', label: 'Gemma 3 12B' },
+    { value: 'gemma-3-4b', label: 'Gemma 3 4B' },
     { value: 'gemini-2.5-flash-native-audio-dialog', label: 'Gemini 2.5 Audio Dialog' }
 ];
 
@@ -132,7 +134,32 @@ const App: React.FC = () => {
         if (pId) setSelectedProjectId(pId);
         const urlParam = searchParams.get('url');
         if (urlParam) setAnalysisMode('gsc');
+        const rId = searchParams.get('reportId');
+        if (rId) loadExistingReport(parseInt(rId));
     }, [searchParams]);
+
+    const loadExistingReport = async (id: number) => {
+        try {
+            const { data, error } = await supabase.from('seo_reports').select('*').eq('id', id).single();
+            if (error) throw error;
+            if (data) {
+                setSavedReportId(data.id);
+                setHasSaved(true);
+                if (data.project_id) setSelectedProjectId(data.project_id.toString());
+                if (data.report_data) {
+                    setReportHTML(data.report_data.html || "");
+                    setReportPayload({
+                        projectName: data.domain,
+                        dashboardStats: data.report_data.stats,
+                        // Other fields might be missing depending on how it was saved
+                    } as any);
+                    // P2Name might be stored in report_data.date_range
+                    if (data.report_data.date_range) setP2Name(data.report_data.date_range);
+                }
+                setStep(3); // Go straight to report view
+            }
+        } catch (e) { console.error("Error loading report", e); }
+    };
 
     const loadActiveTasks = async () => {
         try {
@@ -301,7 +328,7 @@ const App: React.FC = () => {
         }
     };
 
-    const handleConfirmGeneration = async (selectedSections: SectionConfig[], taskImpact: TaskImpactConfig) => {
+    const handleConfirmGeneration = async (selectedSections: SectionConfig[], taskImpact: TaskImpactConfig, contentAnalysis: ContentAnalysisConfig) => {
         const keys = getApiKeys();
         const activeContext = userContext;
 
@@ -321,7 +348,7 @@ const App: React.FC = () => {
         try {
             let accumulatedBodyHTML = "";
             let completed = 0;
-            const totalSteps = selectedSections.length + (taskImpact.enabled ? 1 : 0) + 1; // +1 for final refinement
+            let totalSteps = selectedSections.length + (taskImpact.enabled ? 1 : 0) + (contentAnalysis.enabled ? 1 : 0) + 1; // +1 for final refinement
 
             // 3. Generate Sections
             for (const section of selectedSections) {
@@ -374,11 +401,66 @@ const App: React.FC = () => {
                 setProgressPercent(90);
             }
 
-            // 5. Final Refinement (Abstract & Conclusions)
+            // 5. Content Analysis (Optional)
+            if (contentAnalysis.enabled) {
+                addLog(`📑 Analizando Grupo de Contenidos...`);
+                await new Promise(resolve => setTimeout(resolve, 3000));
+
+                try {
+                    let targetTasks = [];
+                    if (contentAnalysis.mode === 'items') {
+                        targetTasks = watchedTasks.filter(t => contentAnalysis.selectedTaskIds.includes(t.id));
+                    } else if (contentAnalysis.mode === 'month' && contentAnalysis.selectedMonth) {
+                        const [y, m] = contentAnalysis.selectedMonth.split('-').map(Number);
+                        // Filter by roughly matching month (created_at)
+                        targetTasks = watchedTasks.filter(t => {
+                            const d = new Date(t.created_at);
+                            return d.getFullYear() === y && d.getMonth() === (m - 1);
+                        });
+                    }
+
+                    if (targetTasks.length > 0) {
+                        const contentAnalysisData = targetTasks.map(t => {
+                            const url = t.gsc_property_url || t.secondary_url;
+                            if (!url) return null;
+                            const lookupKey = url.toLowerCase().trim().replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+                            // Attempt to find metrics in our loaded chartData
+                            // We use chartData?.chartLookup or search in arrays
+                            let metricItem = chartData?.chartLookup?.[lookupKey];
+                            if (!metricItem && chartData) {
+                                // Fallback search
+                                metricItem = chartData.topWinners.find(x => x.name.includes(lookupKey)) || chartData.topLosers.find(x => x.name.includes(lookupKey));
+                            }
+
+                            return {
+                                title: t.title,
+                                url: url,
+                                metrics: metricItem ? {
+                                    clicks: metricItem.clicksP2,
+                                    impressions: metricItem.impressionsP2,
+                                    position: metricItem.positionP2,
+                                    change: metricItem.clicksChange
+                                } : 'Low Visibility / No Data'
+                            };
+                        }).filter(Boolean);
+
+                        const contentPayload = { ...reportPayload, contentAnalysisData };
+                        const contentHTML = await generateReportSection('ANALISIS_CONTENIDOS', contentPayload as any, model, keys);
+                        accumulatedBodyHTML += contentHTML;
+                    } else {
+                        addLog("No se encontraron contenidos para el periodo/selección content analysis.", 'warn');
+                    }
+                } catch (cErr: any) {
+                    console.error(cErr);
+                    addLog("Error en Content Analysis: " + cErr.message, 'error');
+                }
+            }
+
+            // 6. Final Refinement (Abstract & Conclusions)
             addLog(`👓 Redactando Resumen Ejecutivo y Conclusiones...`);
             const refinedSummary = await generateFinalRefinement(accumulatedBodyHTML, activeContext, model, keys);
 
-            // 6. Final success state
+            // 7. Final success state
             setReportHTML(refinedSummary + accumulatedBodyHTML);
             setProgressPercent(100);
             addLog("¡Informe Finalizado con Éxito!");
@@ -406,13 +488,37 @@ const App: React.FC = () => {
         if (!user) return alert("Inicia sesión para guardar.");
         setIsSaving(true);
         try {
-            const reportData = { user_id: user.id, domain: "Reporte SEO", report_data: { html: overrideHTML || reportHTML, stats: reportPayload?.dashboardStats, summary: "Resumen", date_range: p2Name }, created_at: new Date().toISOString(), project_id: selectedProjectId ? parseInt(selectedProjectId) : null };
-            const { data, error } = await supabase.from('seo_reports').insert([reportData]).select().single();
-            if (error) throw error;
-            if (data) setSavedReportId(data.id);
+            const reportData: any = {
+                user_id: user.id,
+                domain: reportPayload?.projectName || "Reporte SEO",
+                report_data: {
+                    html: overrideHTML || reportHTML,
+                    stats: reportPayload?.dashboardStats,
+                    summary: "Resumen",
+                    date_range: p2Name
+                },
+                project_id: selectedProjectId ? parseInt(selectedProjectId) : null
+            };
+
+            if (savedReportId) {
+                // Update existing
+                const { error } = await supabase.from('seo_reports').update(reportData).eq('id', savedReportId);
+                if (error) throw error;
+            } else {
+                // Insert new
+                reportData.created_at = new Date().toISOString();
+                const { data, error } = await supabase.from('seo_reports').insert([reportData]).select().single();
+                if (error) throw error;
+                if (data) setSavedReportId(data.id);
+            }
+
             setHasSaved(true);
             alert("¡Informe guardado!");
-        } catch (e: any) { alert("Error: " + e.message); } finally { setIsSaving(false); }
+        } catch (e: any) {
+            alert("Error: " + e.message);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -607,6 +713,7 @@ const App: React.FC = () => {
                         // In the future, this could trigger a re-fetching of GSC data for those ranges
                         // and re-running the analysis automatically.
                     }}
+                    onShare={() => setShowShareModal(true)}
                 />
             )}
 

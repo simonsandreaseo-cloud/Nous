@@ -3,12 +3,13 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navigate, Link } from 'react-router-dom';
-import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder, Globe, TrendingUp, BarChart2, CheckSquare, Mail } from 'lucide-react';
+import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder, Globe, TrendingUp, BarChart2, CheckSquare, Mail, Eye, X } from 'lucide-react';
 import ToolWrapper from '../components/layout/ToolWrapper';
 import { ProjectService, Project } from '../lib/task_manager';
 import ProjectCard from '../components/projects/ProjectCard';
 import ShareModal from '../components/shared/ShareModal';
 import TasksDashboard from '../components/dashboard/TasksDashboard';
+import TimeTrackerDashboard from '../components/dashboard/TimeTrackerDashboard';
 import PageTransition from '../components/layout/PageTransition';
 
 interface Draft {
@@ -48,6 +49,8 @@ const UserDashboard: React.FC = () => {
     const [sharingItem, setSharingItem] = useState<{ type: 'draft' | 'report', id: any, initialAccess: any, initialToken: any } | null>(null);
     const [reports, setReports] = useState<any[]>([]);
     const [isLoadingReports, setIsLoadingReports] = useState(true);
+    const [selectedReport, setSelectedReport] = useState<any>(null);
+    const [showReportViewer, setShowReportViewer] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -328,6 +331,8 @@ const UserDashboard: React.FC = () => {
                             {/* Invitations Section */}
                             <InvitationsCard />
 
+                            {/* Time Tracker Section */}
+                            <TimeTrackerDashboard />
 
                             {/* Projects Section */}
                             <div className="bg-white rounded-2xl p-8 shadow-sm border border-brand-power/5">
@@ -489,7 +494,8 @@ const UserDashboard: React.FC = () => {
                                         {reports.map((report) => (
                                             <div
                                                 key={report.id}
-                                                className="group flex items-center justify-between p-4 rounded-xl border border-brand-power/5 hover:border-brand-accent/30 hover:bg-brand-soft/10 transition-all"
+                                                onClick={() => { setSelectedReport(report); setShowReportViewer(true); }}
+                                                className="group flex items-center justify-between p-4 rounded-xl border border-brand-power/5 hover:border-brand-accent/30 hover:bg-brand-soft/10 transition-all cursor-pointer"
                                             >
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -502,20 +508,23 @@ const UserDashboard: React.FC = () => {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                                    <button
-                                                        onClick={() => setSharingItem({ type: 'report', id: report.id, initialAccess: report.public_access_level, initialToken: report.share_token })}
-                                                        className="p-2 text-brand-power/40 hover:text-brand-accent hover:bg-white rounded-lg transition-colors"
-                                                        title="Compartir Informe"
-                                                    >
-                                                        <Globe size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteReport(report.id)}
-                                                        className="p-2 text-brand-power/40 hover:text-red-500 hover:bg-white rounded-lg transition-colors"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-all">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setSharingItem({ type: 'report', id: report.id, initialAccess: report.public_access_level, initialToken: report.share_token }); }}
+                                                            className="p-2 text-brand-power/40 hover:text-brand-accent hover:bg-white rounded-lg transition-colors"
+                                                            title="Compartir Informe"
+                                                        >
+                                                            <Globe size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteReport(report.id); }}
+                                                            className="p-2 text-brand-power/40 hover:text-red-500 hover:bg-white rounded-lg transition-colors"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                    <ChevronRight size={16} className="text-brand-power/20 group-hover:translate-x-1 transition-transform" />
                                                 </div>
                                             </div>
                                         ))}
@@ -739,6 +748,93 @@ const UserDashboard: React.FC = () => {
                     )}
                 </AnimatePresence>
 
+                {/* Report Viewer Modal */}
+                <AnimatePresence>
+                    {showReportViewer && selectedReport && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setShowReportViewer(false)}
+                                className="absolute inset-0 bg-brand-power/80 backdrop-blur-sm"
+                            />
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                                className="relative bg-white w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+                            >
+                                <div className="p-6 border-b border-brand-power/5 flex items-center justify-between bg-brand-soft/10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-lg">
+                                            <TrendingUp size={20} />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-lg font-bold text-brand-power">{selectedReport.domain || 'Informe SEO'}</h2>
+                                            <p className="text-[10px] font-bold text-brand-power/40 uppercase tracking-widest">Generado el {new Date(selectedReport.created_at).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowReportViewer(false)}
+                                        className="p-2 text-brand-power/30 hover:text-brand-power hover:bg-brand-soft/20 rounded-lg transition-colors"
+                                    >
+                                        <X size={24} />
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 overflow-auto bg-slate-50">
+                                    <div className="max-w-4xl mx-auto py-12 px-6">
+                                        {selectedReport.report_data?.stats && (
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+                                                <ReportStat label="Impresiones" value={selectedReport.report_data.stats.impressions} trend={selectedReport.report_data.stats.impressionsTrend} />
+                                                <ReportStat label="Clics" value={selectedReport.report_data.stats.clicks} trend={selectedReport.report_data.stats.clicksTrend} />
+                                                <ReportStat label="CTR Medio" value={selectedReport.report_data.stats.ctr} trend={selectedReport.report_data.stats.ctrTrend} />
+                                                <ReportStat label="Posición" value={selectedReport.report_data.stats.position} trend={selectedReport.report_data.stats.positionTrend} />
+                                            </div>
+                                        )}
+                                        <div className="bg-white p-8 md:p-12 rounded-[2rem] shadow-xl border border-slate-100 prose prose-slate max-w-none shadow-slate-200/50">
+                                            <style dangerouslySetInnerHTML={{
+                                                __html: `
+                                                 .report-content h1 { font-size: 2.25rem; font-weight: 800; color: #0f172a; margin-bottom: 1.5rem; line-height: 1.2; }
+                                                 .report-content h2 { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-top: 2rem; margin-bottom: 1rem; border-left: 4px solid #4f46e5; padding-left: 1rem; }
+                                                 .report-content h3 { font-size: 1.25rem; font-weight: 700; color: #334155; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+                                                 .report-content p { margin-bottom: 1.25rem; line-height: 1.7; color: #475569; }
+                                                 .report-content ul, .report-content ol { margin-bottom: 1.25rem; padding-left: 1.25rem; }
+                                                 .report-content li { margin-bottom: 0.5rem; color: #475569; }
+                                                 .report-content table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.875rem; }
+                                                 .report-content th { background: #f8fafc; padding: 0.75rem; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 700; }
+                                                 .report-content td { padding: 0.75rem; border-bottom: 1px solid #e2e8f0; }
+                                                 .report-content .highlight-positive { color: #059669; font-weight: 600; }
+                                                 .report-content .highlight-negative { color: #dc2626; font-weight: 600; }
+                                             `}} />
+                                            <div
+                                                className="report-content"
+                                                dangerouslySetInnerHTML={{ __html: selectedReport.report_data?.html || '' }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 border-t border-brand-power/5 bg-white flex justify-end gap-3">
+                                    <button
+                                        onClick={() => setShowReportViewer(false)}
+                                        className="px-6 py-2 border border-brand-power/10 text-brand-power font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-brand-soft/10 transition-colors"
+                                    >
+                                        Cerrar
+                                    </button>
+                                    <Link
+                                        to={`/herramientas/generador-informes?reportId=${selectedReport.id}`}
+                                        className="px-6 py-2 bg-brand-power text-brand-white font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-brand-accent hover:text-brand-power transition-all shadow-lg"
+                                    >
+                                        Editar Informe
+                                    </Link>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
+
             </PageTransition>
             <ShareModal
                 isOpen={!!sharingItem}
@@ -755,5 +851,17 @@ const UserDashboard: React.FC = () => {
         </ToolWrapper >
     );
 };
+
+const ReportStat = ({ label, value, trend }: any) => (
+    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm shadow-slate-100/50">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+        <p className="text-xl font-bold text-slate-900">{value || '0'}</p>
+        {trend !== undefined && (
+            <p className={`text-[10px] font-bold mt-1 ${trend >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
+            </p>
+        )}
+    </div>
+);
 
 export default UserDashboard;

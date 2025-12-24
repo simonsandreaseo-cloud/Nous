@@ -233,6 +233,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo, onDateRangeCh
                         isPos
                     />
                 </div>
+
+                {/* GA4 Section */}
+                {stats.ga4Stats && (
+                    <div className="border-t border-slate-100 bg-emerald-50/20">
+                        <div className="px-8 py-3 border-b border-indigo-50 flex items-center gap-2">
+                            <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-emerald-200">Google Analytics 4</span>
+                        </div>
+                        <div className="grid grid-cols-2 lg:grid-cols-4">
+                            <MetricBlock
+                                label="Usuarios Activos"
+                                value={stats.ga4Stats.activeUsers.toLocaleString()}
+                                change={null} // No comparison yet
+                                positive={true}
+                            />
+                            <MetricBlock
+                                label="Consultas IA"
+                                value={stats.ga4Stats.aiSessions.toLocaleString()}
+                                change={((stats.ga4Stats.aiSessions / stats.ga4Stats.sessions) * 100).toFixed(1) + '%'}
+                                positive={true}
+                                subLabel="del tráfico total"
+                            />
+                            <MetricBlock
+                                label="Retención (Seg)"
+                                value={stats.ga4Stats.avgSessionDuration.toFixed(1) + 's'}
+                                change={null}
+                                positive={true}
+                            />
+                            <MetricBlock
+                                label="Tasa de Rebote"
+                                value={(stats.ga4Stats.bounceRate * 100).toFixed(1) + '%'}
+                                change={null}
+                                positive={stats.ga4Stats.bounceRate < 0.5} // Example threshold
+                                isPos
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -275,15 +312,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, logo, onDateRangeCh
     );
 };
 
-const MetricBlock = ({ label, value, change, positive, isPos }: any) => (
+const MetricBlock = ({ label, value, change, positive, isPos, subLabel }: any) => (
     <div className="p-6 border-r border-slate-100 last:border-r-0">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
         <div className="flex items-baseline gap-2">
             <span className="text-2xl font-extrabold text-slate-900">{value}</span>
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${positive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                {isPos ? (positive ? '↑' : '↓') : (positive ? '+' : '')}{change}
-            </span>
+            {change && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${positive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                    {isPos ? (positive ? '↑' : '↓') : (positive ? '+' : '')}{change}
+                </span>
+            )}
         </div>
+        {subLabel && <p className="text-[10px] text-slate-400 font-medium mt-1">{subLabel}</p>}
     </div>
 );
 

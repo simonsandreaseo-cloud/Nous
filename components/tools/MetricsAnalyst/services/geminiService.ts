@@ -230,6 +230,21 @@ export const generateReportSection = async (
         `;
     }
 
+    if (sectionName === 'ANALISIS_CONTENIDOS') {
+        sectionContext = `
+        ANALYSIS GOAL: Evaluate the performance of a specific group of content (Monthly Calendar or Selected Articles).
+        CONTENT DATA: ${JSON.stringify((payload as any).contentAnalysisData)}
+        INSTRUCTIONS:
+        1. Present a Summary Table of the content group performance.
+        2. For each Valid URL in the group:
+           - Display Title/URL.
+           - Show key metrics (Clicks, Imp, Pos).
+           - Plot activity chart using data-chart-url="URL".
+           - Analyze why it performed well or poorly.
+        3. Identify Common Patterns (e.g. Type of content that works best).
+        `;
+    }
+
     const prompt = `
     TASK: Generate HTML for section "${sectionName}".
     CONTEXT: ${payload.userContext || 'Standard Analysis'}

@@ -160,6 +160,9 @@ export const TaskPerformancePanel: React.FC<TaskPerformancePanelProps> = ({ task
                                     <th className="p-4 text-right">Clics</th>
                                     <th className="p-4 text-right">Impresiones</th>
                                     <th className="p-4 text-right">Posición</th>
+                                    <th className="p-4 text-right header-ga4 text-indigo-600">Sesiones</th>
+                                    <th className="p-4 text-right header-ga4 text-indigo-600">Retención</th>
+                                    <th className="p-4 text-right header-ga4 text-indigo-600">Rebote</th>
                                     <th className="p-4 pr-6 text-center">Estado</th>
                                 </tr>
                             </thead>
@@ -188,6 +191,15 @@ export const TaskPerformancePanel: React.FC<TaskPerformancePanelProps> = ({ task
                                         <td className="p-4 text-right">
                                             <div className="font-bold text-slate-700 text-sm">{task.metrics.position.toFixed(1)}</div>
                                             <TrendBadge value={task.comparison.positionChange} type="lessIsBetter" />
+                                        </td>
+                                        <td className="p-4 text-right bg-indigo-50/20">
+                                            <div className="font-bold text-indigo-900 text-sm">{task.metrics.sessions?.toLocaleString() || '-'}</div>
+                                        </td>
+                                        <td className="p-4 text-right bg-indigo-50/20">
+                                            <div className="font-bold text-indigo-900 text-sm">{task.metrics.avgDuration ? task.metrics.avgDuration.toFixed(0) + 's' : '-'}</div>
+                                        </td>
+                                        <td className="p-4 text-right bg-indigo-50/20">
+                                            <div className="font-bold text-indigo-900 text-sm">{task.metrics.bounceRate ? (task.metrics.bounceRate * 100).toFixed(0) + '%' : '-'}</div>
                                         </td>
                                         <td className="p-4 pr-6 text-center">
                                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${task.status === 'growth' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
