@@ -113,7 +113,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     // Helper to render the drag handle
     const renderDragHandle = (rowIndex: number, field: string, value: any) => (
         <div
-            className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-indigo-600 rounded-sm cursor-crosshair z-20 opacity-0 group-hover:opacity-100 transition-opacity ring-1 ring-white"
+            className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-indigo-600 rounded-sm cursor-crosshair z-20 opacity-0 group-hover/cell:opacity-100 transition-opacity ring-1 ring-white"
             onMouseDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault(); // Prevent text selection
@@ -242,25 +242,73 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
         if (!text) return;
 
         const rows = text.split(/\r?\n/).filter(r => r.trim());
-        const isTabular = text.includes('\t') || rows.length > 1;
+        const isMultiLine = rows.length > 1;
+        const isTabular = text.includes('\t');
 
-        // If NOT tabular and focused on input, allow default behavior (paste text into input)
-        if (!isTabular) {
-            const tagName = (e.target as HTMLElement).tagName;
-            if (tagName === 'INPUT' || tagName === 'TEXTAREA') return;
+        // Target info
+        const target = e.target as HTMLElement;
+        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+        const field = target.getAttribute('data-field');
+        const startRowIndexStr = target.getAttribute('data-row-index');
+
+        // CASE 1: Paste into a specific column (Multi-line text into Input)
+        if (isInput && isMultiLine && field && startRowIndexStr) {
+            e.preventDefault();
+            const startRowIndex = parseInt(startRowIndexStr, 10);
+
+            if (!confirm(`Se han detectado ${rows.length} líneas.\n¿Deseas pegar estos valores en la columna "${field.toUpperCase()}" a partir de la fila ${startRowIndex + 1}?`)) return;
+
+            setIsCreating(true);
+            try {
+                const updates = [];
+                // Filter tasks starting from startRowIndex
+                // Note: contentTasks is sorted, make sure we use the same order.
+                // We need to match indices. contentTasks array matches the table render.
+                for (let i = 0; i < rows.length; i++) {
+                    const taskIndex = startRowIndex + i;
+                    if (taskIndex >= contentTasks.length) break; // Stop if we exceed existing tasks
+
+                    const task = contentTasks[taskIndex];
+                    const val = rows[i].trim();
+                    const payload: any = {};
+
+                    if (field === 'title') payload.title = val;
+                    else if (field === 'status') payload.status = val;
+                    else if (field === 'due_date') payload.due_date = val; // ISO guess or keep raw? backend might validate
+                    else if (field === 'keyword') payload.target_keyword = val;
+                    else if (field === 'slug') {
+                        payload.target_url_slug = val;
+                        const dir = task.metadata?.directory || '/';
+                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                        payload.secondary_url = `${domain}${dir}${val}`;
+                    }
+
+                    updates.push(TaskService.updateTask(task.id, payload));
+                }
+
+                await Promise.all(updates);
+                onTaskUpdate();
+                alert(`${updates.length} filas actualizadas.`);
+            } catch (err: any) {
+                alert("Error pegando columna: " + err.message);
+            } finally {
+                setIsCreating(false);
+            }
+            return;
         }
 
-        // If tabular, we intercept even if focused on input
-        if (isTabular) {
+        // CASE 2: Create New Rows (Tabular data pasted on container or global)
+        // If it's tabular (has tabs) or multiline but NOT captured by the input-column logic above (e.g. pasted on div)
+        if (isTabular || (isMultiLine && !isInput)) {
             e.preventDefault();
-            if (!confirm(`Se han detectado ${rows.length} filas en el portapapeles. \n¿Deseas importarlas como nuevos contenidos?\n\nFormato esperado: Título | Estado | Fecha | Keyword | Slug`)) return;
+            if (!confirm(`Se han detectado ${rows.length} filas nuevas.\n¿Deseas importarlas como nuevos contenidos?\n\nFormato esperado: Título | Estado | Fecha | Keyword | Slug`)) return;
 
             setIsCreating(true);
             try {
                 let createdCount = 0;
                 for (const row of rows) {
                     const cols = row.split('\t').map(c => c.trim());
-                    if (!cols[0]) continue;
+                    if (!cols[0]) continue; // Title required
 
                     const title = cols[0];
                     let status = 'idea';
@@ -286,7 +334,6 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         priority: 'medium',
                         target_keyword: cols[3] || '',
                         target_url_slug: cols[4] || '',
-                        // Construct tentative URL
                         secondary_url: cols[4] ? (project?.gsc_property_url || '') + (cols[4].startsWith('/') ? '' : '/') + cols[4] : ''
                     });
                     createdCount++;
@@ -414,7 +461,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                     {viewMode === 'table' && (
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] text-slate-400 hidden lg:inline-block mr-2">
-                                💡 Tip: Pega filas de Excel/Sheets (Título | Estado | Fecha | KW | Slug)
+                                💡 Tip: Pega filas completas o columnas individuales (copia y pega desde Excel/Sheets)
                             </span>
                             <button
                                 onClick={handleQuickAdd}
@@ -502,7 +549,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                 };
 
                                 return (
-                                    <tr key={task.id} className="hover:bg-slate-50 group transition-colors">
+                                    <tr key={task.id} className="hover.bg-slate-50 transition-colors">
                                         {/* TITLE */}
                                         <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'title') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
                                             onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
@@ -510,6 +557,8 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                             <input
                                                 className="w-full bg-transparent border-transparent border-b hover:border-slate-300 focus:border-brand-accent focus:ring-0 text-sm font-medium text-slate-700 transition-colors py-1"
                                                 defaultValue={task.title}
+                                                data-row-index={rowIndex}
+                                                data-field="title"
                                                 onBlur={(e) => {
                                                     if (e.target.value !== task.title) updateField('title', e.target.value);
                                                 }}
@@ -526,6 +575,8 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                         >
                                             <select
                                                 value={task.status}
+                                                data-row-index={rowIndex}
+                                                data-field="status"
                                                 onChange={(e) => updateField('status', e.target.value)}
                                                 className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full border border-transparent hover:border-slate-200 cursor-pointer outline-none w-full
                                                         ${task.status === 'done' ? 'bg-emerald-50 text-emerald-600' :
@@ -548,6 +599,8 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                         >
                                             <input
                                                 type="date"
+                                                data-row-index={rowIndex}
+                                                data-field="due_date"
                                                 className="bg-transparent text-xs text-slate-500 font-medium outline-none hover:text-brand-power cursor-pointer w-full"
                                                 value={task.due_date ? new Date(task.due_date).toLocaleDateString('en-CA') : ''}
                                                 onChange={(e) => {
@@ -563,7 +616,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                             {renderDragHandle(rowIndex, 'due_date', task.due_date)}
                                         </td>
 
-                                        {/* KEYWORD - NOT EDITABLE BUT DRAGGABLE? Let's skip drag for non-editable for now to match UI */}
+                                        {/* KEYWORD */}
                                         <td className="p-3">
                                             <div className="flex items-center gap-2">
                                                 {task.target_keyword ? (
@@ -582,6 +635,8 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                         >
                                             <select
                                                 value={task.metadata?.directory || '/'}
+                                                data-row-index={rowIndex}
+                                                data-field="directory"
                                                 onChange={async (e) => {
                                                     const newDir = e.target.value;
                                                     const slug = task.target_url_slug || '';
@@ -614,6 +669,8 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                 className="w-full bg-transparent text-xs text-slate-500 font-mono outline-none border-b border-transparent hover:border-slate-300 focus:border-brand-accent transition-colors py-1 truncate"
                                                 placeholder="slug-del-articulo"
                                                 defaultValue={task.target_url_slug || ''}
+                                                data-row-index={rowIndex}
+                                                data-field="slug"
                                                 onBlur={async (e) => {
                                                     const newSlug = e.target.value;
                                                     if (newSlug !== task.target_url_slug) {
@@ -674,7 +731,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                         }}
                                         className="w-full py-2 text-xs font-bold text-slate-400 hover:text-indigo-600 border border-dashed border-slate-300 hover:border-indigo-300 rounded-lg flex items-center justify-center gap-2 transition-all"
                                     >
-                                        <Plus size={14} /> Agregar Fila Vacía (Click para pegar aquí)
+                                        <Plus size={14} /> Agregar Fila Vacía
                                     </button>
                                 </td>
                             </tr>
