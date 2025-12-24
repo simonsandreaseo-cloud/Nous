@@ -1,6 +1,6 @@
 import { activeWindow } from 'active-win';
 import screenshot from 'screenshot-desktop';
-import Jimp from 'jimp';
+import { Jimp, JimpMime } from 'jimp';
 
 export async function getActiveWindowInfo() {
     try {
@@ -24,7 +24,7 @@ export async function captureAndBlurScreen() {
         image.blur(20);
 
         // Get buffer back
-        const blurredBuffer = await image.getBufferAsync(Jimp.MIME_PNG);
+        const blurredBuffer = await image.getBuffer(JimpMime.png);
 
         return blurredBuffer;
     } catch (error) {

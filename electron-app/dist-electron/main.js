@@ -1,31 +1,31 @@
-import { app as r, BrowserWindow as w, ipcMain as u } from "electron";
-import { fileURLToPath as v } from "node:url";
-import a, { dirname as T } from "node:path";
-import D from "active-win";
-import E from "screenshot-desktop";
-import l from "jimp";
-async function S() {
+import { app as r, BrowserWindow as d, ipcMain as w } from "electron";
+import { fileURLToPath as I } from "node:url";
+import a, { dirname as v } from "node:path";
+import { activeWindow as T } from "active-win";
+import D from "screenshot-desktop";
+import { Jimp as S, JimpMime as E } from "jimp";
+async function _() {
   try {
-    return await D();
+    return await T();
   } catch (e) {
     return console.error("Error getting active window:", e), null;
   }
 }
-async function _() {
+async function y() {
   try {
-    const e = await E({ format: "png" }), o = await l.read(e);
-    return o.blur(20), await o.getBufferAsync(l.MIME_PNG);
+    const e = await D({ format: "png" }), o = await S.read(e);
+    return o.blur(20), await o.getBuffer(E.png);
   } catch (e) {
     return console.error("Error capturing screen:", e), null;
   }
 }
-const y = v(import.meta.url), m = T(y);
+const R = I(import.meta.url), m = v(R);
 process.env.DIST = a.join(m, "../dist");
 process.env.VITE_PUBLIC = r.isPackaged ? process.env.DIST : a.join(process.env.DIST, "../public");
 let n;
-const d = process.env.VITE_DEV_SERVER_URL;
-function f() {
-  n = new w({
+const l = process.env.VITE_DEV_SERVER_URL;
+function u() {
+  n = new d({
     width: 1e3,
     height: 800,
     webPreferences: {
@@ -36,23 +36,23 @@ function f() {
     }
   }), n.webContents.on("did-finish-load", () => {
     n?.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  }), d ? n.loadURL(d) : n.loadFile(a.join(process.env.DIST, "index.html"));
+  }), l ? n.loadURL(l) : n.loadFile(a.join(process.env.DIST, "index.html"));
 }
 r.on("window-all-closed", () => {
   process.platform !== "darwin" && r.quit();
 });
 r.on("activate", () => {
-  w.getAllWindows().length === 0 && f();
+  d.getAllWindows().length === 0 && u();
 });
-r.whenReady().then(f);
+r.whenReady().then(u);
 let t = null, s = Date.now();
-u.handle("start-tracking", async (e, { projectId: o, userId: p }) => {
+w.handle("start-tracking", async (e, { projectId: o, userId: p }) => {
   console.log("Tracking started for:", o), t && clearInterval(t), s = Date.now();
-  const g = 600 * 1e3;
+  const f = 600 * 1e3;
   return t = setInterval(async () => {
-    const c = Date.now(), I = Math.min(100, Math.floor(Math.random() * 100)), i = await S(), h = await _();
+    const c = Date.now(), g = Math.min(100, Math.floor(Math.random() * 100)), i = await _(), h = await y();
     n?.webContents.send("capture-ready", {
-      activityPercentage: I,
+      activityPercentage: g,
       windowTitle: i?.title || "Unknown",
       appName: i?.owner?.name || "Unknown",
       url: i?.url || "",
@@ -60,6 +60,6 @@ u.handle("start-tracking", async (e, { projectId: o, userId: p }) => {
       startTime: new Date(s).toISOString(),
       endTime: new Date(c).toISOString()
     }), s = c;
-  }, g), { status: "active", startTime: /* @__PURE__ */ new Date() };
+  }, f), { status: "active", startTime: /* @__PURE__ */ new Date() };
 });
-u.handle("stop-tracking", async (e) => (console.log("Tracking stopped"), t && (clearInterval(t), t = null), { status: "idle", endTime: /* @__PURE__ */ new Date() }));
+w.handle("stop-tracking", async (e) => (console.log("Tracking stopped"), t && (clearInterval(t), t = null), { status: "idle", endTime: /* @__PURE__ */ new Date() }));

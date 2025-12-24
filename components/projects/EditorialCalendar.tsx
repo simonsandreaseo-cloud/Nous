@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Task, Project, TaskService } from '../../lib/task_manager';
 import { ContentService, ContentItem } from '../../lib/ContentService';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Lock, Unlock, User, Calendar as CalIcon, Edit3, X, FileText, Sparkles } from 'lucide-react';
+import { Lock, Unlock, User, Calendar as CalIcon, Edit3, X, FileText, Sparkles, Plus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import TaskDetailModal from './TaskDetailModal';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
@@ -132,6 +132,90 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
         }
     };
 
+    const [isCreating, setIsCreating] = useState(false);
+
+    const handlePaste = async (e: React.ClipboardEvent) => {
+        // Allow normal pasting in inputs
+        if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
+            return;
+        }
+
+        const text = e.clipboardData.getData('text');
+        if (!text) return;
+
+        const rows = text.split(/\r?\n/).filter(r => r.trim());
+        if (rows.length === 0) return;
+
+        const isTabular = text.includes('\t') || rows.length > 1;
+
+        if (isTabular) {
+            e.preventDefault();
+            if (!confirm(`Se han detectado ${rows.length} filas en el portapapeles. \n¿Deseas importarlas como nuevos contenidos?\n\nFormato esperado: Título | Estado | Fecha | Keywod | URL`)) return;
+
+            setIsCreating(true);
+            try {
+                let createdCount = 0;
+                for (const row of rows) {
+                    const cols = row.split('\t').map(c => c.trim());
+                    if (!cols[0]) continue;
+
+                    const title = cols[0];
+                    let status = 'idea';
+                    if (cols[1]) {
+                        const s = cols[1].toLowerCase();
+                        if (['todo', 'por hacer'].includes(s)) status = 'todo';
+                        else if (['in_progress', 'en progreso', 'working'].includes(s)) status = 'in_progress';
+                        else if (['review', 'revisión', 'revision'].includes(s)) status = 'review';
+                        else if (['done', 'publicado', 'finalizado'].includes(s)) status = 'done';
+                    }
+
+                    let dueDate = null;
+                    if (cols[2]) {
+                        const d = new Date(cols[2]);
+                        if (!isNaN(d.getTime())) dueDate = d.toISOString();
+                    }
+
+                    await TaskService.createTask(projectId, {
+                        title,
+                        status: status as any,
+                        type: 'content',
+                        due_date: dueDate || new Date().toISOString(),
+                        priority: 'medium',
+                        target_keyword: cols[3] || '',
+                        secondary_url: cols[4] || ''
+                    });
+                    createdCount++;
+                }
+
+                onTaskUpdate();
+                alert(`${createdCount} contenidos creados exitosamente.`);
+            } catch (error: any) {
+                console.error("Error importing tasks:", error);
+                alert("Hubo un error al importar algunos items: " + error.message);
+            } finally {
+                setIsCreating(false);
+            }
+        }
+    };
+
+    const handleQuickAdd = async () => {
+        const title = prompt("Título del nuevo contenido:");
+        if (!title) return;
+
+        try {
+            await TaskService.createTask(projectId, {
+                title,
+                status: 'idea',
+                type: 'content',
+                due_date: new Date().toISOString(),
+                priority: 'medium'
+            });
+            onTaskUpdate();
+        } catch (e: any) {
+            alert("Error al crear: " + e.message);
+        }
+    };
+
     const calendarGrid = [];
     // Padding days
     for (let i = 0; i < firstDay; i++) {
@@ -179,7 +263,17 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     }
 
     return (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
+        <div
+            className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative outline-none"
+            onPaste={viewMode === 'table' ? handlePaste : undefined}
+            tabIndex={0}
+        >
+            {isCreating && (
+                <div className="absolute inset-0 bg-white/80 z-50 flex items-center justify-center flex-col gap-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                    <span className="text-sm font-bold text-indigo-600">Importando contenidos...</span>
+                </div>
+            )}
             {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-slate-100">
                 <div className="flex items-center gap-4">
@@ -211,26 +305,40 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         </button>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+                    {viewMode === 'table' && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-400 hidden lg:inline-block mr-2">
+                                💡 Tip: Pega filas de Excel/Sheets (Título | Estado | Fecha...)
+                            </span>
+                            <button
+                                onClick={handleQuickAdd}
+                                className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 flex items-center gap-1 px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+                            >
+                                <Plus size={14} /> Agregar Contenido
+                            </button>
+                        </div>
+                    )}
+
                     <button
                         onClick={() => alert("Próximamente: Importar CSV")}
-                        className="text-xs font-bold text-brand-power/50 hover:text-brand-power flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200"
+                        className="text-xs font-bold text-brand-power/50 hover:text-brand-power flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200 hidden md:flex"
                     >
                         <FileText size={12} /> Importar CSV
                     </button>
                     <button
                         onClick={() => alert("Próximamente: Generar con IA")}
-                        className="text-xs font-bold text-brand-accent hover:text-brand-accent/80 flex items-center gap-1 bg-brand-accent/5 px-2 py-1 rounded-lg border border-brand-accent/20"
+                        className="text-xs font-bold text-brand-accent hover:text-brand-accent/80 flex items-center gap-1 bg-brand-accent/5 px-2 py-1.5 rounded-lg border border-brand-accent/20 hidden md:flex"
                     >
-                        <Edit3 size={12} /> Generar Ideas (IA)
+                        <Edit3 size={12} /> Sugerencias IA
                     </button>
                     {project?.role === 'owner' || project?.role === 'admin' ? (
                         <button
                             onClick={() => setShowSettings(true)}
-                            className="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200"
-                            title="Configurar Calendario"
+                            className="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200"
+                            title="Configurar Categorías y Objetivos"
                         >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         </button>
                     ) : null}
                     <div className="text-xs text-slate-400 font-medium border-l border-slate-200 pl-3">

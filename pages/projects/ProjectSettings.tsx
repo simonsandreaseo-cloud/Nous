@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { Project, ProjectService, ProjectMember } from '../../lib/task_manager';
 import { GscService } from '../../services/gscService';
 import { SitemapManager } from '../../components/projects/SitemapManager';
-import { Search, Mail, Trash2 } from 'lucide-react';
+import { Search, Mail, Trash2, FolderGit2, Plus, Info } from 'lucide-react';
 
 const ProjectSettings: React.FC = () => {
     const { project, loadProject } = useOutletContext<{ project: Project; loadProject: () => void }>();
@@ -12,6 +12,44 @@ const ProjectSettings: React.FC = () => {
     const [gscSites, setGscSites] = useState<any[]>([]);
     const [loadingGsc, setLoadingGsc] = useState(false);
     const [selectedSite, setSelectedSite] = useState(project.gsc_property_url || '');
+
+    // Content Directories State
+    const [contentDirs, setContentDirs] = useState<string[]>(project.settings?.content_directories || []);
+    const [newDir, setNewDir] = useState('');
+
+    useEffect(() => {
+        setContentDirs(project.settings?.content_directories || []);
+    }, [project.settings]); // Update if project reloaded
+
+    const handleAddDir = () => {
+        if (!newDir.trim()) return;
+        let formatted = newDir.trim();
+        if (!formatted.startsWith('/')) formatted = '/' + formatted;
+        if (!formatted.endsWith('/')) formatted = formatted + '/';
+
+        if (contentDirs.includes(formatted)) {
+            alert('El directorio ya existe');
+            return;
+        }
+        setContentDirs([...contentDirs, formatted]);
+        setNewDir('');
+    };
+
+    const handleRemoveDir = (dir: string) => {
+        setContentDirs(contentDirs.filter(d => d !== dir));
+    };
+
+    const handleSaveDirs = async () => {
+        try {
+            await ProjectService.updateProject(project.id, {
+                settings: { ...project.settings, content_directories: contentDirs }
+            });
+            loadProject();
+            alert('Directorios actualizados correctamentes');
+        } catch (e: any) {
+            alert('Error al guardar: ' + e.message);
+        }
+    };
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteConfirmName, setDeleteConfirmName] = useState('');
@@ -146,6 +184,70 @@ const ProjectSettings: React.FC = () => {
             <section className="space-y-4">
                 <h3 className="text-lg font-bold text-brand-power border-b border-brand-power/10 pb-2">Sitemap</h3>
                 <SitemapManager projectId={project.id} gscUrl={project.gsc_property_url} />
+            </section>
+
+            {/* DIRECTORIES SECTION */}
+            <section className="space-y-4">
+                <h3 className="text-lg font-bold text-brand-power border-b border-brand-power/10 pb-2">Categorías / Directorios</h3>
+
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-brand-power/5">
+                    <div className="flex items-start gap-3 mb-6">
+                        <div className="p-2 bg-indigo-50 rounded-lg shadow-sm text-indigo-600">
+                            <FolderGit2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-sm text-brand-power">Directorios (Categorías)</h4>
+                            <p className="text-xs text-brand-power/50 max-w-lg">
+                                Define las carpetas donde se publicarán los contenidos. Esto ayuda a organizar el sitio y deducir URLs.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 items-end max-w-xl mb-4">
+                        <div className="flex-1">
+                            <label className="text-xs font-bold text-brand-power/60 uppercase mb-1 block">Nuevo Directorio</label>
+                            <input
+                                value={newDir}
+                                onChange={(e) => setNewDir(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddDir()}
+                                placeholder="/blog/"
+                                className="w-full bg-white border border-brand-power/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand-accent font-mono"
+                            />
+                        </div>
+                        <button
+                            onClick={handleAddDir}
+                            disabled={!newDir}
+                            className="px-3 py-2 bg-brand-soft text-brand-power rounded-lg font-bold text-xs uppercase hover:bg-brand-soft/80 transition-view disabled:opacity-50"
+                        >
+                            <Plus size={16} />
+                        </button>
+                        <button
+                            onClick={handleSaveDirs}
+                            className="px-3 py-2 bg-brand-power text-brand-white rounded-lg font-bold text-xs uppercase hover:bg-brand-power/90 transition-colors ml-2"
+                        >
+                            Guardar
+                        </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        {contentDirs.length === 0 && (
+                            <div className="w-full text-center py-4 text-xs text-slate-400 italic border border-dashed border-slate-100 rounded-lg">
+                                No hay directorios configurados.
+                            </div>
+                        )}
+                        {contentDirs.map(dir => (
+                            <div key={dir} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md group">
+                                <span className="text-xs font-mono font-medium text-slate-600">{dir}</span>
+                                <button
+                                    onClick={() => handleRemoveDir(dir)}
+                                    className="text-slate-300 hover:text-red-500 transition-colors"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </section>
 
             {/* MEMBERS SECTION */}
