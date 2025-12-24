@@ -25,5 +25,4 @@ dist-ssr
 
 # Installer binaries
 public/Tracker-Portable.zip
-public/Tracker-Setup.exe
 electron-app/dist/Tracker-Setup.exe

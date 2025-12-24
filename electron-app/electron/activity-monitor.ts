@@ -1,10 +1,10 @@
-import activeWin from 'active-win';
+import { activeWindow } from 'active-win';
 import screenshot from 'screenshot-desktop';
 import Jimp from 'jimp';
 
 export async function getActiveWindowInfo() {
     try {
-        const result = await activeWin();
+        const result = await activeWindow();
         return result;
     } catch (error) {
         console.error('Error getting active window:', error);
