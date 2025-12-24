@@ -231,10 +231,10 @@ const App: React.FC = () => {
             addLog(`⏳ Obteniendo periodos...`);
             const [p1Pages, p1Queries, p1Countries, p2Pages, p2Queries, p2Countries] = await Promise.all([
                 fetchDim(startP1, endP1, ['date', 'page']),
-                fetchDim(startP1, endP1, ['date', 'query', 'page']),
+                fetchDim(startP1, endP1, ['date', 'query']), // Removed 'page' to avoid data loss (Privacy/Thresholding)
                 fetchDim(startP1, endP1, ['date', 'country']),
                 fetchDim(startP2, endP2, ['date', 'page']),
-                fetchDim(startP2, endP2, ['date', 'query', 'page']),
+                fetchDim(startP2, endP2, ['date', 'query']), // Removed 'page'
                 fetchDim(startP2, endP2, ['date', 'country'])
             ]);
 
