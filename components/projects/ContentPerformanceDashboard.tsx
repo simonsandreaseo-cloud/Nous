@@ -68,31 +68,61 @@ export const ContentPerformanceDashboard: React.FC<ContentPerformanceDashboardPr
             const end = new Date();
             const start = new Date(end.getFullYear() - 1, end.getMonth(), 1);
 
-            const rows = await GscService.getLocalAnalytics(
+            // Ensure URL usage is correct (add trailing slash if missing and not domain property)
+            let siteUrl = project.gsc_property_url || '';
+            if (siteUrl && !siteUrl.startsWith('sc-domain:') && !siteUrl.endsWith('/')) {
+                siteUrl += '/';
+            }
+
+            // 1. Try Local DB
+            let rows = await GscService.getLocalAnalytics(
                 project.id.toString(),
                 start.toISOString().split('T')[0],
                 end.toISOString().split('T')[0]
             );
 
+            // 2. Fallback to Live API if Local DB is empty
+            if (!rows || rows.length === 0) {
+                console.log("Local metrics empty, fetching live from GSC...");
+                try {
+                    // Fetch daily totals for the year (light enough)
+                    rows = await GscService.getSearchAnalytics(
+                        siteUrl, // Use normalized URL
+                        start.toISOString().split('T')[0],
+                        end.toISOString().split('T')[0],
+                        ['date']
+                    );
+
+                    // Transform live rows to match local DB structure (keys[0] is date)
+                    rows = rows.map((r: any) => ({
+                        date: r.keys[0],
+                        clicks: r.clicks,
+                        impressions: r.impressions,
+                        ctr: r.ctr,
+                        position: r.position
+                    }));
+                } catch (liveError) {
+                    console.warn("Live fetch failed too:", liveError);
+                    // If live fails, we stick with empty rows
+                }
+            }
+
             // Group by month
             monthsList.forEach(m => {
                 const monthKey = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
                 // Filter rows for this month
-                const monthRows = rows.filter(r => r.date.startsWith(monthKey));
+                const monthRows = rows.filter((r: any) => r.date.startsWith(monthKey));
 
                 // Previous month for comparison
                 const prevDate = new Date(m.getFullYear(), m.getMonth() - 1, 1);
                 const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-                const prevRows = rows.filter(r => r.date.startsWith(prevKey));
+                const prevRows = rows.filter((r: any) => r.date.startsWith(prevKey));
 
                 const agg = (rs: any[]) => ({
                     clicks: rs.reduce((sum, r) => sum + (r.clicks || 0), 0),
                     impressions: rs.reduce((sum, r) => sum + (r.impressions || 0), 0),
                     position: rs.length ? rs.reduce((sum, r) => sum + (r.position || 0), 0) / rs.length : 0,
-                    // Unique keywords approximation (sum of unique per day is wrong, but stored is daily top_queries)
-                    // We can't easily count unique keywords from daily aggregates without expanding the json arrays.
-                    // For overview card, maybe we just sum clicks/imp.
-                    keywords: 0 // Placeholder
+                    keywords: 0
                 });
 
                 const current = agg(monthRows);
@@ -286,12 +316,17 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
 
             const filter = regexFilter ? { page: regexFilter, operator: 'includingRegex' as const } : undefined;
 
+            // Normalize URL
+            let siteUrl = project.gsc_property_url || '';
+            if (siteUrl && !siteUrl.startsWith('sc-domain:') && !siteUrl.endsWith('/')) {
+                siteUrl += '/';
+            }
+
             const [pageRows, queryRows, prevPageRows, prevQueryRows] = await Promise.all([
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['page', 'date'], filter),
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['query', 'date'], filter),
-                // Previous month for change calculation (aggregate only)
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(new Date(year, m - 1, 1)), fmt(new Date(year, m - 1, 0)), ['page'], filter),
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(new Date(year, m - 1, 1)), fmt(new Date(year, m - 1, 0)), ['query'], filter),
+                GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['page', 'date'], filter),
+                GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query', 'date'], filter),
+                GscService.getSearchAnalytics(siteUrl, fmt(new Date(year, m - 1, 1)), fmt(new Date(year, m - 1, 0)), ['page'], filter),
+                GscService.getSearchAnalytics(siteUrl, fmt(new Date(year, m - 1, 1)), fmt(new Date(year, m - 1, 0)), ['query'], filter),
             ]);
 
             // Process Pages
@@ -363,8 +398,10 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
 
             setData({ urlMetrics, keywordMetrics, timeline: [] });
 
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
+            alert("Error cargando métricas detalladas: " + (e.message || e));
+            onClose(); // Close modal on error to prevent stuck state
         } finally {
             setLoading(false);
         }
@@ -395,14 +432,20 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
         const fmt = (d: Date) => d.toISOString().split('T')[0];
 
         try {
+            // Normalize URL
+            let siteUrl = project.gsc_property_url || '';
+            if (siteUrl && !siteUrl.startsWith('sc-domain:') && !siteUrl.endsWith('/')) {
+                siteUrl += '/';
+            }
+
             // Fetch Current Month: Keywords for this Page
             const [qRowsDate, qRowsTotals, prevQRowsTotals] = await Promise.all([
                 // Date breakdown for sparklines
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['query', 'date'], { page: url, operator: 'equals' }),
+                GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query', 'date'], { page: url, operator: 'equals' }),
                 // Totals for metrics
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(start), fmt(end), ['query'], { page: url, operator: 'equals' }),
+                GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query'], { page: url, operator: 'equals' }),
                 // Prev Month Totals for comparison
-                GscService.getSearchAnalytics(project.gsc_property_url!, fmt(new Date(year, m - 1, 1)), fmt(new Date(year, m - 1, 0)), ['query'], { page: url, operator: 'equals' })
+                GscService.getSearchAnalytics(siteUrl, fmt(new Date(year, m - 1, 1)), fmt(new Date(year, m - 1, 0)), ['query'], { page: url, operator: 'equals' })
             ]);
 
             const queriesMap = new Map();
