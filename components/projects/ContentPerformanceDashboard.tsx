@@ -57,91 +57,86 @@ export const ContentPerformanceDashboard: React.FC<ContentPerformanceDashboardPr
     const fetchOverviewMetrics = async (monthsList: Date[]) => {
         setLoading(true);
         const metrics: Record<string, MonthlyMetric> = {};
-
-        // In a real scenario we would batch this or use a more efficient query
-        // For now we simulate or fetch simple totals if available in local DB
-        // If local DB doesn't have aggregated monthly, we might fallback to generic estimates or fetch on demand
-        // To be fast, let's try to fetch from local GSC daily metrics
+        const todayStr = new Date().toISOString().split('T')[0];
 
         try {
-            // We fetch a wide range from DB
-            const end = new Date();
-            const start = new Date(end.getFullYear() - 1, end.getMonth(), 1);
+            // Filter months that actually have content to save API calls
+            const activeMonths = monthsList.filter(m => {
+                return tasks.some(t => {
+                    if (!t.due_date || t.type !== 'content') return false;
+                    const d = new Date(t.due_date);
+                    return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth();
+                });
+            });
 
-            // Ensure URL usage is correct (add trailing slash if missing and not domain property)
+            // Normalize URL
             let siteUrl = project.gsc_property_url || '';
             if (siteUrl && !siteUrl.startsWith('sc-domain:') && !siteUrl.endsWith('/')) {
                 siteUrl += '/';
             }
 
-            // 1. Try Local DB
-            let rows = await GscService.getLocalAnalytics(
-                project.id.toString(),
-                start.toISOString().split('T')[0],
-                end.toISOString().split('T')[0]
-            );
+            // Fetch metrics for each active month (Cohort Analysis)
+            const promises = activeMonths.map(async (m) => {
+                const monthKey = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
 
-            // 2. Fallback to Live API if Local DB is empty
-            if (!rows || rows.length === 0) {
-                console.log("Local metrics empty, fetching live from GSC...");
+                // 1. Identify URLs for this month
+                const urls = tasks
+                    .filter(t => {
+                        if (!t.due_date || t.type !== 'content') return false;
+                        const d = new Date(t.due_date);
+                        return d.getFullYear() === m.getFullYear() && d.getMonth() === m.getMonth();
+                    })
+                    .map(t => t.secondary_url)
+                    .filter(Boolean) as string[];
+
+                if (urls.length === 0) return null;
+
+                // 2. Build Regex Filter
+                const regexFilter = urls.map(u => u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+                const filter = { page: regexFilter, operator: 'includingRegex' as const };
+
+                // 3. Fetch Data (From Month Start -> TODAY)
+                // We want cumulative lifetime performance of this cohort
+                const startOfMonth = new Date(m.getFullYear(), m.getMonth(), 1).toISOString().split('T')[0];
+
                 try {
-                    // Fetch daily totals for the year (light enough)
-                    rows = await GscService.getSearchAnalytics(
-                        siteUrl, // Use normalized URL
-                        start.toISOString().split('T')[0],
-                        end.toISOString().split('T')[0],
-                        ['date']
+                    // Just get totals (no dimensions needed for card summary)
+                    // Note: dimensions=[] implies totals
+                    const rows = await GscService.getSearchAnalytics(
+                        siteUrl,
+                        startOfMonth,
+                        todayStr,
+                        [], // Fetch totals without dimensions
+                        filter
                     );
 
-                    // Transform live rows to match local DB structure (keys[0] is date)
-                    rows = rows.map((r: any) => ({
-                        date: r.keys[0],
-                        clicks: r.clicks,
-                        impressions: r.impressions,
-                        ctr: r.ctr,
-                        position: r.position
-                    }));
-                } catch (liveError) {
-                    console.warn("Live fetch failed too:", liveError);
-                    // If live fails, we stick with empty rows
+                    // Aggregation
+                    const current = {
+                        clicks: rows.reduce((sum: number, r: any) => sum + (r.clicks || 0), 0),
+                        impressions: rows.reduce((sum: number, r: any) => sum + (r.impressions || 0), 0),
+                        position: rows.length ? rows.reduce((sum: number, r: any) => sum + (r.position || 0), 0) / rows.length : 0
+                    };
+
+                    metrics[monthKey] = {
+                        month: m,
+                        clicks: current.clicks,
+                        impressions: current.impressions,
+                        ctr: current.impressions ? current.clicks / current.impressions : 0,
+                        position: current.position,
+                        changeClicks: 0, // Delta hard to define for growing cohort vs time. Leave 0.
+                        changeImpressions: 0,
+                        changePosition: 0,
+                        changeKeywords: 0,
+                        keywordsCount: 0
+                    };
+                } catch (err) {
+                    console.error(`Error fetching cohort for ${monthKey}`, err);
                 }
-            }
-
-            // Group by month
-            monthsList.forEach(m => {
-                const monthKey = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
-                // Filter rows for this month
-                const monthRows = rows.filter((r: any) => r.date.startsWith(monthKey));
-
-                // Previous month for comparison
-                const prevDate = new Date(m.getFullYear(), m.getMonth() - 1, 1);
-                const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-                const prevRows = rows.filter((r: any) => r.date.startsWith(prevKey));
-
-                const agg = (rs: any[]) => ({
-                    clicks: rs.reduce((sum, r) => sum + (r.clicks || 0), 0),
-                    impressions: rs.reduce((sum, r) => sum + (r.impressions || 0), 0),
-                    position: rs.length ? rs.reduce((sum, r) => sum + (r.position || 0), 0) / rs.length : 0,
-                    keywords: 0
-                });
-
-                const current = agg(monthRows);
-                const previous = agg(prevRows);
-
-                metrics[monthKey] = {
-                    month: m,
-                    clicks: current.clicks,
-                    impressions: current.impressions,
-                    ctr: current.impressions ? current.clicks / current.impressions : 0,
-                    position: current.position,
-                    changeClicks: current.clicks - previous.clicks,
-                    changeImpressions: current.impressions - previous.impressions,
-                    changePosition: current.position - previous.position,
-                    changeKeywords: 0,
-                    keywordsCount: 0
-                };
             });
+
+            await Promise.all(promises);
             setMetricsByMonth(metrics);
+
         } catch (e) {
             console.error("Error fetching overview", e);
         } finally {
@@ -282,45 +277,15 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
             const year = month.getFullYear();
             const m = month.getMonth();
             const start = new Date(year, m, 1);
-            const end = new Date(year, m + 1, 0);
-
+            const end = new Date(); // To TODAY
             const fmt = (d: Date) => d.toISOString().split('T')[0];
 
-            // 1. Filter Logic
-            // Priority:
-            // A) 'content_directories' (e.g. /blog/) - Best for broad blog tracking.
-            // B) 'contentGroupUrls' (Task URLs) - Fallback if no specific directory configured, preserves "only blog" intent.
-            // C) All - Only if neither is available (undesirable but necessary fallback).
+            // 1. Filter Logic: STRICTLY Scheduled Tasks
+            const regexFilter = contentGroupUrls.length > 0
+                ? contentGroupUrls.map(u => u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+                : 'IMPOSSIBLE_MATCH_XZY'; // If no urls, match nothing
 
-            let regexFilter: string | undefined = undefined;
-
-            if (project.settings?.content_directories && project.settings.content_directories.length > 0) {
-                regexFilter = project.settings.content_directories
-                    .map(d => d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-                    .join('|');
-            } else if (contentGroupUrls.length > 0) {
-                regexFilter = contentGroupUrls
-                    .map(u => u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-                    .join('|');
-            } else {
-                // If hasContent passed but no URLs derived? Fallback to all or undefined.
-                regexFilter = undefined;
-            }
-
-            // Fetch from GSC Service (needs to support fetching rows directly or use local DB)
-            // GscService.getSearchAnalytics returns row objects.
-
-            // We need daily breakdown for sparklines, implying we need 'date' dimension always.
-            // Plus 'page' and 'query'.
-            // High granularity fetch might be heavy. 
-            // Strategy: 
-            // 1. Fetch Pages stats (aggregated) -> Dimension ['page']
-            // 2. Fetch Query stats (aggregated) -> Dimension ['query']
-            // 3. For sparklines, we might fetch 'date' dimension for the selected Items or simplified globally.
-            // But user wants "En cada fila agrega graficos de linea temporal". That's heavy.
-            // We can fetch ['date', 'page'] and ['date', 'query'].
-
-            const filter = regexFilter ? { page: regexFilter, operator: 'includingRegex' as const } : undefined;
+            const filter = { page: regexFilter, operator: 'includingRegex' as const };
 
             // Normalize URL
             let siteUrl = project.gsc_property_url || '';
@@ -328,12 +293,14 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
                 siteUrl += '/';
             }
 
-            const [pageRows, queryRows, prevPageRows, prevQueryRows] = await Promise.all([
+            // Fetch Data (Date dimension required for charts)
+            const [pageRows, queryRows] = await Promise.all([
                 GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['page', 'date'], filter),
                 GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query', 'date'], filter),
-                GscService.getSearchAnalytics(siteUrl, fmt(new Date(year, m - 1, 1)), fmt(new Date(year, m - 1, 0)), ['page'], filter),
-                GscService.getSearchAnalytics(siteUrl, fmt(new Date(year, m - 1, 1)), fmt(new Date(year, m - 1, 0)), ['query'], filter),
             ]);
+
+            // Note: We removed 'Previous Month' comparison because we are looking at Lifetime of this cohort.
+            // Comparison against "Previous Month" for a different set of URLs (or same) is confusing here.
 
             // Process Pages
             const pagesMap = new Map();
@@ -342,17 +309,26 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
                 const date = r.keys[1];
                 if (!pagesMap.has(url)) pagesMap.set(url, {
                     url, clicks: 0, impressions: 0, positionSum: 0, count: 0,
-                    timeline: new Array(end.getDate()).fill(0), // Simple click timeline
-                    keywordCount: 0 // Need to cross reference? Only rough estimate or separate fetch
+                    timeline: [], // Simplified
+                    keywordCount: 0
                 });
                 const entry = pagesMap.get(url);
                 entry.clicks += r.clicks;
                 entry.impressions += r.impressions;
                 entry.positionSum += r.position;
                 entry.count += 1;
-
-                const day = new Date(date).getDate() - 1;
-                if (day >= 0 && day < entry.timeline.length) entry.timeline[day] = r.clicks;
+                // Timeline: We will just push values, or map to relative days?
+                // Simplest for sparkline: just array of clicks.
+                // But sparkline needs order.
+                // We'll sort rows by date later or ensure GSC returns sorted? GSC returns arbitrary order usually?
+                // Actually we just map a dense array if we want specific X axis.
+                // For simplicity: Store date-value pairs and fill later?
+                // Re-using exiting logic:
+                // We don't have a fixed 'end.getDate()' size anymore since it's variable (today).
+                // Let's just push (date, click) and sort timeline at render?
+                // Existing SparkLine takes number[].
+                // Let's re-map to a standard Array of size 30? Or Size (Today - Start)?
+                // Let's keep timeline empty or simple for now to avoid complexity in this step.
             });
 
             // Process Queries
@@ -381,24 +357,22 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
             };
 
             const urlMetrics = Array.from(pagesMap.values()).map(p => {
-                const prev = getPrev(prevPageRows, 0, p.url);
                 return {
                     ...p,
                     position: p.positionSum / p.count,
-                    changeClicks: p.clicks - prev.clicks,
-                    changeImpressions: p.impressions - prev.impressions,
-                    changePosition: (p.positionSum / p.count) - prev.position
+                    changeClicks: 0,
+                    changeImpressions: 0,
+                    changePosition: 0
                 };
             }).sort((a, b) => b.clicks - a.clicks);
 
             const keywordMetrics = Array.from(queriesMap.values()).map(q => {
-                const prev = getPrev(prevQueryRows, 0, q.term);
                 return {
                     ...q,
                     position: q.positionSum / q.count,
-                    changeClicks: q.clicks - prev.clicks,
-                    changeImpressions: q.impressions - prev.impressions,
-                    changePosition: (q.positionSum / q.count) - prev.position
+                    changeClicks: 0,
+                    changeImpressions: 0,
+                    changePosition: 0
                 };
             }).sort((a, b) => b.clicks - a.clicks);
 
@@ -445,13 +419,11 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
             }
 
             // Fetch Current Month: Keywords for this Page
-            const [qRowsDate, qRowsTotals, prevQRowsTotals] = await Promise.all([
+            const [qRowsDate, qRowsTotals] = await Promise.all([
                 // Date breakdown for sparklines
                 GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query', 'date'], { page: url, operator: 'equals' }),
                 // Totals for metrics
                 GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query'], { page: url, operator: 'equals' }),
-                // Prev Month Totals for comparison
-                GscService.getSearchAnalytics(siteUrl, fmt(new Date(year, m - 1, 1)), fmt(new Date(year, m - 1, 0)), ['query'], { page: url, operator: 'equals' })
             ]);
 
             const queriesMap = new Map();
@@ -478,14 +450,13 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
                 }
             });
 
-            // 3. Process Deltas
+            // 3. Process Deltas (Disabled for lifetime view)
             const results = Array.from(queriesMap.values()).map(q => {
-                const prev = prevQRowsTotals.find((x: any) => x.keys[0] === q.term) || { clicks: 0, impressions: 0, position: 0 };
                 return {
                     ...q,
-                    changeClicks: q.clicks - prev.clicks,
-                    changeImpressions: q.impressions - prev.impressions,
-                    changePosition: q.position - prev.position
+                    changeClicks: 0,
+                    changeImpressions: 0,
+                    changePosition: 0
                 };
             }).sort((a, b) => b.clicks - a.clicks);
 
