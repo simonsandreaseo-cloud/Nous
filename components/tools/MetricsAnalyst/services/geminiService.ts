@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { ReportPayload, ContentBrief, SnippetOptimization } from "../types";
+import { ReportPayload, ContentBrief, SnippetOptimization, UsageMode } from "../types";
 
 // 1. Dispatcher: Strict Rules for Section Inclusion (FROM INFORMES SEO - FULL LOGIC)
 const SYSTEM_PROMPT_DISPATCHER = `You are a "Chief Editor" for an SEO Agency. 
@@ -22,37 +22,57 @@ MANDATORY RULES based on input data (Check values carefully):
 Return ONLY a JSON Array of strings. Example: ["ANALISIS_ESTRATEGICO", "ANALISIS_CTR"]`;
 
 // 2. Section Writer: High Density & Robust Charting (FROM INFORMES SEO)
-const SYSTEM_PROMPT_SECTION_WRITER = `You are a "Lead Product Designer" for a Financial/SEO SaaS. Generate **ONE specific HTML component** that feels premium and data-rich.
+const SYSTEM_PROMPT_SECTION_WRITER = `You are a "Lead Product Designer" for a Financial/SEO SaaS. Generate **ONE specific HTML component** that feels premium, minimalist, and clean.
 
---- DESIGN SYSTEM: "Premium High-Density" ---
-1. **Layout**: Use \`grid grid-cols-1 md:grid-cols-2 gap-8\` to mix data tables with visual components. Ensure the layout doesn't feel like a wall of text.
+--- DESIGN SYSTEM: "Premium Minimalist" ---
+1. **Layout**: Use \`grid grid-cols-1 md:grid-cols-2 gap-10\`. Emphasize whitespace (\`p-8\`). Avoid visual clutter.
 2. **Typography**: 
-   - Body: \`text-slate-600 font-medium leading-relaxed\`.
-   - Data: Use \`<span class="font-mono text-[11px] text-slate-500 bg-slate-50 px-1 rounded border border-slate-100">\` for URLs or technical IDs.
-3. **Visual Indicators (MANDATORY)**:
-   - Use 🟢 for positive trends, 🔴 for negative trends, ⚠️ for alerts, and 🚀 for opportunities in your analysis text.
+   - Headers: \`font-bold tracking-tight text-slate-900\`.
+   - Body: \`text-slate-600 font-medium leading-relaxed max-w-prose\`.
+   - Data: Use \`<span class="font-mono text-[11px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">\` for technical values.
+3. **Visual Indicators**:
+   - Use color sparingly but effectively (Emerald for growth, Rose for decay, Amber for warning).
+   - Use icons consistently.
 4. **Tables**:
-   - Class: \`w-full text-left border-collapse table-fixed text-[12px] bg-white rounded-xl shadow-sm overflow-hidden\`
-   - Headers: \`bg-slate-50/80 border-b border-slate-100 text-[10px] uppercase tracking-widest font-bold text-slate-400 py-3 px-4\`
-   - Cells: \`border-b border-slate-50 py-3 px-4 truncate font-medium\`
-   - Numbers: \`font-mono font-bold text-slate-700\`
-5. **Emphasis (MANDATORY)**:
-   - For POSITIVE growth/wins: Wrap in \`<span class="highlight-positive">...</span>\`.
-   - For NEGATIVE decay/losses: Wrap in \`<span class="highlight-negative">...</span>\`.
-6. **Charts (VITAL)**:
+   - Class: \`w-full text-left border-collapse text-[13px] bg-white rounded-xl border border-slate-100 overflow-hidden\`
+   - Headers: \`bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-wider font-bold text-slate-400 py-4 px-6\`
+   - Cells: \`border-b border-slate-50 py-4 px-6 font-medium text-slate-600\`
+   - Last Row: Remove border.
+5. **Charts (VITAL)**:
    - Output charts for any URL or Keyword being analyzed.
-   - HTML: \`<div class="chart-placeholder w-full h-40" data-chart-type="clicks" data-chart-url="EXACT_URL_FROM_DATA"></div>\`
-   - For Cannibalization or Trends, use \`data-chart-type="cannibalization"\` and the *Keyword* as the url.
-
+   - HTML: \`<div class="chart-placeholder w-full h-16" data-chart-type="clicks" data-chart-url="EXACT_KEY_FROM_DATA"></div>\` (Sparkline style)
+   
 --- SECTION SPECIFICS ---
-- **OPORTUNIDADES_CONTENIDO_CLUSTERS**: Use a card-based grid (3 cols). Cards should have a subtle border and shadow.
+- **OPORTUNIDADES_CONTENIDO_CLUSTERS**: Use a card-based grid (3 cols). Cards should be flat with a subtle border: \`border border-slate-200 rounded-xl p-6 hover:border-indigo-200 transition\`.
 - **ALERTA_CANIBALIZACION**: Must include a chart for every major keyword conflict.
-- **ANALISIS_ESTRATEGICO**: Focus on "Matriz de Ataque/Defensa". Bold headers, lists with icons.
-- **ANALISIS_ESTRATEGICO**: Focus on "Matriz de Ataque/Defensa". Bold headers, lists with icons.
-- **ANALISIS_IMPACTO_TAREAS**: Show a before/after comparison with high visual emphasis on the \`clicksChange\`.
-- **ANALISIS_TRAFICO_IA**: Show a breakdown of AI sources (ChatGPT, Copilot, etc.) and a chart of daily sessions. Use \`data-chart-type="ai-trend"\` and \`data-chart-url="ai-sessions"\`.
+- **ANALISIS_ESTRATEGICO**: Focus on "Matriz de Ataque/Defensa". Bold headers, clean lists.
+- **ANALISIS_IMPACTO_TAREAS**: Show a before/after comparison.
+- **ANALISIS_TRAFICO_IA**: Breakdown of AI sources.
+- **ANALISIS_CONTENIDOS**: 
+  - **Dashboard**: A clean grid of 4 stats (Total Clicks, Imp, etc.).
+  - **Table**: Include a dedicated column for the Sparkline Chart.
 
 Output RAW HTML only. Avoid any Markdown. All content in professional Spanish.`;
+
+// 3. Achievements Mode Prompt (Celebratory Tone)
+const SYSTEM_PROMPT_ACHIEVEMENTS = `You are a "Chief Success Officer". Your job is to create a "Hall of Fame" report derived from SEO data.
+OBJECTIVE: Highlight WINS, GROWTH, and RESILIENCE. Ignore minor drops unless they are catastrophic.
+TONE: Celebratory, motivational, energetic. Use emojis like 🏆, 🚀, 🌟, 💪.
+
+--- DESIGN SYSTEM: "Victory Mode" ---
+1. **Layout**: Use cards and prominent headers.
+2. **Typography**: Use optimistic language. Instead of "Traffic fell", say "Opportunity for recovery detected".
+3. **Visuals**:
+   - Winners: Use <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-900 font-bold">🏆 [Winner Content]</div>
+   - Charts: VITAL. Comparison charts showing growth (P2 > P1) should be highlighted.
+4. **Content Rules**:
+   - Focus on Top Winners.
+   - For "ANALISIS_ESTRATEGICO", focus on "Defend" (Retaining Wins) and "Attack" (New Wins).
+   - "ANALISIS_IMPACTO_TAREAS": Focus on tasks that brought positive ROI.
+
+Output RAW HTML only.`;
+
+// 4. Final Refiner: The "Editor in Chief" (FROM INFORMES SEO)
 
 // 3. Final Refiner: The "Editor in Chief" (FROM INFORMES SEO)
 const SYSTEM_PROMPT_REFINER = `You are the Editor in Chief. 
@@ -208,7 +228,8 @@ export const generateReportSection = async (
     payload: ReportPayload & { taskImpactDetails?: any[] },
     model: string,
     apiKeys: string[],
-    caseCount?: number
+    caseCount?: number,
+    mode: UsageMode = 'default'
 ): Promise<string> => {
 
     // Exclude taskImpactDetails from the main data payload to avoid duplication/overhead
@@ -240,13 +261,13 @@ export const generateReportSection = async (
         ANALYSIS GOAL: Evaluate the performance of a specific group of content (Monthly Calendar or Selected Articles).
         CONTENT DATA: ${JSON.stringify((payload as any).contentAnalysisData)}
         INSTRUCTIONS:
-        1. Present a Summary Table of the content group performance.
-        2. For each Valid URL in the group:
-           - Display Title/URL.
-           - Show key metrics (Clicks, Imp, Pos).
-           - Plot activity chart using data-chart-url="URL".
-           - Analyze why it performed well or poorly.
-        3. Identify Common Patterns (e.g. Type of content that works best).
+        1. **Content Dashboard**: Create a <div class="grid grid-cols-4 gap-4 mb-8"> with the 4 key metrics from 'overview' (Total Clicks, Total Imp, Avg Pos, Count). Use large bold numbers.
+        2. **Detailed Table**: Create a table with these columns:
+           - **Content**: Title and URL (Target Key in subtext).
+           - **Metrics**: Clicks, Imp, Pos.
+           - **Trend**: A Sparkline Chart Column! Insert <div class="chart-placeholder w-32 h-10" data-chart-type="clicks" data-chart-url="URL"></div> here.
+           - **Analysis**: Brief insight.
+        3. Identify specific wins/losses.
         `;
     }
 
@@ -283,7 +304,8 @@ export const generateReportSection = async (
             apiKeys,
             model,
             prompt,
-            { systemInstruction: SYSTEM_PROMPT_SECTION_WRITER }
+            prompt,
+            { systemInstruction: mode === 'achievements' ? SYSTEM_PROMPT_ACHIEVEMENTS : SYSTEM_PROMPT_SECTION_WRITER }
         );
         let html = response.text || "";
         html = html.replace(/```html /g, '').replace(/```/g, '').trim();

@@ -1,4 +1,6 @@
 
+export type UsageMode = 'default' | 'pitch' | 'achievements';
+
 export interface CSVRow {
     date: Date;
     clicks: number;

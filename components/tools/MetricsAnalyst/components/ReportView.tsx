@@ -6,6 +6,8 @@ import { Dashboard } from './Dashboard';
 import { ProjectSelector } from '../../../shared/ProjectSelector';
 import { ConcentrationPanel } from './ConcentrationPanel';
 import { createPortal } from 'react-dom';
+import { UsageMode } from '../types';
+import { PitchDeck } from './PitchDeck';
 
 interface ReportViewProps {
     htmlContent: string;
@@ -32,6 +34,7 @@ interface ReportViewProps {
     onSelectProject?: (id: string) => void;
     onDateRangeChange?: (range: string) => void;
     onShare?: () => void;
+    mode?: UsageMode;
 }
 
 const EditorIconButton = ({ icon, onClick, label, bold, italic, underline }: any) => (
@@ -64,12 +67,54 @@ export const ReportView: React.FC<ReportViewProps> = ({
     selectedProjectId,
     onSelectProject,
     onDateRangeChange,
-    onShare
+    onShare,
+    mode = 'default'
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const chartsRef = useRef<Chart[]>([]);
     const [userFeedback, setUserFeedback] = React.useState("");
     const [toolbarState, setToolbarState] = React.useState({ show: false, top: 0, left: 0 });
+
+    // Pitch Mode State
+    const [pitchItems, setPitchItems] = React.useState<{ type: string; url: string; title?: string }[]>([]);
+
+    useEffect(() => {
+        if (mode === 'pitch' && htmlContent) {
+            // Extract chart placeholders from HTML
+            const div = document.createElement('div');
+            div.innerHTML = htmlContent;
+            const placeholders = div.querySelectorAll('.chart-placeholder');
+            const items: any[] = [];
+
+            placeholders.forEach((el) => {
+                const element = el as HTMLElement;
+                // Try to find a previous H2 or H3 for title
+                let title = "";
+                let prev = element.previousElementSibling;
+                while (prev) {
+                    if (prev.tagName === 'H2' || prev.tagName === 'H3') {
+                        title = prev.textContent || "";
+                        break;
+                    }
+                    prev = prev.previousElementSibling;
+                }
+
+                items.push({
+                    type: element.dataset.chartType || 'clicks',
+                    url: element.dataset.chartUrl || '',
+                    title: title
+                });
+            });
+
+            // If no items found but we have chart data, maybe add top winners/losers automatically?
+            // For now, let's respect the AI's selection.
+            setPitchItems(items);
+        }
+    }, [mode, htmlContent]);
+
+    if (mode === 'pitch' && pitchItems.length > 0) {
+        return <PitchDeck chartItems={pitchItems} chartData={chartData} onClose={() => window.location.reload()} />;
+    }
 
     // Handle Floating Toolbar
     useEffect(() => {
@@ -143,53 +188,62 @@ export const ReportView: React.FC<ReportViewProps> = ({
     }, [htmlContent, chartData]);
 
     const renderSparkline = (ctx: CanvasRenderingContext2D, data: ComparisonItem) => {
-        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-        gradient.addColorStop(0, 'rgba(79, 70, 229, 0.2)'); // Indigo
+        const gradient = ctx.createLinearGradient(0, 0, 0, 100);
+        gradient.addColorStop(0, 'rgba(79, 70, 229, 0.1)'); // Very subtle indigo
         gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
+
+        // Decide color based on trend
+        const isPositive = data.clicksChange >= 0;
+        const color = isPositive ? '#10b981' : '#f43f5e'; // Emerald vs Rose
 
         chartsRef.current.push(new Chart(ctx, {
             type: 'line',
             data: {
                 labels: data.dailySeriesClicksP2.map((_, i) => i),
                 datasets: [{
-                    label: 'Clics (Periodo 2)',
+                    label: 'Clics',
                     data: data.dailySeriesClicksP2,
-                    borderColor: '#4F46E5',
-                    borderWidth: 2,
+                    borderColor: color,
+                    borderWidth: 1.5,
                     backgroundColor: gradient,
                     fill: true,
                     pointRadius: 0,
-                    pointHoverRadius: 4,
-                    tension: 0.1 // Slight curve for aesthetics
+                    pointHoverRadius: 0,
+                    tension: 0.3
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { enabled: true, intersect: false, mode: 'index' } },
-                scales: { x: { display: false }, y: { display: false, min: 0 } },
-                layout: { padding: 4 }
+                animation: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, min: 0 }
+                },
+                layout: { padding: 0 }
             }
         }));
     };
 
     const renderCannibalizationChart = (ctx: CanvasRenderingContext2D, data: CannibalizationChartData) => {
-        const colors = ['#4F46E5', '#0EA5E9', '#8B5CF6', '#F43F5E'];
+        const colors = ['#0f172a', '#64748b', '#94a3b8', '#cbd5e1'];
 
         const datasets = data.urls.map((u, i) => ({
-            label: u.url.replace('https://', '').substring(0, 25) + (u.url.length > 25 ? '...' : ''),
+            label: u.url.replace('https://', '').substring(0, 30) + (u.url.length > 30 ? '...' : ''),
             data: u.dailyPositions,
             borderColor: colors[i % colors.length],
             borderWidth: 2,
-            pointRadius: 2,
-            tension: 0.2, // Smoother
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            tension: 0.3,
             fill: false
         }));
 
         chartsRef.current.push(new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.dates.map(d => new Date(d).getDate()), // Simplify dates
+                labels: data.dates.map(d => new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })),
                 datasets: datasets
             },
             options: {
@@ -199,15 +253,18 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 plugins: {
                     legend: {
                         position: 'bottom',
-                        labels: { boxWidth: 8, font: { size: 10, family: 'Inter' }, usePointStyle: true, padding: 15 }
+                        align: 'start',
+                        labels: { boxWidth: 6, font: { size: 10, family: 'Inter' }, usePointStyle: true, padding: 20 }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        titleColor: '#1e293b',
-                        bodyColor: '#475569',
+                        backgroundColor: '#ffffff',
+                        titleColor: '#0f172a',
+                        bodyColor: '#64748b',
                         borderColor: '#e2e8f0',
                         borderWidth: 1,
-                        padding: 10,
+                        padding: 12,
+                        titleFont: { size: 11, weight: 'bold' },
+                        bodyFont: { size: 11 },
                         callbacks: {
                             label: function (context) {
                                 return `${context.dataset.label}: Pos ${context.parsed.y.toFixed(1)}`;
@@ -216,13 +273,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     }
                 },
                 scales: {
-                    x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } },
+                    x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#94a3b8', maxTicksLimit: 6 } },
                     y: {
                         reverse: true, // SEO Rank style
                         min: 1,
                         max: 20,
-                        grid: { color: '#f1f5f9', borderDash: [4, 4] },
-                        ticks: { font: { size: 10 }, stepSize: 5, color: '#94a3b8' }
+                        grid: { color: '#f1f5f9' },
+                        ticks: { font: { size: 9 }, stepSize: 5, color: '#94a3b8' }
                     }
                 }
             }
@@ -231,7 +288,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
     const renderAiTrendChart = (ctx: CanvasRenderingContext2D, data: { dates: string[], sessions: number[] }) => {
         const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.2)'); // Emerald
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.1)'); // Emerald
         gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
 
         chartsRef.current.push(new Chart(ctx, {
@@ -244,12 +301,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 datasets: [{
                     label: 'Sesiones IA',
                     data: data.sessions,
-                    borderColor: '#10B981', // Emerald 500
+                    borderColor: '#10B981',
                     borderWidth: 2,
                     backgroundColor: gradient,
                     fill: true,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
                     tension: 0.3
                 }]
             },
@@ -258,15 +315,15 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
                 scales: {
-                    x: { ticks: { font: { size: 10 }, maxTicksLimit: 10 } },
-                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } }
+                    x: { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 10 } },
+                    y: { beginAtZero: true, grid: { color: '#f8fafc' }, ticks: { font: { size: 10 } } }
                 }
             }
         }));
     };
 
     return (
-        <div className="max-w-[1600px] mx-auto py-8 px-4 sm:px-6 lg:px-8 print:px-0 bg-slate-50/50 min-h-screen">
+        <div className="max-w-[1200px] mx-auto py-12 px-6 sm:px-8 bg-gray-50 min-h-screen">
             {/* Header / Save Bar */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 print:hidden gap-4">
                 <button

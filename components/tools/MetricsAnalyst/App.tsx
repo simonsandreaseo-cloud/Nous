@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CSVRow, ReportPayload, ChartData, LogEntry, FileType, SectionConfig, TaskImpactConfig, ContentAnalysisConfig } from './types';
+import { CSVRow, ReportPayload, ChartData, LogEntry, FileType, SectionConfig, TaskImpactConfig, ContentAnalysisConfig, UsageMode } from './types';
 import { parseCSV } from './services/csvService';
 import { runFullLocalAnalysis } from './services/analysisService';
 import { getRelevantSections, generateReportSection, generateFinalRefinement } from './services/geminiService';
@@ -11,8 +11,9 @@ import { LiveConsole } from './components/LiveConsole';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { ModeSelector } from './components/ModeSelector';
-import { GSCConnectPanel } from './components/GSCConnectPanel';
+import { DataConnectPanel } from './components/DataConnectPanel';
 import { GscService } from './services/gscService';
+import { Ga4Service } from './services/ga4Service';
 import { SectionSelector } from './components/SectionSelector';
 import { useAutoSave } from '@/lib/useAutoSave';
 import HistoryModal from '@/components/shared/HistoryModal';
@@ -31,6 +32,7 @@ const AVAILABLE_MODELS = [
 const App: React.FC = () => {
     // ... State declarations remain same ...
     const [step, setStep] = useState<number>(1);
+    const [usageMode, setUsageMode] = useState<UsageMode>('default');
     const [analysisMode, setAnalysisMode] = useState<'csv' | 'gsc'>('csv');
     const [searchParams] = useSearchParams();
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -44,6 +46,10 @@ const App: React.FC = () => {
 
     // GSC State (Connect Mode)
     const [gscLoading, setGscLoading] = useState(false);
+
+    // GA4 State
+    const [ga4Data, setGa4Data] = useState<any[]>([]);
+    const [selectedGa4Property, setSelectedGa4Property] = useState<string | null>(null);
 
     // Config State
     const [userContext, setUserContext] = useState<string>("");
@@ -155,6 +161,7 @@ const App: React.FC = () => {
                     } as any);
                     // P2Name might be stored in report_data.date_range
                     if (data.report_data.date_range) setP2Name(data.report_data.date_range);
+                    if (data.report_data.mode) setUsageMode(data.report_data.mode);
                 }
                 setStep(3); // Go straight to report view
             }
@@ -220,27 +227,54 @@ const App: React.FC = () => {
 
     const getApiKeys = () => apiKeysInput.split('\n').map(k => k.trim()).filter(k => k.length > 10);
 
-    const handleGSCAnalyze = async (siteUrl: string, startP1: string, endP1: string, startP2: string, endP2: string) => {
-        if (!session?.provider_token) return alert("Error de sesión GSC.");
+    const handleDataAnalyze = async (siteUrl: string, ga4PropertyId: string | null, startP1: string, endP1: string, startP2: string, endP2: string) => {
+        if (!session?.provider_token) return alert("Error de sesión Google.");
         setGscLoading(true);
         try {
             addLog("📥 Descargando datos de Search Console...", "info");
             const token = session.provider_token;
             const fetchDim = (s: string, e: string, dims: string[]) => GscService.getSearchAnalytics(siteUrl, s, e, dims);
 
-            addLog(`⏳ Obteniendo periodos...`);
+            addLog(`⏳ Obteniendo periodos GSC...`);
             const [p1Pages, p1Queries, p1Countries, p2Pages, p2Queries, p2Countries] = await Promise.all([
                 fetchDim(startP1, endP1, ['date', 'page']),
-                fetchDim(startP1, endP1, ['date', 'query', 'page']), // Restored 'page' as per user requirement for association
+                fetchDim(startP1, endP1, ['date', 'query', 'page']),
                 fetchDim(startP1, endP1, ['date', 'country']),
                 fetchDim(startP2, endP2, ['date', 'page']),
-                fetchDim(startP2, endP2, ['date', 'query', 'page']), // Restored 'page'
+                fetchDim(startP2, endP2, ['date', 'query', 'page']),
                 fetchDim(startP2, endP2, ['date', 'country'])
             ]);
 
             setPagesData([...p1Pages, ...p2Pages]);
             setQueriesData([...p1Queries, ...p2Queries]);
             setCountriesData([...p1Countries, ...p2Countries]);
+
+            // GA4 Fetching
+            if (ga4PropertyId) {
+                addLog(`📊 Detectada propiedad GA4: ${ga4PropertyId}. Descargando sesiones...`);
+                try {
+                    // Fetch entire range (P1 + P2)
+                    // P1 range: startP1 to endP1
+                    // P2 range: startP2 to endP2
+                    // We can just fetch two batches or one big batch. Let's fetch two for comparisons.
+                    // Actually, let's just fetch P2 for "Current AI Traffic" analysis as a priority, 
+                    // and P1 for comparison if needed later.
+
+                    const ga4P2 = await Ga4Service.getAiSessionDataByDate(ga4PropertyId, startP2, endP2);
+                    const ga4P1 = await Ga4Service.getAiSessionDataByDate(ga4PropertyId, startP1, endP1);
+
+                    setGa4Data([...ga4P1, ...ga4P2]);
+                    setSelectedGa4Property(ga4PropertyId);
+                    addLog(`✅ Datos GA4 descargados (${ga4P2.length + ga4P1.length} filas).`);
+                } catch (ga4Err: any) {
+                    console.error("GA4 Error", ga4Err);
+                    addLog(`⚠️ Error descargando GA4 (continuando sin ello): ${ga4Err.message}`, 'warn');
+                }
+            } else {
+                addLog("ℹ️ No se seleccionó propiedad GA4 (análisis de tráfico AI limitado).");
+                setGa4Data([]);
+                setSelectedGa4Property(null);
+            }
 
             const fmt = (d: string) => new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
             setP1Name(startP1 === endP1 ? fmt(startP1) : `${fmt(startP1)} - ${fmt(endP1)}`);
@@ -266,7 +300,7 @@ const App: React.FC = () => {
 
         try {
             addLog(`🔑 Se han cargado ${keys.length} API Keys.`);
-            dataManager.current.initialize(pagesData, queriesData, countriesData);
+            dataManager.current.initialize(pagesData, queriesData, countriesData, ga4Data);
 
             const uniqueTimestamps = Array.from<number>(new Set(pagesData.map(r => r.date.getTime()))).sort((a, b) => a - b);
             if (uniqueTimestamps.length < 1) throw new Error("Dataset insuficiente.");
@@ -278,6 +312,31 @@ const App: React.FC = () => {
             const pagesSplit = splitData(pagesData);
             const queriesSplit = splitData(queriesData);
             const countriesSplit = splitData(countriesData);
+
+            // GA4 Split Logic
+            let ga4Split = { p1: [] as any[], p2: [] as any[] };
+            if (ga4Data && ga4Data.length > 0) {
+                ga4Split = {
+                    p1: ga4Data.filter(r => {
+                        const dStr = r.date; // YYYYMMDD
+                        // Parse YYYYMMDD to timestamp
+                        const year = parseInt(dStr.substring(0, 4));
+                        const month = parseInt(dStr.substring(4, 6)) - 1;
+                        const day = parseInt(dStr.substring(6, 8));
+                        const ts = new Date(year, month, day).getTime();
+                        return ts < cutoffTime;
+                    }),
+                    p2: ga4Data.filter(r => {
+                        const dStr = r.date;
+                        const year = parseInt(dStr.substring(0, 4));
+                        const month = parseInt(dStr.substring(4, 6)) - 1;
+                        const day = parseInt(dStr.substring(6, 8));
+                        const ts = new Date(year, month, day).getTime();
+                        return ts >= cutoffTime;
+                    })
+                };
+                addLog(`📊 Datos GA4 distribuidos: P1 (${ga4Split.p1.length}) vs P2 (${ga4Split.p2.length})`);
+            }
 
             if (analysisMode === 'csv') {
                 const fmt = (ts: number) => new Date(ts).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
@@ -293,7 +352,16 @@ const App: React.FC = () => {
             setProgressPercent(30);
 
             const { reportPayload: payload, chartData: cData } = runFullLocalAnalysis(
-                { pagesP1: pagesSplit.p1, pagesP2: pagesSplit.p2, queriesP1: queriesSplit.p1, queriesP2: queriesSplit.p2, countriesP1: countriesSplit.p1, countriesP2: countriesSplit.p2 },
+                {
+                    pagesP1: pagesSplit.p1,
+                    pagesP2: pagesSplit.p2,
+                    queriesP1: queriesSplit.p1,
+                    queriesP2: queriesSplit.p2,
+                    countriesP1: countriesSplit.p1,
+                    countriesP2: countriesSplit.p2,
+                    ga4DataP1: ga4Split.p1,
+                    ga4DataP2: ga4Split.p2
+                },
                 p1Name, p2Name, activeContext, (msg) => addLog(msg)
             );
             if (agentFindings) payload.agentInvestigation = agentFindings;
@@ -357,7 +425,7 @@ const App: React.FC = () => {
                     // Rate Limit Prevention: Wait 3 seconds between sections
                     await new Promise(resolve => setTimeout(resolve, 3000));
 
-                    const sectionHTML = await generateReportSection(section.id, reportPayload, model, keys, section.caseCount);
+                    const sectionHTML = await generateReportSection(section.id, reportPayload, model, keys, section.caseCount, usageMode);
                     accumulatedBodyHTML += sectionHTML;
                 } catch (secErr) {
                     console.error(`Error generando sección ${section.id}`, secErr);
@@ -444,7 +512,29 @@ const App: React.FC = () => {
                             };
                         }).filter(Boolean);
 
-                        const contentPayload = { ...reportPayload, contentAnalysisData };
+                        // Calculate Aggregates for the Dashboard
+                        const overview = contentAnalysisData.reduce((acc: any, item: any) => {
+                            if (item.metrics !== 'Low Visibility / No Data') {
+                                acc.clicks += item.metrics.clicks;
+                                acc.impressions += item.metrics.impressions;
+                                acc.posSum += item.metrics.position;
+                                acc.count++;
+                            }
+                            return acc;
+                        }, { clicks: 0, impressions: 0, posSum: 0, count: 0 });
+
+                        const contentPayload = {
+                            ...reportPayload,
+                            contentAnalysisData: {
+                                items: contentAnalysisData,
+                                overview: {
+                                    totalClicks: overview.clicks,
+                                    totalImpressions: overview.impressions,
+                                    avgPosition: overview.count > 0 ? overview.posSum / overview.count : 0,
+                                    contentCount: overview.count
+                                }
+                            }
+                        };
                         const contentHTML = await generateReportSection('ANALISIS_CONTENIDOS', contentPayload as any, model, keys);
                         accumulatedBodyHTML += contentHTML;
                     } else {
@@ -484,40 +574,66 @@ const App: React.FC = () => {
         handleAnalysis(newContext);
     };
 
-    const handleSaveCloud = async (overrideHTML?: string) => {
-        if (!user) return alert("Inicia sesión para guardar.");
+    const handleSaveCloud = async (overrideHTML?: string): Promise<number | null> => {
+        // ALLOW SAVE IF USER IS LOGGED IN OR IF WE ARE EDITING AN EXISTING REPORT (ANONYMOUS EDIT)
+        if (!user && !savedReportId) {
+            alert("Inicia sesión para crear un nuevo reporte.");
+            return null;
+        }
+
         setIsSaving(true);
         try {
             const reportData: any = {
-                user_id: user.id,
                 domain: reportPayload?.projectName || "Reporte SEO",
                 report_data: {
                     html: overrideHTML || reportHTML,
                     stats: reportPayload?.dashboardStats,
                     summary: "Resumen",
-                    date_range: p2Name
+                    date_range: p2Name,
+                    mode: usageMode
                 },
                 project_id: selectedProjectId ? parseInt(selectedProjectId) : null
             };
 
-            if (savedReportId) {
+            // Only attach user_id if authenticated. 
+            // If anonymous (editing shared report), we don't touch user_id.
+            if (user) {
+                reportData.user_id = user.id;
+            }
+
+            let currentId = savedReportId;
+
+            if (currentId) {
                 // Update existing
-                const { error } = await supabase.from('seo_reports').update(reportData).eq('id', savedReportId);
+                const { error } = await supabase.from('seo_reports').update(reportData).eq('id', currentId);
                 if (error) throw error;
             } else {
-                // Insert new
+                // Insert new - Only authenticated users reach here
                 reportData.created_at = new Date().toISOString();
                 const { data, error } = await supabase.from('seo_reports').insert([reportData]).select().single();
                 if (error) throw error;
-                if (data) setSavedReportId(data.id);
+                if (data) {
+                    setSavedReportId(data.id);
+                    currentId = data.id;
+                }
             }
 
             setHasSaved(true);
-            alert("¡Informe guardado!");
+            return currentId;
         } catch (e: any) {
             alert("Error: " + e.message);
+            return null;
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleShareClick = async () => {
+        if (!savedReportId) {
+            const id = await handleSaveCloud();
+            if (id) setShowShareModal(true);
+        } else {
+            setShowShareModal(true);
         }
     };
 
@@ -596,7 +712,7 @@ const App: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            <GSCConnectPanel onAnalyze={handleGSCAnalyze} isLoading={gscLoading} initialSiteUrl={searchParams.get('url') || undefined} />
+                            <DataConnectPanel onAnalyze={handleDataAnalyze} isLoading={gscLoading} initialSiteUrl={searchParams.get('url') || undefined} />
                         )}
                     </div>
                 </div>
@@ -616,6 +732,29 @@ const App: React.FC = () => {
                         <h2 className="text-4xl font-black text-slate-900 mb-8 tracking-tight">Anatomy of Analysis</h2>
 
                         <div className="space-y-8 flex-1 overflow-y-auto pr-4 custom-scrollbar">
+
+                            <div className="space-y-3">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                    Modo de Operación
+                                </label>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {[
+                                        { id: 'default', label: 'Oportunidades SEO', icon: '🚀', desc: 'Análisis IA + Gráficos' },
+                                        { id: 'pitch', label: 'Pitch de Gráficos', icon: '📈', desc: 'Solo Visual. Carrusel.' },
+                                        { id: 'achievements', label: 'Logros y Resultados', icon: '🏆', desc: 'Enfoque en Hazañas' }
+                                    ].map((m) => (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => setUsageMode(m.id as UsageMode)}
+                                            className={`p-4 rounded-xl border text-left transition-all ${usageMode === m.id ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
+                                        >
+                                            <div className="text-xl mb-1">{m.icon}</div>
+                                            <div className={`font-bold text-sm ${usageMode === m.id ? 'text-indigo-900' : 'text-slate-700'}`}>{m.label}</div>
+                                            <div className="text-[10px] text-slate-500 leading-tight mt-1">{m.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <ConfigField label="Motor de Inteligencia Artificial" icon="🤖">
                                 <select value={model} onChange={(e) => setModel(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 outline-none text-sm font-bold text-slate-800 transition-all appearance-none">
                                     {AVAILABLE_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -629,6 +768,16 @@ const App: React.FC = () => {
                             <ConfigField label="API Keys Rotativas" icon="🔑">
                                 <textarea rows={2} value={apiKeysInput} onChange={(e) => setApiKeysInput(e.target.value)} placeholder="Clave 1..." className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 outline-none text-[10px] font-mono text-slate-500 transition-all" />
                             </ConfigField>
+
+                            {selectedGa4Property && (
+                                <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-lg">📊</div>
+                                    <div>
+                                        <div className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">GA4 Conectado</div>
+                                        <div className="text-xs font-bold text-slate-700">{ga4Data.length > 0 ? `${ga4Data.length} registros de tráfico` : 'Esperando análisis...'}</div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <button onClick={() => handleAnalysis()} className="w-full mt-10 bg-indigo-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 hover:-translate-y-1 active:scale-[0.98]">
@@ -694,6 +843,7 @@ const App: React.FC = () => {
                     chartData={chartData!}
                     p1Name={p1Name}
                     p2Name={p2Name}
+                    mode={usageMode}
                     onRegenerate={handleRegenerate}
                     isRegenerating={isAnalyzing}
                     dashboardStats={chartData?.dashboardStats}
@@ -713,7 +863,7 @@ const App: React.FC = () => {
                         // In the future, this could trigger a re-fetching of GSC data for those ranges
                         // and re-running the analysis automatically.
                     }}
-                    onShare={() => setShowShareModal(true)}
+                    onShare={handleShareClick}
                 />
             )}
 

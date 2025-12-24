@@ -8,12 +8,14 @@ export class DataManager {
     private pages: CSVRow[] = [];
     private queries: CSVRow[] = [];
     private countries: CSVRow[] = [];
+    private ga4Sessions: any[] = []; // New Store for GA4
 
     // optimized Indices (O(1) Access)
     // 1. Time-based Indices
     private pagesByDate: Map<DateString, CSVRow[]> = new Map();
     private queriesByDate: Map<DateString, CSVRow[]> = new Map();
     private countriesByDate: Map<DateString, CSVRow[]> = new Map();
+    // No specific index for GA4 yet, simple date filtering usually enough for now
 
     // 2. Entity-based Indices
     private pagesByUrl: Map<EntityKey, CSVRow[]> = new Map();
@@ -30,12 +32,13 @@ export class DataManager {
      * Main entry point to ingest and index data.
      * This turns flat CSV arrays into an optimized Graph-like structure.
      */
-    public initialize(pages: CSVRow[], queries: CSVRow[], countries: CSVRow[]) {
+    public initialize(pages: CSVRow[], queries: CSVRow[], countries: CSVRow[], ga4Data: any[] = []) {
         this.reset();
 
         this.pages = pages;
         this.queries = queries;
         this.countries = countries;
+        this.ga4Sessions = ga4Data;
 
         this.buildIndices(this.pages, this.pagesByDate, this.pagesByUrl, 'page');
         this.buildIndices(this.queries, this.queriesByDate, this.queriesByKeyword, 'keyword');
