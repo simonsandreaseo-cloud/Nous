@@ -293,88 +293,75 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
                 siteUrl += '/';
             }
 
-            // Fetch Data (Date dimension required for charts)
-            const [pageRows, queryRows] = await Promise.all([
+            // Fetch Data (Separated for Accuracy)
+            // 1. Totals (Faithful numbers for Tables)
+            // 2. Daily (For Sparklines - approximate)
+            const [pageTotals, pageDaily, queryTotals, queryDaily] = await Promise.all([
+                GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['page'], filter),
                 GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['page', 'date'], filter),
+                GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query'], filter),
                 GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query', 'date'], filter),
             ]);
 
-            // Note: We removed 'Previous Month' comparison because we are looking at Lifetime of this cohort.
-            // Comparison against "Previous Month" for a different set of URLs (or same) is confusing here.
-
-            // Process Pages
+            // Process Pages (Source of truth: pageTotals)
             const pagesMap = new Map();
-            pageRows.forEach((r: any) => {
+            pageTotals.forEach((r: any) => {
+                const url = r.keys[0];
+                pagesMap.set(url, {
+                    url,
+                    clicks: r.clicks,
+                    impressions: r.impressions,
+                    position: r.position,
+                    count: 1, // Not used for avg anymore since we get direct avg from GSC
+                    timeline: new Array(end.getDate()).fill(0), // Initialize
+                    keywordCount: 0,
+                    changeClicks: 0,
+                    changeImpressions: 0,
+                    changePosition: 0
+                });
+            });
+
+            // Fill Timeline from Daily
+            pageDaily.forEach((r: any) => {
                 const url = r.keys[0];
                 const date = r.keys[1];
-                if (!pagesMap.has(url)) pagesMap.set(url, {
-                    url, clicks: 0, impressions: 0, positionSum: 0, count: 0,
-                    timeline: [], // Simplified
-                    keywordCount: 0
-                });
-                const entry = pagesMap.get(url);
-                entry.clicks += r.clicks;
-                entry.impressions += r.impressions;
-                entry.positionSum += r.position;
-                entry.count += 1;
-                // Timeline: We will just push values, or map to relative days?
-                // Simplest for sparkline: just array of clicks.
-                // But sparkline needs order.
-                // We'll sort rows by date later or ensure GSC returns sorted? GSC returns arbitrary order usually?
-                // Actually we just map a dense array if we want specific X axis.
-                // For simplicity: Store date-value pairs and fill later?
-                // Re-using exiting logic:
-                // We don't have a fixed 'end.getDate()' size anymore since it's variable (today).
-                // Let's just push (date, click) and sort timeline at render?
-                // Existing SparkLine takes number[].
-                // Let's re-map to a standard Array of size 30? Or Size (Today - Start)?
-                // Let's keep timeline empty or simple for now to avoid complexity in this step.
+                if (pagesMap.has(url)) {
+                    const entry = pagesMap.get(url);
+                    const day = new Date(date).getDate() - 1;
+                    if (day >= 0 && day < entry.timeline.length) entry.timeline[day] = r.clicks;
+                }
             });
 
-            // Process Queries
+            const urlMetrics = Array.from(pagesMap.values()).sort((a, b) => b.clicks - a.clicks);
+
+            // Process Queries (Source of truth: queryTotals)
             const queriesMap = new Map();
-            queryRows.forEach((r: any) => {
+            queryTotals.forEach((r: any) => {
+                const term = r.keys[0];
+                queriesMap.set(term, {
+                    term,
+                    clicks: r.clicks,
+                    impressions: r.impressions,
+                    position: r.position,
+                    timeline: new Array(end.getDate()).fill(0),
+                    changeClicks: 0,
+                    changeImpressions: 0,
+                    changePosition: 0
+                });
+            });
+
+            // Fill Query Timeline
+            queryDaily.forEach((r: any) => {
                 const term = r.keys[0];
                 const date = r.keys[1];
-                if (!queriesMap.has(term)) queriesMap.set(term, {
-                    term, clicks: 0, impressions: 0, positionSum: 0, count: 0,
-                    timeline: new Array(end.getDate()).fill(0)
-                });
-                const entry = queriesMap.get(term);
-                entry.clicks += r.clicks;
-                entry.impressions += r.impressions;
-                entry.positionSum += r.position;
-                entry.count += 1;
-                const day = new Date(date).getDate() - 1;
-                if (day >= 0 && day < entry.timeline.length) entry.timeline[day] = r.clicks;
+                if (queriesMap.has(term)) {
+                    const entry = queriesMap.get(term);
+                    const day = new Date(date).getDate() - 1;
+                    if (day >= 0 && day < entry.timeline.length) entry.timeline[day] = r.clicks;
+                }
             });
 
-            // Calculate deltas
-            // Helper to find prev metrics
-            const getPrev = (arr: any[], keyIndex: number, keyVal: string) => {
-                const found = arr.find(x => x.keys[keyIndex] === keyVal);
-                return found || { clicks: 0, impressions: 0, position: 0 };
-            };
-
-            const urlMetrics = Array.from(pagesMap.values()).map(p => {
-                return {
-                    ...p,
-                    position: p.positionSum / p.count,
-                    changeClicks: 0,
-                    changeImpressions: 0,
-                    changePosition: 0
-                };
-            }).sort((a, b) => b.clicks - a.clicks);
-
-            const keywordMetrics = Array.from(queriesMap.values()).map(q => {
-                return {
-                    ...q,
-                    position: q.positionSum / q.count,
-                    changeClicks: 0,
-                    changeImpressions: 0,
-                    changePosition: 0
-                };
-            }).sort((a, b) => b.clicks - a.clicks);
+            const keywordMetrics = Array.from(queriesMap.values()).sort((a, b) => b.clicks - a.clicks);
 
             setData({ urlMetrics, keywordMetrics, timeline: [] });
 
@@ -418,12 +405,12 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
                 siteUrl += '/';
             }
 
-            // Fetch Current Month: Keywords for this Page
-            const [qRowsDate, qRowsTotals] = await Promise.all([
+            // Fetch Current Month: Keywords for this Page - Split for Accuracy
+            const [qRowsTotals, qRowsDate] = await Promise.all([
+                // Totals for metrics (Faithful)
+                GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query'], { page: url, operator: 'equals' }),
                 // Date breakdown for sparklines
                 GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query', 'date'], { page: url, operator: 'equals' }),
-                // Totals for metrics
-                GscService.getSearchAnalytics(siteUrl, fmt(start), fmt(end), ['query'], { page: url, operator: 'equals' }),
             ]);
 
             const queriesMap = new Map();
@@ -439,13 +426,13 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
                 });
             });
 
-            // 2. Fill Timeline
+            // 2. Fill Timeline from Daily
             qRowsDate.forEach((r: any) => {
                 const term = r.keys[0];
                 const date = r.keys[1];
-                const day = new Date(date).getDate() - 1;
                 if (queriesMap.has(term)) {
                     const entry = queriesMap.get(term);
+                    const day = new Date(date).getDate() - 1;
                     if (day >= 0 && day < entry.timeline.length) entry.timeline[day] = r.clicks;
                 }
             });
