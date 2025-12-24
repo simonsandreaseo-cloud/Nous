@@ -24,7 +24,7 @@ const TimeTrackerPage: React.FC = () => {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4">
                         <motion.a
-                            href="/Tracker-Portable.zip"
+                            href="/Tracker-Setup.exe"
                             download
                             className="bg-brand-power text-brand-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-brand-accent hover:text-brand-power transition-all group shadow-xl hover:shadow-2xl"
                             whileHover={{ scale: 1.02 }}
@@ -147,7 +147,7 @@ const TimeTrackerPage: React.FC = () => {
                 <div className="inline-flex items-center gap-4 bg-brand-white p-2 rounded-2xl shadow-xl border border-brand-soft">
                     <span className="px-6 py-3 font-bold text-brand-power">v0.1.0 Beta</span>
                     <a
-                        href="/Tracker-Portable.zip"
+                        href="/Tracker-Setup.exe"
                         download
                         className="bg-brand-power text-brand-white px-10 py-4 rounded-xl font-bold hover:bg-brand-accent hover:text-brand-power transition-all shadow-lg block"
                     >

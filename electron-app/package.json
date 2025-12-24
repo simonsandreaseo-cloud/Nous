@@ -10,6 +10,18 @@
     "preview": "vite preview",
     "lint": "eslint ."
   },
+  "build": {
+    "appId": "com.simonsandreaseo.tracker",
+    "productName": "Simon Sandrea Tracker",
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "active-win": "^9.0.0",

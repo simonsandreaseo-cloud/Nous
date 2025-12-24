@@ -59,16 +59,31 @@ export const ProjectService = {
 
         // Single query approach: Fetch projects the user has access to
         // and include their membership info for this project
+        // DEBUG: First try to fetch purely projects to see if RLS on 'projects' works alone
+        const { data: simpleData, error: simpleError } = await supabase
+            .from('projects')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        console.log('[ProjectService] Simple fetch result:', { simpleData, simpleError });
+
+        // Original complex query
         const { data, error } = await supabase
             .from('projects')
             .select(`
                 *,
-                owner_profile:profiles!projects_owner_id_profiles_fkey(full_name, avatar_url, email),
                 members:project_members(role, status, user_id)
             `)
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        // Removed owner_profile for now to rule out Profile RLS issues
+
+        if (error) {
+            console.error('[ProjectService] Complex fetch error:', error);
+            throw error;
+        }
+
+        console.log('[ProjectService] Complex fetch success:', data);
 
         return (data || []).map((p: any) => {
             const isOwner = p.owner_id === user.id;
