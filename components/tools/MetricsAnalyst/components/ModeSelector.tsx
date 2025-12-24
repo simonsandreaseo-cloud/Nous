@@ -32,7 +32,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({ mode, onChange }) =>
                     onClick={() => onChange('gsc')}
                     className={`relative z-10 px-6 py-2 rounded-lg text-sm font-bold transition-colors ${mode === 'gsc' ? 'text-brand-power' : 'text-brand-power/50 hover:text-brand-power/70'}`}
                 >
-                    ⚡ Conectar GSC
+                    ⚡ Conectar Google (GSC + GA4)
                 </button>
             </div>
         </div>

@@ -19,6 +19,7 @@ export const DataConnectPanel: React.FC<DataConnectPanelProps> = ({ onAnalyze, i
     // GA4 State
     const [ga4Properties, setGa4Properties] = useState<{ id: string, name: string }[]>([]);
     const [selectedGa4Property, setSelectedGa4Property] = useState<string>('');
+    const [ga4Error, setGa4Error] = useState<string | null>(null);
 
     // Loading State
     const [loadingResources, setLoadingResources] = useState(false);
@@ -91,6 +92,7 @@ export const DataConnectPanel: React.FC<DataConnectPanelProps> = ({ onAnalyze, i
     };
 
     const loadGa4Properties = async (token: string) => {
+        setGa4Error(null);
         try {
             const summaries = await Ga4Service.getAccountSummaries();
             const flattened: { id: string, name: string }[] = [];
@@ -98,7 +100,6 @@ export const DataConnectPanel: React.FC<DataConnectPanelProps> = ({ onAnalyze, i
             summaries.forEach((account: any) => {
                 if (account.propertySummaries) {
                     account.propertySummaries.forEach((prop: any) => {
-                        // prop.property is like 'properties/123456789'
                         const id = prop.property.split('/')[1];
                         flattened.push({
                             id: id,
@@ -110,8 +111,16 @@ export const DataConnectPanel: React.FC<DataConnectPanelProps> = ({ onAnalyze, i
 
             setGa4Properties(flattened);
             if (flattened.length > 0) setSelectedGa4Property(flattened[0].id);
-        } catch (e) {
-            console.warn("Failed to load GA4 properties. Maybe API not enabled?", e);
+        } catch (e: any) {
+            console.error("GA4 Load Error:", e);
+            // Detect specific errors
+            if (e.message && e.message.includes("403")) {
+                setGa4Error("Permisos insuficientes. Re-sincroniza tu cuenta.");
+            } else if (e.message && e.message.includes("API")) {
+                setGa4Error("API Analytics no habilitada o error de conexión.");
+            } else {
+                setGa4Error("No se pudieron cargar las cuentas.");
+            }
         }
     };
 
@@ -242,8 +251,36 @@ export const DataConnectPanel: React.FC<DataConnectPanelProps> = ({ onAnalyze, i
                             ))}
                         </select>
                     ) : (
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-400 font-medium italic">
-                            No se encontraron propiedades GA4
+                        <div className="relative z-10 py-2">
+                            {ga4Error ? (
+                                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 font-medium mb-3 flex items-center gap-2">
+                                    <span>⚠️</span> {ga4Error}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-slate-500 mb-3 font-medium text-center">
+                                    Conecta GA4 para analizar tráfico de IA.
+                                </p>
+                            )}
+
+                            <button
+                                onClick={() => signInWithGoogle(window.location.href)}
+                                className="w-full mb-4 px-4 py-2 bg-white border border-orange-200 text-orange-600 text-xs font-bold rounded-xl hover:bg-orange-50 hover:border-orange-300 transition-all shadow-sm flex items-center justify-center gap-2 group"
+                            >
+                                <span className="group-hover:scale-110 transition-transform">🔄</span> {ga4Error ? 'Sincronizar Permisos' : 'Sincronizar Cuenta'}
+                            </button>
+
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="text-slate-400 text-xs font-mono">ID:</span>
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Ej: 345678901 (Manual)"
+                                    className="w-full text-xs p-2 pl-9 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-all font-mono text-slate-600"
+                                    onChange={(e) => setSelectedGa4Property(e.target.value)}
+                                    value={selectedGa4Property}
+                                />
+                            </div>
                         </div>
                     )}
                 </div>
