@@ -619,6 +619,32 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                             </button>
                                         </div>
                                     </div>
+
+                                    {/* Content Performance Tracking Section */}
+                                    {project && secondaryUrl && (
+                                        <div className="bg-white rounded-xl p-6 border border-brand-power/5 shadow-sm">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h4 className="font-bold text-brand-power flex items-center gap-2">
+                                                    <Activity size={16} className="text-brand-accent" />
+                                                    Rendimiento de Contenido
+                                                </h4>
+                                                <a
+                                                    href={secondaryUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-[10px] text-brand-power/50 hover:text-brand-power flex items-center gap-1"
+                                                >
+                                                    <ExternalLink size={10} /> Abrir URL
+                                                </a>
+                                            </div>
+                                            <TaskMetricsChart
+                                                project={project}
+                                                task={{ ...task, secondary_url: secondaryUrl, tracking_metrics: true, completed_at: completedAt }}
+                                                metricsConfig={metadata.metricsConfig}
+                                                onConfigChange={(newConfig) => setMetadata({ ...metadata, metricsConfig: newConfig })}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-6">
