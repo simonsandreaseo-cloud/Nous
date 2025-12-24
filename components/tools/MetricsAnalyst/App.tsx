@@ -550,8 +550,18 @@ const App: React.FC = () => {
             addLog(`👓 Redactando Resumen Ejecutivo y Conclusiones...`);
             const refinedSummary = await generateFinalRefinement(accumulatedBodyHTML, activeContext, model, keys);
 
+            // VALIDATION: Ensure we actually have content
+            const fullContent = refinedSummary + accumulatedBodyHTML;
+            if (!fullContent || fullContent.length < 500 || fullContent.includes("Error Crítico")) {
+                // Check if it's just a bunch of error messages
+                const errorCount = (fullContent.match(/Error generando sección/g) || []).length;
+                if (errorCount > 0 && fullContent.length < 2000) {
+                    throw new Error("La generación falló para la mayoría de las secciones. Por favor intenta con otro modelo o claves API.");
+                }
+            }
+
             // 7. Final success state
-            setReportHTML(refinedSummary + accumulatedBodyHTML);
+            setReportHTML(fullContent);
             setProgressPercent(100);
             addLog("¡Informe Finalizado con Éxito!");
 
@@ -563,6 +573,8 @@ const App: React.FC = () => {
             // RESTORE STATE TO AVOID BLANK SCREEN
             setIsAnalyzing(false);
             setShowSectionSelector(true); // Go back to allow retry
+            // Ensure we clear any partial garbage
+            setReportHTML("");
         } finally {
             setIsAnalyzing(false);
         }

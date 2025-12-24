@@ -96,6 +96,7 @@ Output RAW HTML only.`;
 const FALLBACK_MODELS = ['gemini-2.5-flash-lite', 'gemma-3-27b', 'gemini-2.5-flash'];
 
 // Helper for retry logic with Key Rotation & Model Fallback (ROBUST - USING STANDARDIZED SDK)
+// Helper for retry logic with Key Rotation & Model Fallback (ROBUST - USING STANDARDIZED SDK)
 async function generateWithRetry(apiKeys: string[], requestedModel: string, promptText: string, config: any) {
     let lastError;
     const modelsToTry = Array.from(new Set([requestedModel, ...FALLBACK_MODELS]));
@@ -109,20 +110,13 @@ async function generateWithRetry(apiKeys: string[], requestedModel: string, prom
             try {
                 // Initialize Client per key
                 const genAI = new GoogleGenerativeAI(currentKey);
+                const modelConfig: any = { model: model };
 
-                // Configure Model
-                const modelConfig: any = {
-                    model: model,
-                };
-
-                // Extract system instruction if present (SDK handles it at model init)
                 if (config?.systemInstruction) {
                     modelConfig.systemInstruction = config.systemInstruction;
                 }
 
                 const generativeModel = genAI.getGenerativeModel(modelConfig);
-
-                // Configure Generation Options
                 const generationConfig: any = {};
                 if (config?.responseMimeType) {
                     generationConfig.responseMimeType = config.responseMimeType;
@@ -139,21 +133,27 @@ async function generateWithRetry(apiKeys: string[], requestedModel: string, prom
                         return { text: response.text() };
                     } catch (innerE: any) {
                         const status = innerE.status || innerE.response?.status;
-                        const msg = innerE.message || "";
+                        const msg = (innerE.message || "").toLowerCase();
 
-                        // Handle 503 (Transient)
-                        if (status === 503) {
+                        // Handle 503 (Transient) or 429 (Rate Limit)
+                        if (status === 503 || status === 429 || msg.includes('429') || msg.includes('quota') || msg.includes('exhausted')) {
+                            // Exponential Backoff: 2s, 4s, 8s
                             const delay = 2000 * Math.pow(2, i);
+                            console.warn(`⚠️ Rate Limit/Transient Error (${status}) for ${model} on try ${i + 1}. Waiting ${delay}ms...`);
                             await new Promise(r => setTimeout(r, delay));
+
+                            // If it's a 429, we might want to fail this key faster if it persists, 
+                            // but retrying with delay is often good for burst limits.
+                            if (i === 2) throw innerE; // If 3rd try fails, proprietary to key rotation
                             continue;
                         }
-                        throw innerE; // Propagate to key loop handler
+                        throw innerE; // Propagate other errors effectively
                     }
                 }
 
             } catch (e: any) {
                 lastError = e;
-                const msg = e.message || "";
+                const msg = (e.message || "").toLowerCase();
 
                 // 404: Model not found. BREAK KEY LOOP -> Next Model
                 if (msg.includes('404') || msg.includes('not found') || msg.includes('not supported')) {
@@ -162,14 +162,14 @@ async function generateWithRetry(apiKeys: string[], requestedModel: string, prom
                     break;
                 }
 
-                // 429: Quota. Continue to NEXT KEY.
-                if (msg.includes('429') || msg.includes('Quota') || msg.includes('exhausted')) {
-                    console.warn(`⚠️ API Key ${k} exhausted for ${model}. Rotating...`);
+                // 429: Quota. Continue to NEXT KEY immediately if backoff failed
+                if (msg.includes('429') || msg.includes('quota') || msg.includes('exhausted')) {
+                    console.warn(`⚠️ API Key ${k} exhausted for ${model} after retries. Rotating to next key...`);
                     continue; // Next key
                 }
 
                 // 400/401: Invalid Key. Continue to NEXT KEY.
-                if (msg.includes('400') || msg.includes('401') || msg.includes('API key')) {
+                if (msg.includes('400') || msg.includes('401') || msg.includes('api key')) {
                     console.warn(`⚠️ API Key ${k} invalid. Rotating...`);
                     continue;
                 }
@@ -303,7 +303,6 @@ export const generateReportSection = async (
         const response = await generateWithRetry(
             apiKeys,
             model,
-            prompt,
             prompt,
             { systemInstruction: mode === 'achievements' ? SYSTEM_PROMPT_ACHIEVEMENTS : SYSTEM_PROMPT_SECTION_WRITER }
         );

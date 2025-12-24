@@ -112,10 +112,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
         }
     }, [mode, htmlContent]);
 
-    if (mode === 'pitch' && pitchItems.length > 0) {
-        return <PitchDeck chartItems={pitchItems} chartData={chartData} onClose={() => window.location.reload()} />;
-    }
-
     // Handle Floating Toolbar
     useEffect(() => {
         const handleSelection = () => {
@@ -141,9 +137,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
             });
         };
 
-        document.addEventListener('selectionchange', handleSelection);
+        // Only add listener if NOT in pitch mode (optional optimization, but consistent hooks are key)
+        if (mode !== 'pitch') {
+            document.addEventListener('selectionchange', handleSelection);
+        }
         return () => document.removeEventListener('selectionchange', handleSelection);
-    }, []);
+    }, [mode]);
 
     // 1. Render Charts into Placeholders
     useEffect(() => {
@@ -186,6 +185,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
         });
 
     }, [htmlContent, chartData]);
+
+    // EARLY RETURN must be AFTER hooks to avoid React Error #300
+    if (mode === 'pitch' && pitchItems.length > 0) {
+        return <PitchDeck chartItems={pitchItems} chartData={chartData} onClose={() => window.location.reload()} />;
+    }
 
     const renderSparkline = (ctx: CanvasRenderingContext2D, data: ComparisonItem) => {
         const gradient = ctx.createLinearGradient(0, 0, 0, 100);
