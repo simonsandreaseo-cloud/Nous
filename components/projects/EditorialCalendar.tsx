@@ -135,19 +135,19 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     const [isCreating, setIsCreating] = useState(false);
 
     const handlePaste = async (e: React.ClipboardEvent) => {
-        // Allow normal pasting in inputs
-        if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
-            return;
-        }
-
         const text = e.clipboardData.getData('text');
         if (!text) return;
 
         const rows = text.split(/\r?\n/).filter(r => r.trim());
-        if (rows.length === 0) return;
-
         const isTabular = text.includes('\t') || rows.length > 1;
 
+        // If NOT tabular and focused on input, allow default behavior (paste text into input)
+        if (!isTabular) {
+            const tagName = (e.target as HTMLElement).tagName;
+            if (tagName === 'INPUT' || tagName === 'TEXTAREA') return;
+        }
+
+        // If tabular, we intercept even if focused on input
         if (isTabular) {
             e.preventDefault();
             if (!confirm(`Se han detectado ${rows.length} filas en el portapapeles. \n¿Deseas importarlas como nuevos contenidos?\n\nFormato esperado: Título | Estado | Fecha | Keywod | URL`)) return;
@@ -483,10 +483,32 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                             {tasks.filter(t => t.type === 'content').length === 0 && (
                                 <tr>
                                     <td colSpan={6} className="p-8 text-center text-slate-400 text-sm">
-                                        No hay contenidos planificados. Usa la vista de calendario para agregar nuevos.
+                                        No hay contenidos planificados. Usa el botón de abajo o pega filas desde Excel.
                                     </td>
                                 </tr>
                             )}
+                            {/* Add New Row Button at the bottom */}
+                            <tr>
+                                <td colSpan={6} className="p-2 border-t border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors text-center">
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                await TaskService.createTask(projectId, {
+                                                    title: '', // Empty title so user can type
+                                                    status: 'idea',
+                                                    type: 'content',
+                                                    due_date: new Date().toISOString(),
+                                                    priority: 'medium'
+                                                });
+                                                onTaskUpdate();
+                                            } catch (e: any) { alert("Error al crear fila: " + e.message); }
+                                        }}
+                                        className="w-full py-2 text-xs font-bold text-slate-400 hover:text-indigo-600 border border-dashed border-slate-300 hover:border-indigo-300 rounded-lg flex items-center justify-center gap-2 transition-all"
+                                    >
+                                        <Plus size={14} /> Agregar Fila Vacía (Click para pegar aquí)
+                                    </button>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>

@@ -119,60 +119,81 @@ export const ContentPerformanceDashboard: React.FC<ContentPerformanceDashboardPr
         }
     };
 
+    const [isExpanded, setIsExpanded] = useState(true);
+
     return (
         <div className="mb-8">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <BarChart3 className="text-brand-power" /> Dashboard de Rendimiento
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {months.map(month => {
-                    const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
-                    const data = metricsByMonth[key];
-                    const monthName = month.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
-
-                    return (
-                        <div
-                            key={key}
-                            onClick={() => setSelectedMonth(month)}
-                            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                        >
-                            <div className="flex justify-between items-start mb-3">
-                                <h4 className="font-bold text-slate-700 capitalize">{monthName}</h4>
-                                <div className="p-1.5 bg-brand-soft/10 text-brand-power rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <ArrowRight size={14} />
-                                </div>
-                            </div>
-
-                            {data ? (
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-end">
-                                        <div>
-                                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Clics</p>
-                                            <p className="text-xl font-bold text-slate-800">{data.clicks.toLocaleString()}</p>
-                                        </div>
-                                        <div className={`text-xs font-bold flex items-center ${data.changeClicks >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                            {data.changeClicks > 0 ? '+' : ''}{data.changeClicks.toLocaleString()}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex justify-between items-end">
-                                        <div>
-                                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Impresiones</p>
-                                            <p className="text-sm font-bold text-slate-600">{data.impressions.toLocaleString()}</p>
-                                        </div>
-                                        <div className={`text-[10px] font-bold flex items-center ${data.changeImpressions >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                            {data.changeImpressions > 0 ? '+' : ''}{data.changeImpressions.toLocaleString()}
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="h-20 animate-pulse bg-slate-50 rounded-lg"></div>
-                            )}
-                        </div>
-                    );
-                })}
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <BarChart3 className="text-brand-power" /> Dashboard de Rendimiento
+                </h3>
+                <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="p-1 px-3 bg-slate-100 text-slate-500 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors"
+                >
+                    {isExpanded ? 'Ocultar' : 'Mostrar'}
+                </button>
             </div>
+
+            {isExpanded && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    {months.map(month => {
+                        const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+                        const data = metricsByMonth[key];
+                        const monthName = month.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+
+                        // Filter: Only show months that have content
+                        const hasContent = tasks.some(t => {
+                            if (!t.due_date || t.type !== 'content') return false;
+                            const d = new Date(t.due_date);
+                            return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
+                        });
+
+                        if (!hasContent) return null;
+
+                        return (
+                            <div
+                                key={key}
+                                onClick={() => setSelectedMonth(month)}
+                                className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                            >
+                                <div className="flex justify-between items-start mb-3">
+                                    <h4 className="font-bold text-slate-700 capitalize">{monthName}</h4>
+                                    <div className="p-1.5 bg-brand-soft/10 text-brand-power rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <ArrowRight size={14} />
+                                    </div>
+                                </div>
+
+                                {data ? (
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Clics</p>
+                                                <p className="text-xl font-bold text-slate-800">{data.clicks.toLocaleString()}</p>
+                                            </div>
+                                            <div className={`text-xs font-bold flex items-center ${data.changeClicks >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                {data.changeClicks > 0 ? '+' : ''}{data.changeClicks.toLocaleString()}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Impresiones</p>
+                                                <p className="text-sm font-bold text-slate-600">{data.impressions.toLocaleString()}</p>
+                                            </div>
+                                            <div className={`text-[10px] font-bold flex items-center ${data.changeImpressions >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                {data.changeImpressions > 0 ? '+' : ''}{data.changeImpressions.toLocaleString()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="h-20 animate-pulse bg-slate-50 rounded-lg"></div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
 
             {selectedMonth && (
                 <PerformanceModal
