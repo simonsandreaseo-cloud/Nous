@@ -163,9 +163,11 @@ export interface SnippetOptimization {
 }
 
 export interface ReportPayload {
+    projectName: string;
     period1Name: string;
     period2Name: string;
     userContext: string;
+    dashboardStats?: DashboardStats;
     // Phase 3: Dedicated field for Agent Findings
     agentInvestigation?: string;
     metricsSummary: any;
