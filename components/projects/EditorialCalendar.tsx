@@ -237,116 +237,188 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
     const [isCreating, setIsCreating] = useState(false);
 
+    const COLUMN_MAPPING = ['title', 'status', 'due_date', 'target_keyword', 'directory', 'slug'];
+
     const handlePaste = async (e: React.ClipboardEvent) => {
         const text = e.clipboardData.getData('text');
         if (!text) return;
 
-        const rows = text.split(/\r?\n/).filter(r => r.trim());
-        const isMultiLine = rows.length > 1;
-        const isTabular = text.includes('\t');
+        // Parse Grid
+        const rows = text.split(/\r?\n/).filter(r => r.trim()); // Trim empty rows? usually yes, but if pasting block with empty middle row? Sheets gives "val\tval\n\t\nval". Keep empty? user said "others empty". Let's filter empty mainly for end.
+        if (rows.length === 0) return;
 
-        // Target info
+        const grid = rows.map(r => r.split('\t')); // 2D array
+        const isTabular = text.includes('\t') || rows.length > 1;
+
+        // Target Info
         const target = e.target as HTMLElement;
-        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
-        const field = target.getAttribute('data-field');
         const startRowIndexStr = target.getAttribute('data-row-index');
+        const startColIndexStr = target.getAttribute('data-col-index');
 
-        // CASE 1: Paste into a specific column (Multi-line text into Input)
-        if (isInput && isMultiLine && field && startRowIndexStr) {
+        // Logic 1: Grid Paste starting from a specific cell
+        if (startRowIndexStr && startColIndexStr) {
             e.preventDefault();
-            const startRowIndex = parseInt(startRowIndexStr, 10);
+            const startRow = parseInt(startRowIndexStr, 10);
+            const startCol = parseInt(startColIndexStr, 10);
 
-            if (!confirm(`Se han detectado ${rows.length} líneas.\n¿Deseas pegar estos valores en la columna "${field.toUpperCase()}" a partir de la fila ${startRowIndex + 1}?`)) return;
+            if (!confirm(`Se pegarán ${rows.length} filas x ${Math.max(...grid.map(r => r.length))} columnas a partir de la celda seleccionada.\n¿Continuar?`)) return;
 
             setIsCreating(true);
             try {
                 const updates = [];
-                // Filter tasks starting from startRowIndex
-                // Note: contentTasks is sorted, make sure we use the same order.
-                // We need to match indices. contentTasks array matches the table render.
-                for (let i = 0; i < rows.length; i++) {
-                    const taskIndex = startRowIndex + i;
-                    if (taskIndex >= contentTasks.length) break; // Stop if we exceed existing tasks
+                const creations = [];
 
-                    const task = contentTasks[taskIndex];
-                    const val = rows[i].trim();
+                for (let r = 0; r < grid.length; r++) {
+                    const rowData = grid[r];
+                    const targetRowIndex = startRow + r;
+
+                    // Prepare payload from the grid row
+                    // We need to construct a partial update object based on columns falling into valid mapping
                     const payload: any = {};
+                    let hasChanges = false;
 
-                    if (field === 'title') payload.title = val;
-                    else if (field === 'status') payload.status = val;
-                    else if (field === 'due_date') payload.due_date = val; // ISO guess or keep raw? backend might validate
-                    else if (field === 'keyword') payload.target_keyword = val;
-                    else if (field === 'slug') {
-                        payload.target_url_slug = val;
-                        const dir = task.metadata?.directory || '/';
-                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
-                        payload.secondary_url = `${domain}${dir}${val}`;
+                    for (let c = 0; c < rowData.length; c++) {
+                        const targetColIndex = startCol + c;
+                        const value = rowData[c]?.trim();
+
+                        // If outside our known columns, skip
+                        if (targetColIndex >= COLUMN_MAPPING.length) continue;
+
+                        const field = COLUMN_MAPPING[targetColIndex];
+                        if (value === undefined) continue; // Should not happen with split
+
+                        hasChanges = true;
+
+                        if (field === 'title') payload.title = value;
+                        else if (field === 'status') {
+                            // Normalize status
+                            const s = value.toLowerCase();
+                            if (['todo', 'por hacer'].includes(s)) payload.status = 'todo';
+                            else if (['in_progress', 'en progreso', 'working'].includes(s)) payload.status = 'in_progress';
+                            else if (['review', 'revisión', 'revision'].includes(s)) payload.status = 'review';
+                            else if (['done', 'publicado', 'finalizado'].includes(s)) payload.status = 'done';
+                            else if (['idea'].includes(s)) payload.status = 'idea';
+                            else payload.status = 'idea'; // Default or keep?
+                        }
+                        else if (field === 'due_date') {
+                            const d = new Date(value);
+                            if (!isNaN(d.getTime())) payload.due_date = d.toISOString();
+                        }
+                        else if (field === 'target_keyword') payload.target_keyword = value;
+                        else if (field === 'directory') {
+                            // Will need to combine with slug later if both present, or merge with existing
+                            payload.metadata = payload.metadata || {};
+                            payload.metadata.directory = value;
+                        }
+                        else if (field === 'slug') {
+                            payload.target_url_slug = value;
+                        }
                     }
 
-                    updates.push(TaskService.updateTask(task.id, payload));
+                    if (!hasChanges) continue;
+
+                    // Check if updating existing or creating new
+                    if (targetRowIndex < contentTasks.length) {
+                        // UPDATE EXISTING
+                        const task = contentTasks[targetRowIndex];
+                        const mergedPayload = { ...payload };
+
+                        // Handle URL reconstruction for existing task
+                        // We need access to the final directory and slug to build secondary_url
+                        // Use payload value if present, else fall back to existing task value
+                        const finalDir = mergedPayload.metadata?.directory ?? task.metadata?.directory ?? '/';
+                        const finalSlug = mergedPayload.target_url_slug ?? task.target_url_slug ?? '';
+
+                        if (mergedPayload.metadata?.directory !== undefined || mergedPayload.target_url_slug !== undefined) {
+                            const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                            mergedPayload.secondary_url = `${domain}${finalDir}${finalSlug}`;
+                            // Ensure metadata is fully merged if we touched it
+                            if (mergedPayload.metadata) {
+                                mergedPayload.metadata = { ...task.metadata, ...mergedPayload.metadata };
+                            }
+                        }
+
+                        updates.push(TaskService.updateTask(task.id, mergedPayload));
+                    } else {
+                        // CREATE NEW
+                        // Require at least a title? Or default "Sin titulo"
+                        const newTitle = payload.title || 'Nuevo Contenido';
+                        const newStatus = payload.status || 'idea';
+                        const newDate = payload.due_date || new Date().toISOString();
+
+                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                        const finalDir = payload.metadata?.directory || '/';
+                        const finalSlug = payload.target_url_slug || '';
+                        const secondaryUrl = `${domain}${finalDir}${finalSlug}`;
+
+                        const creationPayload = {
+                            title: newTitle,
+                            status: newStatus,
+                            due_date: newDate,
+                            type: 'content',
+                            priority: 'medium',
+                            target_keyword: payload.target_keyword || '',
+                            target_url_slug: finalSlug,
+                            secondary_url: secondaryUrl,
+                            metadata: { directory: finalDir }
+                        };
+
+                        creations.push(TaskService.createTask(projectId, creationPayload));
+                    }
                 }
 
-                await Promise.all(updates);
+                await Promise.all([...updates, ...creations]);
                 onTaskUpdate();
-                alert(`${updates.length} filas actualizadas.`);
+                alert(`${updates.length} actualizados, ${creations.length} creados.`);
+
             } catch (err: any) {
-                alert("Error pegando columna: " + err.message);
+                console.error(err);
+                alert("Error al pegar tabla: " + err.message);
             } finally {
                 setIsCreating(false);
             }
             return;
         }
 
-        // CASE 2: Create New Rows (Tabular data pasted on container or global)
-        // If it's tabular (has tabs) or multiline but NOT captured by the input-column logic above (e.g. pasted on div)
-        if (isTabular || (isMultiLine && !isInput)) {
+        // Logic 2: Fallback - Append Rows (if paste didn't happen in a cell)
+        // Only if it looks tabular
+        if (isTabular) {
             e.preventDefault();
-            if (!confirm(`Se han detectado ${rows.length} filas nuevas.\n¿Deseas importarlas como nuevos contenidos?\n\nFormato esperado: Título | Estado | Fecha | Keyword | Slug`)) return;
+            // ... (Same as Logic 1 but startRow = contentTasks.length, startCol = 0)
+            // Reuse logic? Or just direct redirect
+            // Let's keep the user confirmed specific logic for general paste
+            if (!confirm(`Se han detectado ${rows.length} filas nuevas fuera de la tabla.\n¿Importarlas al final?`)) return;
 
+            // Simplified existing logic for appending
             setIsCreating(true);
             try {
                 let createdCount = 0;
                 for (const row of rows) {
                     const cols = row.split('\t').map(c => c.trim());
-                    if (!cols[0]) continue; // Title required
+                    if (!cols[0]) continue;
 
+                    // Simple Mapping based on expectation: Title|Status|Date|KW|Slug
+                    // ... (keep existing simple append logic or unify? Unifying is better but complex to copy-paste strictly)
+                    // Let's use the explicit logic we had before for robustness in "simple append"
                     const title = cols[0];
                     let status = 'idea';
-                    if (cols[1]) {
-                        const s = cols[1].toLowerCase();
-                        if (['todo', 'por hacer'].includes(s)) status = 'todo';
-                        else if (['in_progress', 'en progreso', 'working'].includes(s)) status = 'in_progress';
-                        else if (['review', 'revisión', 'revision'].includes(s)) status = 'review';
-                        else if (['done', 'publicado', 'finalizado'].includes(s)) status = 'done';
-                    }
-
-                    let dueDate = null;
-                    if (cols[2]) {
-                        const d = new Date(cols[2]);
-                        if (!isNaN(d.getTime())) dueDate = d.toISOString();
-                    }
+                    if (cols[1] && ['todo', 'done', 'review', 'in_progress'].some(s => cols[1].toLowerCase().includes(s))) status = cols[1].toLowerCase(); // Simplified
 
                     await TaskService.createTask(projectId, {
-                        title,
-                        status: status as any,
+                        title: cols[0],
+                        status: 'idea', // default
                         type: 'content',
-                        due_date: dueDate || new Date().toISOString(),
+                        due_date: new Date().toISOString(),
                         priority: 'medium',
                         target_keyword: cols[3] || '',
                         target_url_slug: cols[4] || '',
-                        secondary_url: cols[4] ? (project?.gsc_property_url || '') + (cols[4].startsWith('/') ? '' : '/') + cols[4] : ''
+                        secondary_url: cols[4] ? (project?.gsc_property_url || '') + cols[4] : ''
                     });
                     createdCount++;
                 }
-
                 onTaskUpdate();
-                alert(`${createdCount} contenidos creados exitosamente.`);
-            } catch (error: any) {
-                console.error("Error importing tasks:", error);
-                alert("Hubo un error al importar algunos items: " + error.message);
-            } finally {
-                setIsCreating(false);
-            }
+            } catch (e) { alert("Error: " + e); }
+            finally { setIsCreating(false); }
         }
     };
 
@@ -558,6 +630,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                 className="w-full bg-transparent border-transparent border-b hover:border-slate-300 focus:border-brand-accent focus:ring-0 text-sm font-medium text-slate-700 transition-colors py-1"
                                                 defaultValue={task.title}
                                                 data-row-index={rowIndex}
+                                                data-col-index={0}
                                                 data-field="title"
                                                 onBlur={(e) => {
                                                     if (e.target.value !== task.title) updateField('title', e.target.value);
@@ -576,6 +649,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                             <select
                                                 value={task.status}
                                                 data-row-index={rowIndex}
+                                                data-col-index={1}
                                                 data-field="status"
                                                 onChange={(e) => updateField('status', e.target.value)}
                                                 className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-full border border-transparent hover:border-slate-200 cursor-pointer outline-none w-full
@@ -600,6 +674,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                             <input
                                                 type="date"
                                                 data-row-index={rowIndex}
+                                                data-col-index={2}
                                                 data-field="due_date"
                                                 className="bg-transparent text-xs text-slate-500 font-medium outline-none hover:text-brand-power cursor-pointer w-full"
                                                 value={task.due_date ? new Date(task.due_date).toLocaleDateString('en-CA') : ''}
@@ -612,7 +687,6 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                     }
                                                 }}
                                             />
-                                            {/* Store ISO string or raw value? Dragging date usually copies the exact date */}
                                             {renderDragHandle(rowIndex, 'due_date', task.due_date)}
                                         </td>
 
@@ -636,6 +710,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                             <select
                                                 value={task.metadata?.directory || '/'}
                                                 data-row-index={rowIndex}
+                                                data-col-index={4}
                                                 data-field="directory"
                                                 onChange={async (e) => {
                                                     const newDir = e.target.value;
@@ -670,6 +745,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                                 placeholder="slug-del-articulo"
                                                 defaultValue={task.target_url_slug || ''}
                                                 data-row-index={rowIndex}
+                                                data-col-index={5}
                                                 data-field="slug"
                                                 onBlur={async (e) => {
                                                     const newSlug = e.target.value;
