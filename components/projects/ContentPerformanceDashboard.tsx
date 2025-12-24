@@ -172,9 +172,12 @@ export const ContentPerformanceDashboard: React.FC<ContentPerformanceDashboardPr
                         const data = metricsByMonth[key];
                         const monthName = month.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
 
-                        // Show all months, regardless of whether there are tasks scheduled
-                        // This ensures that organic traffic is visible even if no new content was created that month
-                        const hasContent = true;
+                        // Filter: Only show months that have content
+                        const hasContent = tasks.some(t => {
+                            if (!t.due_date || t.type !== 'content') return false;
+                            const d = new Date(t.due_date);
+                            return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
+                        });
 
                         if (!hasContent) return null;
 
@@ -285,19 +288,22 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
 
             // 1. Filter Logic
             // Priority:
-            // A) If project has 'content_directories' defined (e.g. /blog/), filter by that.
-            // B) Else, show ALL traffic for the property (assume property is the blog).
-            // C) We do NOT filter by specific task URLs anymore as it hides historical/organic performance.
+            // A) 'content_directories' (e.g. /blog/) - Best for broad blog tracking.
+            // B) 'contentGroupUrls' (Task URLs) - Fallback if no specific directory configured, preserves "only blog" intent.
+            // C) All - Only if neither is available (undesirable but necessary fallback).
 
             let regexFilter: string | undefined = undefined;
 
             if (project.settings?.content_directories && project.settings.content_directories.length > 0) {
-                // Escape special regex chars involved in the directory path just in case, though usually simple
                 regexFilter = project.settings.content_directories
                     .map(d => d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
                     .join('|');
+            } else if (contentGroupUrls.length > 0) {
+                regexFilter = contentGroupUrls
+                    .map(u => u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                    .join('|');
             } else {
-                // No filter -> All Site
+                // If hasContent passed but no URLs derived? Fallback to all or undefined.
                 regexFilter = undefined;
             }
 
@@ -513,7 +519,11 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
                                 <div className="p-4 border-b border-slate-100 font-bold text-slate-700 flex justify-between">
                                     <span>Páginas (URLs)</span>
                                     <span className="text-xs text-slate-400 font-normal">
-                                        {project.settings?.content_directories?.length ? 'Filtrado por Directorios' : 'Todo el sitio'}
+                                        {project.settings?.content_directories?.length
+                                            ? 'Filtrado por Directorios'
+                                            : contentGroupUrls.length > 0
+                                                ? 'Filtrado por Artículos Programados'
+                                                : 'Todo el sitio'}
                                     </span>
                                 </div>
                                 <div className="overflow-auto flex-1">
