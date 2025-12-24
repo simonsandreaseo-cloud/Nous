@@ -10,6 +10,7 @@ import MetadataGeneratorModal from './MetadataGeneratorModal';
 import { TaskMetadata } from '../../services/metadataService';
 import { ProjectService } from '../../lib/task_manager';
 import { NotificationService } from '../../services/NotificationService';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 interface TaskDetailModalProps {
     task: Task;
@@ -42,6 +43,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
 
     // Directory & URL handling
     const [selectedDirectory, setSelectedDirectory] = useState(metadata.directory || '');
+    const [slug, setSlug] = useState(task.target_url_slug || metadata.slug || '');
     const directories = project?.settings?.content_directories || [];
 
     // Base URL calculation
@@ -66,17 +68,15 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
             dir = '/';
         }
 
-        const slug = metadata.slug || '';
-        // If "None" is selected (empty directory), logic handles it (just slash?)
-        // If dir is empty and not home, maybe we assume root.
+        const currentSlug = slug || '';
 
-        if (baseUrl && slug) {
-            const fullUrl = `${baseUrl}${dir}${slug}`;
+        if (baseUrl && currentSlug) {
+            const fullUrl = `${baseUrl}${dir}${currentSlug}`;
             if (fullUrl !== secondaryUrl) {
                 setSecondaryUrl(fullUrl);
             }
         }
-    }, [selectedDirectory, metadata.slug, baseUrl, type]);
+    }, [selectedDirectory, slug, baseUrl, type]);
 
     const isAdmin = project?.role === 'owner' || project?.role === 'admin';
     const isCreator = task.created_by === user?.id; // Check if current user created the task
@@ -145,9 +145,11 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                 tracking_metrics: trackingMetrics,
                 completed_at: completedAt,
                 created_at: createdAt,
+                target_url_slug: slug,
                 metadata: {
                     ...metadata,
-                    directory: selectedDirectory
+                    directory: selectedDirectory,
+                    slug: slug
                 }
             };
 
@@ -433,8 +435,8 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                             <div>
                                                 <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">Slug</label>
                                                 <input
-                                                    value={metadata.slug || ''}
-                                                    onChange={(e) => setMetadata({ ...metadata, slug: e.target.value })}
+                                                    value={slug}
+                                                    onChange={(e) => setSlug(e.target.value)}
                                                     placeholder="titulo-del-post"
                                                     className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500 font-mono"
                                                 />
@@ -444,7 +446,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                         <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-2 text-xs text-slate-600 font-mono break-all">
                                             <span className="text-slate-400 select-none">{baseUrl}</span>
                                             <span className="text-indigo-600 font-bold">{selectedDirectory}</span>
-                                            <span className="text-slate-800">{metadata.slug}</span>
+                                            <span className="text-slate-800">{slug}</span>
                                         </div>
                                         <p className="text-[10px] text-slate-400 mt-2 px-1">
                                             Esta URL se usará para rastrear métricas automáticamente.
@@ -542,7 +544,7 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                                         </div>
                                                         <div className="bg-white rounded-lg p-3 border border-purple-100">
                                                             <label className="text-[10px] font-bold uppercase text-brand-power/40 block mb-1">Slug</label>
-                                                            <p className="text-sm text-brand-power font-mono">{metadata.slug}</p>
+                                                            <p className="text-sm text-brand-power font-mono">{slug}</p>
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -600,11 +602,30 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ task, project, onClos
                                         <div className="flex justify-between items-start mb-4">
                                             <div className="flex-1 mr-4">
                                                 <label className="block text-xs font-bold uppercase tracking-widest text-brand-power/40 mb-2">URLs de Trabajo / Seguimiento</label>
-                                                <input
-                                                    value={secondaryUrl} onChange={e => setSecondaryUrl(e.target.value)}
-                                                    placeholder="https://ejemplo.com/p1, https://ejemplo.com/p2"
-                                                    className="w-full bg-white border border-brand-power/10 rounded-xl p-3 text-sm outline-none focus:border-brand-accent font-mono shadow-inner"
-                                                />
+                                                <div className="relative">
+                                                    <input
+                                                        value={secondaryUrl} onChange={e => setSecondaryUrl(e.target.value)}
+                                                        placeholder="https://ejemplo.com/p1, https://ejemplo.com/p2"
+                                                        className={`w-full bg-white border ${secondaryUrl && baseUrl && !secondaryUrl.includes(baseUrl.replace('https://', '').split('/')[0]) ? 'border-amber-300 bg-amber-50' : 'border-brand-power/10'} rounded-xl p-3 text-sm outline-none focus:border-brand-accent font-mono shadow-inner pr-10`}
+                                                    />
+                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                        {secondaryUrl && baseUrl && secondaryUrl.includes(baseUrl.replace('https://', '').split('/')[0]) ? (
+                                                            <div className="group/gsc relative">
+                                                                <CheckCircle2 size={16} className="text-emerald-500" />
+                                                                <span className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded w-max opacity-0 group-hover/gsc:opacity-100 transition-opacity pointer-events-none">
+                                                                    Coincide con Propiedad GSC
+                                                                </span>
+                                                            </div>
+                                                        ) : secondaryUrl ? (
+                                                            <div className="group/gsc relative">
+                                                                <AlertTriangle size={16} className="text-amber-500" />
+                                                                <span className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded w-max opacity-0 group-hover/gsc:opacity-100 transition-opacity pointer-events-none">
+                                                                    No coincide con el dominio del proyecto
+                                                                </span>
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className="flex flex-col items-end">
                                                 <label className="text-[10px] font-bold uppercase text-brand-power/40 mb-2 tracking-tighter">Tracking GSC</label>
