@@ -784,7 +784,7 @@ export const GscOverview: React.FC<GscOverviewProps> = ({ project }) => {
     }
 
     if (error) {
-        const isAuthError = error.includes('No access token') || error.includes('sign in with Google') || error.includes('permissions') || error.includes('invalid authentication credentials') || error.includes('Expected OAuth 2');
+        const isAuthError = error.includes('No access token') || error.includes('sign in with Google') || error.includes('permissions') || error.includes('invalid authentication credentials');
 
         return (
             <div className="p-8 bg-white border border-brand-power/5 rounded-2xl shadow-sm flex flex-col items-center text-center">
@@ -792,22 +792,33 @@ export const GscOverview: React.FC<GscOverviewProps> = ({ project }) => {
                     <Key size={32} />
                 </div>
                 <h3 className="text-lg font-bold text-brand-power mb-2">
-                    {isAuthError ? 'Conexión con Google Requerida' : 'Error de Conexión'}
+                    {isAuthError ? 'Datos no sincronizados' : 'Error de Conexión'}
                 </h3>
                 <p className="text-sm text-brand-power/50 mb-6 max-w-md">
                     {isAuthError
-                        ? 'Para ver las métricas de Search Console, necesitamos que inicies sesión con tu cuenta de Google y concedas permisos de lectura.'
+                        ? 'No hay datos locales disponibles y no tienes permisos directos en Search Console. Sincroniza los datos usando la conexión del proyecto.'
                         : error}
                 </p>
-                {isAuthError && (
-                    <button
-                        onClick={() => signInWithGoogle(window.location.href)}
-                        className="flex items-center gap-2 px-6 py-3 bg-brand-power text-white rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg"
-                    >
-                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-4 h-4" alt="G" />
-                        Conectar Google Search Console
-                    </button>
-                )}
+
+                {/* Always offer Sync Control as a solution if authenticated or not */}
+                <div className="flex flex-col items-center gap-4">
+                    <div className="bg-slate-50 p-4 rounded-xl">
+                        <p className="text-xs text-slate-500 mb-2 font-medium">Sincronización Remota (Servidor)</p>
+                        <GscSyncControl project={project} onSyncComplete={fetchData} />
+                    </div>
+
+                    {isAuthError && (
+                        <div className="text-xs text-slate-300 mt-4">
+                            O si eres el dueño:
+                            <button
+                                onClick={() => signInWithGoogle(window.location.href)}
+                                className="ml-2 text-indigo-500 hover:underline"
+                            >
+                                Re-conectar cuenta
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         );
     }
