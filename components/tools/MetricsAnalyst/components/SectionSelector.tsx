@@ -29,6 +29,7 @@ const ALL_SECTIONS = [
     { id: 'OPORTUNIDAD_NUEVAS_KEYWORDS', label: 'Nuevas Keywords', desc: 'Términos donde has empezado a rankear.', defaultCount: 10 },
     { id: 'ANALISIS_CTR', label: 'Análisis de CTR', desc: 'Páginas con CTR bajo sospechoso.', defaultCount: 10 },
     { id: 'ANALISIS_SEGMENTOS', label: 'Segmentos de URL', desc: 'Rendimiento por directorios (/blog, /tienda).', defaultCount: 5 },
+    { id: 'ANALISIS_TRAFICO_IA', label: 'Análisis de Tráfico IA', desc: 'Identifica y analiza sesiones provenientes de chats de IA.', defaultCount: 10 },
     { id: 'ANALISIS_IMPACTO_TAREAS', label: 'Impacto de Tareas', desc: 'Analiza cómo han afectado las tareas completadas al tráfico.', defaultCount: 0 }
 ];
 
