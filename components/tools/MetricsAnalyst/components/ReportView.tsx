@@ -12,6 +12,7 @@ interface ReportViewProps {
     chartData: {
         chartLookup: Record<string, ComparisonItem>;
         cannibalizationLookup: Record<string, CannibalizationChartData>;
+        aiTrafficTrend?: { dates: string[], sessions: number[] };
     };
     p1Name: string;
     p2Name: string;
@@ -134,6 +135,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
             } else if (type === 'cannibalization' && chartData.cannibalizationLookup[urlKey]) {
                 const data = chartData.cannibalizationLookup[urlKey];
                 renderCannibalizationChart(ctx, data);
+            } else if (type === 'ai-trend' && chartData.aiTrafficTrend) {
+                renderAiTrendChart(ctx, chartData.aiTrafficTrend);
             }
         });
 
@@ -221,6 +224,42 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         grid: { color: '#f1f5f9', borderDash: [4, 4] },
                         ticks: { font: { size: 10 }, stepSize: 5, color: '#94a3b8' }
                     }
+                }
+            }
+        }));
+    };
+
+    const renderAiTrendChart = (ctx: CanvasRenderingContext2D, data: { dates: string[], sessions: number[] }) => {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.2)'); // Emerald
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+
+        chartsRef.current.push(new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.dates.map(d => {
+                    const date = new Date(d);
+                    return isNaN(date.getTime()) ? d : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+                }),
+                datasets: [{
+                    label: 'Sesiones IA',
+                    data: data.sessions,
+                    borderColor: '#10B981', // Emerald 500
+                    borderWidth: 2,
+                    backgroundColor: gradient,
+                    fill: true,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                scales: {
+                    x: { ticks: { font: { size: 10 }, maxTicksLimit: 10 } },
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } }
                 }
             }
         }));

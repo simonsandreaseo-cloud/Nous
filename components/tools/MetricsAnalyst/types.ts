@@ -246,6 +246,7 @@ export interface ChartData {
     chartLookup: Record<string, ComparisonItem>;
     // Phase 3: Specific charts for conflicts
     cannibalizationLookup: Record<string, CannibalizationChartData>;
+    aiTrafficTrend?: { dates: string[], sessions: number[] };
 }
 
 export type FileType = 'pages' | 'queries' | 'countries';

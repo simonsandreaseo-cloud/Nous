@@ -207,7 +207,14 @@ export const runFullLocalAnalysis = (
 
     return {
         reportPayload,
-        chartData: { topWinners, topLosers, dashboardStats, chartLookup, cannibalizationLookup }
+        chartData: {
+            topWinners,
+            topLosers,
+            dashboardStats,
+            chartLookup,
+            cannibalizationLookup,
+            aiTrafficTrend: aiTrafficAnalysis?.dailyTrend
+        }
     };
 };
 

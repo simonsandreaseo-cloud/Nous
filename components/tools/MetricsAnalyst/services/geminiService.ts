@@ -15,7 +15,9 @@ MANDATORY RULES based on input data (Check values carefully):
 7. 'OPORTUNIDAD_NUEVAS_KEYWORDS': Include if newKeywords > 2.
 8. 'ANALISIS_CTR': Include if ctrRedFlags > 0.
 9. 'ANALISIS_SEGMENTOS': Include if segments > 0.
-10. **NEVER** include 'RESUMEN_EJECUTIVO' or 'CONCLUSIONES' here. (They are generated in the final step).
+9. 'ANALISIS_SEGMENTOS': Include if segments > 0.
+10. 'ANALISIS_TRAFICO_IA': Include if aiTraffic > 0.
+11. **NEVER** include 'RESUMEN_EJECUTIVO' or 'CONCLUSIONES' here. (They are generated in the final step).
 
 Return ONLY a JSON Array of strings. Example: ["ANALISIS_ESTRATEGICO", "ANALISIS_CTR"]`;
 
@@ -46,7 +48,9 @@ const SYSTEM_PROMPT_SECTION_WRITER = `You are a "Lead Product Designer" for a Fi
 - **OPORTUNIDADES_CONTENIDO_CLUSTERS**: Use a card-based grid (3 cols). Cards should have a subtle border and shadow.
 - **ALERTA_CANIBALIZACION**: Must include a chart for every major keyword conflict.
 - **ANALISIS_ESTRATEGICO**: Focus on "Matriz de Ataque/Defensa". Bold headers, lists with icons.
+- **ANALISIS_ESTRATEGICO**: Focus on "Matriz de Ataque/Defensa". Bold headers, lists with icons.
 - **ANALISIS_IMPACTO_TAREAS**: Show a before/after comparison with high visual emphasis on the \`clicksChange\`.
+- **ANALISIS_TRAFICO_IA**: Show a breakdown of AI sources (ChatGPT, Copilot, etc.) and a chart of daily sessions. Use \`data-chart-type="ai-trend"\` and \`data-chart-url="ai-sessions"\`.
 
 Output RAW HTML only. Avoid any Markdown. All content in professional Spanish.`;
 
@@ -173,7 +177,8 @@ export const getRelevantSections = async (payload: ReportPayload, model: string,
         ctrRedFlags: payload.ctrAnalysis.redFlags.length,
         strikingDistance: payload.strikingDistanceOpportunities.length,
         newKeywords: payload.newKeywordDiscovery.length,
-        segments: payload.segmentAnalysis.length
+        segments: payload.segmentAnalysis.length,
+        aiSessions: payload.aiTrafficAnalysis ? payload.aiTrafficAnalysis.sources.length : 0
     };
 
     try {
@@ -242,6 +247,18 @@ export const generateReportSection = async (
            - Plot activity chart using data-chart-url="URL".
            - Analyze why it performed well or poorly.
         3. Identify Common Patterns (e.g. Type of content that works best).
+        `;
+    }
+
+    if (sectionName === 'ANALISIS_TRAFICO_IA') {
+        sectionContext = `
+        ANALYSIS GOAL: Analyze the impact of Artificial Intelligence sources (ChatGPT, Gemini, etc.) on the site's traffic.
+        AI DATA: ${JSON.stringify(payload.aiTrafficAnalysis)}
+        INSTRUCTIONS:
+        1. "AI Traffic Overview": Summary with Total Sessions from AI and Growth/Decay.
+        2. "Sources Breakdown": Table with the Top AI Sources (Source Name, Sessions, Change).
+        3. "Trend Analysis": Include a chart with data-chart-type="ai-trend" and data-chart-url="ai-sessions". Explain the trend (ascending? spiking?).
+        4. "Strategy": Provide recommendations. Should we optimize more for AI answers?
         `;
     }
 
