@@ -10,7 +10,7 @@ interface DataConnectPanelProps {
 }
 
 export const DataConnectPanel: React.FC<DataConnectPanelProps> = ({ onAnalyze, isLoading, initialSiteUrl }) => {
-    const { session, signInWithGoogle } = useAuth();
+    const { session, signInWithGoogle, signOut } = useAuth();
 
     // GSC State
     const [sites, setSites] = useState<GSCProperty[]>([]);
@@ -113,13 +113,15 @@ export const DataConnectPanel: React.FC<DataConnectPanelProps> = ({ onAnalyze, i
             if (flattened.length > 0) setSelectedGa4Property(flattened[0].id);
         } catch (e: any) {
             console.error("GA4 Load Error:", e);
-            // Detect specific errors
-            if (e.message && e.message.includes("403")) {
-                setGa4Error("Permisos insuficientes. Re-sincroniza tu cuenta.");
-            } else if (e.message && e.message.includes("API")) {
-                setGa4Error("API Analytics no habilitada o error de conexión.");
+            const msg = e.message || "Error desconocido";
+
+            // Priority: Check for API Disabled first
+            if (msg.includes("API") && (msg.includes("enable") || msg.includes("project"))) {
+                setGa4Error(`API no habilitada. Habilita "Google Analytics Admin API" en Google Cloud.\n\n${msg}`);
+            } else if (msg.includes("scopes") || msg.includes("permission") || msg.includes("403")) {
+                setGa4Error(`Permisos insuficientes o Token expirado.\n\n${msg}`);
             } else {
-                setGa4Error("No se pudieron cargar las cuentas.");
+                setGa4Error(`Error de conexión GA4: ${msg}`);
             }
         }
     };
@@ -253,8 +255,23 @@ export const DataConnectPanel: React.FC<DataConnectPanelProps> = ({ onAnalyze, i
                     ) : (
                         <div className="relative z-10 py-2">
                             {ga4Error ? (
-                                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 font-medium mb-3 flex items-center gap-2">
-                                    <span>⚠️</span> {ga4Error}
+                                <div className="p-3 bg-red-50 border border-red-100 rounded-xl mb-3">
+                                    <div className="flex items-start gap-2 text-xs text-red-600 font-medium">
+                                        <span className="mt-0.5">⚠️</span>
+                                        <div className="whitespace-pre-wrap break-words w-full">
+                                            {ga4Error}
+                                        </div>
+                                    </div>
+                                    {ga4Error.includes("Enable it") && (
+                                        <a
+                                            href={`https://console.cloud.google.com/apis/library/analyticsadmin.googleapis.com?project=${process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID || '_'}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="block mt-2 text-[10px] text-blue-600 underline hover:text-blue-800 ml-6"
+                                        >
+                                            Ir a Google Cloud Console para habilitar API →
+                                        </a>
+                                    )}
                                 </div>
                             ) : (
                                 <p className="text-xs text-slate-500 mb-3 font-medium text-center">
@@ -263,10 +280,16 @@ export const DataConnectPanel: React.FC<DataConnectPanelProps> = ({ onAnalyze, i
                             )}
 
                             <button
-                                onClick={() => signInWithGoogle(window.location.href)}
+                                onClick={async () => {
+                                    if (ga4Error) {
+                                        // For error cases, force a sign out first to clear the session
+                                        await signOut(); // This comes from useAuth
+                                    }
+                                    signInWithGoogle(window.location.href);
+                                }}
                                 className="w-full mb-4 px-4 py-2 bg-white border border-orange-200 text-orange-600 text-xs font-bold rounded-xl hover:bg-orange-50 hover:border-orange-300 transition-all shadow-sm flex items-center justify-center gap-2 group"
                             >
-                                <span className="group-hover:scale-110 transition-transform">🔄</span> {ga4Error ? 'Sincronizar Permisos' : 'Sincronizar Cuenta'}
+                                <span className="group-hover:scale-110 transition-transform">🔄</span> {ga4Error ? 'Reiniciar sesión y Re-conectar' : 'Sincronizar Cuenta'}
                             </button>
 
                             <div className="relative group">
