@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Task, Project, TaskService } from '../../lib/task_manager';
 import { ContentService, ContentItem } from '../../lib/ContentService';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Lock, Unlock, User, Calendar as CalIcon, Edit3, X, FileText, Sparkles, Plus } from 'lucide-react';
+import { Lock, Unlock, User, Calendar, Edit3, X, FileText, Sparkles, Plus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import TaskDetailModal from './TaskDetailModal';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
@@ -22,16 +22,20 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     const context = useOutletContext<{ project: Project, tasks: Task[], refreshTasks: () => void }>();
 
     // Determine data source (Props > Context)
-    const tasks = props.tasks || context?.tasks || [];
-    const project = props.project || context?.project;
-    const projectId = props.projectId || project?.id;
-    const onTaskUpdate = props.onTaskUpdate || context?.refreshTasks || (() => { });
+    const tasksFromContext = context?.tasks || [];
+    const projectFromContext = context?.project;
+    const refreshTasksFromContext = context?.refreshTasks || (() => { });
+
+    const finalTasks = (props.tasks && props.tasks.length > 0) ? props.tasks : tasksFromContext;
+    const finalProject = props.project || projectFromContext;
+    const finalProjectId = props.projectId || finalProject?.id;
+    const finalOnTaskUpdate = props.onTaskUpdate || refreshTasksFromContext;
 
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedTask, setSelectedTask] = useState<ContentItem | null>(null);
     const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
+    const [selectedTask, setSelectedTask] = useState<ContentItem | null>(null);
+    const [currentDate, setCurrentDate] = useState(new Date());
     const [showSettings, setShowSettings] = useState(false);
 
     // --- Drag to Fill State ---
@@ -39,16 +43,26 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
         active: boolean;
         startRowIndex: number; // Index in contentTasks
         currentRowIndex: number;
-        field: string; // 'title' | 'status' | 'due_date' | 'directory' | 'slug'
+        field: string; // 'title' | 'status' | 'due_date' | 'directory' | 'slug' | 'created_at' | 'target_keyword'
         value: any;
     } | null>(null);
 
+    // Premium Date Picker State
+    const [activeDatePicker, setActiveDatePicker] = useState<{
+        rowIndex: number;
+        field: string;
+        rect: DOMRect;
+        value: string;
+    } | null>(null);
+
+    const [pickerDate, setPickerDate] = useState(new Date());
+
     // Memoized sorted tasks to ensure stable indices during interactions
     const contentTasks = React.useMemo(() => {
-        return tasks
+        return finalTasks
             .filter(t => t.type === 'content')
             .sort((a, b) => new Date(a.due_date || '').getTime() - new Date(b.due_date || '').getTime());
-    }, [tasks]);
+    }, [finalTasks]);
 
     // Handle Drag End (Execute Bulk Update)
     useEffect(() => {
@@ -67,7 +81,12 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
             // Don't update the source one if it's the only one (click without drag)
             if (tasksToUpdate.length <= 1 && minIndex === startRowIndex) return;
 
-            if (!confirm(`¿Actualizar ${tasksToUpdate.length} filas con el valor "${value}"?`)) return;
+            // Format date for display if field is a date
+            const displayValue = (field.includes('date') || field === 'created_at')
+                ? new Date(value).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : value;
+
+            if (!confirm(`¿Actualizar ${tasksToUpdate.length} filas con el valor "${displayValue}"?`)) return;
 
             try {
                 const updates = tasksToUpdate.map(task => {
@@ -77,7 +96,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         // Special case: Metadata Directory + Update URL
                         const newDir = value;
                         const slug = task.target_url_slug || '';
-                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                        const domain = finalProject?.gsc_property_url?.replace(/\/$/, '') || '';
                         updatePayload.metadata = { ...task.metadata, directory: newDir };
                         updatePayload.secondary_url = `${domain}${newDir}${slug}`;
                     }
@@ -87,20 +106,21 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         // Google sheets usually increments if number? For now exact copy.
                         const newSlug = value;
                         const dir = task.metadata?.directory || '/';
-                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                        const domain = finalProject?.gsc_property_url?.replace(/\/$/, '') || '';
                         updatePayload.target_url_slug = newSlug;
                         updatePayload.secondary_url = `${domain}${dir}${newSlug}`;
                     }
                     else if (field === 'title') updatePayload.title = value;
                     else if (field === 'status') updatePayload.status = value;
                     else if (field === 'due_date') updatePayload.due_date = value;
+                    else if (field === 'created_at') updatePayload.created_at = value;
                     else if (field === 'keyword') updatePayload.target_keyword = value;
 
                     return TaskService.updateTask(task.id, updatePayload);
                 });
 
                 await Promise.all(updates);
-                onTaskUpdate();
+                finalOnTaskUpdate();
             } catch (e: any) {
                 alert("Error en actualización masiva: " + e.message);
             }
@@ -108,7 +128,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
         window.addEventListener('mouseup', handleGlobalMouseUp);
         return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-    }, [dragState, contentTasks, project, onTaskUpdate]);
+    }, [dragState, contentTasks, finalProject, finalOnTaskUpdate]);
 
     // Helper to render the drag handle
     const renderDragHandle = (rowIndex: number, field: string, value: any) => (
@@ -138,7 +158,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     };
 
     // If still no project ID, show loading
-    if (!projectId) return <div className="p-8 text-center text-slate-400">Cargando calendario...</div>;
+    if (!finalProjectId) return <div className="p-8 text-center text-slate-400">Cargando calendario...</div>;
 
     // Helper to get days in month
     const getDaysInMonth = (date: Date) => {
@@ -161,7 +181,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     };
 
     const getTasksForDay = (day: number) => {
-        return tasks.filter(t => {
+        return finalTasks.filter(t => {
             if (!t.due_date) return false;
             const d = new Date(t.due_date);
             return d.getDate() === day &&
@@ -179,14 +199,14 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
         const dueDate = date.toISOString();
 
         try {
-            const newTask = await TaskService.createTask(projectId, {
+            const newTask = await TaskService.createTask(finalProjectId, {
                 title,
                 status: 'idea',
                 type: 'content',
                 due_date: dueDate,
                 priority: 'medium'
             });
-            onTaskUpdate();
+            finalOnTaskUpdate();
             // Open modal immediately
             if (newTask) {
                 setSelectedTask(newTask as ContentItem);
@@ -228,7 +248,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
         if (!selectedTask) return;
         try {
             await ContentService.assignToMe(selectedTask.id);
-            onTaskUpdate();
+            finalOnTaskUpdate();
             setSelectedTask({ ...selectedTask, assignee_id: user?.id });
         } catch (e: any) {
             alert("Error al asignar: " + e.message);
@@ -286,7 +306,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
 
                         const field = COLUMN_MAPPING[targetColIndex];
                         if (value === undefined) continue; // Should not happen with split
-                        else if (field === 'title') payload.title = value;
+                        else if (field === 'title') { payload.title = value; hasChanges = true; }
                         else if (field === 'status') {
                             // Normalize status
                             const s = value.toLowerCase();
@@ -296,23 +316,28 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                             else if (['done', 'publicado', 'finalizado'].includes(s)) payload.status = 'done';
                             else if (['idea'].includes(s)) payload.status = 'idea';
                             else payload.status = 'idea'; // Default
+                            hasChanges = true;
                         }
                         else if (field === 'created_at') {
                             const d = new Date(value);
                             if (!isNaN(d.getTime())) payload.created_at = d.toISOString();
+                            hasChanges = true;
                         }
                         else if (field === 'due_date') {
                             const d = new Date(value);
                             if (!isNaN(d.getTime())) payload.due_date = d.toISOString();
+                            hasChanges = true;
                         }
-                        else if (field === 'target_keyword') payload.target_keyword = value;
+                        else if (field === 'target_keyword') { payload.target_keyword = value; hasChanges = true; }
                         else if (field === 'directory') {
                             // Will need to combine with slug later if both present, or merge with existing
                             payload.metadata = payload.metadata || {};
                             payload.metadata.directory = value;
+                            hasChanges = true;
                         }
                         else if (field === 'slug') {
                             payload.target_url_slug = value;
+                            hasChanges = true;
                         }
                     }
 
@@ -331,7 +356,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         const finalSlug = mergedPayload.target_url_slug ?? task.target_url_slug ?? '';
 
                         if (mergedPayload.metadata?.directory !== undefined || mergedPayload.target_url_slug !== undefined) {
-                            const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                            const domain = finalProject?.gsc_property_url?.replace(/\/$/, '') || '';
                             mergedPayload.secondary_url = `${domain}${finalDir}${finalSlug}`;
                             // Ensure metadata is fully merged if we touched it
                             if (mergedPayload.metadata) {
@@ -348,7 +373,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         const newDate = payload.due_date || new Date().toISOString();
                         const newCreatedAt = payload.created_at || new Date().toISOString(); // Use current date if not provided
 
-                        const domain = project?.gsc_property_url?.replace(/\/$/, '') || '';
+                        const domain = finalProject?.gsc_property_url?.replace(/\/$/, '') || '';
                         const finalDir = payload.metadata?.directory || '/';
                         const finalSlug = payload.target_url_slug || '';
                         const secondaryUrl = `${domain}${finalDir}${finalSlug}`;
@@ -370,12 +395,12 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                             }
                         };
 
-                        creations.push(TaskService.createTask(projectId, creationPayload));
+                        creations.push(TaskService.createTask(finalProjectId, creationPayload));
                     }
                 }
 
                 await Promise.all([...updates, ...creations]);
-                onTaskUpdate();
+                finalOnTaskUpdate();
                 alert(`${updates.length} actualizados, ${creations.length} creados.`);
 
             } catch (err: any) {
@@ -411,7 +436,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                     let status = 'idea';
                     if (cols[1] && ['todo', 'done', 'review', 'in_progress'].some(s => cols[1].toLowerCase().includes(s))) status = cols[1].toLowerCase(); // Simplified
 
-                    await TaskService.createTask(projectId, {
+                    await TaskService.createTask(finalProjectId, {
                         title: cols[0],
                         status: 'idea', // default
                         type: 'content',
@@ -419,11 +444,11 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         priority: 'medium',
                         target_keyword: cols[3] || '',
                         target_url_slug: cols[4] || '',
-                        secondary_url: cols[4] ? (project?.gsc_property_url || '') + cols[4] : ''
+                        secondary_url: cols[4] ? (finalProject?.gsc_property_url || '') + cols[4] : ''
                     });
                     createdCount++;
                 }
-                onTaskUpdate();
+                finalOnTaskUpdate();
             } catch (e) { alert("Error: " + e); }
             finally { setIsCreating(false); }
         }
@@ -434,14 +459,14 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
         if (!title) return;
 
         try {
-            await TaskService.createTask(projectId, {
+            await TaskService.createTask(finalProjectId, {
                 title,
                 status: 'idea',
                 type: 'content',
                 due_date: new Date().toISOString(),
                 priority: 'medium'
             });
-            onTaskUpdate();
+            finalOnTaskUpdate();
         } catch (e: any) {
             alert("Error al crear: " + e.message);
         }
@@ -452,42 +477,72 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
     for (let i = 0; i < firstDay; i++) {
         calendarGrid.push(<div key={`pad-${i}`} className="h-32 bg-slate-50/50 border-b border-r border-slate-100"></div>);
     }
-    // Remote days
+    // Calendar Grid Body Transformation
     for (let day = 1; day <= days; day++) {
         const dayTasks = getTasksForDay(day);
-        const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
+        const dayObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        const isToday = new Date().toDateString() === dayObj.toDateString();
+        const isWeekend = dayObj.getDay() === 0 || dayObj.getDay() === 6;
 
         calendarGrid.push(
             <div
                 key={`day-${day}`}
-                className={`h-32 border-b border-r border-slate-100 p-2 transition hover:bg-slate-50 ${isToday ? 'bg-indigo-50/30' : ''} group relative`}
+                className={`min-h-[140px] border-b border-r border-slate-100 p-3 transition-all duration-300 hover:bg-slate-50/80 group/day relative
+                    ${isToday ? 'bg-indigo-50/30 ring-1 ring-inset ring-indigo-200/50' : ''}
+                    ${isWeekend ? 'bg-slate-50/10' : 'bg-white'}
+                `}
                 onClick={() => handleCreateTask(day)}
             >
-                <div className="flex justify-between items-start mb-2 pointer-events-none">
-                    <span className={`text-xs font-bold ${isToday ? 'text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full' : 'text-slate-400'}`}>{day}</span>
-                    <button className="opacity-0 group-hover:opacity-100 text-indigo-500 hover:text-indigo-700 pointer-events-auto">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    </button>
+                {/* Day Header */}
+                <div className="flex justify-between items-center mb-3 pointer-events-none">
+                    <span className={`
+                        text-xs font-bold w-7 h-7 flex items-center justify-center transition-all duration-300
+                        ${isToday ? 'bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 scale-110' : 'text-slate-400 group-hover/day:text-slate-900 group-hover/day:scale-110'}
+                    `}>
+                        {day}
+                    </span>
+                    <div className="opacity-0 group-hover/day:opacity-100 transform translate-y-1 group-hover/day:translate-y-0 transition-all pointer-events-auto">
+                        <button className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all duration-300 active:scale-90">
+                            <Plus size={14} />
+                        </button>
+                    </div>
                 </div>
-                <div className="space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar pointer-events-none">
-                    {dayTasks.map(task => {
+
+                {/* Task Stack */}
+                <div className="space-y-1.5 overflow-hidden">
+                    {dayTasks.slice(0, 4).map(task => {
                         const isLocked = ContentService.isLocked(task as ContentItem, user?.id || '');
                         return (
                             <div
                                 key={task.id}
-                                className={`text-[10px] px-1.5 py-1 rounded truncate border border-l-2 cursor-pointer pointer-events-auto flex items-center justify-between
-                                    ${task.status === 'done' ? 'bg-emerald-50 border-emerald-200 border-l-emerald-500 text-emerald-700' :
-                                        task.status === 'review' ? 'bg-amber-50 border-amber-200 border-l-amber-500 text-amber-700' :
-                                            'bg-white border-slate-200 border-l-indigo-500 text-slate-700 shadow-sm'}
+                                className={`
+                                    group/item relative text-[10px] px-2.5 py-1.5 rounded-xl truncate border cursor-pointer pointer-events-auto 
+                                    flex items-center justify-between transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:z-10
+                                    ${task.status === 'done' ? 'bg-emerald-50/40 border-emerald-100/50 text-emerald-700 hover:bg-emerald-50' :
+                                        task.status === 'review' ? 'bg-amber-50/40 border-amber-100/50 text-amber-700 hover:bg-amber-50' :
+                                            task.status === 'in_progress' ? 'bg-blue-50/40 border-blue-100/50 text-blue-700 hover:bg-blue-50' :
+                                                'bg-white border-slate-100 text-slate-600 hover:border-indigo-200 shadow-[0_1px_3px_rgba(0,0,0,0.03)]'}
                                 `}
                                 title={task.title}
                                 onClick={(e) => { e.stopPropagation(); handleOpenTask(task); }}
                             >
-                                <span className="truncate">{task.title}</span>
-                                {isLocked && <Lock size={8} className="text-red-500 flex-shrink-0 ml-1" />}
+                                <div className="flex items-center gap-2 truncate">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${task.status === 'done' ? 'bg-emerald-500' :
+                                        task.status === 'review' ? 'bg-amber-500' :
+                                            task.status === 'in_progress' ? 'bg-blue-500' :
+                                                'bg-slate-300'
+                                        }`} />
+                                    <span className="truncate font-semibold tracking-tight">{task.title || '(Sin título)'}</span>
+                                </div>
+                                {isLocked && <Lock size={8} className="text-red-500 bg-white rounded-full p-0.5 shadow-sm" />}
                             </div>
                         );
                     })}
+                    {dayTasks.length > 4 && (
+                        <div className="text-[9px] font-bold text-slate-400 text-center py-1 bg-slate-50/50 rounded-lg italic border border-dashed border-slate-200">
+                            + {dayTasks.length - 4} contenidos
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -515,7 +570,7 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                             className={`p-1.5 rounded transition-all ${viewMode === 'calendar' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             title="Vista Calendario"
                         >
-                            <CalIcon size={16} />
+                            <Calendar size={16} />
                         </button>
                         <button
                             onClick={() => setViewMode('table')}
@@ -526,12 +581,23 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         </button>
                     </div>
 
-                    <h2 className="text-lg font-bold text-slate-800 capitalize">{monthName}</h2>
-                    <div className="flex gap-1">
-                        <button onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded text-slate-500">
+                    <h2 className="text-lg font-bold text-slate-800 capitalize flex items-center gap-3">
+                        <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
+                        {monthName}
+                    </h2>
+                    <div className="flex gap-2 bg-slate-100/50 p-1 rounded-xl">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handlePrevMonth(); }}
+                            className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-slate-500 transition-all duration-200 active:scale-90"
+                            title="Mes Anterior"
+                        >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                         </button>
-                        <button onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded text-slate-500">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleNextMonth(); }}
+                            className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-slate-500 transition-all duration-200 active:scale-90"
+                            title="Mes Siguiente"
+                        >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                         </button>
                     </div>
@@ -679,21 +745,17 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                         <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'created_at') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
                                             onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
                                         >
-                                            <input
-                                                type="date"
-                                                data-row-index={rowIndex}
-                                                data-col-index={2}
-                                                data-field="created_at"
-                                                className="bg-transparent text-xs text-slate-500 font-medium outline-none hover:text-brand-power cursor-pointer w-full"
-                                                value={task.created_at ? new Date(task.created_at).toLocaleDateString('en-CA') : ''}
-                                                onChange={(e) => {
-                                                    if (e.target.value) {
-                                                        const [y, m, d] = e.target.value.split('-').map(Number);
-                                                        const date = new Date(y, m - 1, d, 12, 0, 0);
-                                                        updateField('created_at', date.toISOString());
-                                                    }
+                                            <div
+                                                className="bg-transparent text-[11px] text-slate-500 font-medium py-1 px-2 rounded-lg hover:bg-slate-100 hover:text-brand-power transition-all cursor-pointer border border-transparent hover:border-slate-200 flex items-center justify-between"
+                                                onClick={(e) => {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setActiveDatePicker({ rowIndex, field: 'created_at', rect, value: task.created_at || '' });
+                                                    setPickerDate(task.created_at ? new Date(task.created_at) : new Date());
                                                 }}
-                                            />
+                                            >
+                                                <span>{task.created_at ? new Date(task.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '--/--/----'}</span>
+                                                <Calendar size={12} className="opacity-40" />
+                                            </div>
                                             {renderDragHandle(rowIndex, 'created_at', task.created_at)}
                                         </td>
 
@@ -701,26 +763,17 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                                         <td className={`p-3 relative group/cell ${isInDragRange(rowIndex, 'due_date') ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : ''}`}
                                             onMouseEnter={() => dragState?.active && setDragState(s => s ? ({ ...s, currentRowIndex: rowIndex }) : null)}
                                         >
-                                            <input
-                                                type="date"
-                                                data-row-index={rowIndex}
-                                                data-col-index={3}
-                                                data-field="due_date"
-                                                className="bg-transparent text-xs text-slate-500 font-medium outline-none hover:text-brand-power cursor-pointer w-full"
-                                                value={task.due_date ? new Date(task.due_date).toLocaleDateString('en-CA') : ''}
-                                                onChange={(e) => {
-                                                    if (e.target.value) {
-                                                        const [y, m, d] = e.target.value.split('-').map(Number);
-                                                        const originalDate = task.due_date ? new Date(task.due_date) : new Date(y, m - 1, d, 12, 0, 0);
-                                                        const newDate = new Date(y, m - 1, d, originalDate.getHours(), originalDate.getMinutes());
-                                                        updateField('due_date', newDate.toISOString());
-                                                        // Sync completed_at if status is done
-                                                        if (task.status === 'done') {
-                                                            updateField('completed_at', newDate.toISOString());
-                                                        }
-                                                    }
+                                            <div
+                                                className="bg-transparent text-[11px] text-slate-500 font-medium py-1 px-2 rounded-lg hover:bg-slate-100 hover:text-brand-power transition-all cursor-pointer border border-transparent hover:border-slate-200 flex items-center justify-between"
+                                                onClick={(e) => {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setActiveDatePicker({ rowIndex, field: 'due_date', rect, value: task.due_date || '' });
+                                                    setPickerDate(task.due_date ? new Date(task.due_date) : new Date());
                                                 }}
-                                            />
+                                            >
+                                                <span className="font-bold text-slate-600">{task.due_date ? new Date(task.due_date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '--/--/----'}</span>
+                                                <Calendar size={12} className="opacity-40" />
+                                            </div>
                                             {renderDragHandle(rowIndex, 'due_date', task.due_date)}
                                         </td>
 
@@ -879,6 +932,86 @@ export const EditorialCalendar: React.FC<EditorialCalendarProps> = (props) => {
                         onTaskUpdate();
                     }}
                 />
+            )}
+
+            {/* Premium Custom Date Picker Popover */}
+            {activeDatePicker && (
+                <>
+                    <div className="fixed inset-0 z-[100]" onClick={() => setActiveDatePicker(null)} />
+                    <div
+                        className="fixed z-[101] bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-200"
+                        style={{
+                            top: `${activeDatePicker.rect.bottom + 8}px`,
+                            left: `${activeDatePicker.rect.left}px`,
+                            minWidth: '280px'
+                        }}
+                    >
+                        <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider px-2 py-0.5 bg-slate-200/50 rounded-md">
+                                {activeDatePicker.field === 'created_at' ? 'Fecha Creación' : 'Fecha Objetivo'}
+                            </span>
+                            <div className="flex gap-1">
+                                <button
+                                    onClick={() => setPickerDate(new Date(pickerDate.getFullYear(), pickerDate.getMonth() - 1))}
+                                    className="p-1 hover:bg-white rounded-md transition-colors"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                </button>
+                                <button
+                                    onClick={() => setPickerDate(new Date(pickerDate.getFullYear(), pickerDate.getMonth() + 1))}
+                                    className="p-1 hover:bg-white rounded-md transition-colors"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="p-4">
+                            <h4 className="text-sm font-bold text-slate-800 mb-4 text-center capitalize">
+                                {pickerDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+                            </h4>
+                            <div className="grid grid-cols-7 gap-1 mb-2">
+                                {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map(d => (
+                                    <div key={d} className="text-[10px] font-bold text-slate-400 text-center">{d}</div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-7 gap-1">
+                                {Array.from({ length: new Date(pickerDate.getFullYear(), pickerDate.getMonth(), 1).getDay() }).map((_, i) => (
+                                    <div key={`pad-${i}`} />
+                                ))}
+                                {Array.from({ length: new Date(pickerDate.getFullYear(), pickerDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
+                                    const day = i + 1;
+                                    const isSelected = activeDatePicker.value && new Date(activeDatePicker.value).toDateString() === new Date(pickerDate.getFullYear(), pickerDate.getMonth(), day).toDateString();
+                                    return (
+                                        <button
+                                            key={day}
+                                            onClick={async () => {
+                                                const selDate = new Date(pickerDate.getFullYear(), pickerDate.getMonth(), day, 12, 0, 0);
+                                                const val = selDate.toISOString();
+                                                const task = contentTasks[activeDatePicker.rowIndex];
+
+                                                try {
+                                                    const payload: any = { [activeDatePicker.field]: val };
+                                                    if (activeDatePicker.field === 'due_date' && task.status === 'done') {
+                                                        payload.completed_at = val;
+                                                    }
+                                                    await TaskService.updateTask(task.id, payload);
+                                                    onTaskUpdate();
+                                                    setActiveDatePicker(null);
+                                                } catch (e) { console.error(e); }
+                                            }}
+                                            className={`
+                                                aspect-square text-[11px] font-medium rounded-lg flex items-center justify-center transition-all
+                                                ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-indigo-50 text-slate-600 hover:text-indigo-600'}
+                                            `}
+                                        >
+                                            {day}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </>
             )}
 
             {/* Project Settings Modal */}
