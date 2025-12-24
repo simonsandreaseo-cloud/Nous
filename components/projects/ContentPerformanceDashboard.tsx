@@ -142,12 +142,9 @@ export const ContentPerformanceDashboard: React.FC<ContentPerformanceDashboardPr
                         const data = metricsByMonth[key];
                         const monthName = month.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
 
-                        // Filter: Only show months that have content
-                        const hasContent = tasks.some(t => {
-                            if (!t.due_date || t.type !== 'content') return false;
-                            const d = new Date(t.due_date);
-                            return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth();
-                        });
+                        // Show all months, regardless of whether there are tasks scheduled
+                        // This ensures that organic traffic is visible even if no new content was created that month
+                        const hasContent = true;
 
                         if (!hasContent) return null;
 
@@ -256,17 +253,23 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
 
             const fmt = (d: Date) => d.toISOString().split('T')[0];
 
-            // 1. Get Top Pages for the month (filtered by content group if possible, or filter post-fetch)
-            // Note: GSC API allows page filter. If contentGroupUrls is not empty, use it.
-            // If empty, user might have wanted "All content". But requirement says "Prefiltered for content group".
-            // If there is NO content scheduled, maybe show all? Or show empty? 
-            // Better to show all if group is empty, or show notice. 
-            // User: "Las keywords estarán prefiltradas para el grupo de contenidos"
-            // Let's assume if we have URLs, use them.
+            // 1. Filter Logic
+            // Priority:
+            // A) If project has 'content_directories' defined (e.g. /blog/), filter by that.
+            // B) Else, show ALL traffic for the property (assume property is the blog).
+            // C) We do NOT filter by specific task URLs anymore as it hides historical/organic performance.
 
-            const regexFilter = contentGroupUrls.length > 0
-                ? contentGroupUrls.map(u => u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
-                : undefined;
+            let regexFilter: string | undefined = undefined;
+
+            if (project.settings?.content_directories && project.settings.content_directories.length > 0) {
+                // Escape special regex chars involved in the directory path just in case, though usually simple
+                regexFilter = project.settings.content_directories
+                    .map(d => d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                    .join('|');
+            } else {
+                // No filter -> All Site
+                regexFilter = undefined;
+            }
 
             // Fetch from GSC Service (needs to support fetching rows directly or use local DB)
             // GscService.getSearchAnalytics returns row objects.
@@ -467,7 +470,7 @@ const PerformanceModal: React.FC<PerformanceModalProps> = ({ project, tasks, mon
                                 <div className="p-4 border-b border-slate-100 font-bold text-slate-700 flex justify-between">
                                     <span>Páginas (URLs)</span>
                                     <span className="text-xs text-slate-400 font-normal">
-                                        {contentGroupUrls.length > 0 ? 'Filtrado por contenido del mes' : 'Todas las páginas'}
+                                        {project.settings?.content_directories?.length ? 'Filtrado por Directorios' : 'Todo el sitio'}
                                     </span>
                                 </div>
                                 <div className="overflow-auto flex-1">
