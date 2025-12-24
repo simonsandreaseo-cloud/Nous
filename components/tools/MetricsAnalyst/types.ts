@@ -77,6 +77,28 @@ export interface Ga4Stats {
     topSources: { name: string; sessions: number }[];
 }
 
+export interface AiTrafficSource {
+    source: string;
+    sessionsP1: number;
+    sessionsP2: number;
+    sessionsChange: number;
+    isAi: boolean; // Flag determined by service or heuristic
+}
+
+export interface AiTrafficAnalysis {
+    overview: {
+        totalAiSessionsP1: number;
+        totalAiSessionsP2: number;
+        totalChange: number;
+        growthRate: number;
+    };
+    sources: AiTrafficSource[];
+    dailyTrend: {
+        dates: string[];
+        aiSessions: number[];
+    };
+}
+
 export interface DashboardStats {
     kpis: SiteWideKPIs;
     datasetStats: {
@@ -207,6 +229,8 @@ export interface ReportPayload {
         overview: any;
         items: any[];
     };
+    // Phase 6: AI Traffic Analysis (GA4)
+    aiTrafficAnalysis?: AiTrafficAnalysis;
 }
 
 export interface LogEntry {

@@ -1,4 +1,4 @@
-import { CSVRow, MetricSeries, ComparisonItem, SiteWideKPIs, ReportPayload, DashboardStats, UrlLossDiagnosis, KeywordCause, StrategicOverview, CannibalizationChartData, TopicCluster, AnomalyPoint } from '../types';
+import { CSVRow, MetricSeries, ComparisonItem, SiteWideKPIs, ReportPayload, DashboardStats, UrlLossDiagnosis, KeywordCause, StrategicOverview, CannibalizationChartData, TopicCluster, AnomalyPoint, AiTrafficAnalysis, AiTrafficSource } from '../types';
 
 interface AnalysisContext {
     pagesP1: CSVRow[];
@@ -7,6 +7,9 @@ interface AnalysisContext {
     queriesP2: CSVRow[];
     countriesP1: CSVRow[];
     countriesP2: CSVRow[];
+    // GA4 specific data (Optional)
+    ga4DataP1?: { source: string, sessions: number, date?: string }[];
+    ga4DataP2?: { source: string, sessions: number, date?: string }[];
 }
 
 export const runFullLocalAnalysis = (
@@ -118,6 +121,16 @@ export const runFullLocalAnalysis = (
     const topicClusters = generateKeywordClusters(opportunityKeywords);
     log(`│   └── Detectados ${topicClusters.length} clusters temáticos de alto potencial.`);
 
+    log(`│   └── Detectados ${topicClusters.length} clusters temáticos de alto potencial.`);
+
+    // --- PHASE 8: AI Traffic Analysis (GA4) ---
+    let aiTrafficAnalysis: AiTrafficAnalysis | undefined;
+    if (ctx.ga4DataP1 && ctx.ga4DataP2) {
+        log("├── Fase 8/8: Análisis de Tráfico IA (GA4)...");
+        aiTrafficAnalysis = processAiTraffic(ctx.ga4DataP1, ctx.ga4DataP2);
+        log(`│   └── Procesadas ${aiTrafficAnalysis.sources.length} fuentes de sesiones.`);
+    }
+
     log("└── Dossier de Inteligencia Finalizado.");
 
     const reportPayload: ReportPayload = {
@@ -136,6 +149,7 @@ export const runFullLocalAnalysis = (
         // Phase 4 Payload
         topicClusters,
         anomaliesFound: dashboardStats.anomalies, // Send anomalies to AI
+        aiTrafficAnalysis, // Newly added module
 
         segmentAnalysis: topSegmentMovers.map(s => ({
             segment: s.name,
@@ -714,5 +728,73 @@ function runDetectionsInOnePass(
         keywordDecayAlerts: keywordDecayAlerts.sort((a, b) => b.positionChange - a.positionChange).slice(0, 10),
         newKeywordDiscovery: newKeywordDiscovery.sort((a, b) => b.impressionsP2 - a.impressionsP2).slice(0, 30),
         page1LoserAlerts: page1LoserAlerts.sort((a, b) => b.impressionsP1 - a.impressionsP1).slice(0, 10)
+    };
+}
+    };
+}
+
+// --- HELPER: Process AI Traffic ---
+function processAiTraffic(
+    dataP1: { source: string, sessions: number, date?: string }[],
+    dataP2: { source: string, sessions: number, date?: string }[]
+): AiTrafficAnalysis {
+    // 1. Aggregate totals per source
+    const getSourceMap = (data: { source: string, sessions: number }[]) => {
+        const map = new Map<string, number>();
+        data.forEach(d => {
+            const key = d.source.toLowerCase().trim();
+            map.set(key, (map.get(key) || 0) + d.sessions);
+        });
+        return map;
+    };
+
+    const mapP1 = getSourceMap(dataP1);
+    const mapP2 = getSourceMap(dataP2);
+    const allSources = new Set([...mapP1.keys(), ...mapP2.keys()]);
+
+    // 2. Build Source List
+    const sources: AiTrafficSource[] = [];
+    let totalP1 = 0;
+    let totalP2 = 0;
+
+    allSources.forEach(source => {
+        const s1 = mapP1.get(source) || 0;
+        const s2 = mapP2.get(source) || 0;
+        totalP1 += s1;
+        totalP2 += s2;
+
+        sources.push({
+            source: source,
+            sessionsP1: s1,
+            sessionsP2: s2,
+            sessionsChange: s2 - s1,
+            isAi: false // Logic passed to AI to decide later
+        });
+    });
+
+    // 3. Daily Trend (for P2 mostly)
+    const dailyMap = new Map<string, number>();
+    dataP2.forEach(d => {
+        if (d.date) {
+            dailyMap.set(d.date, (dailyMap.get(d.date) || 0) + d.sessions);
+        }
+    });
+
+    // Sort dates
+    const dates = Array.from(dailyMap.keys()).sort();
+    const trendValues = dates.map(d => dailyMap.get(d) || 0);
+
+    return {
+        overview: {
+            totalAiSessionsP1: totalP1,
+            totalAiSessionsP2: totalP2,
+            totalChange: totalP2 - totalP1,
+            growthRate: totalP1 > 0 ? ((totalP2 - totalP1) / totalP1) * 100 : 0
+        },
+        sources: sources.sort((a, b) => b.sessionsP2 - a.sessionsP2), // Sort by most sessions in recent period
+        dailyTrend: {
+            dates,
+            aiSessions: trendValues
+        }
     };
 }
