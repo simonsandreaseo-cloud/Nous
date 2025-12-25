@@ -233,6 +233,10 @@ export interface ReportPayload {
     };
     // Phase 6: AI Traffic Analysis (GA4)
     aiTrafficAnalysis?: AiTrafficAnalysis;
+
+    // --- NEW REFACTOR FIELDS ---
+    sections?: ReportSection[]; // The new modular structure
+    rawChartData?: ChartData; // Persisted for reconstruction
 }
 
 export interface LogEntry {
@@ -298,6 +302,39 @@ export interface SectionConfig {
     id: string;
     title?: string;
     caseCount?: number;
+}
+
+// --- NEW REFACTOR TYPES ---
+
+export type DynamicChartType = 'line' | 'bar' | 'scatter' | 'kpi-card';
+
+export interface DynamicChartConfig {
+    type: DynamicChartType;
+    title: string;
+    metrics: {
+        label: string;
+        dataKey: string; // e.g., 'clicks', 'impressions', 'position', 'ctr'
+        color?: string;
+    }[];
+    xAxisKey?: string; // Default to dates
+    filter?: {
+        urlIncludes?: string;
+        queryIncludes?: string;
+        country?: string;
+    }
+}
+
+export interface ReportSection {
+    id: string;
+    type: 'text' | 'chart' | 'hybrid' | 'kpi-grid';
+    title?: string;
+    content?: string; // HTML content for text/hybrid
+    chartConfig?: DynamicChartConfig; // For charts
+    kpiConfig?: {
+        items: { label: string, value: string | number, trend?: number, prefix?: string, suffix?: string }[]
+    }; // For KPI grids
+    isEditable?: boolean; // Defaults to true
+    order: number;
 }
 
 export interface TaskImpactConfig {

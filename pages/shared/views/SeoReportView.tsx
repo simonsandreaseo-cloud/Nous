@@ -1,5 +1,7 @@
 import React from 'react';
 import { FileText, TrendingUp, AlertCircle } from 'lucide-react';
+import { UnifiedReportRenderer } from '../../../components/tools/MetricsAnalyst/components/UnifiedReportRenderer';
+import { ChartData, ReportSection } from '../../../components/tools/MetricsAnalyst/types';
 
 interface SeoReportViewProps {
     item: any;
@@ -8,16 +10,26 @@ interface SeoReportViewProps {
 
 const SeoReportView: React.FC<SeoReportViewProps> = ({ item, accessLevel }) => {
     // Reports usually are static summaries with charts
-    const { html, stats, date_range } = item.report_data || {};
+    const { html, stats, date_range, sections, rawChartData } = item.report_data || {};
+
+    // Prepare sections: Use saved sections or fallback to legacy HTML wrapped in a text section
+    const displaySections: ReportSection[] = sections || (html ? [{
+        id: 'legacy-content',
+        type: 'text',
+        title: 'Reporte Generado',
+        content: html,
+        order: 0,
+        isEditable: false
+    }] : []);
 
     return (
-        <div className="max-w-5xl mx-auto p-6 md:p-12">
-            <div className="bg-brand-power text-white p-8 rounded-3xl mb-12 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-accent blur-[100px] opacity-20 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+        <div className="max-w-5xl mx-auto p-6 md:p-12 font-sans">
+            <div className="bg-slate-900 text-white p-8 rounded-3xl mb-12 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 blur-[100px] opacity-20 rounded-full -translate-y-1/2 translate-x-1/2"></div>
 
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-4">
-                        <TrendingUp className="text-brand-accent" />
+                        <TrendingUp className="text-indigo-400" />
                         <span className="text-xs font-bold uppercase tracking-widest text-white/50">Informe SEO Consolidado</span>
                     </div>
                     <h2 className="text-3xl font-bold mb-2">{item.domain || 'Análisis de Dominio'}</h2>
@@ -32,8 +44,20 @@ const SeoReportView: React.FC<SeoReportViewProps> = ({ item, accessLevel }) => {
                 </div>
             </div>
 
-            <div className="prose prose-slate max-w-none prose-headings:text-brand-power prose-a:text-indigo-600">
-                <div dangerouslySetInnerHTML={{ __html: html || '<p>No hay contenido disponible en este informe.</p>' }} />
+            <div className="min-h-[500px]">
+                {displaySections.length > 0 ? (
+                    <UnifiedReportRenderer
+                        sections={displaySections}
+                        chartData={(rawChartData || {}) as ChartData}
+                        isReadOnly={true}
+                        onSectionsChange={() => { }}
+                    />
+                ) : (
+                    <div className="bg-white p-12 rounded-2xl text-center text-slate-500 border border-slate-200">
+                        <FileText size={48} className="mx-auto text-slate-300 mb-4" />
+                        <p className="text-lg font-medium">No hay contenido disponible para visualizar.</p>
+                    </div>
+                )}
             </div>
 
             {accessLevel === 'edit' && (
@@ -42,8 +66,8 @@ const SeoReportView: React.FC<SeoReportViewProps> = ({ item, accessLevel }) => {
                         <AlertCircle size={20} />
                     </div>
                     <div>
-                        <h4 className="font-bold text-amber-900">Modo Edición Limitado</h4>
-                        <p className="text-sm text-amber-800/70">Los informes son generados por IA y actualmente solo soportan edición del título o notas adicionales. Para cambios profundos, contacta al propietario.</p>
+                        <h4 className="font-bold text-amber-900">Modo Visor</h4>
+                        <p className="text-sm text-amber-800/70">Este visor es de solo lectura. Para editar el contenido, utiliza el Analista de Métricas principal.</p>
                     </div>
                 </div>
             )}

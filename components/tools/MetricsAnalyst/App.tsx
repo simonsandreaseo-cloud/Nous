@@ -70,6 +70,7 @@ const App: React.FC = () => {
     const [reportHTML, setReportHTML] = useState<string>("");
     const [chartData, setChartData] = useState<ChartData | null>(null);
     const [reportPayload, setReportPayload] = useState<ReportPayload | null>(null);
+    const [sections, setSections] = useState<ReportSection[]>([]);
     const [p1Name, setP1Name] = useState("");
     const [p2Name, setP2Name] = useState("");
 
@@ -153,7 +154,24 @@ const App: React.FC = () => {
                 setHasSaved(true);
                 if (data.project_id) setSelectedProjectId(data.project_id.toString());
                 if (data.report_data) {
-                    setReportHTML(data.report_data.html || "");
+                    if (data.report_data.rawChartData) setChartData(data.report_data.rawChartData);
+
+                    if (data.report_data.sections) {
+                        setSections(data.report_data.sections);
+                        setReportHTML("LOADED"); // Flag to show view
+                    } else if (data.report_data.html) {
+                        // Legacy Fallback
+                        setReportHTML(data.report_data.html);
+                        setSections([{
+                            id: 'legacy-content',
+                            type: 'text',
+                            title: 'Reporte Generado',
+                            content: data.report_data.html,
+                            order: 0,
+                            isEditable: true
+                        }]);
+                    }
+
                     setReportPayload({
                         projectName: data.domain,
                         dashboardStats: data.report_data.stats,
@@ -412,24 +430,49 @@ const App: React.FC = () => {
         setActiveTaskImpact(taskImpact);
         setShowSectionSelector(false); // Hide selector
         setIsAnalyzing(true); // Show progress
+        setSections([]); // Clear previous
 
         try {
-            let accumulatedBodyHTML = "";
+            let generatedSections: ReportSection[] = [];
             let completed = 0;
             let totalSteps = selectedSections.length + (taskImpact.enabled ? 1 : 0) + (contentAnalysis.enabled ? 1 : 0) + 1; // +1 for final refinement
 
-            // 3. Generate Sections
+            // 3. Generate Selected Sections
             for (const section of selectedSections) {
                 addLog(`✍️ Generando sección: ${section.title || section.id}...`);
                 try {
-                    // Rate Limit Prevention: Wait 3 seconds between sections
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    // Rate Limit Prevention: Wait 2 seconds between sections
+                    await new Promise(resolve => setTimeout(resolve, 2000));
 
-                    const sectionHTML = await generateReportSection(section.id, reportPayload, model, keys, section.caseCount, usageMode);
-                    accumulatedBodyHTML += sectionHTML;
+                    const { html, charts } = await generateReportSection(section.id, reportPayload, model, keys, section.caseCount, usageMode);
+
+                    const newSection: ReportSection = {
+                        id: crypto.randomUUID(),
+                        type: charts.length > 0 ? 'hybrid' : 'text',
+                        title: section.title || section.id.replace(/_/g, ' '),
+                        content: html,
+                        chartConfig: charts.length > 0 ? charts[0] : undefined,
+                        isEditable: true,
+                        order: generatedSections.length
+                    };
+                    generatedSections.push(newSection);
+
+                    // Add extra sections for additional charts
+                    if (charts.length > 1) {
+                        for (let i = 1; i < charts.length; i++) {
+                            generatedSections.push({
+                                id: crypto.randomUUID(), type: 'chart', title: charts[i].title || 'Gráfico Adicional',
+                                chartConfig: charts[i], order: generatedSections.length, isEditable: true
+                            });
+                        }
+                    }
                 } catch (secErr) {
                     console.error(`Error generando sección ${section.id}`, secErr);
-                    accumulatedBodyHTML += `<div class="p-4 bg-red-50 text-red-600 border border-red-200 rounded">Error generando sección ${section.id}</div>`;
+                    generatedSections.push({
+                        id: crypto.randomUUID(), type: 'text', title: section.title || 'Error',
+                        content: `<div class="p-4 bg-red-50 text-red-600">Error generando sección ${section.id}</div>`,
+                        order: generatedSections.length, isEditable: true
+                    });
                 }
 
                 completed++;
@@ -438,17 +481,13 @@ const App: React.FC = () => {
             }
 
             // 4. Task Impact Analysis (Optional)
-            // 4. Task Impact Analysis (Optional)
             if (taskImpact.enabled) {
                 addLog(`🎯 Analizando Impacto de Tareas...`);
-
-                // Rate Limit Prevention for this section too
-                await new Promise(resolve => setTimeout(resolve, 3000));
+                await new Promise(resolve => setTimeout(resolve, 2000));
 
                 try {
                     let tasksDetails = watchedTasks.filter(t => taskImpact.selectedTaskIds.includes(t.id));
-
-                    // Fallback: If enabled but no specific tasks selected, take top 5 recent tasks
+                    // Fallback
                     if (tasksDetails.length === 0 && watchedTasks.length > 0) {
                         addLog("⚠️ No seleccionaste tareas específicas, analizando las 5 más recientes.", 'warn');
                         tasksDetails = watchedTasks.slice(0, 5);
@@ -457,8 +496,11 @@ const App: React.FC = () => {
                     if (tasksDetails.length > 0) {
                         addLog(`Analizando ${tasksDetails.length} tareas completadas.`);
                         const taskSectionPayload = { ...reportPayload, taskImpactDetails: tasksDetails };
-                        const taskImpactHTML = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
-                        accumulatedBodyHTML += taskImpactHTML;
+                        const { html, charts } = await generateReportSection('ANALISIS_IMPACTO_TAREAS', taskSectionPayload, model, keys);
+                        generatedSections.push({
+                            id: crypto.randomUUID(), type: 'hybrid', title: 'Impacto de Tareas',
+                            content: html, chartConfig: charts[0], order: generatedSections.length, isEditable: true
+                        });
                     } else {
                         addLog("No hay tareas para analizar en este proyecto/periodo.", 'warn');
                     }
@@ -475,16 +517,12 @@ const App: React.FC = () => {
                 await new Promise(resolve => setTimeout(resolve, 3000));
 
                 try {
-                    let targetTasks = [];
+                    let targetTasks: any[] = [];
                     if (contentAnalysis.mode === 'items') {
                         targetTasks = watchedTasks.filter(t => contentAnalysis.selectedTaskIds.includes(t.id));
                     } else if (contentAnalysis.mode === 'month' && contentAnalysis.selectedMonth) {
                         const [y, m] = contentAnalysis.selectedMonth.split('-').map(Number);
-                        // Filter by roughly matching month (created_at)
-                        targetTasks = watchedTasks.filter(t => {
-                            const d = new Date(t.created_at);
-                            return d.getFullYear() === y && d.getMonth() === (m - 1);
-                        });
+                        targetTasks = watchedTasks.filter(t => { const d = new Date(t.created_at); return d.getFullYear() === y && d.getMonth() === (m - 1); });
                     }
 
                     if (targetTasks.length > 0) {
@@ -492,51 +530,30 @@ const App: React.FC = () => {
                             const url = t.gsc_property_url || t.secondary_url;
                             if (!url) return null;
                             const lookupKey = url.toLowerCase().trim().replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
-                            // Attempt to find metrics in our loaded chartData
-                            // We use chartData?.chartLookup or search in arrays
                             let metricItem = chartData?.chartLookup?.[lookupKey];
                             if (!metricItem && chartData) {
-                                // Fallback search
                                 metricItem = chartData.topWinners.find(x => x.name.includes(lookupKey)) || chartData.topLosers.find(x => x.name.includes(lookupKey));
                             }
 
                             return {
-                                title: t.title,
-                                url: url,
-                                metrics: metricItem ? {
-                                    clicks: metricItem.clicksP2,
-                                    impressions: metricItem.impressionsP2,
-                                    position: metricItem.positionP2,
-                                    change: metricItem.clicksChange
-                                } : 'Low Visibility / No Data'
+                                title: t.title, url: url,
+                                metrics: metricItem ? { clicks: metricItem.clicksP2, impressions: metricItem.impressionsP2, position: metricItem.positionP2, change: metricItem.clicksChange } : 'Low Visibility / No Data'
                             };
                         }).filter(Boolean);
 
-                        // Calculate Aggregates for the Dashboard
+                        // Overview calc
                         const overview = contentAnalysisData.reduce((acc: any, item: any) => {
-                            if (item.metrics !== 'Low Visibility / No Data') {
-                                acc.clicks += item.metrics.clicks;
-                                acc.impressions += item.metrics.impressions;
-                                acc.posSum += item.metrics.position;
-                                acc.count++;
-                            }
+                            if (item.metrics !== 'Low Visibility / No Data') { acc.clicks += item.metrics.clicks; acc.impressions += item.metrics.impressions; acc.posSum += item.metrics.position; acc.count++; }
                             return acc;
                         }, { clicks: 0, impressions: 0, posSum: 0, count: 0 });
 
-                        const contentPayload = {
-                            ...reportPayload,
-                            contentAnalysisData: {
-                                items: contentAnalysisData,
-                                overview: {
-                                    totalClicks: overview.clicks,
-                                    totalImpressions: overview.impressions,
-                                    avgPosition: overview.count > 0 ? overview.posSum / overview.count : 0,
-                                    contentCount: overview.count
-                                }
-                            }
-                        };
-                        const contentHTML = await generateReportSection('ANALISIS_CONTENIDOS', contentPayload as any, model, keys);
-                        accumulatedBodyHTML += contentHTML;
+                        const contentPayload = { ...reportPayload, contentAnalysisData: { items: contentAnalysisData, overview: { totalClicks: overview.clicks, totalImpressions: overview.impressions, avgPosition: overview.count > 0 ? overview.posSum / overview.count : 0, contentCount: overview.count } } };
+
+                        const { html, charts } = await generateReportSection('ANALISIS_CONTENIDOS', contentPayload as any, model, keys);
+                        generatedSections.push({
+                            id: crypto.randomUUID(), type: 'hybrid', title: 'Análisis de Contenidos',
+                            content: html, chartConfig: charts[0], order: generatedSections.length, isEditable: true
+                        });
                     } else {
                         addLog("No se encontraron contenidos para el periodo/selección content analysis.", 'warn');
                     }
@@ -548,20 +565,20 @@ const App: React.FC = () => {
 
             // 6. Final Refinement (Abstract & Conclusions)
             addLog(`👓 Redactando Resumen Ejecutivo y Conclusiones...`);
-            const refinedSummary = await generateFinalRefinement(accumulatedBodyHTML, activeContext, model, keys);
+            const allHtml = generatedSections.map(s => s.content).join(" ");
+            const refinedSummary = await generateFinalRefinement(allHtml, activeContext, model, keys);
 
-            // VALIDATION: Ensure we actually have content
-            const fullContent = refinedSummary + accumulatedBodyHTML;
-            if (!fullContent || fullContent.length < 500 || fullContent.includes("Error Crítico")) {
-                // Check if it's just a bunch of error messages
-                const errorCount = (fullContent.match(/Error generando sección/g) || []).length;
-                if (errorCount > 0 && fullContent.length < 2000) {
-                    throw new Error("La generación falló para la mayoría de las secciones. Por favor intenta con otro modelo o claves API.");
-                }
-            }
+            // Prepend summary
+            generatedSections.unshift({
+                id: 'summary-section', type: 'text', title: 'Resumen Ejecutivo',
+                content: refinedSummary, order: -1, isEditable: true
+            });
 
-            // 7. Final success state
-            setReportHTML(fullContent);
+            // Reorder
+            generatedSections = generatedSections.map((s, i) => ({ ...s, order: i }));
+            setSections(generatedSections);
+            setReportHTML("GENERATED"); // Flag to satisfy older checks
+
             setProgressPercent(100);
             addLog("¡Informe Finalizado con Éxito!");
 
@@ -569,11 +586,8 @@ const App: React.FC = () => {
             console.error("CRITICAL GENERATION ERROR:", err);
             addLog(`Error Crítico: ${err.message}`, 'error');
             alert(`Ocurrió un error generando el informe: ${err.message}\n\nSe restaurará la selección.`);
-
-            // RESTORE STATE TO AVOID BLANK SCREEN
             setIsAnalyzing(false);
-            setShowSectionSelector(true); // Go back to allow retry
-            // Ensure we clear any partial garbage
+            setShowSectionSelector(true);
             setReportHTML("");
         } finally {
             setIsAnalyzing(false);
@@ -602,7 +616,9 @@ const App: React.FC = () => {
                     stats: reportPayload?.dashboardStats,
                     summary: "Resumen",
                     date_range: p2Name,
-                    mode: usageMode
+                    mode: usageMode,
+                    sections: sections.map(s => ({ ...s, isEditable: false })), // Save snapshot
+                    rawChartData: chartData
                 },
                 project_id: selectedProjectId ? parseInt(selectedProjectId) : null
             };
@@ -851,7 +867,8 @@ const App: React.FC = () => {
 
             {reportHTML && !isAnalyzing && !showSectionSelector && (
                 <ReportView
-                    htmlContent={reportHTML}
+                    sections={sections}
+                    onSectionsChange={setSections}
                     chartData={chartData!}
                     p1Name={p1Name}
                     p2Name={p2Name}
@@ -860,7 +877,7 @@ const App: React.FC = () => {
                     isRegenerating={isAnalyzing}
                     dashboardStats={chartData?.dashboardStats}
                     logo={logo}
-                    onSave={handleSaveCloud}
+                    onSave={() => handleSaveCloud()}
                     onShowHistory={() => setIsHistoryOpen(true)}
                     isSaving={isSaving}
                     hasSaved={hasSaved}
@@ -872,8 +889,6 @@ const App: React.FC = () => {
                     onSelectProject={setSelectedProjectId}
                     onDateRangeChange={(range) => {
                         console.log("Date range changed to:", range);
-                        // In the future, this could trigger a re-fetching of GSC data for those ranges
-                        // and re-running the analysis automatically.
                     }}
                     onShare={handleShareClick}
                 />
