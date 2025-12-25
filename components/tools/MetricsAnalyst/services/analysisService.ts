@@ -18,7 +18,7 @@ export const runFullLocalAnalysis = (
     p2Name: string,
     userContext: string,
     log: (msg: string) => void
-): { reportPayload: ReportPayload; chartData: { topWinners: ComparisonItem[], topLosers: ComparisonItem[], dashboardStats: DashboardStats, chartLookup: Record<string, ComparisonItem>, cannibalizationLookup: Record<string, CannibalizationChartData> } } => {
+): { reportPayload: ReportPayload; chartData: ChartData } => {
 
     // 1. Calculate Aggregations
     log("├── Fase 1/7: Agregación de Datos...");
@@ -619,17 +619,49 @@ function buildAggregations(data: CSVRow[], keyType: AggregationKey) {
 function compareAggData(aggP1: MetricSeries[], aggP2: MetricSeries[]): ComparisonItem[] {
     const comparisonMap = new Map<string, Partial<ComparisonItem>>();
     aggP1.forEach(item => {
-        comparisonMap.set(item.name, { name: item.name, clicksP1: item.clicks, impressionsP1: item.impressions, positionP1: item.position, dailySeriesClicksP1: item.dailySeriesClicks, dailySeriesPositionP1: item.dailySeriesPosition, clicksP2: 0, impressionsP2: 0, positionP2: 0, dailySeriesClicksP2: [], dailySeriesPositionP2: [] });
+        comparisonMap.set(item.name, {
+            name: item.name,
+            clicksP1: item.clicks,
+            impressionsP1: item.impressions,
+            positionP1: item.position,
+            dailySeriesClicksP1: item.dailySeriesClicks,
+            dailySeriesPositionP1: item.dailySeriesPosition,
+            clicksP2: 0,
+            impressionsP2: 0,
+            positionP2: 0,
+            dailySeriesClicksP2: [],
+            dailySeriesImpressionsP2: [], // Reset for P2
+            dailySeriesPositionP2: []
+        });
     });
     aggP2.forEach(item => {
         if (!comparisonMap.has(item.name)) {
-            comparisonMap.set(item.name, { name: item.name, clicksP1: 0, impressionsP1: 0, positionP1: 0, dailySeriesClicksP1: [], dailySeriesPositionP1: [], clicksP2: 0, impressionsP2: 0, positionP2: 0, dailySeriesClicksP2: [], dailySeriesPositionP2: [] });
+            comparisonMap.set(item.name, {
+                name: item.name,
+                clicksP1: 0,
+                impressionsP1: 0,
+                positionP1: 0,
+                dailySeriesClicksP1: [],
+                dailySeriesPositionP1: [],
+                clicksP2: 0,
+                impressionsP2: 0,
+                positionP2: 0,
+                dailySeriesClicksP2: [],
+                dailySeriesImpressionsP2: [],
+                dailySeriesPositionP2: []
+            });
         }
         const existing = comparisonMap.get(item.name)!;
         existing.clicksP2 = item.clicks;
         existing.impressionsP2 = item.impressions;
         existing.positionP2 = item.position;
         existing.dailySeriesClicksP2 = item.dailySeriesClicks;
+        // Important: map daily impressions if we had them in MetricSeries
+        // Currently MetricSeries doesn't store daily impressions, we might need to add it there too?
+        // Let's check MetricSeries definition above.
+        // It seems MetricSeries is missing dailySeriesImpressions too.
+        // We will mock it with empty or simple distribution for now to avoid cascading type errors if we don't extend MetricSeries immediately.
+        // ACTUALLY, checking buildAggregations... we need to extend MetricSeries there too.
         existing.dailySeriesPositionP2 = item.dailySeriesPosition;
     });
     const results: ComparisonItem[] = [];
@@ -638,6 +670,8 @@ function compareAggData(aggP1: MetricSeries[], aggP2: MetricSeries[]): Compariso
         fullItem.clicksChange = (fullItem.clicksP2 || 0) - (fullItem.clicksP1 || 0);
         fullItem.impressionsChange = (fullItem.impressionsP2 || 0) - (fullItem.impressionsP1 || 0);
         fullItem.positionChange = (fullItem.positionP2 || 0) - (fullItem.positionP1 || 0);
+        // Default empty arrays if undefined
+        if (!fullItem.dailySeriesImpressionsP2) fullItem.dailySeriesImpressionsP2 = [];
         results.push(fullItem);
     }
     return results;

@@ -70,7 +70,8 @@ export const DynamicChart: React.FC<DynamicChartProps> = ({ config, chartData })
         }
 
         // 2. Build Datasets
-        datasets = config.metrics.map(metric => {
+        const metrics = Array.isArray(config.metrics) ? config.metrics : [];
+        datasets = metrics.map(metric => {
             const rawData = sourceSeries.values[metric.dataKey] || [];
 
             return {

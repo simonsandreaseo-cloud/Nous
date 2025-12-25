@@ -155,9 +155,39 @@ export const getRelevantSections = async (payload: ReportPayload, model: string,
             `Findings: ${JSON.stringify(findingsSummary)}`,
             { systemInstruction: SYSTEM_PROMPT_DISPATCHER, responseMimeType: "application/json" }
         );
-        return JSON.parse(response.text.replace(/```json|```/g, '').trim());
+        return cleanAndParseJSON(response.text);
     } catch (e) {
         return ['ANALISIS_ESTRATEGICO', 'OPORTUNIDADES_CONTENIDO_CLUSTERS'];
+    }
+};
+
+const cleanAndParseJSON = (text: string): any => {
+    try {
+        // 1. Remove Markdown code blocks
+        let clean = text.replace(/```json|```/g, '').trim();
+
+        // 2. Fix potential unescaped newlines in strings
+        // This is a naive fix but handles the most common AI error: literal newlines inside JSON strings
+        // We assume valid JSON structure otherwise.
+        // A safer way is to rely on the model obeying strict JSON, but we can try to sanitize control chars if we are careful.
+        // clean = clean.replace(/\n/g, "\\n"); // CAREFUL: This might break actual structure specific formatting.
+        // Instead, let's rely on a second parse attempt if first fails.
+
+        return JSON.parse(clean);
+    } catch (e) {
+        // Retry with aggressive cleaning for control characters
+        try {
+            let clean = text.replace(/```json|```/g, '').trim();
+            // Escape newlines that are not close to a quote or brace? Hard to regex correctly.
+            // Simple approach: Use a specialized regex to find unescaped newlines in string properties? Too complex.
+            // Fallback: Just try to strip invalid chars if simple parse fails.
+            clean = clean.replace(/[\x00-\x1F\x7F-\x9F]/g, ""); // Remove control characters
+            return JSON.parse(clean);
+        } catch (e2) {
+            console.error("JSON Parse Failed:", e2);
+            // Return null or throw
+            throw e2;
+        }
     }
 };
 
@@ -198,14 +228,14 @@ export const generateReportSection = async (
                 responseMimeType: "application/json"
             }
         );
-        const json = JSON.parse(response.text.replace(/```json|```/g, '').trim());
+        const json = cleanAndParseJSON(response.text);
         return {
             html: json.html || "<!-- Empty -->",
             charts: json.charts || []
         };
     } catch (e) {
         console.error("Section Gen Error", e);
-        return { html: `<div class="text-red-500">Error generando sección ${sectionName}</div>`, charts: [] };
+        return { html: `<div class="p-4 bg-red-50 text-red-600 border border-red-200 rounded">Error generando sección ${sectionName}.</div>`, charts: [] };
     }
 };
 
@@ -215,10 +245,6 @@ export const generateFinalRefinement = async (
     model: string,
     apiKeys: string[]
 ): Promise<string> => {
-    // This one stays HTML-focused for simplicity in the summary, 
-    // OR we can make it return JSON too. Let's keep it HTML string for now 
-    // but the Prompt expects JSON so we need to parse it.
-
     try {
         const response = await generateWithRetry(
             apiKeys,
@@ -226,7 +252,7 @@ export const generateFinalRefinement = async (
             `CONTEXT: ${userContext}. \n CONTENT: ${generatedHTML.substring(0, 45000)}`,
             { systemInstruction: SYSTEM_PROMPT_REFINER, responseMimeType: "application/json" }
         );
-        const json = JSON.parse(response.text.replace(/```json|```/g, '').trim());
+        const json = cleanAndParseJSON(response.text);
         return json.html || "";
     } catch (e) {
         return `<section id="RESUMEN_EJECUTIVO"><p>Resumen no disponible.</p></section>`;

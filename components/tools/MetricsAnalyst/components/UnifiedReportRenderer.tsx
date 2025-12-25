@@ -109,7 +109,7 @@ export const UnifiedReportRenderer: React.FC<UnifiedReportRendererProps> = ({
     );
 
     const renderContent = (section: ReportSection) => {
-        if (section.type === 'kpi-grid' && section.kpiConfig) {
+        if (section.type === 'kpi-grid' && section.kpiConfig && Array.isArray(section.kpiConfig.items)) {
             return (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     {section.kpiConfig.items.map((kpi, i) => (

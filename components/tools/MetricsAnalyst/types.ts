@@ -36,6 +36,7 @@ export interface ComparisonItem extends MetricSeries {
     positionP2: number;
     keywordCountP2: number;
     dailySeriesClicksP2: number[];
+    dailySeriesImpressionsP2: number[];
     dailySeriesPositionP2: number[];
 
     clicksChange: number;
@@ -252,7 +253,7 @@ export interface ChartData {
     chartLookup: Record<string, ComparisonItem>;
     // Phase 3: Specific charts for conflicts
     cannibalizationLookup: Record<string, CannibalizationChartData>;
-    aiTrafficTrend?: { dates: string[], sessions: number[] };
+    aiTrafficTrend?: { dates: string[], aiSessions: number[] };
 }
 
 export type FileType = 'pages' | 'queries' | 'countries';
