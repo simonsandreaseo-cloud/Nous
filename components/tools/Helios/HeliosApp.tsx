@@ -34,7 +34,13 @@ const HeliosApp: React.FC = () => {
     useEffect(() => {
         const init = async () => {
             // 1. Fetch simplified project list
-            const { data } = await supabase.from('projects').select('id, name, domain, ga4_property_id');
+            const { data, error } = await supabase
+                .from('projects')
+                .select('id, name, domain, ga4_property_id')
+                .eq('user_id', user.id);
+
+            if (error) console.error("Error fetching projects:", error);
+
             if (data) {
                 const mapped = data.map(p => ({
                     id: p.id.toString(),
@@ -148,9 +154,17 @@ const HeliosApp: React.FC = () => {
             // 4. Run Local Math Analysis (DataProcessor via AnalysisService reuse)
             setLoadingMessage("Ejecutando Algoritmos de Helios...");
 
+            // 4. Run Local Math Analysis (DataProcessor via AnalysisService reuse)
+            setLoadingMessage("Ejecutando Algoritmos de Helios...");
+
             const { reportPayload } = runFullLocalAnalysis(
                 {
-                    pagesP1, pagesP2, queriesP1, queriesP2, countriesP1, countriesP2,
+                    pagesP1: p1Pages,
+                    pagesP2: p2Pages,
+                    queriesP1: p1Queries,
+                    queriesP2: p2Queries,
+                    countriesP1: p1Countries,
+                    countriesP2: p2Countries,
                     ga4DataP1, ga4DataP2
                 },
                 `${startP1} - ${endP1}`,
@@ -268,8 +282,8 @@ const HeliosApp: React.FC = () => {
                     isOpen={true}
                     itemId={sharingItem.id}
                     itemType="report"
-                    initialAccess={sharingItem.initialAccess}
-                    initialToken={sharingItem.initialToken}
+                    initialPublicAccess={sharingItem.initialAccess}
+                    initialShareToken={sharingItem.initialToken}
                     onClose={() => setShowShareModal(false)}
                 />
             )}

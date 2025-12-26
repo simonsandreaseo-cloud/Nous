@@ -238,6 +238,7 @@ export interface ReportPayload {
     // --- NEW REFACTOR FIELDS ---
     sections?: ReportSection[]; // The new modular structure
     rawChartData?: ChartData; // Persisted for reconstruction
+    taskImpactDetails?: any[];
 }
 
 export interface LogEntry {
