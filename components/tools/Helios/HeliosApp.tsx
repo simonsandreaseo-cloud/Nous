@@ -36,8 +36,7 @@ const HeliosApp: React.FC = () => {
             // 1. Fetch simplified project list
             const { data, error } = await supabase
                 .from('projects')
-                .select('id, name, domain, ga4_property_id')
-                .eq('user_id', user.id);
+                .select('id, name, domain, ga4_property_id');
 
             if (error) console.error("Error fetching projects:", error);
 
