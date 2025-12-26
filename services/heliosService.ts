@@ -83,6 +83,72 @@ export const analyzeWithHelios = async (
         `;
     }
 
+    if (config.modules.concentration) {
+        moduleInstructions += `
+        - **CONCENTRATION RISK**:
+          Analyze 'concentrationAnalysis' data.
+          Highlight if too few pages drive most traffic.
+          Use a 'table' to show the top contributor URLs and their % share.
+        `;
+    }
+
+    if (config.modules.new_keywords) {
+        moduleInstructions += `
+        - **NEW KEYWORDS**:
+          Analyze 'newKeywordDiscovery' data.
+          Identify promising new terms with high impressions.
+          Use a 'table' to list these terms with their initial performance.
+        `;
+    }
+
+    if (config.modules.segment_analysis) {
+        moduleInstructions += `
+        - **SEGMENT ANALYSIS**:
+          Analyze 'segmentAnalysis'.
+          Compare performance of different URL patterns/folders.
+          Use a 'bar' or 'table' chart to compare segments.
+        `;
+    }
+
+    if (config.modules.cannibalization) {
+        moduleInstructions += `
+        - **CANNIBALIZATION ALERTS**:
+          Analyze 'keywordCannibalizationAlerts'.
+          Identify keywords where multiple URLs are competing/flipping.
+          Use bullet points to list the Keyword and the Competing URLs.
+          Recommend a Canonical Strategy or Content Merge.
+        `;
+    }
+
+    if (config.modules.keyword_decay) {
+        moduleInstructions += `
+        - **KEYWORD DECAY**:
+          Analyze 'keywordDecayAlerts'.
+          Highlight keywords that have lost significant positions.
+          Use a 'table' to show: Keyword, Old Pos, New Pos, Drop.
+          Suggest Content Refresh or Search Intent update.
+        `;
+    }
+
+    if (config.modules.strategic_overview) {
+        moduleInstructions += `
+        - **STRATEGIC MATRIX**:
+          Analyze 'strategicOverview' (Defend, Attack, Expand, Prune).
+          Create a 'table' for EACH quadrant (Defend, Attack, etc) or one big table.
+          Focus on high volume opportunities.
+        `;
+    }
+
+    if (config.modules.ctr_opportunities) {
+        moduleInstructions += `
+        - **CTR & GHOST KEYWORDS**:
+          Analyze 'ctrAnalysis' and 'ghostKeywordAlerts'.
+          Identify "Ghost Keywords" (High Impressions, Zero Clicks).
+          Identify "Low CTR" opportunities (Good Position < 10, but bad CTR).
+          Prioritize quick wins (Meta Title/Desc optimization).
+        `;
+    }
+
     // PITCH MODE LOGIC
     let styleInstructions = "LANGUAGE: SPANISH (Professional, Strategic, Detailed Analysis).";
     let structureInstructions = "";

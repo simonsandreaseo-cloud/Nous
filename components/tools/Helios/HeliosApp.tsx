@@ -13,7 +13,7 @@ import { ChartRenderer } from './components/ChartRenderer';
 import { HeliosPitchDeck } from './components/HeliosPitchDeck';
 import { ModuleSelector } from './components/ModuleSelector';
 import { ReportEditor } from './components/ReportEditor';
-import { ReportEditor } from './components/ReportEditor';
+
 import { Sparkles, BarChart2, Zap, AlertTriangle, Presentation, FileText, Loader2, ArrowRight, Save } from 'lucide-react';
 import ShareModal from '@/components/shared/ShareModal';
 
@@ -25,6 +25,13 @@ const DEFAULT_CONFIG: HeliosConfig = {
         striking_distance: true,
         task_impact: true,
         content_performance: true,
+        concentration: true,
+        new_keywords: true,
+        segment_analysis: true,
+        cannibalization: true,
+        keyword_decay: true,
+        strategic_overview: true,
+        ctr_opportunities: true,
         technical_health: false // Disabled by default as it's simulated
     },
     taskImpact: {
@@ -131,6 +138,23 @@ const HeliosApp: React.FC = () => {
         if (user) init();
     }, [user, searchParams]);
 
+    // Fetch Tasks when Project Selected for Config
+    const [availableTasks, setAvailableTasks] = useState<any[]>([]);
+
+    useEffect(() => {
+        const loadTasks = async () => {
+            if (!selectedProject) return;
+            const { data } = await supabase.from('tasks')
+                .select('id, title, status, gsc_property_url, secondary_url, completed_at')
+                .eq('project_id', parseInt(selectedProject.id))
+                .neq('status', 'draft')
+                .order('completed_at', { ascending: false });
+
+            if (data) setAvailableTasks(data);
+        };
+        loadTasks();
+    }, [selectedProject]);
+
     const runAnalysis = async () => {
         if (!selectedProject || !session?.provider_token) return;
 
@@ -228,9 +252,10 @@ const HeliosApp: React.FC = () => {
 
             const apiKeys = keys.map(k => k.key_value);
 
-            // PASS CONFIG TO ANALYSIS (TODO: Update analyzeWithHelios to respect config)
+            // PASS CONFIG TO ANALYSIS
             const heliosReport = await analyzeWithHelios(
                 reportPayload,
+                config,
                 'gemini-2.5-flash',
                 apiKeys
             );
@@ -430,7 +455,11 @@ const HeliosApp: React.FC = () => {
                                 </div>
                             </div>
 
-                            <ModuleSelector config={config} onChange={setConfig} />
+                            <ModuleSelector
+                                config={config}
+                                onChange={setConfig}
+                                availableTasks={availableTasks}
+                            />
 
                             <div className="mt-12 flex justify-between items-center">
                                 <div className="flex items-center gap-3">

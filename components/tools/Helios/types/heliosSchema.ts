@@ -52,18 +52,27 @@ export interface HeliosConfig {
         executive_summary: boolean;
         traffic_anomalies: boolean;
         striking_distance: boolean;
-        task_impact: boolean;
-        content_performance: boolean;
+        task_impact: boolean; // Custom modules
+        content_performance: boolean; // Custom modules
+        concentration: boolean; // NEW
+        new_keywords: boolean; // NEW
+        segment_analysis: boolean; // NEW
+        cannibalization: boolean; // NEW Phase 6
+        keyword_decay: boolean; // NEW Phase 6
+        strategic_overview: boolean; // NEW Phase 6
+        ctr_opportunities: boolean; // NEW Phase 6
         technical_health: boolean;
     };
     taskImpact: {
         include_completed: boolean;
         months_lookback: number;
-        selectedTaskIds?: number[];
+        selectedTaskIds?: number[]; // NEW: Specific tasks
     };
     contentPerformance: {
         min_traffic: number;
         compare_period: boolean;
-        mode: 'top_gainers' | 'top_losers' | 'specific_urls';
+        mode: 'top_gainers' | 'top_losers' | 'specific_urls' | 'items';
+        selectedTaskIds?: number[]; // NEW: Specific items derived from tasks
+        selectedMonth?: string; // NEW: Month filter
     };
 }
