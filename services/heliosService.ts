@@ -230,19 +230,19 @@ export const analyzeWithHelios = async (
 
     CRITICAL JSON FORMATTING:
     - START your response with '{' and END with '}'.
-    - DO NOT use markdown code blocks (```json).
-    - ** ALWAYS use DOUBLE QUOTES for keys and string values.** (e.g. "key": "value", NOT 'key': 'value').
-  - Do not add comments // inside the JSON.
+    - DO NOT use markdown code blocks (triple backticks).
+    - **ALWAYS use DOUBLE QUOTES for keys and string values.** (e.g. "key": "value", NOT 'key': 'value').
+    - Do not add comments // inside the JSON.
     `;
 
   // 2. Prepare Data Payload
   // We filter payload based on config if needed, or just warn AI to focus.
   const prompt = `
     ANALYZE THIS DATA:
-    ${ JSON.stringify(payload).substring(0, 95000) }
+    ${JSON.stringify(payload).substring(0, 95000)}
 
   CONFIGURATION:
-    ${ JSON.stringify(config) }
+    ${JSON.stringify(config)}
     
     Create a report focusing ONLY on the requested modules.
     `;
