@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import { HeliosChartConfig } from '../types/heliosSchema';
+import { HeliosTable } from './HeliosTable';
 
 interface ChartRendererProps {
     config: HeliosChartConfig;
@@ -20,6 +21,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
 
         const ctx = canvasRef.current.getContext('2d');
         if (!ctx) return;
+
+        if (config.type === 'table') return; // Handled by separate component
 
         // Deterministic Data Mapping
         // We do NOT guess here. We render exactly what is in config.data
@@ -44,12 +47,25 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                     borderColor: baseColor,
                     borderWidth: 1,
                     fill: config.type === 'area',
-                    tension: 0.3 // Smooth curves for lines
-                }]
+                    tension: 0.3, // Smooth curves for lines
+                    yAxisID: 'y'
+                },
+                    // Optional Secondary Dataset (if data points have yAxisID='y1')
+                    // This logic needs to be smarter. 
+                    // Currently `config.data` is flat. To support dual axis properly, 
+                    // the `config.data` should ideally support multiple series, 
+                    // OR we filter the flat list into two datasets if needed.
+                    // For simplicity in V1, let's assume specific "Dual Axis" configs might come as two datasets?
+                    // Actually, let's try to split current data if it has mixed axis IDs.
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
                 plugins: {
                     legend: {
                         display: config.type === 'pie', // Only show legend for Pie
@@ -71,10 +87,25 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                 },
                 scales: config.type === 'pie' ? {} : {
                     y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
                         beginAtZero: true,
                         title: {
                             display: !!config.yAxisLabel,
                             text: config.yAxisLabel
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: config.data.some(d => d.yAxisID === 'y1'), // Only show if data exists
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false, // only want the grid lines for one axis to show up
+                        },
+                        title: {
+                            display: config.data.some(d => d.yAxisID === 'y1'),
+                            text: 'Secondary Metric' // Could be dynamic
                         }
                     },
                     x: {
@@ -122,8 +153,14 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                 </button>
             </div>
 
-            <div className="flex-1 relative min-h-[250px]">
-                <canvas ref={canvasRef} />
+            <div className="flex-1 relative min-h-[250px] flex flex-col">
+                {config.type === 'table' ? (
+                    <div className="flex-1 overflow-auto custom-scrollbar">
+                        <HeliosTable config={config} />
+                    </div>
+                ) : (
+                    <canvas ref={canvasRef} />
+                )}
             </div>
             {config.description && (
                 <p className="mt-2 text-xs text-slate-500 italic">

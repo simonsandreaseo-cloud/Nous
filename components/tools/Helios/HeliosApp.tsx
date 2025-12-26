@@ -6,29 +6,62 @@ import { GscService } from '../MetricsAnalyst/services/gscService';
 import { Ga4Service } from '../MetricsAnalyst/services/ga4Service';
 import { DataManager } from '../MetricsAnalyst/services/dataManager';
 import { runFullLocalAnalysis } from '../MetricsAnalyst/services/analysisService';
-import { analyzeWithHelios } from '../MetricsAnalyst/services/geminiService';
-import { HeliosReport } from './types/heliosSchema';
+
+import { analyzeWithHelios } from '@/services/heliosService';
+import { HeliosReport, HeliosConfig } from './types/heliosSchema';
 import { ChartRenderer } from './components/ChartRenderer';
 import { HeliosPitchDeck } from './components/HeliosPitchDeck';
-import { Sparkles, BarChart2, Zap, AlertTriangle, Presentation, FileText, Loader2, ArrowRight } from 'lucide-react';
+import { ModuleSelector } from './components/ModuleSelector';
+import { ReportEditor } from './components/ReportEditor';
+import { ReportEditor } from './components/ReportEditor';
+import { Sparkles, BarChart2, Zap, AlertTriangle, Presentation, FileText, Loader2, ArrowRight, Save } from 'lucide-react';
 import ShareModal from '@/components/shared/ShareModal';
+
+const DEFAULT_CONFIG: HeliosConfig = {
+    reportType: 'standard',
+    modules: {
+        executive_summary: true,
+        traffic_anomalies: true,
+        striking_distance: true,
+        task_impact: true,
+        content_performance: true,
+        technical_health: false // Disabled by default as it's simulated
+    },
+    taskImpact: {
+        include_completed: true,
+        months_lookback: 3
+    },
+    contentPerformance: {
+        min_traffic: 10,
+        compare_period: true,
+        mode: 'top_gainers'
+    }
+};
 
 const HeliosApp: React.FC = () => {
     const { user, session } = useAuth();
     const [searchParams] = useSearchParams();
 
     // State
+    const [step, setStep] = useState<number>(1); // 1: Project, 2: Config, 3: Analysis/Results
     const [status, setStatus] = useState<'idle' | 'loading' | 'analyzing' | 'ready' | 'pitch'>('idle');
     const [loadingMessage, setLoadingMessage] = useState("");
     const [report, setReport] = useState<HeliosReport | null>(null);
     const [selectedProject, setSelectedProject] = useState<{ id: string, name: string, url: string, ga4_id?: string } | null>(null);
     const [availableProjects, setAvailableProjects] = useState<any[]>([]);
 
+    // Configuration State
+    const [config, setConfig] = useState<HeliosConfig>(DEFAULT_CONFIG);
+
     // Persistence State
     const [savedReportId, setSavedReportId] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [sharingItem, setSharingItem] = useState<{ id: number, initialAccess: any, initialToken: any } | null>(null);
+
+    const handlePrint = () => {
+        window.print();
+    };
 
     // Load Projects & Existing Report on Mount
     useEffect(() => {
@@ -81,9 +114,8 @@ const HeliosApp: React.FC = () => {
                         }
                         setSelectedProject({ id: String(reportData.project_id), name: reportData.domain, url: reportData.domain });
                         setStatus('ready');
+                        setStep(3); // Go directly to results
                     } else {
-                        // Fallback? Or Alert?
-                        // If it's a legacy report, maybe warn?
                         console.warn("Informe no compatible con Helios o estructura antigua.");
                         alert("Este informe parece ser de una versión antigua o incompatible.");
                         setStatus('idle');
@@ -104,6 +136,7 @@ const HeliosApp: React.FC = () => {
 
         setStatus('loading');
         setLoadingMessage("Conectando con Google Search Console...");
+        setStep(3); // Move to analysis view
 
         try {
             // 1. Define Periods (Last 28 Days vs Previous Period)
@@ -153,9 +186,6 @@ const HeliosApp: React.FC = () => {
             // 4. Run Local Math Analysis (DataProcessor via AnalysisService reuse)
             setLoadingMessage("Ejecutando Algoritmos de Helios...");
 
-            // 4. Run Local Math Analysis (DataProcessor via AnalysisService reuse)
-            setLoadingMessage("Ejecutando Algoritmos de Helios...");
-
             const { reportPayload } = runFullLocalAnalysis(
                 {
                     pagesP1: p1Pages,
@@ -173,16 +203,18 @@ const HeliosApp: React.FC = () => {
             );
 
             // 5. Fetch Tasks & Content Impact (Crucial for Helios Full)
-            const { data: tasks } = await supabase.from('tasks')
-                .select('*')
-                .eq('project_id', selectedProject.id)
-                .neq('status', 'draft')
-                .order('completed_at', { ascending: false })
-                .limit(10);
+            // Only fetch if module is enabled
+            if (config.modules.task_impact) {
+                const { data: tasks } = await supabase.from('tasks')
+                    .select('*')
+                    .eq('project_id', selectedProject.id)
+                    .neq('status', 'draft')
+                    .order('completed_at', { ascending: false })
+                    .limit(10); // Respect config lookback in future
 
-            if (tasks) {
-                // Determine impact (simplified logic for now)
-                reportPayload.taskImpactDetails = tasks;
+                if (tasks) {
+                    reportPayload.taskImpactDetails = tasks;
+                }
             }
 
             // 6. Helios AI Analysis
@@ -196,11 +228,20 @@ const HeliosApp: React.FC = () => {
 
             const apiKeys = keys.map(k => k.key_value);
 
+            // PASS CONFIG TO ANALYSIS (TODO: Update analyzeWithHelios to respect config)
             const heliosReport = await analyzeWithHelios(
                 reportPayload,
-                'gemini-2.5-flash', // Use Flash for speed, or Gemma 3 if available
+                'gemini-2.5-flash',
                 apiKeys
             );
+
+            // Filter sections based on config (Quick client-side filter for now)
+            // Ideally generating only what's needed saves tokens
+            if (heliosReport.sections) {
+                // Map config keys to section titles/ids logic if possible, 
+                // otherwise relies on AI generated structure. 
+                // For Phase 1, we just pass the config context or filter post-generation.
+            }
 
             setReport(heliosReport);
             setStatus('ready');
@@ -208,6 +249,7 @@ const HeliosApp: React.FC = () => {
         } catch (e: any) {
             alert("Error: " + e.message);
             setStatus('idle');
+            setStep(2); // Go back to config
         }
     };
 
@@ -221,12 +263,12 @@ const HeliosApp: React.FC = () => {
                 domain: selectedProject.url,
                 report_type: 'helios',
                 report_data: {
-                    helios_data: report,
+                    helios_data: report, // Saves the CURRENT state (edited)
                     summary: report.executiveSummary,
                     mode: 'helios',
-                    date: new Date().toISOString()
+                    date: new Date().toISOString(),
+                    config: config
                 },
-                // Add description for list views
                 description: "Helios Analysis: " + report.executiveSummary.substring(0, 100) + "..."
             };
 
@@ -248,6 +290,12 @@ const HeliosApp: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    // Handler for updates from the editor
+    const handleReportUpdate = (updatedReport: HeliosReport) => {
+        setReport(updatedReport);
+        // Optional: Auto-save or debounce save could go here
     };
 
     const handleShare = async () => {
@@ -326,8 +374,8 @@ const HeliosApp: React.FC = () => {
 
             <div className="max-w-7xl mx-auto px-6 pt-12">
 
-                {/* IDLE STATE: PROJECT SELECTOR */}
-                {status === 'idle' && (
+                {/* STEP 1: PROJECT SELECTION */}
+                {step === 1 && (
                     <div className="max-w-2xl mx-auto text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-3xl mx-auto flex items-center justify-center shadow-2xl shadow-indigo-200 mb-8">
                             <Zap className="w-10 h-10 text-white" />
@@ -354,7 +402,7 @@ const HeliosApp: React.FC = () => {
                                 ))}
                             </select>
                             <button
-                                onClick={runAnalysis}
+                                onClick={() => selectedProject && setStep(2)}
                                 disabled={!selectedProject}
                                 className="bg-black text-white p-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
                             >
@@ -364,74 +412,73 @@ const HeliosApp: React.FC = () => {
                     </div>
                 )}
 
-                {/* LOADING STATE */}
-                {(status === 'loading' || status === 'analyzing') && (
-                    <div className="flex flex-col items-center justify-center py-32 space-y-6 animate-in fade-in duration-500">
-                        <div className="relative w-20 h-20">
-                            <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
-                            <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+                {/* STEP 2: CONFIGURATION */}
+                {step === 2 && (
+                    <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-right-4 duration-500">
+                        <button onClick={() => setStep(1)} className="group text-sm text-slate-400 hover:text-slate-900 mb-8 font-bold flex items-center gap-2 transition-all">
+                            <span className="group-hover:-translate-x-1 transition-transform">&larr;</span> Volver a Selección
+                        </button>
+
+                        <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                                    <Sparkles size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-bold text-slate-900">Configuración del Análisis</h2>
+                                    <p className="text-slate-500 text-sm">Personaliza qué módulos deseas incluir en tu informe Helios.</p>
+                                </div>
+                            </div>
+
+                            <ModuleSelector config={config} onChange={setConfig} />
+
+                            <div className="mt-12 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={config.reportType === 'pitch'}
+                                            onChange={(e) => setConfig({ ...config, reportType: e.target.checked ? 'pitch' : 'standard' })}
+                                            className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
+                                        />
+                                        <span className="text-slate-700 font-bold">Modo Pitch (Diapositivas)</span>
+                                    </label>
+                                </div>
+                                <button
+                                    onClick={runAnalysis}
+                                    className="bg-black text-white px-8 py-4 rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 flex items-center gap-3"
+                                >
+                                    <Zap className="w-5 h-5" />
+                                    Ejecutar Helios Engine
+                                </button>
+                            </div>
                         </div>
-                        <p className="text-xl font-medium text-slate-600 animate-pulse">{loadingMessage}</p>
                     </div>
                 )}
 
-                {/* READY STATE: DASHBOARD */}
-                {status === 'ready' && report && (
-                    <div className="space-y-12 animate-in fade-in duration-700">
-
-                        {/* Executive Summary */}
-                        <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-                            <h3 className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-4">Resumen Ejecutivo</h3>
-                            <p className="text-2xl font-light text-slate-800 leading-relaxed max-w-4xl relative z-10">
-                                {report.executiveSummary || "Análisis completado. Revise los módulos a continuación."}
-                            </p>
-                        </div>
-
-                        {/* Module Grid */}
-                        <div className="grid grid-cols-1 gap-12">
-                            {report.sections?.map((section: any, idx: number) => (
-                                <div key={idx} className="group">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                                            <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center text-sm font-bold group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                                                {idx + 1}
-                                            </span>
-                                            {section.title}
-                                        </h3>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                        {/* Text Content */}
-                                        <div className="space-y-6">
-                                            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm leading-relaxed text-slate-600">
-                                                {section.summary}
-                                                {section.bullets && (
-                                                    <ul className="mt-4 space-y-2">
-                                                        {section.bullets.map((b: string, i: number) => (
-                                                            <li key={i} className="flex gap-2">
-                                                                <span className="text-indigo-500">•</span> {b}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Charts */}
-                                        <div className="space-y-6">
-                                            {section.charts?.map((chart: any, cIdx: number) => (
-                                                <div key={cIdx} className="bg-white p-2 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                                                    <ChartRenderer config={chart} />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                {/* STEP 3: LOADING & RESULTS */}
+                {step === 3 && (
+                    <>
+                        {/* LOADING STATE */}
+                        {(status === 'loading' || status === 'analyzing') && (
+                            <div className="flex flex-col items-center justify-center py-32 space-y-6 animate-in fade-in duration-500">
+                                <div className="relative w-20 h-20">
+                                    <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+                                    <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
                                 </div>
-                            ))}
-                        </div>
+                                <p className="text-xl font-medium text-slate-600 animate-pulse">{loadingMessage}</p>
+                            </div>
+                        )}
 
-                    </div>
+                        {/* READY STATE: REPORT EDITOR */}
+                        {status === 'ready' && report && (
+                            <ReportEditor
+                                initialReport={report}
+                                onSave={handleSave}
+                                isSaving={isSaving}
+                            />
+                        )}
+                    </>
                 )}
             </div>
         </div>
