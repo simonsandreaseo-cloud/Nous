@@ -10,7 +10,8 @@ export interface HeliosChartConfig {
     id: string;
     title: string;
     type: 'bar' | 'line' | 'pie' | 'area' | 'composed' | 'table';
-    data: HeliosChartDataPoint[];
+    data: (HeliosChartDataPoint | any)[]; // Support richer objects for tables
+    tableColumns?: { key: string, label: string, format?: 'number' | 'percent' | 'text' | 'trend', trendKey?: string }[]; // New for tables
     xAxisLabel?: string;
     yAxisLabel?: string;
     description?: string; // Analysis of the chart

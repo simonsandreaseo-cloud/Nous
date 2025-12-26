@@ -59,6 +59,22 @@ const HeliosApp: React.FC = () => {
 
     // Configuration State
     const [config, setConfig] = useState<HeliosConfig>(DEFAULT_CONFIG);
+    const [dateRange, setDateRange] = useState<{ start: string, end: string }>({
+        start: '',
+        end: ''
+    });
+
+    // Initialize default dates
+    useEffect(() => {
+        const end = new Date();
+        end.setDate(end.getDate() - 3); // GSC Latency
+        const start = new Date(end);
+        start.setDate(start.getDate() - 28);
+        setDateRange({
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        });
+    }, []);
 
     // Persistence State
     const [savedReportId, setSavedReportId] = useState<number | null>(null);
@@ -163,20 +179,21 @@ const HeliosApp: React.FC = () => {
         setStep(3); // Move to analysis view
 
         try {
-            // 1. Define Periods (Last 28 Days vs Previous Period)
-            const endDate = new Date();
-            endDate.setDate(endDate.getDate() - 3); // GSC latency
-            const startDate = new Date(endDate);
-            startDate.setDate(startDate.getDate() - 28);
+            // 1. Define Periods based on Selection
+            const endP2 = dateRange.end; // Selected End Date
+            const startP2 = dateRange.start; // Selected Start Date
 
-            const startP2 = startDate.toISOString().split('T')[0];
-            const endP2 = endDate.toISOString().split('T')[0];
+            // Calculate duration in days to mirror for P1
+            const d1 = new Date(startP2);
+            const d2 = new Date(endP2);
+            const diffTime = Math.abs(d2.getTime() - d1.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            // P1
-            const endP1Date = new Date(startDate);
+            // P1 (Previous Period)
+            const endP1Date = new Date(startP2);
             endP1Date.setDate(endP1Date.getDate() - 1);
             const startP1Date = new Date(endP1Date);
-            startP1Date.setDate(startP1Date.getDate() - 28);
+            startP1Date.setDate(startP1Date.getDate() - diffDays);
 
             const startP1 = startP1Date.toISOString().split('T')[0];
             const endP1 = endP1Date.toISOString().split('T')[0];
@@ -186,10 +203,10 @@ const HeliosApp: React.FC = () => {
 
             const [p1Pages, p1Queries, p1Countries, p2Pages, p2Queries, p2Countries] = await Promise.all([
                 fetchDim(startP1, endP1, ['date', 'page']),
-                fetchDim(startP1, endP1, ['date', 'query', 'page']),
+                fetchDim(startP1, endP1, ['date', 'query', 'page']), // Detail with query AND page
                 fetchDim(startP1, endP1, ['date', 'country']),
                 fetchDim(startP2, endP2, ['date', 'page']),
-                fetchDim(startP2, endP2, ['date', 'query', 'page']),
+                fetchDim(startP2, endP2, ['date', 'query', 'page']), // Detail with query AND page
                 fetchDim(startP2, endP2, ['date', 'country'])
             ]);
 
@@ -455,6 +472,34 @@ const HeliosApp: React.FC = () => {
                                 </div>
                             </div>
 
+                            {/* DATE RANGE PICKER */}
+                            <div className="mb-8 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                                    Rango de Fechas
+                                </h3>
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <label className="block text-xs text-slate-500 mb-1">Inicio</label>
+                                        <input
+                                            type="date"
+                                            value={dateRange.start}
+                                            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                            className="w-full p-2 rounded-lg border border-slate-300 text-sm font-mono"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs text-slate-500 mb-1">Fin</label>
+                                        <input
+                                            type="date"
+                                            value={dateRange.end}
+                                            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                            className="w-full p-2 rounded-lg border border-slate-300 text-sm font-mono"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             <ModuleSelector
                                 config={config}
                                 onChange={setConfig}
@@ -510,7 +555,7 @@ const HeliosApp: React.FC = () => {
                     </>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

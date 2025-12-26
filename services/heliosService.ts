@@ -197,10 +197,11 @@ export const analyzeWithHelios = async (
     
     CRITICAL VISUALIZATION RULES:
     1. **Tables**: Use type "table" for dense data. 
-       - For trend columns, putting a JSON in 'category' like '{"trend": 10}' will render a green arrow. '{"trend": -10}' renders red arrow.
+       - **MANDATORY**: You MUST provide 'tableColumns' definition for every table.
+       - 'tableColumns': Array of objects { "key": "field_name", "label": "Header Name", "format": "text"|"number"|"percent"|"trend", "trendKey": "optional_field_for_color" }.
+       - 'data': Array of objects where keys match the 'tableColumns' keys.
     2. **Line Charts**: Use type "line" for trends over time. 
        - Use 'colorScheme': 'success' for positive trends, 'alert' for negative.
-       - FOR DUAL SCALES: If comparing vastly different metrics (e.g. Clicks vs Position), normalize them or stick to single metric for clarity in this version.
     
     JSON SCHEMA:
     {
@@ -209,13 +210,17 @@ export const analyzeWithHelios = async (
         {
           "title": "Section Title",
           "summary": "...",
-          "bullets": ["Key point 1", "Key point 2"],
           "charts": [
             {
                "id": "c1",
                "title": "Top Winners",
                "type": "table",
-               "data": [{ "label": "Keyword", "value": 100, "category": "{\\"trend\\": 12}" }]
+               "tableColumns": [
+                  { "key": "keyword", "label": "Keyword", "format": "text" },
+                  { "key": "clicks", "label": "Clicks", "format": "number" },
+                  { "key": "change", "label": "Trend", "format": "trend", "trendKey": "change" }
+               ],
+               "data": [{ "keyword": "foo", "clicks": 100, "change": 12 }]
             }
           ]
         }
