@@ -271,6 +271,130 @@ export const generateFinalRefinement = async (
 };
 
 
+
+// --- HELIOS V2 ENGINE ---
+export const analyzeWithHelios = async (
+    payload: any,
+    model: string,
+    apiKeys: string[]
+): Promise<any> => {
+
+    // System Prompt for Helios - Strict JSON
+    const HELIOS_SYSTEM_PROMPT = `
+    You are Helios, a Sovereign SEO Intelligence Engine.
+    Your goal is to analyze SEO data and produce a DETERMINISTIC JSON report.
+    
+    CRITICAL RULES:
+    1. Output MUST be valid JSON conforming to the schema.
+    2. NO MARKDOWN formatting outside the JSON string values.
+    3. Do NOT "hallucinate" numbers. Use the provided data.
+    4. Text should be professional, strategic, and in SPANISH.
+    
+    JSON SCHEMA:
+    {
+      "title": "Analytic Report Title",
+      "executiveSummary": "High level summary...",
+      "sections": [
+        {
+          "id": "strategy",
+          "title": "Strategic Analysis",
+          "summary": "...",
+          "charts": [
+            {
+               "id": "chart_1",
+               "title": "Click Trend",
+               "type": "line",
+               "data": [{ "label": "Jan", "value": 100 }, ...],
+               "colorScheme": "brand"
+            }
+          ]
+        }
+      ]
+    }
+    `;
+
+    const prompt = `
+    ANALYZE THIS DATA:
+    ${JSON.stringify(payload).substring(0, 100000)} 
+    
+    Produce a comprehensive report with at least 3 sections:
+    1. Strategic Overview (Trends)
+    2. Opportunities (Growth)
+    3. Risks (Declines)
+    
+    Include relevant CHARTS for each section based on the data.
+    `;
+
+    try {
+        const response = await generateWithRetry(
+            apiKeys,
+            model,
+            prompt,
+            {
+                systemInstruction: HELIOS_SYSTEM_PROMPT,
+                responseMimeType: "application/json"
+            }
+        );
+        const json = cleanAndParseJSON(response.text);
+
+        // Basic Validation
+        if (!json.sections || !Array.isArray(json.sections)) {
+            // attempt simple recovery if sections is missing but object is valid
+            if (json.html || json.charts) {
+                // Legacy format detected?
+                return { title: "Legacy Report", sections: [] };
+            }
+            throw new Error("Invalid Helios Response Structure");
+        }
+
+        return json;
+    } catch (e) {
+        console.error("Helios Engine Failed:", e);
+        throw e;
+    }
+};
+
+
+export const optimizeOpportunities = async (
+    opportunities: any[],
+    model: string,
+    apiKeys: string[]
+): Promise<any> => {
+    const PROMPT = `
+    ACT AS: Senior SEO Strategist.
+    TASK: Analyze these "Striking Distance" keywords (Pos 11-20) and suggest specific optimizations to push them to Page 1.
+    
+    DATA:
+    ${JSON.stringify(opportunities.slice(0, 50))} 
+    
+    OUTPUT FORMAT (JSON ONLY):
+    {
+      "opportunities": [
+        {
+          "keyword": "...",
+          "url": "...",
+          "currentPosition": 12,
+          "difficulty": "easy", 
+          "actionableInsight": "CHANGE Title tag to include X. ADD internal link from Y."
+        }
+      ]
+    }
+    `;
+
+    try {
+        const response = await generateWithRetry(
+            apiKeys,
+            model,
+            PROMPT,
+            { responseMimeType: "application/json" }
+        );
+        return cleanAndParseJSON(response.text);
+    } catch (e) {
+        console.error("Opportunity Optimization Failed", e);
+        return { opportunities: [] };
+    }
+};
+
 // --- PHASE 5: TACTICAL GENERATORS ---
 export const generateContentBrief = async (clusterInfo: string, apiKey: string): Promise<ContentBrief> => {
     return { title: "", targetKeyword: "", intent: "", structure: [], semanticKeywords: [], audience: "" };

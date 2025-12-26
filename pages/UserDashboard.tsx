@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { FileText, Clock, ExternalLink, User as UserIcon, LogOut, ChevronRight, Key, Trash2, Plus, Sparkles, Folder, Globe, TrendingUp, BarChart2, CheckSquare, Mail, Eye, X } from 'lucide-react';
 import ToolWrapper from '../components/layout/ToolWrapper';
 import { ProjectService, Project } from '../lib/task_manager';
@@ -31,6 +31,7 @@ interface ApiKey {
 
 const UserDashboard: React.FC = () => {
     const { user, loading, signOut } = useAuth();
+    const navigate = useNavigate();
     const [drafts, setDrafts] = useState<Draft[]>([]);
     const [isLoadingDrafts, setIsLoadingDrafts] = useState(true);
     const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
@@ -221,7 +222,7 @@ const UserDashboard: React.FC = () => {
         try {
             const { data, error } = await supabase
                 .from('seo_reports')
-                .select('id, domain, created_at, report_data, share_token, public_access_level')
+                .select('id, domain, created_at, report_data, share_token, public_access_level, report_type')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -327,6 +328,38 @@ const UserDashboard: React.FC = () => {
 
                         {/* Main Content Area */}
                         <div className="md:col-span-2 space-y-8">
+
+                            {/* HELIOS INTELLIGENCE CARD (NEW) */}
+                            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 rounded-2xl p-8 shadow-xl text-white relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/30 transition-all duration-700"></div>
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/10">
+                                                <Sparkles className="w-5 h-5 text-indigo-300" />
+                                            </div>
+                                            <div>
+                                                <h2 className="text-xl font-bold text-white tracking-tight">Helios Intelligence</h2>
+                                                <p className="text-[10px] uppercase tracking-widest text-indigo-200 font-bold">Algorithmic SEO Engine</p>
+                                            </div>
+                                        </div>
+                                        <span className="bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide">
+                                            Nuevo
+                                        </span>
+                                    </div>
+                                    <p className="text-slate-300 text-sm mb-8 leading-relaxed max-w-lg">
+                                        Detecta oportunidades de "Striking Distance", canibalización y anomalías de tráfico utilizando algoritmos deterministas + IA.
+                                    </p>
+                                    <div className="flex gap-4">
+                                        <Link to="/herramientas/helios" className="flex-1 bg-white text-slate-900 py-3 rounded-xl font-bold text-center text-sm hover:bg-indigo-50 transition-colors shadow-lg shadow-black/10 flex items-center justify-center gap-2">
+                                            <Sparkles size={16} /> Iniciar Análisis
+                                        </Link>
+                                        <Link to="/herramientas/helios?mode=pitch" className="px-4 py-3 bg-white/10 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-colors border border-white/10 flex items-center gap-2">
+                                            <Presentation size={16} /> Pitch Mode
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Invitations Section */}
                             <InvitationsCard />
@@ -494,7 +527,14 @@ const UserDashboard: React.FC = () => {
                                         {reports.map((report) => (
                                             <div
                                                 key={report.id}
-                                                onClick={() => { setSelectedReport(report); setShowReportViewer(true); }}
+                                                onClick={() => {
+                                                    if (report.report_type === 'helios' || report.report_data?.type === 'helios') {
+                                                        navigate(`/herramientas/helios?reportId=${report.id}`);
+                                                    } else {
+                                                        setSelectedReport(report);
+                                                        setShowReportViewer(true);
+                                                    }
+                                                }}
                                                 className="group flex items-center justify-between p-4 rounded-xl border border-brand-power/5 hover:border-brand-accent/30 hover:bg-brand-soft/10 transition-all cursor-pointer"
                                             >
                                                 <div className="flex items-center gap-4">
@@ -635,6 +675,14 @@ const UserDashboard: React.FC = () => {
                                     <li>
                                         <Link to="/herramientas/blog-viz" className="flex items-center justify-between group">
                                             <span className="text-brand-white/70 group-hover:text-white transition-colors">Blog Viz AI</span>
+                                            <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link to="/herramientas/helios" className="flex items-center justify-between group">
+                                            <span className="text-brand-white/70 group-hover:text-white font-bold transition-colors flex items-center gap-2">
+                                                <Sparkles className="w-3 h-3 text-brand-accent" /> Helios Intelligence
+                                            </span>
                                             <ExternalLink size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </Link>
                                     </li>

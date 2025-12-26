@@ -23,6 +23,7 @@ import VirtualOfficePage from '../virtual-office/VirtualOfficePage';
 
 import UserDashboard from '../../pages/UserDashboard';
 import ServiceDetail from '../../pages/ServiceDetail';
+import HeliosPage from '../../pages/tools/HeliosPage';
 
 const AnimatedRoutes: React.FC = () => {
     return (
@@ -55,6 +56,7 @@ const AnimatedRoutes: React.FC = () => {
             </Route>
 
             <Route path="/dashboard" element={<UserDashboard />} />
+            <Route path="/herramientas/helios" element={<HeliosPage />} />
 
             {/* Public Shared Views */}
             <Route path="/compartir/:type/:token" element={<PublicView />} />

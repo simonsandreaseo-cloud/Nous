@@ -138,6 +138,13 @@ export const TOOLS = [
   },
   {
     id: 6,
+    name: "Helios Intelligence",
+    status: "Nuevo",
+    function: "Motor algorítmico soberano para detección de oportunidades y riesgos.",
+    path: "/herramientas/helios"
+  },
+  {
+    id: 7,
     name: "Time Tracker",
     status: "Nuevo",
     function: "App de escritorio con seguimiento automático y capturas privadas (Blur).",
