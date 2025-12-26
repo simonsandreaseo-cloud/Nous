@@ -36,7 +36,7 @@ const HeliosApp: React.FC = () => {
             // 1. Fetch simplified project list
             const { data, error } = await supabase
                 .from('projects')
-                .select('id, name, domain, ga4_property_id');
+                .select('id, name, gsc_property_url, ga4_property_id');
 
             if (error) console.error("Error fetching projects:", error);
 
@@ -44,7 +44,7 @@ const HeliosApp: React.FC = () => {
                 const mapped = data.map(p => ({
                     id: p.id.toString(),
                     name: p.name,
-                    url: p.domain,
+                    url: p.gsc_property_url,
                     ga4_id: p.ga4_property_id
                 }));
                 setAvailableProjects(mapped);
