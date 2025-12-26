@@ -179,7 +179,7 @@ export const ModuleSelector: React.FC<ModuleSelectorProps> = ({ config, onChange
                                                         <div className="flex-1 min-w-0">
                                                             <div className="font-medium text-sm text-slate-800 truncate">{task.title}</div>
                                                             <div className="text-xs text-slate-400 flex items-center gap-2">
-                                                                <span>{new Date(task.completed_at).toLocaleDateString()}</span>
+                                                                <span>{task.completed_at ? new Date(task.completed_at).toLocaleDateString() : 'Pendiente'}</span>
                                                                 {task.gsc_property_url && <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] truncate max-w-[200px]">{task.gsc_property_url}</span>}
                                                             </div>
                                                         </div>

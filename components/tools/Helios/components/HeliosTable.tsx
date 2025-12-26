@@ -57,12 +57,12 @@ export const HeliosTable: React.FC<HeliosTableProps> = ({ config }) => {
                                 )}
                             </td>
                             <td className="px-6 py-4 text-right font-mono text-slate-600">
-                                {row.value.toLocaleString()}
+                                {typeof row.value === 'number' ? row.value.toLocaleString() : (row.value || '-')}
                             </td>
                             <td className="px-6 py-4">
                                 <div className={`flex items-center justify-center gap-1 font-bold text-xs px-2 py-1 rounded-full w-fit mx-auto ${row.trend > 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                                        row.trend < 0 ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                                            'bg-slate-50 text-slate-400 border border-slate-100'
+                                    row.trend < 0 ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                        'bg-slate-50 text-slate-400 border border-slate-100'
                                     }`}>
                                     {row.trend > 0 ? <ArrowUp size={12} strokeWidth={3} /> :
                                         row.trend < 0 ? <ArrowDown size={12} strokeWidth={3} /> :
@@ -75,9 +75,11 @@ export const HeliosTable: React.FC<HeliosTableProps> = ({ config }) => {
                     ))}
                 </tbody>
             </table>
-            {rows.length === 0 && (
-                <div className="p-8 text-center text-slate-400 italic text-xs">No hay datos disponibles para esta tabla.</div>
-            )}
-        </div>
+            {
+                rows.length === 0 && (
+                    <div className="p-8 text-center text-slate-400 italic text-xs">No hay datos disponibles para esta tabla.</div>
+                )
+            }
+        </div >
     );
 };
