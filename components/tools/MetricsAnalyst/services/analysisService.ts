@@ -208,43 +208,8 @@ export const runFullLocalAnalysis = (
     return {
         reportPayload,
         chartData: {
-            topWinners: {
-                id: 'top-winners',
-                title: 'Ganadores (Cambio de Clics)',
-                type: 'table',
-                data: topWinners.map(w => ({
-                    label: w.name,
-                    value: w.clicksChange,
-                    category: w.name, // Legacy fallback
-                    // New fields for rich table
-                    url: w.name,
-                    clicksChange: w.clicksChange,
-                    positionChange: parseFloat(w.positionChange.toFixed(1))
-                })),
-                tableColumns: [
-                    { key: 'url', label: 'URL', format: 'text' },
-                    { key: 'clicksChange', label: 'Cambio Clics', format: 'trend', trendKey: 'clicksChange' },
-                    { key: 'positionChange', label: 'Cambio Posición', format: 'trend', trendKey: 'positionChange' }
-                ]
-            } as any, // Cast as any because we are returning a raw object that fits HeliosChartConfig structure but might need full hydration
-            topLosers: {
-                id: 'top-losers',
-                title: 'Perdedores (Cambio de Clics)',
-                type: 'table',
-                data: topLosers.map(l => ({
-                    label: l.name,
-                    value: l.clicksChange,
-                    // New fields
-                    url: l.name,
-                    clicksChange: l.clicksChange,
-                    positionChange: parseFloat(l.positionChange.toFixed(1))
-                })),
-                tableColumns: [
-                    { key: 'url', label: 'URL', format: 'text' },
-                    { key: 'clicksChange', label: 'Cambio Clics', format: 'trend', trendKey: 'clicksChange' },
-                    { key: 'positionChange', label: 'Cambio Posición', format: 'trend', trendKey: 'positionChange' }
-                ]
-            } as any,
+            topWinners: topWinners,
+            topLosers: topLosers,
             dashboardStats,
             chartLookup,
             cannibalizationLookup,
