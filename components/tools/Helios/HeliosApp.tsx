@@ -190,15 +190,16 @@ const HeliosApp: React.FC = () => {
             setLoadingMessage("Helios AI Generando Insights Estratégicos...");
 
             // Get API Key
-            const { data: keys } = await supabase.from('user_api_keys').select('key_value').eq('provider', 'gemini').single();
-            const apiKey = keys?.key_value;
+            const { data: keys } = await supabase.from('user_api_keys').select('key_value').eq('provider', 'gemini');
 
-            if (!apiKey) throw new Error("No Gemini API Key found.");
+            if (!keys || keys.length === 0) throw new Error("No Gemini API Key found. Please add one in settings.");
+
+            const apiKeys = keys.map(k => k.key_value);
 
             const heliosReport = await analyzeWithHelios(
                 reportPayload,
                 'gemini-2.5-flash', // Use Flash for speed, or Gemma 3 if available
-                [apiKey]
+                apiKeys
             );
 
             setReport(heliosReport);
