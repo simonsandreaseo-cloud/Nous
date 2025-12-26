@@ -2,71 +2,93 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ReportPayload, ContentBrief, SnippetOptimization, UsageMode } from "../types";
 
 // 1. Dispatcher: Strict Rules for Section Inclusion (FROM INFORMES SEO - FULL LOGIC)
-const SYSTEM_PROMPT_DISPATCHER = `You are a "Chief Editor" for an SEO Agency. 
-Your job is to decide the EXACT list of JSON keys for the report sections to generate.
+const SYSTEM_PROMPT_DISPATCHER = `Eres un "Editor Jefe" para una Agencia SEO. 
+Tu trabajo es decidir la lista EXACTA de claves JSON para las secciones del informe a generar.
 
-MANDATORY RULES based on input data (Check values carefully):
-1. 'OPORTUNIDADES_CONTENIDO_CLUSTERS': Include if topicClusters.length > 0.
-2. 'ANALISIS_CONCENTRACION': Include if clickConcentration.items.length > 0 OR impressionConcentration.items.length > 0.
-3. 'ANALISIS_ESTRATEGICO': Include if strategicOverview has items (defend/attack).
-4. 'ANALISIS_CAUSAS_CAIDA': Include if lossDiagnosis > 0.
-5. 'ALERTA_CANIBALIZACION': Include if cannibalization > 0.
-6. 'OPORTUNIDAD_STRIKING_DISTANCE': Include if strikingDistance > 0.
-7. 'OPORTUNIDAD_NUEVAS_KEYWORDS': Include if newKeywords > 2.
-8. 'ANALISIS_CTR': Include if ctrRedFlags > 0.
-9. 'ANALISIS_SEGMENTOS': Include if segments > 0.
-9. 'ANALISIS_SEGMENTOS': Include if segments > 0.
-10. 'ANALISIS_TRAFICO_IA': Include if aiTraffic > 0.
-11. **NEVER** include 'RESUMEN_EJECUTIVO' or 'CONCLUSIONES' here. (They are generated in the final step).
+REGLAS OBLIGATORIAS basadas en datos de entrada (Revisa los valores cuidadosamente):
+1. 'OPORTUNIDADES_CONTENIDO_CLUSTERS': Incluir si topicClusters.length > 0.
+2. 'ANALISIS_CONCENTRACION': Incluir si clickConcentration.items.length > 0 O impressionConcentration.items.length > 0.
+3. 'ANALISIS_ESTRATEGICO': Incluir si strategicOverview tiene elementos (defend/attack).
+4. 'ANALISIS_CAUSAS_CAIDA': Incluir si lossDiagnosis > 0.
+5. 'ALERTA_CANIBALIZACION': Incluir si cannibalization > 0.
+6. 'OPORTUNIDAD_STRIKING_DISTANCE': Incluir si strikingDistance > 0.
+7. 'OPORTUNIDAD_NUEVAS_KEYWORDS': Incluir si newKeywords > 2.
+8. 'ANALISIS_CTR': Incluir si ctrRedFlags > 0.
+9. 'ANALISIS_SEGMENTOS': Incluir si segments > 0.
+10. 'ANALISIS_TRAFICO_IA': Incluir si aiTraffic > 0.
+11. **NUNCA** incluyas 'RESUMEN_EJECUTIVO' o 'CONCLUSIONES' aquí. (Se generan en el paso final).
 
-Return ONLY a JSON Array of strings. Example: ["ANALISIS_ESTRATEGICO", "ANALISIS_CTR"]`;
+Devuelve SOLO un Array JSON de cadenas. Ejemplo: ["ANALISIS_ESTRATEGICO", "ANALISIS_CTR"]`;
 
 // 2. Section Writer: JSON Structure for Hybrid Content
-const SYSTEM_PROMPT_SECTION_WRITER = `You are a "Lead Product Designer" for a Financial/SEO SaaS. 
-Your task is to generate a JSON object for a specific report section.
+const SYSTEM_PROMPT_SECTION_WRITER = `Eres un "Diseñador de Producto Principal" para un SaaS Financiero/SEO. 
+Tu tarea es generar un objeto JSON para una sección específica del informe.
 
-OUTPUT FORMAT (JSON ONLY):
+FORMATO DE SALIDA (SOLO JSON):
 {
   "html": "<div class='...'> ... </div>",
   "charts": [
     {
-      "type": "line" | "bar", // Choose best fit
-      "title": "Chart Title",
-      "metrics": [ { "label": "Clicks", "dataKey": "clicks", "color": "#6366f1" } ],
-      "filter": { "urlIncludes": "https://..." } // Optional: exact URL filter
+      "type": "line" | "bar", // Elige el que mejor se ajuste
+      "title": "Título del Gráfico",
+      "metrics": [ { "label": "Clics", "dataKey": "clicks", "color": "#6366f1" } ],
+      "filter": { "urlIncludes": "https://..." } // Opcional: filtro exacto de URL
     }
   ]
 }
 
---- DESIGN SYSTEM (For the HTML field) ---
-1. **Layout**: Use \`grid grid-cols-1 md:grid-cols-2 gap-10\`. Emphasize whitespace.
-2. **Typography**: Clean, executive.
-3. **Tables**: Use standard Tailwind styled tables (as before).
-4. **NO CHART PLACEHOLDERS IN HTML**: Do not put <div class="chart-placeholder"> in the HTML. The charts will be rendered automatically based on the "charts" array you return.
+--- SISTEMA DE DISEÑO (Para el campo HTML) ---
+1. **Tipografía y Jerarquía**:
+   - **Títulos (H2)**: Usa \`<h2 class="text-xl font-black text-slate-800 border-l-4 border-indigo-500 pl-4 mb-6 mt-4 tracking-tight">\`
+   - **Subtítulos (H3)**: Usa \`<h3 class="text-sm font-bold text-indigo-600 uppercase tracking-widest mt-8 mb-3 flex items-center gap-2 border-b border-indigo-50 pb-1">\`
+   - **Párrafos**: Texto limpio, con espacio entre líneas cómodo (leading-relaxed).
 
---- CHARTING LOGIC ---
-- If you find a specific URL winning/losing, ADD A CHART CONFIG to the "charts" array for that URL!
-- Use "urlIncludes" in the filter to target the specific data.
-- Recommended colors: Clicks (#6366f1), Impressions (#8b5cf6), Position (#f43f5e - inverted logic).
+2. **Formato de Métricas (Codificación de Color)**:
+   - **Positivo/Bueno**: \`<span class="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded text-xs border border-emerald-100">\`.
+   - **Negativo/Malo**: \`<span class="text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 rounded text-xs border border-rose-100">\`.
+   - **Neutro/Destacado**: \`<span class="text-slate-800 font-bold bg-slate-100 px-1.5 py-0.5 rounded text-xs">\`.
 
---- SECTION SPECIFICS ---
-- **OPORTUNIDADES_CONTENIDO_CLUSTERS**: Use a card-based grid (3 cols).
-- **ALERTA_CANIBALIZACION**: MUST include a chart for every major conflict.
-- **ANALISIS_ESTRATEGICO**: Focus on "Matriz de Ataque/Defensa".
-- **ANALISIS_TRAFICO_IA**: Breakdown of AI sources.
+3. **Énfasis Narrativo ("Bold Stretches")**:
+   - En aproximadamente el **50% de los párrafos**, identifica la idea central.
+   - Pon en **negrita** (\`<strong>\`) una secuencia continua de **4 a 8 palabras** que resuma esa idea.
+   - REGLA ESTRICTA: Máximo 1 secuencia en negrita por párrafo. No pongas todo el párrafo en negrita.
 
-Output JSON only.`;
+4. **Layout**:
+   - Para métricas densas, usa \`grid grid-cols-1 md:grid-cols-2 gap-8\`.
+   - Usa tablas limpias de Tailwind para datos.
+
+5. **IDIOMA**: TODO EL TEXTO DEBE ESTAR EN ESPAÑOL.
+
+--- LÓGICA DE GRÁFICOS ---
+- Si encuentras una URL específica ganando/perdiendo, ¡AÑADE UNA CONFIGURACIÓN DE GRÁFICO al array "charts" para esa URL!
+- Usa "urlIncludes" en el filtro para apuntar a los datos específicos.
+- Colores recomendados: Clics (#6366f1), Impresiones (#8b5cf6), Posición (#f43f5e - lógica invertida).
+
+--- ESPECIFICACIONES DE SECCIÓN ---
+- **OPORTUNIDADES_CONTENIDO_CLUSTERS**: Usa una cuadrícula basada en tarjetas (3 columnas).
+- **ALERTA_CANIBALIZACION**: DEBE incluir un gráfico para cada conflicto importante.
+- **ANALISIS_ESTRATEGICO**: Enfócate en "Matriz de Ataque/Defensa".
+- **ANALISIS_TRAFICO_IA**: Desglose de fuentes de IA.
+
+Salida solo JSON.`;
 
 // 3. Achievements Mode Prompt
-const SYSTEM_PROMPT_ACHIEVEMENTS = `You are a "Chief Success Officer". 
-Output JSON format: { "html": "...", "charts": [...] }.
-Tone: Celebratory, motivational.
-Focus on WINS.`;
+const SYSTEM_PROMPT_ACHIEVEMENTS = `Eres un "Director de Éxito del Cliente". 
+Formato de salida JSON: { "html": "...", "charts": [...] }.
+Tono: Celebratorio, motivador.
+Enfócate en las VICTORIAS.
+Aplica las mismas reglas de diseño (H2, H3, colores métricas, negritas).
+IDIOMA: TODO EL TEXTO DEBE ESTAR EN ESPAÑOL.`;
 
 // 4. Final Refiner
-const SYSTEM_PROMPT_REFINER = `You are the Editor in Chief. 
-Output JSON format: { "html": "..." } (No charts needed for summary usually, but keep format consistent).
-Write the RESUMEN_EJECUTIVO (Abstract) and CONCLUSIONES sections.
+const SYSTEM_PROMPT_REFINER = `Eres el Editor en Jefe. 
+Formato de salida JSON: { "html": "..." } (No se necesitan gráficos para el resumen usualmente, pero mantén el formato consistente).
+Escribe las secciones RESUMEN_EJECUTIVO (Abstract) y CONCLUSIONES.
+Utiliza las mismas reglas de estilo:
+- H2 con borde izquierdo índigo.
+- Métricas positivas en verde (fondo suave), negativas en rojo.
+- Negritas en frases clave (4-8 palabras).
+IDIOMA: TODO EL TEXTO DEBE ESTAR EN ESPAÑOL.
 `;
 
 const FALLBACK_MODELS = ['gemini-2.5-flash-lite', 'gemma-3-27b', 'gemini-2.5-flash'];
@@ -132,21 +154,9 @@ export const getRelevantSections = async (payload: ReportPayload, model: string,
         aiSessions: payload.aiTrafficAnalysis ? payload.aiTrafficAnalysis.sources.length : 0
     };
 
-    // Keep strict dispatcher logic
-    const SYSTEM_PROMPT_DISPATCHER = `You are a "Chief Editor".
-    MANDATORY RULES based on input data:
-    1. 'OPORTUNIDADES_CONTENIDO_CLUSTERS': Include if topicClusters.length > 0.
-    2. 'ANALISIS_CONCENTRACION': Include if clickConcentration.items.length > 0.
-    3. 'ANALISIS_ESTRATEGICO': Include if strategicOverview has items.
-    4. 'ANALISIS_CAUSAS_CAIDA': Include if lossDiagnosis > 0.
-    5. 'ALERTA_CANIBALIZACION': Include if cannibalization > 0.
-    6. 'OPORTUNIDAD_STRIKING_DISTANCE': Include if strikingDistance > 0.
-    7. 'OPORTUNIDAD_NUEVAS_KEYWORDS': Include if newKeywords > 2.
-    8. 'ANALISIS_CTR': Include if ctrRedFlags > 0.
-    9. 'ANALISIS_SEGMENTOS': Include if segments > 0.
-    10. 'ANALISIS_TRAFICO_IA': Include if aiSessions > 0.
-    
-    Return ONLY a JSON Array of strings. Example: ["ANALISIS_ESTRATEGICO"]`;
+    // Mantener lógica estricta de dispatcher
+    // The SYSTEM_PROMPT_DISPATCHER is now a global constant and already translated.
+    // The duplicate definition below is removed as per the instruction.
 
     try {
         const response = await generateWithRetry(
@@ -205,17 +215,18 @@ export const generateReportSection = async (
 
     // ... Context logic (same as before, just passed in prompt) ...
     let sectionContext = "";
-    if (sectionName === 'ANALISIS_IMPACTO_TAREAS') sectionContext = `TASK DETAILS: ${JSON.stringify(payload.taskImpactDetails)}`;
-    if (sectionName === 'ANALISIS_CONTENIDOS') sectionContext = `CONTENT DATA: ${JSON.stringify((payload as any).contentAnalysisData)}`;
-    if (sectionName === 'ANALISIS_TRAFICO_IA') sectionContext = `AI DATA: ${JSON.stringify(payload.aiTrafficAnalysis)}`;
+    if (sectionName === 'ANALISIS_IMPACTO_TAREAS') sectionContext = `DETALLES TAREAS: ${JSON.stringify(payload.taskImpactDetails)}`;
+    if (sectionName === 'ANALISIS_CONTENIDOS') sectionContext = `DATOS CONTENIDOS: ${JSON.stringify((payload as any).contentAnalysisData)}`;
+    if (sectionName === 'ANALISIS_TRAFICO_IA') sectionContext = `DATOS IA: ${JSON.stringify(payload.aiTrafficAnalysis)}`;
 
     const prompt = `
-    TASK: Generate Content for section "${sectionName}".
-    CONTEXT: ${payload.userContext || 'Standard Analysis'}
+    TAREA: Generar contenido para la sección "${sectionName}".
+    CONTEXTO: ${payload.userContext || 'Análisis Estándar'}
     ${sectionContext}
-    DATA: ${JSON.stringify(writerPayload)}
+    DATOS: ${JSON.stringify(writerPayload)}
     
-    Recall: Output valid JSON with 'html' and 'charts' array.
+    Recordatorio: Salida JSON válido con 'html' y array 'charts'. 
+    IMPORTANTE: TODO EL TEXTO DEBE ESTAR EN ESPAÑOL.
     `;
 
     try {
@@ -249,7 +260,7 @@ export const generateFinalRefinement = async (
         const response = await generateWithRetry(
             apiKeys,
             model,
-            `CONTEXT: ${userContext}. \n CONTENT: ${generatedHTML.substring(0, 45000)}`,
+            `CONTEXTO: ${userContext}. \n CONTENIDO: ${generatedHTML.substring(0, 45000)}`,
             { systemInstruction: SYSTEM_PROMPT_REFINER, responseMimeType: "application/json" }
         );
         const json = cleanAndParseJSON(response.text);

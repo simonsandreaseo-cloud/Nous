@@ -207,7 +207,7 @@ export const TaskPerformancePanel: React.FC<TaskPerformancePanelProps> = ({ task
                                                     'bg-slate-100 text-slate-600 border-slate-200'
                                                 }`}>
                                                 <span className={`w-1.5 h-1.5 rounded-full ${task.status === 'growth' ? 'bg-emerald-500' : task.status === 'decay' ? 'bg-rose-500' : 'bg-slate-400'}`}></span>
-                                                {task.status === 'growth' ? 'Growth' : task.status === 'decay' ? 'Risk' : 'Stable'}
+                                                {task.status === 'growth' ? 'Crecimiento' : task.status === 'decay' ? 'Riesgo' : 'Estable'}
                                             </span>
                                         </td>
                                     </tr>

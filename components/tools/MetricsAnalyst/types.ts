@@ -327,13 +327,14 @@ export interface DynamicChartConfig {
 
 export interface ReportSection {
     id: string;
-    type: 'text' | 'chart' | 'hybrid' | 'kpi-grid';
+    type: 'text' | 'chart' | 'hybrid' | 'kpi-grid' | 'custom-component';
     title?: string;
     content?: string; // HTML content for text/hybrid
     chartConfig?: DynamicChartConfig; // For charts
     kpiConfig?: {
         items: { label: string, value: string | number, trend?: number, prefix?: string, suffix?: string }[]
     }; // For KPI grids
+    customComponent?: 'kpi-main' | 'trend-chart' | 'segment-donuts' | 'task-performance' | 'concentration-map';
     isEditable?: boolean; // Defaults to true
     order: number;
 }

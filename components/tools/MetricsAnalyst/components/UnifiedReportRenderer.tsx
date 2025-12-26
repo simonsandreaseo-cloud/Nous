@@ -2,21 +2,38 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { ReportSection, ChartData } from '../types';
 import { DynamicChart } from './DynamicChart';
+import { TrendChartPanel } from './TrendChartPanel';
+import { SegmentDonutsPanel } from './SegmentDonutsPanel';
+import { TaskPerformancePanel } from './TaskPerformancePanel';
+import { ConcentrationPanel } from './ConcentrationPanel';
+import { KPIGridPanel } from './KPIGridPanel';
 import { Trash2, Move, Edit2, Plus, GripVertical, type LucideIcon } from 'lucide-react';
 import ContentEditable from 'react-contenteditable';
+import { TaskPerformance, DashboardStats } from '../types';
 
 interface UnifiedReportRendererProps {
     sections: ReportSection[];
     chartData: ChartData | null;
     isReadOnly?: boolean;
     onSectionsChange?: (newSections: ReportSection[]) => void;
+    // Context Data for Custom Components
+    taskPerformance?: TaskPerformance[];
+    concentrationAnalysis?: any;
+    dashboardStats?: DashboardStats;
+    user?: any;
+    decayAlerts?: any[];
 }
 
 export const UnifiedReportRenderer: React.FC<UnifiedReportRendererProps> = ({
     sections,
     chartData,
     isReadOnly = false,
-    onSectionsChange
+    onSectionsChange,
+    taskPerformance,
+    concentrationAnalysis,
+    dashboardStats,
+    user,
+    decayAlerts
 }) => {
     // Local state for optimistic updates
     const [localSections, setLocalSections] = useState<ReportSection[]>(sections);
@@ -129,6 +146,52 @@ export const UnifiedReportRenderer: React.FC<UnifiedReportRendererProps> = ({
             );
         }
 
+        if (section.type === 'custom-component') {
+            const renderCustomComponent = () => {
+                switch (section.customComponent) {
+                    case 'kpi-main':
+                        return dashboardStats ? <KPIGridPanel stats={dashboardStats} /> : <p className="text-rose-500">Datos de KPI no disponibles</p>;
+                    case 'trend-chart':
+                        return dashboardStats ? <TrendChartPanel stats={dashboardStats} /> : <p className="text-rose-500">Datos de tendencia no disponibles</p>;
+                    case 'segment-donuts':
+                        return dashboardStats ? <SegmentDonutsPanel stats={dashboardStats} /> : <p className="text-rose-500">Datos de segmentos no disponibles</p>;
+                    case 'task-performance':
+                        return (taskPerformance && taskPerformance.length > 0 && user)
+                            ? <TaskPerformancePanel taskPerformance={taskPerformance} decayAlerts={decayAlerts || []} user={user} />
+                            : <p className="text-slate-400 italic">No hay tareas activas para analizar.</p>;
+                    case 'concentration-map':
+                        return concentrationAnalysis
+                            ? <ConcentrationPanel clickConcentration={concentrationAnalysis.clickConcentration} impressionConcentration={concentrationAnalysis.impressionConcentration} />
+                            : <p className="text-rose-500">Análisis de concentración no disponible</p>;
+                    default:
+                        return <p className="text-slate-400">Componente personalizado no reconocido: {section.customComponent}</p>;
+                }
+            };
+
+            return (
+                <div className="space-y-6">
+                    {/* The Chart/Component */}
+                    {renderCustomComponent()}
+
+                    {/* The Analysis Content */}
+                    {(section.content || !isReadOnly) && (
+                        <div className="prose prose-slate max-w-none pt-4 border-t border-slate-100">
+                            {isReadOnly ? (
+                                <div dangerouslySetInnerHTML={{ __html: section.content || '' }} />
+                            ) : (
+                                <ContentEditable
+                                    html={section.content || '<p class="text-slate-400 italic">Añadir análisis aquí...</p>'}
+                                    disabled={false}
+                                    onChange={(e) => handleContentChange(section.id, e.target.value)}
+                                    className="outline-none focus:ring-2 focus:ring-indigo-50/50 rounded p-2 min-h-[60px]"
+                                />
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
         return (
             <div className="prose prose-slate max-w-none">
                 {isReadOnly ? (
@@ -175,8 +238,8 @@ export const UnifiedReportRenderer: React.FC<UnifiedReportRendererProps> = ({
                                     <div
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
-                                        className={`bg-white p-8 rounded-[2rem] border transition-all relative group
-                                            ${snapshot.isDragging ? 'shadow-2xl scale-105 border-indigo-400 z-50' : 'shadow-xl shadow-slate-200/50 border-slate-100 hover:border-indigo-200'}
+                                        className={`bg-white/90 backdrop-blur-sm p-8 rounded-2xl border transition-all duration-300 relative group
+                                            ${snapshot.isDragging ? 'shadow-2xl scale-[1.02] border-indigo-500 ring-4 ring-indigo-500/10 z-50' : 'shadow-lg shadow-indigo-100/40 border-slate-200/60 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-200/40'}
                                         `}
                                     >
                                         <div {...provided.dragHandleProps}>

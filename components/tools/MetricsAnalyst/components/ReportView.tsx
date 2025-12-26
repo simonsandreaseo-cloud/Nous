@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { ChartData, ReportSection, UsageMode, TaskPerformance, DashboardStats } from '../types';
 import { TaskPerformancePanel } from './TaskPerformancePanel';
-import { Dashboard } from './Dashboard';
 import { ProjectSelector } from '../../../shared/ProjectSelector';
 import { ConcentrationPanel } from './ConcentrationPanel';
 import { PitchDeck } from './PitchDeck';
@@ -83,8 +82,69 @@ export const ReportView: React.FC<ReportViewProps> = ({
         return <PitchDeck chartItems={pitchItems} chartData={chartData} onClose={() => window.location.reload()} />;
     }
 
+    // -- Section Integration Logic --
+    // Ensure system charts are present in the sections list
+    useEffect(() => {
+        if (!sections || isSaving || isRegenerating) return;
+
+        const hasKpi = sections.some(s => s.customComponent === 'kpi-main');
+
+        if (!hasKpi && dashboardStats) {
+            console.log("Injecting system sections into report...");
+
+            const newSections = [...sections];
+
+            // 1. KPI Grid (Always First)
+            const kpiSection: ReportSection = {
+                id: 'sys-kpi-main',
+                type: 'custom-component',
+                customComponent: 'kpi-main',
+                title: 'Métricas Generales',
+                isEditable: false,
+                order: 0
+            };
+
+            // 2. Trend & Donuts (After Exec Summary - assumed to be first section)
+            // If first section exists, we insert after it. If not, just append.
+            const trendSection: ReportSection = {
+                id: 'sys-trend', type: 'custom-component', customComponent: 'trend-chart', title: 'Tendencia Temporal', isEditable: false, order: 0
+            };
+            const donutSection: ReportSection = {
+                id: 'sys-donuts', type: 'custom-component', customComponent: 'segment-donuts', title: 'Segmentación', isEditable: false, order: 0
+            };
+            const taskSection: ReportSection = {
+                id: 'sys-task', type: 'custom-component', customComponent: 'task-performance', title: 'Inteligencia de Tareas', isEditable: false, order: 0
+            };
+            const concSection: ReportSection = {
+                id: 'sys-conc', type: 'custom-component', customComponent: 'concentration-map', title: 'Mapa de Concentración', isEditable: false, order: 0
+            };
+
+            // Construction: [KPI, (First Section / Exec Summary), Trend, Donuts, Task, Concentration, ...Rest]
+
+            const firstSection = newSections.length > 0 ? newSections[0] : null;
+            const restSections = newSections.length > 1 ? newSections.slice(1) : [];
+
+            const assembled = [
+                kpiSection,
+                ...(firstSection ? [firstSection] : []),
+                trendSection,
+                donutSection,
+                taskSection,
+                concSection,
+                ...restSections
+            ];
+
+            // Re-index orders
+            const ordered = assembled.map((s, i) => ({ ...s, order: i }));
+
+            if (onSectionsChange) {
+                onSectionsChange(ordered);
+            }
+        }
+    }, [sections, dashboardStats, isSaving, isRegenerating]);
+
     return (
-        <div className="max-w-[1200px] mx-auto py-12 px-6 sm:px-8 bg-gray-50 min-h-screen">
+        <div className="max-w-[1200px] mx-auto py-12 px-6 sm:px-8 min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
             {/* Header / Save Bar */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 print:hidden gap-4">
                 <button
@@ -132,33 +192,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 </div>
             </div>
 
-            {/* Dashboard Visuals */}
-            {dashboardStats && (
-                <div className="mb-10 animate-fade-in-up">
-                    <Dashboard stats={dashboardStats} logo={logo} onDateRangeChange={onDateRangeChange} />
-                </div>
-            )}
-
-            {/* Magazine Layout: Integrated Visuals */}
+            {/* Dashboard Visuals - REMOVED (Integrated into Report) */}
+            {/* Magazine Layout: Integrated Visuals - REMOVED (Integrated into Report) */}
             <div className="space-y-12">
-                {/* Visuals Row (Task Impact & Concentration) */}
-                {(taskPerformance?.length! > 0 || concentrationAnalysis) && (
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 print:break-inside-avoid">
-                        {taskPerformance && taskPerformance.length > 0 && user && (
-                            <div className="contents">
-                                <TaskPerformancePanel taskPerformance={taskPerformance} decayAlerts={decayAlerts || []} user={user} />
-                            </div>
-                        )}
-                        {concentrationAnalysis && (
-                            <div className="contents">
-                                <ConcentrationPanel
-                                    clickConcentration={concentrationAnalysis.clickConcentration}
-                                    impressionConcentration={concentrationAnalysis.impressionConcentration}
-                                />
-                            </div>
-                        )}
-                    </div>
-                )}
+                {/* Visuals Row (Task Impact & Concentration) - REMOVED */}
+
 
                 {/* Main Content Area - UNIFIED RENDERER */}
                 <div className="relative min-h-[500px]">
@@ -166,6 +204,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         sections={sections}
                         chartData={chartData}
                         onSectionsChange={onSectionsChange}
+                        // Context for custom components
+                        dashboardStats={dashboardStats}
+                        taskPerformance={taskPerformance}
+                        concentrationAnalysis={concentrationAnalysis}
+                        user={user}
+                        decayAlerts={decayAlerts}
                     />
                 </div>
 
