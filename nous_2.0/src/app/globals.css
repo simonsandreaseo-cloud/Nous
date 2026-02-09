@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  --background: #FFFFFF;
+  --foreground: #171717;
+
+  /* Clinical Palette */
+  --color-fog-gray: #F5F7FA;
+  --color-deep-cyan: #008080;
+  --color-surgical-blue: #007FFF;
+  --color-titanium-gray: #C0C0C0;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-michroma);
+  --font-mono: var(--font-jetbrains);
+
+  --color-fog-gray: var(--color-fog-gray);
+  --color-deep-cyan: var(--color-deep-cyan);
+  --color-surgical-blue: var(--color-surgical-blue);
+  --color-titanium-gray: var(--color-titanium-gray);
+}
+
+body {
+  background-image: none !important;
+  background-color: transparent;
+  /* Fallback color matching light theme */
+  /* background: url('/bg-ref.png') no-repeat center center fixed; */
+  /* Changed to transparent so 3D scene shows */
+  /* background-size: cover; */
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+  overflow: hidden;
+}
+
+@layer utilities {
+  .clinical-border {
+    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.1);
+  }
+
+  .panel-glass {
+    background: rgba(255, 255, 255, 0.05);
+    /* Lower opacity */
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  }
+}
