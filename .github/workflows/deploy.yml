@@ -3,6 +3,10 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'nous_2.0/**'
+      - 'docs/**'
+      - 'README.architecture.md'
 jobs:
   web-deploy:
     name: 🎉 Deploy
