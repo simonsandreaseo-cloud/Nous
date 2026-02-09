@@ -1,5 +1,5 @@
 
-import { HomeClient } from "@/components/home/HomeClient";
+import HomeClient from "@/components/home/HomeClient";
 
 // 3. Incremental Static Regeneration (ISR)
 // Revalidate every 3600 seconds (1 hour) or when manually triggered.
