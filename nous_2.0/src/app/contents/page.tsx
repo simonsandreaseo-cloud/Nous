@@ -2,11 +2,12 @@
 
 import { useProjectStore } from "@/store/useProjectStore";
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
-import { BudgetWidget } from "@/components/dashboard/BudgetWidget";
+import { EditorialPulse } from "@/components/dashboard/EditorialPulse";
+import { ContentQueue } from "@/components/dashboard/ContentQueue";
+import { TimelineScheduler } from "@/components/dashboard/TimelineScheduler";
+import { BudgetStatus } from "@/components/dashboard/BudgetStatus";
 import { InsightsWidget } from "@/components/dashboard/InsightsWidget";
-import { MiniCalendar } from "@/components/dashboard/MiniCalendar";
 import { QuickActionFab } from "@/components/dashboard/QuickActionFab";
-import { Layers } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function ContentDashboard() {
@@ -16,9 +17,9 @@ export default function ContentDashboard() {
         <div className="relative min-h-screen w-full bg-[#f8fafc] overflow-x-hidden text-slate-900 font-sans selection:bg-cyan-100 selection:text-cyan-900">
             <NavigationHeader />
 
-            <div className="flex flex-col min-h-screen pt-32 pb-20 px-6 md:px-12 max-w-[1600px] mx-auto relative z-10">
+            <div className="flex flex-col min-h-screen pt-32 pb-20 px-6 md:px-12 max-w-[1800px] mx-auto relative z-10">
                 {/* Minimalist Header */}
-                <header className="mb-12">
+                <header className="mb-8 flex items-end justify-between">
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -28,42 +29,42 @@ export default function ContentDashboard() {
                         <span className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase font-mono">
                             {activeProject?.domain || "NOUS FRAMEWORK"}
                         </span>
-                        <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-slate-900 uppercase italic heading-gradient">
-                            Dashboard <span className="text-slate-300">Overview</span>
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 uppercase italic">
+                            Neural <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-500">Workspace</span>
                         </h1>
                     </motion.div>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1">
-                    {/* Primary Column: Budget & Strategy */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="lg:col-span-1 h-full min-h-[400px]"
-                    >
-                        <BudgetWidget />
+                {/* BENTO GRID LAYOUT */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-[minmax(180px,auto)]">
+
+                    {/* 1. Hero Pulse (Full Width) */}
+                    <motion.div className="md:col-span-12" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                        <EditorialPulse />
                     </motion.div>
 
-                    {/* Secondary Column: Insights Feed */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="lg:col-span-1 h-full min-h-[400px]"
-                    >
-                        <InsightsWidget />
+                    {/* 2. Content Queue (Left/Center - Tall) */}
+                    <motion.div className="md:col-span-4 md:row-span-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                        <ContentQueue />
                     </motion.div>
 
-                    {/* Tertiary Column: Timeline */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                        className="lg:col-span-1 h-full min-h-[400px]"
-                    >
-                        <MiniCalendar />
+                    {/* 3. Scheduler (Center/Right - Tall) */}
+                    <motion.div className="md:col-span-5 md:row-span-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                        <TimelineScheduler />
                     </motion.div>
+
+                    {/* 4. Insights (Right - Compact) */}
+                    <motion.div className="md:col-span-3 md:row-span-1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                        <div className="h-full">
+                            <InsightsWidget />
+                        </div>
+                    </motion.div>
+
+                    {/* 5. Budget Status (Right - Compact) */}
+                    <motion.div className="md:col-span-3 md:row-span-1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+                        <BudgetStatus />
+                    </motion.div>
+
                 </div>
             </div>
 
