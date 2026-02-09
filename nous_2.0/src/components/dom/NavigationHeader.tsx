@@ -24,13 +24,13 @@ export function NavigationHeader() {
                     { label: 'Careers', href: '#' },
                     { label: 'Contact', href: '#' }
                 ].map((item) => (
-                    <a
+                    <Link
                         key={item.label}
                         href={item.href}
                         className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
                     >
                         {item.label}
-                    </a>
+                    </Link>
                 ))}
             </nav>
 

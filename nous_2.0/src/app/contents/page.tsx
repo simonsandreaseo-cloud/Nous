@@ -1,41 +1,47 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Background2D } from "@/components/Background2D/Background2D";
+import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import {
     ChevronRight,
     Activity,
     ChevronDown,
     Sparkles,
     FileText,
-    Image as ImageIcon,
     Plus,
     Zap,
-    LayoutGrid,
-    Search,
-    Calendar,
     Layers,
-    Command
+    Calendar,
+    Target,
+    BarChart3,
+    ArrowUpRight,
+    Search,
+    Filter,
+    Clock,
+    CheckCircle2,
+    Settings2
 } from "lucide-react";
 import { cn } from "@/utils/cn";
-import Link from "next/link";
+import { NavigationHeader } from "@/components/dom/NavigationHeader";
+import { useAuthStore } from "@/store/useAuthStore";
 
-// Mock Data for Timeline
+// Mock Data for Timeline - Enhanced with more SEO details
 const timelineData = [
-    { id: 1, title: "IA en Salud 2026", keyword: "Diagnóstico IA", health: 98, date: "2026-02-10" },
-    { id: 2, title: "Estrategias SEO Neural Link", keyword: "Tecnología Neural B2B", health: 85, date: "2026-02-12" },
-    { id: 3, title: "Tendencias Computación Cuántica", keyword: "SEO Cuántico", health: 92, date: "2026-02-15" },
-    { id: 4, title: "Privacidad Datos Bio-Digitales", keyword: "Seguridad Datos Médicos", health: 78, date: "2026-02-18" },
-    { id: 5, title: "Futuro de la Telemedicina", keyword: "Atención Remota", health: 95, date: "2026-02-20" },
-    { id: 6, title: "Avances Cirugía Robótica", keyword: "Robótica", health: 88, date: "2026-02-22" },
-    { id: 7, title: "SEO Secuenciación Genómica", keyword: "Genómica", health: 91, date: "2026-02-25" },
+    { id: 1, title: "IA en Salud 2026", keyword: "Diagnóstico IA", health: 98, date: "2026-02-10", status: "published", traffic: "+12%" },
+    { id: 2, title: "Estrategias SEO Neural", keyword: "B2B Tech", health: 85, date: "2026-02-12", status: "draft", traffic: "--" },
+    { id: 3, title: "Computación Cuántica", keyword: "SEO Cuántico", health: 92, date: "2026-02-15", status: "scheduled", traffic: "--" },
+    { id: 4, title: "Privacidad Bio-Digital", keyword: "Seguridad Datos", health: 78, date: "2026-02-18", status: "draft", traffic: "--" },
+    { id: 5, title: "Telemedicina 2.0", keyword: "Atención Remota", health: 95, date: "2026-02-20", status: "scheduled", traffic: "--" },
+    { id: 6, title: "Cirugía Robótica", keyword: "Robótica", health: 88, date: "2026-02-22", status: "draft", traffic: "--" },
+    { id: 7, title: "Genómica SEO", keyword: "Genómica", health: 91, date: "2026-02-25", status: "draft", traffic: "--" },
 ];
 
 export default function ContentCommandCenter() {
-    const [selectedCard, setSelectedCard] = useState<number | null>(null);
+    const [selectedCard, setSelectedCard] = useState<number | null>(1);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [filter, setFilter] = useState("all");
+
+    const user = useAuthStore((state) => state.user);
 
     // Drag to scroll logic
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -69,66 +75,73 @@ export default function ContentCommandCenter() {
 
     const handleGenerate = () => {
         setIsGenerating(true);
-        setTimeout(() => {
-            setIsGenerating(false);
-        }, 3000);
+        setTimeout(() => setIsGenerating(false), 3000);
     };
 
+    const selectedItem = timelineData.find(c => c.id === selectedCard);
+
     return (
-        <main className="relative w-full h-screen overflow-hidden bg-[#F5F7FA]/10 text-slate-800 font-sans selection:bg-cyan-500/20">
+        <div className="relative min-h-screen w-full bg-[#F5F7FA] overflow-hidden text-slate-900">
+            {/* Background elements to match clinical tech aesthetic */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-40">
+                <div className="absolute top-[10%] left-[-10%] w-[60%] h-[60%] bg-cyan-100 rounded-full blur-[140px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-50 rounded-full blur-[140px]" />
+                <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid.svg')] opacity-[0.03]" />
+            </div>
 
-            {/* Background Shader - Keeping it visible as the base */}
-            <Background2D />
+            {/* Use the shared Navigation Header */}
+            <NavigationHeader />
 
-            {/* Grid Overlay Structure */}
-            <div className="absolute inset-0 z-10 flex flex-col pointer-events-none">
+            {/* Main Command Center Layout */}
+            <div className="relative z-20 pt-28 h-screen w-full flex flex-col overflow-hidden px-12">
 
-                {/* Zone 1: Header (Barra de Estado Etérea - Clinical Light) */}
-                <header className="pointer-events-auto h-20 w-full flex items-center justify-between px-10 border-b border-white/40 bg-white/40 backdrop-blur-xl z-50 shadow-sm">
-                    <div className="flex items-center gap-6">
-                        {/* Logo / Breadcrumbs */}
-                        <div className="flex items-center gap-3 text-sm tracking-widest text-slate-500">
-                            <Link href="/" className="opacity-70 hover:opacity-100 transition-opacity font-display font-bold text-slate-800">NOUS</Link>
-                            <ChevronRight className="w-4 h-4 opacity-40" />
-                            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/50 border border-white/60 shadow-sm">
-                                <Layers className="w-3 h-3 text-cyan-600" />
-                                <span className="text-slate-900 font-medium font-display text-xs">CONTENIDOS</span>
+                {/* Section Header: Path & View Controls */}
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-white rounded-2xl border border-white shadow-sm">
+                            <Layers className="w-5 h-5 text-cyan-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-bold tracking-widest uppercase text-slate-400 font-mono">Contenidos</h2>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-2xl font-black tracking-tighter text-slate-900 uppercase italic">Planning Neural</span>
+                                <div className="h-1 w-8 bg-cyan-500 rounded-full" />
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-8">
-                        {/* Sync Indicator */}
-                        <div className="flex items-center gap-3 bg-white/30 px-4 py-2 rounded-full border border-white/40 backdrop-blur-md">
-                            <div className="relative flex items-center justify-center">
-                                <div className={cn("w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,128,128,0.5)] transition-all duration-300", isGenerating ? "animate-ping bg-amber-500" : "animate-pulse bg-cyan-500")} />
-                            </div>
-                            <span className="text-[10px] uppercase tracking-widest text-slate-600 font-mono font-medium">
-                                {isGenerating ? "PROCESANDO..." : "SISTEMA SINCRONIZADO"}
-                            </span>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white/70 backdrop-blur-md p-1 border border-white rounded-xl shadow-sm flex items-center">
+                            {['all', 'draft', 'scheduled', 'published'].map((t) => (
+                                <button
+                                    key={t}
+                                    onClick={() => setFilter(t)}
+                                    className={cn(
+                                        "px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all",
+                                        filter === t ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+                                    )}
+                                >
+                                    {t}
+                                </button>
+                            ))}
                         </div>
-
-                        {/* Domain Dropdown */}
-                        <button className="flex items-center gap-3 px-4 py-2 rounded-lg border border-slate-200/60 bg-white/60 hover:bg-white/90 hover:shadow-md transition-all text-xs font-semibold tracking-wide font-mono text-slate-700">
-                            <span>simonsandrea-seo</span>
-                            <ChevronDown className="w-3 h-3 opacity-50" />
+                        <button className="p-3 bg-white border border-white rounded-xl shadow-sm hover:shadow-md transition-all text-slate-500">
+                            <Filter size={18} />
                         </button>
                     </div>
-                </header>
+                </div>
 
-                {/* Main Content Area */}
-                <div className="flex-1 flex overflow-hidden relative pointer-events-auto">
+                {/* Main Content: Split Timeline | Sidebar */}
+                <div className="flex-1 flex gap-10 overflow-hidden pb-12">
 
-                    {/* Left/Center Area */}
-                    <div className="flex-1 flex flex-col relative w-3/4">
+                    {/* Center Column: Liquid Timeline */}
+                    <div className="flex-1 flex flex-col min-w-0">
+                        <div className="relative flex-1 bg-white/40 backdrop-blur-xl border border-white rounded-[40px] overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.03)] border-b-white/80">
 
-                        {/* Zone 2: Smart Timeline (Main Stage) */}
-                        <div className="flex-1 flex items-center justify-center relative overflow-hidden">
-                            {/* Infinite Timeline Line */}
-                            <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-slate-300/50 to-transparent" />
-                            <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent blur-[1px]" />
+                            {/* Horizontal Line Indicator */}
+                            <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-slate-200 to-transparent pointer-events-none" />
 
-                            {/* Cards Container */}
+                            {/* Draggable Cards Area */}
                             <div
                                 ref={scrollContainerRef}
                                 onMouseDown={handleMouseDown}
@@ -136,198 +149,247 @@ export default function ContentCommandCenter() {
                                 onMouseUp={handleMouseUp}
                                 onMouseMove={handleMouseMove}
                                 className={cn(
-                                    "w-full h-full flex items-center gap-12 overflow-x-auto no-scrollbar px-24 pb-12 pt-8 snap-x snap-mandatory cursor-grab active:cursor-grabbing",
+                                    "w-full h-full flex items-center gap-8 overflow-x-auto no-scrollbar px-16 snap-x snap-mandatory cursor-grab active:cursor-grabbing pb-12 pt-8",
                                     isDragging && "snap-none"
                                 )}
                             >
-                                {timelineData.map((item) => (
+                                {timelineData.filter(i => filter === 'all' || i.status === filter).map((item) => (
                                     <motion.div
                                         key={item.id}
-                                        layoutId={`card - ${item.id} `}
+                                        layoutId={`card-${item.id}`}
                                         onClick={() => !isDragging && setSelectedCard(item.id)}
-                                        initial={{ opacity: 0, y: 50 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.5, delay: item.id * 0.1 }}
-                                        whileHover={{ y: -15, scale: 1.02 }}
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        whileHover={{ y: -8 }}
                                         className={cn(
-                                            "min-w-[300px] h-[360px] rounded-[2rem] border relative group cursor-pointer transition-all duration-500 flex flex-col justify-between p-8 snap-center select-none shadow-sm hover:shadow-2xl",
+                                            "min-w-[320px] h-[380px] rounded-[32px] border-2 transition-all duration-500 flex flex-col p-8 snap-center select-none relative group",
                                             selectedCard === item.id
-                                                ? "bg-white/80 border-cyan-500/40 shadow-[0_20px_40px_-15px_rgba(6,182,212,0.2)] backdrop-blur-2xl"
-                                                : "bg-white/40 border-white/60 hover:bg-white/70 hover:border-white/80 backdrop-blur-xl"
+                                                ? "bg-white border-cyan-500/30 shadow-[0_25px_50px_-20px_rgba(6,182,212,0.15)]"
+                                                : "bg-white/60 border-transparent hover:bg-white/80 hover:border-white shadow-sm"
                                         )}
                                     >
-                                        <div className="space-y-6 pointer-events-none">
-                                            <div className="flex justify-between items-start">
-                                                <div className="p-2.5 rounded-xl bg-gradient-to-br from-white to-slate-50 border border-white max-w-fit shadow-sm text-cyan-600">
-                                                    <Calendar className="w-5 h-5" />
-                                                </div>
-                                                <div className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/50 border border-white/50 text-[10px] font-bold uppercase font-mono shadow-sm", item.health > 90 ? "text-emerald-600" : "text-amber-500")}>
-                                                    <Activity className="w-3.5 h-3.5" />
-                                                    {item.health}%
-                                                </div>
+                                        <div className="flex justify-between items-start mb-auto">
+                                            <div className={cn(
+                                                "p-3 rounded-2xl border transition-colors",
+                                                selectedCard === item.id ? "bg-cyan-50 border-cyan-100 text-cyan-600" : "bg-slate-50 border-slate-100 text-slate-400"
+                                            )}>
+                                                <Calendar size={20} />
                                             </div>
-                                            <div>
-                                                <h3 className="text-2xl font-semibold leading-tight text-slate-800 tracking-tight font-display">
-                                                    {item.title}
-                                                </h3>
-                                                <div className="flex items-center gap-2 mt-3">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                                                    <p className="text-xs text-slate-500 font-mono uppercase tracking-wide">
-                                                        {item.keyword}
-                                                    </p>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <div className={cn(
+                                                    "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.15em] border",
+                                                    item.status === 'published' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                                        item.status === 'scheduled' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                                                            "bg-slate-50 text-slate-500 border-slate-100"
+                                                )}>
+                                                    {item.status}
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-end justify-between pointer-events-none">
-                                            <div className="text-[10px] text-slate-400 font-mono">
-                                                FECHA PUB.
-                                            </div>
-                                            <div className="text-xs text-slate-600 font-mono font-medium bg-slate-100 px-2 py-1 rounded-md">
-                                                {item.date}
+                                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 font-mono">
+                                                    <Activity size={12} className="text-cyan-500" />
+                                                    PULSO {item.health}%
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Inner Glow */}
-                                        <div className="absolute inset-0 rounded-[2rem] bg-gradient-to-tr from-cyan-500/0 via-white/0 to-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none mix-blend-overlay" />
+                                        <div className="space-y-4">
+                                            <h3 className="text-[2.2rem] font-black leading-[0.9] text-slate-900 tracking-tighter uppercase italic">
+                                                {item.title}
+                                            </h3>
+                                            <div className="flex items-center gap-3">
+                                                <span className="w-6 h-[1px] bg-cyan-500" />
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] font-mono">
+                                                    KWD: {item.keyword}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Lanzamiento</p>
+                                                <p className="text-xs font-mono font-bold text-slate-600">{item.date}</p>
+                                            </div>
+                                            {item.status === 'published' && (
+                                                <div className="flex items-center gap-1 text-emerald-500 font-bold text-xs font-mono">
+                                                    <ArrowUpRight size={14} />
+                                                    {item.traffic}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Interaction layer */}
+                                        <div className={cn(
+                                            "absolute inset-0 rounded-[32px] ring-4 ring-cyan-500/10 transition-opacity duration-500 pointer-events-none",
+                                            selectedCard === item.id ? "opacity-100" : "opacity-0"
+                                        )} />
                                     </motion.div>
                                 ))}
 
-                                {/* Add New Placeholder Tile */}
+                                {/* Add New Node */}
                                 <motion.div
-                                    whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.4)" }}
-                                    className="min-w-[120px] h-[360px] flex items-center justify-center rounded-[2rem] border-2 border-dashed border-slate-300 bg-white/10 hover:border-cyan-400/50 transition-all cursor-pointer text-slate-400 hover:text-cyan-600 snap-center group"
+                                    whileHover={{ scale: 1.05 }}
+                                    className="min-w-[80px] h-[380px] flex items-center justify-center rounded-[32px] border-2 border-dashed border-slate-200 bg-white/20 hover:border-cyan-400/50 hover:bg-white/50 transition-all cursor-pointer group snap-center"
                                 >
-                                    <div className="w-12 h-12 rounded-full bg-white/50 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                                        <Plus className="w-6 h-6" />
+                                    <div className="flex flex-col items-center gap-4 text-slate-300 group-hover:text-cyan-500 transition-colors">
+                                        <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+                                            <Plus size={24} />
+                                        </div>
                                     </div>
                                 </motion.div>
+                            </div>
 
-                                <div className="min-w-[400px]" />
+                            {/* Timeline Navigation UI */}
+                            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-8 bg-slate-900/5 backdrop-blur-md px-8 py-3 rounded-full border border-white/40">
+                                <div className="text-[9px] font-bold tracking-[0.3em] text-slate-400 uppercase">Neural Stream v2.0</div>
+                                <div className="h-4 w-[1px] bg-slate-200" />
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                                    <span className="text-[10px] font-bold text-slate-600 uppercase font-mono tracking-widest">En Tiempo Real</span>
+                                </div>
                             </div>
                         </div>
-
-                        {/* Zone 4: Insights (Data Feed) */}
-                        <div className="absolute bottom-10 left-10 flex flex-col gap-6 z-40 pointer-events-auto">
-                            <motion.div
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 1 }}
-                                className="w-72 bg-white/60 backdrop-blur-xl border border-white/60 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all"
-                            >
-                                <div className="flex items-center gap-2 mb-4 text-xs font-bold uppercase tracking-widest text-slate-400 font-display">
-                                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                                    Oportunidades
-                                </div>
-                                <ul className="space-y-3">
-                                    {['NLP Clínico', 'Vis. Bio-Datos', 'Sal Rosa del Himalaya'].map((k, i) => (
-                                        <li key={i} className="flex items-center justify-between text-sm text-slate-600 font-medium group cursor-pointer hover:text-cyan-700 transition-colors p-2 hover:bg-white/50 rounded-lg">
-                                            <span className="font-mono text-xs">{k}</span>
-                                            <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-cyan-500" />
-                                        </li>
-                                    ))}
-                                </ul>
-                            </motion.div>
-
-                            {/* Quick Add Button */}
-                            <motion.button
-                                whileHover={{ scale: 1.1, rotate: 90 }}
-                                whileTap={{ scale: 0.9 }}
-                                className="w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-2xl hover:bg-cyan-600 transition-colors font-display z-50"
-                            >
-                                <Plus className="w-6 h-6" />
-                            </motion.button>
-                        </div>
-
                     </div>
 
-                    {/* Zone 3: Sidebar (Creation Suite - Clinical Glass) */}
-                    <aside className="w-[380px] border-l border-white/40 bg-white/30 backdrop-blur-2xl h-full flex flex-col z-40 relative shadow-[-10px_0_40px_rgba(0,0,0,0.02)]">
+                    {/* Right Column: Editorial Suite (Sidebar) */}
+                    <aside className="w-[450px] flex flex-col gap-6">
 
-                        <div className="p-8 flex-1 flex flex-col gap-8 overflow-hidden">
-                            {/* Header */}
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h2 className="text-2xl font-bold tracking-tight text-slate-900 font-display">CREAR</h2>
-                                    <div className="h-1 w-12 bg-cyan-500 mt-2 rounded-full" />
-                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-2 font-mono">Asistente Editorial • IA V2.0</p>
+                        {/* Selected Content Labs */}
+                        <div className="flex-1 bg-white border border-white rounded-[40px] shadow-xl shadow-slate-200/50 flex flex-col overflow-hidden relative">
+                            {/* Side Accents */}
+                            <div className="absolute top-0 right-0 w-2 h-full bg-cyan-500/40 rounded-r-[40px]" />
+
+                            <div className="p-10 flex flex-col h-full">
+                                <div className="flex justify-between items-start mb-10">
+                                    <div>
+                                        <p className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em] font-mono">Neural Factory</p>
+                                        <h3 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic mt-1">Refinería</h3>
+                                    </div>
+                                    <button className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:text-slate-900 transition-colors">
+                                        <Settings2 size={20} />
+                                    </button>
                                 </div>
 
-                                {/* Mini Orb Indicator */}
-                                <div className="relative w-10 h-10 flex items-center justify-center">
-                                    <div className={cn("absolute inset-0 rounded-full blur-md transition-all duration-500", isGenerating ? "bg-amber-400/30 animate-pulse scale-150" : "bg-cyan-400/20")} />
-                                    <div className={cn("w-3 h-3 rounded-full shadow-lg transition-colors duration-500 border border-white", isGenerating ? "bg-amber-400" : "bg-gradient-to-tr from-cyan-400 to-blue-600")} />
-                                </div>
-                            </div>
-
-                            {/* Action Button */}
-                            <button
-                                onClick={handleGenerate}
-                                disabled={isGenerating}
-                                className="group relative w-full h-16 overflow-hidden rounded-xl shadow-lg hover:shadow-cyan-500/20 transition-shadow"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 group-hover:bg-cyan-950 transition-colors duration-500" />
-
-                                {/* Animated gradient border/sheen */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-
-                                <div className="relative h-full w-full flex items-center justify-center gap-3">
-                                    <Sparkles className={cn("w-5 h-5 text-cyan-400 transition-transform", isGenerating ? "animate-spin" : "group-hover:rotate-12")} />
-                                    <span className="text-sm font-bold tracking-widest text-white font-display">
-                                        {isGenerating ? "GENERANDO..." : "SUGERIR MES"}
-                                    </span>
-                                </div>
-                            </button>
-
-                            {/* Contextual Editor */}
-                            <div className="flex-1 rounded-2xl border border-white/50 bg-white/40 p-1 overflow-hidden shadow-inner">
-                                <div className="h-full w-full bg-white/30 backdrop-blur-sm p-6 overflow-y-auto custom-scrollbar">
-                                    {selectedCard ? (
-                                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] text-slate-400 uppercase tracking-widest font-bold font-mono">Título del Contenido</label>
-                                                <input type="text" defaultValue={timelineData.find(c => c.id === selectedCard)?.title} className="w-full bg-transparent border-b border-slate-300 text-lg font-semibold text-slate-800 focus:border-cyan-500 focus:ring-0 px-0 py-2 font-display transition-colors focus:outline-none placeholder-slate-300" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] text-slate-400 uppercase tracking-widest font-bold font-mono">Brief Inteligente</label>
-                                                <div className="relative">
-                                                    <div className="absolute left-0 top-3 bottom-0 w-[1px] bg-cyan-500/20" />
-                                                    <textarea
-                                                        rows={8}
-                                                        className="w-full bg-transparent border-none text-xs leading-relaxed text-slate-600 focus:ring-0 pl-4 pr-0 py-2 resize-none font-mono focus:outline-none placeholder-slate-400"
-                                                        defaultValue={`Asunto: ${timelineData.find(c => c.id === selectedCard)?.keyword} \n\nEnfoque Clínico: Tendencias emergentes en 2026 para diagnóstico digital.\n\nEstrategia: Se requieren backlinks de alta autoridad.\n\nEstado: Pendiente de Revisión.`}
-                                                    />
+                                <AnimatePresence mode="wait">
+                                    {selectedItem ? (
+                                        <motion.div
+                                            key={selectedCard}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="flex-1 flex flex-col"
+                                        >
+                                            {/* SEO Context Metrics */}
+                                            <div className="grid grid-cols-2 gap-4 mb-10">
+                                                <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 group hover:border-cyan-100 transition-colors">
+                                                    <div className="flex items-center justify-between mb-3 text-slate-400">
+                                                        <Target size={16} />
+                                                        <span className="text-[9px] font-bold uppercase font-mono">Dificultad</span>
+                                                    </div>
+                                                    <div className="text-2xl font-black text-slate-800 tracking-tight">EASY / 12</div>
+                                                    <div className="h-1 w-full bg-slate-200 rounded-full mt-3 overflow-hidden">
+                                                        <div className="h-full w-1/4 bg-emerald-400" />
+                                                    </div>
+                                                </div>
+                                                <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 group hover:border-cyan-100 transition-colors">
+                                                    <div className="flex items-center justify-between mb-3 text-slate-400">
+                                                        <BarChart3 size={16} />
+                                                        <span className="text-[9px] font-bold uppercase font-mono">Volumen</span>
+                                                    </div>
+                                                    <div className="text-2xl font-black text-slate-800 tracking-tight">2.4K <span className="text-[10px] font-bold text-slate-400">MS</span></div>
+                                                    <div className="h-1 w-full bg-slate-200 rounded-full mt-3 overflow-hidden">
+                                                        <div className="h-full w-3/4 bg-blue-400" />
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="pt-6 flex gap-3">
-                                                <button className="flex-1 py-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-600 font-mono result-btn transition-colors">GUARDAR BORRADOR</button>
-                                                <button className="p-3 rounded-lg bg-cyan-50 text-cyan-600 hover:bg-cyan-100 transition-colors border border-cyan-100"><Zap className="w-4 h-4" /></button>
+
+                                            {/* Smart Editor Area */}
+                                            <div className="flex-1 flex flex-col gap-4">
+                                                <div className="space-y-4">
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Título Clínico</label>
+                                                    <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 focus-within:bg-white focus-within:border-cyan-200 transition-all">
+                                                        <input
+                                                            type="text"
+                                                            defaultValue={selectedItem.title}
+                                                            className="w-full bg-transparent border-none p-0 text-xl font-bold text-slate-800 focus:ring-0 placeholder-slate-200 tracking-tight"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex-1 flex flex-col space-y-4 min-h-0">
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Sugerencia de Copiloto</label>
+                                                    <div className="flex-1 p-6 bg-slate-50 rounded-3xl border border-slate-100 relative group overflow-hidden">
+                                                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-100 transition-opacity">
+                                                            <Sparkles className="text-cyan-500 animate-pulse" />
+                                                        </div>
+                                                        <textarea
+                                                            className="w-full h-full bg-transparent border-none p-0 text-sm leading-relaxed text-slate-600 focus:ring-0 resize-none font-mono focus:outline-none"
+                                                            defaultValue={`Análisis Neural Link B2B:\n\nEl enfoque debe centrarse en la integración bio-digital de equipos corporativos.\n\nEstructura Sugerida:\n1. El amanecer de la conexión neural\n2. Optimización del flujo cognitivo\n3. Ética y seguridad de datos 2026`}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
+
+                                            {/* Action Buttons */}
+                                            <div className="grid grid-cols-4 gap-4 mt-10">
+                                                <button
+                                                    onClick={handleGenerate}
+                                                    disabled={isGenerating}
+                                                    className="col-span-3 h-16 bg-slate-900 rounded-[24px] text-white flex items-center justify-center gap-3 font-black text-sm tracking-[0.2em] relative overflow-hidden group shadow-2xl shadow-slate-900/20 active:scale-[0.98] transition-all"
+                                                >
+                                                    {isGenerating ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" />
+                                                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce delay-75" />
+                                                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce delay-150" />
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <Sparkles size={18} className="text-cyan-400" />
+                                                            REFRESCAR MES
+                                                        </>
+                                                    )}
+                                                </button>
+                                                <button className="h-16 bg-slate-50 border border-slate-100 rounded-[24px] flex items-center justify-center text-slate-400 hover:text-cyan-500 hover:border-cyan-100 transition-all">
+                                                    <CheckCircle2 size={24} />
+                                                </button>
+                                            </div>
+                                        </motion.div>
                                     ) : (
-                                        <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center gap-4">
-                                            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-2">
-                                                <Command className="w-6 h-6 opacity-30" />
+                                        <div className="flex-1 flex flex-col items-center justify-center text-center p-12 space-y-6">
+                                            <div className="w-24 h-24 rounded-full bg-slate-50 flex items-center justify-center border border-dashed border-slate-200">
+                                                <Search className="text-slate-200" size={32} />
                                             </div>
-                                            <p className="text-sm font-medium font-display text-slate-500">Ningún Contenido Seleccionado</p>
-                                            <p className="text-xs font-mono max-w-[180px] leading-relaxed opacity-60">Selecciona una tarjeta de contenido de la línea de tiempo para acceder a la suite editorial.</p>
+                                            <p className="text-xs font-mono font-bold text-slate-300 uppercase tracking-widest max-w-[200px] leading-relaxed">
+                                                Selecciona un nodo neural para iniciar la refinería
+                                            </p>
                                         </div>
                                     )}
-                                </div>
-                            </div>
-
-                            {/* Drag Zone */}
-                            <div className="h-32 rounded-2xl border-2 border-dashed border-slate-300 bg-white/20 hover:bg-white/40 hover:border-cyan-400 transition-all group cursor-pointer flex flex-col items-center justify-center gap-3">
-                                <div className="p-3 rounded-full bg-white/60 shadow-sm group-hover:scale-110 transition-transform">
-                                    <ImageIcon className="w-5 h-5 text-slate-500 group-hover:text-cyan-600 transition-colors" />
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono group-hover:text-cyan-700 transition-colors">Subir Recursos</span>
+                                </AnimatePresence>
                             </div>
                         </div>
 
+                        {/* Secondary Tooltip/Insights */}
+                        <div className="h-32 bg-cyan-500/10 backdrop-blur-md border border-cyan-100 rounded-[40px] p-8 flex items-center gap-6 group hover:bg-cyan-500/20 transition-all cursor-pointer">
+                            <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-cyan-500 shadow-sm transition-transform group-hover:rotate-6">
+                                <Zap size={24} fill="currentColor" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-cyan-600 uppercase tracking-widest font-mono">Insight Rápido</p>
+                                <p className="text-sm font-bold text-slate-700 tracking-tight mt-1 truncate">Se detectó tendencia: Sal Rosa del Himalaya +10%</p>
+                            </div>
+                        </div>
                     </aside>
                 </div>
             </div>
-        </main>
+
+            <style jsx global>{`
+                .no-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+                .no-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+            `}</style>
+        </div>
     );
 }
-
