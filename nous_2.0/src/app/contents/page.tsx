@@ -3,7 +3,7 @@
 import { useProjectStore } from "@/store/useProjectStore";
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
 import { EditorialPulse } from "@/components/dashboard/EditorialPulse";
-import { ContentQueue } from "@/components/dashboard/ContentQueue";
+import { ColaDeContenidos } from "@/components/dashboard/ContentQueue";
 import { TimelineScheduler } from "@/components/dashboard/TimelineScheduler";
 import { BudgetStatus } from "@/components/dashboard/BudgetStatus";
 import { InsightsWidget } from "@/components/dashboard/InsightsWidget";
@@ -27,10 +27,10 @@ export default function ContentDashboard() {
                         className="flex flex-col gap-1"
                     >
                         <span className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase font-mono">
-                            {activeProject?.domain || "NOUS FRAMEWORK"}
+                            {activeProject?.domain || "NOUS"}
                         </span>
                         <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 uppercase italic">
-                            Neural <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-500">Workspace</span>
+                            Contenidos
                         </h1>
                     </motion.div>
                 </header>
@@ -45,7 +45,7 @@ export default function ContentDashboard() {
 
                     {/* 2. Content Queue (Left/Center - Tall) */}
                     <motion.div className="md:col-span-4 md:row-span-2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                        <ContentQueue />
+                        <ColaDeContenidos />
                     </motion.div>
 
                     {/* 3. Scheduler (Center/Right - Tall) */}

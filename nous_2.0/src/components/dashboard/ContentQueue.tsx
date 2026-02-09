@@ -27,12 +27,12 @@ const statusConfig = {
     review: { icon: CheckCircle, color: "text-emerald-500", label: "Revisión" },
 };
 
-export function ContentQueue() {
+export function ColaDeContenidos() {
     return (
         <section className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex flex-col h-full min-h-[500px]">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] font-mono">Neural Factory</h3>
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] font-mono">Producción</h3>
                     <p className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">Cola de Trabajo</p>
                 </div>
                 <button className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-700 transition-colors shadow-lg shadow-slate-900/10">

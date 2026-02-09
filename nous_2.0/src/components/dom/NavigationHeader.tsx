@@ -24,7 +24,7 @@ export function NavigationHeader() {
             <nav className="pointer-events-auto hidden md:flex items-center gap-12">
                 {[
                     { label: 'Contenidos', href: '/contents' },
-                    { label: 'Settings', href: '/settings' }
+                    { label: 'Configuración', href: '/settings' }
                 ].map((item) => (
                     <Link
                         key={item.label}

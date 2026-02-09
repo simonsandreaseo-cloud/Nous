@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { User } from "@supabase/supabase-js";
-import { supabase } from "@/utils/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface AuthState {
     user: User | null;

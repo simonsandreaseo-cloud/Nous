@@ -9,6 +9,7 @@ import {
     Clock,
     Plus
 } from "lucide-react";
+import Link from "next/link";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/utils/cn";
@@ -32,8 +33,8 @@ export function TimelineScheduler() {
         <section className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex flex-col h-full min-h-[500px]">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] font-mono">Neural Timeline</h3>
-                    <p className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">Programación Semanal</p>
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] font-mono">Agenda</h3>
+                    <p className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">Semana</p>
                 </div>
 
                 <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl">
@@ -47,6 +48,12 @@ export function TimelineScheduler() {
                         <ChevronRight size={16} />
                     </button>
                 </div>
+            </div>
+
+            <div className="flex justify-end mb-4">
+                <Link href="/contents/calendar" className="text-[10px] font-bold text-cyan-600 hover:text-cyan-800 uppercase tracking-widest flex items-center gap-1 transition-colors">
+                    Ver Mes Completo <CalendarIcon size={12} />
+                </Link>
             </div>
 
             <div className="flex-1 grid grid-cols-7 gap-2">

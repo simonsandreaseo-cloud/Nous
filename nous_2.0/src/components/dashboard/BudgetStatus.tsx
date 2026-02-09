@@ -10,11 +10,12 @@ export function BudgetStatus() {
 
     if (!activeProject) return null;
 
-    const { budgetMode, budgetSettings } = activeProject;
+    const { budget_settings } = activeProject;
+    const budgetMode = budget_settings.mode;
 
     // Mock calculations
-    const target = budgetSettings.target;
-    const current = budgetSettings.current;
+    const target = budget_settings.target;
+    const current = budget_settings.current;
     const progress = Math.min((current / target) * 100, 100);
 
     return (
