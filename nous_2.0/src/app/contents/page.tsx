@@ -25,21 +25,15 @@ import { cn } from "@/utils/cn";
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
 import { useAuthStore } from "@/store/useAuthStore";
 
-// Mock Data for Timeline - Enhanced with more SEO details
-const timelineData = [
-    { id: 1, title: "IA en Salud 2026", keyword: "Diagnóstico IA", health: 98, date: "2026-02-10", status: "published", traffic: "+12%" },
-    { id: 2, title: "Estrategias SEO Neural", keyword: "B2B Tech", health: 85, date: "2026-02-12", status: "draft", traffic: "--" },
-    { id: 3, title: "Computación Cuántica", keyword: "SEO Cuántico", health: 92, date: "2026-02-15", status: "scheduled", traffic: "--" },
-    { id: 4, title: "Privacidad Bio-Digital", keyword: "Seguridad Datos", health: 78, date: "2026-02-18", status: "draft", traffic: "--" },
-    { id: 5, title: "Telemedicina 2.0", keyword: "Atención Remota", health: 95, date: "2026-02-20", status: "scheduled", traffic: "--" },
-    { id: 6, title: "Cirugía Robótica", keyword: "Robótica", health: 88, date: "2026-02-22", status: "draft", traffic: "--" },
-    { id: 7, title: "Genómica SEO", keyword: "Genómica", health: 91, date: "2026-02-25", status: "draft", traffic: "--" },
-];
+// Initial state should be empty until fetched from Supabase
+const initialTimelineData: any[] = [];
 
 export default function ContentCommandCenter() {
-    const [selectedCard, setSelectedCard] = useState<number | null>(1);
+    const [timelineData, setTimelineData] = useState<any[]>(initialTimelineData);
+    const [selectedCard, setSelectedCard] = useState<number | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [filter, setFilter] = useState("all");
+    const [loading, setLoading] = useState(false); // New: track sync status
 
     const user = useAuthStore((state) => state.user);
 
