@@ -1867,7 +1867,7 @@ const App = () => {
 
                                     {draftId && (
                                         <Link
-                                            to={`/herramientas/blog-viz?draftId=${draftId}`}
+                                            href={`/herramientas/blog-viz?draftId=${draftId}`}
                                             style={{ ...styles.button, background: '#6366F1', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px', textDecoration: 'none' } as any}
                                         >
                                             <IconSparkles /> Diseñar con BlogViz AI
@@ -1916,7 +1916,7 @@ const App = () => {
                             <header style={styles.header as any}>
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                     {status ? <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}><LoadingSpinner /><span style={{ fontSize: '13px', color: '#6366F1', fontWeight: 500 }}>{status}</span></div> : null}
-                                    {draftId && <PresenceAvatars itemType="draft" channelId={draftId.toString()} />}
+                                    {/* {draftId && <PresenceAvatars itemType="draft" channelId={draftId.toString()} />} */}
                                 </div>
                                 <div style={{ display: 'flex', gap: '12px' }}>
                                     {metadata && (
