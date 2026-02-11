@@ -60,7 +60,7 @@ export function NavigationHeader() {
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Agentes de diseño</p>
                                     </Link>
-                                    <Link href="/contents/calendar" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/estrategia" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Calendar size={16} className="text-cyan-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Estrategia</span>
