@@ -1255,7 +1255,7 @@ const App = () => {
             setStatus("Tarea actualizada y borrador vinculado!");
 
             if (linkedProjectId) {
-                setTimeout(() => navigate(`/proyectos/${linkedProjectId}`), 1000);
+                setTimeout(() => router.push(`/proyectos/${linkedProjectId}`), 1000);
             }
 
         } catch (e: any) {
@@ -1302,7 +1302,7 @@ const App = () => {
                         VINCUADO A TAREA #{linkedTaskId}: {linkedTaskTitle}
                     </div>
                     <button
-                        onClick={() => navigate(`/proyectos/${linkedProjectId}`)}
+                        onClick={() => router.push(`/proyectos/${linkedProjectId}`)}
                         style={{ background: 'none', border: 'none', color: '#3B82F6', fontSize: '12px', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                     >
                         Volver al Proyecto
