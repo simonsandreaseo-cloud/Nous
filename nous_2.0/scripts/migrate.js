@@ -13,8 +13,11 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('❌ Error: Faltan variables de entorno NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY');
-    process.exit(1);
+    console.log('⚠️  ADVERTENCIA: Migración automática deshabilitada');
+    console.log('ℹ️  Para habilitar migraciones automáticas, configura la variable SUPABASE_SERVICE_ROLE_KEY en Vercel');
+    console.log('ℹ️  Mientras tanto, ejecuta la migración manualmente desde el SQL Editor de Supabase');
+    console.log('ℹ️  Consulta MIGRATION_SETUP.md para más detalles');
+    process.exit(0); // Exit sin error para que el build continúe
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
