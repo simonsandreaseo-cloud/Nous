@@ -31,7 +31,10 @@ import {
     Paperclip,
     Check,
     Loader2,
-    Trash
+    Trash,
+    LayoutList,
+    TableProperties,
+    LayoutDashboard
 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
@@ -49,6 +52,8 @@ export function EditorialCalendar() {
     const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState("");
     const [newTaskDate, setNewTaskDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [currentView, setCurrentView] = useState<'calendar' | 'grid'>('calendar');
+    const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
 
     const handleCreateQuickTask = async () => {
         if (!newTaskTitle || !activeProject) return;
@@ -129,86 +134,123 @@ export function EditorialCalendar() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {/* View Switcher */}
+                    <div className="flex items-center bg-slate-100 p-1 rounded-2xl mr-4">
+                        <button
+                            onClick={() => setCurrentView('calendar')}
+                            className={cn(
+                                "p-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                currentView === 'calendar' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                            )}
+                        >
+                            <CalendarIcon size={14} /> Calendario
+                        </button>
+                        <button
+                            onClick={() => setCurrentView('grid')}
+                            className={cn(
+                                "p-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                currentView === 'grid' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                            )}
+                        >
+                            <TableProperties size={14} /> Grilla
+                        </button>
+                    </div>
+
+                    <button
+                        onClick={() => setIsSchedulingModalOpen(true)}
+                        className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2"
+                    >
+                        <LayoutList size={14} /> Importar Planificación
+                    </button>
                     <button
                         onClick={() => setIsBulkModalOpen(true)}
                         className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2"
                     >
-                        <FileUp size={14} /> Carga Masiva
+                        <FileUp size={14} /> Carga Contenidos
                     </button>
                     <button
                         onClick={() => setIsNewTaskModalOpen(true)}
                         className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 flex items-center gap-2"
                     >
-                        <Plus size={14} /> Nuevo Contenido
+                        <Plus size={14} /> Nuevo
                     </button>
                 </div>
             </div>
 
-            {/* Grid */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="grid grid-cols-7 border-b border-slate-50">
-                    {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => (
-                        <div key={day} className="py-4 text-center border-r border-slate-50 last:border-none">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{day}</span>
+            {/* Content View */}
+            <div className="flex-1 overflow-hidden flex flex-col">
+                {currentView === 'calendar' ? (
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        <div className="grid grid-cols-7 border-b border-slate-50">
+                            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => (
+                                <div key={day} className="py-4 text-center border-r border-slate-50 last:border-none">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{day}</span>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
 
-                <div className="grid grid-cols-7 auto-rows-[180px]">
-                    {days.map((day, i) => {
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const dayTasks = tasksByDay[dateStr] || [];
-                        const isToday = isSameDay(day, new Date());
-                        const isCurrentMonth = isSameMonth(day, monthStart);
+                        <div className="grid grid-cols-7 auto-rows-[180px]">
+                            {days.map((day, i) => {
+                                const dateStr = format(day, 'yyyy-MM-dd');
+                                const dayTasks = tasksByDay[dateStr] || [];
+                                const isToday = isSameDay(day, new Date());
+                                const isCurrentMonth = isSameMonth(day, monthStart);
 
-                        return (
-                            <div
-                                key={i}
-                                className={cn(
-                                    "border-r border-b border-slate-50 p-3 flex flex-col gap-2 transition-colors relative group",
-                                    !isCurrentMonth && "bg-slate-50/30 opacity-40",
-                                    isToday && "bg-cyan-50/20"
-                                )}
-                            >
-                                <div className="flex justify-between items-start mb-1">
-                                    <span className={cn(
-                                        "text-sm font-black w-7 h-7 flex items-center justify-center rounded-full transition-all",
-                                        isToday ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/30" : "text-slate-400 group-hover:text-slate-900"
-                                    )}>
-                                        {format(day, 'd')}
-                                    </span>
-                                    <button className="p-1 opacity-0 group-hover:opacity-100 hover:bg-slate-100 rounded-lg transition-all">
-                                        <Plus size={14} className="text-slate-400" />
-                                    </button>
-                                </div>
+                                return (
+                                    <div
+                                        key={i}
+                                        className={cn(
+                                            "border-r border-b border-slate-50 p-3 flex flex-col gap-2 transition-colors relative group",
+                                            !isCurrentMonth && "bg-slate-50/30 opacity-40",
+                                            isToday && "bg-cyan-50/20"
+                                        )}
+                                    >
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className={cn(
+                                                "text-sm font-black w-7 h-7 flex items-center justify-center rounded-full transition-all",
+                                                isToday ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/30" : "text-slate-400 group-hover:text-slate-900"
+                                            )}>
+                                                {format(day, 'd')}
+                                            </span>
+                                            <button className="p-1 opacity-0 group-hover:opacity-100 hover:bg-slate-100 rounded-lg transition-all" onClick={() => {
+                                                setNewTaskDate(dateStr);
+                                                setIsNewTaskModalOpen(true);
+                                            }}>
+                                                <Plus size={14} className="text-slate-400" />
+                                            </button>
+                                        </div>
 
-                                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1.5">
-                                    {dayTasks.map(task => (
-                                        <motion.div
-                                            key={task.id}
-                                            layoutId={task.id}
-                                            onClick={() => setSelectedTask(task)}
-                                            className={cn(
-                                                "p-2.5 rounded-xl border text-[11px] font-bold leading-tight cursor-pointer transition-all shadow-sm hover:translate-y-[-2px]",
-                                                task.status === 'done'
-                                                    ? "bg-emerald-50 border-emerald-100 text-emerald-700"
-                                                    : task.status === 'in_progress'
-                                                        ? "bg-purple-50 border-purple-100 text-purple-700"
-                                                        : "bg-white border-slate-100 text-slate-600 hover:border-slate-300"
-                                            )}
-                                        >
-                                            <div className="flex items-center gap-1.5 mb-1 opacity-60">
-                                                {task.status === 'done' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                                                <span className="text-[8px] uppercase tracking-wider">{task.status}</span>
-                                            </div>
-                                            <p className="line-clamp-2">{task.title}</p>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1.5">
+                                            {dayTasks.map(task => (
+                                                <motion.div
+                                                    key={task.id}
+                                                    layoutId={task.id}
+                                                    onClick={() => setSelectedTask(task)}
+                                                    className={cn(
+                                                        "p-2.5 rounded-xl border text-[11px] font-bold leading-tight cursor-pointer transition-all shadow-sm hover:translate-y-[-2px]",
+                                                        task.status === 'done'
+                                                            ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                                                            : task.status === 'in_progress'
+                                                                ? "bg-purple-50 border-purple-100 text-purple-700"
+                                                                : "bg-white border-slate-100 text-slate-600 hover:border-slate-300"
+                                                    )}
+                                                >
+                                                    <div className="flex items-center gap-1.5 mb-1 opacity-60">
+                                                        {task.status === 'done' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                                                        <span className="text-[8px] uppercase tracking-wider">{task.status}</span>
+                                                    </div>
+                                                    <p className="line-clamp-2">{task.title}</p>
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ) : (
+                    <EditorialGrid tasks={tasks} onSelectTask={setSelectedTask} onUpdateTask={updateTask} />
+                )}
             </div>
 
             {/* TASK DETAILS MODAL */}
@@ -435,10 +477,165 @@ export function EditorialCalendar() {
                         </motion.div>
                     </div>
                 )}
+                {isSchedulingModalOpen && (
+                    <MassSchedulingModal onClose={() => setIsSchedulingModalOpen(false)} />
+                )}
             </AnimatePresence>
         </div>
     );
 }
+
+function EditorialGrid({ tasks, onSelectTask, onUpdateTask }: { tasks: Task[], onSelectTask: (t: Task) => void, onUpdateTask: (id: string, updates: any) => void }) {
+    const sortedTasks = [...tasks].sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
+
+    return (
+        <div className="flex-1 overflow-auto p-8">
+            <table className="w-full border-separate border-spacing-y-2">
+                <thead>
+                    <tr className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-left">
+                        <th className="px-6 py-4">Estado</th>
+                        <th className="px-6 py-4">Fecha</th>
+                        <th className="px-6 py-4">Título del Contenido</th>
+                        <th className="px-6 py-4">Brief / Keywords</th>
+                        <th className="px-6 py-4 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {sortedTasks.map(task => (
+                        <tr
+                            key={task.id}
+                            onClick={() => onSelectTask(task)}
+                            className="group bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer"
+                        >
+                            <td className="px-6 py-4 first:rounded-l-2xl">
+                                <div className={cn(
+                                    "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-flex",
+                                    task.status === "done" ? "bg-emerald-100 text-emerald-600" : "bg-purple-100 text-purple-600"
+                                )}>
+                                    {task.status}
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className="text-xs font-bold text-slate-500">{format(new Date(task.scheduled_date), "dd MMM yyyy", { locale: es })}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className="text-sm font-black text-slate-900 tracking-tight">{task.title}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className="text-xs text-slate-400 line-clamp-1">{task.brief || "--"}</span>
+                            </td>
+                            <td className="px-6 py-4 text-right last:rounded-r-2xl">
+                                <button className="p-2 hover:bg-slate-50 rounded-xl transition-all">
+                                    <MoreVertical size={16} className="text-slate-300" />
+                                </button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function MassSchedulingModal({ onClose }: { onClose: () => void }) {
+    const [pastedData, setPastedData] = useState("");
+    const [parsedTasks, setParsedTasks] = useState<{ title: string, date: string }[]>([]);
+    const { activeProject, addTask } = useProjectStore();
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleParse = () => {
+        const lines = pastedData.split("\n").filter(l => l.trim());
+        const tasks = lines.map(line => {
+            const parts = line.split(/[\t,;]/);
+            const title = parts[0]?.trim();
+            let date = parts[1]?.trim();
+
+            if (!date || isNaN(new Date(date).getTime())) {
+                date = format(new Date(), "yyyy-MM-dd");
+            } else {
+                date = format(new Date(date), "yyyy-MM-dd");
+            }
+
+            return { title, date };
+        }).filter(t => t.title);
+        setParsedTasks(tasks);
+    };
+
+    const handleSave = async () => {
+        if (!activeProject) return;
+        setIsSaving(true);
+        for (const task of parsedTasks) {
+            await addTask({
+                project_id: activeProject.id,
+                title: task.title,
+                scheduled_date: task.date,
+                status: "todo",
+                brief: ""
+            });
+        }
+        setIsSaving(false);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden"
+            >
+                <div className="p-10 border-b border-slate-50 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Importar Planificación Masiva</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Pega desde Excel o sube un CSV</p>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-slate-400"><X size={20} /></button>
+                </div>
+
+                <div className="p-10 space-y-8">
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Programación (Título [TAB/COMA] Fecha)</label>
+                        <textarea
+                            className="w-full h-48 bg-slate-50 border border-slate-100 rounded-3xl p-6 text-sm font-mono outline-none focus:border-slate-300 transition-all"
+                            placeholder={"Mi primer articulo\t2026-03-01\nMi segundo articulo\t2026-03-02..."}
+                            value={pastedData}
+                            onChange={(e) => setPastedData(e.target.value)}
+                        />
+                        <button
+                            onClick={handleParse}
+                            className="px-6 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                        >
+                            Previsualizar {parsedTasks.length > 0 && `(${parsedTasks.length} detectados)`}
+                        </button>
+                    </div>
+
+                    {parsedTasks.length > 0 && (
+                        <div className="max-h-48 overflow-y-auto border border-slate-50 rounded-2xl p-4 bg-slate-50/30">
+                            {parsedTasks.map((t, i) => (
+                                <div key={i} className="flex justify-between py-2 border-b border-slate-100 last:border-none text-xs">
+                                    <span className="font-bold text-slate-700">{t.title}</span>
+                                    <span className="text-slate-400">{t.date}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-10 bg-slate-50 border-t border-slate-100 flex justify-end gap-4">
+                    <button onClick={onClose} className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600">Cancelar</button>
+                    <button
+                        disabled={parsedTasks.length === 0 || isSaving}
+                        onClick={handleSave}
+                        className="px-12 py-4 bg-slate-900 text-white rounded-[20px] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-slate-900/20 disabled:opacity-50"
+                    >
+                        {isSaving ? "Procesando..." : "Confirmar e Importar"}
+                    </button>
+                </div>
+            </motion.div>
+        </div>
+    );
+}
+
 
 // Helper to handle individual file/text upload linking
 import { supabase } from "@/lib/supabase";
