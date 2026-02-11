@@ -1,5 +1,5 @@
 
-export const styles = {
+export const styles: any = {
     // --- GLOBAL LAYOUT ---
     appLayout: {
         display: 'flex',

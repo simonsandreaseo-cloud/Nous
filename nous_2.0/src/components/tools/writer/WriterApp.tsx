@@ -1453,7 +1453,7 @@ const App = () => {
                                 </div>
                                 {configStep === 'data' ? (
                                     <div
-                                        style={{ ...styles.dropzone, ...(dragActive ? styles.dropzoneActive : {}) }}
+                                        style={{ ...styles.dropzone, ...(dragActive ? styles.dropzoneActive : {}) } as any}
                                         onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
                                         onClick={() => fileInputRef.current?.click()}
                                     >
