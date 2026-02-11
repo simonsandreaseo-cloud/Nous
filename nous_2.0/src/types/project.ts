@@ -32,6 +32,13 @@ export interface Task {
     target_keyword?: string;
     target_url_slug?: string;
     metadata?: Record<string, any>;
+    volume?: number; // Monthly search volume
+    viability?: string; // e.g., 'optimo', 'no vendemos marca'
+    refs?: string[]; // Reference URLs
+    word_count?: number; // Target word count
+    ai_percentage?: number; // Estimated AI content percentage
+    docs_url?: string; // Link to Google Doc or similar
+    layout_status?: boolean; // Whether content is formatted / maquetado
     created_at?: string;
 }
 

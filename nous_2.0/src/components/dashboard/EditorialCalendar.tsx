@@ -12,6 +12,7 @@ import {
     isSameDay,
     addMonths,
     subMonths,
+    addDays,
 } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -40,9 +41,9 @@ import { useProjectStore, Task } from "@/store/useProjectStore";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { parseDocx, parseHtml } from "../tools/writer/services";
+import Papa from "papaparse";
 
 import { StrategyService } from "@/lib/services/strategy";
 
@@ -415,9 +416,28 @@ export function EditorialCalendar() {
                                     <div className="space-y-6">
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Original Brief / Keywords</label>
-                                            <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                            <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
                                                 {selectedTask.brief || "Sin instrucciones adicionales."}
                                             </p>
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Keywords</span>
+                                                    <p className="text-xs font-bold text-slate-700 truncate" title={selectedTask.target_keyword}>{selectedTask.target_keyword || "--"}</p>
+                                                </div>
+                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Volumen</span>
+                                                    <p className="text-xs font-bold text-slate-700">{selectedTask.volume || "--"}</p>
+                                                </div>
+                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Viabilidad</span>
+                                                    <p className="text-xs font-bold text-slate-700 truncate" title={selectedTask.viability}>{selectedTask.viability || "--"}</p>
+                                                </div>
+                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Ref URLs</span>
+                                                    <p className="text-xs font-bold text-slate-700">{selectedTask.refs?.length || 0} Links</p>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="flex flex-col gap-3">
@@ -656,26 +676,85 @@ function EditorialGrid({ tasks, onSelectTask, onUpdateTask }: { tasks: Task[], o
 
 function MassSchedulingModal({ onClose }: { onClose: () => void }) {
     const [pastedData, setPastedData] = useState("");
-    const [parsedTasks, setParsedTasks] = useState<{ title: string, date: string }[]>([]);
+    const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [parsedTasks, setParsedTasks] = useState<any[]>([]);
     const { activeProject, addTask } = useProjectStore();
     const [isSaving, setIsSaving] = useState(false);
 
     const handleParse = () => {
-        const lines = pastedData.split("\n").filter(l => l.trim());
-        const tasks = lines.map(line => {
-            const parts = line.split(/[\t,;]/);
-            const title = parts[0]?.trim();
-            let date = parts[1]?.trim();
+        if (!pastedData.trim()) return;
 
-            if (!date || isNaN(new Date(date).getTime())) {
-                date = format(new Date(), "yyyy-MM-dd");
-            } else {
-                date = format(new Date(date), "yyyy-MM-dd");
+        // Intentar parsear como CSV con encabezados
+        Papa.parse(pastedData, {
+            header: true,
+            skipEmptyLines: true,
+            transformHeader: (h) => h.trim(), // Limpiar espacios en encabezados
+            complete: (results) => {
+                console.log("Parsed result:", results);
+
+                // Si detectamos columnas conocidas, usamos la lógica de CSV avanzado
+                const hasKnownColumns = results.meta.fields?.some(f =>
+                    ['Título Propuesto', 'Keywords', 'Volumen', 'Viabilidad'].some(k => f.includes(k))
+                );
+
+                if (hasKnownColumns && results.data.length > 0) {
+                    const tasks = results.data.map((row: any, index: number) => {
+                        // Mapeo inteligente de columnas
+                        const title = row['Título Propuesto'] || row['Title'] || row['Título'] || '';
+
+                        // Fecha: Si no hay columna fecha, usamos la fecha de inicio + index días
+                        // Ojo: Esto asume 1 tarea por día si no se especifica.
+                        let dateStr = row['Fecha'] || row['Date'];
+                        if (!dateStr) {
+                            // Distribución simple: 1 por día laborable? O todos seguidos?
+                            // Por simplicidad, 1 por día desde la fecha de inicio
+                            const baseDate = new Date(startDate);
+                            const targetDate = addDays(baseDate, index);
+                            dateStr = format(targetDate, 'yyyy-MM-dd');
+                        }
+
+                        // Parsear referencias (formato [url], [url])
+                        const refsRaw = row['Referencias'] || '';
+                        const refs = refsRaw.match(/\[(.*?)\]/g)?.map((r: string) => r.slice(1, -1)) || [];
+
+                        return {
+                            title,
+                            scheduled_date: dateStr,
+                            target_keyword: row['Keywords (5)'] || row['Keywords'] || '',
+                            volume: parseInt(row['Volumen']?.replace(/[^0-9]/g, '') || '0'),
+                            viability: row['Viabilidad'] || '',
+                            brief: row['Notas para redacción'] || row['Brief'] || '',
+                            word_count: parseInt(row['Palabras']?.replace(/[^0-9]/g, '') || '0'),
+                            ai_percentage: parseInt(row['% IA']?.replace(/[^0-9]/g, '') || '0'),
+                            docs_url: row['Docs'] || '',
+                            layout_status: row['Maquetado'] === 'TRUE' || row['Maquetado'] === 'true',
+                            refs: refs
+                        };
+                    }).filter((t: any) => t.title);
+                    setParsedTasks(tasks);
+                } else {
+                    // Fallback: Parseo simple por tabulaciones/comas sin header (formato legacy)
+                    const lines = pastedData.split("\n").filter(l => l.trim());
+                    const tasks = lines.map((line, index) => {
+                        const parts = line.split(/[\t,;]/);
+                        const title = parts[0]?.trim();
+                        let date = parts[1]?.trim();
+
+                        if (!date || isNaN(new Date(date).getTime())) {
+                            // Si no hay fecha válida, usar fecha inicio + index
+                            const baseDate = new Date(startDate);
+                            const targetDate = addDays(baseDate, index);
+                            date = format(targetDate, 'yyyy-MM-dd');
+                        } else {
+                            date = format(new Date(date), "yyyy-MM-dd");
+                        }
+
+                        return { title, scheduled_date: date };
+                    }).filter(t => t.title);
+                    setParsedTasks(tasks);
+                }
             }
-
-            return { title, date };
-        }).filter(t => t.title);
-        setParsedTasks(tasks);
+        });
     };
 
     const handleSave = async () => {
@@ -685,9 +764,17 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
             await addTask({
                 project_id: activeProject.id,
                 title: task.title,
-                scheduled_date: task.date,
+                scheduled_date: task.scheduled_date,
                 status: "todo",
-                brief: ""
+                brief: task.brief || "",
+                target_keyword: task.target_keyword,
+                volume: task.volume,
+                viability: task.viability,
+                refs: task.refs,
+                word_count: task.word_count,
+                ai_percentage: task.ai_percentage,
+                docs_url: task.docs_url,
+                layout_status: task.layout_status
             });
         }
         setIsSaving(false);
@@ -699,53 +786,100 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
             <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden"
+                className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
             >
-                <div className="p-10 border-b border-slate-50 flex items-center justify-between">
+                <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
                     <div>
-                        <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Importar Planificación Masiva</h3>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Pega desde Excel o sube un CSV</p>
+                        <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Importar Planificación</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Soporta CSV de Planificación Editorial</p>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-slate-400"><X size={20} /></button>
+                    <button onClick={onClose} className="p-3 bg-white hover:bg-slate-50 rounded-2xl transition-all text-slate-400 shadow-sm border border-slate-100"><X size={20} /></button>
                 </div>
 
-                <div className="p-10 space-y-8">
-                    <div className="space-y-4">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Programación (Título [TAB/COMA] Fecha)</label>
-                        <textarea
-                            className="w-full h-48 bg-slate-50 border border-slate-100 rounded-3xl p-6 text-sm font-mono outline-none focus:border-slate-300 transition-all"
-                            placeholder={"Mi primer articulo\t2026-03-01\nMi segundo articulo\t2026-03-02..."}
-                            value={pastedData}
-                            onChange={(e) => setPastedData(e.target.value)}
-                        />
-                        <button
-                            onClick={handleParse}
-                            className="px-6 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-                        >
-                            Previsualizar {parsedTasks.length > 0 && `(${parsedTasks.length} detectados)`}
-                        </button>
+                <div className="p-8 flex-1 overflow-y-auto space-y-8 custom-scrollbar">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">1. Configuración Inicial</label>
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4">
+                                <div>
+                                    <span className="text-xs font-bold text-slate-700 block mb-2">Fecha de Inicio (para tareas sin fecha)</span>
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 transition-all font-bold text-slate-900"
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-2">Las tareas sin fecha en el CSV se programarán consecutivamente a partir de este día.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">2. Pegar Datos (CSV)</label>
+                            <textarea
+                                className="w-full h-48 bg-slate-50 border border-slate-100 rounded-3xl p-6 text-xs font-mono outline-none focus:border-indigo-500 transition-all resize-none"
+                                placeholder={`Título Propuesto,Keywords (5),Volumen,...\nMi Articulo,"key1, key2",100,...`}
+                                value={pastedData}
+                                onChange={(e) => setPastedData(e.target.value)}
+                            />
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={handleParse}
+                                    disabled={!pastedData.trim()}
+                                    className="px-6 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 disabled:opacity-50"
+                                >
+                                    Procesar Datos
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     {parsedTasks.length > 0 && (
-                        <div className="max-h-48 overflow-y-auto border border-slate-50 rounded-2xl p-4 bg-slate-50/30">
-                            {parsedTasks.map((t, i) => (
-                                <div key={i} className="flex justify-between py-2 border-b border-slate-100 last:border-none text-xs">
-                                    <span className="font-bold text-slate-700">{t.title}</span>
-                                    <span className="text-slate-400">{t.date}</span>
-                                </div>
-                            ))}
+                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="flex justify-between items-center">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Vista Previa ({parsedTasks.length} items)</label>
+                                <button onClick={() => setParsedTasks([])} className="text-[10px] font-bold text-red-400 hover:text-red-500 uppercase tracking-widest">Limpiar</button>
+                            </div>
+                            <div className="max-h-60 overflow-y-auto border border-slate-100 rounded-2xl bg-white shadow-sm custom-scrollbar">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-50 sticky top-0 z-10">
+                                        <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                            <th className="p-4 border-b border-slate-100">Fecha</th>
+                                            <th className="p-4 border-b border-slate-100">Título</th>
+                                            <th className="p-4 border-b border-slate-100">KW</th>
+                                            <th className="p-4 border-b border-slate-100 text-right">Vol</th>
+                                            <th className="p-4 border-b border-slate-100 text-center">IA%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {parsedTasks.map((t, i) => (
+                                            <tr key={i} className="border-b border-slate-50 last:border-none hover:bg-slate-50/50 transition-colors text-xs">
+                                                <td className="p-4 font-mono text-slate-500 whitespace-nowrap">{t.scheduled_date}</td>
+                                                <td className="p-4 font-bold text-slate-700">{t.title}</td>
+                                                <td className="p-4 text-slate-500 max-w-[150px] truncate" title={t.target_keyword}>{t.target_keyword}</td>
+                                                <td className="p-4 text-slate-400 font-mono text-right">{t.volume || '-'}</td>
+                                                <td className="p-4 text-slate-400 font-mono text-center">{t.ai_percentage ? `${t.ai_percentage}%` : '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
                 </div>
 
-                <div className="p-10 bg-slate-50 border-t border-slate-100 flex justify-end gap-4">
-                    <button onClick={onClose} className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600">Cancelar</button>
+                <div className="p-8 bg-white border-t border-slate-50 flex justify-end gap-4 z-20">
+                    <button onClick={onClose} className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">Cancelar</button>
                     <button
                         disabled={parsedTasks.length === 0 || isSaving}
                         onClick={handleSave}
-                        className="px-12 py-4 bg-slate-900 text-white rounded-[20px] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-slate-900/20 disabled:opacity-50"
+                        className="px-12 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-[20px] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 disabled:opacity-50 hover:shadow-indigo-500/40 transition-all transform hover:-translate-y-1"
                     >
-                        {isSaving ? "Procesando..." : "Confirmar e Importar"}
+                        {isSaving ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 size={14} className="animate-spin" /> Procesando...
+                            </div>
+                        ) : "Confirmar e Importar"}
                     </button>
                 </div>
             </motion.div>
