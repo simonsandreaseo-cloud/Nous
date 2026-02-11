@@ -37,10 +37,13 @@ import {
     LayoutDashboard
 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+import { StrategyService } from "@/lib/services/strategy";
 
 export function EditorialCalendar() {
     const { tasks, activeProject, updateTask, addTask } = useProjectStore();
@@ -50,10 +53,41 @@ export function EditorialCalendar() {
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+    const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
+    const [suggestedTasks, setSuggestedTasks] = useState<any[]>([]);
+    const [isLoadingStrategy, setIsLoadingStrategy] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState("");
     const [newTaskDate, setNewTaskDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [currentView, setCurrentView] = useState<'calendar' | 'grid'>('calendar');
     const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
+
+    const handleGenerateStrategy = async () => {
+        if (!activeProject) return;
+        setIsLoadingStrategy(true);
+        try {
+            const suggestions = await StrategyService.suggestTasksFromMetrics(activeProject.id);
+            setSuggestedTasks(suggestions);
+            setIsStrategyModalOpen(true);
+        } catch (error) {
+            console.error(error);
+            alert("Error generando estrategia");
+        } finally {
+            setIsLoadingStrategy(false);
+        }
+    };
+
+    const handleAcceptSuggestion = async (suggestion: any) => {
+        if (!activeProject) return;
+        await addTask({
+            project_id: activeProject.id,
+            title: suggestion.title,
+            scheduled_date: format(new Date(), 'yyyy-MM-dd'),
+            status: 'todo',
+            target_keyword: suggestion.target_keyword,
+            priority: suggestion.priority
+        });
+        setSuggestedTasks(prev => prev.filter(t => t.target_keyword !== suggestion.target_keyword));
+    };
 
     const handleCreateQuickTask = async () => {
         if (!newTaskTitle || !activeProject) return;
@@ -157,6 +191,17 @@ export function EditorialCalendar() {
                     </div>
 
                     <button
+                        onClick={handleGenerateStrategy}
+                        disabled={isLoadingStrategy}
+                        className={cn(
+                            "px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/20 transition-all flex items-center gap-2",
+                            isLoadingStrategy && "opacity-70 cursor-wait"
+                        )}
+                    >
+                        {isLoadingStrategy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                        {isLoadingStrategy ? "Analizando..." : "Sugerir Estrategia"}
+                    </button>
+                    <button
                         onClick={() => setIsSchedulingModalOpen(true)}
                         className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2"
                     >
@@ -252,6 +297,77 @@ export function EditorialCalendar() {
                     <EditorialGrid tasks={tasks} onSelectTask={setSelectedTask} onUpdateTask={updateTask} />
                 )}
             </div>
+
+            {/* STRATEGY MODAL */}
+            <AnimatePresence>
+                {isStrategyModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-24 bg-slate-900/60 backdrop-blur-md"
+                        onClick={() => setIsStrategyModalOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 20 }}
+                            className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-violet-50">
+                                <div>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-2">
+                                        <Sparkles className="text-indigo-600" /> Estrategia IA
+                                    </h2>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+                                        Basado en datos de Search Console
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setIsStrategyModalOpen(false)}
+                                    className="p-3 bg-white hover:bg-slate-50 rounded-2xl transition-all shadow-sm"
+                                >
+                                    <X size={20} className="text-slate-400" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                                {suggestedTasks.length === 0 ? (
+                                    <div className="text-center py-10 opacity-50">
+                                        <Ghost size={48} className="mx-auto mb-4 text-slate-300" />
+                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay sugerencias nuevas por ahora</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {suggestedTasks.map((task, i) => (
+                                            <div key={i} className="p-4 bg-white border border-slate-100 rounded-2xl hover:shadow-md transition-all group">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                                        Oportunidad
+                                                    </span>
+                                                    <button
+                                                        onClick={() => handleAcceptSuggestion(task)}
+                                                        className="p-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"
+                                                    >
+                                                        <Plus size={12} /> Agregar
+                                                    </button>
+                                                </div>
+                                                <h3 className="font-bold text-slate-800 mb-1">{task.title}</h3>
+                                                <div className="flex items-center gap-4 text-[10px] text-slate-400 font-mono">
+                                                    <span>KW: {task.target_keyword}</span>
+                                                    <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                                    <span>Prioridad: {task.priority}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* TASK DETAILS MODAL */}
             <AnimatePresence>

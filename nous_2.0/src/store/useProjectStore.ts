@@ -1,18 +1,7 @@
 import { create } from 'zustand';
-import { Project } from '@/types/project';
 import { supabase } from '@/lib/supabase';
-
-// Define Task Interface
-export interface Task {
-    id: string; // Changed to string for UUID compatibility
-    title: string;
-    description?: string;
-    brief?: string;
-    status: 'todo' | 'in_progress' | 'done' | 'review';
-    scheduled_date: string; // New field for calendar
-    project_id: string;
-    created_at?: string;
-}
+export type { Project, Task } from '@/types/project';
+import { Project, Task } from '@/types/project';
 
 interface ProjectState {
     projects: Project[];
@@ -26,6 +15,7 @@ interface ProjectState {
     deleteProject: (projectId: string) => Promise<void>;
     addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<void>;
     updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+    syncGscData: (siteUrl: string, startDate: string, endDate: string) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -158,5 +148,38 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             projects: state.projects.filter(p => p.id !== projectId),
             activeProject: state.activeProject?.id === projectId ? null : state.activeProject
         }));
+    },
+
+    syncGscData: async (siteUrl, startDate, endDate) => {
+        const active = get().activeProject;
+        if (!active) return;
+
+        set({ isLoading: true });
+
+        // This will eventually call the GscService ported logic
+        // For now, it's a placeholder to show the capability
+        console.log(`Syncing GSC data for ${siteUrl} from ${startDate} to ${endDate}`);
+
+        // Simplified mock sync
+        const { error } = await supabase
+            .from('gsc_daily_metrics')
+            .upsert([{
+                project_id: active.id,
+                date: startDate,
+                clicks: 0,
+                impressions: 0,
+                ctr: 0,
+                position: 0,
+                updated_at: new Date().toISOString()
+            }], { onConflict: 'project_id,date' });
+
+        if (error) {
+            console.error('Error syncing GSC data:', error);
+            alert(`Error sincronizando datos: ${error.message}`);
+        } else {
+            console.log('GSC data synced successfully (placeholder)');
+        }
+
+        set({ isLoading: false });
     }
 }));
