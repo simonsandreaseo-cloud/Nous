@@ -279,6 +279,19 @@ export const parseJSON = (text: string) => {
     }
 };
 
+// --- Content Import Helpers ---
+import mammoth from 'mammoth';
+
+export const parseDocx = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    return result.value; // The generated HTML
+};
+
+export const parseHtml = async (file: File): Promise<string> => {
+    return await file.text();
+};
+
 // --- Semantic Retrieval & Linking ---
 
 const retrieveContext = (allData: ContentItem[], topic: string, keywords: string) => {

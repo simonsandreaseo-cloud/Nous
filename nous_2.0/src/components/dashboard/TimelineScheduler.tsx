@@ -13,18 +13,13 @@ import Link from "next/link";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/utils/cn";
+import { useProjectStore, Task } from "@/store/useProjectStore";
 
 export function TimelineScheduler() {
+    const { tasks } = useProjectStore();
     const [currentDate, setCurrentDate] = useState(new Date());
     const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
     const days = Array.from({ length: 7 }).map((_, i) => addDays(startDate, i));
-
-    // Mock scheduled items
-    const schedule = [
-        { id: 1, date: addDays(startDate, 1), title: "Blog: Avances IA", time: "09:00", type: "blog" },
-        { id: 2, date: addDays(startDate, 3), title: "Social: Promo Webinar", time: "14:30", type: "social" },
-        { id: 3, date: addDays(startDate, 4), title: "Newsletter: Semanal", time: "08:00", type: "newsletter" },
-    ];
 
     const prevWeek = () => setCurrentDate(addDays(currentDate, -7));
     const nextWeek = () => setCurrentDate(addDays(currentDate, 7));
@@ -58,7 +53,8 @@ export function TimelineScheduler() {
 
             <div className="flex-1 grid grid-cols-7 gap-2">
                 {days.map((day, i) => {
-                    const dayItems = schedule.filter(item => isSameDay(item.date, day));
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const dayItems = tasks.filter(task => format(new Date(task.scheduled_date), 'yyyy-MM-dd') === dateStr);
                     const isToday = isSameDay(day, new Date());
 
                     return (
@@ -93,15 +89,15 @@ export function TimelineScheduler() {
                                     >
                                         <div className="flex items-center gap-1 mb-1 opacity-60">
                                             <Clock size={10} />
-                                            <span className="text-[9px] font-mono">{item.time}</span>
+                                            <span className="text-[9px] font-mono">{format(new Date(item.scheduled_date), 'HH:mm')}</span>
                                         </div>
-                                        <p className="text-xs font-bold text-slate-700 leading-tight mb-2">{item.title}</p>
+                                        <p className="text-xs font-bold text-slate-700 leading-tight mb-2 line-clamp-2">{item.title}</p>
 
                                         <div className="flex items-center justify-between">
                                             <span className={cn(
                                                 "w-2 h-2 rounded-full",
-                                                item.type === 'blog' ? "bg-purple-400" :
-                                                    item.type === 'social' ? "bg-pink-400" : "bg-orange-400"
+                                                item.status === 'done' ? "bg-emerald-400" :
+                                                    item.status === 'in_progress' ? "bg-purple-400" : "bg-slate-200"
                                             )} />
                                             <MoreHorizontal size={12} className="text-slate-300 opacity-0 group-hover/item:opacity-100 transition-opacity" />
                                         </div>

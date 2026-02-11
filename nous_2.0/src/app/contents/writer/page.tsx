@@ -1,4 +1,4 @@
-
+import { Suspense } from 'react';
 import WriterApp from '@/components/tools/writer/WriterApp';
 
 export default function WriterPage() {
@@ -8,7 +8,9 @@ export default function WriterPage() {
             <div className="absolute inset-0 z-0 pointer-events-none opacity-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-transparent to-transparent" />
 
             <div className="relative z-10 h-full w-full">
-                <WriterApp />
+                <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Cargando Redactor...</div>}>
+                    <WriterApp />
+                </Suspense>
             </div>
         </main>
     );

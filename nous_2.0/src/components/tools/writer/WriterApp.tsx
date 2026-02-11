@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 // Keeping styles for gradual migration, but will replace usage with Tailwind
@@ -136,12 +136,12 @@ const MultiKeyModal = ({ isOpen, onClose, onSave, currentKeys }: { isOpen: boole
 const App = () => {
     const { user } = useAuthStore();
     const router = useRouter();
-    const [draftId, setDraftId] = useState<number | null>(null);
+    const [draftId, setDraftId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
     // TASK CONTEXT STATE
-    const [linkedTaskId, setLinkedTaskId] = useState<number | null>(null);
+    const [linkedTaskId, setLinkedTaskId] = useState<string | null>(null);
     const [linkedTaskTitle, setLinkedTaskTitle] = useState<string | null>(null);
 
     const [linkedProjectId, setLinkedProjectId] = useState<number | null>(null);
@@ -149,10 +149,60 @@ const App = () => {
     const [publicAccess, setPublicAccess] = useState<'none' | 'view' | 'edit'>('none');
     const [shareToken, setShareToken] = useState<string | null>(null);
 
+    const searchParams = useSearchParams();
+
     // --- APP STATE ---
-    const [viewMode, setViewMode] = useState<'setup' | 'seo-review' | 'structure-review' | 'workspace'>('setup');
+    const [viewMode, setViewMode] = useState<'setup' | 'seo-review' | 'structure-review' | 'workspace' | 'humanize'>('setup');
+
+    useEffect(() => {
+        const mode = searchParams?.get('mode');
+        if (mode && ['setup', 'seo-review', 'structure-review', 'workspace', 'humanize'].includes(mode)) {
+            setViewMode(mode as any);
+        }
+
+        const taskId = searchParams?.get('activeTaskId');
+        if (taskId) {
+            setLinkedTaskId(taskId);
+            // Fetch task details for the banner
+            supabase.from('content_tasks').select('title').eq('id', taskId).single()
+                .then(({ data }) => {
+                    if (data) setLinkedTaskTitle(data.title);
+                });
+        }
+
+        const dId = searchParams?.get('draftId');
+        if (dId) {
+            setDraftId(dId);
+            loadDraft(dId);
+        }
+    }, [searchParams]);
+
+    const loadDraft = async (id: string) => {
+        const { data, error } = await supabase.from('content_drafts').select('*').eq('id', id).single();
+        if (data && !error) {
+            setHtmlContent(data.html_content || "");
+            if (data.strategy_data) {
+                const s = data.strategy_data;
+                setProjectName(s.projectName || "");
+                setTargetKeyword(s.targetKeyword || "");
+                setDetectedNiche(s.detectedNiche || "");
+                setStrategyOutline(s.strategyOutline || []);
+                setStrategyTone(s.strategyTone || "");
+                setMetadata(s.metadata || { title: "", description: "" });
+                setStrategyLSI(s.strategyLSI || []);
+                setStrategyLongTail(s.strategyLongTail || []);
+                setStrategyQuestions(s.strategyQuestions || []);
+                setCreativityLevel(s.creativityLevel || 'medium');
+                setStrategyH1(s.strategyH1 || "");
+            }
+        }
+    }
+
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [configStep, setConfigStep] = useState<'data' | 'keyword'>('data');
+
+    // Humanizer Interface State
+    const [humanizeInput, setHumanizeInput] = useState('');
 
     // Configuration State
     const [apiKeys, setApiKeys] = useState<string[]>(process.env.API_KEY ? [process.env.API_KEY] : []);
@@ -876,9 +926,9 @@ const App = () => {
         }
     }
 
-    // --- Humanizer Handler ---
-    const handleHumanize = async () => {
-        if (!htmlContent) return;
+    const handleHumanize = async (directHtml?: string) => {
+        const sourceHtml = directHtml || htmlContent;
+        if (!sourceHtml) return;
 
         setIsHumanizing(true);
         setHumanizerStatus("Iniciando pipeline de humanización...");
@@ -889,7 +939,7 @@ const App = () => {
             audience: 'Público General y Expertos',
             keywords: targetKeyword,
             notes: humanizerNotes,
-            lsiKeywords: strategyLSI.map(l => l.keyword).concat(strategyLongTail), // Ensure LSI passed
+            lsiKeywords: strategyLSI.map(l => l.keyword).concat(strategyLongTail),
             links: strategyLinks,
             isStrictMode,
             strictFrequency,
@@ -899,7 +949,7 @@ const App = () => {
         try {
             const { html } = await runHumanizerPipeline(
                 apiKeys,
-                htmlContent,
+                sourceHtml,
                 config,
                 humanizerPercent,
                 (msg) => setHumanizerStatus(msg)
@@ -908,12 +958,16 @@ const App = () => {
             // Post-Processing: Refine Styles
             const refinedHtml = refineStyling(html);
 
-            setHtmlContent(refinedHtml);
+            if (directHtml) {
+                setHumanizeInput(refinedHtml);
+            } else {
+                setHtmlContent(refinedHtml);
+            }
             setHumanizerStatus(`✅ Completado al ${humanizerPercent}% + Estilos Refinados.`);
             setStatus("Humanización completada.");
 
         } catch (e: any) {
-            handleApiError(e, handleHumanize);
+            handleApiError(e, () => handleHumanize(directHtml));
             setHumanizerStatus("Error: " + (e instanceof Error ? e.message : 'Fallo en la API'));
         } finally {
             setIsHumanizing(false);
@@ -1250,7 +1304,7 @@ const App = () => {
             if (artifactError && artifactError.code !== '23505') throw artifactError;
 
             // Update Task Status
-            await supabase.from('tasks').update({ status: 'review' }).eq('id', linkedTaskId);
+            await supabase.from('content_tasks').update({ status: 'done' }).eq('id', linkedTaskId);
 
             setStatus("Tarea actualizada y borrador vinculado!");
 
@@ -1271,7 +1325,8 @@ const App = () => {
         { id: 'setup', label: 'Configuración', icon: <IconSettings />, enabled: true },
         { id: 'seo-review', label: 'Estrategia SEO', icon: <IconRadar />, enabled: true },
         { id: 'structure-review', label: 'Estructura', icon: <IconFile />, enabled: true },
-        { id: 'workspace', label: 'Editor & Visuales', icon: <IconEdit />, enabled: true }
+        { id: 'workspace', label: 'Editor & Visuales', icon: <IconEdit />, enabled: true },
+        { id: 'humanize', label: 'Humanizador Directo', icon: <IconGhost />, enabled: true }
     ];
 
     const canNavigate = (id: string) => {
@@ -1821,6 +1876,81 @@ const App = () => {
                     </div>
                 )}
 
+                {/* VIEW: DIRECT HUMANIZE */}
+                {viewMode === 'humanize' && (
+                    <div style={styles.hubContainer as any}>
+                        <div style={styles.hubContent as any}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                <div>
+                                    <div style={styles.hubTitle}>Humanizador Directo</div>
+                                    <div style={styles.hubSubtitle}>Pega un texto o HTML existente para eliminar patrones de IA conservando enlaces y estructura.</div>
+                                </div>
+                                <button
+                                    style={{ ...styles.bigButton, padding: '16px 32px', width: 'auto' } as any}
+                                    onClick={() => handleHumanize(humanizeInput)}
+                                    disabled={isHumanizing || !humanizeInput}
+                                >
+                                    {isHumanizing ? <LoadingSpinner /> : <><IconGhost /> Humanizar Ahora</>}
+                                </button>
+                            </div>
+
+                            <div style={styles.gridContainer as any}>
+                                <div style={{ ...styles.gridCard, gridColumn: 'span 2' } as any}>
+                                    <div style={styles.gridCardTitle}><IconFile /> Contenido a Humanizar</div>
+                                    <textarea
+                                        style={{ ...styles.textarea, minHeight: '500px', fontSize: '14px', fontFamily: 'monospace' }}
+                                        placeholder="Pega aquí tu HTML o Texto plano..."
+                                        value={humanizeInput}
+                                        onChange={(e) => setHumanizeInput(e.target.value)}
+                                    />
+                                </div>
+                                <div style={{ ...styles.gridCard, gridColumn: 'span 1' } as any}>
+                                    <div style={styles.gridCardTitle}><IconSettings /> Configuración</div>
+
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px', fontWeight: 600 }}>
+                                            <span>Intensidad de Humanización</span>
+                                            <span>{humanizerPercent}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="30" max="100" step="10"
+                                            value={humanizerPercent}
+                                            onChange={(e) => setHumanizerPercent(parseInt(e.target.value))}
+                                            style={{ width: '100%', cursor: 'pointer' }}
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <label style={styles.label}>Nicho de Re-escritura</label>
+                                        <input
+                                            style={styles.input}
+                                            value={detectedNiche}
+                                            onChange={(e) => setDetectedNiche(e.target.value)}
+                                            placeholder="Ej: Decoración de Interiores"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label style={styles.label}>Notas de Estilo</label>
+                                        <textarea
+                                            style={{ ...styles.input, minHeight: '100px' }}
+                                            value={humanizerNotes}
+                                            onChange={(e) => setHumanizerNotes(e.target.value)}
+                                            placeholder="Ej: Usa un tono más sarcástico, evita frases largas..."
+                                        />
+                                    </div>
+
+                                    {humanizerStatus && (
+                                        <div style={{ marginTop: '20px', padding: '12px', background: '#F0F9FF', borderRadius: '8px', border: '1px solid #BAE6FD', color: '#0369A1', fontSize: '13px' }}>
+                                            {humanizerStatus}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* VIEW: WORKSPACE */}
                 {viewMode === 'workspace' && (
                     <div style={styles.workspaceContainer as any}>
@@ -1987,7 +2117,7 @@ const App = () => {
                                         />
 
                                         <button
-                                            onClick={handleHumanize}
+                                            onClick={() => handleHumanize()}
                                             disabled={!htmlContent || isHumanizing}
                                             style={{ ...styles.button, width: '100%', justifyContent: 'center', fontSize: '12px' }}
                                         >

@@ -2,11 +2,14 @@ import { create } from 'zustand';
 import { Project } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 
-// Define Task Interface locally for now, or move to types/task.ts
+// Define Task Interface
 export interface Task {
-    id: number;
+    id: string; // Changed to string for UUID compatibility
     title: string;
+    description?: string;
+    brief?: string;
     status: 'todo' | 'in_progress' | 'done' | 'review';
+    scheduled_date: string; // New field for calendar
     project_id: string;
     created_at?: string;
 }
@@ -14,13 +17,15 @@ export interface Task {
 interface ProjectState {
     projects: Project[];
     activeProject: Project | null;
-    tasks: Task[]; // NEW: Tasks for the active project
+    tasks: Task[];
     isLoading: boolean;
     setActiveProject: (projectId: string) => void;
     fetchProjects: () => Promise<void>;
-    fetchProjectTasks: (projectId: string) => Promise<void>; // NEW
+    fetchProjectTasks: (projectId: string) => Promise<void>;
     createProject: (project: Omit<Project, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
     deleteProject: (projectId: string) => Promise<void>;
+    addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<void>;
+    updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -64,9 +69,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     fetchProjectTasks: async (projectId) => {
         const { data, error } = await supabase
-            .from('content_tasks') // Assuming table name is content_tasks based on context
+            .from('content_tasks')
             .select('*')
-            .eq('project_id', projectId);
+            .eq('project_id', projectId)
+            .order('scheduled_date', { ascending: true });
 
         if (error) {
             console.error('Error fetching tasks:', error);
@@ -74,6 +80,39 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }
 
         set({ tasks: data as Task[] });
+    },
+
+    addTask: async (newTask) => {
+        const { data, error } = await supabase
+            .from('content_tasks')
+            .insert([newTask])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding task:', error);
+            return;
+        }
+
+        set(state => ({ tasks: [...state.tasks, data as Task] }));
+    },
+
+    updateTask: async (taskId, updates) => {
+        const { data, error } = await supabase
+            .from('content_tasks')
+            .update(updates)
+            .eq('id', taskId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error updating task:', error);
+            return;
+        }
+
+        set(state => ({
+            tasks: state.tasks.map(t => t.id === taskId ? (data as Task) : t)
+        }));
     },
 
     createProject: async (newProject) => {
