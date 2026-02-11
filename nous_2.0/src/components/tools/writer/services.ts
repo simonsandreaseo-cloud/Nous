@@ -681,7 +681,7 @@ export const findCampaignAssets = async (apiKeys: string[] | string, query: stri
             model: 'gemini-2.5-flash',
             contents: prompt,
             tools: [{ googleSearch: {} }],
-        });
+        } as any);
         let text = response.text || "[]";
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const start = text.indexOf('[');
@@ -711,7 +711,7 @@ export const suggestImagePlacements = async (apiKeys: string[] | string, article
             contents: truncated + "\n\n" + prompt,
             config: { responseMimeType: "application/json" }
         });
-        const json = JSON.parse(response.text);
+        const json = JSON.parse(response.text || "[]");
         return json.map((item: any, idx: number) => ({ ...item, id: `body_${idx}`, status: 'pending' }));
     });
 };
@@ -879,7 +879,7 @@ const filterQualityResults = async (apiKeys: string[] | string, results: any[], 
             contents: prompt,
             config: { responseMimeType: "application/json" }
         });
-        const goodIds: number[] = JSON.parse(response.text);
+        const goodIds: number[] = JSON.parse(response.text || "[]");
         const filtered = results.filter((_, index) => goodIds.includes(index));
         if (filtered.length === 0) return results.slice(0, 3);
         return filtered.slice(0, 8);
@@ -1020,7 +1020,7 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
                 responseSchema: schema
             }
         });
-        const json = JSON.parse(response.text);
+        const json = JSON.parse(response.text || "{}");
 
         if (!json.keywordIdeas) json.keywordIdeas = { shortTail: [], midTail: [] };
         if (!json.top10Urls) json.top10Urls = [];
@@ -1105,7 +1105,7 @@ export const generateOutlineStrategy = async (apiKeys: string[] | string, config
             }
         });
 
-        return JSON.parse(response.text);
+        return JSON.parse(response.text || "{}");
     });
 };
 
