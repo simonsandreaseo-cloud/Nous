@@ -754,7 +754,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
 
 
 // Helper to handle individual file/text upload linking
-import { supabase } from "@/lib/supabase";
+// Helper to handle individual file/text upload linking
 import { parseDocx, parseHtml } from "../tools/writer/services";
 
 async function saveContentAndLink(taskId: string, html: string, userId?: string) {
