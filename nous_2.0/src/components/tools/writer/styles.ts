@@ -709,8 +709,9 @@ export const styles: any = {
 };
 
 // Add keyframes via style tag injection for simplicity in this structure
-const styleSheet = document.createElement("style");
-styleSheet.innerText = `
+if (typeof document !== 'undefined') {
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
@@ -836,4 +837,5 @@ styleSheet.innerText = `
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 `;
-document.head.appendChild(styleSheet);
+    document.head.appendChild(styleSheet);
+}
