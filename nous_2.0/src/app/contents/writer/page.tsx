@@ -1,0 +1,15 @@
+
+import WriterApp from '@/components/tools/writer/WriterApp';
+
+export default function WriterPage() {
+    return (
+        <main className="min-h-screen bg-slate-50 relative overflow-hidden">
+            {/* Background elements if needed - Glassmorphism vibes */}
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-transparent to-transparent" />
+
+            <div className="relative z-10 h-full w-full">
+                <WriterApp />
+            </div>
+        </main>
+    );
+}
