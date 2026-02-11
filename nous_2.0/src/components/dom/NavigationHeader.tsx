@@ -46,7 +46,7 @@ export function NavigationHeader() {
                             {/* Second Level Menu */}
                             <div className="absolute left-full top-0 ml-3 w-60 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/60 shadow-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
                                 <div className="space-y-1">
-                                    <Link href="/contents/writer" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/writer" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Bot size={16} className="text-purple-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Redactor IA</span>

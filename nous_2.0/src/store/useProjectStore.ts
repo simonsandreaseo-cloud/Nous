@@ -2,12 +2,23 @@ import { create } from 'zustand';
 import { Project } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 
+// Define Task Interface locally for now, or move to types/task.ts
+export interface Task {
+    id: number;
+    title: string;
+    status: 'todo' | 'in_progress' | 'done' | 'review';
+    project_id: string;
+    created_at?: string;
+}
+
 interface ProjectState {
     projects: Project[];
     activeProject: Project | null;
+    tasks: Task[]; // NEW: Tasks for the active project
     isLoading: boolean;
     setActiveProject: (projectId: string) => void;
     fetchProjects: () => Promise<void>;
+    fetchProjectTasks: (projectId: string) => Promise<void>; // NEW
     createProject: (project: Omit<Project, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
     deleteProject: (projectId: string) => Promise<void>;
 }
@@ -15,6 +26,7 @@ interface ProjectState {
 export const useProjectStore = create<ProjectState>((set, get) => ({
     projects: [],
     activeProject: null,
+    tasks: [],
     isLoading: false,
 
     setActiveProject: (projectId) => {
@@ -22,6 +34,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         if (project) {
             set({ activeProject: project });
             localStorage.setItem('activeProjectId', projectId);
+            get().fetchProjectTasks(projectId); // Auto-fetch tasks
         }
     },
 
@@ -43,10 +56,29 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         const active = projects.find(p => p.id === storedId) || projects[0] || null;
 
         set({ projects, activeProject: active, isLoading: false });
+
+        if (active) {
+            get().fetchProjectTasks(active.id);
+        }
+    },
+
+    fetchProjectTasks: async (projectId) => {
+        const { data, error } = await supabase
+            .from('content_tasks') // Assuming table name is content_tasks based on context
+            .select('*')
+            .eq('project_id', projectId);
+
+        if (error) {
+            console.error('Error fetching tasks:', error);
+            return;
+        }
+
+        set({ tasks: data as Task[] });
     },
 
     createProject: async (newProject) => {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
         if (!user) return;
 
         const { data, error } = await supabase

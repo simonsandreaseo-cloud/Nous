@@ -1,29 +1,39 @@
-"use client";
-
-import { create } from "zustand";
+import { create } from 'zustand';
 
 interface AppState {
-    activeSection: string;
-    hoveredItem: string | null;
-    systemStatus: "nominal" | "loading" | "analyzing" | "error";
     isLoaded: boolean;
-    highContrast: boolean; // New: Accessibility
-    setActiveSection: (section: string) => void;
-    setHovered: (id: string | null) => void;
-    setSystemStatus: (status: AppState["systemStatus"]) => void;
-    setLoaded: (loaded: boolean) => void;
-    toggleHighContrast: () => void; // Action for accessibility
+    setIsLoaded: (loaded: boolean) => void;
+
+    // Visuals
+    highContrast: boolean;
+    toggleHighContrast: () => void;
+
+    // Navigation / Modes
+    activeMode: 'home' | 'writer' | 'project_view';
+    setMode: (mode: 'home' | 'writer' | 'project_view') => void;
+
+    // Interaction
+    hoveredItem: string | null;
+    setHoveredItem: (item: string | null) => void;
+
+    // System Status
+    systemStatus: 'nominal' | 'analyzing' | 'error' | 'loading';
+    setSystemStatus: (status: 'nominal' | 'analyzing' | 'error' | 'loading') => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
-    activeSection: "home",
-    hoveredItem: null,
-    systemStatus: "nominal",
     isLoaded: false,
+    setIsLoaded: (loaded) => set({ isLoaded: loaded }),
+
     highContrast: false,
-    setActiveSection: (section) => set({ activeSection: section }),
-    setHovered: (id) => set({ hoveredItem: id }),
-    setSystemStatus: (status) => set({ systemStatus: status }),
-    setLoaded: (loaded) => set({ isLoaded: loaded }),
     toggleHighContrast: () => set((state) => ({ highContrast: !state.highContrast })),
+
+    activeMode: 'home',
+    setMode: (mode) => set({ activeMode: mode }),
+
+    hoveredItem: null,
+    setHoveredItem: (item) => set({ hoveredItem: item }),
+
+    systemStatus: 'nominal',
+    setSystemStatus: (status) => set({ systemStatus: status }),
 }));

@@ -13,7 +13,6 @@ import PageTransition from '../components/layout/PageTransition';
 // Lazy load heavy/below-the-fold components for Performance (Phase 3 Requirement)
 const Services = lazy(() => import('../components/sections/Services'));     // Clara
 const Formations = lazy(() => import('../components/sections/Formations')); // Potente
-const Tools = lazy(() => import('../components/sections/Tools'));           // Creativa
 const Contact = lazy(() => import('../components/sections/Contact'));
 
 // Loading Fallback (Minimalist)
@@ -66,7 +65,6 @@ const Home: React.FC = () => {
             <div>
               <Services />    {/* Pilar 1: Clara */}
               <Formations />  {/* Pilar 2: Potente */}
-              <Tools />       {/* Pilar 3: Creativa */}
               <Contact />
             </div>
           </Suspense>

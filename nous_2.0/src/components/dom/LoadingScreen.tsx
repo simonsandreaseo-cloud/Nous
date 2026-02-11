@@ -7,7 +7,7 @@ import { useAppStore } from "@/store/useAppStore";
 
 export function LoadingScreen() {
     const { active, progress, item } = useProgress();
-    const setLoaded = useAppStore((state) => state.setLoaded);
+    const setIsLoaded = useAppStore((state) => state.setIsLoaded);
     const [shouldRender, setShouldRender] = useState(true);
     const [displayProgress, setDisplayProgress] = useState(0);
 
@@ -44,7 +44,7 @@ export function LoadingScreen() {
             // Force display to 100 visually
             setDisplayProgress(100);
             const timer = setTimeout(() => {
-                setLoaded(true);
+                setIsLoaded(true);
                 setTimeout(() => setShouldRender(false), 1000);
             }, 500);
             return () => clearTimeout(timer);
@@ -72,7 +72,7 @@ export function LoadingScreen() {
 
         return () => clearTimeout(failsafeTimer);
 
-    }, [active, progress, setLoaded, shouldRender, displayProgress]);
+    }, [active, progress, setIsLoaded, shouldRender, displayProgress]);
 
     if (!shouldRender) return null;
 

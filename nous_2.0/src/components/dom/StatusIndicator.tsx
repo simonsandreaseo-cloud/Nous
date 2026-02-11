@@ -6,17 +6,17 @@ import { cn } from "@/utils/cn";
 import { useEffect, useState } from "react";
 
 export function StatusIndicator() {
-    const { systemStatus, setSystemStatus, activeSection } = useAppStore();
+    const { systemStatus, setSystemStatus, activeMode } = useAppStore();
     const [pulse, setPulse] = useState(false);
 
     // 15.1.4 Loading micro-states: Simulate analysis on section change
     useEffect(() => {
-        if (activeSection !== "home") {
+        if (activeMode !== "home") {
             setSystemStatus("analyzing");
             const timer = setTimeout(() => setSystemStatus("nominal"), 1500);
             return () => clearTimeout(timer);
         }
-    }, [activeSection, setSystemStatus]);
+    }, [activeMode, setSystemStatus]);
 
     useEffect(() => {
         const interval = setInterval(() => setPulse((p) => !p), 2000);
@@ -71,7 +71,7 @@ export function StatusIndicator() {
                         {config.label}
                     </span>
                     <span className="text-[7px] text-slate-400 uppercase tracking-[0.1em]">
-                        {activeSection}
+                        {activeMode}
                     </span>
                 </div>
             </div>

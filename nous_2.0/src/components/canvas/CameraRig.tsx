@@ -7,7 +7,7 @@ import { Vector3 } from "three";
 
 export function CameraRig() {
     const { camera, mouse } = useThree();
-    const activeSection = useAppStore((state) => state.activeSection);
+    const activeMode = useAppStore((state) => state.activeMode);
 
     // 14.1 Perfection: Calibration of section-based camera positions
     const parallaxStrength = 0.4;
@@ -24,27 +24,26 @@ export function CameraRig() {
     const currentLookAt = useRef(new Vector3(0, 1.5, 0));
 
     useFrame((state, delta) => {
-        // Sync targets with Leva or ActiveSection
-        switch (activeSection) {
-            case "monitor":
-                targetPosition.current.set(...(monitorPos as [number, number, number]));
-                lookAtTarget.current.set(2, 1, 0);
+        // Sync targets with Leva or ActiveMode
+        switch (activeMode) {
+            case "home":
+                targetPosition.current.set(...(homePos as [number, number, number]));
+                lookAtTarget.current.set(0, 1.5, 0);
                 break;
-            case "research":
-                targetPosition.current.set(...(researchPos as [number, number, number]));
-                lookAtTarget.current.set(-2, 1, 0);
-                break;
-            case "content":
+            case "writer":
+                // Zoom in for writing mode? Or maybe move to a "Workspace" view
                 targetPosition.current.set(...(contentPos as [number, number, number]));
                 lookAtTarget.current.set(0, 0, -5);
                 break;
-            case "strategy":
-                targetPosition.current.set(...(strategyPos as [number, number, number]));
-                lookAtTarget.current.set(0, 2, 0);
+            case "project_view":
+                targetPosition.current.set(...(monitorPos as [number, number, number]));
+                lookAtTarget.current.set(2, 1, 0);
                 break;
+            /* Legacy Cases mapped or removed */
             default:
                 targetPosition.current.set(...(homePos as [number, number, number]));
                 lookAtTarget.current.set(0, 1.5, 0);
+                break;
         }
 
         camera.position.lerp(targetPosition.current, delta * smoothing);

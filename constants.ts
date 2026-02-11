@@ -51,7 +51,6 @@ export const SITE_CONFIG: SiteConfig = {
 export const NAV_ITEMS: NavItem[] = [
   { id: 'estrategia', label: 'Consultoría', href: '#servicios' },
   { id: 'academia', label: 'Academia', href: '#formaciones' },
-  { id: 'laboratorio', label: 'Laboratorio', href: '#herramientas' },
   { id: 'contacto', label: 'Diagnóstico', href: '#contacto' },
 ];
 
@@ -97,58 +96,6 @@ export const FORMATIONS = [
     title: "Python para Consultores",
     level: "Productividad",
     description: "Automatización de auditorías y procesamiento de datos. Deja de ejecutar tareas manuales y empieza a diseñar sistemas."
-  }
-];
-
-export const TOOLS = [
-  {
-    id: 1,
-    name: "Navaja Suiza SEO",
-    status: "Disponible",
-    function: "Suite completa para análisis de canibalización y datos de Search Console.",
-    path: "/herramientas/seo-suite"
-  },
-  {
-    id: 2,
-    name: "BlogViz AI",
-    status: "Disponible",
-    function: "Generación de imágenes optimizadas para blogs y contenidos.",
-    path: "/herramientas/blog-viz"
-  },
-  {
-    id: 3,
-    name: "Content Studio",
-    status: "Beta",
-    function: "Redacción profesional asistida por IA para contenido de alto ranking.",
-    path: "/herramientas/redactor-ia"
-  },
-  {
-    id: 4,
-    name: "Analista de Métricas",
-    status: "Disponible",
-    function: "Análisis estratégico profundo con Agentes IA y Datos de Search Console.",
-    path: "/herramientas/generador-informes"
-  },
-  {
-    id: 5,
-    name: "Redactor IA 2.0",
-    status: "Beta Pro",
-    function: "Versión avanzada con análisis de investigación y reportes automáticos.",
-    path: "/herramientas/redactor-ia-2"
-  },
-  {
-    id: 6,
-    name: "Helios Intelligence",
-    status: "Nuevo",
-    function: "Motor algorítmico soberano para detección de oportunidades y riesgos.",
-    path: "/herramientas/helios"
-  },
-  {
-    id: 7,
-    name: "Time Tracker",
-    status: "Nuevo",
-    function: "App de escritorio con seguimiento automático y capturas privadas (Blur).",
-    path: "/herramientas/time-tracker"
   }
 ];
 

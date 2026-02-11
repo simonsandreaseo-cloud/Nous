@@ -6,6 +6,7 @@ import { CurvedGrid } from "@/components/canvas/CurvedGrid";
 import { NousOrb } from "@/components/canvas/NousOrb";
 import { NousText3D } from "@/components/canvas/NousText3D";
 import { DataParticles } from "@/components/canvas/DataParticles";
+import { TaskField } from "@/components/canvas/TaskField/TaskField";
 import { OfficePanel } from "@/components/dom/OfficePanel";
 
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
@@ -24,6 +25,11 @@ export default function HomeClient() {
     const isLoaded = useAppStore((state) => state.isLoaded);
     const highContrast = useAppStore((state) => state.highContrast);
     const toggleHighContrast = useAppStore((state) => state.toggleHighContrast);
+    const setMode = useAppStore((state) => state.setMode);
+
+    useEffect(() => {
+        setMode('home');
+    }, [setMode]);
 
     // 15.2.2 Easter Egg: Console message
     useEffect(() => {
@@ -63,6 +69,9 @@ export default function HomeClient() {
                     <SceneLayout>
                         {/* <NousText3D /> */}
                         {/* <CurvedGrid /> */}
+
+                        <TaskField />
+                        <CurvedGrid />
 
                         <group position={[0, -0.8, -4.5]} scale={1.4}>
                             <NousOrb />
