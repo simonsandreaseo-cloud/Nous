@@ -63,7 +63,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         set({ projects, activeProject: active, isLoading: false });
 
         if (active) {
-            get().fetchProjectTasks(active.id);
+            await get().fetchProjectTasks(active.id);
         }
     },
 
@@ -91,6 +91,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         if (error) {
             console.error('Error adding task:', error);
+            alert(`Error al crear tarea: ${error.message}`);
             return;
         }
 
@@ -118,7 +119,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     createProject: async (newProject) => {
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
-        if (!user) return;
+        if (!user) {
+            alert("No se pudo detectar la sesión. Por favor, asegúrate de estar logueado.");
+            return;
+        }
 
         const { data, error } = await supabase
             .from('projects')
@@ -128,6 +132,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         if (error) {
             console.error('Error creating project:', error);
+            alert(`Error al crear proyecto: ${error.message}`);
             return;
         }
 

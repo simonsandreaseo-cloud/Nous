@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
 import {
     Settings as SettingsIcon,
@@ -15,10 +15,14 @@ import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 
 export default function SettingsPage() {
-    const { activeProject, projects, createProject, deleteProject } = useProjectStore();
+    const { activeProject, projects, createProject, deleteProject, fetchProjects } = useProjectStore();
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectDomain, setNewProjectDomain] = useState("");
     const [isCreating, setIsCreating] = useState(false);
+
+    useEffect(() => {
+        fetchProjects();
+    }, [fetchProjects]);
 
     const handleCreate = async () => {
         if (!newProjectName || !newProjectDomain) return;

@@ -17,13 +17,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Check current session
-        supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-            setUser(session?.user ?? null);
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            const user = session?.user ?? null;
+            setUser(user);
+            if (user) {
+                // Proactively fetch projects for the user
+                import('@/store/useProjectStore').then(mod => {
+                    mod.useProjectStore.getState().fetchProjects();
+                });
+            }
         });
 
         // Listen for changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-            setUser(session?.user ?? null);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            const user = session?.user ?? null;
+            setUser(user);
+            if (user) {
+                import('@/store/useProjectStore').then(mod => {
+                    mod.useProjectStore.getState().fetchProjects();
+                });
+            }
         });
 
         return () => subscription.unsubscribe();

@@ -46,7 +46,7 @@ export function TimelineScheduler() {
             </div>
 
             <div className="flex justify-end mb-4">
-                <Link href="/contents/calendar" className="text-[10px] font-bold text-cyan-600 hover:text-cyan-800 uppercase tracking-widest flex items-center gap-1 transition-colors">
+                <Link href="/estrategia" className="text-[10px] font-bold text-cyan-600 hover:text-cyan-800 uppercase tracking-widest flex items-center gap-1 transition-colors">
                     Ver Mes Completo <CalendarIcon size={12} />
                 </Link>
             </div>
