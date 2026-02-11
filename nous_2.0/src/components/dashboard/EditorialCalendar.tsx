@@ -42,6 +42,7 @@ import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { parseDocx, parseHtml } from "../tools/writer/services";
 
 import { StrategyService } from "@/lib/services/strategy";
 
@@ -754,8 +755,6 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
 
 
 // Helper to handle individual file/text upload linking
-// Helper to handle individual file/text upload linking
-import { parseDocx, parseHtml } from "../tools/writer/services";
 
 async function saveContentAndLink(taskId: string, html: string, userId?: string) {
     const { data: draft, error: draftErr } = await supabase.from('content_drafts').insert({
