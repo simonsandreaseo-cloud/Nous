@@ -32,6 +32,17 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60,
   },
+
+  // Webpack configuration to handle googleapis
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        'googleapis': 'commonjs googleapis'
+      });
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

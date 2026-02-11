@@ -22,7 +22,7 @@ import {
     generateRealImage, runSEOAnalysis, SEOAnalysisResult, ContentItem,
     ImageGenConfig, compositeWatermark, autoInterlink, runHumanizerPipeline,
     cleanAndFormatHtml, refineStyling, refineArticleContent, generateOutlineStrategy,
-    searchMoreLinks, VisualResource, AIImageRequest, ArticleConfig
+    searchMoreLinks, VisualResource, AIImageRequest, ArticleConfig, findCampaignAssets
 } from './services';
 // Remove shared components imports if they don't exist in nous_2.0 yet or mock them
 // import ShareModal from '../../shared/ShareModal';
