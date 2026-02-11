@@ -35,7 +35,8 @@ import {
     Trash,
     LayoutList,
     TableProperties,
-    LayoutDashboard
+    LayoutDashboard,
+    Upload
 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
 import { supabase } from "@/lib/supabase";
@@ -681,6 +682,20 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
     const { activeProject, addTask } = useProjectStore();
     const [isSaving, setIsSaving] = useState(false);
 
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            setPastedData(text);
+            // Auto-parsear después de cargar
+            setTimeout(() => handleParse(), 100);
+        };
+        reader.readAsText(file);
+    };
+
     const handleParse = () => {
         if (!pastedData.trim()) return;
 
@@ -815,9 +830,33 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                         </div>
 
                         <div className="space-y-4">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">2. Pegar Datos (CSV)</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">2. Cargar o Pegar CSV</label>
+
+                            {/* Botón de carga de archivo */}
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                    id="csv-file-input"
+                                />
+                                <label
+                                    htmlFor="csv-file-input"
+                                    className="w-full py-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-2 border-dashed border-indigo-200 rounded-2xl text-xs font-bold text-indigo-600 hover:border-indigo-400 transition-all cursor-pointer flex items-center justify-center gap-2"
+                                >
+                                    <Upload size={16} /> Seleccionar Archivo CSV
+                                </label>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1 h-px bg-slate-200"></div>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">O Pegar Datos</span>
+                                <div className="flex-1 h-px bg-slate-200"></div>
+                            </div>
+
                             <textarea
-                                className="w-full h-48 bg-slate-50 border border-slate-100 rounded-3xl p-6 text-xs font-mono outline-none focus:border-indigo-500 transition-all resize-none"
+                                className="w-full h-32 bg-slate-50 border border-slate-100 rounded-3xl p-6 text-xs font-mono outline-none focus:border-indigo-500 transition-all resize-none"
                                 placeholder={`Título Propuesto,Keywords (5),Volumen,...\nMi Articulo,"key1, key2",100,...`}
                                 value={pastedData}
                                 onChange={(e) => setPastedData(e.target.value)}
