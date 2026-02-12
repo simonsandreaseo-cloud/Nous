@@ -15,7 +15,9 @@ import { ChevronLeft, LayoutDashboard, LineChart, Cpu, Globe, Database } from "l
 import Link from "next/link";
 import { cn } from "@/utils/cn";
 
-export default function StrategyPage() {
+import { Suspense } from "react";
+
+function StrategyContent() {
     const { activeProject } = useProjectStore();
     const searchParams = useSearchParams();
     const initialView = (searchParams.get('view') as any) || 'planner';
@@ -151,5 +153,20 @@ export default function StrategyPage() {
                 view === 'helios' ? "bg-purple-200/40" : "bg-gradient-to-br from-cyan-100/40 to-blue-100/40"
             )} />
         </div>
+    );
+}
+
+export default function StrategyPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Iniciando Estrategia Neural...</p>
+                </div>
+            </div>
+        }>
+            <StrategyContent />
+        </Suspense>
     );
 }
