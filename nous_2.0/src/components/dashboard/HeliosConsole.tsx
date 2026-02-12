@@ -344,7 +344,7 @@ export default function HeliosConsole() {
                                                     "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
                                                     selectedTasks.includes(idx) ? "bg-purple-500 border-purple-500 text-white" : "border-white/20 text-transparent"
                                                 )}>
-                                                    <CheckCircle2 size={14} />
+                                                    <CheckCircle size={14} />
                                                 </div>
                                             </div>
                                         </div>
