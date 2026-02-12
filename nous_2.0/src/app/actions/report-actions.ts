@@ -9,6 +9,7 @@ import { GscRow } from '@/types/report';
 import { AnalyticsService } from '@/lib/services/report/analyticsService';
 import { identifyAiTrafficSources } from '@/lib/services/report/geminiService';
 import { supabase } from '@/lib/supabase';
+import { ApiKeyRotationService } from '@/lib/services/ai/apiKeyRotation';
 
 export async function generateReportAction(
     projectId: string,
@@ -17,7 +18,7 @@ export async function generateReportAction(
     dateRange?: { start: string, end: string }
 ) {
     try {
-        const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+        const apiKey = ApiKeyRotationService.getApiKey();
         if (!apiKey) throw new Error("API Key de IA no configurada en el sistema");
 
         // 1. Determine Date Ranges
@@ -258,7 +259,7 @@ export async function getReportByIdAction(reportId: string) {
 export async function analyzeStructureAction(projectId: string) {
     console.log("[SERVER ACTION] analyzeStructureAction started for Project:", projectId);
     try {
-        const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+        const apiKey = ApiKeyRotationService.getApiKey();
         if (!apiKey) throw new Error("API Key de IA no configurada");
 
         // Fetch just the last 28 days to analyze structure
