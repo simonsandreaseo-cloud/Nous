@@ -256,32 +256,3 @@ export async function getReportByIdAction(reportId: string) {
         return { success: false, error: e.message };
     }
 }
-
-export async function analyzeStructureAction(projectId: string) {
-    try {
-        const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-        if (!apiKey) throw new Error("API Key de IA no configurada");
-
-        // Fetch just the last 28 days to analyze structure
-        const end = new Date();
-        const start = subDays(end, 28);
-        const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
-
-        const data = await GscService.fetchData(projectId, fmt(start), fmt(end));
-        const urls = data.pageMetrics.map((r: any) => r.page).filter(Boolean);
-        const uniqueUrls = Array.from(new Set(urls));
-
-        const proposedRules = await SegmentationService.generateSegmentRules(uniqueUrls, apiKey);
-
-        // Also provide a sample of uncategorized URLs for the UI
-        // We'll define 'uncategorized' as not matching any proposed rule
-        const categorize = (url: string) => proposedRules.some(r => new RegExp(r.regex).test(url));
-        const uncategorized = uniqueUrls.filter(u => !categorize(u)).slice(0, 50);
-
-        return { success: true, proposedRules, uncategorizedSample: uncategorized, totalUrls: uniqueUrls.length };
-
-    } catch (e: any) {
-        console.error("Structure Analysis Error:", e);
-        return { success: false, error: e.message };
-    }
-}
