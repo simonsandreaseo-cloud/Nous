@@ -227,7 +227,7 @@ export async function getSavedReportsAction(userId: string, projectId?: string) 
         let query = supabase
             .from('seo_reports')
             .select('id, title, created_at, period_label, project_id')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
         if (projectId) {
