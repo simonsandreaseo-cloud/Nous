@@ -1,18 +1,18 @@
 # Nous Layout Agents: El Futuro de la Maquetación Autónoma
 
 ## 1. Visión General
-El proyecto **Nous Layout Agents** busca revolucionar la forma en que se publica contenido en la web. No se trata simplemente de un "publicador" automático, sino de un sistema de agentes inteligentes capaces de realizar una **diagramación de lujo** y una **maquetación quirúrgica** de contenidos (blogs, noticias, reportes) directamente en WordPress, manteniendo la estética "Clinical Tech" característica de Nous.
+El proyecto **Nous Layout Agents** busca revolucionar la forma en que se publica contenido en la web. No se trata simplemente de un "publicador" automático, sino de un sistema de agentes inteligentes capaces de realizar una **diagramación excelente y hermosa** de contenidos enriquecidos (listas, headers, citas, negritas) directamente en WordPress, adaptándose fielmente a los estilos y la identidad visual de cada proyecto individual.
 
 ## 2. El Ecosistema de Agentes
-Para lograr una maquetación hermosa y funcional, el sistema se dividirá en tres roles especializados:
+A diferencia de un maquetador estándar, estos agentes interpretan la intención del contenido y la "personalidad" del sitio destino:
 
-### 2.1 Agent: The Architect (Estructurador)
-*   **Función**: Analiza el contenido en bruto (texto plano, Markdown, transcripciones) y lo descompone en una estructura jerárquica de bloques.
-*   **Responsabilidades**: Identificar jerarquías de encabezados (H1-H4), detectar puntos clave para insertar citas (blockquotes), sugerir ubicaciones para elementos visuales (imágenes, gráficos) y organizar listas de datos.
+### 2.1 Agent: The Semantic Editor (Enriquecedor)
+*   **Función**: Asegura que el contenido tenga una estructura HTML enriquecida y semántica de alta fidelidad.
+*   **Responsabilidades**: Transformar texto plano en HTML con jerarquías de encabezados (H1-H4), insertar citas (blockquotes), gestionar listas ordenadas/desordenadas, y aplicar énfasis (RTF) donde el contenido lo requiera para mejorar la legibilidad.
 
-### 2.2 Agent: The Stylist (Diseñador Visual)
-*   **Función**: Aplica la capa de diseño "Clinical Tech" sobre la estructura.
-*   **Responsabilidades**: Seleccionar qué bloques deben tener efectos de glassmorphism, definir espaciados (whitespace) generosos para legibilidad, aplicar acentos de color (surgical blue/cyan) y asegurar que la tipografía sea consistente con el santuario tecnológico de Nous.
+### 2.2 Agent: The Visual Interpreter (Adaptador de Estilo)
+*   **Función**: Analiza el diseño del sitio destino (WordPress del usuario) y adapta el contenido.
+*   **Responsabilidades**: Identificar los patrones de diseño del tema activo del usuario (colores corporativos, espaciados, fuentes) y asegurar que el contenido se integre de forma "hermosa" sin romper la estética preexistente. No impone el estilo de Nous, sino que potencia el estilo del cliente.
 
 ### 2.3 Agent: The Publisher (Conector)
 *   **Función**: Gestiona la comunicación técnica con WordPress.
@@ -21,10 +21,10 @@ Para lograr una maquetación hermosa y funcional, el sistema se dividirá en tre
 ## 3. Estrategia de Integración con WordPress
 
 ### ¿Necesitamos un Plugin?
-**Sí, es altamente recomendado**. Aunque la REST API de WordPress es potente, para lograr una maquetación "hermosa y excelente" que use la estética de Nous, un plugin propio (**"Nous Bridge"**) facilitaría:
-1.  **Registro de Bloques Personalizados**: Crear bloques de Gutenberg que ya vengan con el estilo "Clinical" pre-aplicado.
-2.  **Inyección de Assets**: Cargar las tipografías y estilos CSS de Nous de forma eficiente.
-3.  **Endpoint de Alta Fidelidad**: Un endpoint personalizado que reciba JSON estructurado directamente desde los agentes de Nous, evitando la limpieza de HTML innecesaria.
+**Sí, como un Puente Universal**. El plugin (**"Nous Bridge"**) no debe imponer estilos, sino facilitar la recepción técnica:
+1.  **Gestión de Medios Inteligente**: Recibir las imágenes generadas/seleccionadas en Nous y subirlas automáticamente a la librería de WordPress, asignando ALT tags y títulos SEO.
+2.  **Limpieza y Mapeo de Bloques**: Convertir el HTML enriquecido de Nous en bloques nativos de Gutenberg para que el usuario pueda editarlos fácilmente después.
+3.  **Endpoint Seguro**: Un conducto privado para que Nous envíe el contenido sin necesidad de dar acceso de "Administrador" completo a la API estándar.
 
 ## 4. Stack Tecnológico Sugerido
 

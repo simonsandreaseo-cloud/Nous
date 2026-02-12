@@ -160,6 +160,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         if (error) {
             console.error('Error deleting project:', error);
+            alert(`No se pudo eliminar el proyecto: ${error.message}`);
             return;
         }
 
