@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function GscCompletePage() {
+function GscCompleteContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -72,42 +72,55 @@ export default function GscCompletePage() {
     }, [searchParams, router]);
 
     return (
+        <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white p-12 rounded-[32px] shadow-xl max-w-md w-full text-center border border-slate-100"
+        >
+            {status === "loading" && (
+                <div className="space-y-6">
+                    <Loader2 className="w-16 h-16 animate-spin text-cyan-500 mx-auto" />
+                    <h1 className="text-2xl font-black text-slate-900 uppercase italic">Sincronizando...</h1>
+                    <p className="text-slate-500 text-sm font-medium">Finalizando la conexión segura con Google Search Console.</p>
+                </div>
+            )}
+
+            {status === "success" && (
+                <div className="space-y-6">
+                    <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" />
+                    <h1 className="text-2xl font-black text-slate-900 uppercase italic">¡Conectado!</h1>
+                    <p className="text-slate-500 text-sm font-medium">Redirigiendo a configuración...</p>
+                </div>
+            )}
+
+            {status === "error" && (
+                <div className="space-y-6">
+                    <XCircle className="w-16 h-16 text-red-500 mx-auto" />
+                    <h1 className="text-2xl font-black text-slate-900 uppercase italic">Error</h1>
+                    <p className="text-red-500 text-sm font-bold uppercase tracking-tight">{errorMsg}</p>
+                    <button
+                        onClick={() => router.push("/settings")}
+                        className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all"
+                    >
+                        Volver a Ajustes
+                    </button>
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
+export default function GscCompletePage() {
+    return (
         <div className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white p-12 rounded-[32px] shadow-xl max-w-md w-full text-center border border-slate-100"
-            >
-                {status === "loading" && (
-                    <div className="space-y-6">
-                        <Loader2 className="w-16 h-16 animate-spin text-cyan-500 mx-auto" />
-                        <h1 className="text-2xl font-black text-slate-900 uppercase italic">Sincronizando...</h1>
-                        <p className="text-slate-500 text-sm font-medium">Finalizando la conexión segura con Google Search Console.</p>
-                    </div>
-                )}
-
-                {status === "success" && (
-                    <div className="space-y-6">
-                        <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" />
-                        <h1 className="text-2xl font-black text-slate-900 uppercase italic">¡Conectado!</h1>
-                        <p className="text-slate-500 text-sm font-medium">Redirigiendo a configuración...</p>
-                    </div>
-                )}
-
-                {status === "error" && (
-                    <div className="space-y-6">
-                        <XCircle className="w-16 h-16 text-red-500 mx-auto" />
-                        <h1 className="text-2xl font-black text-slate-900 uppercase italic">Error</h1>
-                        <p className="text-red-500 text-sm font-bold uppercase tracking-tight">{errorMsg}</p>
-                        <button
-                            onClick={() => router.push("/settings")}
-                            className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all"
-                        >
-                            Volver a Ajustes
-                        </button>
-                    </div>
-                )}
-            </motion.div>
+            <Suspense fallback={
+                <div className="bg-white p-12 rounded-[32px] shadow-xl max-w-md w-full text-center border border-slate-100">
+                    <Loader2 className="w-16 h-16 animate-spin text-cyan-500 mx-auto mb-6" />
+                    <h1 className="text-2xl font-black text-slate-900 uppercase italic">Cargando...</h1>
+                </div>
+            }>
+                <GscCompleteContent />
+            </Suspense>
         </div>
     );
 }
