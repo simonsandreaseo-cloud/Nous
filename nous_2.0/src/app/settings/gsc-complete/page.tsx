@@ -73,6 +73,28 @@ function GscCompleteContent() {
                 const count = updatedData ? updatedData.length : 0;
                 console.log("[DEBUG] Projects affected by update:", count);
 
+                // FALLBACK: If user has no projects, create one automatically
+                if (count === 0) {
+                    console.log("[DEBUG] No projects found. Creating a fallback project...");
+                    const { error: createError } = await supabase
+                        .from("projects")
+                        .insert({
+                            user_id: userId,
+                            name: "Sitio Importado (GSC)",
+                            domain: "pendiente.com",
+                            gsc_connected: true,
+                            google_refresh_token: rt,
+                            budget_settings: { type: 'count', target: 10, current: 0, mode: 'target' },
+                            scraper_settings: { paths: ["/"] }
+                        });
+
+                    if (createError) {
+                        console.error("[DEBUG] Error creating fallback project:", createError);
+                    } else {
+                        console.log("[DEBUG] Fallback project created successfully.");
+                    }
+                }
+
                 // Even if count is 0, we consider success because the USER level token is saved
                 setStatus("success");
                 setTimeout(() => router.push("/settings?gsc=connected"), 1500);

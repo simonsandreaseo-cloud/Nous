@@ -56,6 +56,11 @@ export default function SettingsPage() {
             try {
                 const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession();
                 if (session?.user) {
+                    console.log("[DEBUG] Current Session User ID:", session.user.id);
+                    if (activeProject) {
+                        console.log("[DEBUG] Active Project User ID:", activeProject.user_id);
+                    }
+
                     const { data: tokens, error } = await (await import('@/lib/supabase')).supabase
                         .from('user_gsc_tokens')
                         .select('id, user_id')
@@ -85,10 +90,15 @@ export default function SettingsPage() {
     useEffect(() => {
         const fetchGscSites = async () => {
             // Now we fetch sites if user is connected OR project is connected
-            if (activeProject?.gsc_connected || isUserGscConnected) {
+            if ((activeProject?.gsc_connected || isUserGscConnected)) {
                 setIsLoadingSites(true);
                 try {
-                    const res = await fetch('/api/gsc/sites');
+                    const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+                    const res = await fetch('/api/gsc/sites', {
+                        headers: {
+                            'Authorization': `Bearer ${session?.access_token}`
+                        }
+                    });
                     const data = await res.json();
                     if (data.success) {
                         setGscSites(data.sites);
