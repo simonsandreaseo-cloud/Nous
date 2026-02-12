@@ -15,10 +15,12 @@ import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 
 export default function SettingsPage() {
-    const { activeProject, projects, createProject, deleteProject, fetchProjects } = useProjectStore();
+    const { activeProject, projects, createProject, deleteProject, fetchProjects, updateProject } = useProjectStore();
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectDomain, setNewProjectDomain] = useState("");
     const [isCreating, setIsCreating] = useState(false);
+    const [gscSites, setGscSites] = useState<{ url: string; permission: string }[]>([]);
+    const [isLoadingSites, setIsLoadingSites] = useState(false);
 
     useEffect(() => {
         fetchProjects();
@@ -39,6 +41,33 @@ export default function SettingsPage() {
             }
         }
     }, [fetchProjects]);
+
+    useEffect(() => {
+        const fetchGscSites = async () => {
+            if (activeProject?.gsc_connected) {
+                setIsLoadingSites(true);
+                try {
+                    const res = await fetch('/api/gsc/sites');
+                    const data = await res.json();
+                    if (data.success) {
+                        setGscSites(data.sites);
+                    }
+                } catch (e) {
+                    console.error("Error fetching GSC sites:", e);
+                } finally {
+                    setIsLoadingSites(false);
+                }
+            }
+        };
+
+        fetchGscSites();
+    }, [activeProject?.gsc_connected]);
+
+    const handleUpdateGscSite = async (siteUrl: string) => {
+        if (!activeProject) return;
+        await updateProject(activeProject.id, { gsc_site_url: siteUrl } as any);
+        alert("Propiedad de Search Console vinculada correctamente.");
+    };
 
     const handleCreate = async () => {
         if (!newProjectName || !newProjectDomain) return;
@@ -180,12 +209,34 @@ export default function SettingsPage() {
                                             <Globe size={24} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Google Search Console</p>
                                             <p className="text-xs text-slate-500 font-medium">
                                                 {activeProject?.gsc_connected
-                                                    ? "Sincronización activa. Los informes ahora tienen acceso a datos reales."
+                                                    ? "Sincronización activa. Selecciona la propiedad de Search Console para este proyecto."
                                                     : "Conecta tu cuenta para importar métricas de tráfico y clics."}
                                             </p>
+
+                                            {activeProject?.gsc_connected && (
+                                                <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Propiedad Vinculada</label>
+                                                    <div className="flex gap-2">
+                                                        <select
+                                                            value={activeProject?.gsc_site_url || ''}
+                                                            onChange={(e) => handleUpdateGscSite(e.target.value)}
+                                                            className="flex-1 p-2 bg-white border border-emerald-100 rounded-lg text-xs font-medium outline-none focus:ring-2 ring-emerald-400"
+                                                            disabled={isLoadingSites}
+                                                        >
+                                                            <option value="">Seleccionar Propiedad...</option>
+                                                            {gscSites.map(site => (
+                                                                <option key={site.url} value={site.url}>{site.url}</option>
+                                                            ))}
+                                                        </select>
+                                                        {isLoadingSites && <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin self-center" />}
+                                                    </div>
+                                                    {activeProject?.gsc_site_url && (
+                                                        <p className="text-[9px] text-emerald-600 font-bold mt-2 uppercase tracking-tighter">✓ Conectado a: {activeProject.gsc_site_url}</p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <button
@@ -193,12 +244,11 @@ export default function SettingsPage() {
                                         className={cn(
                                             "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all",
                                             activeProject?.gsc_connected
-                                                ? "bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default"
+                                                ? "bg-white text-slate-400 border border-slate-200 hover:bg-slate-50"
                                                 : "bg-slate-900 text-white shadow-lg shadow-slate-900/10 hover:bg-blue-600 hover:shadow-blue-500/20"
                                         )}
-                                        disabled={activeProject?.gsc_connected}
                                     >
-                                        {activeProject?.gsc_connected ? "Conectado" : "Vincular Cuenta"}
+                                        {activeProject?.gsc_connected ? "Reconfigurar" : "Vincular Cuenta"}
                                     </button>
                                 </div>
                             </div>

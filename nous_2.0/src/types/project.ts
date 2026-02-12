@@ -17,6 +17,7 @@ export interface Project {
     };
     settings?: Record<string, any>;
     gsc_connected: boolean;
+    gsc_site_url?: string;
     created_at?: string;
 }
 

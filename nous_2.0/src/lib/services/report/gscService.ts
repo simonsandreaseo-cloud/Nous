@@ -31,7 +31,7 @@ export const GscService = {
         // 1. Get Tokens from DB
         const { data: project, error } = await supabase
             .from('projects')
-            .select('domain, google_refresh_token, gsc_connected')
+            .select('domain, gsc_site_url, google_refresh_token, gsc_connected')
             .eq('id', projectId)
             .single();
 
@@ -48,10 +48,13 @@ export const GscService = {
         const searchconsole = google.searchconsole({ version: 'v1', auth });
 
         // Handle Domain format (Prefix vs Domain Property)
-        // If it doesn't start with http/https, assume Domain property 'sc-domain:'
-        const siteUrl = project.domain.startsWith('http')
-            ? project.domain
-            : `sc-domain:${project.domain}`;
+        // 1. Prioritize explicit GSC Site URL if selected
+        // 2. Fallback to domain property guess
+        const siteUrl = project.gsc_site_url || (
+            project.domain.startsWith('http')
+                ? project.domain
+                : `sc-domain:${project.domain}`
+        );
 
         // Helper: Pagination Loop
         const fetchAll = async (dimensions: string[]) => {

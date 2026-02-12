@@ -12,6 +12,7 @@ interface ProjectState {
     fetchProjects: () => Promise<void>;
     fetchProjectTasks: (projectId: string) => Promise<void>;
     createProject: (project: Omit<Project, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
+    updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
     deleteProject: (projectId: string) => Promise<void>;
     addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<void>;
     updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
@@ -130,6 +131,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         set(state => ({
             projects: [project, ...state.projects],
             activeProject: project
+        }));
+    },
+
+    updateProject: async (projectId, updates) => {
+        const { error } = await supabase
+            .from('projects')
+            .update(updates)
+            .eq('id', projectId);
+
+        if (error) {
+            console.error('Error updating project:', error);
+            alert(`Error al actualizar proyecto: ${error.message}`);
+            return;
+        }
+
+        set(state => ({
+            projects: state.projects.map(p => p.id === projectId ? { ...p, ...updates } : p),
+            activeProject: state.activeProject?.id === projectId ? { ...state.activeProject, ...updates } : state.activeProject
         }));
     },
 
