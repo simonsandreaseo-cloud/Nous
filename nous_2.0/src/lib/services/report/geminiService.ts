@@ -93,7 +93,7 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
     };
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash'];
+    const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash', 'gemini-2.0-flash-exp'];
 
     for (const modelId of models) {
         try {
@@ -104,18 +104,13 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
                 { text: `Here is the Findings Summary:\n${JSON.stringify(findingsSummary)}` }
             ]);
             const text = result.response.text();
-            if (!text) {
-                console.warn(`[GEMINI-SERVICE] Dispatcher model ${modelId} returned empty response.`);
-                continue;
-            }
+            if (!text) continue;
+
             try {
                 return JSON.parse(text);
-            } catch (jsonError: any) {
+            } catch (jsonError) {
                 const match = text.match(/\[[\s\S]*\]/);
-                if (match) {
-                    return JSON.parse(match[0]);
-                }
-                console.warn(`[GEMINI-SERVICE] Dispatcher model ${modelId} returned non-JSON:`, text.substring(0, 100));
+                if (match) return JSON.parse(match[0]);
                 continue;
             }
         } catch (e: any) {
@@ -123,10 +118,38 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
         }
     }
 
+    console.warn(`[GEMINI-SERVICE] All Dispatcher models failed. Returning default sections.`);
     return ['RESUMEN_EJECUTIVO', 'CONCLUSIONES'];
 };
 
+// Helper to reduce payload size intelligently without breaking JSON structure
+function simplifyPayload(payload: ReportPayload): any {
+    const simplified = { ...payload };
+
+    // Reduce arrays to top items to save context window
+    if (simplified.segmentAnalysis) simplified.segmentAnalysis = simplified.segmentAnalysis.slice(0, 10);
+    if (simplified.countryAnalysis) simplified.countryAnalysis = simplified.countryAnalysis.slice(0, 10);
+    if (simplified.visibilityAnalysis?.winners) simplified.visibilityAnalysis.winners = simplified.visibilityAnalysis.winners.slice(0, 10);
+    if (simplified.visibilityAnalysis?.losers) simplified.visibilityAnalysis.losers = simplified.visibilityAnalysis.losers.slice(0, 10);
+    if (simplified.outlierAnalysis?.topMoversImpact) simplified.outlierAnalysis = { topMoversImpact: simplified.outlierAnalysis.topMoversImpact }; // Remove detailed outliers if too large
+
+    // Remove potentially large unused data if present
+    // @ts-ignore
+    delete simplified.chartData;
+
+    return simplified;
+}
+
 export const generateHTMLReport = async (payload: ReportPayload, sections: string[], apiKey: string): Promise<string> => {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const models = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash'];
+
+    // Intelligent payload reduction
+    const simplifiedPayload = simplifyPayload(payload);
+    const safePayload = JSON.stringify(simplifiedPayload);
+
+    console.log(`[GEMINI-SERVICE] Generating Report. Payload Size: ${safePayload.length} chars (Original: ${JSON.stringify(payload).length})`);
+
     const userPrompt = `
 --- USER CONTEXT ---
 ${payload.userContext || 'No specific context.'}
@@ -135,28 +158,38 @@ ${payload.userContext || 'No specific context.'}
 ${JSON.stringify(sections)}
 
 --- RESEARCH DOSSIER ---
-${JSON.stringify(payload).substring(0, 100000)}
+${safePayload}
 `;
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const models = ['gemini-1.5-pro', 'gemini-1.5-flash'];
 
     for (const modelId of models) {
         try {
             console.log(`[GEMINI-SERVICE] Writer checking model: ${modelId}`);
+
+            // Log prompt preview for debugging (first 500 chars)
+            if (modelId === models[0]) {
+                console.log(`[GEMINI-SERVICE] Prompt Preview: ${userPrompt.substring(0, 500)}...`);
+            }
+
             const model = genAI.getGenerativeModel({ model: modelId });
             const result = await model.generateContent([
                 { text: SYSTEM_PROMPT_WRITER },
                 { text: userPrompt }
             ]);
             const text = result.response.text();
-            if (text) return text;
+
+            if (text) {
+                console.log(`[GEMINI-SERVICE] Writer SUCCESS with model: ${modelId}. Output length: ${text.length}`);
+                return text;
+            }
+
             console.warn(`[GEMINI-SERVICE] Writer model ${modelId} returned empty response.`);
         } catch (e: any) {
-            console.warn(`[GEMINI-SERVICE] Writer model ${modelId} failed:`, e.message?.substring(0, 100));
+            console.warn(`[GEMINI-SERVICE] Writer model ${modelId} failed:`, e.message?.substring(0, 200));
         }
     }
-    return "<p>Error técnico al generar el texto del informe con IA.</p>";
+
+    console.error("[GEMINI-SERVICE] ALL WRITER MODELS FAILED.");
+    return "<p>Error técnico al generar el texto del informe con IA. Por favor, intenta de nuevo o revisa tu cuota de API.</p>";
 };
 
 export const identifyAiTrafficSources = async (sources: string[], apiKey: string): Promise<string[]> => {
