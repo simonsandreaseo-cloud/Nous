@@ -86,6 +86,9 @@ export interface SEOAnalysisResult {
         headers: { type: string; text: string; wordCount: string; notes?: string; }[];
     };
     suggestedInternalLinks?: ContentItem[];
+    searchIntent?: string;
+    keywordDifficulty?: string;
+    searchVolume?: string;
 }
 
 export interface HumanizerConfig {
@@ -1004,7 +1007,10 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
                     }
                 }
             },
-            recommendedWordCount: { type: Type.STRING }
+            recommendedWordCount: { type: Type.STRING },
+            searchIntent: { type: Type.STRING },
+            keywordDifficulty: { type: Type.STRING },
+            searchVolume: { type: Type.STRING }
         },
         required: [
             "nicheDetected", "keywordIdeas", "autocompleteLongTail", "frequentQuestions", "top10Urls",
