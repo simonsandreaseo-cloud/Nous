@@ -77,12 +77,14 @@ async function generateAiRules(summary: string, contextType: string, apiKey: str
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash',
-        generationConfig: { responseMimeType: "application/json" }
+        model: 'gemini-1.5-flash'
     });
 
     try {
-        const result = await model.generateContent(`${systemPrompt}\n\nSUMMARY:\n${summary}`);
+        const result = await model.generateContent([
+            { text: systemPrompt },
+            { text: `SUMMARY:\n${summary}` }
+        ]);
         const response = await result.response;
         const text = response.text();
         if (!text) return [];

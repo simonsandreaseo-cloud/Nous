@@ -94,11 +94,13 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash',
-        generationConfig: { responseMimeType: "application/json" }
+        model: 'gemini-1.5-flash'
     });
 
-    const response = await model.generateContent(`${SYSTEM_PROMPT_DISPATCHER}\n\nHere is the Findings Summary:\n${JSON.stringify(findingsSummary)}`);
+    const response = await model.generateContent([
+        { text: SYSTEM_PROMPT_DISPATCHER },
+        { text: `Here is the Findings Summary:\n${JSON.stringify(findingsSummary)}` }
+    ]);
     const text = response.response.text();
     if (!text) throw new Error("Dispatcher returned empty response");
 
@@ -128,7 +130,10 @@ ${JSON.stringify(payload).substring(0, 100000)}
         model: 'gemini-1.5-pro'
     });
 
-    const result = await model.generateContent(`${SYSTEM_PROMPT_WRITER}\n\n${userPrompt}`);
+    const result = await model.generateContent([
+        { text: SYSTEM_PROMPT_WRITER },
+        { text: userPrompt }
+    ]);
     return result.response.text() || "<p>Error generating report text.</p>";
 };
 
@@ -153,12 +158,11 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash',
-        generationConfig: { responseMimeType: "application/json" }
+        model: 'gemini-1.5-flash'
     });
 
     try {
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent([{ text: prompt }]);
         const text = result.response.text();
         if (!text) return candidates;
 
