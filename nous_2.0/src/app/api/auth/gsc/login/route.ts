@@ -4,12 +4,12 @@ import { google } from 'googleapis';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+    const redirectUri = `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/auth/gsc/callback`;
+
     const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,
-        // Ensure this matches exactly what's in Google Cloud Console
-        // Usually: http://localhost:3000/api/auth/gsc/callback for dev
-        `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/auth/gsc/callback`
+        redirectUri
     );
 
     // Generate the url that will be used for the consent dialog.
@@ -26,7 +26,8 @@ export async function GET() {
             'https://www.googleapis.com/auth/analytics.readonly'     // Read GA4 Data
         ],
         prompt: 'consent', // Force consent prompt to ensure refresh token is returned
-        include_granted_scopes: true
+        include_granted_scopes: true,
+        redirect_uri: redirectUri // FORCE explicit redirect_uri
     });
 
     return NextResponse.redirect(authorizeUrl);
