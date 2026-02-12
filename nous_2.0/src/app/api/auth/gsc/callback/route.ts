@@ -29,13 +29,8 @@ export async function GET(req: Request) {
         // Get current user session
         // Note: This relies on Supabase cookie handling in Next.js middleware or client-side context
         // Ideally we use createRouteHandlerClient from @supabase/auth-helpers-nextjs but keeping it simple with the existing lib
-        const { data: { session } } = await supabase.auth.getSession();
-
-        // Fallback: If no server session, we can't securely update the user's row based on session ID alone
-        // unless we trust the client to be logged in. 
-        // BUT 'supabase' imported from '@/lib/supabase' might be a simple client with anon key.
-        // If so, we can't update rows protected by RLS without a user session.
-        // However, the previous code used supabase.auth.getUser(), so let's try that.
+        // ... existing comments ...
+        // We will try to get user and session in one go below to avoid redeclarations.
 
         // NOTE: In a real production app with RLS, we need the Service Role key or a valid user session.
         // If '/lib/supabase' exports a client with public key, getUser() might return null if the cookie isn't passed.
@@ -105,12 +100,23 @@ export async function GET(req: Request) {
         // Let's assume the auth cookie works or the project uses a middleware that configures supabase.
 
         const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
 
-        if (!user) {
-            // If we can't get the user server-side, we accept defeat for this strict flow
-            // and redirect with an error asking them to try again (maybe cookies were lost).
-            // Or we pass the tokens to the client via a secure cookie? 
-            console.error('No user found in session callback');
+        if (!user && !session) {
+            // FALLBACK TRICK: If server can't see the session, we pass a temporary state
+            // to a client-side page that WILL have the session to complete the save.
+            const params = new URLSearchParams();
+            if (tokens.access_token) params.set('at', tokens.access_token);
+            if (tokens.refresh_token) params.set('rt', tokens.refresh_token);
+            if (tokens.expiry_date) params.set('ex', tokens.expiry_date.toString());
+
+            return NextResponse.redirect(new URL(`/settings/gsc-complete?${params.toString()}`, req.url));
+        }
+
+        const currentUser = user || session?.user;
+
+        if (!currentUser) {
+            console.error('No user found in session callback even after fallback check');
             return NextResponse.redirect(new URL('/settings?error=no_user_session', req.url));
         }
 
@@ -131,7 +137,7 @@ export async function GET(req: Request) {
         const { error: updateError } = await supabase
             .from('projects')
             .update(updates)
-            .eq('user_id', user.id);
+            .eq('user_id', currentUser.id);
 
         if (updateError) {
             console.error('Error updating GSC tokens in projects:', updateError);
@@ -140,7 +146,7 @@ export async function GET(req: Request) {
 
         // Also update the centralized user_gsc_tokens table
         const tokenUpdates: any = {
-            user_id: user.id,
+            user_id: currentUser.id,
             updated_at: new Date().toISOString(),
         };
 
