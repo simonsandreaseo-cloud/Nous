@@ -27,8 +27,11 @@ function GscCompleteContent() {
             try {
                 // Get session from CLIENT (where it is active)
                 const { data: { session } } = await supabase.auth.getSession();
+                console.log("[DEBUG] Session detected in GSC Complete:", session ? "YES" : "NO");
+                console.log("[DEBUG] User ID:", session?.user?.id);
 
                 if (!session?.user) {
+                    console.error("[DEBUG] No user session found");
                     setStatus("error");
                     setErrorMsg("No hay una sesión activa. Por favor, inicia sesión de nuevo.");
                     return;
@@ -42,22 +45,38 @@ function GscCompleteContent() {
                     google_refresh_token: rt,
                 };
 
+                console.log("[DEBUG] Updates to apply:", updates);
+
                 // Update projects for this user
-                const { error: updateError } = await supabase
+                const { error: updateError, data: updatedData } = await supabase
                     .from("projects")
                     .update(updates)
-                    .eq("user_id", userId);
+                    .eq("user_id", userId)
+                    .select('id');
+
+                const count = updatedData ? updatedData.length : 0; // Select allows us to see affected rows
+
+                console.log("[DEBUG] Projects update error:", updateError);
+                console.log("[DEBUG] Projects affected:", count);
 
                 if (updateError) throw updateError;
 
+                // If no projects were updated, maybe the user has no projects?
+                // Or maybe RLS blocked it?
+                if (count === 0) {
+                    console.warn("[DEBUG] No projects were updated! Possible RLS issue or no projects for this user ID.");
+                }
+
                 // Also upsert centralized tokens
-                await supabase.from("user_gsc_tokens").upsert({
+                const { error: upsertError } = await supabase.from("user_gsc_tokens").upsert({
                     user_id: userId,
                     access_token: at,
                     refresh_token: rt,
                     expires_at: ex ? new Date(parseInt(ex)).toISOString() : null,
                     updated_at: new Date().toISOString()
                 });
+
+                console.log("[DEBUG] Token upsert error:", upsertError);
 
                 setStatus("success");
                 setTimeout(() => router.push("/settings?gsc=connected"), 2000);
