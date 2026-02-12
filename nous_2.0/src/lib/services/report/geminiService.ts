@@ -94,12 +94,11 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        generationConfig: { responseMimeType: "application/json" },
-        systemInstruction: SYSTEM_PROMPT_DISPATCHER
+        model: 'gemini-2.0-flash',
+        generationConfig: { responseMimeType: "application/json" }
     });
 
-    const response = await model.generateContent(`Here is the Findings Summary:\n${JSON.stringify(findingsSummary)}`);
+    const response = await model.generateContent(`${SYSTEM_PROMPT_DISPATCHER}\n\nHere is the Findings Summary:\n${JSON.stringify(findingsSummary)}`);
     const text = response.response.text();
     if (!text) throw new Error("Dispatcher returned empty response");
 
@@ -121,16 +120,15 @@ ${payload.userContext || 'No specific context.'}
 ${JSON.stringify(sections)}
 
 --- RESEARCH DOSSIER ---
-${JSON.stringify(payload).substring(0, 100000)} 
+${JSON.stringify(payload).substring(0, 100000)}
 `;
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-pro',
-        systemInstruction: SYSTEM_PROMPT_WRITER
+        model: 'gemini-1.5-pro'
     });
 
-    const result = await model.generateContent(userPrompt);
+    const result = await model.generateContent(`${SYSTEM_PROMPT_WRITER}\n\n${userPrompt}`);
     return result.response.text() || "<p>Error generating report text.</p>";
 };
 
@@ -149,13 +147,13 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
     Return a JSON array of strings containing ONLY the sources that are AI Chatbots, LLMs, or AI Search Assistants.
     Examples to include: "chatgpt", "openai", "bard", "gemini", "bing chat", "copilot", "perplexity", "claude", "anthropic", "you.com".
     Examples to ignore: "google", "bing", "facebook", "twitter", "direct", "(not set)", "organic".
-    
+
     List: ${JSON.stringify(sources)}
     `;
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.0-flash',
         generationConfig: { responseMimeType: "application/json" }
     });
 
