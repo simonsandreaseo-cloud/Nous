@@ -13,7 +13,7 @@ async function testGroq() {
             systemPrompt: 'Be extremely concise.'
         });
         console.log(`✅ GROQ Success (${Date.now() - start}ms):`, response.text);
-    } catch (e) {
+    } catch (e: any) {
         console.error(`❌ GROQ Failed: ${e.message}`);
     }
 }
@@ -28,7 +28,7 @@ async function testGemini() {
             systemPrompt: 'Be academic.'
         });
         console.log(`✅ GEMINI Success (${Date.now() - start}ms):`, response.text);
-    } catch (e) {
+    } catch (e: any) {
         console.error(`❌ GEMINI Failed: ${e.message}`);
     }
 }
