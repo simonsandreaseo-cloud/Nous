@@ -1,15 +1,26 @@
 import { google } from 'googleapis';
+import { supabase as sharedSupabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase Admin Client for token retrieval
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Helper to get a specialized client (Admin if possible, Shared otherwise)
+const getSupabaseClient = () => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (url && key) {
+        return createClient(url, key, {
+            auth: { persistSession: false, autoRefreshToken: false }
+        });
+    }
+    // Fallback to shared client if service role is missing
+    return sharedSupabase;
+};
 
 export const AnalyticsService = {
 
     // Helper: Get Authenticated Client
     async getAuthClient(userId: string) {
+        const supabase = getSupabaseClient();
         const { data: tokens } = await supabase
             .from('user_gsc_tokens')
             .select('*')
@@ -32,7 +43,8 @@ export const AnalyticsService = {
         // Auto-refresh if needed
         oauth2Client.on('tokens', async (newTokens) => {
             if (newTokens.access_token) {
-                await supabase.from('user_gsc_tokens').upsert({
+                const supabaseAdmin = getSupabaseClient();
+                await supabaseAdmin.from('user_gsc_tokens').upsert({
                     user_id: userId,
                     access_token: newTokens.access_token,
                     refresh_token: newTokens.refresh_token || tokens.refresh_token,
