@@ -223,6 +223,19 @@ export default function HumanizerPage() {
     const [links, setLinks] = useState("");
     const [notes, setNotes] = useState("");
 
+    // Model Selection
+    const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
+
+    // Available Models based on User Feedback
+    const AVAILABLE_MODELS = [
+        { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash (Experimental)" },
+        { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
+        { id: "gemini-1.5-flash-8b", name: "Gemini 1.5 Flash-8B" },
+        { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
+        { id: "gemini-exp-1206", name: "Gemini Experimental 1206" },
+        { id: "gemini-2.0-pro-exp", name: "Gemini 2.0 Pro (Experimental)" },
+    ];
+
     // Estados de archivo y proceso
     const [docFile, setDocFile] = useState<File | null>(null);
     const [inputText, setInputText] = useState(""); // HTML hidden content
@@ -313,10 +326,8 @@ export default function HumanizerPage() {
         // Voy a usar `gemini-1.5-pro` o `gemini-1.5-flash` para estabilidad, o `gemini-pro`.
         // Mejor usar `gemini-1.5-flash` que es rápido y barato, similar al original.
 
-        // CORRECCIÓN: Usaré una URL que permita cambiar el modelo fácilmente si es necesario.
         // Por ahora hardcodeo a un modelo conocido que funcione.
-        const model = "gemini-1.5-flash";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${currentApiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${currentApiKey}`;
 
         const payload: any = {
             contents: [{ parts: [{ text: userText }] }],
@@ -492,6 +503,42 @@ export default function HumanizerPage() {
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
                     />
+                </div>
+
+                {/* Model Selector */}
+                <div className="mb-6 p-4 bg-white rounded-xl shadow-sm border border-slate-200">
+                    <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                        <div className="p-1 bg-purple-50 text-purple-600 rounded">
+                            <Settings size={14} />
+                        </div>
+                        Modelo de IA
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <select
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        >
+                            {AVAILABLE_MODELS.map(model => (
+                                <option key={model.id} value={model.id}>
+                                    {model.name}
+                                </option>
+                            ))}
+                            <option value="custom">Otro (Manual)...</option>
+                        </select>
+
+                        {selectedModel === "custom" && (
+                            <input
+                                type="text"
+                                placeholder="Escribe el ID del modelo (ej: gemini-1.5-pro-latest)"
+                                className="w-full p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+                                onChange={(e) => setSelectedModel(e.target.value)}
+                            />
+                        )}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">
+                        Si recibes error 404, prueba cambiando el modelo. Los modelos "Flash" son más rápidos y económicos.
+                    </p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
