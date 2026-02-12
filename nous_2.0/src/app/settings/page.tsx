@@ -28,6 +28,7 @@ export default function SettingsPage() {
     const [gscSites, setGscSites] = useState<{ url: string; permission: string }[]>([]);
     const [isLoadingSites, setIsLoadingSites] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isUserGscConnected, setIsUserGscConnected] = useState(false);
 
     useEffect(() => {
         fetchProjects();
@@ -47,6 +48,23 @@ export default function SettingsPage() {
         }
     }, [fetchProjects]);
 
+    // Check if user has GSC token at user level
+    useEffect(() => {
+        const checkUserGsc = async () => {
+            const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+            if (session?.user) {
+                const { data: tokens } = await (await import('@/lib/supabase')).supabase
+                    .from('user_gsc_tokens')
+                    .select('id')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+
+                setIsUserGscConnected(!!tokens);
+            }
+        };
+        checkUserGsc();
+    }, [activeProject?.id]);
+
     // Sync edit fields with active project
     useEffect(() => {
         if (activeProject) {
@@ -57,7 +75,8 @@ export default function SettingsPage() {
 
     useEffect(() => {
         const fetchGscSites = async () => {
-            if (activeProject?.gsc_connected) {
+            // Now we fetch sites if user is connected OR project is connected
+            if (activeProject?.gsc_connected || isUserGscConnected) {
                 setIsLoadingSites(true);
                 try {
                     const res = await fetch('/api/gsc/sites');
@@ -74,7 +93,7 @@ export default function SettingsPage() {
         };
 
         fetchGscSites();
-    }, [activeProject?.id, activeProject?.gsc_connected]);
+    }, [activeProject?.id, activeProject?.gsc_connected, isUserGscConnected]);
 
     const handleSaveAll = async () => {
         if (!activeProject) return;
@@ -107,7 +126,11 @@ export default function SettingsPage() {
 
     const handleUpdateGscSite = async (siteUrl: string) => {
         if (!activeProject) return;
-        await updateProject(activeProject.id, { gsc_site_url: siteUrl });
+        // When user selects a site, we explicitly mark the project as connected
+        await updateProject(activeProject.id, {
+            gsc_site_url: siteUrl,
+            gsc_connected: true
+        });
     };
 
     const handleCreate = async () => {
@@ -275,7 +298,7 @@ export default function SettingsPage() {
                                     {/* Google Search Console - Contextual */}
                                     <div className={cn(
                                         "p-8 rounded-3xl border transition-all duration-700 relative overflow-hidden",
-                                        activeProject.gsc_connected
+                                        (activeProject.gsc_connected || isUserGscConnected)
                                             ? "bg-emerald-50/20 border-emerald-100"
                                             : "bg-slate-50 border-slate-100"
                                     )}>
@@ -283,16 +306,16 @@ export default function SettingsPage() {
                                             <div className="flex gap-4">
                                                 <div className={cn(
                                                     "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
-                                                    activeProject.gsc_connected ? "bg-emerald-500 text-white" : "bg-white text-slate-300"
+                                                    (activeProject.gsc_connected || isUserGscConnected) ? "bg-emerald-500 text-white" : "bg-white text-slate-300"
                                                 )}>
                                                     <Globe size={24} />
                                                 </div>
                                                 <div>
                                                     <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Google Search Console</h3>
                                                     <p className="text-[10px] text-slate-500 font-medium">
-                                                        {activeProject.gsc_connected
-                                                            ? "Métricas neurales activas. Verifica la propiedad vinculada."
-                                                            : "Vincular propiedad de GSC para análisis de tráfico real."}
+                                                        {(activeProject.gsc_connected || isUserGscConnected)
+                                                            ? "Métricas neurales activas o cuenta vinculada. Verifica la propiedad."
+                                                            : "Vincular cuenta de GSC para análisis de tráfico real."}
                                                     </p>
                                                 </div>
                                             </div>
@@ -300,16 +323,16 @@ export default function SettingsPage() {
                                                 onClick={() => window.location.href = '/api/auth/gsc/login'}
                                                 className={cn(
                                                     "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
-                                                    activeProject.gsc_connected
+                                                    (activeProject.gsc_connected || isUserGscConnected)
                                                         ? "bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50"
                                                         : "bg-slate-900 text-white hover:bg-black"
                                                 )}
                                             >
-                                                {activeProject.gsc_connected ? "Re-conectar" : "Vincular Ahora"}
+                                                {(activeProject.gsc_connected || isUserGscConnected) ? "Re-conectar" : "Vincular Ahora"}
                                             </button>
                                         </div>
 
-                                        {activeProject.gsc_connected && (
+                                        {(activeProject.gsc_connected || isUserGscConnected) && (
                                             <div className="mt-8 pt-6 border-t border-emerald-100/50 animate-in fade-in slide-in-from-top-2 relative z-10">
                                                 <label className="text-[10px] font-black text-emerald-700/50 uppercase tracking-[0.2em] block mb-3">Propiedad de Dominio</label>
                                                 <div className="flex gap-3">

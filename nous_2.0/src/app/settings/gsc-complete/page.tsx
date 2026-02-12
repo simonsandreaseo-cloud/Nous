@@ -38,58 +38,10 @@ function GscCompleteContent() {
                 }
 
                 const userId = session.user.id;
-                const updates: any = {
-                    gsc_connected: true,
-                    gsc_expiration: ex ? parseInt(ex) : null,
-                    gsc_access_token: at,
-                    google_refresh_token: rt,
-                };
 
-                console.log("[DEBUG] Updates to apply:", updates);
-
-                // Update projects for this user
-                const { error: updateError, data: updatedData } = await supabase
-                    .from("projects")
-                    .update(updates)
-                    .eq("user_id", userId)
-                    .select('id');
-
-                const count = updatedData ? updatedData.length : 0; // Select allows us to see affected rows
-
-                console.log("[DEBUG] Projects update error:", updateError);
-                console.log("[DEBUG] Projects affected:", count);
-
-                if (updateError) throw updateError;
-
-                // If no projects were updated, maybe the user has no projects?
-                // Or maybe RLS blocked it?
-                if (count === 0) {
-                    console.warn("[DEBUG] No projects were updated! Possible RLS issue or no projects for this user ID. Attempting to create one.");
-
-                    // Create a new project automatically so the connection isn't "lost"
-                    const { error: createError } = await supabase.from("projects").insert({
-                        user_id: userId,
-                        name: "Sitio Importado (GSC)",
-                        domain: "pendiente-configurar.com",
-                        gsc_connected: true,
-                        gsc_expiration: ex ? parseInt(ex) : null,
-                        gsc_access_token: at,
-                        google_refresh_token: rt,
-                        budget_settings: { type: 'count', target: 10, current: 0, mode: 'target' },
-                        scraper_settings: { paths: ["/"] }
-                    });
-
-                    if (createError) {
-                        console.error("Error creating fallback project:", createError);
-                        // We don't throw here, just log, so the user flow continues to "success"
-                        // but they might not see a project.
-                    } else {
-                        console.log("Fallback project created successfully.");
-                    }
-                }
-
-                // Also upsert centralized tokens
-                const { error: upsertError } = await supabase.from("user_gsc_tokens").upsert({
+                // 1. Save Token and connection status at USER LEVEL first
+                console.log("[DEBUG] Upserting user tokens...");
+                const { error: tokenError } = await supabase.from("user_gsc_tokens").upsert({
                     user_id: userId,
                     access_token: at,
                     refresh_token: rt,
@@ -97,10 +49,31 @@ function GscCompleteContent() {
                     updated_at: new Date().toISOString()
                 });
 
-                console.log("[DEBUG] Token upsert error:", upsertError);
+                if (tokenError) {
+                    console.error("[DEBUG] Token upsert error:", tokenError);
+                    throw tokenError;
+                }
 
+                // 2. Mark existing projects as GSC-enabled so they show the selector
+                const updates: any = {
+                    gsc_connected: true,
+                    google_refresh_token: rt, // Fallback for legacy services
+                };
+
+                console.log("[DEBUG] Updating projects for user...");
+                const { error: updateError, data: updatedData } = await supabase
+                    .from("projects")
+                    .update(updates)
+                    .eq("user_id", userId)
+                    .select('id');
+
+                const count = updatedData ? updatedData.length : 0;
+                console.log("[DEBUG] Projects affected:", count);
+
+                // Even if count is 0, we consider success because the USER level token is saved
                 setStatus("success");
-                setTimeout(() => router.push("/settings?gsc=connected"), 2000);
+                setTimeout(() => router.push("/settings?gsc=connected"), 1500);
+
             } catch (err: any) {
                 console.error(err);
                 setStatus("error");

@@ -28,33 +28,44 @@ const formatRow = (row: any, dimensions: string[]) => {
 
 export const GscService = {
     async fetchData(projectId: string, startDate: string, endDate: string) {
-        // 1. Get Tokens from DB
+        // 1. Get Project & User Token
+        // We join with user_gsc_tokens to get the fresher credential
         const { data: project, error } = await supabase
             .from('projects')
-            .select('domain, gsc_site_url, google_refresh_token, gsc_connected')
+            .select(`
+                user_id,
+                gsc_site_url,
+                domain
+            `)
             .eq('id', projectId)
             .single();
 
         if (error || !project) throw new Error("Proyecto no encontrado");
-        if (!project.gsc_connected || !project.google_refresh_token) throw new Error("GSC no conectado en este proyecto");
+
+        // Fetch token separately because Supabase join synthax might be complex with non-FK or if not set up
+        const { data: tokens } = await supabase
+            .from('user_gsc_tokens')
+            .select('refresh_token')
+            .eq('user_id', project.user_id)
+            .single();
+
+        if (!tokens?.refresh_token) throw new Error("Usuario no ha conectado GSC (Token no encontrado)");
+
+        if (!project.gsc_site_url) {
+            throw new Error("Selecciona una Propiedad de GSC en los Ajustes del Proyecto primero.");
+        }
 
         // 2. Auth Client
         const auth = new google.auth.OAuth2(
             process.env.GOOGLE_CLIENT_ID,
             process.env.GOOGLE_CLIENT_SECRET
         );
-        auth.setCredentials({ refresh_token: project.google_refresh_token });
+        auth.setCredentials({ refresh_token: tokens.refresh_token });
 
         const searchconsole = google.searchconsole({ version: 'v1', auth });
 
-        // Handle Domain format (Prefix vs Domain Property)
-        // 1. Prioritize explicit GSC Site URL if selected
-        // 2. Fallback to domain property guess
-        const siteUrl = project.gsc_site_url || (
-            project.domain.startsWith('http')
-                ? project.domain
-                : `sc-domain:${project.domain}`
-        );
+        // 3. Define Site URL
+        const siteUrl = project.gsc_site_url;
 
         // Helper: Pagination Loop
         const fetchAll = async (dimensions: string[]) => {
