@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import mammoth from 'mammoth';
 import { FileText, Wand2, Download, Trash2, Copy, Check, Info, Settings, FileUp, Database, Link as LinkIcon, AlertTriangle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
 
 // =================================================================
@@ -228,6 +229,9 @@ export default function HumanizerPage() {
 
     // Available Models based on User Screenshot
     const AVAILABLE_MODELS = [
+        { id: "gemini-3-pro-preview", name: "Gemini 3 Pro Preview" },
+        { id: "gemini-3-flash-preview", name: "Gemini 3 Flash Preview" },
+        { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
         { id: "gemini-3.0-flash", name: "Gemini 3 Flash" },
         { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
         { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite" },
@@ -280,6 +284,8 @@ export default function HumanizerPage() {
 
     // Estados de archivo y proceso
     const [docFile, setDocFile] = useState<File | null>(null);
+    const [googleDocUrl, setGoogleDocUrl] = useState("");
+    const [isFetchingGoogleDoc, setIsFetchingGoogleDoc] = useState(false);
     const [inputText, setInputText] = useState(""); // HTML hidden content
     const [processedHtml, setProcessedHtml] = useState("");
     const [metadata, setMetadata] = useState<any>(null);
@@ -322,6 +328,57 @@ export default function HumanizerPage() {
                 console.error(err);
                 setError("No se pudo leer el archivo DOCX.");
                 setDocFile(null);
+            }
+        };
+
+        const handleGoogleDocImport = async () => {
+            if (!googleDocUrl) return;
+
+            setIsFetchingGoogleDoc(true);
+            setStatusMessage("Conectando con Google Docs...");
+            setStatusVisible(true);
+            setError(null);
+
+            try {
+                // Get session token
+                const { data: { session } } = await supabase.auth.getSession();
+                const token = session?.access_token;
+
+                if (!token) throw new Error("No hay sesión activa. Por favor recarga o inicia sesión.");
+
+                const response = await fetch('/api/google/fetch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ url: googleDocUrl, type: 'doc' })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // If 401, maybe redirect or show specific error?
+                    if (response.status === 401) {
+                        throw new Error("No autorizado. Por favor conecta tu cuenta de Google.");
+                    }
+                    throw new Error(data.error || 'Error al importar');
+                }
+
+                setInputText(data.content || "");
+                setStatusMessage("Documento importado correctamente.");
+                setGoogleDocUrl("");
+                setDocFile(null); // Clear file selection if any, as we now have text content
+
+                // Auto-hide status after success
+                setTimeout(() => setStatusVisible(false), 2000);
+
+            } catch (err: any) {
+                console.error(err);
+                setError(err.message);
+                setStatusMessage("Error en la importación.");
+            } finally {
+                setIsFetchingGoogleDoc(false);
             }
         };
         reader.onerror = () => setError("Fallo al leer el archivo.");
@@ -371,10 +428,15 @@ export default function HumanizerPage() {
         // Por ahora hardcodeo a un modelo conocido que funcione.
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${currentApiKey}`;
 
+        const isGemma = selectedModel.toLowerCase().includes("gemma");
+
         const payload: any = {
-            contents: [{ parts: [{ text: userText }] }],
-            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ parts: [{ text: isGemma ? `${systemPrompt}\n\n---\n\n${userText}` : userText }] }],
         };
+
+        if (!isGemma) {
+            payload.systemInstruction = { parts: [{ text: systemPrompt }] };
+        }
 
         if (responseSchema) {
             payload.generationConfig = {
@@ -789,12 +851,50 @@ export default function HumanizerPage() {
                                     </div>
                                 </div>
 
+                                {/* Google Docs Import */}
+                                <div className="mt-4 pt-4 border-t border-slate-100">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
+                                        O importar desde Google Docs
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                                <LinkIcon size={14} />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Pega el enlace del documento..."
+                                                value={googleDocUrl}
+                                                onChange={(e) => setGoogleDocUrl(e.target.value)}
+                                                className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-600 placeholder:font-normal"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleGoogleDocImport}
+                                            disabled={!googleDocUrl || isFetchingGoogleDoc}
+                                            className="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-medium hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            title="Importar contenido"
+                                        >
+                                            {isFetchingGoogleDoc ? (
+                                                <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <Download size={18} />
+                                            )}
+                                        </button>
+                                    </div>
+                                    {inputText && !docFile && !isFetchingGoogleDoc && (
+                                        <div className="mt-2 text-xs text-green-600 font-medium flex items-center gap-1">
+                                            <Check size={12} /> Contenido importado ({inputText.length} caracteres)
+                                        </div>
+                                    )}
+                                </div>
+
                                 <button
                                     onClick={runFullPipeline}
-                                    disabled={!docFile || isProcessing}
+                                    disabled={(!docFile && !inputText) || isProcessing}
                                     className={`
                                         w-full mt-6 py-4 px-6 rounded-xl font-bold text-white shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2
-                                        ${(!docFile || isProcessing)
+                                        ${((!docFile && !inputText) || isProcessing)
                                             ? 'bg-slate-300 cursor-not-allowed text-slate-500 shadow-none'
                                             : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-500/30'
                                         }
@@ -848,8 +948,8 @@ export default function HumanizerPage() {
                         </div>
                     </div>
 
-                </div>
-            </main>
-        </div>
+                </div >
+            </main >
+        </div >
     );
 }

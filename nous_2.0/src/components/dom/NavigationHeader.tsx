@@ -89,10 +89,29 @@ export function NavigationHeader() {
                             <span>SEO On Page</span>
                         </Link>
 
-                        <Link href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
-                            <Activity size={16} className="text-orange-500" />
-                            <span>Monitoreo</span>
-                        </Link>
+                        {/* Monitoreo - Nested Submenu Trigger */}
+                        <div className="relative group/nested">
+                            <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
+                                <div className="flex items-center gap-3">
+                                    <Activity size={16} className="text-orange-500" />
+                                    <span>Monitoreo</span>
+                                </div>
+                                <ChevronRight size={14} className="text-slate-400 group-hover/nested:text-slate-600 group-hover/nested:translate-x-0.5 transition-all" />
+                            </button>
+
+                            {/* Second Level Menu */}
+                            <div className="absolute left-full top-0 ml-3 w-60 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/60 shadow-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
+                                <div className="space-y-1">
+                                    <Link href="/herramientas/generador-informes" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                        <div className="flex items-center gap-3 mb-0.5">
+                                            <FileText size={16} className="text-purple-500" />
+                                            <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Informes IA</span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 font-medium pl-7">Deep Report Generator</p>
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
 
                         <div className="h-px bg-slate-100 my-1 mx-2"></div>
 

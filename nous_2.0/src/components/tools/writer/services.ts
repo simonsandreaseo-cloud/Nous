@@ -1249,3 +1249,90 @@ export const runSmartEditor = async (
         return resText.replace(/```html/g, '').replace(/```/g, '');
     });
 };
+
+// --- Export to Google Docs ---
+export async function exportToGoogleDoc(title: string, htmlContent: string, sessionToken: string): Promise<string> {
+    try {
+        const response = await fetch('/api/google/export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`
+            },
+            body: JSON.stringify({
+                action: 'create_doc',
+                title: title,
+                content: htmlContent
+            })
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to export');
+        }
+
+        const data = await response.json();
+        return data.url;
+    } catch (error) {
+        console.error('Export Error:', error);
+        throw error;
+    }
+}
+
+// --- Export to Google Sheets ---
+export async function exportToGoogleSheet(title: string, data: any[][], sessionToken: string): Promise<string> {
+    try {
+        const response = await fetch('/api/google/export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`
+            },
+            body: JSON.stringify({
+                action: 'create_sheet',
+                title: title,
+                data: data
+            })
+        });
+
+        if (!response.ok) {
+            const result = await response.json();
+            throw new Error(result.error || 'Failed to export');
+        }
+
+        const result = await response.json();
+        return result.url;
+    } catch (error) {
+        console.error('Export Error:', error);
+        throw error;
+    }
+}
+
+// --- Export to Google Slides ---
+export async function exportToGoogleSlides(title: string, slidesData: { title: string, content: string[] }[], sessionToken: string): Promise<string> {
+    try {
+        const response = await fetch('/api/google/export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`
+            },
+            body: JSON.stringify({
+                action: 'create_slides',
+                title: title,
+                data: slidesData
+            })
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to export');
+        }
+
+        const data = await response.json();
+        return data.url;
+    } catch (error) {
+        console.error('Export Error:', error);
+        throw error;
+    }
+}

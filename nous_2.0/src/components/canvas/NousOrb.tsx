@@ -2,12 +2,10 @@
 
 import { useRef, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { MeshTransmissionMaterial, Float } from "@react-three/drei";
-import { Mesh, Group, DoubleSide, Color } from "three";
+import { Float } from "@react-three/drei";
+import { Mesh, Group } from "three";
 import { useAppStore } from "@/store/useAppStore";
 import { useSpring, animated } from "@react-spring/three";
-
-const AnimatedMeshTransmissionMaterial = animated(MeshTransmissionMaterial);
 
 function InnerStructure() {
     const groupRef = useRef<Group>(null!);
@@ -121,26 +119,19 @@ export function NousOrb() {
                     onPointerOut={() => (document.body.style.cursor = "auto")}
                 >
                     <sphereGeometry args={[1.5, 64, 64]} />
-                    <AnimatedMeshTransmissionMaterial
-                        backside
-                        samples={16}
-                        resolution={1024}
-                        thickness={0.2}
-                        chromaticAberration={0.03}
-                        anisotropy={0.1}
-                        distortion={status === 'connected' ? 0.8 : 0.5}
-                        distortionScale={status === 'connected' ? 1.0 : 0.5}
-                        temporalDistortion={status === 'connected' ? 0.2 : 0.1}
-                        ior={status === 'connected' ? 1.8 : 1.5}
-                        transmission={1.0}
+                    <animated.meshPhysicalMaterial
                         roughness={0}
+                        metalness={0.1}
+                        transmission={0}
+                        transparent={true}
+                        opacity={0.3} // More transparent to see background clearly
+                        side={2} // DoubleSide to see back of sphere
                         clearcoat={1}
                         clearcoatRoughness={0}
                         color={orbColor}
-                        attenuationDistance={Infinity}
-                        attenuationColor={accentColor}
+                        emissive={accentColor}
+                        emissiveIntensity={0.1}
                         toneMapped={false}
-                        transparent={true}
                     />
                 </animated.mesh>
 

@@ -23,7 +23,7 @@ import {
     ImageGenConfig, compositeWatermark, autoInterlink, runHumanizerPipeline,
     cleanAndFormatHtml, refineStyling, refineArticleContent, generateOutlineStrategy,
     searchMoreLinks, VisualResource, AIImageRequest, ArticleConfig, findCampaignAssets,
-    generateSchemaMarkup, runSmartEditor, HumanizerConfig
+    generateSchemaMarkup, runSmartEditor, HumanizerConfig, exportToGoogleDoc, exportToGoogleSlides
 } from './services';
 import TimeTracker from '@/components/dashboard/TimeTracker';
 // Remove shared components imports if they don't exist in nous_2.0 yet or mock them
@@ -449,6 +449,111 @@ const App = () => {
     // Refinement State
     const [refinementInstructions, setRefinementInstructions] = useState('');
     const [isRefining, setIsRefining] = useState(false);
+
+    // Export State
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportToDocs = async () => {
+        if (!htmlContent) return;
+        setIsExporting(true);
+        setStatus("Exportando a Google Docs...");
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (!token) throw new Error("No hay sesión activa");
+
+            const docTitle = strategyH1 || projectName || "Sin título";
+            const url = await exportToGoogleDoc(docTitle, htmlContent, token);
+
+            window.open(url, '_blank');
+            setStatus("Exportado correctamente");
+
+            // Also notify via toast if possible, or just alert?
+            // alert("Documento creado: " + url);
+
+        } catch (e: any) {
+            console.error(e);
+            alert("Error al exportar: " + (e.message || String(e)));
+            setStatus("Error al exportar");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportToSlides = async () => {
+        setIsExporting(true);
+        setStatus("Generando presentación...");
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (!token) throw new Error("No hay sesión activa");
+
+            const slides = [];
+
+            // Slide 1: Title
+            slides.push({
+                title: strategyH1 || targetKeyword || "Reporte SEO",
+                content: [
+                    `Proyecto: ${projectName}`,
+                    `Query: ${targetKeyword}`,
+                    `Fecha: ${new Date().toLocaleDateString()}`
+                ]
+            });
+
+            // Slide 2: Metrics
+            if (rawSeoData) {
+                const metrics = [
+                    `Nicho Detectado: ${rawSeoData.nicheDetected}`,
+                    `Intención: ${rawSeoData.searchIntent || 'N/A'}`
+                ];
+                if (rawSeoData.keywordDifficulty) metrics.push(`Dificultad: ${rawSeoData.keywordDifficulty}`);
+                if (rawSeoData.searchVolume) metrics.push(`Volumen: ${rawSeoData.searchVolume}`);
+
+                slides.push({
+                    title: "Métricas Clave",
+                    content: metrics
+                });
+            }
+
+            // Slide 3: Competitors
+            if (rawSeoData?.top10Urls && rawSeoData.top10Urls.length > 0) {
+                const competitors = rawSeoData.top10Urls.slice(0, 5).map(u => u.url);
+                slides.push({
+                    title: "Competencia (Top 5)",
+                    content: competitors
+                });
+            }
+
+            // Slide 4: LSI
+            if (strategyLSI && strategyLSI.length > 0) {
+                const lsi = strategyLSI.slice(0, 7).map(k => `${k.keyword} (${k.count})`);
+                slides.push({
+                    title: "Keywords LSI Recomendadas",
+                    content: lsi
+                });
+            }
+
+            // Slide 5: Structure
+            if (strategyOutline && strategyOutline.length > 0) {
+                const structure = strategyOutline.slice(0, 7).map(h => `${h.type}: ${h.text}`);
+                slides.push({
+                    title: "Estructura Propuesta",
+                    content: structure
+                });
+            }
+
+            const url = await exportToGoogleSlides(`Reporte SEO: ${targetKeyword}`, slides, token);
+            window.open(url, '_blank');
+            setStatus("Reporte creado con éxito en Google Slides.");
+
+        } catch (e: any) {
+            console.error(e);
+            alert("Error Slides: " + e.message);
+            setStatus("Error al exportar Slides");
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // Output/Process State
     const [isGenerating, setIsGenerating] = useState(false);
@@ -1701,6 +1806,13 @@ const App = () => {
                                 </div>
                                 <div style={{ display: 'flex', gap: '12px' }}>
                                     <button
+                                        style={{ ...styles.bigButton, padding: '16px 32px', width: 'auto', background: '#F59E0B' } as any}
+                                        onClick={handleExportToSlides}
+                                        disabled={isExporting}
+                                    >
+                                        {isExporting ? <LoadingSpinner /> : <><FileUp size={16} /> Exportar Reporte</>}
+                                    </button>
+                                    <button
                                         style={{ ...styles.bigButton, padding: '16px 32px', width: 'auto' } as any}
                                         onClick={handlePlanStructure}
                                         disabled={isPlanningStructure}
@@ -2139,6 +2251,14 @@ const App = () => {
                                             <IconSparkles /> Diseñar con BlogViz AI
                                         </Link>
                                     )}
+
+                                    <button
+                                        onClick={handleExportToDocs}
+                                        disabled={isExporting || !htmlContent}
+                                        style={{ ...styles.button, background: '#0F9D58', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px' } as any}
+                                    >
+                                        <FileText size={16} /> {isExporting ? "Exportando..." : "Exportar a Google Docs"}
+                                    </button>
 
                                     <div>
                                         <div style={styles.sectionTitle}>Refinamiento de Artículo</div>

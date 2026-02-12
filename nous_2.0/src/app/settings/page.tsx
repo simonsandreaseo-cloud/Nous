@@ -22,6 +22,22 @@ export default function SettingsPage() {
 
     useEffect(() => {
         fetchProjects();
+
+        // Check for GSC auth callback params
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('gsc') === 'connected') {
+                // Refresh projects to reflect the new connection status
+                fetchProjects().then(() => {
+                    alert("Google Search Console conectado exitosamente.");
+                });
+                // Clear params
+                window.history.replaceState({}, '', window.location.pathname);
+            } else if (params.get('error')) {
+                alert(`Error al conectar GSC: ${params.get('error')}`);
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+        }
     }, [fetchProjects]);
 
     const handleCreate = async () => {
@@ -154,12 +170,14 @@ export default function SettingsPage() {
                                         </div>
                                     </div>
                                     <button
+                                        onClick={() => window.location.href = '/api/auth/gsc/login'}
                                         className={cn(
                                             "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all",
                                             activeProject?.gsc_connected
-                                                ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                                ? "bg-emerald-50 text-emerald-600 border border-emerald-100 cursor-default"
                                                 : "bg-white border border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-600"
                                         )}
+                                        disabled={activeProject?.gsc_connected}
                                     >
                                         {activeProject?.gsc_connected ? "Conectado" : "Conectar GSC"}
                                     </button>
