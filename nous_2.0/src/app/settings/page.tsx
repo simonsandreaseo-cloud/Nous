@@ -58,16 +58,17 @@ export default function SettingsPage() {
                 if (session?.user) {
                     const { data: tokens, error } = await (await import('@/lib/supabase')).supabase
                         .from('user_gsc_tokens')
-                        .select('id')
+                        .select('id, user_id')
                         .eq('user_id', session.user.id)
                         .maybeSingle();
 
-                    if (!error) {
-                        setIsUserGscConnected(!!tokens);
+                    if (error) {
+                        console.error("[DEBUG] Error checking user GSC status (400?):", error);
                     }
+                    setIsUserGscConnected(!!tokens);
                 }
             } catch (e) {
-                console.warn("GSC Token table might be missing:", e);
+                console.warn("GSC Token check failed:", e);
             }
         };
         checkUserGsc();

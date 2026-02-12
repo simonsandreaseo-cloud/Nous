@@ -40,35 +40,38 @@ function GscCompleteContent() {
                 const userId = session.user.id;
 
                 // 1. Save Token and connection status at USER LEVEL first
-                console.log("[DEBUG] Upserting user tokens...");
+                console.log("[DEBUG] Upserting user tokens for ID:", userId);
                 const { error: tokenError } = await supabase.from("user_gsc_tokens").upsert({
                     user_id: userId,
                     access_token: at,
                     refresh_token: rt,
                     expires_at: ex ? new Date(parseInt(ex)).toISOString() : null,
                     updated_at: new Date().toISOString()
-                });
+                }, { onConflict: 'user_id' });
 
                 if (tokenError) {
-                    console.error("[DEBUG] Token upsert error:", tokenError);
-                    throw tokenError;
+                    console.error("[DEBUG] CRITICAL: user_gsc_tokens upsert failed:", tokenError);
                 }
 
-                // 2. Mark existing projects as GSC-enabled so they show the selector
+                // 2. Mark existing projects as GSC-enabled
                 const updates: any = {
                     gsc_connected: true,
-                    google_refresh_token: rt, // Fallback for legacy services
+                    google_refresh_token: rt,
                 };
 
-                console.log("[DEBUG] Updating projects for user...");
-                const { error: updateError, data: updatedData } = await supabase
+                console.log("[DEBUG] Updating projects table for user_id:", userId);
+                const { data: updatedData, error: updateError } = await supabase
                     .from("projects")
                     .update(updates)
                     .eq("user_id", userId)
                     .select('id');
 
+                if (updateError) {
+                    console.error("[DEBUG] Error updating projects table:", updateError);
+                }
+
                 const count = updatedData ? updatedData.length : 0;
-                console.log("[DEBUG] Projects affected:", count);
+                console.log("[DEBUG] Projects affected by update:", count);
 
                 // Even if count is 0, we consider success because the USER level token is saved
                 setStatus("success");
