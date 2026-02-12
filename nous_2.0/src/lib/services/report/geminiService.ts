@@ -93,7 +93,7 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
     };
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash', 'gemini-2.0-flash-exp'];
+    const models = ['gemma-2-27b-it', 'gemma-2-9b-it', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
     for (const modelId of models) {
         try {
@@ -142,11 +142,26 @@ function simplifyPayload(payload: ReportPayload): any {
 
 export const generateHTMLReport = async (payload: ReportPayload, sections: string[], apiKey: string): Promise<string> => {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const models = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash'];
+    // Expanded model list including Gemma 3 as requested
+    const models = [
+        'gemma-3-27b-it',
+        'gemma-3-9b-it',
+        'gemma-2-27b-it',
+        'gemma-2-9b-it',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-8b'
+    ];
 
     // Intelligent payload reduction
     const simplifiedPayload = simplifyPayload(payload);
-    const safePayload = JSON.stringify(simplifiedPayload);
+    let safePayload = JSON.stringify(simplifiedPayload);
+
+    // Hard limit to 30k chars to ensure it fits in Flash/Gemma context
+    if (safePayload.length > 30000) {
+        console.warn(`[GEMINI-SERVICE] Payload too large (${safePayload.length}). Truncating to 30k chars.`);
+        safePayload = safePayload.substring(0, 30000);
+    }
 
     console.log(`[GEMINI-SERVICE] Generating Report. Payload Size: ${safePayload.length} chars (Original: ${JSON.stringify(payload).length})`);
 
