@@ -77,11 +77,10 @@ async function generateAiRules(summary: string, contextType: string, apiKey: str
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const modelsToTry = [
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-8b',
-        'gemini-2.0-flash',
-        'gemma-2-27b-it',
-        'gemma-2-9b-it'
+        'gemini-3-flash-preview',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-1.5-flash'
     ];
 
     let lastError: any = null;

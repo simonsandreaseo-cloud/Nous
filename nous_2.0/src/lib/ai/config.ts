@@ -9,8 +9,10 @@ export const AI_CONFIG = {
     gemini: {
         apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
         models: {
-            pro: 'gemini-2.5-pro', // Specifically requested by user
-            flash: 'gemini-1.5-flash-002' // Safe fallback
+            pro: 'gemini-3-flash-preview', // Newest Frontier
+            flash: 'gemini-2.5-flash', // Stable Workhorse
+            lite: 'gemini-2.5-flash-lite', // Cost Efficient
+            fallback: 'gemini-1.5-flash' // Legacy Safety
         }
     },
     openai: {

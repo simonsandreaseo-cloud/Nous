@@ -93,12 +93,15 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
     };
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const models = ['gemma-2-27b-it', 'gemma-2-9b-it', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const models = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
 
     for (const modelId of models) {
         try {
             console.log(`[GEMINI-SERVICE] Dispatcher checking model: ${modelId}`);
-            const model = genAI.getGenerativeModel({ model: modelId });
+            const model = genAI.getGenerativeModel({
+                model: modelId,
+                generationConfig: { responseMimeType: "application/json" }
+            });
             const result = await model.generateContent([
                 { text: SYSTEM_PROMPT_DISPATCHER },
                 { text: `Here is the Findings Summary:\n${JSON.stringify(findingsSummary)}` }
@@ -142,25 +145,24 @@ function simplifyPayload(payload: ReportPayload): any {
 
 export const generateHTMLReport = async (payload: ReportPayload, sections: string[], apiKey: string): Promise<string> => {
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Expanded model list including Gemma 3 as requested
+    // Updated hierarchy based on user request (Gemini 3 > 2.5 > 1.5)
     const models = [
-        'gemma-3-27b-it',
-        'gemma-3-9b-it',
-        'gemma-2-27b-it',
-        'gemma-2-9b-it',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-8b'
+        'gemini-3-flash-preview',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-1.5-flash'
     ];
 
     // Intelligent payload reduction
     const simplifiedPayload = simplifyPayload(payload);
     let safePayload = JSON.stringify(simplifiedPayload);
 
-    // Hard limit to 30k chars to ensure it fits in Flash/Gemma context
-    if (safePayload.length > 30000) {
-        console.warn(`[GEMINI-SERVICE] Payload too large (${safePayload.length}). Truncating to 30k chars.`);
-        safePayload = safePayload.substring(0, 30000);
+    // Hard limit to 150k chars (Gemini Flash has 1M context, 30k was too conservative)
+    // 150k chars is approx 30k-40k tokens, well within limits.
+    const MAX_CHARS = 150000;
+    if (safePayload.length > MAX_CHARS) {
+        console.warn(`[GEMINI-SERVICE] Payload too large (${safePayload.length}). Truncating to ${MAX_CHARS} chars.`);
+        safePayload = safePayload.substring(0, MAX_CHARS);
     }
 
     console.log(`[GEMINI-SERVICE] Generating Report. Payload Size: ${safePayload.length} chars (Original: ${JSON.stringify(payload).length})`);
@@ -228,7 +230,8 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash'
+        model: 'gemini-2.5-flash-lite', // Upgrade to 2.5 Lite for speed/cost
+        generationConfig: { responseMimeType: "application/json" }
     });
 
     try {
