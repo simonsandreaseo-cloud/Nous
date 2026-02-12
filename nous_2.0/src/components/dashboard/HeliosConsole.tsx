@@ -158,7 +158,7 @@ export default function HeliosConsole() {
                                     "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
                                     value ? "bg-purple-500 border-purple-500 shadow-lg shadow-purple-500/20" : "border-slate-300 group-hover:border-purple-300"
                                 )}>
-                                    {value && <CheckCircle size={12} className="text-white" />}
+                                    {!!value && <CheckCircle size={12} className="text-white" />}
                                 </div>
                                 <input
                                     type="checkbox"
@@ -355,6 +355,6 @@ export default function HeliosConsole() {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 }
