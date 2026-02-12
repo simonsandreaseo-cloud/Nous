@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import { GscRow } from '@/lib/services/report/analysisService';
+import { GscRow } from '@/types/report';
 
 // Reusing the robust logic from original code
 export const parseCSV = (file: File): Promise<GscRow[]> => {
