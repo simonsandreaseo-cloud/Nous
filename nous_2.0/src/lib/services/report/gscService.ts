@@ -1,5 +1,7 @@
 import { google } from 'googleapis';
 import { supabase } from '@/lib/supabase';
+import { subDays, format } from 'date-fns';
+import { SegmentationService } from '@/lib/services/report/segmentationService';
 
 // Helper to format rows
 const formatRow = (row: any, dimensions: string[]) => {
