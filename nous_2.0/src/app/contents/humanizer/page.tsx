@@ -520,7 +520,7 @@ export default function HumanizerPage() {
     // =================================================================
 
     return (
-        <div className="min-h-screen bg-[#f7f7f9] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+        <div className="h-screen w-full overflow-y-auto overflow-x-hidden bg-[#f7f7f9] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
             <NavigationHeader />
 
             <main className="max-w-7xl mx-auto pt-32 pb-20 px-6 md:px-8">
