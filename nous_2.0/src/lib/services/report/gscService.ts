@@ -35,17 +35,26 @@ export const GscService = {
         try {
             console.log(`[GSC-SERVICE] Searching in DB for Project ID: "${projectId}"`);
 
-            // 1. Get Project & User Token - Using dynamic client creation to handle possible RLS issues
+            // 1. Get Project
             const getProject = async () => {
                 const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
                 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
+                // Try with standard client first
+                const { data: stdProject, error: stdError } = await supabase.from('projects').select('user_id, gsc_site_url, domain').eq('id', projectId).maybeSingle();
+                if (stdProject) return { data: { ...stdProject, source: 'standard' }, error: null };
+                if (stdError) console.warn("[GSC-SERVICE] Standard client project lookup error:", stdError.message);
+
+                // Fallback to Admin Client if we have the key
                 if (adminKey) {
+                    console.log("[GSC-SERVICE] Falling back to Admin Client for project lookup...");
                     const adminClient = createClient(url, adminKey);
-                    return await adminClient.from('projects').select('user_id, gsc_site_url, domain').eq('id', projectId).maybeSingle();
+                    const { data: admProject, error: admError } = await adminClient.from('projects').select('user_id, gsc_site_url, domain').eq('id', projectId).maybeSingle();
+                    if (admProject) return { data: { ...admProject, source: 'admin' }, error: null };
+                    return { data: null, error: admError }; // Return admin error if project not found with admin client
                 }
 
-                return await supabase.from('projects').select('user_id, gsc_site_url, domain').eq('id', projectId).maybeSingle();
+                return { data: null, error: stdError }; // If no admin key, return the original standard error
             };
 
             const { data: project, error: projectError } = await getProject();
@@ -56,25 +65,37 @@ export const GscService = {
             }
 
             if (!project) {
-                console.error("[GSC-SERVICE] Project not found for ID:", projectId);
+                console.error("[GSC-SERVICE] Project not found in DB (checked standard and admin Fallback)");
                 // Check if any projects exist at all to debug RLS
                 const { count } = await supabase.from('projects').select('*', { count: 'exact', head: true });
                 console.log(`[GSC-SERVICE] RLS Check - Total projects visible to standard client: ${count || 0}`);
+                throw new Error("No se encontró el proyecto. Por favor, asegúrate de que el proyecto exista y de que hayas configurado las variables de entorno correctamente en Vercel.");
+            }
 
-                throw new Error("No se encontró el proyecto. Por favor, refresca la página, selecciona el proyecto de nuevo y asegúrate de que tenga una Propiedad GSC vinculada.");
+            console.log(`[GSC-SERVICE] Found Project: ${project.domain} (Site: ${project.gsc_site_url}). Source: ${project.source}`);
+
+            if (!project.gsc_site_url) {
+                console.error("[GSC-SERVICE] Project found but gsc_site_url is missing.");
+                throw new Error("El proyecto no tiene una Propiedad de GSC vinculada. Ve a Ajustes y selecciónala.");
             }
 
             console.log(`[GSC-SERVICE] Found Project: ${project.domain} (Site: ${project.gsc_site_url}). Fetching tokens for User: ${project.user_id}`);
 
-            const { data: tokens, error: tokenError } = await supabase
-                .from('user_gsc_tokens')
-                .select('refresh_token')
-                .eq('user_id', project.user_id)
-                .single();
+            const { data: tokens, error: tokenError } = await (async () => {
+                const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+                const { data: stdTokens } = await supabase.from('user_gsc_tokens').select('refresh_token').eq('user_id', project.user_id).maybeSingle();
+                if (stdTokens) return { data: stdTokens, error: null };
+
+                if (adminKey) {
+                    const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, adminKey);
+                    return await adminClient.from('user_gsc_tokens').select('refresh_token').eq('user_id', project.user_id).maybeSingle();
+                }
+                return { data: null, error: null };
+            })();
 
             if (tokenError || !tokens?.refresh_token) {
                 console.error("[GSC-SERVICE] Token lookup failed:", tokenError);
-                throw new Error("Usuario no ha conectado GSC (Token no encontrado)");
+                throw new Error("Usuario no ha conectado GSC (Token no encontrado o acceso denegado)");
             }
 
             if (!project.gsc_site_url) {
