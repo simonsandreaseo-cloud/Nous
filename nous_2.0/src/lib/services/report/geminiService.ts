@@ -94,7 +94,7 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash', // Updated to latest flash
+        model: 'gemini-1.5-flash', // Downgraded for better stability/tier availability
         contents: `Here is the Findings Summary:\n${JSON.stringify(findingsSummary)}`,
         config: {
             systemInstruction: SYSTEM_PROMPT_DISPATCHER,
@@ -130,7 +130,7 @@ ${JSON.stringify(payload).substring(0, 100000)}
 `;
 
     const response = await ai.models.generateContent({
-        model: 'gemini-2.0-pro-exp-02-05', // Using Pro for better writing
+        model: 'gemini-1.5-pro', // Using 1.5 Pro
         contents: userPrompt,
         config: {
             systemInstruction: SYSTEM_PROMPT_WRITER
@@ -164,7 +164,7 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-1.5-flash',
             contents: prompt,
             config: { responseMimeType: "application/json" }
         });
