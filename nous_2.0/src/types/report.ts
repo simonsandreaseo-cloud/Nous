@@ -45,6 +45,10 @@ export interface SiteWideKPIs {
     ctrP1: number;
     ctrP2: number;
     ctrChange: number;
+    avgPos: number;
+    avgPosP1: number;
+    avgPosP2: number;
+    avgPosChange: number;
 }
 
 export interface SeoStatus {
