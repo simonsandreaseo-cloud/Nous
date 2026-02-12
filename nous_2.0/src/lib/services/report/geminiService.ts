@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ReportPayload } from "@/types/report";
 
 // Prompts del Sistema (Preservados del original para mantener la calidad del reporte)
@@ -92,18 +92,15 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
         countries: payload.countryAnalysis.length
     };
 
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash', // Downgraded for better stability/tier availability
-        contents: `Here is the Findings Summary:\n${JSON.stringify(findingsSummary)}`,
-        config: {
-            systemInstruction: SYSTEM_PROMPT_DISPATCHER,
-            responseMimeType: "application/json"
-        }
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        generationConfig: { responseMimeType: "application/json" },
+        systemInstruction: SYSTEM_PROMPT_DISPATCHER
     });
 
-    // @ts-ignore
-    const text = typeof response.text === 'function' ? response.text() : response.text;
+    const response = await model.generateContent(`Here is the Findings Summary:\n${JSON.stringify(findingsSummary)}`);
+    const text = response.response.text();
     if (!text) throw new Error("Dispatcher returned empty response");
 
     try {
@@ -116,8 +113,6 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
 };
 
 export const generateHTMLReport = async (payload: ReportPayload, sections: string[], apiKey: string): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey });
-
     const userPrompt = `
 --- USER CONTEXT ---
 ${payload.userContext || 'No specific context.'}
@@ -129,16 +124,14 @@ ${JSON.stringify(sections)}
 ${JSON.stringify(payload).substring(0, 100000)} 
 `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-1.5-pro', // Using 1.5 Pro
-        contents: userPrompt,
-        config: {
-            systemInstruction: SYSTEM_PROMPT_WRITER
-        }
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+        model: 'gemini-1.5-pro',
+        systemInstruction: SYSTEM_PROMPT_WRITER
     });
 
-    // @ts-ignore
-    return (typeof response.text === 'function' ? response.text() : response.text) || "<p>Error generating report text.</p>";
+    const result = await model.generateContent(userPrompt);
+    return result.response.text() || "<p>Error generating report text.</p>";
 };
 
 export const identifyAiTrafficSources = async (sources: string[], apiKey: string): Promise<string[]> => {
@@ -151,8 +144,6 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
     // If we have explicit AI sources, we might trust regex, but Gemini is smarter for ambiguous ones.
     // Let's use Gemini for the full list to catch new ones.
 
-    const ai = new GoogleGenAI({ apiKey });
-
     const prompt = `
     Analyze this list of web traffic sources/referrers.
     Return a JSON array of strings containing ONLY the sources that are AI Chatbots, LLMs, or AI Search Assistants.
@@ -162,15 +153,15 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
     List: ${JSON.stringify(sources)}
     `;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        generationConfig: { responseMimeType: "application/json" }
+    });
 
-        // @ts-ignore
-        const text = typeof response.text === 'function' ? response.text() : response.text;
+    try {
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
         if (!text) return candidates;
 
         const aiSources = JSON.parse(text);

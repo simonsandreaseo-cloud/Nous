@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 interface SegmentRule {
     name: string;
@@ -59,8 +59,6 @@ export const SegmentationService = {
 };
 
 async function generateAiRules(summary: string, contextType: string, apiKey: string): Promise<SegmentRule[]> {
-    const ai = new GoogleGenAI({ apiKey });
-
     // Specialized prompt based on context
     const isRoot = contextType === "Root URL Patterns";
 
@@ -77,18 +75,17 @@ async function generateAiRules(summary: string, contextType: string, apiKey: str
     IMPORTANT: Return ONLY JSON.
     `;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: `SUMMARY:\n${summary}`,
-            config: {
-                systemInstruction: systemPrompt,
-                responseMimeType: "application/json"
-            }
-        });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        generationConfig: { responseMimeType: "application/json" },
+        systemInstruction: systemPrompt
+    });
 
-        // @ts-ignore
-        const text = typeof response.text === 'function' ? response.text() : response.text;
+    try {
+        const result = await model.generateContent(`SUMMARY:\n${summary}`);
+        const response = await result.response;
+        const text = response.text();
         if (!text) return [];
         return JSON.parse(text);
     } catch (e) {
