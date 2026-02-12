@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
     const { data: project } = await supabase
         .from('projects')
-        .select('google_refresh_token, domain')
+        .select('google_refresh_token, domain, gsc_site_url')
         .eq('id', projectId)
         .single();
 
@@ -30,10 +30,15 @@ export async function GET(req: Request) {
 
     const searchconsole = google.searchconsole({ version: 'v1', auth: oauth2Client });
 
+    // Use gsc_site_url if available, else fallback to domain logic
+    const siteUrl = project.gsc_site_url || (
+        project.domain.startsWith('http') ? project.domain : `sc-domain:${project.domain}`
+    );
+
     const res = await searchconsole.searchanalytics.query({
-        siteUrl: project.domain,
+        siteUrl,
         requestBody: {
-            startDate: '2026-01-01', // Example static date for now, should be dynamic
+            startDate: '2026-01-01',
             endDate: 'today',
             dimensions: ['date'],
             rowLimit: 10
