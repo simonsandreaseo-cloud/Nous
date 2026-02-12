@@ -131,15 +131,20 @@ export default function SettingsPage() {
     };
 
     const handleDelete = async (id: string, name: string) => {
-        if (confirm(`¿Estás seguro de que deseas eliminar el proyecto "${name}"? Esta acción no se puede deshacer.`)) {
-            try {
-                await deleteProject(id);
-                // The store handles the filter, but re-fetching ensures DB consistency
-                await fetchProjects();
-                alert("Proyecto eliminado.");
-            } catch (e: any) {
-                alert("Error al eliminar: " + e.message);
-            }
+        if (!confirm(`¿Estás seguro de que deseas eliminar el proyecto "${name}"? Esta acción no se puede deshacer.`)) return;
+
+        setIsSaving(true);
+        try {
+            await deleteProject(id);
+            // After successful delete, we don't necessarily need to fetchProjects if the store is updated
+            // but fetching ensures we are in sync with any DB-side changes.
+            await fetchProjects();
+            alert("Proyecto eliminado correctamente.");
+        } catch (e: any) {
+            console.error("Delete failed:", e);
+            alert("No se pudo eliminar el proyecto. Probablemente tenga datos asociados (tareas, informes) que bloquean el borrado. \n\nError: " + (e.message || "Error desconocido"));
+        } finally {
+            setIsSaving(false);
         }
     };
 

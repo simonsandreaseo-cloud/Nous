@@ -153,21 +153,26 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     deleteProject: async (projectId) => {
+        set({ isLoading: true });
         const { error } = await supabase
             .from('projects')
             .delete()
             .eq('id', projectId);
 
         if (error) {
+            set({ isLoading: false });
             console.error('Error deleting project:', error);
-            alert(`No se pudo eliminar el proyecto: ${error.message}`);
-            return;
+            throw error;
         }
 
-        set(state => ({
-            projects: state.projects.filter(p => p.id !== projectId),
-            activeProject: state.activeProject?.id === projectId ? null : state.activeProject
-        }));
+        const currentProjects = get().projects;
+        const newProjects = currentProjects.filter(p => p.id !== projectId);
+
+        set({
+            projects: newProjects,
+            activeProject: get().activeProject?.id === projectId ? (newProjects[0] || null) : get().activeProject,
+            isLoading: false
+        });
     },
 
     syncGscData: async (siteUrl, startDate, endDate) => {

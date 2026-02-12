@@ -43,7 +43,8 @@ export default function ReportGeneratorPage() {
     const [saveTitle, setSaveTitle] = useState('');
     const [showSaveModal, setShowSaveModal] = useState(false);
 
-    const gscProjects = projects.filter(p => p.gsc_connected);
+    // We show all projects but we'll mark the ones not connected
+    const gscProjects = projects;
 
     useEffect(() => {
         // Fetch projects on mount to ensure we have the latest GSC states
@@ -212,8 +213,8 @@ export default function ReportGeneratorPage() {
                         <Sparkles size={14} className="text-purple-600" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">IA Generativa v2.0</span>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 uppercase italic mb-6">
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Deep</span> Report Generator
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 uppercase italic mb-6 leading-tight py-2">
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 px-1">Deep</span> Report Generator
                     </h1>
 
                     {/* Main Tabs */}
@@ -255,15 +256,19 @@ export default function ReportGeneratorPage() {
                                         >
                                             <option value="" disabled>Seleccionar Proyecto</option>
                                             {gscProjects.length > 0 ? (
-                                                gscProjects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.domain})</option>)
+                                                gscProjects.map(p => (
+                                                    <option key={p.id} value={p.id}>
+                                                        {p.name} {p.gsc_connected ? `(${p.domain})` : "(No vinculado)"}
+                                                    </option>
+                                                ))
                                             ) : (
-                                                <option value="" disabled>No hay proyectos conectados</option>
+                                                <option value="" disabled>No hay proyectos creados</option>
                                             )}
                                         </select>
-                                        {gscProjects.length === 0 && (
+                                        {!activeProject?.gsc_connected && activeProject && (
                                             <p className="text-[9px] text-amber-600 mt-2 font-medium bg-amber-50 p-2 rounded-lg border border-amber-100 flex items-center gap-1">
                                                 <AlertCircle size={10} />
-                                                Veb a Ajustes para vincular tus sitios.
+                                                Este proyecto no tiene vinculada una propiedad de GSC. Ve a Ajustes.
                                             </p>
                                         )}
                                     </div>
