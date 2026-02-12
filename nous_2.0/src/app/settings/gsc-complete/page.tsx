@@ -64,7 +64,28 @@ function GscCompleteContent() {
                 // If no projects were updated, maybe the user has no projects?
                 // Or maybe RLS blocked it?
                 if (count === 0) {
-                    console.warn("[DEBUG] No projects were updated! Possible RLS issue or no projects for this user ID.");
+                    console.warn("[DEBUG] No projects were updated! Possible RLS issue or no projects for this user ID. Attempting to create one.");
+
+                    // Create a new project automatically so the connection isn't "lost"
+                    const { error: createError } = await supabase.from("projects").insert({
+                        user_id: userId,
+                        name: "Sitio Importado (GSC)",
+                        domain: "pendiente-configurar.com",
+                        gsc_connected: true,
+                        gsc_expiration: ex ? parseInt(ex) : null,
+                        gsc_access_token: at,
+                        google_refresh_token: rt,
+                        budget_settings: { type: 'count', target: 10, current: 0, mode: 'target' },
+                        scraper_settings: { paths: ["/"] }
+                    });
+
+                    if (createError) {
+                        console.error("Error creating fallback project:", createError);
+                        // We don't throw here, just log, so the user flow continues to "success"
+                        // but they might not see a project.
+                    } else {
+                        console.log("Fallback project created successfully.");
+                    }
                 }
 
                 // Also upsert centralized tokens
