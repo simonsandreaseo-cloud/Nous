@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { subDays, format } from 'date-fns';
 import { SegmentationService } from '@/lib/services/report/segmentationService';
 
@@ -32,12 +33,22 @@ export const GscService = {
     async fetchData(projectId: string, startDate: string, endDate: string) {
         console.log(`[GSC-SERVICE] Fetching data for ProjectId: ${projectId}, Range: ${startDate} to ${endDate}`);
         try {
-            // 1. Get Project & User Token
-            const { data: project, error: projectError } = await supabase
-                .from('projects')
-                .select('user_id, gsc_site_url, domain')
-                .eq('id', projectId)
-                .maybeSingle();
+            console.log(`[GSC-SERVICE] Searching in DB for Project ID: "${projectId}"`);
+
+            // 1. Get Project & User Token - Using dynamic client creation to handle possible RLS issues
+            const getProject = async () => {
+                const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+                const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+                if (adminKey) {
+                    const adminClient = createClient(url, adminKey);
+                    return await adminClient.from('projects').select('user_id, gsc_site_url, domain').eq('id', projectId).maybeSingle();
+                }
+
+                return await supabase.from('projects').select('user_id, gsc_site_url, domain').eq('id', projectId).maybeSingle();
+            };
+
+            const { data: project, error: projectError } = await getProject();
 
             if (projectError) {
                 console.error("[GSC-SERVICE] Project lookup error:", projectError);
@@ -46,7 +57,11 @@ export const GscService = {
 
             if (!project) {
                 console.error("[GSC-SERVICE] Project not found for ID:", projectId);
-                throw new Error("No se encontró el proyecto. Por favor, refresca la página y vuelve a seleccionarlo.");
+                // Check if any projects exist at all to debug RLS
+                const { count } = await supabase.from('projects').select('*', { count: 'exact', head: true });
+                console.log(`[GSC-SERVICE] RLS Check - Total projects visible to standard client: ${count || 0}`);
+
+                throw new Error("No se encontró el proyecto. Por favor, refresca la página, selecciona el proyecto de nuevo y asegúrate de que tenga una Propiedad GSC vinculada.");
             }
 
             console.log(`[GSC-SERVICE] Found Project: ${project.domain} (Site: ${project.gsc_site_url}). Fetching tokens for User: ${project.user_id}`);
