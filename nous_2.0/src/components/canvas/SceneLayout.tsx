@@ -56,7 +56,7 @@ export default function SceneLayout({ children }: Props) {
 
         {/* INTEGRATED BACKGROUND SHADER FOR REFRACTION */}
         {/* Placed here so the Orb can see it and refract it */}
-        <BackgroundMesh />
+        {/* <BackgroundMesh /> */}
 
         {children}
 

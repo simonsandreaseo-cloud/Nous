@@ -47,7 +47,7 @@ export default function HomeClient() {
             id="main-content"
             className={cn(
                 "relative w-full h-screen overflow-hidden transition-colors duration-700",
-                highContrast ? "bg-black" : "bg-transparent"
+                highContrast ? "bg-black" : "bg-[url('/Fondo_Nous.webp')] bg-cover bg-center bg-no-repeat w-full h-full fixed inset-0"
             )}
         >
 
@@ -70,8 +70,8 @@ export default function HomeClient() {
                         {/* <NousText3D /> */}
                         {/* <CurvedGrid /> */}
 
-                        <TaskField />
-                        <CurvedGrid />
+                        {/* <TaskField /> */}
+                        {/* <CurvedGrid /> */}
 
                         <group position={[0, -0.8, -4.5]} scale={1.4}>
                             <NousOrb />

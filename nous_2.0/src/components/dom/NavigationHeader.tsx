@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import Link from "next/link";
 import { User, LogOut, Wrench, ChevronDown, ChevronRight, FileText, Bot, LayoutTemplate, Calendar, Search, Activity, Building2, Settings, Wand2 } from "lucide-react";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
+import { NeuralLinkStatus } from "@/components/dashboard/NeuralLinkStatus";
 
 export function NavigationHeader() {
     const { user, signOut } = useAuthStore();
@@ -18,6 +19,8 @@ export function NavigationHeader() {
                 </Link>
                 {/* Project Selector embedded in header */}
                 <ProjectSelector />
+                <div className="h-4 w-px bg-slate-200" />
+                <NeuralLinkStatus />
             </div>
 
             {/* Centered Navigation */}

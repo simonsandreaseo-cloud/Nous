@@ -58,6 +58,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { CommandPalette } from "@/components/dashboard/CommandPalette";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -99,6 +101,7 @@ export default function RootLayout({
         </a>
 
         <AuthProvider>
+          <CommandPalette />
           {children}
         </AuthProvider>
 

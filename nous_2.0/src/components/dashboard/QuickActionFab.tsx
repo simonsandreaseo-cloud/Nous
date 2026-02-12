@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, FileText, Upload, Sparkles, X } from "lucide-react";
+import { Plus, FileText, Upload, Sparkles, X, Activity, Database, Search } from "lucide-react";
 import Link from "next/link";
 
 export function QuickActionFab() {
@@ -10,8 +10,10 @@ export function QuickActionFab() {
 
     const actions = [
         { label: "Nuevo Artículo AI", icon: Sparkles, color: "bg-cyan-500", href: "/writer" },
-        { label: "Subir DOCX / CSV", icon: Upload, color: "bg-emerald-500", href: "/writer?mode=setup" },
-        { label: "Humanizador Directo", icon: FileText, color: "bg-slate-800", href: "/writer?mode=humanize" },
+        { label: "Cargar para Humanizar", icon: FileText, color: "bg-indigo-500", href: "/writer?mode=humanize" },
+        { label: "Deep Audit (Helios)", icon: Activity, color: "bg-rose-500", href: "/estrategia?view=helios" },
+        { label: "Refinería de Datos", icon: Database, color: "bg-emerald-500", href: "/estrategia?view=refinery" },
+        { label: "Deep Crawler", icon: Search, color: "bg-slate-800", href: "/estrategia?view=crawler" },
     ];
 
     return (

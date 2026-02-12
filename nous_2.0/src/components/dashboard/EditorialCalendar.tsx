@@ -36,15 +36,18 @@ import {
     LayoutList,
     TableProperties,
     LayoutDashboard,
-    Upload
+    Upload,
+    Database
 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { NotificationService } from "@/lib/services/notifications";
 import { parseDocx, parseHtml } from "../tools/writer/services";
 import Papa from "papaparse";
+import StrategyGrid from "./StrategyGrid";
 
 import { StrategyService } from "@/lib/services/strategy";
 
@@ -297,7 +300,7 @@ export function EditorialCalendar() {
                         </div>
                     </div>
                 ) : (
-                    <EditorialGrid tasks={tasks} onSelectTask={setSelectedTask} onUpdateTask={updateTask} />
+                    <StrategyGrid onSelectTask={setSelectedTask} />
                 )}
             </div>
 
@@ -623,62 +626,13 @@ export function EditorialCalendar() {
     );
 }
 
-function EditorialGrid({ tasks, onSelectTask, onUpdateTask }: { tasks: Task[], onSelectTask: (t: Task) => void, onUpdateTask: (id: string, updates: any) => void }) {
-    const sortedTasks = [...tasks].sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
 
-    return (
-        <div className="flex-1 overflow-auto p-8">
-            <table className="w-full border-separate border-spacing-y-2">
-                <thead>
-                    <tr className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-left">
-                        <th className="px-6 py-4">Estado</th>
-                        <th className="px-6 py-4">Fecha</th>
-                        <th className="px-6 py-4">Título del Contenido</th>
-                        <th className="px-6 py-4">Brief / Keywords</th>
-                        <th className="px-6 py-4 text-right">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {sortedTasks.map(task => (
-                        <tr
-                            key={task.id}
-                            onClick={() => onSelectTask(task)}
-                            className="group bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer"
-                        >
-                            <td className="px-6 py-4 first:rounded-l-2xl">
-                                <div className={cn(
-                                    "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest inline-flex",
-                                    task.status === "done" ? "bg-emerald-100 text-emerald-600" : "bg-purple-100 text-purple-600"
-                                )}>
-                                    {task.status}
-                                </div>
-                            </td>
-                            <td className="px-6 py-4">
-                                <span className="text-xs font-bold text-slate-500">{format(new Date(task.scheduled_date), "dd MMM yyyy", { locale: es })}</span>
-                            </td>
-                            <td className="px-6 py-4">
-                                <span className="text-sm font-black text-slate-900 tracking-tight">{task.title}</span>
-                            </td>
-                            <td className="px-6 py-4">
-                                <span className="text-xs text-slate-400 line-clamp-1">{task.brief || "--"}</span>
-                            </td>
-                            <td className="px-6 py-4 text-right last:rounded-r-2xl">
-                                <button className="p-2 hover:bg-slate-50 rounded-xl transition-all">
-                                    <MoreVertical size={16} className="text-slate-300" />
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-}
 
 function MassSchedulingModal({ onClose }: { onClose: () => void }) {
     const [pastedData, setPastedData] = useState("");
     const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [parsedTasks, setParsedTasks] = useState<any[]>([]);
+    const [enrichWithSEO, setEnrichWithSEO] = useState(false);
     const { activeProject, addTask } = useProjectStore();
     const [isSaving, setIsSaving] = useState(false);
 
@@ -775,25 +729,52 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
     const handleSave = async () => {
         if (!activeProject) return;
         setIsSaving(true);
-        for (const task of parsedTasks) {
-            await addTask({
-                project_id: activeProject.id,
-                title: task.title,
-                scheduled_date: task.scheduled_date,
-                status: "todo",
-                brief: task.brief || "",
-                target_keyword: task.target_keyword,
-                volume: task.volume,
-                viability: task.viability,
-                refs: task.refs,
-                word_count: task.word_count,
-                ai_percentage: task.ai_percentage,
-                docs_url: task.docs_url,
-                layout_status: task.layout_status
-            });
+
+        try {
+            let tasksToSave = [...parsedTasks];
+
+            if (enrichWithSEO) {
+                const keywords = tasksToSave.map(t => t.target_keyword).filter(Boolean);
+                if (keywords.length > 0) {
+                    const response = await fetch('/api/dataforseo/keywords', {
+                        method: 'POST',
+                        body: JSON.stringify({ keywords })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        tasksToSave = tasksToSave.map(t => {
+                            const match = result.data.find((m: any) => m.keyword.toLowerCase() === t.target_keyword.toLowerCase());
+                            return match ? { ...t, volume: match.search_volume, viability: match.competition_level } : t;
+                        });
+                    }
+                }
+            }
+
+            for (const task of tasksToSave) {
+                await addTask({
+                    project_id: activeProject.id,
+                    title: task.title,
+                    scheduled_date: task.scheduled_date,
+                    status: "todo",
+                    brief: task.brief || "",
+                    target_keyword: task.target_keyword,
+                    volume: task.volume,
+                    viability: task.viability,
+                    refs: task.refs,
+                    word_count: task.word_count,
+                    ai_percentage: task.ai_percentage,
+                    docs_url: task.docs_url,
+                    layout_status: task.layout_status
+                });
+            }
+            NotificationService.notify("Importación Exitosa", `Se han programado ${tasksToSave.length} nuevas tareas estratégicas.`);
+            onClose();
+        } catch (e: any) {
+            console.error("Import error:", e);
+            NotificationService.notify("Error de Importación", e.message || "No se pudo completar la carga masiva.");
+        } finally {
+            setIsSaving(false);
         }
-        setIsSaving(false);
-        onClose();
     };
 
     return (
@@ -825,6 +806,27 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                                         className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 transition-all font-bold text-slate-900"
                                     />
                                     <p className="text-[10px] text-slate-400 mt-2">Las tareas sin fecha en el CSV se programarán consecutivamente a partir de este día.</p>
+                                </div>
+
+                                <div className="pt-4 border-t border-slate-200">
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <div className={cn(
+                                            "w-6 h-6 rounded-lg border flex items-center justify-center transition-all",
+                                            enrichWithSEO ? "bg-cyan-500 border-cyan-500 shadow-lg shadow-cyan-500/20" : "bg-white border-slate-200 group-hover:border-cyan-200"
+                                        )}>
+                                            {enrichWithSEO && <Database size={14} className="text-white" />}
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            className="hidden"
+                                            checked={enrichWithSEO}
+                                            onChange={(e) => setEnrichWithSEO(e.target.checked)}
+                                        />
+                                        <div>
+                                            <span className="text-xs font-black text-slate-900 uppercase tracking-tight block">Enriquecer con DataForSEO</span>
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block opacity-70">Obtiene volumen y viabilidad en vivo</span>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
                         </div>

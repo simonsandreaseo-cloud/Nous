@@ -19,6 +19,12 @@ interface AppState {
     // System Status
     systemStatus: 'nominal' | 'analyzing' | 'error' | 'loading';
     setSystemStatus: (status: 'nominal' | 'analyzing' | 'error' | 'loading') => void;
+
+    neuralLinkStatus: 'connected' | 'offline' | 'searching';
+    setNeuralLinkStatus: (status: 'connected' | 'offline' | 'searching') => void;
+
+    neuralTrend: 'up' | 'down' | 'neutral';
+    setNeuralTrend: (trend: 'up' | 'down' | 'neutral') => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -36,4 +42,10 @@ export const useAppStore = create<AppState>((set) => ({
 
     systemStatus: 'nominal',
     setSystemStatus: (status) => set({ systemStatus: status }),
+
+    neuralLinkStatus: 'offline',
+    setNeuralLinkStatus: (status) => set({ neuralLinkStatus: status }),
+
+    neuralTrend: 'neutral',
+    setNeuralTrend: (trend) => set({ neuralTrend: trend }),
 }));

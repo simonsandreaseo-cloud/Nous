@@ -41,6 +41,7 @@ function InnerStructure() {
  * NousOrb Component
  * Central focal point with interactive glass refraction.
  */
+/*
 const OrbitalSatellites = () => {
     const groupRef = useRef<Group>(null!);
 
@@ -52,8 +53,7 @@ const OrbitalSatellites = () => {
     });
 
     return (
-        <group ref={groupRef}>
-            {/* Tiny white satellites */}
+        <group ref={groupRef}>    
             {[
                 { pos: [2.5, 0.5, 0], speed: 1 },
                 { pos: [-2, 1.2, 1.5], speed: 0.8 },
@@ -70,11 +70,14 @@ const OrbitalSatellites = () => {
         </group>
     );
 };
+*/
 
 export function NousOrb() {
     const orbRef = useRef<Mesh>(null!);
     const hoveredItem = useAppStore((state) => state.hoveredItem);
     const highContrast = useAppStore((state) => state.highContrast);
+    const status = useAppStore((state) => state.neuralLinkStatus);
+    const trend = useAppStore((state) => state.neuralTrend);
     const [isBursting, setIsBursting] = useState(false);
 
     const handleDoubleClick = () => {
@@ -96,6 +99,9 @@ export function NousOrb() {
         return () => { document.body.style.cursor = "auto"; };
     }, []);
 
+    const orbColor = trend === 'up' ? "#ecfdf5" : trend === 'down' ? "#fff1f2" : "#ffffff";
+    const accentColor = trend === 'up' ? "#10b981" : trend === 'down' ? "#f43f5e" : "#ffffff";
+
     return (
         <Float
             speed={isBursting ? 10 : 2}
@@ -104,7 +110,7 @@ export function NousOrb() {
             floatingRange={[-0.1, 0.1]}
         >
             <group position={[0, 1.2, 0]}>
-                <OrbitalSatellites />
+                {/* <OrbitalSatellites /> */}
 
                 {/* Main Glass Orb */}
                 <animated.mesh
@@ -122,17 +128,17 @@ export function NousOrb() {
                         thickness={0.2}
                         chromaticAberration={0.03}
                         anisotropy={0.1}
-                        distortion={0.5}
-                        distortionScale={0.5}
-                        temporalDistortion={0.1}
-                        ior={1.5}
+                        distortion={status === 'connected' ? 0.8 : 0.5}
+                        distortionScale={status === 'connected' ? 1.0 : 0.5}
+                        temporalDistortion={status === 'connected' ? 0.2 : 0.1}
+                        ior={status === 'connected' ? 1.8 : 1.5}
                         transmission={1.0}
                         roughness={0}
                         clearcoat={1}
                         clearcoatRoughness={0}
-                        color="#ffffff"
+                        color={orbColor}
                         attenuationDistance={Infinity}
-                        attenuationColor="#ffffff"
+                        attenuationColor={accentColor}
                         toneMapped={false}
                         transparent={true}
                     />
