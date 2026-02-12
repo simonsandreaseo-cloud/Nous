@@ -224,19 +224,18 @@ export default function HumanizerPage() {
     const [notes, setNotes] = useState("");
 
     // Model Selection
-    const [selectedModel, setSelectedModel] = useState("gemini-1.5-flash");
+    const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
 
-    // Available Models based on User Feedback
+    // Available Models based on User Screenshot
     const AVAILABLE_MODELS = [
-        { id: "gemini-3.0-flash-exp", name: "Gemini 3 Flash (Experimental)" },
-        { id: "gemini-2.5-flash-preview", name: "Gemini 2.5 Flash (Preview)" },
-        { id: "gemini-2.5-flash-lite-preview", name: "Gemini 2.5 Flash Lite (Preview)" },
-        { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash (Experimental)" },
-        { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
-        { id: "gemini-1.5-flash-8b", name: "Gemini 1.5 Flash-8B" },
-        { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
-        { id: "gemini-exp-1206", name: "Gemini Experimental 1206" },
-        { id: "gemini-2.0-pro-exp", name: "Gemini 2.0 Pro (Experimental)" },
+        { id: "gemini-3.0-flash", name: "Gemini 3 Flash" },
+        { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+        { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite" },
+        { id: "gemma-3-27b-it", name: "Gemma 3 27B" },
+        { id: "gemma-3-12b-it", name: "Gemma 3 12B" },
+        { id: "gemma-3-4b-it", name: "Gemma 3 4B" },
+        { id: "gemma-3-2b-it", name: "Gemma 3 2B" },
+        { id: "gemma-3-1b-it", name: "Gemma 3 1B" },
     ];
 
     const [modelList, setModelList] = useState(AVAILABLE_MODELS);
