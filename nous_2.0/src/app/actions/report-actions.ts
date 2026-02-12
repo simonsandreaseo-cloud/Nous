@@ -256,3 +256,51 @@ export async function getReportByIdAction(reportId: string) {
         return { success: false, error: e.message };
     }
 }
+
+export async function analyzeStructureAction(projectId: string) {
+    console.log("[SERVER ACTION] analyzeStructureAction started for Project:", projectId);
+    try {
+        const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+        if (!apiKey) throw new Error("API Key de IA no configurada");
+
+        // Fetch just the last 28 days to analyze structure
+        const end = new Date();
+        const start = subDays(end, 28);
+        const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
+
+        console.log(`[SERVER ACTION] Date Range: ${fmt(start)} to ${fmt(end)}`);
+
+        const data = await GscService.fetchData(projectId, fmt(start), fmt(end));
+
+        if (!data || !data.pageMetrics) {
+            throw new Error("No data returned from GSC Service");
+        }
+
+        const urls = data.pageMetrics.map((r: any) => r.page).filter(Boolean);
+        const uniqueUrls = Array.from(new Set(urls));
+        console.log(`[SERVER ACTION] Unique URLs found: ${uniqueUrls.length}`);
+
+        if (uniqueUrls.length === 0) {
+            console.warn("[SERVER ACTION] No URLs found in GSC data.");
+            console.log("[SERVER ACTION] analyzeStructureAction finished for Project:", projectId);
+            return { success: true, proposedRules: [], uncategorizedSample: [], totalUrls: 0, warning: "No se encontraron URLs en el período seleccionado." };
+        }
+
+        const proposedRules = await SegmentationService.generateSegmentRules(uniqueUrls, apiKey);
+        console.log(`[SERVER ACTION] Rules generated: ${proposedRules?.length || 0}`);
+
+        // Also provide a sample of uncategorized URLs for the UI
+        // We'll define 'uncategorized' as not matching any proposed rule
+        const categorize = (url: string) => proposedRules.some(r => new RegExp(r.regex).test(url));
+        const uncategorized = uniqueUrls.filter(u => !categorize(u)).slice(0, 50);
+
+        console.log("[SERVER ACTION] analyzeStructureAction finished for Project:", projectId);
+        return { success: true, proposedRules, uncategorizedSample: uncategorized, totalUrls: uniqueUrls.length };
+
+    } catch (e: any) {
+        console.error("Structure Analysis Error:", e);
+        // Important: Return a serializable object, do not throw if possible to avoid 500 crash in UI
+        console.log("[SERVER ACTION] analyzeStructureAction finished with error for Project:", projectId);
+        return { success: false, error: e.message || "Unknown Server Error" };
+    }
+}
