@@ -239,6 +239,46 @@ export default function HumanizerPage() {
         { id: "gemini-2.0-pro-exp", name: "Gemini 2.0 Pro (Experimental)" },
     ];
 
+    const [modelList, setModelList] = useState(AVAILABLE_MODELS);
+    const [isFetchingModels, setIsFetchingModels] = useState(false);
+
+    const fetchModels = async () => {
+        const key = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+        if (!key) {
+            alert("Necesitas una API Key para listar modelos.");
+            return;
+        }
+
+        setIsFetchingModels(true);
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+            const data = await response.json();
+
+            if (data.models) {
+                const apiModels = data.models
+                    .filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
+                    .map((m: any) => ({
+                        id: m.name.replace("models/", ""),
+                        name: m.displayName || m.name
+                    }))
+                    .sort((a: any, b: any) => b.id.localeCompare(a.id)); // Newest first usually
+
+                setModelList(prev => {
+                    // Merge unique models
+                    const existingIds = new Set(prev.map(p => p.id));
+                    const newModels = apiModels.filter((m: any) => !existingIds.has(m.id));
+                    return [...newModels, ...prev];
+                });
+                alert(`Se encontraron ${apiModels.length} modelos disponibles para tu API Key.`);
+            }
+        } catch (error) {
+            console.error("Error fetching models:", error);
+            alert("Error al obtener la lista de modelos. Verifica la consola.");
+        } finally {
+            setIsFetchingModels(false);
+        }
+    };
+
     // Estados de archivo y proceso
     const [docFile, setDocFile] = useState<File | null>(null);
     const [inputText, setInputText] = useState(""); // HTML hidden content
@@ -510,11 +550,22 @@ export default function HumanizerPage() {
 
                 {/* Model Selector */}
                 <div className="mb-6 p-4 bg-white rounded-xl shadow-sm border border-slate-200">
-                    <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                        <div className="p-1 bg-purple-50 text-purple-600 rounded">
-                            <Settings size={14} />
+                    <h2 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2 justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1 bg-purple-50 text-purple-600 rounded">
+                                <Settings size={14} />
+                            </div>
+                            Modelo de IA
                         </div>
-                        Modelo de IA
+                        <button
+                            onClick={fetchModels}
+                            disabled={isFetchingModels}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 disabled:opacity-50"
+                            title="Actualizar lista desde Google"
+                        >
+                            <Database size={12} />
+                            {isFetchingModels ? "Cargando..." : "Actualizar Lista"}
+                        </button>
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <select
@@ -522,9 +573,9 @@ export default function HumanizerPage() {
                             onChange={(e) => setSelectedModel(e.target.value)}
                             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                         >
-                            {AVAILABLE_MODELS.map(model => (
+                            {modelList.map(model => (
                                 <option key={model.id} value={model.id}>
-                                    {model.name}
+                                    {model.name} ({model.id})
                                 </option>
                             ))}
                             <option value="custom">Otro (Manual)...</option>
