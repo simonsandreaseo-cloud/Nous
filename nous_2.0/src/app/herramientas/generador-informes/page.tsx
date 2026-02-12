@@ -8,10 +8,7 @@ import { NavigationHeader } from '@/components/dom/NavigationHeader';
 import { ReportView } from '@/components/report-generator/ReportView';
 import { Loader2, Sparkles, FileText, Settings, AlertCircle, CheckCircle2, ListFilter, Trash2, Plus, History, Save, ChevronRight, LayoutGrid } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import { createClient } from '@supabase/supabase-js';
-
-// Init client-side supabase for auth
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+import { supabase } from '@/lib/supabase';
 
 export default function ReportGeneratorPage() {
     const { projects, activeProject, setActiveProject, fetchProjects } = useProjectStore();
@@ -213,8 +210,8 @@ export default function ReportGeneratorPage() {
                         <Sparkles size={14} className="text-purple-600" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-purple-600">IA Generativa v2.0</span>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 uppercase italic mb-6 leading-tight py-2">
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 px-1">Deep</span> Report Generator
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 uppercase italic mb-6 leading-tight py-4">
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 px-2 leading-relaxed inline-block">Deep</span> Report Generator
                     </h1>
 
                     {/* Main Tabs */}

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
+import { supabase } from "@/lib/supabase";
 
 export default function SettingsPage() {
     const { activeProject, projects, createProject, deleteProject, fetchProjects, updateProject, setActiveProject } = useProjectStore();
@@ -54,21 +55,21 @@ export default function SettingsPage() {
     useEffect(() => {
         const checkUserGsc = async () => {
             try {
-                const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+                const { data: { session } } = await supabase.auth.getSession();
                 if (session?.user) {
                     console.log("[DEBUG] Current Session User ID:", session.user.id);
                     if (activeProject) {
                         console.log("[DEBUG] Active Project User ID:", activeProject.user_id);
                     }
 
-                    const { data: tokens, error } = await (await import('@/lib/supabase')).supabase
+                    const { data: tokens, error } = await supabase
                         .from('user_gsc_tokens')
                         .select('id, user_id')
                         .eq('user_id', session.user.id)
                         .maybeSingle();
 
                     if (error) {
-                        console.error("[DEBUG] Error checking user GSC status (400?):", error);
+                        console.error("[DEBUG] Error checking user GSC status:", error);
                     }
                     setIsUserGscConnected(!!tokens);
                 }
@@ -93,7 +94,7 @@ export default function SettingsPage() {
             if ((activeProject?.gsc_connected || isUserGscConnected)) {
                 setIsLoadingSites(true);
                 try {
-                    const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+                    const { data: { session } } = await supabase.auth.getSession();
                     const res = await fetch('/api/gsc/sites', {
                         headers: {
                             'Authorization': `Bearer ${session?.access_token}`
@@ -150,11 +151,19 @@ export default function SettingsPage() {
 
     const handleUpdateGscSite = async (siteUrl: string) => {
         if (!activeProject) return;
-        // When user selects a site, we explicitly mark the project as connected
-        await updateProject(activeProject.id, {
-            gsc_site_url: siteUrl,
-            gsc_connected: true
-        });
+        setIsSaving(true);
+        try {
+            // When user selects a site, we explicitly mark the project as connected
+            await updateProject(activeProject.id, {
+                gsc_site_url: siteUrl,
+                gsc_connected: siteUrl !== ""
+            });
+            console.log("[DEBUG] Project GSC site updated to:", siteUrl);
+        } catch (e) {
+            console.error("Failed to update GSC site:", e);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleCreate = async () => {
@@ -183,8 +192,8 @@ export default function SettingsPage() {
                         <SettingsIcon size={14} />
                         Centro de Control
                     </div>
-                    <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic leading-none mt-2">
-                        {activeTab === 'projects' ? (activeProject?.name || "Proyectos") : "Integraciones"} <span className="text-slate-400">Settings</span>
+                    <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic leading-none mt-2 py-4">
+                        {activeTab === 'projects' ? (activeProject?.name || "Proyectos") : "Integraciones"} <span className="text-slate-400 px-2 leading-relaxed inline-block">Settings</span>
                     </h1>
                 </header>
 

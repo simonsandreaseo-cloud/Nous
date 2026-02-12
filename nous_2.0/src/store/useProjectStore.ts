@@ -135,16 +135,20 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     updateProject: async (projectId, updates) => {
-        const { error } = await supabase
+        console.log("[DEBUG] Updating project in DB:", projectId, updates);
+        const { data, error } = await supabase
             .from('projects')
             .update(updates)
-            .eq('id', projectId);
+            .eq('id', projectId)
+            .select();
 
         if (error) {
-            console.error('Error updating project:', error);
+            console.error('[DEBUG] Error updating project:', error);
             alert(`Error al actualizar proyecto: ${error.message}`);
             return;
         }
+
+        console.log("[DEBUG] Project updated successfully in DB:", data);
 
         set(state => ({
             projects: state.projects.map(p => p.id === projectId ? { ...p, ...updates } : p),
@@ -153,21 +157,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     deleteProject: async (projectId) => {
+        console.log("[DEBUG] Deleting project from DB:", projectId);
         set({ isLoading: true });
-        const { error } = await supabase
+        const { error, count } = await supabase
             .from('projects')
             .delete()
             .eq('id', projectId);
 
         if (error) {
             set({ isLoading: false });
-            console.error('Error deleting project:', error);
+            console.error('[DEBUG] Error deleting project:', error);
             throw error;
         }
 
+        console.log("[DEBUG] Project deleted successfully, rows affected:", count);
+
         const currentProjects = get().projects;
         const newProjects = currentProjects.filter(p => p.id !== projectId);
-
+        
         set({
             projects: newProjects,
             activeProject: get().activeProject?.id === projectId ? (newProjects[0] || null) : get().activeProject,
