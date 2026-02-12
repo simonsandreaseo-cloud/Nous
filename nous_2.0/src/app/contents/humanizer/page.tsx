@@ -330,59 +330,59 @@ export default function HumanizerPage() {
                 setDocFile(null);
             }
         };
-
-        const handleGoogleDocImport = async () => {
-            if (!googleDocUrl) return;
-
-            setIsFetchingGoogleDoc(true);
-            setStatusMessage("Conectando con Google Docs...");
-            setStatusVisible(true);
-            setError(null);
-
-            try {
-                // Get session token
-                const { data: { session } } = await supabase.auth.getSession();
-                const token = session?.access_token;
-
-                if (!token) throw new Error("No hay sesión activa. Por favor recarga o inicia sesión.");
-
-                const response = await fetch('/api/google/fetch', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ url: googleDocUrl, type: 'doc' })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    // If 401, maybe redirect or show specific error?
-                    if (response.status === 401) {
-                        throw new Error("No autorizado. Por favor conecta tu cuenta de Google.");
-                    }
-                    throw new Error(data.error || 'Error al importar');
-                }
-
-                setInputText(data.content || "");
-                setStatusMessage("Documento importado correctamente.");
-                setGoogleDocUrl("");
-                setDocFile(null); // Clear file selection if any, as we now have text content
-
-                // Auto-hide status after success
-                setTimeout(() => setStatusVisible(false), 2000);
-
-            } catch (err: any) {
-                console.error(err);
-                setError(err.message);
-                setStatusMessage("Error en la importación.");
-            } finally {
-                setIsFetchingGoogleDoc(false);
-            }
-        };
         reader.onerror = () => setError("Fallo al leer el archivo.");
         reader.readAsArrayBuffer(file);
+    };
+
+    const handleGoogleDocImport = async () => {
+        if (!googleDocUrl) return;
+
+        setIsFetchingGoogleDoc(true);
+        setStatusMessage("Conectando con Google Docs...");
+        setStatusVisible(true);
+        setError(null);
+
+        try {
+            // Get session token
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
+            if (!token) throw new Error("No hay sesión activa. Por favor recarga o inicia sesión.");
+
+            const response = await fetch('/api/google/fetch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ url: googleDocUrl, type: 'doc' })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                // If 401, maybe redirect or show specific error?
+                if (response.status === 401) {
+                    throw new Error("No autorizado. Por favor conecta tu cuenta de Google.");
+                }
+                throw new Error(data.error || 'Error al importar');
+            }
+
+            setInputText(data.content || "");
+            setStatusMessage("Documento importado correctamente.");
+            setGoogleDocUrl("");
+            setDocFile(null); // Clear file selection if any, as we now have text content
+
+            // Auto-hide status after success
+            setTimeout(() => setStatusVisible(false), 2000);
+
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message);
+            setStatusMessage("Error en la importación.");
+        } finally {
+            setIsFetchingGoogleDoc(false);
+        }
     };
 
     const handleLsiUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
