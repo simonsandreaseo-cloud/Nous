@@ -37,11 +37,16 @@ export const GscService = {
                 .from('projects')
                 .select('user_id, gsc_site_url, domain')
                 .eq('id', projectId)
-                .single();
+                .maybeSingle();
 
-            if (projectError || !project) {
-                console.error("[GSC-SERVICE] Project lookup failed:", projectError);
-                throw new Error(`Project lookup failed: ${projectError?.message || 'Project not found'}`);
+            if (projectError) {
+                console.error("[GSC-SERVICE] Project lookup error:", projectError);
+                throw new Error(`Error al buscar proyecto: ${projectError.message}`);
+            }
+
+            if (!project) {
+                console.error("[GSC-SERVICE] Project not found for ID:", projectId);
+                throw new Error("No se encontró el proyecto. Por favor, refresca la página y vuelve a seleccionarlo.");
             }
 
             console.log(`[GSC-SERVICE] Found Project: ${project.domain} (Site: ${project.gsc_site_url}). Fetching tokens for User: ${project.user_id}`);
