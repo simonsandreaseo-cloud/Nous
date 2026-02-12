@@ -136,11 +136,18 @@ export default function SettingsPage() {
                                 {projects.map(project => (
                                     <div key={project.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-2xl hover:bg-slate-50 transition-colors group">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-black text-slate-500">
+                                            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-black text-slate-500 overflow-hidden">
                                                 {project.name.charAt(0)}
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-slate-900">{project.name}</h4>
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-bold text-slate-900">{project.name}</h4>
+                                                    {project.gsc_connected && (
+                                                        <span className="flex items-center gap-1 text-[8px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full uppercase tracking-widest border border-blue-100">
+                                                            <Globe size={8} /> GSC
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-xs text-slate-400 font-mono">{project.domain}</p>
                                             </div>
                                         </div>
@@ -158,28 +165,40 @@ export default function SettingsPage() {
                             </div>
 
                             <div className="mt-8 border-t border-slate-50 pt-6">
-                                <h3 className="text-sm font-bold text-slate-900 mb-4">Integraciones</h3>
-                                <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                                            <Globe size={20} className="text-blue-500" />
+                                <h3 className="text-sm font-bold text-slate-900 mb-4 tracking-tight uppercase">Integraciones Globales</h3>
+                                <div className={cn(
+                                    "flex items-center justify-between p-6 border rounded-2xl transition-all duration-500",
+                                    activeProject?.gsc_connected
+                                        ? "bg-emerald-50/30 border-emerald-100"
+                                        : "bg-slate-50 border-slate-100"
+                                )}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={cn(
+                                            "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm transition-colors",
+                                            activeProject?.gsc_connected ? "bg-emerald-500 text-white" : "bg-white text-blue-500"
+                                        )}>
+                                            <Globe size={24} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-slate-900">Google Search Console</p>
-                                            <p className="text-xs text-slate-400">Conecta para ver métricas reales</p>
+                                            <p className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Google Search Console</p>
+                                            <p className="text-xs text-slate-500 font-medium">
+                                                {activeProject?.gsc_connected
+                                                    ? "Sincronización activa. Los informes ahora tienen acceso a datos reales."
+                                                    : "Conecta tu cuenta para importar métricas de tráfico y clics."}
+                                            </p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => window.location.href = '/api/auth/gsc/login'}
                                         className={cn(
-                                            "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all",
+                                            "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all",
                                             activeProject?.gsc_connected
-                                                ? "bg-emerald-50 text-emerald-600 border border-emerald-100 cursor-default"
-                                                : "bg-white border border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-600"
+                                                ? "bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-default"
+                                                : "bg-slate-900 text-white shadow-lg shadow-slate-900/10 hover:bg-blue-600 hover:shadow-blue-500/20"
                                         )}
                                         disabled={activeProject?.gsc_connected}
                                     >
-                                        {activeProject?.gsc_connected ? "Conectado" : "Conectar GSC"}
+                                        {activeProject?.gsc_connected ? "Conectado" : "Vincular Cuenta"}
                                     </button>
                                 </div>
                             </div>

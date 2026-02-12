@@ -14,7 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 export default function ReportGeneratorPage() {
-    const { projects, activeProject, setActiveProject } = useProjectStore();
+    const { projects, activeProject, setActiveProject, fetchProjects } = useProjectStore();
 
     // Auth State
     const [userId, setUserId] = useState<string | null>(null);
@@ -46,11 +46,14 @@ export default function ReportGeneratorPage() {
     const gscProjects = projects.filter(p => p.gsc_connected);
 
     useEffect(() => {
+        // Fetch projects on mount to ensure we have the latest GSC states
+        fetchProjects();
+
         // Get User ID
         supabase.auth.getUser().then(({ data }) => {
             if (data.user) setUserId(data.user.id);
         });
-    }, []);
+    }, [fetchProjects]);
 
     useEffect(() => {
         if (mainTab === 'history' && userId) {
@@ -243,11 +246,26 @@ export default function ReportGeneratorPage() {
 
                                 {mode === 'api' ? (
                                     <div>
-                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">Proyecto</label>
-                                        <select value={activeProject?.id || ''} onChange={(e) => setActiveProject(e.target.value)} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 outline-none" disabled={step !== 'settings'}>
+                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block tracking-widest">Proyecto GSC</label>
+                                        <select
+                                            value={activeProject?.id || ''}
+                                            onChange={(e) => setActiveProject(e.target.value)}
+                                            className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 outline-none focus:ring-2 ring-purple-200 transition-all"
+                                            disabled={step !== 'settings'}
+                                        >
                                             <option value="" disabled>Seleccionar Proyecto</option>
-                                            {gscProjects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.domain})</option>)}
+                                            {gscProjects.length > 0 ? (
+                                                gscProjects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.domain})</option>)
+                                            ) : (
+                                                <option value="" disabled>No hay proyectos conectados</option>
+                                            )}
                                         </select>
+                                        {gscProjects.length === 0 && (
+                                            <p className="text-[9px] text-amber-600 mt-2 font-medium bg-amber-50 p-2 rounded-lg border border-amber-100 flex items-center gap-1">
+                                                <AlertCircle size={10} />
+                                                Veb a Ajustes para vincular tus sitios.
+                                            </p>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
