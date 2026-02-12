@@ -228,6 +228,9 @@ export default function HumanizerPage() {
 
     // Available Models based on User Feedback
     const AVAILABLE_MODELS = [
+        { id: "gemini-3.0-flash-exp", name: "Gemini 3 Flash (Experimental)" },
+        { id: "gemini-2.5-flash-preview", name: "Gemini 2.5 Flash (Preview)" },
+        { id: "gemini-2.5-flash-lite-preview", name: "Gemini 2.5 Flash Lite (Preview)" },
         { id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash (Experimental)" },
         { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
         { id: "gemini-1.5-flash-8b", name: "Gemini 1.5 Flash-8B" },
