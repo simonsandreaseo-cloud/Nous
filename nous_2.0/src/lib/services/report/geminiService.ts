@@ -93,24 +93,37 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
     };
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash'
-    });
+    const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash'];
 
-    const response = await model.generateContent([
-        { text: SYSTEM_PROMPT_DISPATCHER },
-        { text: `Here is the Findings Summary:\n${JSON.stringify(findingsSummary)}` }
-    ]);
-    const text = response.response.text();
-    if (!text) throw new Error("Dispatcher returned empty response");
-
-    try {
-        return JSON.parse(text);
-    } catch (e) {
-        const match = text.match(/\[[\s\S]*\]/);
-        if (match) return JSON.parse(match[0]);
-        return ['RESUMEN_EJECUTIVO', 'CONCLUSIONES'];
+    for (const modelId of models) {
+        try {
+            console.log(`[GEMINI-SERVICE] Dispatcher checking model: ${modelId}`);
+            const model = genAI.getGenerativeModel({ model: modelId });
+            const result = await model.generateContent([
+                { text: SYSTEM_PROMPT_DISPATCHER },
+                { text: `Here is the Findings Summary:\n${JSON.stringify(findingsSummary)}` }
+            ]);
+            const text = result.response.text();
+            if (!text) {
+                console.warn(`[GEMINI-SERVICE] Dispatcher model ${modelId} returned empty response.`);
+                continue;
+            }
+            try {
+                return JSON.parse(text);
+            } catch (jsonError: any) {
+                const match = text.match(/\[[\s\S]*\]/);
+                if (match) {
+                    return JSON.parse(match[0]);
+                }
+                console.warn(`[GEMINI-SERVICE] Dispatcher model ${modelId} returned non-JSON:`, text.substring(0, 100));
+                continue;
+            }
+        } catch (e: any) {
+            console.warn(`[GEMINI-SERVICE] Dispatcher model ${modelId} failed:`, e.message?.substring(0, 100));
+        }
     }
+
+    return ['RESUMEN_EJECUTIVO', 'CONCLUSIONES'];
 };
 
 export const generateHTMLReport = async (payload: ReportPayload, sections: string[], apiKey: string): Promise<string> => {
@@ -126,15 +139,24 @@ ${JSON.stringify(payload).substring(0, 100000)}
 `;
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-pro'
-    });
+    const models = ['gemini-1.5-pro', 'gemini-1.5-flash'];
 
-    const result = await model.generateContent([
-        { text: SYSTEM_PROMPT_WRITER },
-        { text: userPrompt }
-    ]);
-    return result.response.text() || "<p>Error generating report text.</p>";
+    for (const modelId of models) {
+        try {
+            console.log(`[GEMINI-SERVICE] Writer checking model: ${modelId}`);
+            const model = genAI.getGenerativeModel({ model: modelId });
+            const result = await model.generateContent([
+                { text: SYSTEM_PROMPT_WRITER },
+                { text: userPrompt }
+            ]);
+            const text = result.response.text();
+            if (text) return text;
+            console.warn(`[GEMINI-SERVICE] Writer model ${modelId} returned empty response.`);
+        } catch (e: any) {
+            console.warn(`[GEMINI-SERVICE] Writer model ${modelId} failed:`, e.message?.substring(0, 100));
+        }
+    }
+    return "<p>Error técnico al generar el texto del informe con IA.</p>";
 };
 
 export const identifyAiTrafficSources = async (sources: string[], apiKey: string): Promise<string[]> => {

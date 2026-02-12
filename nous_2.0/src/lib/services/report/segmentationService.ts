@@ -76,21 +76,28 @@ async function generateAiRules(summary: string, contextType: string, apiKey: str
     `;
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash'
-    });
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash'];
 
-    try {
-        const result = await model.generateContent([
-            { text: systemPrompt },
-            { text: `SUMMARY:\n${summary}` }
-        ]);
-        const response = await result.response;
-        const text = response.text();
-        if (!text) return [];
-        return JSON.parse(text);
-    } catch (e) {
-        console.warn(`AI Segmentation failed for ${contextType}`, e);
-        return [];
+    let lastError: any = null;
+
+    for (const modelId of modelsToTry) {
+        try {
+            console.log(`[AI-SEGMENTATION] Trying model: ${modelId}`);
+            const model = genAI.getGenerativeModel({ model: modelId });
+            const result = await model.generateContent([
+                { text: systemPrompt },
+                { text: `SUMMARY:\n${summary}` }
+            ]);
+            const text = result.response.text();
+            if (text) return JSON.parse(text);
+        } catch (e: any) {
+            console.warn(`[AI-SEGMENTATION] Model ${modelId} failed:`, e.message?.substring(0, 100));
+            lastError = e;
+            // If it's a 404 or 429, try next model
+            continue;
+        }
     }
+
+    console.error(`[AI-SEGMENTATION] All models failed for ${contextType}`);
+    return [];
 }
