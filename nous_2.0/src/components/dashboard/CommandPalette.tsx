@@ -14,7 +14,8 @@ import {
     Search as SearchIcon,
     Sparkles,
     Database,
-    Home
+    Home,
+    Info
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useProjectStore } from "@/store/useProjectStore";
