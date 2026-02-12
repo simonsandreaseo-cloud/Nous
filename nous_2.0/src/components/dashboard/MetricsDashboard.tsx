@@ -13,7 +13,6 @@ import { aiRouter } from '@/lib/ai/router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
 import { AdvancedMetricsChart } from './AdvancedMetricsChart';
-import { DataForSeoService } from '@/lib/services/dataforseo';
 
 export default function MetricsDashboard() {
     const { activeProject } = useProjectStore();
@@ -42,7 +41,6 @@ export default function MetricsDashboard() {
     const loadMetrics = async (projectId: string) => {
         setLoading(true);
         try {
-            // Load last 30 days
             const endDate = new Date().toISOString().split('T')[0];
             const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -51,17 +49,13 @@ export default function MetricsDashboard() {
             const sum = MetricsService.calculateSummary(data);
             setSummary(sum);
 
-            // Determine trend for the Orb
             if (data.length > 7) {
                 const current = data[data.length - 1].clicks;
                 const previous = data[data.length - 7].clicks;
                 setNeuralTrend(current > previous ? 'up' : current < previous ? 'down' : 'neutral');
             }
 
-            // Generate Neural Insight
             generateInsight(sum, data);
-
-            // Trigger potential calculation if not cached (simulated)
             calculateNeuralPotential(data);
         } catch (e) {
             console.error(e);
@@ -74,29 +68,24 @@ export default function MetricsDashboard() {
         if (!activeProject || gscData.length === 0) return;
         setIsCalculatingPotential(true);
         try {
-            // Get top 3 keywords from last day to estimate potential
             const topKeywords = gscData[gscData.length - 1]?.top_queries?.slice(0, 3).map(q => q.term) || [];
             if (topKeywords.length === 0) {
                 setPotentialData([]);
                 return;
             }
 
-            // Real DataForSEO call or intelligent mock for demo if no credit/config
-            // For now, let's try a real call to the API route we saw earlier
             const res = await fetch('/api/dataforseo/keywords', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ keywords: topKeywords })
             });
-            const keywordMetrics = await res.json();
+            const result = await res.json();
 
-            const totalVol = keywordMetrics.reduce((acc: number, cur: any) => acc + (cur.search_volume || 0), 0);
+            const totalVol = result.data?.reduce((acc: number, cur: any) => acc + (cur.search_volume || 0), 0) || 0;
 
-            // Map potential as a multiple of clicks to show "Gap" on the same chart
-            // Normalize potential to be relative to the timeframe
             const scaledPotential = gscData.map(d => ({
                 ...d,
-                potential: totalVol / 30, // Rough daily potential
+                potential: totalVol / 30,
                 reality: d.clicks
             }));
 
@@ -172,7 +161,6 @@ export default function MetricsDashboard() {
                     )}
                 </AnimatePresence>
 
-                {/* Holographic decoration */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-300/20 blur-[100px] rounded-full pointer-events-none" />
             </div>
 
@@ -182,7 +170,6 @@ export default function MetricsDashboard() {
                 </div>
             ) : (
                 <>
-                    {/* KPI CARDS */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
                         <MetricCard
                             title="Total Clicks"
@@ -212,7 +199,6 @@ export default function MetricsDashboard() {
                         />
                     </div>
 
-                    {/* MAIN CHARTS */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 p-8 bg-white rounded-[40px] shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
                             <div className="flex justify-between items-center mb-6">
@@ -241,57 +227,54 @@ export default function MetricsDashboard() {
                             </div>
                         </div>
                     </div>
-                </div>
 
-            {/* Advanced Metrics Section */}
-            <div className="mt-8 p-10 bg-white rounded-[40px] shadow-2xl shadow-cyan-900/5 border border-cyan-50/50 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-2 h-full bg-cyan-500" />
+                    <div className="mt-8 p-10 bg-white rounded-[40px] shadow-2xl shadow-cyan-900/5 border border-cyan-50/50 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-2 h-full bg-cyan-500" />
 
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-                    <div>
-                        <h3 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Neural <span className="text-cyan-500">Efficiency</span> Score</h3>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Realidad (GSC) vs Potencial de Mercado (DataForSEO)</p>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                            <div>
+                                <h3 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Neural <span className="text-cyan-500">Efficiency</span> Score</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Realidad (GSC) vs Potencial de Mercado (DataForSEO)</p>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Gap de Captura</p>
+                                    <p className="text-xl font-black text-slate-900">
+                                        {potentialData.length > 0 ? (
+                                            Math.round((summary?.totalClicks || 0) / (potentialData[0].potential * 30) * 100)
+                                        ) : '0'}%
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-cyan-50 border border-cyan-100 rounded-2xl">
+                                    <p className="text-[8px] font-black text-cyan-500 uppercase tracking-[0.2em] mb-1">Estado Neural</p>
+                                    <p className="text-xl font-black text-cyan-600 uppercase italic">
+                                        {neuralLinkStatus === 'connected' ? 'Optimizado' : 'Analizando'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="h-[400px]">
+                            {isCalculatingPotential ? (
+                                <div className="h-full flex flex-col items-center justify-center gap-4 text-cyan-500">
+                                    <Loader2 size={40} className="animate-spin" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Calculando Vectores de Potencial...</span>
+                                </div>
+                            ) : (
+                                <AdvancedMetricsChart
+                                    data={potentialData.length > 0 ? potentialData : metrics.map(m => ({ ...m, reality: m.clicks, potential: (m.clicks * 1.5) }))}
+                                    series={[
+                                        { key: 'reality', color: '#06b6d4', label: 'Tráfico Real' },
+                                        { key: 'potential', color: '#94a3b8', label: 'Potencial de Mercado', dashed: true }
+                                    ]}
+                                    height={400}
+                                />
+                            )}
+                        </div>
                     </div>
-
-                    <div className="flex gap-4">
-                        <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Gap de Captura</p>
-                            <p className="text-xl font-black text-slate-900">
-                                {potentialData.length > 0 ? (
-                                    Math.round((summary?.totalClicks || 0) / (potentialData[0].potential * 30) * 100)
-                                ) : '0'}%
-                            </p>
-                        </div>
-                        <div className="p-4 bg-cyan-50 border border-cyan-100 rounded-2xl">
-                            <p className="text-[8px] font-black text-cyan-500 uppercase tracking-[0.2em] mb-1">Estado Neural</p>
-                            <p className="text-xl font-black text-cyan-600 uppercase italic">
-                                {neuralLinkStatus === 'connected' ? 'Optimizado' : 'Analizando'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="h-[400px]">
-                    {isCalculatingPotential ? (
-                        <div className="h-full flex flex-col items-center justify-center gap-4 text-cyan-500">
-                            <Loader2 size={40} className="animate-spin" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Calculando Vectores de Potencial...</span>
-                        </div>
-                    ) : (
-                        <AdvancedMetricsChart
-                            data={potentialData.length > 0 ? potentialData : metrics.map(m => ({ ...m, reality: m.clicks, potential: (m.clicks * 1.5) }))}
-                            series={[
-                                { key: 'reality', color: '#06b6d4', label: 'Tráfico Real' },
-                                { key: 'potential', color: '#94a3b8', label: 'Potencial de Mercado', dashed: true }
-                            ]}
-                            height={400}
-                        />
-                    )}
-                </div>
-            </div>
-        </>
-    )
-}
-        </div >
+                </>
+            )}
+        </div>
     );
 }

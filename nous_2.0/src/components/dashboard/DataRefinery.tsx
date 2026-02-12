@@ -58,6 +58,10 @@ export default function DataRefinery() {
         }
 
         try {
+            if (!(window as any).__TAURI_INTERNALS__) {
+                setError("Neural Link (Tauri) is required for native file dialog.");
+                return;
+            }
             const { open } = await import('@tauri-apps/plugin-dialog');
             const selected = await open({
                 multiple: false,
