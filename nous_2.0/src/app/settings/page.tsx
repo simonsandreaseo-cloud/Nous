@@ -29,6 +29,7 @@ export default function SettingsPage() {
     const [isLoadingSites, setIsLoadingSites] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isUserGscConnected, setIsUserGscConnected] = useState(false);
+    const [activeTab, setActiveTab] = useState<'projects' | 'integrations'>('projects');
 
     useEffect(() => {
         fetchProjects();
@@ -40,6 +41,7 @@ export default function SettingsPage() {
                 fetchProjects().then(() => {
                     alert("Google Search Console conectado exitosamente.");
                 });
+                setActiveTab('integrations');
                 window.history.replaceState({}, '', window.location.pathname);
             } else if (params.get('error')) {
                 alert(`Error al conectar GSC: ${params.get('error')}`);
@@ -51,15 +53,21 @@ export default function SettingsPage() {
     // Check if user has GSC token at user level
     useEffect(() => {
         const checkUserGsc = async () => {
-            const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession();
-            if (session?.user) {
-                const { data: tokens } = await (await import('@/lib/supabase')).supabase
-                    .from('user_gsc_tokens')
-                    .select('id')
-                    .eq('user_id', session.user.id)
-                    .maybeSingle();
+            try {
+                const { data: { session } } = await (await import('@/lib/supabase')).supabase.auth.getSession();
+                if (session?.user) {
+                    const { data: tokens, error } = await (await import('@/lib/supabase')).supabase
+                        .from('user_gsc_tokens')
+                        .select('id')
+                        .eq('user_id', session.user.id)
+                        .maybeSingle();
 
-                setIsUserGscConnected(!!tokens);
+                    if (!error) {
+                        setIsUserGscConnected(!!tokens);
+                    }
+                }
+            } catch (e) {
+                console.warn("GSC Token table might be missing:", e);
             }
         };
         checkUserGsc();
@@ -160,7 +168,7 @@ export default function SettingsPage() {
                         Centro de Control
                     </div>
                     <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic leading-none mt-2">
-                        {activeProject?.name || "Configuración"} <span className="text-slate-400">Settings</span>
+                        {activeTab === 'projects' ? (activeProject?.name || "Proyectos") : "Integraciones"} <span className="text-slate-400">Settings</span>
                     </h1>
                 </header>
 
@@ -171,17 +179,19 @@ export default function SettingsPage() {
                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 mb-4">Secciones</h3>
                             <nav className="space-y-1">
                                 {[
-                                    { icon: Globe, label: "Proyectos & Dominios", active: true },
-                                    { icon: Wallet, label: "Presupuesto", active: false },
-                                    { icon: Shield, label: "API & Llaves", active: false },
+                                    { id: 'projects', icon: Globe, label: "Proyectos & Dominios" },
+                                    { id: 'integrations', icon: Shield, label: "Integraciones API" },
+                                    { id: 'billing', icon: Wallet, label: "Presupuesto" },
                                 ].map((item) => (
                                     <button
-                                        key={item.label}
+                                        key={item.id}
+                                        onClick={() => item.id !== 'billing' && setActiveTab(item.id as any)}
                                         className={cn(
                                             "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
-                                            item.active
+                                            activeTab === item.id
                                                 ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10"
-                                                : "text-slate-500 hover:bg-slate-50"
+                                                : "text-slate-500 hover:bg-slate-50",
+                                            item.id === 'billing' && "opacity-40 cursor-not-allowed"
                                         )}
                                     >
                                         <item.icon size={16} />
@@ -191,206 +201,252 @@ export default function SettingsPage() {
                             </nav>
                         </div>
 
-                        {/* Quick Project Switcher */}
-                        <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                            <div className="relative z-10">
-                                <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-4">Proyecto Seleccionado</h3>
-                                <div className="space-y-3">
-                                    {projects.length === 0 ? (
-                                        <p className="text-xs text-slate-400 italic">No hay proyectos creados.</p>
-                                    ) : (
-                                        projects.map(p => (
-                                            <button
-                                                key={p.id}
-                                                onClick={() => setActiveProject(p.id)}
-                                                className={cn(
-                                                    "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
-                                                    activeProject?.id === p.id
-                                                        ? "bg-white/10 border-white/20 text-white"
-                                                        : "border-transparent text-white/40 hover:text-white/60 hover:bg-white/5"
-                                                )}
-                                            >
-                                                <span className="text-xs font-bold truncate pr-4">{p.name}</span>
-                                                {p.gsc_connected && (
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                                                )}
-                                            </button>
-                                        ))
-                                    )}
+                        {/* Quick Project Switcher - Only visible on projects tab */}
+                        {activeTab === 'projects' && (
+                            <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+                                <div className="relative z-10">
+                                    <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-4">Proyecto Seleccionado</h3>
+                                    <div className="space-y-3">
+                                        {projects.length === 0 ? (
+                                            <p className="text-xs text-slate-400 italic">No hay proyectos creados.</p>
+                                        ) : (
+                                            projects.map(p => (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={() => setActiveProject(p.id)}
+                                                    className={cn(
+                                                        "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
+                                                        activeProject?.id === p.id
+                                                            ? "bg-white/10 border-white/20 text-white"
+                                                            : "border-transparent text-white/40 hover:text-white/60 hover:bg-white/5"
+                                                    )}
+                                                >
+                                                    <span className="text-xs font-bold truncate pr-4">{p.name}</span>
+                                                    {p.gsc_connected && (
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                                                    )}
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
+                                <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all" />
                             </div>
-                            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all" />
-                        </div>
+                        )}
                     </aside>
 
                     {/* Main Settings Area */}
                     <div className="col-span-2 space-y-8">
-                        {/* Project Editor */}
-                        <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
-                            <div className="flex justify-between items-center mb-8 relative z-10">
-                                <div>
-                                    <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Editar Proyecto</h2>
-                                    <p className="text-xs text-slate-400 font-medium italic">Configura la identidad y acceso de tu sitio.</p>
+                        {activeTab === 'projects' && (
+                            <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
+                                <div className="flex justify-between items-center mb-8 relative z-10">
+                                    <div>
+                                        <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Editar Proyecto</h2>
+                                        <p className="text-xs text-slate-400 font-medium italic">Configura la identidad y acceso de tu sitio.</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsCreating(true)}
+                                        className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all flex items-center gap-2 border border-slate-200"
+                                    >
+                                        <Plus size={14} /> Nuevo Proyecto
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => setIsCreating(true)}
-                                    className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all flex items-center gap-2 border border-slate-200"
-                                >
-                                    <Plus size={14} /> Nuevo Proyecto
-                                </button>
-                            </div>
 
-                            {isCreating && (
-                                <div className="mb-8 p-8 bg-slate-50 rounded-3xl border border-slate-200 animate-in fade-in slide-in-from-top-4">
-                                    <h3 className="text-xs font-black mb-6 uppercase tracking-widest text-slate-900">Crear Nuevo Nodo</h3>
-                                    <div className="grid grid-cols-2 gap-6 mb-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Ej: Mi Proyecto Pro"
-                                                className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm font-bold focus:ring-4 ring-cyan-500/10 outline-none transition-all"
-                                                value={newProjectName}
-                                                onChange={(e) => setNewProjectName(e.target.value)}
-                                            />
+                                {isCreating && (
+                                    <div className="mb-8 p-8 bg-slate-50 rounded-3xl border border-slate-200 animate-in fade-in slide-in-from-top-4">
+                                        <h3 className="text-xs font-black mb-6 uppercase tracking-widest text-slate-900">Crear Nuevo Nodo</h3>
+                                        <div className="grid grid-cols-2 gap-6 mb-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ej: Mi Proyecto Pro"
+                                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm font-bold focus:ring-4 ring-cyan-500/10 outline-none transition-all"
+                                                    value={newProjectName}
+                                                    onChange={(e) => setNewProjectName(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dominio</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ej: sitio.com"
+                                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm font-bold focus:ring-4 ring-cyan-500/10 outline-none transition-all"
+                                                    value={newProjectDomain}
+                                                    onChange={(e) => setNewProjectDomain(e.target.value)}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dominio</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Ej: sitio.com"
-                                                className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm font-bold focus:ring-4 ring-cyan-500/10 outline-none transition-all"
-                                                value={newProjectDomain}
-                                                onChange={(e) => setNewProjectDomain(e.target.value)}
-                                            />
+                                        <div className="flex justify-end gap-3">
+                                            <button onClick={() => setIsCreating(false)} className="px-6 py-3 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-800">Cancelar</button>
+                                            <button onClick={handleCreate} className="px-8 py-3 bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 transition-all">Crear Proyecto</button>
                                         </div>
                                     </div>
-                                    <div className="flex justify-end gap-3">
-                                        <button onClick={() => setIsCreating(false)} className="px-6 py-3 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-800">Cancelar</button>
-                                        <button onClick={handleCreate} className="px-8 py-3 bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 transition-all">Crear Proyecto</button>
-                                    </div>
-                                </div>
-                            )}
+                                )}
 
-                            {activeProject ? (
-                                <div className="space-y-8 animate-in fade-in duration-500">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identificador Público</label>
-                                            <input
-                                                type="text"
-                                                className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all"
-                                                value={editName}
-                                                onChange={(e) => setEditName(e.target.value)}
-                                            />
+                                {activeProject ? (
+                                    <div className="space-y-8 animate-in fade-in duration-500">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identificador Público</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all"
+                                                    value={editName}
+                                                    onChange={(e) => setEditName(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dominio / URL Raíz</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all font-mono"
+                                                    value={editDomain}
+                                                    onChange={(e) => setEditDomain(e.target.value)}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dominio / URL Raíz</label>
-                                            <input
-                                                type="text"
-                                                className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all font-mono"
-                                                value={editDomain}
-                                                onChange={(e) => setEditDomain(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
 
-                                    {/* Google Search Console - Contextual */}
-                                    <div className={cn(
-                                        "p-8 rounded-3xl border transition-all duration-700 relative overflow-hidden",
-                                        (activeProject.gsc_connected || isUserGscConnected)
-                                            ? "bg-emerald-50/20 border-emerald-100"
-                                            : "bg-slate-50 border-slate-100"
-                                    )}>
-                                        <div className="flex items-start justify-between relative z-10">
-                                            <div className="flex gap-4">
+                                        {/* Project Property Selection - Only if GSC Linked Globally */}
+                                        <div className={cn(
+                                            "p-8 rounded-3xl border transition-all duration-700 relative overflow-hidden",
+                                            isUserGscConnected ? "bg-cyan-50/20 border-cyan-100" : "bg-slate-50 border-slate-100"
+                                        )}>
+                                            <div className="flex items-center gap-4 relative z-10 mb-6">
                                                 <div className={cn(
                                                     "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
-                                                    (activeProject.gsc_connected || isUserGscConnected) ? "bg-emerald-500 text-white" : "bg-white text-slate-300"
+                                                    isUserGscConnected ? "bg-cyan-500 text-white" : "bg-white text-slate-300"
                                                 )}>
                                                     <Globe size={24} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Google Search Console</h3>
-                                                    <p className="text-[10px] text-slate-500 font-medium">
-                                                        {(activeProject.gsc_connected || isUserGscConnected)
-                                                            ? "Métricas neurales activas o cuenta vinculada. Verifica la propiedad."
-                                                            : "Vincular cuenta de GSC para análisis de tráfico real."}
-                                                    </p>
+                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Propiedad Search Console</h3>
+                                                    <p className="text-[10px] text-slate-500 font-medium">Asigna un sitio de tu cuenta de Google a este proyecto.</p>
+                                                </div>
+                                            </div>
+
+                                            {!isUserGscConnected ? (
+                                                <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-2xl">
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Primero vincula tu cuenta de Google en la pestaña de Integraciones</p>
+                                                    <button onClick={() => setActiveTab('integrations')} className="text-[10px] font-black text-cyan-600 uppercase underline decoration-cyan-200 underline-offset-4">Ir a Integraciones</button>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4 relative z-10">
+                                                    <div className="flex gap-3">
+                                                        <select
+                                                            value={activeProject.gsc_site_url || ''}
+                                                            onChange={(e) => handleUpdateGscSite(e.target.value)}
+                                                            className="flex-1 p-3.5 bg-white border border-cyan-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-cyan-500/10 transition-all appearance-none cursor-pointer"
+                                                            disabled={isLoadingSites}
+                                                        >
+                                                            <option value="">Selecciona una propiedad de Google...</option>
+                                                            {gscSites.map(site => (
+                                                                <option key={site.url} value={site.url}>{site.url}</option>
+                                                            ))}
+                                                        </select>
+                                                        {isLoadingSites && <div className="w-5 h-5 border-3 border-cyan-500 border-t-transparent rounded-full animate-spin self-center" />}
+                                                    </div>
+                                                    {activeProject.gsc_site_url && (
+                                                        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 inline-block w-fit">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                            <span className="text-[9px] font-black uppercase">Vinculado a: {activeProject.gsc_site_url}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-between border-t border-slate-50 pt-8">
+                                            <button
+                                                onClick={() => handleDelete(activeProject.id, activeProject.name)}
+                                                className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 size={14} /> Eliminar Proyecto
+                                            </button>
+                                            <button
+                                                onClick={handleSaveAll}
+                                                disabled={isSaving}
+                                                className="flex items-center gap-3 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] hover:bg-cyan-600 transition-all shadow-xl shadow-slate-900/10 hover:shadow-cyan-500/20 disabled:opacity-50"
+                                            >
+                                                {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                                                Guardar Configuración
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="h-64 flex flex-col items-center justify-center text-slate-300">
+                                        <Globe size={48} className="mb-4 opacity-20" />
+                                        <p className="text-xs font-bold uppercase tracking-widest">Selecciona un proyecto para configurar</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'integrations' && (
+                            <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
+                                <header className="mb-8">
+                                    <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Integraciones Neurales</h2>
+                                    <p className="text-xs text-slate-400 font-medium italic">Gestiona tus conexiones externas de forma global.</p>
+                                </header>
+
+                                <div className="space-y-6">
+                                    {/* Google Search Console - Global Connection */}
+                                    <div className={cn(
+                                        "p-8 rounded-[32px] border transition-all duration-700 relative overflow-hidden",
+                                        isUserGscConnected ? "bg-emerald-50/20 border-emerald-100" : "bg-slate-50 border-slate-100"
+                                    )}>
+                                        <div className="flex items-center justify-between relative z-10">
+                                            <div className="flex gap-5">
+                                                <div className={cn(
+                                                    "w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg",
+                                                    isUserGscConnected ? "bg-emerald-500 text-white shadow-emerald-500/20" : "bg-white text-slate-300"
+                                                )}>
+                                                    <Globe size={32} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-black text-slate-900 uppercase italic leading-none mb-2">Google Search Console</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={cn("w-2 h-2 rounded-full", isUserGscConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                            {isUserGscConnected ? "Cuenta Conectada" : "Sin Vincular"}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-400 mt-3 max-w-sm">Permite que Simon SEO acceda a tus métricas de tráfico y rendimiento directamente desde Google.</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => window.location.href = '/api/auth/gsc/login'}
                                                 className={cn(
-                                                    "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
-                                                    (activeProject.gsc_connected || isUserGscConnected)
-                                                        ? "bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                                                        : "bg-slate-900 text-white hover:bg-black"
+                                                    "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl",
+                                                    isUserGscConnected
+                                                        ? "bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-50 shadow-emerald-100/10"
+                                                        : "bg-slate-900 text-white hover:bg-cyan-600 shadow-slate-900/10"
                                                 )}
                                             >
-                                                {(activeProject.gsc_connected || isUserGscConnected) ? "Re-conectar" : "Vincular Ahora"}
+                                                {isUserGscConnected ? "Cambiar Cuenta" : "Vincular Ahora"}
                                             </button>
                                         </div>
+                                        {/* Background Decor */}
+                                        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl" />
+                                    </div>
 
-                                        {(activeProject.gsc_connected || isUserGscConnected) && (
-                                            <div className="mt-8 pt-6 border-t border-emerald-100/50 animate-in fade-in slide-in-from-top-2 relative z-10">
-                                                <label className="text-[10px] font-black text-emerald-700/50 uppercase tracking-[0.2em] block mb-3">Propiedad de Dominio</label>
-                                                <div className="flex gap-3">
-                                                    <select
-                                                        value={activeProject.gsc_site_url || ''}
-                                                        onChange={(e) => handleUpdateGscSite(e.target.value)}
-                                                        className="flex-1 p-3.5 bg-white border border-emerald-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                                                        disabled={isLoadingSites}
-                                                    >
-                                                        <option value="">Selecciona una propiedad disponible...</option>
-                                                        {gscSites.map(site => (
-                                                            <option key={site.url} value={site.url}>{site.url}</option>
-                                                        ))}
-                                                    </select>
-                                                    {isLoadingSites && <div className="w-5 h-5 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin self-center" />}
+                                    {/* Placeholder for future integrations */}
+                                    <div className="p-8 rounded-[32px] border border-slate-50 bg-slate-50 opacity-40 grayscale pointer-events-none">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex gap-5">
+                                                <div className="w-16 h-16 rounded-3xl bg-white flex items-center justify-center shadow-sm text-slate-200">
+                                                    <Shield size={32} />
                                                 </div>
-                                                {activeProject.gsc_site_url ? (
-                                                    <div className="mt-3 flex items-center gap-2">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">Nodo activo en: {activeProject.gsc_site_url}</span>
-                                                    </div>
-                                                ) : (
-                                                    <p className="mt-3 text-[10px] font-bold text-amber-600 flex items-center gap-1 italic">
-                                                        ⚠ Pendiente de selección de propiedad.
-                                                    </p>
-                                                )}
+                                                <div>
+                                                    <h3 className="text-lg font-black text-slate-300 uppercase italic">Claude / OpenAI</h3>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Próximamente</span>
+                                                </div>
                                             </div>
-                                        )}
-                                        {/* Background decoration */}
-                                        <div className="absolute top-0 right-0 p-4 opacity-[0.03] rotate-12 pointer-events-none">
-                                            <Globe size={180} />
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center justify-between border-t border-slate-50 pt-8">
-                                        <button
-                                            onClick={() => handleDelete(activeProject.id, activeProject.name)}
-                                            className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-red-500 transition-colors"
-                                        >
-                                            <Trash2 size={14} /> Eliminar Proyecto
-                                        </button>
-                                        <button
-                                            onClick={handleSaveAll}
-                                            disabled={isSaving}
-                                            className="flex items-center gap-3 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] hover:bg-cyan-600 transition-all shadow-xl shadow-slate-900/10 hover:shadow-cyan-500/20 disabled:opacity-50"
-                                        >
-                                            {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                                            Guardar Configuración
-                                        </button>
-                                    </div>
                                 </div>
-                            ) : (
-                                <div className="h-64 flex flex-col items-center justify-center text-slate-300">
-                                    <Globe size={48} className="mb-4 opacity-20" />
-                                    <p className="text-xs font-bold uppercase tracking-widest">Selecciona un proyecto para configurar</p>
-                                </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </main>
