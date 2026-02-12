@@ -3,7 +3,7 @@
 import { cn } from "@/utils/cn";
 import { useAuthStore } from "@/store/useAuthStore";
 import Link from "next/link";
-import { User, LogOut, Wrench, ChevronDown, ChevronRight, FileText, Bot, LayoutTemplate, Calendar, Search, Activity, Building2, Settings } from "lucide-react";
+import { User, LogOut, Wrench, ChevronDown, ChevronRight, FileText, Bot, LayoutTemplate, Calendar, Search, Activity, Building2, Settings, Wand2 } from "lucide-react";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
 
 export function NavigationHeader() {
@@ -59,6 +59,13 @@ export function NavigationHeader() {
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Maquetadores</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Agentes de diseño</p>
+                                    </Link>
+                                    <Link href="/contents/humanizer" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                        <div className="flex items-center gap-3 mb-0.5">
+                                            <Wand2 size={16} className="text-pink-500" />
+                                            <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Humanizador</span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 font-medium pl-7">0% Detección IA</p>
                                     </Link>
                                     <Link href="/estrategia" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
