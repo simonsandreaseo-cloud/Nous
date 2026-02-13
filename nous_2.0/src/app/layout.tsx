@@ -91,7 +91,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${inter.variable} ${michroma.variable} ${jetbrains.variable} font-sans bg-transparent overflow-hidden`} suppressHydrationWarning>
+      <body className={`${inter.variable} ${michroma.variable} ${jetbrains.variable} font-sans bg-transparent`} suppressHydrationWarning>
         {/* 12.1.7 Accessible Skip Link */}
         <a
           href="#main-content"
