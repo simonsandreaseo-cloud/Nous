@@ -356,7 +356,7 @@ export default function ReportGeneratorPage() {
                                     <ReportView
                                         htmlContent={reportResult.html}
                                         chartData={reportResult.chartData}
-                                        onContentChange={(newHtml) => setReportResult(prev => ({ ...prev, html: newHtml }))}
+                                        onContentChange={(newHtml) => setReportResult((prev: any) => ({ ...prev, html: newHtml }))}
                                     />
                                 </div>
                             )}
