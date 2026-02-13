@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Michroma, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+
 
 const inter = Inter({
   subsets: ["latin"],
@@ -103,7 +105,9 @@ export default function RootLayout({
         <AuthProvider>
           <CommandPalette />
           {children}
+          <SpeedInsights />
         </AuthProvider>
+
 
         <noscript>
           <div className="fixed inset-0 z-[300] bg-white flex flex-col items-center justify-center p-10 text-center">
