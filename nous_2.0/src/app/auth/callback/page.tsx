@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 
 export default function AuthCallback() {
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         const handleAuthCallback = async () => {
             const { error } = await supabase.auth.getSession();
             if (!error) {
-                router.push("/");
+                // Get redirect path from URL params
+                const next = searchParams.get('next') || searchParams.get('redirect_to') || '/';
+                router.push(next);
             } else {
                 console.error("Auth error:", error);
                 router.push("/auth");
@@ -20,7 +23,7 @@ export default function AuthCallback() {
         };
 
         handleAuthCallback();
-    }, [router]);
+    }, [router, searchParams]);
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F7FA]">

@@ -400,6 +400,7 @@ export async function generateInsightDataAction(
         limit?: number;
         includeAI?: boolean;
         aiInstructions?: string;
+        regexFilter?: string;
     }
 ) {
     try {
@@ -435,10 +436,31 @@ export async function generateInsightDataAction(
 
         // 3. Filter Data
         const filterRows = (rows: GscRow[]) => {
+            let regex: RegExp | null = null;
+            try {
+                regex = options.regexFilter ? new RegExp(options.regexFilter, 'i') : null;
+            } catch (e) {
+                console.warn("[ACTION] Invalid Regex:", options.regexFilter);
+            }
+
             return rows.filter(r => {
                 const key = type === 'page' ? r.page : r.keyword;
-                // Simple inclusion check. Could be Regex in future.
-                return key && items.some(i => key.includes(i));
+                if (!key) return false;
+
+                // Match against list items if they exist
+                const matchesList = items.length > 0 ? items.some(i => key.includes(i)) : false;
+
+                // Match against regex if it exists
+                const matchesRegex = regex ? regex.test(key) : false;
+
+                // Return true if it matches either (or just regex if items is empty)
+                if (items.length > 0 && options.regexFilter) {
+                    return matchesList || matchesRegex;
+                }
+                if (items.length > 0) return matchesList;
+                if (options.regexFilter) return matchesRegex;
+
+                return false;
             });
         };
 

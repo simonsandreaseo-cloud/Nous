@@ -79,6 +79,28 @@ export default function ReportGeneratorPage() {
         }
     }, [mainTab, userId]);
 
+    // Restore State from Session Storage if returning from Auth
+    useEffect(() => {
+        const storedState = sessionStorage.getItem('report_generator_state');
+        if (storedState) {
+            try {
+                const parsed = JSON.parse(storedState);
+                if (parsed.reportResult) setReportResult(parsed.reportResult);
+                if (parsed.step) setStep(parsed.step);
+                if (parsed.mode) setMode(parsed.mode);
+                if (parsed.userContext) setUserContext(parsed.userContext);
+                if (parsed.activeProjectId) setActiveProject(parsed.activeProjectId);
+                if (parsed.dateRange) setDateRange(parsed.dateRange);
+
+                // Clear after restoring
+                sessionStorage.removeItem('report_generator_state');
+                // Show success toast or message?
+            } catch (e) {
+                console.error("Failed to restore state", e);
+            }
+        }
+    }, []);
+
     const loadHistory = async () => {
         if (!userId) return;
         setLoadingState("Cargando historial...");
@@ -223,6 +245,17 @@ export default function ReportGeneratorPage() {
 
     const handleGoogleExport = async (type: 'docs' | 'slides') => {
         if (!googleToken) {
+            // Save State before Redirect
+            const stateToSave = {
+                reportResult,
+                step,
+                mode,
+                userContext,
+                activeProjectId: activeProject?.id,
+                dateRange
+            };
+            sessionStorage.setItem('report_generator_state', JSON.stringify(stateToSave));
+
             // Trigger Auth
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',

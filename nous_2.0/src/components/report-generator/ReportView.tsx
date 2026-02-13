@@ -9,6 +9,7 @@ import { useEditor, EditorContent, Node, mergeAttributes } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { ReportEditorToolbar } from './ReportEditorToolbar';
 import { InsightBuilder, InsightConfig } from './InsightBuilder';
+import { SlideLayouts } from './SlideLayouts';
 
 interface ReportViewProps {
     htmlContent: string;
@@ -42,7 +43,7 @@ const ChartExtension = Node.create({
     },
 
     renderHTML({ HTMLAttributes }) {
-        return ['div', mergeAttributes(HTMLAttributes, { class: 'chart-placeholder my-8 h-64 w-full bg-slate-50 rounded-xl border border-dashed border-slate-200 flex items-center justify-center relative' }), '']
+        return ['div', mergeAttributes(HTMLAttributes, { class: 'chart-placeholder w-full relative' }), '']
     },
 });
 
@@ -153,99 +154,64 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
 
     const handleInsertInsight = (config: InsightConfig) => {
         let content = '';
+        let metricsHtml = '';
 
-        // Metrics Box
+        // 1. Generate Metrics HTML
         if (config.options.includeMetrics && config.data.summary) {
             const s = config.data.summary.current;
             const comp = config.data.summary.previous;
             const getDiff = (curr: number, prev: number) => {
+                if (!prev) return undefined;
+                return curr > prev ? 'up' : (curr < prev ? 'down' : 'neutral');
+            };
+            const formatDiff = (curr: number, prev: number) => {
                 if (!prev) return '';
                 const diff = curr - prev;
-                const sign = diff > 0 ? '+' : '';
-                return `<span class="${diff > 0 ? 'text-green-500' : 'text-red-500'} text-[10px] ml-1">${sign}${diff.toFixed(1)}</span>`;
-            };
+                return (diff > 0 ? '+' : '') + diff.toFixed(1);
+            }
 
-            content += `
-            <div class="grid grid-cols-4 gap-4 mb-6 not-prose">
-                <div class="p-4 bg-slate-50 rounded-xl text-center border border-slate-100">
-                    <div class="text-2xl font-black text-slate-800">${s.clicks.toLocaleString()}</div>
-                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clicks ${comp ? getDiff(s.clicks, comp.clicks) : ''}</div>
-                </div>
-                <div class="p-4 bg-slate-50 rounded-xl text-center border border-slate-100">
-                    <div class="text-2xl font-black text-slate-800">${s.impressions.toLocaleString()}</div>
-                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Impresiones</div>
-                </div>
-                 <div class="p-4 bg-slate-50 rounded-xl text-center border border-slate-100">
-                    <div class="text-2xl font-black text-slate-800">${s.ctr.toFixed(2)}%</div>
-                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CTR Avg</div>
-                </div>
-                 <div class="p-4 bg-slate-50 rounded-xl text-center border border-slate-100">
-                    <div class="text-2xl font-black text-slate-800">${s.position.toFixed(1)}</div>
-                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Posición Avg</div>
-                </div>
-            </div>`;
+            metricsHtml += SlideLayouts.MetricCard('Clicks', s.clicks.toLocaleString(), comp ? formatDiff(s.clicks, comp.clicks) : '', getDiff(s.clicks, comp?.clicks));
+            metricsHtml += SlideLayouts.MetricCard('Impresiones', s.impressions.toLocaleString(), comp ? formatDiff(s.impressions, comp.impressions) : '', getDiff(s.impressions, comp?.impressions));
+            metricsHtml += SlideLayouts.MetricCard('CTR', s.ctr.toFixed(2) + '%', comp ? (s.ctr - comp.ctr).toFixed(2) + '%' : '', getDiff(s.ctr, comp?.ctr));
+            metricsHtml += SlideLayouts.MetricCard('Posición', s.position.toFixed(1), comp ? (s.position - comp.position).toFixed(1) : '', s.position < (comp?.position || 100) ? 'up' : 'down'); // Lower position is better (green/up)
         }
 
-        // Chart
-        if (config.options.visualization !== 'text') {
+        // 2. Determine Layout Strategy
+        if (config.options.visualization === 'table' || (config.options.includeTable && config.options.visualization === 'text')) {
+            // Table Layout
+            const rows = config.data.items.slice(0, config.options.limit || 15).map((item: any) => SlideLayouts.TableRow(item)).join('');
+            content = SlideLayouts.TableDashboard(config.options.title, rows);
+
+        } else if (config.options.visualization !== 'text') {
+            // Chart Layout (Split)
             const chartConfig = {
-                type: config.options.visualization,
+                type: config.options.visualization, // 'bubble', 'bar', 'line'
                 data: config.data,
                 title: config.options.title
             };
-            content += `<div class="chart-placeholder my-6 h-80 w-full" data-chart-type="insight" data-chart-config='${JSON.stringify(chartConfig)}'></div>`;
-        }
 
-        // Table
-        if (config.options.includeTable && config.data.items) {
-            const rows = config.data.items.slice(0, config.options.limit || 10).map((item: any) => `
-                <tr class="border-b border-gray-50 last:border-0 hover:bg-slate-50/50 transition-colors">
-                    <td class="py-3 pl-4 text-xs font-medium text-slate-600 truncate max-w-[200px]">${item.key}</td>
-                    <td class="py-3 text-right text-xs text-slate-600 font-mono">${item.clicks.toLocaleString()}</td>
-                    <td class="py-3 text-right text-xs text-slate-400 font-mono hidden sm:table-cell">${item.impressions.toLocaleString()}</td>
-                    <td class="py-3 text-right text-xs text-slate-600 font-mono">${item.position.toFixed(1)}</td>
-                    <td class="py-3 pr-4 text-right text-xs font-mono ${item.changeClicks > 0 ? 'text-green-500' : 'text-red-500'}">${item.changeClicks > 0 ? '+' : ''}${item.changeClicks}</td>
-                </tr>
-             `).join('');
+            // If AI is not included, we might want a different layout or just empty right side? 
+            // For now, let's put the analysis or a placeholder text.
+            const analysis = config.options.includeAI && config.data.analysis
+                ? config.data.analysis.replace(/\n/g, '<br/>')
+                : `<p>Visualización de datos para ${config.options.title}.</p>`;
 
-            content += `
-             <div class="overflow-x-auto rounded-xl border border-slate-100 shadow-sm mb-6 not-prose">
-                <table class="w-full">
-                    <thead class="bg-slate-50 border-b border-slate-100">
-                        <tr>
-                            <th class="py-3 pl-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Item</th>
-                            <th class="py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clicks</th>
-                            <th class="py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden sm:table-cell">Impr.</th>
-                            <th class="py-3 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pos.</th>
-                            <th class="py-3 pr-4 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cambio</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white">
-                        ${rows}
-                    </tbody>
-                </table>
-             </div>`;
-        }
+            content = SlideLayouts.SplitChartAnalysis(config.options.title, chartConfig, analysis, metricsHtml);
 
-        // AI Analysis
-        if (config.options.includeAI && config.data.analysis) {
-            content += `
-            <div class="bg-purple-50/50 p-6 rounded-2xl border border-purple-100 prose prose-sm max-w-none text-slate-700">
-                <h3 class="text-purple-700 font-bold mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
-                    🤖 Análisis IA
-                </h3>
-                ${config.data.analysis}
-            </div>`;
+        } else {
+            // Text/Just Analysis Layout (Fallback to Split with no chart? or Generic)
+            content = `
+             <section class="report-slide bg-white p-12 rounded-[30px] flex flex-col justify-center">
+                <h2 class="text-3xl font-black text-slate-800 mb-8">${config.options.title}</h2>
+                <div class="prose prose-lg text-slate-600">
+                    ${config.options.includeAI ? config.data.analysis : 'Contenido generado...'}
+                </div>
+             </section>`;
         }
 
         if (config.options.placement === 'new_slide') {
-            const slideHtml = `<section class="report-slide bg-white p-8 rounded-[30px] shadow-sm border border-slate-100 mb-12 relative overflow-hidden">
-                <div class="flex items-center space-x-3 border-b border-gray-200 pb-3 mb-6">
-                    <h2 class="text-xl font-black text-slate-800">${config.options.title}</h2>
-                </div>
-                ${content}
-            </section>`;
-            setSlides(prev => [...prev, slideHtml]);
+            // SlideLayouts already return <section> tags
+            setSlides(prev => [...prev, content]);
             setTimeout(() => setCurrentSlideIndex(slides.length), 100);
         } else {
             editor?.commands.insertContent(content);
@@ -443,6 +409,7 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
 }
 
 // Helper to render chart (simplified from original)
+
 function renderChart(canvas: HTMLCanvasElement, type: string | null, chartData: any, theme: string, isPresenting: boolean) {
     if (!type || !chartData) return;
 
@@ -450,14 +417,112 @@ function renderChart(canvas: HTMLCanvasElement, type: string | null, chartData: 
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { labels: { color: theme === 'dark' && isPresenting ? '#cbd5e1' : '#475569' } }
+            legend: {
+                labels: {
+                    color: theme === 'dark' && isPresenting ? '#cbd5e1' : '#475569',
+                    font: { family: 'Inter', size: 11, weight: 600 }
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                titleColor: '#f8fafc',
+                bodyColor: '#e2e8f0',
+                padding: 10,
+                cornerRadius: 8,
+                displayColors: true
+            }
         },
         scales: {
-            x: { ticks: { color: theme === 'dark' && isPresenting ? '#94a3b8' : '#64748b' }, grid: { color: theme === 'dark' && isPresenting ? '#334155' : '#e2e8f0' } },
-            y: { ticks: { color: theme === 'dark' && isPresenting ? '#94a3b8' : '#64748b' }, grid: { color: theme === 'dark' && isPresenting ? '#334155' : '#e2e8f0' } }
+            x: {
+                ticks: { color: theme === 'dark' && isPresenting ? '#94a3b8' : '#64748b', font: { family: 'Inter', size: 10 } },
+                grid: { color: theme === 'dark' && isPresenting ? '#334155' : '#f1f5f9', drawBorder: false }
+            },
+            y: {
+                ticks: { color: theme === 'dark' && isPresenting ? '#94a3b8' : '#64748b', font: { family: 'Inter', size: 10 } },
+                grid: { color: theme === 'dark' && isPresenting ? '#334155' : '#f1f5f9', drawBorder: false }
+            }
         }
     };
 
+    // Handle "Insight" charts (Dynamic Config from SlideLayouts)
+    if (type === 'insight' || type === 'custom') {
+        const configStr = canvas.parentElement?.getAttribute('data-chart-config');
+        if (configStr) {
+            try {
+                const config = JSON.parse(configStr);
+
+                // Mapper for InsightBuilder simplifie config to Chart.js
+                let type = config.type || 'bar';
+                let datasets = [];
+                let labels = [];
+
+                if (config.type === 'bubble') {
+                    type = 'bubble';
+                    // Bubble data structure: { x, y, r, label }
+                    // Chart.js expects data: [{x,y,r}]
+                    // config.data.bubbleData should be passed from InsightBuilder
+                    datasets = [{
+                        label: config.title || 'Oportunidades',
+                        data: config.data.bubbleData || [],
+                        backgroundColor: 'rgba(139, 92, 246, 0.6)',
+                        borderColor: '#8b5cf6',
+                        borderWidth: 1
+                    }];
+                    // Bubbles don't strictly need labels array on X, but tooltip needs them
+                } else {
+                    // Standard Bar/Line
+                    // If complex structure (InsightBuilder) vs Simple (Custom)
+                    if (config.data && config.data.items) {
+                        // It's from InsightBuilder
+                        labels = config.data.items.map((i: any) => i.key.substring(0, 15) + '...');
+                        datasets = [{
+                            label: 'Clicks',
+                            data: config.data.items.map((i: any) => i.clicks),
+                            backgroundColor: '#8b5cf6',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Impresiones (x100)',
+                            data: config.data.items.map((i: any) => i.impressions / 100), // Scale for visibility
+                            backgroundColor: '#cbd5e1',
+                            borderRadius: 4,
+                            hidden: true // Hide by default to not clutter
+                        }];
+                    } else {
+                        // Generic/Custom fallback
+                        labels = config.labels || [];
+                        datasets = config.datasets || [{
+                            label: config.title || 'Datos',
+                            data: config.data || [],
+                            backgroundColor: '#8b5cf6',
+                            borderColor: '#8b5cf6',
+                        }];
+                    }
+                }
+
+                new Chart(canvas, {
+                    type,
+                    data: {
+                        labels,
+                        datasets
+                    },
+                    options: {
+                        ...commonOptions,
+                        plugins: {
+                            ...commonOptions.plugins,
+                            title: { display: !!config.title, text: config.title, color: theme === 'dark' ? '#fff' : '#1e293b', font: { size: 14, weight: 'bold' } }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Error parsing insight chart config", e);
+            }
+        }
+        return;
+    }
+
+
+    // Legacy/Hardcoded Types
     if (type === 'trend') {
         const trendData = chartData.seoStatus?.monthlyTrend;
         const labels = trendData?.p2?.map((_: any, i: number) => `Día ${i + 1}`) || [];
@@ -489,35 +554,6 @@ function renderChart(canvas: HTMLCanvasElement, type: string | null, chartData: 
                 options: { ...commonOptions, indexAxis: 'y' }
             });
         }
-    } else if (type === 'custom') {
-        const configStr = canvas.parentElement?.getAttribute('data-chart-config');
-        if (configStr) {
-            try {
-                const config = JSON.parse(configStr);
-                new Chart(canvas, {
-                    type: config.type || 'bar',
-                    data: {
-                        labels: config.labels || [],
-                        datasets: [{
-                            label: config.title || 'Datos',
-                            data: config.data || [],
-                            backgroundColor: config.type === 'line' ? 'rgba(139, 92, 246, 0.1)' : '#8b5cf6',
-                            borderColor: '#8b5cf6',
-                            fill: config.type === 'line',
-                            tension: 0.4
-                        }]
-                    },
-                    options: {
-                        ...commonOptions,
-                        plugins: {
-                            ...commonOptions.plugins,
-                            title: { display: !!config.title, text: config.title }
-                        }
-                    }
-                });
-            } catch (e) {
-                console.error("Error parsing custom chart config", e);
-            }
-        }
     }
 }
+

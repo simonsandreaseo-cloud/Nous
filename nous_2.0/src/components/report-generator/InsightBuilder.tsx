@@ -24,6 +24,7 @@ export interface InsightConfig {
         comparison: 'none' | 'prev_period' | 'year';
         limit: number;
         title: string;
+        regexFilter?: string;
     };
 }
 
@@ -43,9 +44,10 @@ export function InsightBuilder({ onInsert, onClose, projectId, dateRange }: Insi
     const [comparison, setComparison] = useState<'none' | 'prev_period' | 'year'>('prev_period');
     const [limit, setLimit] = useState(10);
     const [title, setTitle] = useState('');
+    const [regexFilter, setRegexFilter] = useState('');
 
     const handleGenerate = async () => {
-        if (!projectId || !dateRange || !itemsText) return;
+        if (!projectId || !dateRange || (!itemsText && !regexFilter)) return;
         setIsLoading(true);
 
         const items = itemsText.split('\n').map(s => s.trim()).filter(Boolean);
@@ -53,7 +55,8 @@ export function InsightBuilder({ onInsert, onClose, projectId, dateRange }: Insi
         try {
             const res = await generateInsightDataAction(projectId, dateRange, items, inputType, {
                 comparison,
-                limit
+                limit,
+                regexFilter
             });
 
             if (res.success && res.data) {
@@ -70,7 +73,8 @@ export function InsightBuilder({ onInsert, onClose, projectId, dateRange }: Insi
                         placement,
                         comparison,
                         limit,
-                        title: title || `Análisis de ${items.length} ${inputType === 'page' ? 'URLs' : 'Queries'}`
+                        title: title || `Análisis de ${items.length || 'Regex'} ${inputType === 'page' ? 'URLs' : 'Queries'}`,
+                        regexFilter
                     }
                 });
                 onClose();
@@ -116,9 +120,21 @@ export function InsightBuilder({ onInsert, onClose, projectId, dateRange }: Insi
                             <textarea
                                 value={itemsText}
                                 onChange={e => setItemsText(e.target.value)}
-                                className="w-full h-40 p-3 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none resize-none font-mono"
+                                className="w-full h-24 p-3 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none resize-none font-mono"
                                 placeholder={inputType === 'page' ? "https://site.com/A\nhttps://site.com/B" : "keyword 1\nkeyword 2"}
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-2">Filtrar por Expresión Regular (Regex)</label>
+                            <input
+                                type="text"
+                                value={regexFilter}
+                                onChange={e => setRegexFilter(e.target.value)}
+                                className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-200 outline-none font-mono"
+                                placeholder="Ej: /blog/.* o ^zapatos"
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1">Opcional: Si se aplica, se combinará con la lista de arriba.</p>
                         </div>
 
                         <div>
@@ -205,7 +221,7 @@ export function InsightBuilder({ onInsert, onClose, projectId, dateRange }: Insi
                     />
                     <button
                         onClick={handleGenerate}
-                        disabled={isLoading || !itemsText}
+                        disabled={isLoading || (!itemsText && !regexFilter)}
                         className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2"
                     >
                         {isLoading ? <Loader2 size={16} className="animate-spin" /> : <><Plus size={16} /> Generar</>}

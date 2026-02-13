@@ -148,9 +148,30 @@ export function ReportEditorToolbar({ editor, onOpenSectionBuilder }: ToolbarPro
                         </div>
 
                         <div className="space-y-2 mb-4">
-                            <button disabled={isGenerating} onClick={() => handleAiGenerate("Mejora la redacción de este texto para que sea más profesional y persuasivo.")} className="w-full text-left text-xs p-2 hover:bg-purple-50 rounded-lg text-slate-700 font-medium transition-colors">✨ Mejorar redacción</button>
-                            <button disabled={isGenerating} onClick={() => handleAiGenerate("Expande este punto con más detalles y ejemplos relevantes.")} className="w-full text-left text-xs p-2 hover:bg-purple-50 rounded-lg text-slate-700 font-medium transition-colors">📈 Expandir explicación</button>
-                            <button disabled={isGenerating} onClick={() => handleAiGenerate("Genera una tabla comparativa basada en estos datos.")} className="w-full text-left text-xs p-2 hover:bg-purple-50 rounded-lg text-slate-700 font-medium transition-colors">📊 Crear Tabla</button>
+                            <button
+                                disabled={isGenerating}
+                                onClick={() => handleAiGenerate("Mejora la redacción de este texto para que sea más profesional y persuasivo.")}
+                                className="w-full text-left text-[11px] p-2.5 bg-slate-50 border border-slate-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm rounded-xl text-slate-700 font-bold transition-all flex items-center gap-2 group"
+                            >
+                                <span className="p-1 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">✨</span>
+                                Mejorar redacción
+                            </button>
+                            <button
+                                disabled={isGenerating}
+                                onClick={() => handleAiGenerate("Expande este punto con más detalles y ejemplos relevantes.")}
+                                className="w-full text-left text-[11px] p-2.5 bg-slate-50 border border-slate-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm rounded-xl text-slate-700 font-bold transition-all flex items-center gap-2 group"
+                            >
+                                <span className="p-1 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">📈</span>
+                                Expandir explicación
+                            </button>
+                            <button
+                                disabled={isGenerating}
+                                onClick={() => handleAiGenerate("Genera una tabla comparativa basada en estos datos.")}
+                                className="w-full text-left text-[11px] p-2.5 bg-slate-50 border border-slate-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm rounded-xl text-slate-700 font-bold transition-all flex items-center gap-2 group"
+                            >
+                                <span className="p-1 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">📊</span>
+                                Crear Tabla
+                            </button>
                         </div>
 
                         <div className="relative">
@@ -180,7 +201,7 @@ export function ReportEditorToolbar({ editor, onOpenSectionBuilder }: ToolbarPro
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest hover:shadow-md transition-all bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
                     title="Constructor de Secciones"
                 >
-                    <Layout size={14} /> Constructor de Secciones
+                    <Layout size={14} /> Constructor
                 </button>
             </div>
         </div>
