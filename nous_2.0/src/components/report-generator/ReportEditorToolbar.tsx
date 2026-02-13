@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { Editor } from '@tiptap/react';
-import { Bold, Italic, Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus, Undo, Redo, Sparkles, Loader2, X, BarChart3, LineChart, PieChart } from 'lucide-react';
+import { Bold, Italic, Heading1, Heading2, Heading3, List, ListOrdered, Quote, Undo, Redo, Sparkles, Loader2, X, Layout } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { generateAiContentAction } from '@/app/actions/report-actions';
 
 interface ToolbarProps {
     editor: Editor | null;
+    onOpenSectionBuilder?: () => void;
 }
 
-export function ReportEditorToolbar({ editor }: ToolbarProps) {
+export function ReportEditorToolbar({ editor, onOpenSectionBuilder }: ToolbarProps) {
     const [showAiMenu, setShowAiMenu] = useState(false);
-    const [showChartMenu, setShowChartMenu] = useState(false);
     const [prompt, setPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -37,13 +37,6 @@ export function ReportEditorToolbar({ editor }: ToolbarProps) {
         } finally {
             setIsGenerating(false);
         }
-    };
-
-    const insertChart = (type: string) => {
-        // Insert the placeholder div that ChartExtension recognizes
-        const html = `<div data-chart-type="${type}" class="chart-placeholder"></div><p></p>`;
-        editor.commands.insertContent(html);
-        setShowChartMenu(false);
     };
 
     const ToolbarButton = ({ onClick, isActive, children, title }: { onClick: () => void, isActive?: boolean, children: React.ReactNode, title: string }) => (
@@ -135,43 +128,20 @@ export function ReportEditorToolbar({ editor }: ToolbarProps) {
                 </ToolbarButton>
             </div>
 
-            {/* Charts Menu */}
-            <div className="px-2 border-r border-slate-200 relative">
-                <button
-                    onClick={() => setShowChartMenu(!showChartMenu)}
-                    className={cn(
-                        "p-2 rounded-lg transition-colors flex items-center gap-1",
-                        showChartMenu ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:bg-slate-100"
-                    )}
-                    title="Insertar Gráfico"
-                >
-                    <BarChart3 size={18} />
-                </button>
-                {showChartMenu && (
-                    <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 p-2 z-50 animate-in fade-in zoom-in-95">
-                        <div className="text-[10px] font-bold uppercase text-slate-400 mb-2 px-2">Insertar Gráfico</div>
-                        <button onClick={() => insertChart('trend')} className="w-full text-left text-xs p-2 hover:bg-slate-50 rounded-lg flex items-center gap-2"><LineChart size={14} /> Tendencia Temporal</button>
-                        <button onClick={() => insertChart('clicks')} className="w-full text-left text-xs p-2 hover:bg-slate-50 rounded-lg flex items-center gap-2"><BarChart3 size={14} /> Ganadores (Clics)</button>
-                        <button onClick={() => insertChart('impressions')} className="w-full text-left text-xs p-2 hover:bg-slate-50 rounded-lg flex items-center gap-2"><BarChart3 size={14} /> Perdedores (Clics)</button>
-                    </div>
-                )}
-            </div>
-
-            {/* AI Tools */}
-            <div className="ml-auto pl-2 relative">
+            {/* AI Tools (Moved to left, replacing Charts) */}
+            <div className="px-2 relative">
                 <button
                     onClick={() => setShowAiMenu(!showAiMenu)}
                     className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest hover:shadow-md transition-all",
-                        showAiMenu ? "bg-purple-100 text-purple-700" : "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                        "p-2 rounded-lg transition-colors flex items-center gap-1",
+                        showAiMenu ? "bg-purple-100 text-purple-700" : "text-slate-500 hover:bg-slate-100"
                     )}
-                    title="Herramientas IA"
+                    title="IA Tools"
                 >
-                    <Sparkles size={14} /> IA Tools
+                    <Sparkles size={18} />
                 </button>
-
                 {showAiMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 p-4 z-50 animate-in fade-in zoom-in-95">
+                    <div className="absolute left-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 p-4 z-50 animate-in fade-in zoom-in-95">
                         <div className="flex justify-between items-center mb-3">
                             <h4 className="text-xs font-black uppercase text-purple-600 flex items-center gap-2"><Sparkles size={12} /> Generar con IA</h4>
                             <button onClick={() => setShowAiMenu(false)}><X size={14} className="text-slate-400 hover:text-slate-600" /></button>
@@ -201,6 +171,17 @@ export function ReportEditorToolbar({ editor }: ToolbarProps) {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* Section Builder (Moved to right, highlighted) */}
+            <div className="ml-auto pl-2">
+                <button
+                    onClick={onOpenSectionBuilder}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest hover:shadow-md transition-all bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+                    title="Constructor de Secciones"
+                >
+                    <Layout size={14} /> Constructor de Secciones
+                </button>
             </div>
         </div>
     );

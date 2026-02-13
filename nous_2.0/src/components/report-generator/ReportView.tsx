@@ -295,22 +295,19 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
 
 
     return (
-        <div className="flex flex-col h-[calc(100vh-20rem)] min-h-[600px] bg-slate-50/50 rounded-[30px] overflow-hidden border border-slate-200">
+        <div className="flex flex-col h-[85vh] min-h-[600px] bg-slate-50/50 rounded-[30px] overflow-hidden border border-slate-200 shadow-sm">
             {/* Toolbar Area */}
             <div className="bg-white border-b border-slate-200 p-4 flex justify-between items-center">
                 <div className="flex items-center gap-4">
                     <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Editor de Diapositivas</h3>
                     <div className="h-4 w-px bg-slate-200"></div>
                     {/* Editor Toolbar (Text formatting) */}
-                    {!isPresenting && <ReportEditorToolbar editor={editor} />}
-
-                    <div className="h-4 w-px bg-slate-200"></div>
-                    <button
-                        onClick={() => setShowInsightBuilder(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold uppercase tracking-wide transition-all"
-                    >
-                        <Plus size={12} /> Sección / Gráfico
-                    </button>
+                    {!isPresenting && (
+                        <ReportEditorToolbar
+                            editor={editor}
+                            onOpenSectionBuilder={() => setShowInsightBuilder(true)}
+                        />
+                    )}
                 </div>
 
                 <button
@@ -369,7 +366,7 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
 
                 {/* Editor Area */}
                 <div className="flex-1 bg-slate-50 overflow-y-auto p-8 flex justify-center" ref={containerRef}>
-                    <div className="w-full max-w-3xl">
+                    <div className="w-full max-w-5xl">
                         <EditorContent editor={editor} />
                     </div>
                 </div>

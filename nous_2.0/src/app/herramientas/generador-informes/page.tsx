@@ -296,98 +296,100 @@ export default function ReportGeneratorPage() {
                 {mainTab === 'generator' && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                         {/* LEFT PANEL */}
-                        <div className="md:col-span-1 space-y-6">
-                            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                                {/* Mode Toggle */}
-                                <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
-                                    <button onClick={() => { setMode('api'); setStep('settings'); }} className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", mode === 'api' ? "bg-white shadow text-purple-600" : "text-slate-400")}>API GSC</button>
-                                    <button onClick={() => { setMode('csv'); setStep('settings'); }} className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", mode === 'csv' ? "bg-white shadow text-purple-600" : "text-slate-400")}>CSV</button>
-                                </div>
+                        {step !== 'complete' && (
+                            <div className="md:col-span-1 space-y-6">
+                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                                    {/* Mode Toggle */}
+                                    <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                                        <button onClick={() => { setMode('api'); setStep('settings'); }} className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", mode === 'api' ? "bg-white shadow text-purple-600" : "text-slate-400")}>API GSC</button>
+                                        <button onClick={() => { setMode('csv'); setStep('settings'); }} className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", mode === 'csv' ? "bg-white shadow text-purple-600" : "text-slate-400")}>CSV</button>
+                                    </div>
 
-                                {mode === 'api' ? (
-                                    <div>
-                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block tracking-widest">Proyecto GSC</label>
-                                        <select
-                                            value={activeProject?.id || ''}
-                                            onChange={(e) => setActiveProject(e.target.value)}
-                                            className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 outline-none focus:ring-2 ring-purple-200 transition-all"
-                                            disabled={step !== 'settings'}
-                                        >
-                                            <option value="" disabled>Seleccionar Proyecto</option>
-                                            {gscProjects.length > 0 ? (
-                                                gscProjects.map(p => (
-                                                    <option key={p.id} value={p.id}>
-                                                        {p.name} {p.gsc_connected ? `(${p.domain})` : "(No vinculado)"}
-                                                    </option>
-                                                ))
-                                            ) : (
-                                                <option value="" disabled>No hay proyectos creados</option>
+                                    {mode === 'api' ? (
+                                        <div>
+                                            <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block tracking-widest">Proyecto GSC</label>
+                                            <select
+                                                value={activeProject?.id || ''}
+                                                onChange={(e) => setActiveProject(e.target.value)}
+                                                className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 outline-none focus:ring-2 ring-purple-200 transition-all"
+                                                disabled={step !== 'settings'}
+                                            >
+                                                <option value="" disabled>Seleccionar Proyecto</option>
+                                                {gscProjects.length > 0 ? (
+                                                    gscProjects.map(p => (
+                                                        <option key={p.id} value={p.id}>
+                                                            {p.name} {p.gsc_connected ? `(${p.domain})` : "(No vinculado)"}
+                                                        </option>
+                                                    ))
+                                                ) : (
+                                                    <option value="" disabled>No hay proyectos creados</option>
+                                                )}
+                                            </select>
+                                            {!activeProject?.gsc_connected && activeProject && (
+                                                <p className="text-[9px] text-amber-600 mt-2 font-medium bg-amber-50 p-2 rounded-lg border border-amber-100 flex items-center gap-1">
+                                                    <AlertCircle size={10} />
+                                                    Este proyecto no tiene vinculada una propiedad de GSC. Ve a Ajustes.
+                                                </p>
                                             )}
-                                        </select>
-                                        {!activeProject?.gsc_connected && activeProject && (
-                                            <p className="text-[9px] text-amber-600 mt-2 font-medium bg-amber-50 p-2 rounded-lg border border-amber-100 flex items-center gap-1">
-                                                <AlertCircle size={10} />
-                                                Este proyecto no tiene vinculada una propiedad de GSC. Ve a Ajustes.
-                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <input type="file" onChange={(e) => setCsvFileP1(e.target.files?.[0] || null)} className="w-full text-xs" />
+                                            <input type="file" onChange={(e) => setCsvFileP2(e.target.files?.[0] || null)} className="w-full text-xs" />
+                                        </div>
+                                    )}
+
+                                    <div className="mt-4">
+                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">Contexto</label>
+                                        <textarea rows={3} value={userContext} onChange={(e) => setUserContext(e.target.value)} placeholder="Ej: Ignora marca..." className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm outline-none resize-none" />
+                                    </div>
+
+                                    <div className="mt-4 grid grid-cols-2 gap-4">
+                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
+                                            <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center gap-1">
+                                                <Calendar size={12} className="text-purple-500" /> Desde
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={dateRange.start}
+                                                onChange={(e) => setDateRange((prev: any) => ({ ...prev, start: e.target.value }))}
+                                                className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none"
+                                            />
+                                        </div>
+                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
+                                            <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center gap-1">
+                                                <Calendar size={12} className="text-purple-500" /> Hasta
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={dateRange.end}
+                                                onChange={(e) => setDateRange((prev: any) => ({ ...prev, end: e.target.value }))}
+                                                className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6">
+                                        {step === 'settings' && (
+                                            <button onClick={handleAnalyze} disabled={!!loadingState} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2">
+                                                {loadingState ? <Loader2 className="animate-spin" /> : <ListFilter size={16} />}
+                                                {mode === 'api' ? "Analizar Estructura" : "Generar"}
+                                            </button>
+                                        )}
+                                        {step === 'validation' && (
+                                            <button onClick={handleGenerateFinal} disabled={!!loadingState} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg flex items-center justify-center gap-2 animate-pulse">
+                                                {loadingState ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={16} />}
+                                                Confirmar y Generar
+                                            </button>
                                         )}
                                     </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        <input type="file" onChange={(e) => setCsvFileP1(e.target.files?.[0] || null)} className="w-full text-xs" />
-                                        <input type="file" onChange={(e) => setCsvFileP2(e.target.files?.[0] || null)} className="w-full text-xs" />
-                                    </div>
-                                )}
-
-                                <div className="mt-4">
-                                    <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">Contexto</label>
-                                    <textarea rows={3} value={userContext} onChange={(e) => setUserContext(e.target.value)} placeholder="Ej: Ignora marca..." className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm outline-none resize-none" />
+                                    {error && <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-600 font-bold">{error}</div>}
                                 </div>
-
-                                <div className="mt-4 grid grid-cols-2 gap-4">
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
-                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center gap-1">
-                                            <Calendar size={12} className="text-purple-500" /> Desde
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={dateRange.start}
-                                            onChange={(e) => setDateRange((prev: any) => ({ ...prev, start: e.target.value }))}
-                                            className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none"
-                                        />
-                                    </div>
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
-                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center gap-1">
-                                            <Calendar size={12} className="text-purple-500" /> Hasta
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={dateRange.end}
-                                            onChange={(e) => setDateRange((prev: any) => ({ ...prev, end: e.target.value }))}
-                                            className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="mt-6">
-                                    {step === 'settings' && (
-                                        <button onClick={handleAnalyze} disabled={!!loadingState} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2">
-                                            {loadingState ? <Loader2 className="animate-spin" /> : <ListFilter size={16} />}
-                                            {mode === 'api' ? "Analizar Estructura" : "Generar"}
-                                        </button>
-                                    )}
-                                    {step === 'validation' && (
-                                        <button onClick={handleGenerateFinal} disabled={!!loadingState} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg flex items-center justify-center gap-2 animate-pulse">
-                                            {loadingState ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={16} />}
-                                            Confirmar y Generar
-                                        </button>
-                                    )}
-                                </div>
-                                {error && <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-600 font-bold">{error}</div>}
                             </div>
-                        </div>
+                        )}
 
                         {/* RIGHT PANEL */}
-                        <div className="md:col-span-3">
+                        <div className={cn("transition-all duration-500", step === 'complete' ? "md:col-span-4" : "md:col-span-3")}>
                             {step === 'validation' && (
                                 <div className="bg-white p-8 rounded-[40px] shadow-xl border border-slate-100 animate-in fade-in slide-in-from-bottom-4">
                                     <h2 className="text-xl font-black text-slate-900 mb-4">Validar Segmentación IA</h2>
@@ -436,28 +438,37 @@ export default function ReportGeneratorPage() {
                             )}
 
                             {step === 'complete' && reportResult && (
-                                <div className="bg-white p-8 md:p-12 rounded-[40px] shadow-xl border border-slate-100 animate-in fade-in slide-in-from-bottom-4 relative">
+                                <div className="bg-white p-4 md:p-6 rounded-[20px] shadow-xl border border-slate-100 animate-in fade-in slide-in-from-bottom-4 relative h-full flex flex-col">
                                     {/* Action Bar */}
-                                    <div className="flex justify-end mb-6 gap-2">
+                                    <div className="flex justify-between items-center mb-4">
                                         <button
-                                            onClick={() => setShowSaveModal(true)}
-                                            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all"
+                                            onClick={() => setStep('settings')}
+                                            className="text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest flex items-center gap-2"
                                         >
-                                            <Save size={14} /> Guardar Informe
+                                            ← Volver al Generador
                                         </button>
-                                        <div className="h-6 w-px bg-slate-200 mx-2"></div>
-                                        <button
-                                            onClick={() => handleGoogleExport('docs')}
-                                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-blue-500 transition-all"
-                                        >
-                                            <FileText size={14} /> Docs
-                                        </button>
-                                        <button
-                                            onClick={() => handleGoogleExport('slides')}
-                                            className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-orange-400 transition-all"
-                                        >
-                                            <LayoutGrid size={14} /> Slides
-                                        </button>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setShowSaveModal(true)}
+                                                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all"
+                                            >
+                                                <Save size={14} /> Guardar Informe
+                                            </button>
+                                            <div className="h-6 w-px bg-slate-200 mx-2"></div>
+                                            <button
+                                                onClick={() => handleGoogleExport('docs')}
+                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-blue-500 transition-all"
+                                            >
+                                                <FileText size={14} /> Docs
+                                            </button>
+                                            <button
+                                                onClick={() => handleGoogleExport('slides')}
+                                                className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-orange-400 transition-all"
+                                            >
+                                                <LayoutGrid size={14} /> Slides
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <ReportView

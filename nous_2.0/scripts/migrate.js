@@ -8,6 +8,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env.local') });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -25,7 +26,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 async function runMigration() {
     console.log('🚀 Iniciando migración de base de datos...');
 
-    const migrationPath = path.join(__dirname, '../supabase/migrations/20260211_add_editorial_fields.sql');
+    const migrationPath = path.join(__dirname, '../supabase/migrations/20260213_emergency_schema_fix.sql');
 
     if (!fs.existsSync(migrationPath)) {
         console.log('⚠️  No se encontró el archivo de migración');

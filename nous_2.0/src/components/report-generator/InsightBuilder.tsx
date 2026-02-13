@@ -86,7 +86,7 @@ export function InsightBuilder({ onInsert, onClose, projectId, dateRange }: Insi
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
                     <h3 className="font-bold text-slate-700 flex items-center gap-2">

@@ -33,38 +33,73 @@ You will receive:
 Read 'USER CONTEXT' first. It MUST guide your narrative.
 If the user says "the drop in X is natural", DO NOT report it as a critical alert, mention it as an observation.
 
---- HTML DESIGN RULES ---
-1. Wrap each section in: <section class="report-slide bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-12 break-inside-avoid relative overflow-hidden">
- ... </section>
-2. Section Titles:
-   <div class="flex items-center space-x-3 border-b border-gray-200 pb-3 mb-4">
+--- HTML STRUCTURE & LAYOUT RULES ---
+For EACH topic/section (except Executive Summary and Conclusions), you MUST generate **TWO SLIDES** (two <section> tags).
+
+**SLIDE 1: ANALYSIS & VISUALIZATION**
+Layer: Deep analysis on the left, Chart on the right.
+Template:
+<section class="report-slide bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-12 break-inside-avoid relative overflow-hidden flex flex-col">
+  <div class="flex items-center space-x-3 border-b border-gray-200 pb-3 mb-4 shrink-0">
      [SVG_ICON]
      <h2 class="text-xl font-bold text-gray-900">SECTION TITLE</h2>
+  </div>
+  <div class="grid grid-cols-2 gap-8 flex-1 min-h-0">
+    <div class="prose prose-sm max-w-none overflow-y-auto pr-2">
+       <h3 class="text-lg font-semibold text-gray-800 mb-2">Key Findings</h3>
+       <p class="text-gray-600 mb-4">...Deep analysis paragraph...</p>
+       <ul class="list-disc pl-5 space-y-1 text-gray-600">
+         <li><strong>Specific Metric:</strong> Contextual explanation.</li>
+       </ul>
+    </div>
+    <div class="flex flex-col items-center justify-center bg-slate-50 rounded-xl p-4 border border-slate-100">
+       <!-- CHART PLACEHOLDER - AI MUST SELECT APPROPRIATE TYPE -->
+       <div data-chart-type="[CHART_TYPE]" class="chart-placeholder w-full h-64"></div>
+       <p class="text-xs text-slate-500 mt-2 text-center">Visualización de datos clave</p>
+    </div>
+  </div>
+</section>
+
+**SLIDE 2: DATA EVIDENCE**
+Layer: Full-width table with specific URLs/Queries.
+Template:
+<section class="report-slide bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-12 break-inside-avoid relative overflow-hidden flex flex-col">
+   <div class="flex items-center space-x-2 mb-4 shrink-0">
+      <h3 class="text-lg font-semibold text-gray-800">Evidencia de Datos: [SECTION TITLE]</h3>
    </div>
-3. Subtitles: <h3 class="text-lg font-semibold text-gray-800 mt-4 mb-2">...</h3>
-4. Paragraphs: <p class="text-gray-600 mb-3">...</p>
-5. Lists: Use <div class="divide-y divide-gray-100"> <div class="py-3">...</div> </div>
-6. Keywords/URLs: Use <code class="text-sm font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">...</code>
-7. Charts: If needed for top winners/losers, insert: <div data-chart-url="/full/url" data-chart-type="clicks" class="chart-placeholder mt-2 mb-4 h-64 w-full"></div>
+   <div class="flex-1 min-h-0 overflow-auto border border-gray-100 rounded-lg">
+      <table class="w-full text-sm text-left">
+         <thead class="bg-gray-50 text-gray-700 font-bold sticky top-0">
+            <tr><th class="p-3">Item (URL/Keyword)</th><th class="p-3">Clicks</th><th class="p-3">Imp.</th><th class="p-3">Pos.</th><th class="p-3">Change</th></tr>
+         </thead>
+         <tbody class="divide-y divide-gray-100 text-gray-600">
+            <!-- 10-15 ROWS OF DATA -->
+            <tr><td class="p-3 font-mono text-xs max-w-[200px] truncate">...</td><td class="p-3">...</td><td class="p-3">...</td><td class="p-3">...</td><td class="p-3">...</td></tr>
+         </tbody>
+      </table>
+   </div>
+</section>
 
 --- SECTION SPECIFIC INSTRUCTIONS ---
 
 1. **ESTADO_SEO** (Estado General del Proyecto):
-   - Esta sección DEBE ir primero siempre.
-   - Usa los datos de 'seoStatus' en el dossier.
-   - Muestra una tabla resumen de KPIs (Clics, Impresiones, CTR, Posición) con sus cambios absolutos y porcentuales.
-   - Analiza la 'categoryDistribution' (Segmentación IA) para explicar qué áreas del negocio traen más tráfico.
-   - Muestra la distribución de Keywords (Top 3, Top 10, Top 20) y sus cambios.
-   - En 'Nuevas Keywords', menciona cuántas son (Total), cuánto tráfico traen (Clicks/Impresiones) y destaca si hay clusters interesantes.
-   - **IMPORTANTE**: Inserta un gráfico de tendencia temporal aquí: <div data-chart-type="trend" class="chart-placeholder h-72 w-full mb-6"></div>
+   - Slide 1 Chart: <div data-chart-type="trend" ...></div>
+   - Slide 1 Analysis: Analyze 'seoStatus', 'kpis'. Mention 'newKeywords' count.
+   - Slide 2: Table of Top 15 Gainers (Winners) or Top 15 Losers depending on net trend.
 
-2. **APARICION_CHATS_IA** (Aparición en Modelos de Lenguaje & Chatbots):
-   - Esta sección analiza el tráfico referido por IAs generativas (ChatGPT, Bard, Bing, Claude, Perplexity, etc.).
-   - Usa los datos de 'aiTrafficAnalysis'.
-   - Muestra las 'Fuentes de IA' detectadas y sus sesiones.
-   - Destaca la métrica de **Impresiones Estimadas** (Calculada como Sesiones × 4), explicando que es una estimación basada en el alto CTR de estos chats.
-   - Crea una tabla con las **Top Páginas referidas por IA**.
-   - Si no hay tráfico, indícalo claramente como una oportunidad de crecimiento.
+2. **APARICION_CHATS_IA**:
+   - Slide 1 Chart: <div data-chart-type="custom" ...></div> (Visualize sessions per source).
+   - Slide 1 Analysis: Use 'aiTrafficAnalysis'. Discuss 'estimatedImpressions'.
+   - Slide 2: Table of 'Top AI Referrers' and 'Top Pages via AI'.
+
+3. **ALERTA_PERDEDORES_P1** / **OPORTUNIDAD_STRIKING_DISTANCE**:
+   - Slide 1 Chart: <div data-chart-type="losers" ...></div> (or appropriate bar chart).
+   - Slide 1 Analysis: Why are they dropping? or Why are they close?
+   - Slide 2: Full table of the specific keywords/URLs involved.
+
+4. **ANALISIS_SEGMENTOS** / **CATEGORIES**:
+   - Slide 1 Chart: <div data-chart-type="pie" ...></div> usually best for segments.
+   - Slide 2: Table of Segments performance.
 
 --- ICONS ---
 Alert: <svg class="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
@@ -93,6 +128,7 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
     };
 
     const genAI = new GoogleGenerativeAI(apiKey);
+    // STRICT PRIORITY for Gemini 3 Flash Preview as requested
     const models = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
 
     for (const modelId of models) {
@@ -129,12 +165,12 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
 function simplifyPayload(payload: ReportPayload): any {
     const simplified = { ...payload };
 
-    // Reduce arrays to top items to save context window
-    if (simplified.segmentAnalysis) simplified.segmentAnalysis = simplified.segmentAnalysis.slice(0, 10);
-    if (simplified.countryAnalysis) simplified.countryAnalysis = simplified.countryAnalysis.slice(0, 10);
-    if (simplified.visibilityAnalysis?.winners) simplified.visibilityAnalysis.winners = simplified.visibilityAnalysis.winners.slice(0, 10);
-    if (simplified.visibilityAnalysis?.losers) simplified.visibilityAnalysis.losers = simplified.visibilityAnalysis.losers.slice(0, 10);
-    if (simplified.outlierAnalysis?.topMoversImpact) simplified.outlierAnalysis = { topMoversImpact: simplified.outlierAnalysis.topMoversImpact }; // Remove detailed outliers if too large
+    // Relaxed Limits for "2-Slide" Deep Report
+    // We want enough data for the "Data Evidence" slide tables.
+    if (simplified.segmentAnalysis) simplified.segmentAnalysis = simplified.segmentAnalysis.slice(0, 15);
+    if (simplified.countryAnalysis) simplified.countryAnalysis = simplified.countryAnalysis.slice(0, 15);
+    if (simplified.visibilityAnalysis?.winners) simplified.visibilityAnalysis.winners = simplified.visibilityAnalysis.winners.slice(0, 20);
+    if (simplified.visibilityAnalysis?.losers) simplified.visibilityAnalysis.losers = simplified.visibilityAnalysis.losers.slice(0, 20);
 
     // Remove potentially large unused data if present
     // @ts-ignore
@@ -145,7 +181,8 @@ function simplifyPayload(payload: ReportPayload): any {
 
 export const generateHTMLReport = async (payload: ReportPayload, sections: string[], apiKey: string): Promise<string> => {
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Updated hierarchy based on user request (Gemini 3 > 2.5 > 1.5)
+
+    // STRICT PRIORITY for Gemini 3 as requested
     const models = [
         'gemini-3-flash-preview',
         'gemini-2.5-flash',
@@ -157,9 +194,8 @@ export const generateHTMLReport = async (payload: ReportPayload, sections: strin
     const simplifiedPayload = simplifyPayload(payload);
     let safePayload = JSON.stringify(simplifiedPayload);
 
-    // Hard limit to 150k chars (Gemini Flash has 1M context, 30k was too conservative)
-    // 150k chars is approx 30k-40k tokens, well within limits.
-    const MAX_CHARS = 150000;
+    // Increase hard limit for Gemini 3 (has 1M context, allows mostly full data)
+    const MAX_CHARS = 300000;
     if (safePayload.length > MAX_CHARS) {
         console.warn(`[GEMINI-SERVICE] Payload too large (${safePayload.length}). Truncating to ${MAX_CHARS} chars.`);
         safePayload = safePayload.substring(0, MAX_CHARS);
@@ -230,7 +266,7 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash-lite', // Upgrade to 2.5 Lite for speed/cost
+        model: 'gemini-3-flash-preview', // Upgraded to Gemini 3 for consistency
         generationConfig: { responseMimeType: "application/json" }
     });
 

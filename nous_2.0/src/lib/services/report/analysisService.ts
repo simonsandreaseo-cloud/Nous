@@ -34,10 +34,10 @@ export const runFullAnalysis = (
     const topLosers = [...comparedPages].sort((a, b) => a.clicksChange - b.clicksChange).slice(0, 25);
 
     const comparedSegments = compareSeries(aggP1.segments, aggP2.segments);
-    const topSegmentMovers = [...comparedSegments].sort((a, b) => Math.abs(b.clicksChange) - Math.abs(a.clicksChange)).slice(0, 10);
+    const topSegmentMovers = [...comparedSegments].sort((a, b) => Math.abs(b.clicksChange) - Math.abs(a.clicksChange)).slice(0, 20);
 
     const comparedCountries = compareSeries(aggP1.countries, aggP2.countries);
-    const topCountryMovers = [...comparedCountries].sort((a, b) => Math.abs(b.clicksChange) - Math.abs(a.clicksChange)).slice(0, 10);
+    const topCountryMovers = [...comparedCountries].sort((a, b) => Math.abs(b.clicksChange) - Math.abs(a.clicksChange)).slice(0, 20);
 
     const topImpressionWinners = [...comparedPages].sort((a, b) => b.impressionsChange - a.impressionsChange).slice(0, 25);
     const topImpressionLosers = [...comparedPages].sort((a, b) => b.impressionsChange - b.impressionsChange).slice(0, 25);
@@ -117,8 +117,8 @@ export const runFullAnalysis = (
             };
         }),
         visibilityAnalysis: {
-            winners: topImpressionWinners.map((w: any) => ({ url: w.name, change: w.impressionsChange })).slice(0, 10),
-            losers: topImpressionLosers.map((l: any) => ({ url: l.name, change: l.impressionsChange })).slice(0, 10)
+            winners: topImpressionWinners.map((w: any) => ({ url: w.name, change: w.impressionsChange })).slice(0, 25),
+            losers: topImpressionLosers.map((l: any) => ({ url: l.name, change: l.impressionsChange })).slice(0, 25)
         },
         countryAnalysis: topCountryMovers,
         outlierAnalysis: detections.outlierAnalysis,
@@ -129,8 +129,8 @@ export const runFullAnalysis = (
         keywordDecayAlerts: detections.keywordDecayAlerts,
         newKeywordDiscovery: detections.newKeywordDiscovery,
         page1LoserAlerts: detections.page1LoserAlerts,
-        topWinners: topWinners.slice(0, 10),
-        topLosers: topLosers.slice(0, 10)
+        topWinners: topWinners.slice(0, 25),
+        topLosers: topLosers.slice(0, 25)
     };
 
     // Chart Data for UI
