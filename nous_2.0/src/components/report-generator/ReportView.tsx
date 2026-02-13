@@ -295,7 +295,7 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
 
 
     return (
-        <div className="flex flex-col h-[800px] bg-slate-50/50 rounded-[30px] overflow-hidden border border-slate-200">
+        <div className="flex flex-col h-[calc(100vh-20rem)] min-h-[600px] bg-slate-50/50 rounded-[30px] overflow-hidden border border-slate-200">
             {/* Toolbar Area */}
             <div className="bg-white border-b border-slate-200 p-4 flex justify-between items-center">
                 <div className="flex items-center gap-4">

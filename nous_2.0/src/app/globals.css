@@ -25,13 +25,8 @@
 body {
   background-image: none !important;
   background-color: transparent;
-  /* Fallback color matching light theme */
-  /* background: url('/bg-ref.png') no-repeat center center fixed; */
-  /* Changed to transparent so 3D scene shows */
-  /* background-size: cover; */
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
-  overflow: hidden;
 }
 
 @layer utilities {
