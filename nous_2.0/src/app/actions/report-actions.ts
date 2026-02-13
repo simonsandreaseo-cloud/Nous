@@ -7,7 +7,7 @@ import { SegmentationService } from '@/lib/services/report/segmentationService';
 import { parseISO, subDays, format } from 'date-fns';
 import { GscRow } from '@/types/report';
 import { AnalyticsService } from '@/lib/services/report/analyticsService';
-import { identifyAiTrafficSources, generateContent } from '@/lib/services/report/geminiService';
+import { identifyAiTrafficSources, generateContent, generateInsightAnalysis } from '@/lib/services/report/geminiService';
 import { supabase } from '@/lib/supabase';
 import { ApiKeyRotationService } from '@/lib/services/ai/apiKeyRotation';
 import { GoogleExportService } from '@/lib/services/export/googleExportService';
@@ -335,3 +335,245 @@ export async function exportToGoogleAction(
         return { success: false, error: e.message };
     }
 }
+
+export async function calculateCustomChartDataAction(
+    projectId: string,
+    dateRange: { start: string, end: string },
+    items: string[],
+    type: 'page' | 'query'
+) {
+    try {
+        const apiKey = ApiKeyRotationService.getApiKey(); // Not strictly needed for GSC but good for consistancy if we add AI later
+
+        // 1. Fetch Data for the Range
+        const data = await GscService.fetchData(projectId, dateRange.start, dateRange.end);
+        if (!data) throw new Error("No data found for this period");
+
+        // 2. Filter Data
+        const relevantRows = (type === 'page' ? data.pageMetrics : data.queryMetrics) as GscRow[];
+
+        // Filter: Key matches one of the items (exact match or simple contains?)
+        const filteredRows = relevantRows.filter(r => {
+            const key = type === 'page' ? r.page : r.keyword;
+            return key && items.includes(key);
+        });
+
+        if (filteredRows.length === 0) return { success: false, error: "No matching data found for these items." };
+
+        // 3. Aggregate for Chart
+        // Return a Daily Trend of Clicks for the group.
+        const dailyMap = new Map<string, number>();
+        filteredRows.forEach(r => {
+            const d = r.date.toISOString().split('T')[0];
+            dailyMap.set(d, (dailyMap.get(d) || 0) + r.clicks);
+        });
+
+        const labels = Array.from(dailyMap.keys()).sort();
+        const values = labels.map(k => dailyMap.get(k) || 0);
+
+        // Also calculate totals for a Summary/Bar view?
+        const totalClicks = values.reduce((a, b) => a + b, 0);
+
+        return {
+            success: true,
+            config: {
+                type: 'line',
+                labels,
+                data: values,
+                title: `Tendencia: ${items.length} ${type === 'page' ? 'URLs' : 'Queries'} (${totalClicks} Clicks)`,
+                totalClicks
+            }
+        };
+
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function generateInsightDataAction(
+    projectId: string,
+    dateRange: { start: string, end: string },
+    items: string[],
+    type: 'page' | 'query',
+    options: {
+        comparison: 'none' | 'prev_period' | 'year';
+        limit?: number;
+        includeAI?: boolean;
+        aiInstructions?: string;
+    }
+) {
+    try {
+        const apiKey = ApiKeyRotationService.getApiKey();
+
+        // Helper to calculate previous range
+        const getPreviousRange = (start: string, end: string, mode: string) => {
+            const startDate = new Date(start);
+            const endDate = new Date(end);
+            const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (mode === 'year') {
+                startDate.setFullYear(startDate.getFullYear() - 1);
+                endDate.setFullYear(endDate.getFullYear() - 1);
+            } else {
+                startDate.setDate(startDate.getDate() - diffDays - 1);
+                endDate.setDate(endDate.getDate() - diffDays - 1);
+            }
+            return { start: startDate.toISOString().split('T')[0], end: endDate.toISOString().split('T')[0] };
+        };
+
+        // 1. Fetch Current Data
+        const currentData = await GscService.fetchData(projectId, dateRange.start, dateRange.end);
+        if (!currentData) throw new Error("No data found for this period");
+
+        // 2. Fetch Comparison Data (if needed)
+        let prevData: any = null;
+        if (options.comparison !== 'none') {
+            const prevRange = getPreviousRange(dateRange.start, dateRange.end, options.comparison);
+            prevData = await GscService.fetchData(projectId, prevRange.start, prevRange.end);
+        }
+
+        // 3. Filter Data
+        const filterRows = (rows: GscRow[]) => {
+            return rows.filter(r => {
+                const key = type === 'page' ? r.page : r.keyword;
+                // Simple inclusion check. Could be Regex in future.
+                return key && items.some(i => key.includes(i));
+            });
+        };
+
+        const currentRows = filterRows((type === 'page' ? currentData.pageMetrics : currentData.queryMetrics) as GscRow[]);
+        const prevRows = prevData ? filterRows((type === 'page' ? prevData.pageMetrics : prevData.queryMetrics) as GscRow[]) : [];
+
+        if (currentRows.length === 0) return { success: false, error: "No matching data found." };
+
+        // 4. Aggregation Logic
+        // We need:
+        // A. Summary (Total Clicks, Imp, CTR, Pos)
+        // B. Per-Item Metrics (for Bubble/Table) - Map by Key (URL or Query)
+
+        const aggregate = (rows: GscRow[]) => {
+            const map = new Map<string, { clicks: number, impressions: number, posSum: number, count: number }>();
+            let totalClicks = 0;
+            let totalImp = 0;
+            let totalPosSum = 0; // Weighted? Or simple avg? Let's do simple avg of avgs for now or weighted by imp?
+            // GSC "Avg Position" is tricky. Let's sum (position * impressions) then divide by total impressions for accurate weighted avg.
+            let weightedPosSum = 0;
+
+            rows.forEach(r => {
+                const key = type === 'page' ? r.page : r.keyword;
+                if (!key) return;
+
+                const current = map.get(key) || { clicks: 0, impressions: 0, posSum: 0, count: 0 };
+                map.set(key, {
+                    clicks: current.clicks + r.clicks,
+                    impressions: current.impressions + r.impressions,
+                    posSum: current.posSum + (r.position * r.impressions), // Weighted
+                    count: current.count + 1
+                });
+
+                totalClicks += r.clicks;
+                totalImp += r.impressions;
+                weightedPosSum += (r.position * r.impressions);
+            });
+
+            // Flatten Map
+            const items = Array.from(map.entries()).map(([key, val]) => ({
+                key,
+                clicks: val.clicks,
+                impressions: val.impressions,
+                position: val.impressions > 0 ? val.posSum / val.impressions : 0,
+                ctr: val.impressions > 0 ? (val.clicks / val.impressions) * 100 : 0
+            }));
+
+            return {
+                items,
+                totals: {
+                    clicks: totalClicks,
+                    impressions: totalImp,
+                    position: totalImp > 0 ? weightedPosSum / totalImp : 0,
+                    ctr: totalImp > 0 ? (totalClicks / totalImp) * 100 : 0,
+                    count: items.length
+                }
+            };
+        };
+
+        // ... (previous aggregation logic) ...
+        const currentAgg = aggregate(currentRows);
+        const prevAgg = prevData ? aggregate(prevRows) : null;
+
+        // 5. AI Analysis (Optional)
+        let analysisText = "";
+        if (options.includeAI) {
+            try {
+                // Construct a prompt context
+                const context = `
+                Analiza estos datos de SEO para un informe.
+                Objetivo: ${options.aiInstructions || 'Resumir tendencias y oportunidades.'}
+                
+                Datos Generales (Periodo Actual):
+                - Clicks: ${currentAgg.totals.clicks}
+                - Impresiones: ${currentAgg.totals.impressions}
+                - CTR: ${currentAgg.totals.ctr.toFixed(2)}%
+                - Posición Promedio: ${currentAgg.totals.position.toFixed(1)}
+                
+                Comparación: ${options.comparison}
+                ${prevAgg ? `Diferencia Clicks: ${currentAgg.totals.clicks - prevAgg.totals.clicks}` : ''}
+                
+                Top 5 ${type === 'page' ? 'URLs' : 'Keywords'}:
+                ${currentAgg.items.slice(0, 5).map(i => `- ${i.key}: ${i.clicks} clicks, Pos ${i.position.toFixed(1)}`).join('\n')}
+                `;
+
+                // Call Gemini (Assumes a generic generation method exists, or use a specific one)
+                // Using existing service method or a new one. Let's use a specialized one or generic.
+                // Checking imports... assuming GeminiService is available.
+                // We'll use a direct prompt if GeminiService exposes one, otherwise use a specific analysis method.
+                // Since I can't check GeminiService right now easily without viewing, I'll assume 'generateText' or similar.
+                // Let's use 'generateContent' from 'geminiService'.
+
+                analysisText = await generateInsightAnalysis(context, apiKey);
+            } catch (e) {
+                console.error("AI Generation failed", e);
+                analysisText = "No se pudo generar el análisis automáticamente.";
+            }
+        }
+
+        // 6. Build Response
+        // limit items for table/charts
+        const limitedItems = currentAgg.items
+            .sort((a, b) => b.clicks - a.clicks)
+            .slice(0, options.limit || 50);
+
+        return {
+            success: true,
+            data: {
+                summary: {
+                    current: currentAgg.totals,
+                    previous: prevAgg?.totals || null,
+                    comparison: options.comparison
+                },
+                analysis: analysisText,
+                items: limitedItems.map(item => {
+                    const prevItem = prevAgg?.items.find(p => p.key === item.key);
+                    return {
+                        ...item,
+                        prevClicks: prevItem?.clicks || 0,
+                        prevImpressions: prevItem?.impressions || 0,
+                        changeClicks: prevItem ? item.clicks - prevItem.clicks : 0
+                    };
+                }),
+                // Bubble Chart Data prep (x=Pos, y=Clicks, r=Imp)
+                bubbleData: limitedItems.map(item => ({
+                    x: Number(item.position.toFixed(1)), // Position (lower is better, but X axis usually goes 0->100)
+                    y: item.clicks,
+                    r: Math.min(Math.max(item.impressions / 100, 4), 30), // Scale radius
+                    label: item.key
+                }))
+            }
+        };
+
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+

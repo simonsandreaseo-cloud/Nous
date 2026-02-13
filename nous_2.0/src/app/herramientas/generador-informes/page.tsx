@@ -238,10 +238,19 @@ export default function ReportGeneratorPage() {
         if (!reportResult) return;
         setLoadingState(`Exporting to Google ${type === 'docs' ? 'Docs' : 'Slides'}...`);
 
-        // For Slides, we'd need to split content. For MVP, passing full HTML or array.
-        // The service expects array for slides, string for docs.
-        // Let's pass the same content for now, knowing slides might need better parsing later.
-        const content = type === 'docs' ? reportResult.html : [reportResult.html];
+        let content: string | string[] = reportResult.html;
+
+        if (type === 'slides') {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(reportResult.html, 'text/html');
+            const sections = Array.from(doc.querySelectorAll('section'));
+
+            if (sections.length > 0) {
+                content = sections.map(s => s.outerHTML);
+            } else {
+                content = [reportResult.html];
+            }
+        }
 
         const res = await exportToGoogleAction(type, saveTitle || "Reporte SEO", content, googleToken);
 
@@ -455,6 +464,8 @@ export default function ReportGeneratorPage() {
                                         htmlContent={reportResult.html}
                                         chartData={reportResult.chartData}
                                         onContentChange={(newHtml) => setReportResult((prev: any) => ({ ...prev, html: newHtml }))}
+                                        projectId={activeProject?.id}
+                                        dateRange={dateRange}
                                     />
                                 </div>
                             )}

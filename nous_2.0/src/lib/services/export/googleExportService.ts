@@ -65,8 +65,84 @@ export class GoogleExportService {
             const presentationId = createRes.data.presentationId;
             if (!presentationId) throw new Error("Failed to create Google Slides");
 
-            // 2. Add Slides (Iterate through content)
-            // Complex logic omitted for MVP: Just creating the file is a big win.
+            // 2. Add Slides
+            const requests: any[] = [];
+
+            slidesContent.forEach((html, index) => {
+                const uniqueId = Date.now().toString();
+                const slideId = `slide_${uniqueId}_${index}`;
+                const titleId = `title_${uniqueId}_${index}`;
+                const bodyId = `body_${uniqueId}_${index}`;
+
+                // Extract simple text content (Strip HTML)
+                const text = html.replace(/<[^>]+>/g, '\n').trim();
+                const titleMatch = html.match(/<h[1-3][^>]*>(.*?)<\/h[1-3]>/i);
+                const titleText = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '') : `Slide ${index + 1}`;
+                // Simple body extraction (removing title roughly)
+                const bodyText = text.replace(titleText, '').trim().substring(0, 1500); // Limit chars
+
+                // A. Create Slide
+                requests.push({
+                    createSlide: {
+                        objectId: slideId,
+                        slideLayoutReference: { predefinedLayout: 'BLANK' }
+                    }
+                });
+
+                // B. Add Title Box
+                requests.push({
+                    createShape: {
+                        objectId: titleId,
+                        shapeType: 'TEXT_BOX',
+                        elementProperties: {
+                            pageObjectId: slideId,
+                            size: { width: { magnitude: 600, unit: 'PT' }, height: { magnitude: 50, unit: 'PT' } },
+                            transform: { scaleX: 1, scaleY: 1, translateX: 50, translateY: 30, unit: 'PT' }
+                        }
+                    }
+                });
+                requests.push({
+                    insertText: {
+                        objectId: titleId,
+                        text: titleText
+                    }
+                });
+                // Style Title
+                requests.push({
+                    updateTextStyle: {
+                        objectId: titleId,
+                        style: { fontSize: { magnitude: 24, unit: 'PT' }, bold: true },
+                        textRange: { type: 'ALL' },
+                        fields: 'fontSize,bold'
+                    }
+                });
+
+                // C. Add Body Box
+                requests.push({
+                    createShape: {
+                        objectId: bodyId,
+                        shapeType: 'TEXT_BOX',
+                        elementProperties: {
+                            pageObjectId: slideId,
+                            size: { width: { magnitude: 600, unit: 'PT' }, height: { magnitude: 350, unit: 'PT' } },
+                            transform: { scaleX: 1, scaleY: 1, translateX: 50, translateY: 100, unit: 'PT' }
+                        }
+                    }
+                });
+                requests.push({
+                    insertText: {
+                        objectId: bodyId,
+                        text: bodyText
+                    }
+                });
+            });
+
+            if (requests.length > 0) {
+                await slides.presentations.batchUpdate({
+                    presentationId,
+                    requestBody: { requests }
+                });
+            }
 
             return { success: true, url: `https://docs.google.com/presentation/d/${presentationId}/edit` };
         } catch (error: any) {

@@ -279,3 +279,27 @@ export const generateContent = async (prompt: string, context: string = '', apiK
         throw new Error("Error generating content with AI.");
     }
 };
+export const generateInsightAnalysis = async (context: string, apiKey: string): Promise<string> => {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+
+    const systemPrompt = `You are a Senior SEO Data Analyst.
+    Analyze the provided SEO metrics context.
+    - Focus on finding patterns, opportunities, and anomalies.
+    - Be concise and direct.
+    - Output formatted HTML (paragraphs <p>, lists <ul>/<li>, bold values <strong>).
+    - Do NOT output a full report, just the specific analysis for this data section.
+    - Language: Spanish.`;
+
+    try {
+        const result = await model.generateContent([
+            { text: systemPrompt },
+            { text: context }
+        ]);
+        const text = result.response.text();
+        return text.replace(/```html/g, '').replace(/```/g, '').trim();
+    } catch (e: any) {
+        console.warn("[GEMINI-SERVICE] generateInsightAnalysis failed:", e.message);
+        return "No se pudo generar el análisis.";
+    }
+};
