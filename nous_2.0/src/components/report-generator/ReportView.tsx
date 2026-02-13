@@ -304,7 +304,7 @@ export function ReportView({ htmlContent, chartData, onContentChange }: ReportVi
                     <div
                         ref={presentationRef}
                         className={cn(
-                            "w-full max-w-5xl h-[80vh] flex items-center justify-center p-8 overflow-y-auto hide-scrollbar presentation-slide",
+                            "w-full max-w-5xl h-[80vh] flex items-center justify-center p-8 overflow-y-auto presentation-slide",
                             theme === 'dark' ? "dark-mode-override" : ""
                         )}
                     >

@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import { generateReportAction, generateReportFromCsvAction, analyzeStructureAction, saveReportAction, getSavedReportsAction } from '@/app/actions/report-actions';
+import { generateReportAction, generateReportFromCsvAction, analyzeStructureAction, saveReportAction, getSavedReportsAction, exportToGoogleAction } from '@/app/actions/report-actions';
 import { parseCSV } from '@/lib/services/report/csvService';
 import { NavigationHeader } from '@/components/dom/NavigationHeader';
 import { ReportView } from '@/components/report-generator/ReportView';
-import { Loader2, Sparkles, FileText, Settings, AlertCircle, CheckCircle2, ListFilter, Trash2, Plus, History, Save, ChevronRight, LayoutGrid } from 'lucide-react';
+import { Loader2, Sparkles, FileText, Settings, AlertCircle, CheckCircle2, ListFilter, Trash2, Plus, History, Save, ChevronRight, LayoutGrid, Calendar } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { supabase } from '@/lib/supabase';
 
@@ -15,6 +15,7 @@ export default function ReportGeneratorPage() {
 
     // Auth State
     const [userId, setUserId] = useState<string | null>(null);
+    const [googleToken, setGoogleToken] = useState<string | null>(null);
 
     // Workflow State
     const [mainTab, setMainTab] = useState<'generator' | 'history'>('generator');
@@ -25,7 +26,18 @@ export default function ReportGeneratorPage() {
     const [mode, setMode] = useState<'api' | 'csv'>('api');
     const [reportResult, setReportResult] = useState<any>(null); // { html, chartData, payload }
     const [userContext, setUserContext] = useState('');
-    const [dateRange, setDateRange] = useState<{ start: string, end: string }>({ start: '', end: '' });
+    // Default Date Range: End = Now - 3 days, Start = End - 30 days
+    const [dateRange, setDateRange] = useState<{ start: string, end: string }>(() => {
+        const today = new Date();
+        const end = new Date(today);
+        end.setDate(today.getDate() - 3);
+        const start = new Date(end);
+        start.setDate(end.getDate() - 30);
+        return {
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        };
+    });
     const [error, setError] = useState('');
     const [csvFileP1, setCsvFileP1] = useState<File | null>(null);
     const [csvFileP2, setCsvFileP2] = useState<File | null>(null);
@@ -51,6 +63,13 @@ export default function ReportGeneratorPage() {
         // Get User ID
         supabase.auth.getUser().then(({ data }) => {
             if (data.user) setUserId(data.user.id);
+        });
+
+        // Check for Google Session
+        supabase.auth.getSession().then(({ data }) => {
+            if (data.session?.provider_token) {
+                setGoogleToken(data.session.provider_token);
+            }
         });
     }, [fetchProjects]);
 
@@ -202,6 +221,38 @@ export default function ReportGeneratorPage() {
         try { return uncategorizedSample.filter(u => new RegExp(str).test(u)).length; } catch { return 0; }
     };
 
+    const handleGoogleExport = async (type: 'docs' | 'slides') => {
+        if (!googleToken) {
+            // Trigger Auth
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    scopes: 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/drive.file',
+                    redirectTo: window.location.href
+                }
+            });
+            if (error) alert("Error al conectar con Google: " + error.message);
+            return;
+        }
+
+        if (!reportResult) return;
+        setLoadingState(`Exporting to Google ${type === 'docs' ? 'Docs' : 'Slides'}...`);
+
+        // For Slides, we'd need to split content. For MVP, passing full HTML or array.
+        // The service expects array for slides, string for docs.
+        // Let's pass the same content for now, knowing slides might need better parsing later.
+        const content = type === 'docs' ? reportResult.html : [reportResult.html];
+
+        const res = await exportToGoogleAction(type, saveTitle || "Reporte SEO", content, googleToken);
+
+        if (res.success) {
+            window.open(res.url, '_blank');
+        } else {
+            alert("Export failed: " + res.error);
+        }
+        setLoadingState(null);
+    };
+
     return (
         <div className="min-h-screen bg-[#F5F7FA] font-sans text-slate-900 pb-20">
             <NavigationHeader />
@@ -283,14 +334,28 @@ export default function ReportGeneratorPage() {
                                     <textarea rows={3} value={userContext} onChange={(e) => setUserContext(e.target.value)} placeholder="Ej: Ignora marca..." className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm outline-none resize-none" />
                                 </div>
 
-                                <div className="mt-4 grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">Desde (Opcional)</label>
-                                        <input type="date" value={dateRange.start} onChange={(e) => setDateRange((prev: any) => ({ ...prev, start: e.target.value }))} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs outline-none" />
+                                <div className="mt-4 grid grid-cols-2 gap-4">
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
+                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center gap-1">
+                                            <Calendar size={12} className="text-purple-500" /> Desde
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={dateRange.start}
+                                            onChange={(e) => setDateRange((prev: any) => ({ ...prev, start: e.target.value }))}
+                                            className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none"
+                                        />
                                     </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">Hasta (Opcional)</label>
-                                        <input type="date" value={dateRange.end} onChange={(e) => setDateRange((prev: any) => ({ ...prev, end: e.target.value }))} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs outline-none" />
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
+                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center gap-1">
+                                            <Calendar size={12} className="text-purple-500" /> Hasta
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={dateRange.end}
+                                            onChange={(e) => setDateRange((prev: any) => ({ ...prev, end: e.target.value }))}
+                                            className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none"
+                                        />
                                     </div>
                                 </div>
 
@@ -321,9 +386,29 @@ export default function ReportGeneratorPage() {
                                         <thead className="bg-slate-100 text-slate-500 font-bold text-xs uppercase"><tr><th className="px-4 py-2">Categoría</th><th className="px-4 py-2">Regla</th><th className="px-4 py-2"></th></tr></thead>
                                         <tbody className="divide-y divide-slate-200">
                                             {segmentRules.map((r, i) => (
-                                                <tr key={i}>
-                                                    <td className="px-4 py-2 font-medium">{r.name}</td>
-                                                    <td className="px-4 py-2 font-mono text-xs">{r.regex}</td>
+                                                <tr key={i} className="group hover:bg-slate-50 transition-colors">
+                                                    <td className="px-4 py-2 font-medium">
+                                                        <input
+                                                            value={r.name}
+                                                            onChange={(e) => {
+                                                                const newRules = [...segmentRules];
+                                                                newRules[i].name = e.target.value;
+                                                                setSegmentRules(newRules);
+                                                            }}
+                                                            className="bg-transparent border-b border-transparent focus:border-purple-300 outline-none w-full text-sm font-bold text-slate-700"
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-2 font-mono text-xs">
+                                                        <input
+                                                            value={r.regex}
+                                                            onChange={(e) => {
+                                                                const newRules = [...segmentRules];
+                                                                newRules[i].regex = e.target.value;
+                                                                setSegmentRules(newRules);
+                                                            }}
+                                                            className="bg-transparent border-b border-transparent focus:border-purple-300 outline-none w-full font-mono text-xs text-slate-500"
+                                                        />
+                                                    </td>
                                                     <td className="px-4 py-2 text-right"><button onClick={() => removeRule(i)}><Trash2 size={14} className="text-slate-400 hover:text-red-500" /></button></td>
                                                 </tr>
                                             ))}
@@ -350,6 +435,19 @@ export default function ReportGeneratorPage() {
                                             className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all"
                                         >
                                             <Save size={14} /> Guardar Informe
+                                        </button>
+                                        <div className="h-6 w-px bg-slate-200 mx-2"></div>
+                                        <button
+                                            onClick={() => handleGoogleExport('docs')}
+                                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-blue-500 transition-all"
+                                        >
+                                            <FileText size={14} /> Docs
+                                        </button>
+                                        <button
+                                            onClick={() => handleGoogleExport('slides')}
+                                            className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-orange-400 transition-all"
+                                        >
+                                            <LayoutGrid size={14} /> Slides
                                         </button>
                                     </div>
 

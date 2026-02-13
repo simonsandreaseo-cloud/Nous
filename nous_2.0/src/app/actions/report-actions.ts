@@ -10,6 +10,7 @@ import { AnalyticsService } from '@/lib/services/report/analyticsService';
 import { identifyAiTrafficSources, generateContent } from '@/lib/services/report/geminiService';
 import { supabase } from '@/lib/supabase';
 import { ApiKeyRotationService } from '@/lib/services/ai/apiKeyRotation';
+import { GoogleExportService } from '@/lib/services/export/googleExportService';
 
 export async function generateReportAction(
     projectId: string,
@@ -311,6 +312,25 @@ export async function generateAiContentAction(prompt: string, context: string) {
 
         const html = await generateContent(prompt, context, apiKey);
         return { success: true, html };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function exportToGoogleAction(
+    type: 'docs' | 'slides',
+    title: string,
+    content: string | string[], // HTML (Docs) or Array of HTML Strings (Slides)
+    accessToken: string
+) {
+    try {
+        const service = new GoogleExportService(accessToken);
+
+        if (type === 'docs') {
+            return await service.exportToDocs(title, content as string);
+        } else {
+            return await service.exportToSlides(title, content as string[]);
+        }
     } catch (e: any) {
         return { success: false, error: e.message };
     }

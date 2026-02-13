@@ -1,4 +1,5 @@
 import { MetricSeries, ComparisonItem, SiteWideKPIs, ReportPayload, DashboardStats, GscRow, SeoStatus } from '@/types/report';
+import { AnalyticsEngine } from './analyticsEngine';
 
 export const runFullAnalysis = (
     p1Data: { pages: GscRow[], queries: GscRow[], joint: GscRow[] },
@@ -54,11 +55,27 @@ export const runFullAnalysis = (
 
     // --- NEW: SEO STATUS SECTION LOGIC ---
 
-    // Keyword Distribution Buckets
-    console.log(`[ANALYSIS] Aggregated Queries: P1=${aggP1.queries.length}, P2=${aggP2.queries.length}`);
-    const kP1 = countKeywordsByBucket(aggP1.queries);
-    const kP2 = countKeywordsByBucket(aggP2.queries);
-    console.log(`[ANALYSIS] Buckets P2: Top3=${kP2.top3}, Top10=${kP2.top10}, Total=${kP2.total}`);
+    // Keyword Distribution Buckets (Using AnalyticsEngine & Best Position Logic)
+    // We calculate "Best Position" for each keyword to avoid dilution from averages
+    const getBestPositionsData = (rawApiRows: GscRow[]) => {
+        const bestPosMap = new Map<string, number>();
+        rawApiRows.forEach(r => {
+            if (!r.keyword) return;
+            const current = bestPosMap.get(r.keyword) || 101;
+            if (r.position < current) bestPosMap.set(r.keyword, r.position);
+        });
+        return Array.from(bestPosMap.values()).map(p => ({ position: p }));
+    };
+
+    const bestPosP1 = getBestPositionsData(p1Data.queries);
+    const bestPosP2 = getBestPositionsData(p2Data.queries);
+
+    const kP1 = AnalyticsEngine.calculateKeywordDistribution(bestPosP1);
+    const kP2 = AnalyticsEngine.calculateKeywordDistribution(bestPosP2);
+
+    // Total Unique Keywords count for P2
+    const totalKeywordsP2 = bestPosP2.length;
+    console.log(`[ANALYSIS] Buckets P2 (Best Pos): Top3=${kP2.top3}, Top10=${kP2.top10}, Total=${totalKeywordsP2}`);
 
     // Category Distribution (Using AI Regex)
     const catDist = segmentRules ? calculateCategoryDistribution(p2Data.pages, segmentRules) : [];
@@ -68,9 +85,9 @@ export const runFullAnalysis = (
 
     const seoStatus: SeoStatus = {
         overview: dashboardStats.kpis,
-        top3: { count: kP2.top3, share: kP2.total > 0 ? (kP2.top3 / kP2.total) * 100 : 0, change: kP2.top3 - kP1.top3 },
-        top10: { count: kP2.top10, share: kP2.total > 0 ? (kP2.top10 / kP2.total) * 100 : 0, change: kP2.top10 - kP1.top10 },
-        top20: { count: kP2.top20, share: kP2.total > 0 ? (kP2.top20 / kP2.total) * 100 : 0, change: kP2.top20 - kP1.top20 },
+        top3: { count: kP2.top3, share: totalKeywordsP2 > 0 ? (kP2.top3 / totalKeywordsP2) * 100 : 0, change: kP2.top3 - kP1.top3 },
+        top10: { count: kP2.top10, share: totalKeywordsP2 > 0 ? (kP2.top10 / totalKeywordsP2) * 100 : 0, change: kP2.top10 - kP1.top10 },
+        top20: { count: kP2.top20, share: totalKeywordsP2 > 0 ? (kP2.top20 / totalKeywordsP2) * 100 : 0, change: kP2.top20 - kP1.top20 },
         newKeywords: newKwsMetrics,
         categoryDistribution: catDist,
         monthlyTrend: {
