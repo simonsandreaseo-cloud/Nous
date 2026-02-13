@@ -56,6 +56,7 @@ export interface AIImageRequest {
     placement: string; // e.g. "After H2 Intro"
     status: 'pending' | 'generating' | 'done' | 'error';
     imageUrl?: string;
+    url?: string; // Add this line
     userNotes?: string;
     aspectRatio?: string; // Only for featured
 }
