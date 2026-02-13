@@ -25,6 +25,8 @@ export default function SettingsPage() {
     // Editing state for the active project
     const [editName, setEditName] = useState("");
     const [editDomain, setEditDomain] = useState("");
+    const [editWpUrl, setEditWpUrl] = useState("");
+    const [editWpToken, setEditWpToken] = useState("");
 
     const [gscSites, setGscSites] = useState<{ url: string; permission: string }[]>([]);
     const [isLoadingSites, setIsLoadingSites] = useState(false);
@@ -85,6 +87,8 @@ export default function SettingsPage() {
         if (activeProject) {
             setEditName(activeProject.name);
             setEditDomain(activeProject.domain);
+            setEditWpUrl(activeProject.wp_url || "");
+            setEditWpToken(activeProject.wp_token || "");
         }
     }, [activeProject?.id]);
 
@@ -121,7 +125,9 @@ export default function SettingsPage() {
         try {
             await updateProject(activeProject.id, {
                 name: editName,
-                domain: editDomain
+                domain: editDomain,
+                wp_url: editWpUrl,
+                wp_token: editWpToken
             });
             alert("Cambios guardados correctamente.");
         } catch (e: any) {
@@ -379,6 +385,44 @@ export default function SettingsPage() {
                                                     )}
                                                 </div>
                                             )}
+                                        </div>
+
+                                        <div className="p-8 rounded-3xl border border-slate-100 bg-slate-50/30 space-y-6">
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="w-12 h-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                                    <Globe size={24} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">WordPress Bridge</h3>
+                                                    <p className="text-[10px] text-slate-500 font-medium tracking-tight">Conecta este proyecto con el plugin Nous Bridge en WordPress.</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL del Sitio WP</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="https://tusitio.com"
+                                                        className="w-full p-4 rounded-xl border border-slate-100 bg-white text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-indigo-500/10 transition-all font-mono"
+                                                        value={editWpUrl}
+                                                        onChange={(e) => setEditWpUrl(e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Token de Seguridad</label>
+                                                    <input
+                                                        type="password"
+                                                        placeholder="••••••••••••"
+                                                        className="w-full p-4 rounded-xl border border-slate-100 bg-white text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-indigo-500/10 transition-all font-mono"
+                                                        value={editWpToken}
+                                                        onChange={(e) => setEditWpToken(e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <p className="text-[9px] text-slate-400 bg-white/50 p-3 rounded-xl border border-dashed border-slate-200">
+                                                Tip: Instala el plugin <strong>Nous Bridge</strong> en tu WordPress y copia el token configurado allí para permitir la publicación automática.
+                                            </p>
                                         </div>
 
                                         <div className="flex items-center justify-between border-t border-slate-50 pt-8">

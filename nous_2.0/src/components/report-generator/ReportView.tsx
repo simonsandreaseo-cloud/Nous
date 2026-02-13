@@ -5,14 +5,74 @@ import { Chart } from 'chart.js/auto';
 import { Maximize2, Minimize2, ChevronLeft, ChevronRight, Moon, Sun, X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
+import { useEditor, EditorContent, Node, mergeAttributes } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { ReportEditorToolbar } from './ReportEditorToolbar';
+
 interface ReportViewProps {
     htmlContent: string;
     chartData: any;
+    onContentChange?: (newHtml: string) => void;
 }
 
-export function ReportView({ htmlContent, chartData }: ReportViewProps) {
+// Custom Extension to preserve Chart Placeholders
+const ChartExtension = Node.create({
+    name: 'chartPlaceholder',
+    group: 'block',
+    atom: true, // Treated as a single unit
+    draggable: true,
+
+    addAttributes() {
+        return {
+            'data-chart-type': { default: null },
+            'data-chart-url': { default: null },
+        }
+    },
+
+    parseHTML() {
+        return [
+            {
+                tag: 'div[data-chart-type]',
+            },
+        ]
+    },
+
+    renderHTML({ HTMLAttributes }) {
+        return ['div', mergeAttributes(HTMLAttributes, { class: 'chart-placeholder my-8 h-64 w-full bg-slate-50 rounded-xl border border-dashed border-slate-200 flex items-center justify-center relative' }), '']
+    },
+});
+
+export function ReportView({ htmlContent, chartData, onContentChange }: ReportViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const presentationRef = useRef<HTMLDivElement>(null);
+
+    // Initialize Editor
+    const editor = useEditor({
+        extensions: [
+            StarterKit.configure({
+                heading: { levels: [1, 2, 3] },
+            }),
+            ChartExtension
+        ],
+        content: htmlContent,
+        editorProps: {
+            attributes: {
+                class: 'prose prose-slate max-w-none focus:outline-none min-h-[500px]',
+            },
+        },
+        onUpdate: ({ editor }) => {
+            const html = editor.getHTML();
+            if (onContentChange) onContentChange(html);
+        },
+    });
+
+    // Sync editor content if htmlContent prop changes externally (e.g. new generation)
+    // Avoid circular updates by checking against current content
+    useEffect(() => {
+        if (editor && htmlContent !== editor.getHTML()) {
+            editor.commands.setContent(htmlContent);
+        }
+    }, [htmlContent, editor]);
 
     // Presentation State
     const [isPresenting, setIsPresenting] = useState(false);
@@ -131,7 +191,7 @@ export function ReportView({ htmlContent, chartData }: ReportViewProps) {
 
     }, [htmlContent, chartData, isPresenting, currentSlide, theme]);
 
-    // Fullscreen Toggle
+    // Fullscreen Toggle (Presentation Mode)
     const togglePresentation = () => {
         if (!isPresenting) {
             setIsPresenting(true);
@@ -145,6 +205,13 @@ export function ReportView({ htmlContent, chartData }: ReportViewProps) {
             if (document.fullscreenElement) document.exitFullscreen().catch(e => console.log(e));
         }
     };
+
+    // Cleanup overflow on unmount
+    useEffect(() => {
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, []);
 
     // Slides Navigation
     const nextSlide = () => setCurrentSlide(prev => Math.min(prev + 1, slides.length - 1));
@@ -179,7 +246,8 @@ export function ReportView({ htmlContent, chartData }: ReportViewProps) {
     return (
         <div className="relative">
             {/* Toolbar */}
-            <div className="absolute top-0 right-0 -mt-16 flex gap-2">
+            {/* Toolbar - Now relative to avoid overlap */}
+            <div className="flex justify-end mb-4">
                 <button
                     onClick={togglePresentation}
                     className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-xs font-bold uppercase tracking-widest transition-all"
@@ -188,12 +256,13 @@ export function ReportView({ htmlContent, chartData }: ReportViewProps) {
                 </button>
             </div>
 
-            {/* Normal View */}
-            <div
-                ref={containerRef}
-                className="prose prose-slate max-w-none"
-                dangerouslySetInnerHTML={{ __html: htmlContent }}
-            />
+            {/* Toolbar */}
+            {!isPresenting && <ReportEditorToolbar editor={editor} />}
+
+            {/* Normal View (Editable) */}
+            <div ref={containerRef} className="bg-white min-h-[600px]">
+                <EditorContent editor={editor} />
+            </div>
 
             {/* Presentation Overlay */}
             {isPresenting && (

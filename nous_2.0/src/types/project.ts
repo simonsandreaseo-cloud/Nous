@@ -18,6 +18,8 @@ export interface Project {
     settings?: Record<string, any>;
     gsc_connected: boolean;
     gsc_site_url?: string;
+    wp_url?: string;
+    wp_token?: string;
     created_at?: string;
 }
 

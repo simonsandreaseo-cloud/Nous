@@ -25,6 +25,7 @@ import {
     searchMoreLinks, VisualResource, AIImageRequest, ArticleConfig, findCampaignAssets,
     generateSchemaMarkup, runSmartEditor, HumanizerConfig, exportToGoogleDoc, exportToGoogleSlides
 } from './services';
+import { WordPressService } from '@/lib/services/wordpress';
 import TimeTracker from '@/components/dashboard/TimeTracker';
 // Remove shared components imports if they don't exist in nous_2.0 yet or mock them
 // import ShareModal from '../../shared/ShareModal';
@@ -215,6 +216,7 @@ const UploadModal = ({ isOpen, onClose, onSave }: { isOpen: boolean, onClose: ()
 
 const App = () => {
     const { user } = useAuthStore();
+    const { activeProject } = useProjectStore();
     const router = useRouter();
     const [draftId, setDraftId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -550,6 +552,42 @@ const App = () => {
             console.error(e);
             alert("Error Slides: " + e.message);
             setStatus("Error al exportar Slides");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportToWordPress = async () => {
+        if (!htmlContent) return;
+        if (!activeProject?.wp_url || !activeProject?.wp_token) {
+            alert("Configura la URL y el Token de WordPress en los ajustes del proyecto antes de publicar.");
+            return;
+        }
+
+        setIsExporting(true);
+        setStatus("Publicando en WordPress...");
+        try {
+            const res = await WordPressService.publishPost(
+                activeProject.wp_url,
+                activeProject.wp_token,
+                {
+                    title: strategyH1 || projectName || "Sin título",
+                    content: htmlContent,
+                    status: 'draft',
+                    featured_image_url: featuredImage?.url
+                }
+            );
+
+            if (res.success) {
+                if (confirm("Publicado con éxito como borrador. ¿Deseas abrir el editor de WordPress?")) {
+                    window.open(res.edit_url, '_blank');
+                }
+                setStatus("Publicado en WordPress");
+            }
+        } catch (e: any) {
+            console.error(e);
+            alert("Error WordPress: " + (e.message || "Error desconocido"));
+            setStatus("Error en WordPress");
         } finally {
             setIsExporting(false);
         }
@@ -2257,7 +2295,15 @@ const App = () => {
                                         disabled={isExporting || !htmlContent}
                                         style={{ ...styles.button, background: '#0F9D58', color: 'white', width: '100%', justifyContent: 'center', marginTop: '8px' } as any}
                                     >
-                                        <FileText size={16} /> {isExporting ? "Exportando..." : "Exportar a Google Docs"}
+                                        <FileText size={16} /> {isExporting && status === "Exportando a Google Docs..." ? "Exportando..." : "Exportar a Google Docs"}
+                                    </button>
+
+                                    <button
+                                        onClick={handleExportToWordPress}
+                                        disabled={isExporting || !htmlContent}
+                                        style={{ ...styles.button, border: '1px solid #0073AA', background: 'white', color: '#0073AA', width: '100%', justifyContent: 'center', marginTop: '8px' } as any}
+                                    >
+                                        <Globe size={16} /> {isExporting && status === "Publicando en WordPress..." ? "Publicando..." : "Distribuir a WordPress"}
                                     </button>
 
                                     <div>

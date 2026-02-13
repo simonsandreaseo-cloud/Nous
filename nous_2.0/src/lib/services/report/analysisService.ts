@@ -55,8 +55,10 @@ export const runFullAnalysis = (
     // --- NEW: SEO STATUS SECTION LOGIC ---
 
     // Keyword Distribution Buckets
+    console.log(`[ANALYSIS] Aggregated Queries: P1=${aggP1.queries.length}, P2=${aggP2.queries.length}`);
     const kP1 = countKeywordsByBucket(aggP1.queries);
     const kP2 = countKeywordsByBucket(aggP2.queries);
+    console.log(`[ANALYSIS] Buckets P2: Top3=${kP2.top3}, Top10=${kP2.top10}, Total=${kP2.total}`);
 
     // Category Distribution (Using AI Regex)
     const catDist = segmentRules ? calculateCategoryDistribution(p2Data.pages, segmentRules) : [];
@@ -84,9 +86,19 @@ export const runFullAnalysis = (
         userContext: userContext,
         seoStatus: seoStatus, // NEW
         metricsSummary: { ...dashboardStats.kpis, topMoversImpact: detections.outlierAnalysis.topMoversImpact },
-        segmentAnalysis: topSegmentMovers.map(s => ({
-            segment: s.name, changes: { clicks: s.clicksChange, impressions: s.impressionsChange }
-        })),
+        segmentAnalysis: topSegmentMovers.map(s => {
+            const segmentRows = p2Data.pages.filter(r => extractSegment(r.page || '') === s.name);
+            const topUrls = segmentRows
+                .sort((a, b) => b.clicks - a.clicks)
+                .slice(0, 5)
+                .map(r => ({ url: r.page, clicks: r.clicks }));
+
+            return {
+                segment: s.name,
+                changes: { clicks: s.clicksChange, impressions: s.impressionsChange },
+                topUrls
+            };
+        }),
         visibilityAnalysis: {
             winners: topImpressionWinners.map((w: any) => ({ url: w.name, change: w.impressionsChange })).slice(0, 10),
             losers: topImpressionLosers.map((l: any) => ({ url: l.name, change: l.impressionsChange })).slice(0, 10)
@@ -122,10 +134,15 @@ function countKeywordsByBucket(queries: MetricSeries[]) {
     let top3 = 0, top10 = 0, top20 = 0, total = 0;
     queries.forEach(q => {
         total++;
-        if (q.position <= 3) top3++;
-        if (q.position <= 10) top10++;
-        if (q.position <= 20) top20++;
+        // Position 0 means unranked or no data, so we must exclude it.
+        if (q.position > 0 && q.position <= 3) top3++;
+        if (q.position > 0 && q.position <= 10) top10++;
+        if (q.position > 0 && q.position <= 20) top20++;
     });
+    // Log sample to debug if all are 0 or > 20
+    if (queries.length > 0) {
+        console.log(`[ANALYSIS] Sample Keyword Positions (First 5):`, queries.slice(0, 5).map(q => `${q.name}=${q.position.toFixed(1)}`));
+    }
     return { top3, top10, top20, total };
 }
 

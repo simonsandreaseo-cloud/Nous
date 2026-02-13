@@ -7,7 +7,7 @@ import { SegmentationService } from '@/lib/services/report/segmentationService';
 import { parseISO, subDays, format } from 'date-fns';
 import { GscRow } from '@/types/report';
 import { AnalyticsService } from '@/lib/services/report/analyticsService';
-import { identifyAiTrafficSources } from '@/lib/services/report/geminiService';
+import { identifyAiTrafficSources, generateContent } from '@/lib/services/report/geminiService';
 import { supabase } from '@/lib/supabase';
 import { ApiKeyRotationService } from '@/lib/services/ai/apiKeyRotation';
 
@@ -301,5 +301,17 @@ export async function analyzeStructureAction(projectId: string) {
         // Important: Return a serializable object, do not throw if possible to avoid 500 crash in UI
         console.log("[SERVER ACTION] analyzeStructureAction finished with error for Project:", projectId);
         return { success: false, error: e.message || "Unknown Server Error" };
+    }
+}
+
+export async function generateAiContentAction(prompt: string, context: string) {
+    try {
+        const apiKey = ApiKeyRotationService.getApiKey();
+        if (!apiKey) throw new Error("API Key de IA no configurada");
+
+        const html = await generateContent(prompt, context, apiKey);
+        return { success: true, html };
+    } catch (e: any) {
+        return { success: false, error: e.message };
     }
 }

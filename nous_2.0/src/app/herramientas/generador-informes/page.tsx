@@ -25,6 +25,7 @@ export default function ReportGeneratorPage() {
     const [mode, setMode] = useState<'api' | 'csv'>('api');
     const [reportResult, setReportResult] = useState<any>(null); // { html, chartData, payload }
     const [userContext, setUserContext] = useState('');
+    const [dateRange, setDateRange] = useState<{ start: string, end: string }>({ start: '', end: '' });
     const [error, setError] = useState('');
     const [csvFileP1, setCsvFileP1] = useState<File | null>(null);
     const [csvFileP2, setCsvFileP2] = useState<File | null>(null);
@@ -110,7 +111,8 @@ export default function ReportGeneratorPage() {
                 result = await generateReportAction(
                     activeProject.id,
                     userContext,
-                    segmentRules // Custom Rules
+                    segmentRules, // Custom Rules
+                    (dateRange.start && dateRange.end) ? dateRange : undefined
                 );
             } else {
                 if (!csvFileP1 || !csvFileP2) return;
@@ -281,6 +283,17 @@ export default function ReportGeneratorPage() {
                                     <textarea rows={3} value={userContext} onChange={(e) => setUserContext(e.target.value)} placeholder="Ej: Ignora marca..." className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm outline-none resize-none" />
                                 </div>
 
+                                <div className="mt-4 grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">Desde (Opcional)</label>
+                                        <input type="date" value={dateRange.start} onChange={(e) => setDateRange((prev: any) => ({ ...prev, start: e.target.value }))} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">Hasta (Opcional)</label>
+                                        <input type="date" value={dateRange.end} onChange={(e) => setDateRange((prev: any) => ({ ...prev, end: e.target.value }))} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs outline-none" />
+                                    </div>
+                                </div>
+
                                 <div className="mt-6">
                                     {step === 'settings' && (
                                         <button onClick={handleAnalyze} disabled={!!loadingState} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2">
@@ -340,7 +353,11 @@ export default function ReportGeneratorPage() {
                                         </button>
                                     </div>
 
-                                    <ReportView htmlContent={reportResult.html} chartData={reportResult.chartData} />
+                                    <ReportView
+                                        htmlContent={reportResult.html}
+                                        chartData={reportResult.chartData}
+                                        onContentChange={(newHtml) => setReportResult(prev => ({ ...prev, html: newHtml }))}
+                                    />
                                 </div>
                             )}
 

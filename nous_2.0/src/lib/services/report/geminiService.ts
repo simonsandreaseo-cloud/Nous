@@ -247,3 +247,35 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
         return candidates;
     }
 };
+
+export const generateContent = async (prompt: string, context: string = '', apiKey: string): Promise<string> => {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+
+    const systemPrompt = `You are an SEO Content Assistant for a Report Editor.
+    Your task is to generate or improve HTML content for an SEO report based on the user's prompt.
+    Return ONLY valid HTML (elements like <p>, <h3>, <ul>, <table>).
+    Do not wrap in <html> or <body> tags.
+    Do not use markdown backticks.
+    Use Tailwind CSS classes matching the report style (text-gray-600, font-bold, etc.) where appropriate.`;
+
+    const fullPrompt = `
+    ${systemPrompt}
+
+    CONTEXT (Existing Content):
+    ${context}
+
+    USER PROMPT:
+    ${prompt}
+    `;
+
+    try {
+        const result = await model.generateContent([{ text: fullPrompt }]);
+        const text = result.response.text();
+        // Strip markdown code blocks if present
+        return text.replace(/```html/g, '').replace(/```/g, '').trim();
+    } catch (e: any) {
+        console.warn("[GEMINI-SERVICE] generateContent failed:", e.message);
+        throw new Error("Error generating content with AI.");
+    }
+};
