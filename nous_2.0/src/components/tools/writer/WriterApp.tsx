@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useProjectStore } from '@/store/useProjectStore';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 // Keeping styles for gradual migration, but will replace usage with Tailwind
