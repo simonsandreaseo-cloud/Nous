@@ -12,10 +12,16 @@ export default function ParticleBackground() {
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
+        // Capture dimensions to avoid null checks inside the class
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
         // Set canvas size
         const resizeCanvas = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
         };
         resizeCanvas();
         window.addEventListener("resize", resizeCanvas);
@@ -30,8 +36,8 @@ export default function ParticleBackground() {
             opacity: number;
 
             constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
                 this.size = Math.random() * 2 + 0.5;
                 this.speedX = (Math.random() - 0.5) * 0.5;
                 this.speedY = (Math.random() - 0.5) * 0.5;
@@ -43,10 +49,10 @@ export default function ParticleBackground() {
                 this.y += this.speedY;
 
                 // Wrap around edges
-                if (this.x > canvas.width) this.x = 0;
-                if (this.x < 0) this.x = canvas.width;
-                if (this.y > canvas.height) this.y = 0;
-                if (this.y < 0) this.y = canvas.height;
+                if (this.x > width) this.x = 0;
+                if (this.x < 0) this.x = width;
+                if (this.y > height) this.y = 0;
+                if (this.y < 0) this.y = height;
             }
 
             draw() {
@@ -72,7 +78,7 @@ export default function ParticleBackground() {
         // Animation loop
         let animationFrameId: number;
         const animate = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, width, height);
 
             particles.forEach((particle) => {
                 particle.update();
