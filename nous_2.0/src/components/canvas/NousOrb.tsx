@@ -1,11 +1,10 @@
-"use client";
-
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Float } from "@react-three/drei";
-import { Mesh, Group } from "three";
+import { Float, MeshDistortMaterial } from "@react-three/drei";
+import { Mesh, Group, Vector3 } from "three";
 import { useAppStore } from "@/store/useAppStore";
-import { useSpring, animated } from "@react-spring/three";
+import { useNodeStore } from "@/store/useNodeStore";
+import { useSpring, animated, config } from "@react-spring/three";
 
 function InnerStructure() {
     const groupRef = useRef<Group>(null!);
@@ -19,8 +18,6 @@ function InnerStructure() {
 
     return (
         <group ref={groupRef}>
-            {/* Small structural details/dots - Keeping these as they were not explicitly asked to be removed, 
-                and add some detail to the "transparent" orb so it's not empty */}
             {[...Array(6)].map((_, i) => (
                 <mesh key={i} position={[
                     Math.sin(i) * 0.5,
@@ -35,47 +32,18 @@ function InnerStructure() {
     );
 }
 
-/**
- * NousOrb Component
- * Central focal point with interactive glass refraction.
- */
-/*
-const OrbitalSatellites = () => {
-    const groupRef = useRef<Group>(null!);
-
-    useFrame((state, delta) => {
-        if (groupRef.current) {
-            groupRef.current.rotation.y += delta * 0.15;
-            groupRef.current.rotation.z = Math.cos(state.clock.elapsedTime * 0.1) * 0.1;
-        }
-    });
-
-    return (
-        <group ref={groupRef}>    
-            {[
-                { pos: [2.5, 0.5, 0], speed: 1 },
-                { pos: [-2, 1.2, 1.5], speed: 0.8 },
-                { pos: [0.5, -2.2, -1], speed: 1.2 },
-            ].map((sat, i) => (
-                <group key={i} position={sat.pos as [number, number, number]}>
-                    <mesh>
-                        <sphereGeometry args={[0.03, 16, 16]} />
-                        <meshBasicMaterial color="#ffffff" toneMapped={false} />
-                    </mesh>
-                    <pointLight color="#ffffff" intensity={2} distance={3} decay={2} />
-                </group>
-            ))}
-        </group>
-    );
-};
-*/
+// Wrap MeshDistortMaterial for animation
+const AnimatedDistortMaterial = animated(MeshDistortMaterial);
 
 export function NousOrb() {
     const orbRef = useRef<Mesh>(null!);
     const hoveredItem = useAppStore((state) => state.hoveredItem);
-    const highContrast = useAppStore((state) => state.highContrast);
-    const status = useAppStore((state) => state.neuralLinkStatus);
     const trend = useAppStore((state) => state.neuralTrend);
+
+    // Node State
+    const nodeStatus = useNodeStore((state) => state.status);
+    const isConnected = useNodeStore((state) => state.isConnected);
+
     const [isBursting, setIsBursting] = useState(false);
 
     const handleDoubleClick = () => {
@@ -97,20 +65,49 @@ export function NousOrb() {
         return () => { document.body.style.cursor = "auto"; };
     }, []);
 
-    const orbColor = trend === 'up' ? "#ecfdf5" : trend === 'down' ? "#fff1f2" : "#ffffff";
-    const accentColor = trend === 'up' ? "#10b981" : trend === 'down' ? "#f43f5e" : "#ffffff";
+    // --- State Mapping ---
+    // 'IDLE' | 'CRAWLING' | 'PROCESSING' | 'ERROR'
+
+    const visualState = useMemo(() => {
+        if (!isConnected) return { color: "#334155", distort: 0, speed: 0.5, emissive: "#000000" }; // Slate/Off
+
+        switch (nodeStatus) {
+            case 'IDLE':
+                return {
+                    color: trend === 'down' ? "#fff1f2" : "#ecfdf5",
+                    emissive: trend === 'down' ? "#f43f5e" : "#10b981",
+                    distort: 0.4,
+                    speed: 2
+                };
+            case 'CRAWLING':
+                return { color: "#d8b4fe", emissive: "#9333ea", distort: 0.8, speed: 8 }; // Purple/Fast
+            case 'PROCESSING':
+                return { color: "#fed7aa", emissive: "#f97316", distort: 0.6, speed: 4 }; // Orange/Medium
+            case 'ERROR':
+                return { color: "#fecaca", emissive: "#ef4444", distort: 1.2, speed: 0.5 }; // Red/Glitchy
+            default:
+                return { color: "#ecfdf5", emissive: "#10b981", distort: 0.4, speed: 2 };
+        }
+    }, [nodeStatus, isConnected, trend]);
+
+    const springProps = useSpring({
+        color: visualState.color,
+        emissive: visualState.emissive,
+        distort: visualState.distort,
+        speed: visualState.speed,
+        config: config.molasses // Slow transitions for colors
+    });
 
     return (
         <Float
-            speed={isBursting ? 10 : 2}
-            rotationIntensity={0.2}
+            speed={nodeStatus === 'CRAWLING' ? 5 : 2}
+            rotationIntensity={nodeStatus === 'CRAWLING' ? 1.5 : 0.2}
             floatIntensity={0.5}
             floatingRange={[-0.1, 0.1]}
         >
             <group position={[0, 1.2, 0]}>
-                {/* <OrbitalSatellites /> */}
 
-                {/* Main Glass Orb */}
+                {/* Main Orb */}
                 <animated.mesh
                     ref={orbRef}
                     scale={springScale as any}
@@ -119,26 +116,29 @@ export function NousOrb() {
                     onPointerOut={() => (document.body.style.cursor = "auto")}
                 >
                     <sphereGeometry args={[1.5, 64, 64]} />
-                    <animated.meshPhysicalMaterial
-                        roughness={0}
+                    <AnimatedDistortMaterial
+                        color={springProps.color}
+                        emissive={springProps.emissive}
+                        emissiveIntensity={0.5}
+                        roughness={0.2}
                         metalness={0.1}
-                        transmission={0}
+                        distort={springProps.distort}
+                        speed={springProps.speed}
                         transparent={true}
-                        opacity={0.3} // More transparent to see background clearly
-                        side={2} // DoubleSide to see back of sphere
-                        clearcoat={1}
-                        clearcoatRoughness={0}
-                        color={orbColor}
-                        emissive={accentColor}
-                        emissiveIntensity={0.1}
-                        toneMapped={false}
+                        opacity={0.6}
                     />
                 </animated.mesh>
 
+                {/* Inner structure remains visible inside */}
                 <InnerStructure />
 
-                {/* Central Light Source */}
-                <pointLight intensity={15} distance={10} color="#ffffff" decay={2} />
+                {/* Dynamic Light */}
+                <animated.pointLight
+                    intensity={nodeStatus === 'CRAWLING' ? 25 : 15}
+                    distance={10}
+                    color={springProps.emissive}
+                    decay={2}
+                />
             </group>
         </Float>
     );

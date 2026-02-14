@@ -1,0 +1,106 @@
+import { create } from 'zustand';
+import { LocalNodeBridge, NodeState } from '@/lib/local-node/bridge';
+
+interface NodeStoreState {
+    isConnected: boolean;
+    status: NodeState['status'];
+    queueLength: number;
+    lastError: string | null;
+    logs: { source: string; message: string; timestamp: number; level?: 'info' | 'error' }[];
+
+    // Flux State
+    flux: {
+        tasks: any[];
+        activeTimer: any | null;
+        stats: {
+            totalTasks: number;
+            completedTasks: number;
+            totalTimeSeconds: number;
+            formattedTime: string;
+        } | null;
+    };
+
+    // Actions
+    connect: () => void;
+    clearLogs: () => void;
+    // Flux Actions
+    createTask: (title: string, category: string, priority?: 'low' | 'medium' | 'high') => void;
+    startTimer: (taskId: string, description: string) => void;
+    stopTimer: () => void;
+    refreshFlux: () => void;
+}
+
+export const useNodeStore = create<NodeStoreState>((set) => ({
+    isConnected: false,
+    status: 'IDLE',
+    queueLength: 0,
+    lastError: null,
+    logs: [],
+    flux: {
+        tasks: [],
+        activeTimer: null,
+        stats: null
+    },
+
+    connect: () => {
+        // Listen to Bridge events
+        LocalNodeBridge.on('CONNECTED', () => {
+            set({ isConnected: true });
+        });
+
+        LocalNodeBridge.on('DISCONNECTED', () => {
+            set({ isConnected: false, status: 'IDLE' });
+        });
+
+        LocalNodeBridge.on('STATE_UPDATE', (payload: any) => {
+            set({
+                status: payload.status,
+                queueLength: payload.queueLength,
+                lastError: payload.lastError
+            });
+        });
+
+        LocalNodeBridge.on('LOG', (payload: any) => {
+            set(state => ({
+                logs: [...state.logs.slice(-99), { ...payload, timestamp: Date.now() }]
+            }));
+        });
+
+        // --- Flux Listeners ---
+        LocalNodeBridge.on('FLUX_TASKS_LIST', (tasks: any[]) => {
+            set(state => ({ flux: { ...state.flux, tasks } }));
+        });
+
+        LocalNodeBridge.on('FLUX_TASK_CREATED', (task: any) => {
+            set(state => ({ flux: { ...state.flux, tasks: [task, ...state.flux.tasks] } }));
+        });
+
+        LocalNodeBridge.on('FLUX_TIMER_STARTED', (timer: any) => {
+            set(state => ({ flux: { ...state.flux, activeTimer: timer } }));
+        });
+
+        LocalNodeBridge.on('FLUX_TIMER_STOPPED', () => {
+            set(state => ({ flux: { ...state.flux, activeTimer: null } }));
+        });
+
+        LocalNodeBridge.on('FLUX_STATS', (stats: any) => {
+            set(state => ({ flux: { ...state.flux, stats } }));
+        });
+    },
+
+    clearLogs: () => set({ logs: [] }),
+
+    // Flux Actions Implementation
+    createTask: (title, category, priority) => LocalNodeBridge.createFluxTask(title, category, priority),
+    startTimer: (taskId, description) => LocalNodeBridge.startFluxTimer(taskId, description),
+    stopTimer: () => LocalNodeBridge.stopFluxTimer(),
+    refreshFlux: () => {
+        LocalNodeBridge.getFluxTasks();
+        LocalNodeBridge.getFluxStats();
+    }
+}));
+
+// Auto-init connection listener
+if (typeof window !== 'undefined') {
+    useNodeStore.getState().connect();
+}

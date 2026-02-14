@@ -10,7 +10,8 @@
             "identifier": "shell:allow-execute",
             "allow": [
                 {
-                    "program": "node",
+                    "name": "binaries/nous-engine",
+                    "cmd": "program",
                     "args": true
                 }
             ]

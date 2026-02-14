@@ -27,6 +27,7 @@ export default function SettingsPage() {
     const [editDomain, setEditDomain] = useState("");
     const [editWpUrl, setEditWpUrl] = useState("");
     const [editWpToken, setEditWpToken] = useState("");
+    const [editTargetCountry, setEditTargetCountry] = useState("ES"); // Default Spain
 
     const [gscSites, setGscSites] = useState<{ url: string; permission: string }[]>([]);
     const [isLoadingSites, setIsLoadingSites] = useState(false);
@@ -88,7 +89,9 @@ export default function SettingsPage() {
             setEditName(activeProject.name);
             setEditDomain(activeProject.domain);
             setEditWpUrl(activeProject.wp_url || "");
+            setEditWpUrl(activeProject.wp_url || "");
             setEditWpToken(activeProject.wp_token || "");
+            setEditTargetCountry(activeProject.target_country || "ES");
         }
     }, [activeProject?.id]);
 
@@ -127,7 +130,10 @@ export default function SettingsPage() {
                 name: editName,
                 domain: editDomain,
                 wp_url: editWpUrl,
-                wp_token: editWpToken
+                domain: editDomain,
+                wp_url: editWpUrl,
+                wp_token: editWpToken,
+                target_country: editTargetCountry
             });
             alert("Cambios guardados correctamente.");
         } catch (e: any) {
@@ -336,6 +342,26 @@ export default function SettingsPage() {
                                                     onChange={(e) => setEditDomain(e.target.value)}
                                                 />
                                             </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">País Objetivo (SERP)</label>
+                                            <select
+                                                className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all appearance-none cursor-pointer"
+                                                value={editTargetCountry}
+                                                onChange={(e) => setEditTargetCountry(e.target.value)}
+                                            >
+                                                <option value="ES">España (ES)</option>
+                                                <option value="MX">México (MX)</option>
+                                                <option value="AR">Argentina (AR)</option>
+                                                <option value="CO">Colombia (CO)</option>
+                                                <option value="CL">Chile (CL)</option>
+                                                <option value="US">Estados Unidos (US)</option>
+                                                <option value="VE">Venezuela (VE)</option>
+                                                <option value="PE">Perú (PE)</option>
+                                                <option value="EC">Ecuador (EC)</option>
+                                            </select>
+                                            <p className="text-[9px] text-slate-400 font-medium ml-1">Determina qué resultados de Google se analizarán para tus briefings.</p>
                                         </div>
 
                                         {/* Project Property Selection - Only if GSC Linked Globally */}

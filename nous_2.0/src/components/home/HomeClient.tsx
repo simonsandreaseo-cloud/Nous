@@ -1,12 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { Suspense, useEffect } from "react";
-import { CurvedGrid } from "@/components/canvas/CurvedGrid";
 import { NousOrb } from "@/components/canvas/NousOrb";
-import { NousText3D } from "@/components/canvas/NousText3D";
-import { DataParticles } from "@/components/canvas/DataParticles";
-import { TaskField } from "@/components/canvas/TaskField/TaskField";
 import { OfficePanel } from "@/components/dom/OfficePanel";
 
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
@@ -14,7 +11,6 @@ import { LoadingScreen } from "@/components/dom/LoadingScreen";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/store/useAppStore";
 import { cn } from "@/utils/cn";
-import { Background2D } from "@/components/Background2D/Background2D";
 
 const SceneLayout = dynamic(
     () => import("@/components/canvas/SceneLayout"),
@@ -155,11 +151,12 @@ export default function HomeClient() {
                                 >
                                     <OfficePanel />
 
-                                    <button
-                                        className="px-8 py-3 rounded-full bg-white/20 backdrop-blur-md border border-slate-200 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/40 transition-all duration-300 self-end"
+                                    <Link
+                                        href="/desktop-app"
+                                        className="px-8 py-3 rounded-full bg-white/20 backdrop-blur-md border border-slate-200 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/40 hover:text-white transition-all duration-300 self-end"
                                     >
-                                        DILO
-                                    </button>
+                                        DESCARGAR APP
+                                    </Link>
                                 </motion.div>
 
                             </div>

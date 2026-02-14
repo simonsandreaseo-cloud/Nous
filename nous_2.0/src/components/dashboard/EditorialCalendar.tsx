@@ -43,8 +43,10 @@ import { useProjectStore, Task } from "@/store/useProjectStore";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
+
 import { useRouter } from "next/navigation";
 import { NotificationService } from "@/lib/services/notifications";
+import { useWriterStore } from "@/store/useWriterStore";
 import { parseDocx, parseHtml } from "../tools/writer/services";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
@@ -53,6 +55,7 @@ import { StrategyService } from "@/lib/services/strategy";
 
 export function EditorialCalendar() {
     const { tasks, activeProject, updateTask, addTask } = useProjectStore();
+    const { initializeFromTask } = useWriterStore();
     const router = useRouter();
     const [viewDate, setViewDate] = useState(new Date());
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -432,9 +435,22 @@ export function EditorialCalendar() {
                                                                 : "bg-white border-slate-100 text-slate-600 hover:border-slate-300"
                                                     )}
                                                 >
-                                                    <div className="flex items-center gap-1.5 mb-1 opacity-60">
-                                                        {task.status === 'done' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                                                        <span className="text-[8px] uppercase tracking-wider">{task.status}</span>
+                                                    <div className="flex items-center gap-1.5 mb-1 opacity-60 justify-between">
+                                                        <div className="flex items-center gap-1.5">
+                                                            {task.status === 'done' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                                                            <span className="text-[8px] uppercase tracking-wider">{task.status}</span>
+                                                        </div>
+                                                        <button
+                                                            className="hover:text-cyan-600 hover:scale-110 transition-all p-0.5 rounded-full"
+                                                            title="Redactar ahora"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                initializeFromTask(task, activeProject);
+                                                                router.push('/studio/writer');
+                                                            }}
+                                                        >
+                                                            <Sparkles size={10} />
+                                                        </button>
                                                     </div>
                                                     <p className="line-clamp-2">{task.title}</p>
                                                 </motion.div>
@@ -592,7 +608,10 @@ export function EditorialCalendar() {
 
                                         <div className="flex flex-col gap-3">
                                             <button
-                                                onClick={() => router.push(`/writer?activeTaskId=${selectedTask.id}`)}
+                                                onClick={() => {
+                                                    initializeFromTask(selectedTask, activeProject);
+                                                    router.push('/studio/writer');
+                                                }}
                                                 className="w-full py-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-[24px] text-[11px] font-black uppercase tracking-[0.2em] hover:scale-[1.02] transition-all shadow-xl shadow-slate-900/20 flex items-center justify-center gap-3"
                                             >
                                                 <Sparkles size={16} className="text-cyan-400" /> Redactar con IA Nous

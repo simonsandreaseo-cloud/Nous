@@ -21,8 +21,10 @@ export default function CrawlerConsole() {
         try {
             const response = await LocalNodeBridge.crawl({ keyword, mode: 'search' });
             if (response.success) {
-                setResults(response.data);
-                NotificationService.notify("Rastreo Completado", `Se han encontrado ${response.data.length} resultados para "${keyword}".`);
+                // Determine if we have SERP results or regular data
+                const items = response.data.serpResults || [response.data];
+                setResults(items);
+                NotificationService.notify("Rastreo Completado", `Se han encontrado ${items.length} resultados para "${keyword}".`);
             } else {
                 setError(response.error || 'Unknown crawler error');
             }

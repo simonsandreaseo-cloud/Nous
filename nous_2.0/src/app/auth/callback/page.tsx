@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 
-export default function AuthCallback() {
+function AuthCallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -30,5 +30,18 @@ export default function AuthCallback() {
             <Loader2 className="w-10 h-10 animate-spin text-cyan-500 mb-4" />
             <p className="text-sm font-mono font-bold text-slate-500 tracking-[0.2em] uppercase">Sincronizando Identidad...</p>
         </div>
+    );
+}
+
+export default function AuthCallback() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F7FA]">
+                <Loader2 className="w-10 h-10 animate-spin text-cyan-500 mb-4" />
+                <p className="text-sm font-mono font-bold text-slate-500 tracking-[0.2em] uppercase">Cargando...</p>
+            </div>
+        }>
+            <AuthCallbackContent />
+        </Suspense>
     );
 }

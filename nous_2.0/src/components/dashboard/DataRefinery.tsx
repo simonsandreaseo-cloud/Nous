@@ -52,7 +52,7 @@ export default function DataRefinery() {
     };
 
     const pickAndRefine = async () => {
-        if (!LocalNodeBridge.isAvailable()) {
+        if (!LocalNodeBridge.isTauriAvailable()) {
             setError("Neural Link required for Data Refinery Pro.");
             return;
         }

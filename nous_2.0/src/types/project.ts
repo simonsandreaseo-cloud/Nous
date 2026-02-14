@@ -20,6 +20,8 @@ export interface Project {
     gsc_site_url?: string;
     wp_url?: string;
     wp_token?: string;
+    wp_token?: string;
+    target_country?: string; // ISO 3166-1 alpha-2 or similar
     created_at?: string;
 }
 
