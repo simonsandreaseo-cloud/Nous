@@ -130,8 +130,7 @@ export default function SettingsPage() {
                 name: editName,
                 domain: editDomain,
                 wp_url: editWpUrl,
-                domain: editDomain,
-                wp_url: editWpUrl,
+
                 wp_token: editWpToken,
                 target_country: editTargetCountry
             });

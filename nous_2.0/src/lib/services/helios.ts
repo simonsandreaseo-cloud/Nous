@@ -3,7 +3,7 @@ import { HeliosConfig } from '@/types/helios';
 
 const cleanAndParseJSON = (text: string): any => {
   // 1. First attempt: Simple Clean (Markdown removal)
-  let clean = text.replace(/```json|```/g, '').trim();
+  const clean = text.replace(/```json|```/g, '').trim();
 
   try {
     return JSON.parse(clean);

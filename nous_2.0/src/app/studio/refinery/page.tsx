@@ -477,7 +477,7 @@ export default function HumanizerPage() {
     };
 
     const processTextInChunks = async (htmlChunks: string[], phaseBuilder: Function, settings: any, phaseName: string) => {
-        let processed: string[] = [];
+        const processed: string[] = [];
         const numChunks = htmlChunks.length;
         const prompt = phaseBuilder(settings);
 

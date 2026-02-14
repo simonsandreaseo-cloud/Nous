@@ -36,7 +36,7 @@ export function Effects() {
 
     const overlayConfig = useMemo(() => {
         // Base config
-        let config = {
+        const config = {
             glitch: false,
             noiseMult: 1,
             scanlineOp: 0

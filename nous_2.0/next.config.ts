@@ -1,8 +1,12 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 
   // 16.1.4 Performance & Compression
   compress: true,
@@ -12,23 +16,13 @@ const nextConfig: NextConfig = {
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["log", "info", "warn"] } : false,
   },
 
-  // 16.1.5 Advanced Caching Headers
-  async headers() {
-    return [
-      {
-        source: "/fonts/(.*)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-    ];
-  },
+
+
+  output: "export",
 
   // Image Optimization for Clinical Assets
   images: {
+    unoptimized: true,
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60,
   },

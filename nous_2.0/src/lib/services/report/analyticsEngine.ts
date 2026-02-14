@@ -48,7 +48,7 @@ export class AnalyticsEngine {
         if (filtered.length === 0) return result;
 
         let totalPosition = 0;
-        let totalCtr = 0; // Weighted average would be better, but simple avg for pos is standard GSC approximation
+        const totalCtr = 0; // Weighted average would be better, but simple avg for pos is standard GSC approximation
 
         filtered.forEach(r => {
             result.clicks += r.clicks;

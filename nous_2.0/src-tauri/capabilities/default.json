@@ -9,7 +9,6 @@
     "core:default",
     "fs:default",
     "shell:default",
-    "notification:default",
-    "allow-node-execution"
+    "notification:default"
   ]
 }

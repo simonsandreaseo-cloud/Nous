@@ -676,7 +676,7 @@ export const refineArticleContent = async (apiKeys: string[] | string, currentHt
             model: 'gemini-2.5-flash',
             contents: prompt
         });
-        let resText = response.text || currentHtml;
+        const resText = response.text || currentHtml;
         return resText.replace(/```html/g, '').replace(/```/g, '');
     });
 }
@@ -738,7 +738,7 @@ export const generateRealImage = async (apiKeys: string[] | string, basePrompt: 
     const styleString = config.style === 'Auto' ? "Hyperrealistic, editorial photography, 8k, cinematic lighting." : `${config.style} style, high quality artwork.`;
     const userInstruction = config.userPrompt ? `User Instruction: ${config.userPrompt}.` : "";
 
-    let finalPrompt = `${basePrompt}. ${styleString} ${colorString} ${userInstruction} Minimalist composition, clean, high quality for web.`;
+    const finalPrompt = `${basePrompt}. ${styleString} ${colorString} ${userInstruction} Minimalist composition, clean, high quality for web.`;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         try {
@@ -1252,7 +1252,7 @@ export const runSmartEditor = async (
             model: 'gemini-2.5-flash',
             contents: prompt
         });
-        let resText = response.text || html;
+        const resText = response.text || html;
         return resText.replace(/```html/g, '').replace(/```/g, '');
     });
 };

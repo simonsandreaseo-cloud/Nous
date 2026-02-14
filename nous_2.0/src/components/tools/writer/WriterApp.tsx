@@ -639,7 +639,7 @@ const App = () => {
                 } catch (e) { }
             }
         } else {
-            let safeContent = cleanAndFormatHtml(cleanText);
+            const safeContent = cleanAndFormatHtml(cleanText);
             setHtmlContent(safeContent);
         }
     }, [fullResponse]);
