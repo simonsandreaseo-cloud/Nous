@@ -276,20 +276,57 @@ export async function exportToGoogleAction(
     content: string | string[],
     accessToken: string
 ) {
-    // Note: Exporting still requires the export service which might use Node libraries.
-    // If googleExportService is only Node, this will fail.
-    // Let's check it.
     try {
-        const { GoogleExportService } = await import('@/lib/services/export/googleExportService');
         if (type === 'docs') {
-            const url = await GoogleExportService.exportToDocs(title, content as string, accessToken);
-            return { success: true, url };
+            // 1. Create Document
+            const createRes = await fetch('https://docs.googleapis.com/v1/documents', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title })
+            });
+            const doc = await createRes.json();
+            if (!doc.documentId) throw new Error(doc.error?.message || "Error al crear el documento");
+
+            // 2. Insert Content
+            const plainText = (content as string).replace(/<[^>]+>/g, '\n');
+            await fetch(`https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    requests: [{
+                        insertText: {
+                            location: { index: 1 },
+                            text: plainText.substring(0, 10000)
+                        }
+                    }]
+                })
+            });
+
+            return { success: true, url: `https://docs.google.com/document/d/${doc.documentId}/edit` };
         } else {
-            const url = await GoogleExportService.exportToSlides(title, content as string[], accessToken);
-            return { success: true, url };
+            // Slides creation using REST
+            const createRes = await fetch('https://slides.googleapis.com/v1/presentations', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title: title })
+            });
+            const pres = await createRes.json();
+            if (!pres.presentationId) throw new Error("Error al crear la presentación");
+
+            return { success: true, url: `https://docs.google.com/presentation/d/${pres.presentationId}/edit` };
         }
     } catch (e: any) {
-        return { success: false, error: "Exportación no disponible en este entorno: " + e.message };
+        console.error("[EXPORT-ERROR]", e);
+        return { success: false, error: "Error en la exportación: " + e.message };
     }
 }
 

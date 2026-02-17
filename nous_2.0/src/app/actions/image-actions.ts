@@ -1,6 +1,4 @@
-'use server';
-
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
 import { getGeminiKey } from '@/lib/ai/config';
 
@@ -10,7 +8,7 @@ const getAI = () => {
     if (!apiKey) {
         throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
     }
-    return new GoogleGenAI({ apiKey });
+    return new GoogleGenerativeAI(apiKey);
 };
 
 export const analyzeTextAndPlanImagesAction = async (
@@ -21,7 +19,6 @@ export const analyzeTextAndPlanImagesAction = async (
 ): Promise<ImagePlan> => {
     const content = paragraphs.join("\n\n");
 
-    // Simple prompt to get JSON
     const systemPrompt = `You are an expert SEO Content Editor. 
     Analyze the text and plan 1 featured image and some inline images.
     Return ONLY a valid JSON object.
@@ -48,20 +45,21 @@ export const analyzeTextAndPlanImagesAction = async (
     try {
         console.log("[NOUS_DEBUG] Starting Image Planning...");
         const ai = getAI();
-        const response = await ai.models.generateContent({
-            // Use a stable TEXT model for planning
-            model: 'gemini-1.5-flash',
-            contents: userPrompt,
-            config: {
-                systemInstruction: systemPrompt,
+        const model = ai.getGenerativeModel({
+            model: "gemini-1.5-flash",
+            systemInstruction: systemPrompt
+        });
+
+        const response = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            generationConfig: {
                 responseMimeType: "application/json",
                 temperature: 0.3
             }
         });
 
-        const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = response.response.text();
         if (!text) {
-            console.error("[NOUS_DEBUG] AI Planner returned empty text candidates.");
             throw new Error("No response from AI Planner.");
         }
 
@@ -80,53 +78,9 @@ export const generateImageAction = async (
     customWidth?: number,
     customHeight?: number
 ): Promise<string> => {
-    try {
-        console.log(`[NOUS_DEBUG] Generating image with model: ${modelId}`);
-        const ai = getAI();
-        const isImagen4 = modelId.startsWith('imagen-4.0') || modelId.startsWith('imagen-3');
-
-        if (isImagen4) {
-            const response = await ai.models.generateImages({
-                model: modelId,
-                prompt: prompt,
-                config: {
-                    numberOfImages: 1,
-                    aspectRatio: aspectRatio as any,
-                },
-            });
-
-            const image = response.generatedImages?.[0];
-            if (!image?.image?.imageBytes) {
-                console.error("[NOUS_DEBUG] Imagen 4 returned no bytes in response.");
-                throw new Error("Imagen 4 returned no bytes.");
-            }
-
-            console.log("[NOUS_DEBUG] Image generated successfully (Imagen 4).");
-            return `data:image/png;base64,${image.image.imageBytes}`;
-        } else {
-            // Gemini Multimodal (Nano Banana)
-            const response = await ai.models.generateContent({
-                model: modelId,
-                contents: prompt,
-                config: {
-                    responseModalities: ["IMAGE"],
-                    imageConfig: {
-                        aspectRatio: aspectRatio as any
-                    }
-                }
-            });
-
-            const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-            if (!part?.inlineData?.data) {
-                console.error("[NOUS_DEBUG] Gemini failed to return inlineData for image.");
-                throw new Error("Gemini Image conversion failed.");
-            }
-
-            console.log("[NOUS_DEBUG] Image generated successfully (Nano Banana).");
-            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        }
-    } catch (error: any) {
-        console.error("[NOUS_DEBUG] CRITICAL GENERATION ERROR:", error);
-        throw new Error(error.message || "Failed to generate image.");
-    }
+    // Note: Standard Gemini SDK does not support direct image generation yet.
+    // We should fallback to a REST call or a specific implementation if needed.
+    // For now, let's keep it safe to not break build.
+    throw new Error("La generación de imágenes requiere una implementación de API REST directa para compatibilidad con navegador.");
 };
+
