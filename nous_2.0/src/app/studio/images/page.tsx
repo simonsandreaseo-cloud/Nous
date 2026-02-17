@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
 import { Wand2, Download, FileText, AlertCircle, Loader2, CheckCircle2, Settings2, MessageSquare, Globe, X, Hash, Sparkles, Cpu, Zap, Image as ImageIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { FileUpload } from '@/components/studio/images/FileUpload';
 import { ArticlePreview } from '@/components/studio/images/ArticlePreview';
