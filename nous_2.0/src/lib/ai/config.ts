@@ -3,6 +3,8 @@ const geminiKeys = (
     process.env.GEMINI_API_KEYS ||
     process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
     process.env.GEMINI_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
     process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
     ""
 ).split(',').map(key => key.trim()).filter(Boolean);
