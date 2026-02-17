@@ -62,6 +62,7 @@ export async function generateReportAction(
                 position: r.position,
                 page: r.keys[0],
                 keyword: r.keys[1] || r.keys[0], // Depending on dimension
+                country: 'Unknown', // Required by GscRow interface
                 date: new Date()
             }));
 
@@ -394,14 +395,14 @@ export async function generateInsightDataAction(
 
         if (options.regexFilter) {
             const re = new RegExp(options.regexFilter, 'i');
-            data = data.filter(d => re.test(d.name));
+            data = data.filter((d: any) => re.test(d.name));
         }
 
         if (items.length > 0) {
-            data = data.filter(d => items.includes(d.name));
+            data = data.filter((d: any) => items.includes(d.name));
         }
 
-        data.sort((a, b) => b.clicks - a.clicks);
+        data.sort((a: any, b: any) => b.clicks - a.clicks);
         if (options.limit) data = data.slice(0, options.limit);
 
         return { success: true, data };
