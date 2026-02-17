@@ -8,7 +8,7 @@ import { Wand2, Download, FileText, AlertCircle, Loader2, CheckCircle2, Settings
 import { FileUpload } from '@/components/studio/images/FileUpload';
 import { ArticlePreview } from '@/components/studio/images/ArticlePreview';
 import { parseDocx } from '@/lib/services/images/docxService';
-import { analyzeTextAndPlanImages, generateImage } from '@/lib/services/images/geminiService';
+import { analyzeTextAndPlanImagesAction, generateImageAction } from '@/app/actions/image-actions';
 import { applyWatermark } from '@/lib/services/images/watermarkService';
 import { BlogPost, GeneratedImage, ProcessingStatus, AspectRatio, SupportedLanguage, CustomDimensions, InlineImageCount } from '@/types/images';
 import { cn } from '@/utils/cn';
@@ -174,7 +174,7 @@ export default function ImagesPage() {
             // 2. Analyze with Gemini
             setStatus(ProcessingStatus.ANALYZING_TEXT);
             setStatusMessage(t.analyzing);
-            const plan = await analyzeTextAndPlanImages(post.paragraphs, instructions, language, inlineImageCount);
+            const plan = await analyzeTextAndPlanImagesAction(post.paragraphs, instructions, language, inlineImageCount);
 
             // 3. Generate Images
             setStatus(ProcessingStatus.GENERATING_IMAGES);
@@ -233,7 +233,7 @@ export default function ImagesPage() {
             ? `${prompt}. Pautas globales: ${instructions}`
             : prompt;
 
-        let base64 = await generateImage(
+        let base64 = await generateImageAction(
             finalPrompt,
             selectedModel,
             ratio,
