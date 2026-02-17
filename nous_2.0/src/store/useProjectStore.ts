@@ -16,6 +16,7 @@ interface ProjectState {
     deleteProject: (projectId: string) => Promise<void>;
     addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<void>;
     updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
+    deleteTask: (taskId: string) => Promise<void>;
     syncGscData: (siteUrl: string, startDate: string, endDate: string) => Promise<void>;
 }
 
@@ -107,6 +108,23 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }));
     },
 
+    deleteTask: async (taskId) => {
+        const { error } = await supabase
+            .from('content_tasks')
+            .delete()
+            .eq('id', taskId);
+
+        if (error) {
+            console.error('Error deleting task:', error);
+            alert(`Error al eliminar tarea: ${error.message}`);
+            return;
+        }
+
+        set(state => ({
+            tasks: state.tasks.filter(t => t.id !== taskId)
+        }));
+    },
+
     createProject: async (newProject) => {
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
@@ -174,7 +192,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         const currentProjects = get().projects;
         const newProjects = currentProjects.filter(p => p.id !== projectId);
-        
+
         set({
             projects: newProjects,
             activeProject: get().activeProject?.id === projectId ? (newProjects[0] || null) : get().activeProject,

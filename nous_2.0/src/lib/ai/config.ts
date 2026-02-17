@@ -1,3 +1,21 @@
+const geminiKeys = (
+    process.env.NEXT_PUBLIC_GEMINI_API_KEYS ||
+    process.env.GEMINI_API_KEYS ||
+    process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    ""
+).split(',').map(key => key.trim()).filter(Boolean);
+
+let currentKeyIndex = 0;
+
+export const getGeminiKey = () => {
+    if (geminiKeys.length === 0) return "";
+    const key = geminiKeys[currentKeyIndex];
+    currentKeyIndex = (currentKeyIndex + 1) % geminiKeys.length;
+    return key;
+};
+
 export const AI_CONFIG = {
     groq: {
         apiKey: process.env.GROQ_API_KEY,
@@ -7,7 +25,7 @@ export const AI_CONFIG = {
         }
     },
     gemini: {
-        apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
+        apiKeys: geminiKeys,
         models: {
             pro: 'gemini-3-flash-preview', // Newest Frontier
             flash: 'gemini-2.5-flash', // Stable Workhorse

@@ -28,50 +28,42 @@ function StrategyContent() {
     }, [searchParams]);
 
     return (
-        <div className="relative w-full bg-[#f8fafc] overflow-x-hidden text-slate-900 font-sans selection:bg-cyan-100 selection:text-cyan-900">
-
-            <div className="flex flex-col pb-20 px-6 md:px-12 max-w-[1800px] mx-auto relative z-10">
+        <div className="relative w-full bg-white text-slate-900 font-sans selection:bg-slate-900 selection:text-white">
+            <div className="flex flex-col py-8 px-6 md:px-10 max-w-[1600px] mx-auto relative z-10 h-full">
                 {/* Header Section */}
-                <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex flex-col gap-4"
+                        className="flex flex-col gap-1"
                     >
-                        <Link
-                            href="/studio/dashboard"
-                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-colors group"
-                        >
-                            <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Volver al Dashboard
-                        </Link>
-
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-black tracking-[0.3em] text-cyan-500 uppercase font-mono">
-                                {view === 'planner' ? 'Planner Estratégico' :
-                                    view === 'metrics' ? 'Inteligencia de Datos' :
-                                        view === 'crawler' ? 'Deep Crawler Engine' : 'Refinería Pro'}
+                        <div className="flex items-center gap-3 mb-2">
+                            <span className="px-2 py-0.5 bg-cyan-50 text-cyan-600 rounded text-[9px] font-black uppercase tracking-widest border border-cyan-100">
+                                {view === 'planner' ? 'Estrategia' :
+                                    view === 'metrics' ? 'Auditoría' :
+                                        view === 'crawler' ? 'Crawler' : 'Refinería'}
                             </span>
-                            <h1 className="text-4xl font-black tracking-tight text-slate-900 uppercase italic">
-                                {view === 'planner' ? (
-                                    <>Planificación <span className="text-slate-300">Mensual</span></>
-                                ) : view === 'metrics' ? (
-                                    <>Métricas <span className="text-slate-300">Clave</span></>
-                                ) : view === 'crawler' ? (
-                                    <>Crawler <span className="text-emerald-500">Pro</span></>
-                                ) : (
-                                    <>Data <span className="text-cyan-500">Refinery</span></>
-                                )}
-                            </h1>
                         </div>
+                        <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase italic leading-tight">
+                            {view === 'planner' ? (
+                                <>Planificación <span className="text-slate-300">Mensual</span></>
+                            ) : view === 'metrics' ? (
+                                <>Métricas <span className="text-slate-300">Clave</span></>
+                            ) : view === 'crawler' ? (
+                                <>Deep Crawler <span className="text-emerald-500">Pro</span></>
+                            ) : (
+                                <>Data <span className="text-cyan-500">Refinery</span></>
+                            )}
+                        </h1>
                     </motion.div>
 
                     <div className="flex flex-col items-end gap-4">
-                        <div className="flex p-1 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto max-w-full">
+                        <div className="flex p-1 bg-slate-50 border border-slate-100 rounded-2xl shadow-inner-sm overflow-x-auto max-w-full no-scrollbar">
                             <button
                                 onClick={() => setView('planner')}
                                 className={cn(
-                                    "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'planner' ? "bg-slate-900 text-white shadow-md" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'planner' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
                                 )}
                             >
                                 <LayoutDashboard size={14} /> Planner
@@ -79,8 +71,8 @@ function StrategyContent() {
                             <button
                                 onClick={() => setView('metrics')}
                                 className={cn(
-                                    "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'metrics' ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'metrics' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
                                 )}
                             >
                                 <LineChart size={14} /> Métricas
@@ -88,8 +80,8 @@ function StrategyContent() {
                             <button
                                 onClick={() => setView('crawler')}
                                 className={cn(
-                                    "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'crawler' ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'crawler' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
                                 )}
                             >
                                 <Globe size={14} /> Crawler
@@ -97,16 +89,12 @@ function StrategyContent() {
                             <button
                                 onClick={() => setView('refinery')}
                                 className={cn(
-                                    "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'refinery' ? "bg-cyan-600 text-white shadow-md shadow-cyan-500/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'refinery' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
                                 )}
                             >
                                 <Database size={14} /> Refinería
                             </button>
-                        </div>
-                        <div className="hidden md:flex flex-col items-end gap-1">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{activeProject?.name || "Sin Proyecto Seleccionado"}</span>
-                            <span className="text-xs font-bold text-slate-500">{activeProject?.domain}</span>
                         </div>
                     </div>
                 </header>

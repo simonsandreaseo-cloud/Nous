@@ -1,18 +1,16 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
-import { AI_CONFIG } from '@/lib/ai/config';
+import { AI_CONFIG, getGeminiKey } from '@/lib/ai/config';
 
 // Defer initialization to avoid crash if API key is missing on load
-let aiInstance: GoogleGenAI | null = null;
 const getAI = () => {
-    if (!aiInstance) {
-        const apiKey = AI_CONFIG.gemini.apiKey;
-        if (!apiKey) {
-            throw new Error("Gemini API Key missing. Please check your environment variables (NEXT_PUBLIC_GEMINI_API_KEY).");
-        }
-        aiInstance = new GoogleGenAI({ apiKey });
+    const apiKey = getGeminiKey();
+    if (!apiKey) {
+        throw new Error("Gemini API Key missing. Please check your environment variables (NEXT_PUBLIC_GEMINI_API_KEYS).");
     }
-    return aiInstance;
+
+    console.log(`[GEMINI ROTATION] Using Rotating Key`);
+    return new GoogleGenAI({ apiKey });
 };
 
 // Define the schema for the plan

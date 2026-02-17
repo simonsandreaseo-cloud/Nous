@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { AI_CONFIG, getGeminiKey } from '@/lib/ai/config';
 import { Task } from '@/types/project';
 
 // Basic interfaces ported from legacy metadataService
@@ -23,17 +24,12 @@ export class StrategyService {
      * Ports logic from legacy metadataService.ts
      */
     static async generateMetadata(taskId: string, title: string, keyword?: string): Promise<MetadataResult> {
-        // 1. Get API Key
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error("No session found");
-
-        // Note: In Nous 2.0 we might store keys differently, but for now we follow legacy pattern
-        // of checking a 'user_api_keys' table or env vars.
-        const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-        if (!apiKey) throw new Error("Gemini API Key missing");
+        // 1. Get Rotating API Key
+        const apiKey = getGeminiKey();
+        if (!apiKey) throw new Error("Gemini API Keys missing");
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const model = genAI.getGenerativeModel({ model: AI_CONFIG.gemini.models.flash });
 
         const prompt = `Actúa como un experto en SEO clínico. Genera metadatos optimizados para:
         Título: ${title}

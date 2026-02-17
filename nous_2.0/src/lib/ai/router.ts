@@ -1,13 +1,12 @@
 import { Groq } from 'groq-sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
-import { AI_CONFIG } from './config';
+import { AI_CONFIG, getGeminiKey } from './config';
 import { AIRequest, AIResponse } from './types';
 
 class AIRouter {
     private groq?: Groq;
     private openai?: OpenAI;
-    private gemini?: GoogleGenerativeAI;
 
     constructor() {
         if (AI_CONFIG.groq.apiKey) {
@@ -15,9 +14,6 @@ class AIRouter {
         }
         if (AI_CONFIG.openai.apiKey) {
             this.openai = new OpenAI({ apiKey: AI_CONFIG.openai.apiKey, dangerouslyAllowBrowser: true });
-        }
-        if (AI_CONFIG.gemini.apiKey) {
-            this.gemini = new GoogleGenerativeAI(AI_CONFIG.gemini.apiKey);
         }
     }
 
@@ -52,9 +48,11 @@ class AIRouter {
 
         // 2. Route to Gemini (Deep Context)
         if (model.includes('gemini')) {
-            if (!this.gemini) throw new Error('Gemini API Key missing');
+            const apiKey = getGeminiKey();
+            if (!apiKey) throw new Error('Gemini API Key missing');
 
-            const geminiModel = this.gemini.getGenerativeModel({
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const geminiModel = genAI.getGenerativeModel({
                 model,
                 systemInstruction: systemPrompt
             });
