@@ -8,16 +8,13 @@ import { TimePanel } from '@/components/desktop/TimePanel';
 import { useNousEngine } from '@/hooks/useNousEngine';
 import { Activity, Globe, Database, Clock, Cpu, HardDrive } from 'lucide-react';
 
+import { useDesktopStore } from '@/store/useDesktopStore';
+import { DeepLinkManager } from '@/components/desktop/DeepLinkManager';
+
 export default function DesktopAppPage() {
     const { logs, status: engineStatus, sysStats } = useNousEngine();
-    const [isConnected, setIsConnected] = useState(false);
+    const isConnected = useDesktopStore(state => state.isWebConnected);
     const [activeModule, setActiveModule] = useState<'dashboard' | 'crawler' | 'refinery' | 'operations'>('dashboard');
-
-    // Mock connection simulation for Web Uplink
-    useEffect(() => {
-        const timer = setTimeout(() => setIsConnected(true), 1500);
-        return () => clearTimeout(timer);
-    }, []);
 
     const ramUsageGB = sysStats ? (sysStats.memory_usage / 1024 / 1024 / 1024).toFixed(1) : '0.0';
     const totalRamGB = sysStats ? (sysStats.total_memory / 1024 / 1024 / 1024).toFixed(1) : '0.0';
@@ -26,6 +23,7 @@ export default function DesktopAppPage() {
 
     return (
         <DesktopLayout isConnected={isConnected}>
+            <DeepLinkManager />
             <div className="flex flex-col h-full gap-6">
 
                 {/* Module Selector (Minimal Tabs) */}

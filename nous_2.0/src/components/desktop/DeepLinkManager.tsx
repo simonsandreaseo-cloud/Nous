@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import { useDesktopStore } from '@/store/useDesktopStore';
 
 export function DeepLinkManager() {
+    const setWebConnected = useDesktopStore(state => state.setWebConnected);
+
     useEffect(() => {
         // 1. Listen for runtime events (Warm Start - App already open)
         const setupListener = async () => {
@@ -32,14 +35,10 @@ export function DeepLinkManager() {
     }, []);
 
     const handleDeepLink = (rawUrl: string) => {
-        // rawUrl example: nous://auth-callback?token=XYZ
         try {
             console.log('Processing URL:', rawUrl);
-            // Clean protocol because URL constructor might be picky with custom protocols
-            // or ensure it's valid
             let urlToParse = rawUrl;
             if (!urlToParse.startsWith('http')) {
-                // Replace protocol to parse query params easily
                 urlToParse = urlToParse.replace('nous://', 'http://dummy/');
             }
 
@@ -48,11 +47,8 @@ export function DeepLinkManager() {
 
             if (token) {
                 console.log('Token extracted:', token);
-                // Visual feedback for now
-                alert(`🔗 CONEXIÓN RECIBIDA\nToken: ${token.substring(0, 8)}...`);
-
-                // TODO: dispatch to global store
-                // useAuthStore.getState().setToken(token);
+                setWebConnected(true, token);
+                alert(`🔗 CONEXIÓN EXITOSA\nMotor sincronizado con la nube.`);
             }
         } catch (e) {
             console.error('Failed to parse deep link:', rawUrl, e);
