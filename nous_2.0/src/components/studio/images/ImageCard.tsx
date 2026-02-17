@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { Download, RefreshCw, X, Check, MessageSquarePlus } from 'lucide-react';
 import { GeneratedImage } from '@/types/images';

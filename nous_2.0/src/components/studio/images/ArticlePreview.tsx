@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { BlogPost, GeneratedImage } from '@/types/images';
 import { ImageCard } from './ImageCard';

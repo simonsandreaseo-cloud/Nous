@@ -1,4 +1,6 @@
-import React, { useRef } from 'react';
+"use client";
+
+import React, { useRef, useState } from 'react';
 import { Upload, FileText, Image as ImageIcon, X } from 'lucide-react';
 
 interface FileUploadProps {
