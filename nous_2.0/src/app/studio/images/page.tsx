@@ -16,7 +16,6 @@ import { applyWatermark } from '@/lib/services/images/watermarkService';
 import { BlogPost, GeneratedImage, ProcessingStatus, AspectRatio, SupportedLanguage, CustomDimensions, InlineImageCount } from '@/types/images';
 import { cn } from '@/utils/cn';
 import { useProjectStore } from '@/store/useProjectStore';
-import { supabase } from '@/lib/supabase';
 
 // Simple Translation Dictionary
 const TRANSLATIONS = {
