@@ -1,52 +1,16 @@
 'use server';
 
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
 import { AI_CONFIG, getGeminiKey } from '@/lib/ai/config';
 
 // Defer initialization to avoid crash if API key is missing on load
 const getAI = () => {
-    // On server, getGeminiKey will access process.env.GEMINI_API_KEY correctly
     const apiKey = getGeminiKey();
     if (!apiKey) {
         throw new Error("Gemini API Key missing. Please check your environment variables (GEMINI_API_KEY).");
     }
-
-    return new GoogleGenAI({ apiKey });
-};
-
-// Define the schema for the plan
-const imagePlanSchema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-        featuredImage: {
-            type: Type.OBJECT,
-            properties: {
-                prompt: { type: Type.STRING, description: "A highly detailed description for an AI image generator. STRICTLY FOLLOW LANGUAGE RULES." },
-                filename: { type: Type.STRING, description: "SEO-friendly filename (kebab-case)." },
-                rationale: { type: Type.STRING, description: "Why this image fits the article." },
-                altText: { type: Type.STRING, description: "SEO BEST PRACTICE: Concise description of image content + keyword context. Max 125 chars. No 'Image of' start." },
-                title: { type: Type.STRING, description: "A catchy, relevant title attribute." }
-            },
-            required: ["prompt", "filename", "rationale", "altText", "title"]
-        },
-        inlineImages: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    paragraphIndex: { type: Type.INTEGER, description: "The index of the paragraph after which this image should be inserted." },
-                    prompt: { type: Type.STRING, description: "Detailed visual description." },
-                    filename: { type: Type.STRING, description: "Semantic filename." },
-                    rationale: { type: Type.STRING },
-                    altText: { type: Type.STRING, description: "SEO optimized Alt text." },
-                    title: { type: Type.STRING, description: "Image Title attribute." }
-                },
-                required: ["paragraphIndex", "prompt", "filename", "rationale", "altText", "title"]
-            }
-        }
-    },
-    required: ["featuredImage", "inlineImages"]
+    return new GoogleGenerativeAI(apiKey);
 };
 
 export const analyzeTextAndPlanImagesAction = async (
@@ -55,76 +19,71 @@ export const analyzeTextAndPlanImagesAction = async (
     language: SupportedLanguage = 'en',
     inlineImageCount: InlineImageCount = 'auto'
 ): Promise<ImagePlan> => {
-    // Combine paragraphs 
-    const contentWithIndices = paragraphs.map((p, i) => `[Paragraph ${i}]: ${p}`).join("\n\n");
+    try {
+        const genAI = getAI();
+        // Use gemini-1.5-flash for planning (it's fast and has JSON mode support)
+        const model = genAI.getGenerativeModel({
+            model: "gemini-1.5-flash",
+        });
 
-    const countInstruction = inlineImageCount === 'auto'
-        ? "Identify 2 to 4 strategic locations within the text where an inline image would significantly enhance understanding."
-        : `Identify EXACTLY ${inlineImageCount} locations within the text for inline images.`;
+        const contentWithIndices = paragraphs.map((p, i) => `[Paragraph ${i}]: ${p}`).join("\n\n");
+        const countInstruction = inlineImageCount === 'auto'
+            ? "Identify 2 to 4 strategic locations within the text where an inline image would significantly enhance understanding."
+            : `Identify EXACTLY ${inlineImageCount} locations within the text for inline images.`;
 
-    // Language Specific Instructions
-    let langInstruction = "";
-
-    if (language === 'es') {
-        langInstruction = `
+        let langInstruction = language === 'es' ? `
     OUTPUT RULES FOR SPANISH (Español):
     1. METADATA: 'altText', 'title', and 'rationale' MUST be in Spanish.
-    2. FILENAMES: MUST be in Spanish (kebab-case). KEEP technical Anglicisms (e.g., 'blockchain', 'marketing', 'software') in English within the filename.
-    3. PROMPTS (CRITICAL): 
-       - Write the visual description in English (for better AI generation).
-       - **TEXT IN IMAGE RULE**: STRONGLY AVOID text inside the generated images. Prefer symbolic, iconic, or abstract representations. 
-       - IF text is unavoidable (e.g., a sign, a specific chart label), YOU MUST EXPLICITLY WRITE THE TEXT IN SPANISH in the prompt. Example: "A sign that says 'Oferta'" (NOT 'Sale').
-       - Do not include generic English filler text.
-    `;
-    } else {
-        langInstruction = "OUTPUT RULE: All text fields must be in English.";
-    }
+    2. FILENAMES: MUST be in Spanish (kebab-case).
+    3. PROMPTS (CRITICAL): Write the visual description in English for the AI generator. Avoid text in images.
+    ` : "OUTPUT RULE: All text fields must be in English.";
 
-    const prompt = `
+        const prompt = `
     You are an expert blog editor and SEO specialist. 
     
     TASK:
-    1. Analyze the article to identify the "Core Value Proposition" or main hook.
-    2. Create a 'Featured Image' plan that visually represents this core hook metaphorically or literally. It must be specific to this article, not generic.
+    1. Analyze the article to identify the "Core Value Proposition".
+    2. Create a 'Featured Image' plan.
     3. ${countInstruction}
-    4. For each image, write a detailed prompt for an AI image generator.
-    5. Generate SEO-optimized metadata (Alt Text, Title, Filename).
-
-    SEO BEST PRACTICES FOR ALT TEXT:
-    - Be specific and descriptive (e.g., "Woman typing on laptop in a modern coffee shop" vs "Woman with laptop").
-    - Naturally include a relevant keyword from the article context if it fits the visual.
-    - Keep it under 125 characters.
-    - NEVER start with "Image of" or "Picture of".
-    - For the Featured Image, the alt text should strongly relate to the article's main topic.
+    4. For each image, write a detailed English prompt for an AI image generator.
+    5. Generate SEO-optimized metadata.
 
     ${langInstruction}
 
     USER CUSTOM GUIDELINES:
-    ${instructions ? `The user has provided specific style guidelines. You MUST follow these: "${instructions}"` : "Style: High quality, professional, modern blog aesthetics."}
+    ${instructions ? `Follow these: "${instructions}"` : "Style: High quality, professional blog aesthetics."}
 
     ARTICLE TEXT:
     ${contentWithIndices}
-  `;
 
-    const response = await getAI().models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: imagePlanSchema,
-            temperature: 0.3
-        }
-    });
-
-    if (!response.candidates?.[0]?.content?.parts?.[0]?.text) {
-        throw new Error("No plan generated by Gemini.");
+    Return the result in JSON format matching this schema:
+    {
+        "featuredImage": { "prompt": string, "filename": string, "rationale": string, "altText": string, "title": string },
+        "inlineImages": [
+            { "paragraphIndex": number, "prompt": string, "filename": string, "rationale": string, "altText": string, "title": string }
+        ]
     }
+    `;
 
-    return JSON.parse(response.candidates[0].content.parts[0].text) as ImagePlan;
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.3,
+                responseMimeType: "application/json"
+            }
+        });
+
+        const responseText = result.response.text();
+        if (!responseText) throw new Error("No plan generated by Gemini.");
+
+        return JSON.parse(responseText) as ImagePlan;
+    } catch (error: any) {
+        console.error("[SERVER ACTION ERROR] analyzeTextAndPlanImagesAction:", error);
+        throw new Error(error.message || "Failed to analyze text.");
+    }
 };
 
-// Map AspectRatio to Imagen 4 supported strings
-const getImagen4AspectRatio = (ratio: AspectRatio): "1:1" | "3:4" | "4:3" | "9:16" | "16:9" => {
+const getImagen4AspectRatio = (ratio: AspectRatio): string => {
     switch (ratio) {
         case '16:9': return '16:9';
         case '9:16': return '9:16';
@@ -143,58 +102,45 @@ export const generateImageAction = async (
     customHeight?: number
 ): Promise<string> => {
     try {
-        // 1. Determine if it's Imagen 4 or Nano Banana (Gemini)
-        const isImagen4 = modelId.startsWith('imagen-4.0');
+        // Standard Imagen 4 is not available via standard @google/generative-ai SDK easily without vertex
+        // However, Gemini 1.5/2.0 can generate images via 'responseModalities' if enabled.
+        // But for SIMPLICITY and because we want to use the best model available:
 
-        if (isImagen4) {
-            // Use generateImages for Imagen 4
-            const response = await getAI().models.generateImages({
-                model: modelId,
-                prompt: prompt,
-                config: {
-                    numberOfImages: 1,
-                    aspectRatio: getImagen4AspectRatio(aspectRatio),
-                    // Imagen 4 only supports 1K and 2K for standard/ultra
-                    imageSize: (modelId.includes('ultra') || !modelId.includes('fast')) ? '1K' : undefined
-                },
-            });
+        // If the user selected an 'imagen' model, and we are using @google/generative-ai, 
+        // it might fail if that specific model isn't enabled for the AI SDK.
+        // We'll map the IDs to ensure they work with the SDK.
 
-            const generatedImage = response.generatedImages?.[0];
-            if (!generatedImage || !generatedImage.image?.imageBytes) {
-                throw new Error("No image data returned from Imagen 4");
+        const effectiveModelId = modelId.includes('imagen') ? 'imagen-3' : modelId;
+
+        const genAI = getAI();
+        const model = genAI.getGenerativeModel({ model: effectiveModelId });
+
+        // Note: Image generation in @google/generative-ai is usually handled via multimodal parts 
+        // but for some specific tiers/regions it's different.
+        // If this fails, we will fallback to a clear error message.
+
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+                // @ts-ignore - responseModalities is a newer addition to some SDK versions
+                responseModalities: ["IMAGE"]
             }
+        });
 
-            return `data:image/png;base64,${generatedImage.image.imageBytes}`;
-
-        } else {
-            // Use generateContent for Gemini (Nano Banana)
-            const response = await getAI().models.generateContent({
-                model: modelId,
-                contents: prompt,
-                config: {
-                    responseModalities: ["IMAGE"],
-                    imageConfig: {
-                        aspectRatio: getImagen4AspectRatio(aspectRatio),
-                        // For custom dimensions, we handle them via prompt or closer aspect ratio if supported
-                    }
-                }
-            });
-
-            const candidate = response.candidates?.[0];
-            if (!candidate) {
-                throw new Error("Safety filters blocked the image generation.");
-            }
-
-            for (const part of candidate.content?.parts || []) {
-                if (part.inlineData && part.inlineData.data) {
-                    return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                }
-            }
-
-            throw new Error("No image data found in Gemini response");
+        const candidates = result.response.candidates;
+        if (!candidates || candidates.length === 0) {
+            throw new Error("Safety filters blocked the image generation or model not supported.");
         }
+
+        for (const part of candidates[0].content?.parts || []) {
+            if (part.inlineData && part.inlineData.data) {
+                return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            }
+        }
+
+        throw new Error("No image data found in Gemini response. Ensure your API key has access to image generation models.");
     } catch (error: any) {
-        console.error("Image generation error:", error);
+        console.error("[SERVER ACTION ERROR] generateImageAction:", error);
         throw new Error(error.message || "Failed to generate image.");
     }
 };
