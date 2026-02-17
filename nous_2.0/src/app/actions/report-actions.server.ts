@@ -145,7 +145,7 @@ export async function generateReportFromCsvAction(
     userContext: string
 ) {
     try {
-        const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+        const apiKey = getGeminiKey();
         if (!apiKey) throw new Error("API Key de IA no configurada");
 
         const transform = (rows: GscRow[]) => ({
