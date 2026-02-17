@@ -7,7 +7,7 @@ export const AI_CONFIG = {
         }
     },
     gemini: {
-        apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
+        apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
         models: {
             pro: 'gemini-3-flash-preview', // Newest Frontier
             flash: 'gemini-2.5-flash', // Stable Workhorse

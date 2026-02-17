@@ -2,8 +2,18 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
 import { AI_CONFIG } from '@/lib/ai/config';
 
-// Initialize the GenAI client with Nous API key
-const ai = new GoogleGenAI({ apiKey: AI_CONFIG.gemini.apiKey || '' });
+// Defer initialization to avoid crash if API key is missing on load
+let aiInstance: GoogleGenAI | null = null;
+const getAI = () => {
+    if (!aiInstance) {
+        const apiKey = AI_CONFIG.gemini.apiKey;
+        if (!apiKey) {
+            throw new Error("Gemini API Key missing. Please check your environment variables (NEXT_PUBLIC_GEMINI_API_KEY).");
+        }
+        aiInstance = new GoogleGenAI({ apiKey });
+    }
+    return aiInstance;
+};
 
 // Define the schema for the plan
 const imagePlanSchema: Schema = {
@@ -96,7 +106,7 @@ export const analyzeTextAndPlanImages = async (
     ${contentWithIndices}
   `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
@@ -138,7 +148,7 @@ export const generateImage = async (
 
         if (isImagen4) {
             // Use generateImages for Imagen 4
-            const response = await ai.models.generateImages({
+            const response = await getAI().models.generateImages({
                 model: modelId,
                 prompt: prompt,
                 config: {
@@ -158,7 +168,7 @@ export const generateImage = async (
 
         } else {
             // Use generateContent for Gemini (Nano Banana)
-            const response = await ai.models.generateContent({
+            const response = await getAI().models.generateContent({
                 model: modelId,
                 contents: prompt,
                 config: {
