@@ -40,6 +40,7 @@ export interface GeneratedImage {
     paragraphIndex?: number;
     altText: string;
     title: string;
+    rationale: string;
 }
 
 export enum ProcessingStatus {
