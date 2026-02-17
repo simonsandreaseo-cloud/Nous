@@ -100,7 +100,12 @@ export const useNodeStore = create<NodeStoreState>((set) => ({
     }
 }));
 
-// Auto-init connection listener
+// Auto-init connection listener only in development or Tauri
 if (typeof window !== 'undefined') {
-    useNodeStore.getState().connect();
+    const isDev = process.env.NODE_ENV === 'development';
+    const isTauriApp = (window as any).__TAURI__ !== undefined;
+
+    if (isDev || isTauriApp) {
+        useNodeStore.getState().connect();
+    }
 }
