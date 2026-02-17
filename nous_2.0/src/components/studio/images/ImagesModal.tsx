@@ -251,7 +251,8 @@ export const ImagesModal: React.FC<ImagesModalProps> = ({ isOpen, onClose, task 
                 filename: plan.featuredImage.filename,
                 type: 'featured',
                 altText: plan.featuredImage.altText,
-                title: plan.featuredImage.title
+                title: plan.featuredImage.title,
+                rationale: plan.featuredImage.rationale
             });
             setGeneratedImages([...newImages]);
 
@@ -268,7 +269,8 @@ export const ImagesModal: React.FC<ImagesModalProps> = ({ isOpen, onClose, task 
                     type: 'inline',
                     paragraphIndex: item.paragraphIndex,
                     altText: item.altText,
-                    title: item.title
+                    title: item.title,
+                    rationale: item.rationale
                 });
                 setGeneratedImages([...newImages]);
             }
