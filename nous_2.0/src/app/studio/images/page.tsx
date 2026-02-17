@@ -301,7 +301,7 @@ export default function ImagesPage() {
     const reset = () => {
         setBlogPost(null);
         setGeneratedImages([]);
-        setStatus('idle');
+        setStatus(ProcessingStatus.IDLE);
         setError(null);
     };
 
