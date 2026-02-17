@@ -16,8 +16,14 @@ class LocalBridge {
     private reconnectTimer: NodeJS.Timeout | null = null;
 
     constructor() {
+        // Only auto-connect in development or Tauri desktop app, not in production web
         if (typeof window !== 'undefined') {
-            this.connect(); // Re-enabled with correct port 9001
+            const isDev = process.env.NODE_ENV === 'development';
+            const isTauriApp = (window as any).__TAURI__ !== undefined;
+
+            if (isDev || isTauriApp) {
+                this.connect();
+            }
         }
     }
 
