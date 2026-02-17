@@ -46,6 +46,7 @@ export const analyzeTextAndPlanImagesAction = async (
     Plan the images now.`;
 
     try {
+        console.log("[NOUS_DEBUG] Starting Image Planning...");
         const ai = getAI();
         const response = await ai.models.generateContent({
             // Use a stable TEXT model for planning
@@ -59,11 +60,15 @@ export const analyzeTextAndPlanImagesAction = async (
         });
 
         const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("No response from AI Planner.");
+        if (!text) {
+            console.error("[NOUS_DEBUG] AI Planner returned empty text candidates.");
+            throw new Error("No response from AI Planner.");
+        }
 
+        console.log("[NOUS_DEBUG] Plan generated successfully.");
         return JSON.parse(text) as ImagePlan;
     } catch (error: any) {
-        console.error("[SERVER] Planning error:", error);
+        console.error("[NOUS_DEBUG] CRITICAL PLANNING ERROR:", error);
         throw new Error(error.message || "Failed to plan images.");
     }
 };
@@ -76,6 +81,7 @@ export const generateImageAction = async (
     customHeight?: number
 ): Promise<string> => {
     try {
+        console.log(`[NOUS_DEBUG] Generating image with model: ${modelId}`);
         const ai = getAI();
         const isImagen4 = modelId.startsWith('imagen-4.0') || modelId.startsWith('imagen-3');
 
@@ -90,8 +96,12 @@ export const generateImageAction = async (
             });
 
             const image = response.generatedImages?.[0];
-            if (!image?.image?.imageBytes) throw new Error("Imagen 4 returned no bytes.");
+            if (!image?.image?.imageBytes) {
+                console.error("[NOUS_DEBUG] Imagen 4 returned no bytes in response.");
+                throw new Error("Imagen 4 returned no bytes.");
+            }
 
+            console.log("[NOUS_DEBUG] Image generated successfully (Imagen 4).");
             return `data:image/png;base64,${image.image.imageBytes}`;
         } else {
             // Gemini Multimodal (Nano Banana)
@@ -107,12 +117,16 @@ export const generateImageAction = async (
             });
 
             const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-            if (!part?.inlineData?.data) throw new Error("Gemini Image conversion failed.");
+            if (!part?.inlineData?.data) {
+                console.error("[NOUS_DEBUG] Gemini failed to return inlineData for image.");
+                throw new Error("Gemini Image conversion failed.");
+            }
 
+            console.log("[NOUS_DEBUG] Image generated successfully (Nano Banana).");
             return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
     } catch (error: any) {
-        console.error("[SERVER] Generation error:", error);
+        console.error("[NOUS_DEBUG] CRITICAL GENERATION ERROR:", error);
         throw new Error(error.message || "Failed to generate image.");
     }
 };
