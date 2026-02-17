@@ -526,7 +526,7 @@ export default function ImagesPage() {
                             disabled={!blogPost || status === ProcessingStatus.ANALYZING_TEXT || status === ProcessingStatus.GENERATING_IMAGES}
                             className={cn(
                                 "w-full py-6 rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl",
-                                !blogPost || status === 'analyzing' || status === 'generating'
+                                !blogPost || status === ProcessingStatus.ANALYZING_TEXT || status === ProcessingStatus.GENERATING_IMAGES
                                     ? "bg-slate-100 text-slate-300 cursor-not-allowed"
                                     : "bg-gradient-to-r from-slate-900 to-slate-800 text-white hover:scale-[1.02] active:scale-95 shadow-slate-200"
                             )}
