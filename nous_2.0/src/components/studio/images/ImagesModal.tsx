@@ -98,10 +98,11 @@ const TRANSLATIONS = {
 };
 
 const MODELS = [
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Maximum Quality & Context', icon: Sparkles },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Balanced Speed & Quality', icon: Zap },
-    { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', description: 'Next-Gen Performance', icon: Sparkles },
-    { id: 'imagen-3.0-generate-001', name: 'Imagen 3 Standard', description: 'High Quality Generation', icon: Cpu },
+    { id: 'gemini-3-pro-image-preview', name: 'Nano Banana Pro', description: 'Gemini 3 Pro Image (Quality)', icon: Sparkles },
+    { id: 'gemini-2.5-flash-image', name: 'Nano Banana', description: 'Gemini 2.5 Flash (Speed)', icon: Zap },
+    { id: 'imagen-4.0-generate-001', name: 'Imagen 4 Generate', description: 'Google Imagen 4 Standard', icon: Cpu },
+    { id: 'imagen-4.0-ultra-generate-001', name: 'Imagen 4 Ultra', description: 'Google Imagen 4 High Fidelity', icon: Sparkles },
+    { id: 'imagen-4.0-fast-generate-001', name: 'Imagen 4 Fast', description: 'Google Imagen 4 Optimized', icon: Zap },
 ];
 
 interface ImagesModalProps {
@@ -127,7 +128,7 @@ export const ImagesModal: React.FC<ImagesModalProps> = ({ isOpen, onClose, task 
 
     // Settings
     const [instructions, setInstructions] = useState<string>("");
-    const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-pro');
+    const [selectedModel, setSelectedModel] = useState<string>('gemini-3-pro-image-preview');
     const [featuredRatio, setFeaturedRatio] = useState<AspectRatio>('16:9');
     const [inlineRatio, setInlineRatio] = useState<AspectRatio>('16:9');
     const [inlineImageCount, setInlineImageCount] = useState<InlineImageCount>('auto');
