@@ -1,3 +1,5 @@
+'use server';
+
 import { supabase } from '@/lib/supabase';
 import { GscRow } from '@/types/report';
 import { GscService } from '@/lib/services/gsc'; // Correct client-side GSC service

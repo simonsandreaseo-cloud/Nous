@@ -1,3 +1,5 @@
+'use server';
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
 import { getGeminiKey } from '@/lib/ai/config';
