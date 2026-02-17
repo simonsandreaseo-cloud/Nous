@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState, useLayoutEffect } from "react";
 import { NousOrb } from "@/components/canvas/NousOrb";
 import { OfficePanel } from "@/components/dom/OfficePanel";
 
@@ -22,6 +22,18 @@ export default function HomeClient() {
     const highContrast = useAppStore((state) => state.highContrast);
     const toggleHighContrast = useAppStore((state) => state.toggleHighContrast);
     const setMode = useAppStore((state) => state.setMode);
+    const [isRedirecting, setIsRedirecting] = useState(false);
+
+    // Desktop App Redirect
+    useLayoutEffect(() => {
+        // Check for Tauri environment (v1 or v2 strategies)
+        if (typeof window !== 'undefined' && ((window as any).__TAURI__ || (window as any).__TAURI_INTERNALS__)) {
+            setIsRedirecting(true);
+            window.location.replace('/desktop-app');
+        }
+    }, []);
+
+    if (isRedirecting) return null;
 
     useEffect(() => {
         setMode('home');

@@ -12,10 +12,9 @@ export default function WriterSidebar() {
     const {
         isSidebarOpen, toggleSidebar, activeSidebarTab, setSidebarTab,
         content, setContent, apiKeys, setApiKeys, humanizerConfig, updateHumanizerConfig,
-        setGenerating, isGenerating, keyword, setKeyword, seoResults, setSeoResults
+        setGenerating, isGenerating, keyword, setKeyword, seoResults, setSeoResults,
+        researchDossier, outlineStructure
     } = useWriterStore();
-
-
 
     const [statusMessage, setStatusMessage] = useState("");
     const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
@@ -85,6 +84,7 @@ export default function WriterSidebar() {
 
     const tabs = [
         { id: 'assistant', label: 'Asistente', icon: Bot },
+        { id: 'research', label: 'Estrategia', icon: Sparkles },
         { id: 'seo', label: 'SEO', icon: Search },
         { id: 'media', label: 'Media', icon: ImageIcon },
         { id: 'export', label: 'Exportar', icon: FileOutput },
@@ -198,6 +198,84 @@ export default function WriterSidebar() {
                                 </Button>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* RESEARCH TAB */}
+                {activeSidebarTab === 'research' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        {outlineStructure ? (
+                            <div className="space-y-4">
+                                <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-lg">
+                                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-1">Título Ganador</span>
+                                    <h4 className="text-sm font-bold italic">{outlineStructure.title_h1}</h4>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Estructura Neural</label>
+                                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {outlineStructure.sections?.map((s: any, i: number) => (
+                                            <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[8px] font-black bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase">{s.tag}</span>
+                                                    <span className="text-xs font-bold text-slate-700">{s.text}</span>
+                                                </div>
+                                                <p className="text-[10px] text-slate-500 leading-relaxed italic">{s.writing_intent}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {outlineStructure.quality_check && (
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Checklist de Calidad</label>
+                                        <div className="space-y-1">
+                                            {outlineStructure.quality_check.map((q: string, i: number) => (
+                                                <div key={i} className="flex gap-2 p-2 bg-emerald-50/50 rounded-lg group">
+                                                    <Check size={12} className="text-emerald-500 mt-0.5 shrink-0" />
+                                                    <span className="text-[10px] text-emerald-800 font-medium">{q}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12">
+                                <Sparkles size={32} className="mx-auto text-slate-200 mb-4" />
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Sin Estrategia Previa</p>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="mt-4 text-[10px]"
+                                    onClick={() => setIsBriefingModalOpen(true)}
+                                >
+                                    Generar Briefing Ahora
+                                </Button>
+                            </div>
+                        )}
+
+                        {researchDossier?.keywords && (
+                            <div className="space-y-2 pt-4 border-t border-slate-100">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Keywords del Líder</label>
+                                <div className="flex flex-wrap gap-1">
+                                    {researchDossier.keywords.slice(0, 15).map((kw: any, i: number) => (
+                                        <span
+                                            key={i}
+                                            className={cn(
+                                                "px-2 py-1 rounded text-[10px] border transition-all cursor-help",
+                                                content.toLowerCase().includes(kw.keyword.toLowerCase())
+                                                    ? "bg-indigo-100 text-indigo-700 border-indigo-200 font-bold"
+                                                    : "bg-white text-slate-400 border-slate-100"
+                                            )}
+                                            title={`Intent: ${kw.intent} | Score: ${kw.relevance_score}%`}
+                                        >
+                                            {kw.keyword}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

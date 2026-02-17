@@ -26,48 +26,31 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 async function runMigration() {
     console.log('🚀 Iniciando migración de base de datos...');
 
-    const migrationPath = path.join(__dirname, '../supabase/migrations/20260213_emergency_schema_fix.sql');
+    const migrationPath = path.join(__dirname, '../supabase/migrations/20260216_content_intelligence.sql');
 
     if (!fs.existsSync(migrationPath)) {
-        console.log('⚠️  No se encontró el archivo de migración');
+        console.log('⚠️  No se encontró el archivo de migración:', migrationPath);
         return;
     }
 
     const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
 
     try {
-        // Ejecutar la migración
+        // Ejecutar la migración via RPC
         const { data, error } = await supabase.rpc('exec_sql', {
-            sql: migrationSQL
+            sql_query: migrationSQL // Note: parameter name might be sql or sql_query depending on function definition
         });
 
+        // Try alternate parameter name if first fails with specific error? No, just stick to one valid convention.
+        // Assuming exec_sql(sql_query text)
+
         if (error) {
-            // Si no existe la función exec_sql, intentamos ejecutar directamente
-            console.log('⚠️  Función exec_sql no disponible, ejecutando migración manualmente...');
-
-            // Dividir el SQL en statements individuales
-            const statements = migrationSQL
-                .split(';')
-                .map(s => s.trim())
-                .filter(s => s.length > 0 && !s.startsWith('--'));
-
-            for (const statement of statements) {
-                if (statement.toLowerCase().startsWith('alter table')) {
-                    console.log(`📝 Ejecutando: ${statement.substring(0, 50)}...`);
-                    const { error: execError } = await supabase.from('_migrations').insert({
-                        name: '20260211_add_editorial_fields',
-                        executed_at: new Date().toISOString()
-                    });
-
-                    if (execError && !execError.message.includes('duplicate')) {
-                        console.error('❌ Error al ejecutar statement:', execError);
-                    }
-                }
-            }
-
-            console.log('✅ Migración completada (modo manual)');
+            console.error('❌ Error RPC exec_sql:', error);
+            console.log('\n⚠️  IMPORTANTE: No se pudo ejecutar la migración automáticamente.');
+            console.log('Por favor copia el contenido de: supabase/migrations/20260216_content_intelligence.sql');
+            console.log('Y ejecútalo en el SQL Editor de Supabase dashboard.');
         } else {
-            console.log('✅ Migración ejecutada exitosamente');
+            console.log('✅ Migración ejecutada exitosamente via RPC');
         }
     } catch (err) {
         console.error('❌ Error durante la migración:', err.message);

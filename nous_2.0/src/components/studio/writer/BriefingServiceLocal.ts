@@ -1,70 +1,76 @@
-
-// This service communicates with the local Nous Desktop App via HTTP
-const DESKTOP_API_URL = "http://localhost:3001/api";
+import { invoke } from '@tauri-apps/api/core';
 
 export interface SERPResult {
     title: string;
     url: string;
-    snippet: string;
-    position: number;
+    description: string;
+    rank: number;
 }
 
 export interface ScrapedContent {
     url: string;
-    html: string;
+    content: string;
+    headers: any[];
     title: string;
 }
 
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
 export const BriefingService = {
     /**
-     * Fetch Google SERP results for a keyword and country
+     * Fetch Google SERP results using the local Desktop Crawler
      */
     async fetchSERP(keyword: string, countryCode: string): Promise<SERPResult[]> {
-        try {
-            const response = await fetch(`${DESKTOP_API_URL}/serp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query: keyword, gl: countryCode }),
-            });
-
-            if (!response.ok) throw new Error("Failed to fetch SERP from Desktop App");
-
-            const data = await response.json();
-            return data.results || [];
-        } catch (error) {
-            console.error("BriefingService: Error fetching SERP", error);
-            console.warn("Returning mock SERP data");
+        if (!isTauri) {
+            console.warn("BriefingService: Not in Tauri environment. Returning mock data.");
             return [
-                { position: 1, title: `Guía Completa de ${keyword}`, url: "https://example.com/guia", snippet: "Aprende todo sobre..." },
-                { position: 2, title: `10 Tips para ${keyword}`, url: "https://example.com/tips", snippet: "Los mejores consejos..." },
-                { position: 3, title: `¿Qué es ${keyword}?`, url: "https://example.com/que-es", snippet: "Definición y conceptos..." },
+                { rank: 1, title: `Guía Completa de ${keyword}`, url: "https://example.com/guia", description: "Aprende todo sobre..." },
+                { rank: 2, title: `10 Tips para ${keyword}`, url: "https://example.com/tips", description: "Los mejores consejos..." },
+                { rank: 3, title: `¿Qué es ${keyword}?`, url: "https://example.com/que-es", description: "Definición y conceptos..." },
             ];
+        }
+
+        try {
+            const results: any[] = await invoke('scrape_google_serp', { keyword });
+            return results.map(r => ({
+                title: r.title,
+                url: r.url,
+                description: r.description,
+                rank: r.rank
+            }));
+        } catch (error) {
+            console.error("BriefingService: Error fetching SERP via Tauri", error);
+            throw error;
         }
     },
 
     /**
-     * Scrape full HTML content from a list of URLs
+     * Scrape full HTML content from a list of URLs using the local Desktop Crawler
      */
     async scrapeContent(urls: string[]): Promise<ScrapedContent[]> {
-        try {
-            const response = await fetch(`${DESKTOP_API_URL}/scrape-batch`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ urls }),
-            });
-
-            if (!response.ok) throw new Error("Failed to scrape content via Desktop App");
-
-            const data = await response.json();
-            return data.results || [];
-        } catch (error) {
-            console.error("BriefingService: Error scraping content", error);
-            console.warn("Returning mock Scrape data");
+        if (!isTauri) {
             return urls.map(url => ({
                 url,
-                title: "Mock Title for " + url,
-                html: `<h1>Title</h1><h2>Subtitle 1</h2><p>Content...</p><h2>Subtitle 2</h2>`
+                title: "Mock Title",
+                content: "Mock Content",
+                headers: []
             }));
         }
+
+        const results: ScrapedContent[] = [];
+        for (const url of urls) {
+            try {
+                const data: any = await invoke('start_crawl_command', { url });
+                results.push({
+                    url: data.url,
+                    title: data.title,
+                    content: data.content,
+                    headers: data.headers
+                });
+            } catch (error) {
+                console.error(`BriefingService: Error scraping ${url}`, error);
+            }
+        }
+        return results;
     }
 };

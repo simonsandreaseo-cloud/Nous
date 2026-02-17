@@ -9,6 +9,7 @@ import MetricsDashboard from "@/components/dashboard/MetricsDashboard";
 import HeliosConsole from "@/components/dashboard/HeliosConsole";
 import CrawlerConsole from "@/components/dashboard/CrawlerConsole";
 import DataRefinery from "@/components/dashboard/DataRefinery";
+import ProjectUrlManager from "@/components/dashboard/ProjectUrlManager";
 import { QuickActionFab } from "@/components/dashboard/QuickActionFab";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, LayoutDashboard, LineChart, Cpu, Globe, Database } from "lucide-react";
@@ -21,11 +22,11 @@ function StrategyContent() {
     const { activeProject } = useProjectStore();
     const searchParams = useSearchParams();
     const initialView = (searchParams.get('view') as any) || 'planner';
-    const [view, setView] = useState<'planner' | 'metrics' | 'helios' | 'crawler' | 'refinery'>(initialView);
+    const [view, setView] = useState<'planner' | 'metrics' | 'helios' | 'crawler' | 'refinery' | 'inventory'>(initialView);
 
     useEffect(() => {
         const v = searchParams.get('view');
-        if (v && ['planner', 'metrics', 'helios', 'crawler', 'refinery'].includes(v)) {
+        if (v && ['planner', 'metrics', 'helios', 'crawler', 'refinery', 'inventory'].includes(v)) {
             setView(v as any);
         }
     }, [searchParams]);
@@ -54,7 +55,8 @@ function StrategyContent() {
                                 {view === 'planner' ? 'Planner Estratégico' :
                                     view === 'metrics' ? 'Inteligencia de Datos' :
                                         view === 'helios' ? 'Auditoría Neural' :
-                                            view === 'crawler' ? 'Deep Crawler Engine' : 'Refinería Pro'}
+                                            view === 'crawler' ? 'Deep Crawler Engine' :
+                                                view === 'inventory' ? 'Inventario de URLs' : 'Refinería Pro'}
                             </span>
                             <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-slate-900 uppercase italic">
                                 {view === 'planner' ? (
@@ -65,6 +67,8 @@ function StrategyContent() {
                                     <>Helios <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">Engine</span></>
                                 ) : view === 'crawler' ? (
                                     <>Crawler <span className="text-emerald-500">Pro</span></>
+                                ) : view === 'inventory' ? (
+                                    <>URL <span className="text-indigo-500">Inventory</span></>
                                 ) : (
                                     <>Data <span className="text-cyan-500">Refinery</span></>
                                 )}
@@ -111,6 +115,15 @@ function StrategyContent() {
                                 <Globe size={14} /> Crawler
                             </button>
                             <button
+                                onClick={() => setView('inventory')}
+                                className={cn(
+                                    "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'inventory' ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                                )}
+                            >
+                                <Database size={14} /> Inventario
+                            </button>
+                            <button
                                 onClick={() => setView('refinery')}
                                 className={cn(
                                     "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
@@ -140,6 +153,7 @@ function StrategyContent() {
                         {view === 'metrics' && <MetricsDashboard />}
                         {view === 'helios' && <HeliosConsole />}
                         {view === 'crawler' && <CrawlerConsole />}
+                        {view === 'inventory' && <ProjectUrlManager />}
                         {view === 'refinery' && <DataRefinery />}
                     </motion.div>
                 </AnimatePresence>

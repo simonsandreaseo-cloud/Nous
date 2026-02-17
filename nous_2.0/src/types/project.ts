@@ -43,6 +43,11 @@ export interface Task {
     ai_percentage?: number; // Estimated AI content percentage
     docs_url?: string; // Link to Google Doc or similar
     layout_status?: boolean; // Whether content is formatted / maquetado
+    research_dossier?: any;
+    outline_structure?: any;
+    quality_checklist?: any;
+    semantic_refs?: any[];
+    url?: string;
     created_at?: string;
 }
 

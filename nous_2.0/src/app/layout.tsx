@@ -61,6 +61,7 @@ export const metadata: Metadata = {
 };
 
 import { CommandPalette } from "@/components/dashboard/CommandPalette";
+import ScrapingMonitor from "@/components/dashboard/ScrapingMonitor";
 
 export default function RootLayout({
   children,
@@ -104,6 +105,7 @@ export default function RootLayout({
 
         <AuthProvider>
           <CommandPalette />
+          <ScrapingMonitor />
           {children}
           <SpeedInsights />
         </AuthProvider>

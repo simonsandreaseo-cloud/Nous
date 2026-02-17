@@ -7,19 +7,21 @@
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "node scripts/build-desktop.js"
   },
   "app": {
     "windows": [
       {
-        "title": "Nous Clinical Tech",
-        "width": 1200,
-        "height": 800,
-        "resizable": true,
+        "url": "desktop-app",
+        "title": "Nous Engine",
+        "width": 450,
+        "height": 700,
+        "resizable": false,
         "fullscreen": false,
         "center": true,
         "decorations": false,
-        "transparent": true
+        "transparent": true,
+        "alwaysOnTop": true
       }
     ],
     "security": {
@@ -38,6 +40,17 @@
     ],
     "externalBin": [
       "binaries/nous-engine"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "icons/header.bmp",
+        "sidebarImage": "icons/sidebar.bmp",
+        "installMode": "currentUser"
+      }
+    }
   }
 }

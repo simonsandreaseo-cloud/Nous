@@ -4,9 +4,6 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 
   // 16.1.4 Performance & Compression
   compress: true,
@@ -18,17 +15,20 @@ const nextConfig = {
 
 
 
-  output: "export",
+  // Enable static export ONLY for Tauri builds to avoid API route conflicts
+  output: process.env.TAURI_BUILD === "true" ? "export" : undefined,
 
   // Image Optimization for Clinical Assets
   images: {
-    unoptimized: true,
+    unoptimized: true, // Keep unoptimized for now to support static export compatibility
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60,
   },
 
   // Turbopack configuration for Next.js 16
-  turbopack: {},
+  turbopack: {
+    root: __dirname,
+  },
 
   // External packages that should not be bundled
   serverExternalPackages: ['googleapis'],

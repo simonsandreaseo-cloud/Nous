@@ -9,6 +9,7 @@ interface WriterState {
 
     // Editor Status
     isSaving: boolean;
+    isCheckSaving: boolean;
     isGenerating: boolean;
     lastSaved: Date | null;
 
@@ -20,11 +21,13 @@ interface WriterState {
         intensity: number;
         sentiment: string;
     };
-    seoResults: any; // Store analysis results
+    seoResults: any;
+    researchDossier: any;
+    outlineStructure: any;
 
     // UI State
     isSidebarOpen: boolean;
-    activeSidebarTab: 'assistant' | 'seo' | 'media' | 'export';
+    activeSidebarTab: 'assistant' | 'seo' | 'research' | 'media' | 'export';
 
     // Actions
     setContent: (content: string) => void;
@@ -33,7 +36,7 @@ interface WriterState {
     setSaving: (saving: boolean) => void;
     setGenerating: (generating: boolean) => void;
     toggleSidebar: () => void;
-    setSidebarTab: (tab: 'assistant' | 'seo' | 'media' | 'export') => void;
+    setSidebarTab: (tab: 'assistant' | 'seo' | 'research' | 'media' | 'export') => void;
     setApiKeys: (keys: string[]) => void;
     updateHumanizerConfig: (config: Partial<WriterState['humanizerConfig']>) => void;
     setSeoResults: (results: any) => void;
@@ -46,6 +49,7 @@ export const useWriterStore = create<WriterState>((set) => ({
     title: '',
     keyword: '',
     isSaving: false,
+    isCheckSaving: false,
     isGenerating: false,
     lastSaved: null,
 
@@ -60,11 +64,13 @@ export const useWriterStore = create<WriterState>((set) => ({
         sentiment: 'Neutral'
     },
     seoResults: null,
+    researchDossier: null,
+    outlineStructure: null,
 
-    setContent: (content) => set({ content, isSaving: true }), // Trigger save effect in component
+    setContent: (content) => set({ content, isSaving: true, isCheckSaving: true }),
     setTitle: (title) => set({ title }),
     setKeyword: (keyword) => set({ keyword }),
-    setSaving: (isSaving) => set({ isSaving, lastSaved: isSaving ? null : new Date() }),
+    setSaving: (isSaving) => set({ isSaving, isCheckSaving: isSaving, lastSaved: isSaving ? null : new Date() }),
     setGenerating: (isGenerating) => set({ isGenerating }),
 
     toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
@@ -79,12 +85,13 @@ export const useWriterStore = create<WriterState>((set) => ({
     initializeFromTask: (task: Task, project: Project | null) => set((state) => ({
         title: task.title,
         keyword: task.target_keyword || '',
-        activeSidebarTab: 'seo',
+        activeSidebarTab: 'research',
+        researchDossier: (task as any).research_dossier,
+        outlineStructure: (task as any).outline_structure,
         humanizerConfig: {
             ...state.humanizerConfig,
             niche: project?.settings?.niche || project?.description || 'General',
             audience: project?.settings?.audience || 'General',
-            // Default intensity could be set here too
         }
     })),
 
@@ -95,7 +102,10 @@ export const useWriterStore = create<WriterState>((set) => ({
         isSidebarOpen: true,
         activeSidebarTab: 'assistant',
         isSaving: false,
+        isCheckSaving: false,
         isGenerating: false,
-        seoResults: null
+        seoResults: null,
+        researchDossier: null,
+        outlineStructure: null
     })
 }));

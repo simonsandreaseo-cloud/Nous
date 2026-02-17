@@ -41,37 +41,54 @@ export default function BriefingModal({ isOpen, onClose, keyword, country = 'ES'
     const handleGenerateBrief = async () => {
         setIsLoading(true);
         try {
-            // 1. Scrape Content
-            // const scrapedData = await BriefingService.scrapeContent(selectedUrls);
+            // 1. Scrape Content of selected competitors locally
+            console.log("[BriefingModal] Scraping selected references...");
+            const scrapedData = await BriefingService.scrapeContent(selectedUrls);
 
-            // 2. Mock Generation (Gemini integration would go here)
-            // Ideally we send scraped HTML to Gemini to extract structure
+            // 2. Map to the format expected by generate-outline
+            const competitorStructures = scrapedData.map(d => ({
+                url: d.url,
+                headers: d.headers
+            }));
 
-            const mockBrief = `
-# Briefing para: ${keyword}
+            // 3. Generate the Neural Outline/Brief via AI
+            const res = await fetch('/api/content/generate-outline', {
+                method: 'POST',
+                body: JSON.stringify({
+                    competitorStructures,
+                    targetKeywords: [], // Or pass real keywords if available in context
+                    topic: keyword
+                })
+            });
 
-## Intención de Búsqueda
-Informacional / Transaccional. El usuario busca...
+            const outlineData = await res.json();
+            if (outlineData.error) throw new Error(outlineData.error);
+
+            // 4. Format the final briefing text
+            const finalBrief = `
+# Briefing Neural: ${outlineData.title_h1 || keyword}
 
 ## Estructura Sugerida
-- H1: Guía definitiva sobre ${keyword}
-- H2: ¿Qué es ${keyword}?
-- H2: Beneficios principales
-- H3: Ventaja 1
-- H3: Ventaja 2
-- H2: Cómo elegir el mejor...
-- H2: Conclusión
+${outlineData.sections.map((s: any) => `
+### ${s.tag}: ${s.text}
+> ${s.writing_intent}
+${s.subsections?.map((sub: any) => `
+#### ${sub.tag}: ${sub.text}
+- ${sub.writing_intent}
+`).join('') || ''}`).join('\n')}
 
-## Preguntas Frecuentes (PAA)
-- ¿Cuánto cuesta...?
-- ¿Es seguro...?
+## Checklist de Calidad
+${outlineData.quality_check?.map((c: string) => `- [ ] ${c}`).join('\n')}
+
+---
+*Generado mediante ingeniería inversa de competidores.*
             `.trim();
 
-            setGeneratedBrief(mockBrief);
+            setGeneratedBrief(finalBrief);
             setStep('generate');
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Error generando el briefing.");
+            alert("Error generando el briefing: " + error.message);
         } finally {
             setIsLoading(false);
         }
@@ -157,7 +174,7 @@ Informacional / Transaccional. El usuario busca...
                                                     </div>
                                                     <div>
                                                         <h5 className="text-xs font-bold text-slate-800 line-clamp-1">{result.title}</h5>
-                                                        <p className="text-[10px] text-slate-500 line-clamp-2">{result.snippet}</p>
+                                                        <p className="text-[10px] text-slate-500 line-clamp-2">{result.description}</p>
                                                         <span className="text-[9px] text-green-600 font-mono">{result.url}</span>
                                                     </div>
                                                 </div>

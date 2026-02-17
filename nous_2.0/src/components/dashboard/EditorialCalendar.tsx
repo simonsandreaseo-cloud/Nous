@@ -50,6 +50,7 @@ import { useWriterStore } from "@/store/useWriterStore";
 import { parseDocx, parseHtml } from "../tools/writer/services";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
+import IntelligenceHub from "./IntelligenceHub";
 
 import { StrategyService } from "@/lib/services/strategy";
 
@@ -603,6 +604,12 @@ export function EditorialCalendar() {
                                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Ref URLs</span>
                                                     <p className="text-xs font-bold text-slate-700">{selectedTask.refs?.length || 0} Links</p>
                                                 </div>
+                                            </div>
+                                            <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 mt-6">
+                                                <IntelligenceHub
+                                                    taskId={selectedTask.id}
+                                                    targetKeyword={selectedTask.target_keyword}
+                                                />
                                             </div>
                                         </div>
 
