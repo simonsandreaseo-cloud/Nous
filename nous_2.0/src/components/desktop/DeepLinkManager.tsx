@@ -4,40 +4,60 @@ import { invoke } from '@tauri-apps/api/core';
 
 export function DeepLinkManager() {
     useEffect(() => {
-        // 1. Listen for deep link events (Hot start)
-        const unlisten = listen<string>('nous-deep-link', (event) => {
-            console.log('Deep link received (Event):', event.payload);
-            handleDeepLink(event.payload);
-        });
+        // 1. Listen for runtime events (Warm Start - App already open)
+        const setupListener = async () => {
+            const unlisten = await listen<string>('nous-deep-link', (event) => {
+                console.log('Deep link received (Warm):', event.payload);
+                handleDeepLink(event.payload);
+            });
+            return unlisten;
+        };
 
-        // 2. Check for pending deep link (Cold start)
+        let unlistenFn: (() => void) | undefined;
+        setupListener().then(fn => unlistenFn = fn);
+
+        // 2. Check for pending link (Cold Start - App just launched)
         invoke<string | null>('get_pending_deep_link')
-            .then((link) => {
-                if (link) {
-                    console.log('Deep link received (Pending):', link);
-                    handleDeepLink(link);
+            .then((url) => {
+                if (url) {
+                    console.log('Deep link received (Cold):', url);
+                    handleDeepLink(url);
                 }
             })
-            .catch(err => console.error('Failed to check pending deep link:', err));
+            .catch(err => console.error('Failed to get pending deep link:', err));
 
         return () => {
-            unlisten.then(f => f());
+            if (unlistenFn) unlistenFn();
         };
     }, []);
 
-    const handleDeepLink = (url: string) => {
-        // nous://auth-callback?token=xyz
+    const handleDeepLink = (rawUrl: string) => {
+        // rawUrl example: nous://auth-callback?token=XYZ
         try {
-            const urlObj = new URL(url);
+            console.log('Processing URL:', rawUrl);
+            // Clean protocol because URL constructor might be picky with custom protocols
+            // or ensure it's valid
+            let urlToParse = rawUrl;
+            if (!urlToParse.startsWith('http')) {
+                // Replace protocol to parse query params easily
+                urlToParse = urlToParse.replace('nous://', 'http://dummy/');
+            }
+
+            const urlObj = new URL(urlToParse);
             const token = urlObj.searchParams.get('token');
+
             if (token) {
-                console.log("Authentication Token Found:", token);
-                // TODO: Save token to store/localStorage and notify user
+                console.log('Token extracted:', token);
+                // Visual feedback for now
+                alert(`🔗 CONEXIÓN RECIBIDA\nToken: ${token.substring(0, 8)}...`);
+
+                // TODO: dispatch to global store
+                // useAuthStore.getState().setToken(token);
             }
         } catch (e) {
-            console.error("Invalid deep link URL:", url);
+            console.error('Failed to parse deep link:', rawUrl, e);
         }
     };
 
-    return null; // Headless component
+    return null;
 }

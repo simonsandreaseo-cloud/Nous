@@ -8,11 +8,6 @@ struct PendingDeepLink(Mutex<Option<String>>);
 
 #[tauri::command]
 fn get_pending_deep_link(state: tauri::State<PendingDeepLink>) -> Option<String> {
-    *state.0.lock().unwrap() = None; // clear after reading
-    // Actually, usually we take it.
-    // Let's just return what we have and clear it? 
-    // Wait, the previous logic was guard.take(). 
-    // Let's implement guard.take().
     state.0.lock().unwrap().take()
 }
 
