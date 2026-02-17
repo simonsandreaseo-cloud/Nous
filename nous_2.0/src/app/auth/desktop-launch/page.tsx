@@ -1,51 +1,59 @@
 "use client";
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/useAuthStore';
 import { CheckCircle2, AlertCircle, RefreshCcw } from 'lucide-react';
-
 import { LocalNodeBridge } from '@/lib/local-node/bridge';
 
 export default function DesktopLaunchPage() {
     const [status, setStatus] = useState<'initializing' | 'launching' | 'failed' | 'connected'>('initializing');
     const [errorMsg, setErrorMsg] = useState('');
     const user = useAuthStore(state => state.user);
+    const statusRef = useRef(status);
+
+    // Keep ref in sync for timeouts
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
 
     const launchApp = useCallback(() => {
+        if (statusRef.current === 'connected') return;
+
         setStatus('launching');
 
-        // Use a real token if available, otherwise a placeholder for guest/demo
         const token = user?.id || `demo-${Date.now()}`;
-
-        // Attempt to open custom protocol with token
-        // Combined 'open' and 'auth-callback' for simplicity
         const deepLink = `nous://auth-callback?token=${token}`;
 
-        console.log('Launching deep link:', deepLink);
+        console.log('[Web] Launching deep link:', deepLink);
         window.location.href = deepLink;
 
         // Fallback detection logic if no heartbeat received
-        const timer = setTimeout(() => {
-            if (status !== 'connected') {
+        setTimeout(() => {
+            if (statusRef.current !== 'connected') {
                 setStatus('failed');
                 setErrorMsg('We couldn\'t detect the Nous Desktop Engine. Make sure it is installed and running.');
             }
         }, 6000);
-
-        return () => clearTimeout(timer);
-    }, [user, status]);
+    }, [user]);
 
     useEffect(() => {
-        // Listen for Real Heartbeat from Local App
+        // 1. Check if already connected (e.g. on page refresh)
+        if (LocalNodeBridge.isConnected) {
+            console.log('[Web] Bridge already connected.');
+            setStatus('connected');
+            return;
+        }
+
+        // 2. Listen for Real Heartbeat from Local App
         const unsubscribe = LocalNodeBridge.on('CONNECTED', () => {
             console.log('[Web] Heartbeat received from Desktop App!');
             setStatus('connected');
         });
 
-        // Delay slightly to allow page components to settle
+        // 3. Initial Launch attempt
         const initTimer = setTimeout(() => {
             launchApp();
-        }, 1000);
+        }, 800);
 
         return () => {
             unsubscribe();
@@ -55,13 +63,9 @@ export default function DesktopLaunchPage() {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-white text-gray-900 font-sans p-6 relative overflow-hidden">
-
-            {/* Background Subtle Gradient */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-50/20 via-white to-white" />
 
             <div className="z-10 flex flex-col items-center text-center max-w-sm w-full">
-
-                {/* Dynamic Icon */}
                 <div className="relative mb-8">
                     <AnimatePresence mode="wait">
                         {status === 'launching' || status === 'initializing' ? (
@@ -96,8 +100,6 @@ export default function DesktopLaunchPage() {
                             </motion.div>
                         )}
                     </AnimatePresence>
-
-                    {/* Pulsing Aura for Loading */}
                     {(status === 'launching' || status === 'initializing') && (
                         <div className="absolute inset-0 rounded-3xl bg-blue-400/10 animate-ping" />
                     )}
@@ -112,7 +114,7 @@ export default function DesktopLaunchPage() {
                 <p className="text-gray-500 text-sm mb-10 leading-relaxed px-4">
                     {status === 'launching' ? 'Requesting access to your local desktop modules.' :
                         status === 'failed' ? errorMsg :
-                            status === 'connected' ? 'Uplink established successfully. You can now close this tab.' :
+                            status === 'connected' ? 'Uplink established successfully. You can now use the studio.' :
                                 'Please check your Desktop App for a confirmation alert.'}
                 </p>
 
@@ -122,7 +124,7 @@ export default function DesktopLaunchPage() {
                             onClick={() => window.location.href = '/studio/dashboard'}
                             className="w-full py-3.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-md transition-all"
                         >
-                            GO TO DASHBOARD
+                            GO TO STUDIO DASHBOARD
                         </button>
                     ) : (
                         <button
@@ -152,9 +154,8 @@ export default function DesktopLaunchPage() {
                 </div>
             </div>
 
-            {/* Subtle Footer */}
             <div className="absolute bottom-10 text-[10px] text-gray-300 font-medium uppercase tracking-[0.2em]">
-                Secure Uplink v0.2.1
+                Secure Uplink v0.3.0
             </div>
         </div>
     );

@@ -12,7 +12,7 @@ type NodeEventCallback = (payload: any) => void;
 class LocalBridge {
     private ws: WebSocket | null = null;
     private listeners: Map<string, Set<NodeEventCallback>> = new Map();
-    private isConnected: boolean = false;
+    public isConnected: boolean = false;
     private reconnectTimer: NodeJS.Timeout | null = null;
 
     constructor() {
