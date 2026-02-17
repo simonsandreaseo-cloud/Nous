@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
-import { Wand2, Download, FileText, AlertCircle, Loader2, CheckCircle2, Settings2, MessageSquare, Globe, X, Hash, Sparkles, Cpu, Zap } from 'lucide-react';
+import { Wand2, Download, FileText, AlertCircle, Loader2, CheckCircle2, Settings2, MessageSquare, Globe, X, Hash, Sparkles, Cpu, Zap, Image as ImageIcon } from 'lucide-react';
 
 import { FileUpload } from '@/components/studio/images/FileUpload';
 import { ArticlePreview } from '@/components/studio/images/ArticlePreview';
@@ -140,7 +140,7 @@ export default function ImagesPage() {
     const [blogPost, setBlogPost] = useState<BlogPost | null>(null);
     const [logo, setLogo] = useState<string | null>(null);
     const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
-    const [status, setStatus] = useState<ProcessingStatus>('idle');
+    const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
     const [error, setError] = useState<string | null>(null);
 
     // Settings
@@ -169,7 +169,7 @@ export default function ImagesPage() {
     const handleGenerate = async () => {
         if (!blogPost) return;
 
-        setStatus('analyzing');
+        setStatus(ProcessingStatus.ANALYZING_TEXT);
         setError(null);
         setGeneratedImages([]);
 
@@ -182,7 +182,7 @@ export default function ImagesPage() {
                 inlineImageCount
             );
 
-            setStatus('generating');
+            setStatus(ProcessingStatus.GENERATING_IMAGES);
 
             const images: GeneratedImage[] = [];
 
@@ -239,11 +239,11 @@ export default function ImagesPage() {
                 setGeneratedImages([...images]);
             }
 
-            setStatus('complete');
+            setStatus(ProcessingStatus.COMPLETED);
         } catch (err: any) {
             console.error(err);
             setError(err.message);
-            setStatus('error');
+            setStatus(ProcessingStatus.ERROR);
         }
     };
 
@@ -331,7 +331,7 @@ export default function ImagesPage() {
                         >EN</button>
                     </div>
 
-                    {status === 'complete' && (
+                    {status === ProcessingStatus.COMPLETED && (
                         <>
                             <button
                                 onClick={handleDownloadAll}
@@ -523,7 +523,7 @@ export default function ImagesPage() {
                         {/* Action CTA */}
                         <button
                             onClick={handleGenerate}
-                            disabled={!blogPost || status === 'analyzing' || status === 'generating'}
+                            disabled={!blogPost || status === ProcessingStatus.ANALYZING_TEXT || status === ProcessingStatus.GENERATING_IMAGES}
                             className={cn(
                                 "w-full py-6 rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl",
                                 !blogPost || status === 'analyzing' || status === 'generating'
@@ -531,10 +531,10 @@ export default function ImagesPage() {
                                     : "bg-gradient-to-r from-slate-900 to-slate-800 text-white hover:scale-[1.02] active:scale-95 shadow-slate-200"
                             )}
                         >
-                            {status === 'generating' || status === 'analyzing' ? (
+                            {status === ProcessingStatus.GENERATING_IMAGES || status === ProcessingStatus.ANALYZING_TEXT ? (
                                 <>
                                     <Loader2 size={16} className="animate-spin" />
-                                    {status === 'analyzing' ? t.analyzing : t.generating}
+                                    {status === ProcessingStatus.ANALYZING_TEXT ? t.analyzing : t.generating}
                                 </>
                             ) : (
                                 <>
@@ -546,7 +546,7 @@ export default function ImagesPage() {
 
                         {/* Status Messages */}
                         <AnimatePresence>
-                            {status === 'complete' && (
+                            {status === ProcessingStatus.COMPLETED && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
