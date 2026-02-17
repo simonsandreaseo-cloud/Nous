@@ -251,5 +251,19 @@ class LocalBridge {
     }
 }
 
-// Singleton instance
-export const LocalNodeBridge = new LocalBridge();
+// Lazy singleton instance - only created when accessed
+let _instance: LocalBridge | null = null;
+
+function getInstance(): LocalBridge {
+    if (!_instance) {
+        _instance = new LocalBridge();
+    }
+    return _instance;
+}
+
+// Export a proxy that lazy-loads the instance
+export const LocalNodeBridge = new Proxy({} as LocalBridge, {
+    get(target, prop) {
+        return getInstance()[prop as keyof LocalBridge];
+    }
+});
