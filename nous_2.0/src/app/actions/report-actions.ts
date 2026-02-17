@@ -355,9 +355,26 @@ export async function calculateCustomChartDataAction(
             ? rows.filter((r: any) => items.includes(r.keys[0]))
             : rows;
 
-        return { success: true, data: filtered };
+        // Group by item to get total clicks per item
+        const totalsMap = new Map<string, number>();
+        filtered.forEach((r: any) => {
+            const key = r.keys[0];
+            totalsMap.set(key, (totalsMap.get(key) || 0) + r.clicks);
+        });
+
+        const labels = Array.from(totalsMap.keys());
+        const data = Array.from(totalsMap.values());
+
+        const config = {
+            title: `Análisis de ${type === 'page' ? 'URLs' : 'Keywords'}`,
+            type: 'bar',
+            labels,
+            data
+        };
+
+        return { success: true, config };
     } catch (e: any) {
-        return { success: false, error: e.message };
+        return { success: false, error: e.message, config: null };
     }
 }
 
