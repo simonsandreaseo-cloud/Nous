@@ -1,50 +1,16 @@
 'use server';
 
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
-import { AI_CONFIG, getGeminiKey } from '@/lib/ai/config';
+import { getGeminiKey } from '@/lib/ai/config';
 
-// Defer initialization to avoid crash if API key is missing on load
+// Robust AI initialization
 const getAI = () => {
     const apiKey = getGeminiKey();
     if (!apiKey) {
-        throw new Error("Gemini API Key missing. Please check your environment variables (GEMINI_API_KEYS).");
+        throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
     }
     return new GoogleGenAI({ apiKey });
-};
-
-// Define the schema for the plan
-const imagePlanSchema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-        featuredImage: {
-            type: Type.OBJECT,
-            properties: {
-                prompt: { type: Type.STRING, description: "A highly detailed description for an AI image generator. STRICTLY FOLLOW LANGUAGE RULES." },
-                filename: { type: Type.STRING, description: "SEO-friendly filename (kebab-case)." },
-                rationale: { type: Type.STRING, description: "Why this image fits the article." },
-                altText: { type: Type.STRING, description: "SEO BEST PRACTICE: Concise description of image content + keyword context. Max 125 chars. No 'Image of' start." },
-                title: { type: Type.STRING, description: "A catchy, relevant title attribute." }
-            },
-            required: ["prompt", "filename", "rationale", "altText", "title"]
-        },
-        inlineImages: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    paragraphIndex: { type: Type.INTEGER, description: "The index of the paragraph after which this image should be inserted." },
-                    prompt: { type: Type.STRING, description: "Detailed visual description." },
-                    filename: { type: Type.STRING, description: "Semantic filename." },
-                    rationale: { type: Type.STRING },
-                    altText: { type: Type.STRING, description: "SEO optimized Alt text." },
-                    title: { type: Type.STRING, description: "Image Title attribute." }
-                },
-                required: ["paragraphIndex", "prompt", "filename", "rationale", "altText", "title"]
-            }
-        }
-    },
-    required: ["featuredImage", "inlineImages"]
 };
 
 export const analyzeTextAndPlanImagesAction = async (
@@ -53,59 +19,52 @@ export const analyzeTextAndPlanImagesAction = async (
     language: SupportedLanguage = 'en',
     inlineImageCount: InlineImageCount = 'auto'
 ): Promise<ImagePlan> => {
-    const contentWithIndices = paragraphs.map((p, i) => `[Paragraph ${i}]: ${p}`).join("\n\n");
-    const countInstruction = inlineImageCount === 'auto'
-        ? "Identify 2 to 4 strategic locations within the text where an inline image would significantly enhance understanding."
-        : `Identify EXACTLY ${inlineImageCount} locations within the text for inline images.`;
+    const content = paragraphs.join("\n\n");
 
-    let langInstruction = language === 'es' ? `
-    OUTPUT RULES FOR SPANISH (Español):
-    1. METADATA: 'altText', 'title', and 'rationale' MUST be in Spanish.
-    2. FILENAMES: MUST be in Spanish (kebab-case).
-    3. PROMPTS (CRITICAL): Write description in English for AI. No text in images.
-    ` : "OUTPUT RULE: All text fields must be in English.";
+    // Simple prompt to get JSON
+    const systemPrompt = `You are an expert SEO Content Editor. 
+    Analyze the text and plan 1 featured image and some inline images.
+    Return ONLY a valid JSON object.
+    
+    JSON Schema:
+    {
+      "featuredImage": { "prompt": "visual prompt in English", "filename": "seo-name.png", "rationale": "...", "altText": "...", "title": "..." },
+      "inlineImages": [
+        { "paragraphIndex": number, "prompt": "...", "filename": "...", "rationale": "...", "altText": "...", "title": "..." }
+      ]
+    }`;
 
-    const prompt = `
-    You are an expert blog editor and SEO specialist. 
-    Analyze the article and create a 'Featured Image' and 'Inline Images' plan.
-    ${countInstruction}
-    ${langInstruction}
-    USER CUSTOM GUIDELINES: ${instructions || "Style: High quality blog aesthetics."}
-    ARTICLE TEXT: ${contentWithIndices}
-    `;
+    const userPrompt = `
+    ARTICLE TEXT:
+    ${content}
+    
+    INSTRUCTIONS:
+    - Language: ${language}
+    - Image density: ${inlineImageCount}
+    - Style guidelines: ${instructions}
+    
+    Plan the images now.`;
 
     try {
-        const client = getAI();
-        const response = await client.models.generateContent({
-            // Use a stable text model for planning (Gemini 2.0 Flash or 1.5 Flash)
-            model: 'gemini-2.0-flash',
-            contents: prompt,
+        const ai = getAI();
+        const response = await ai.models.generateContent({
+            // Use a stable TEXT model for planning
+            model: 'gemini-1.5-flash',
+            contents: userPrompt,
             config: {
+                systemInstruction: systemPrompt,
                 responseMimeType: "application/json",
-                responseSchema: imagePlanSchema,
                 temperature: 0.3
             }
         });
 
-        if (!response.candidates?.[0]?.content?.parts?.[0]?.text) {
-            throw new Error("No plan generated by Gemini.");
-        }
+        const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("No response from AI Planner.");
 
-        return JSON.parse(response.candidates[0].content.parts[0].text) as ImagePlan;
+        return JSON.parse(text) as ImagePlan;
     } catch (error: any) {
-        console.error("[PLANNING ERROR]", error);
-        throw error;
-    }
-};
-
-const getImagen4AspectRatio = (ratio: AspectRatio): "1:1" | "3:4" | "4:3" | "9:16" | "16:9" => {
-    switch (ratio) {
-        case '16:9': return '16:9';
-        case '9:16': return '9:16';
-        case '4:3': return '4:3';
-        case '3:4': return '3:4';
-        case '1:1': return '1:1';
-        default: return '1:1';
+        console.error("[SERVER] Planning error:", error);
+        throw new Error(error.message || "Failed to plan images.");
     }
 };
 
@@ -117,52 +76,43 @@ export const generateImageAction = async (
     customHeight?: number
 ): Promise<string> => {
     try {
-        const client = getAI();
-        const isImagen4 = modelId.startsWith('imagen-4.0');
+        const ai = getAI();
+        const isImagen4 = modelId.startsWith('imagen-4.0') || modelId.startsWith('imagen-3');
 
         if (isImagen4) {
-            const response = await client.models.generateImages({
+            const response = await ai.models.generateImages({
                 model: modelId,
                 prompt: prompt,
                 config: {
                     numberOfImages: 1,
-                    aspectRatio: getImagen4AspectRatio(aspectRatio),
-                    imageSize: (modelId.includes('ultra') || !modelId.includes('fast')) ? '1K' : undefined
+                    aspectRatio: aspectRatio as any,
                 },
             });
 
-            const generatedImage = response.generatedImages?.[0];
-            if (!generatedImage || !generatedImage.image?.imageBytes) {
-                throw new Error("No image data returned from Imagen 4");
-            }
+            const image = response.generatedImages?.[0];
+            if (!image?.image?.imageBytes) throw new Error("Imagen 4 returned no bytes.");
 
-            return `data:image/png;base64,${generatedImage.image.imageBytes}`;
+            return `data:image/png;base64,${image.image.imageBytes}`;
         } else {
-            // Gemini / Nano Banana Image Generation
-            const response = await client.models.generateContent({
+            // Gemini Multimodal (Nano Banana)
+            const response = await ai.models.generateContent({
                 model: modelId,
                 contents: prompt,
                 config: {
                     responseModalities: ["IMAGE"],
                     imageConfig: {
-                        aspectRatio: getImagen4AspectRatio(aspectRatio),
+                        aspectRatio: aspectRatio as any
                     }
                 }
             });
 
-            const candidate = response.candidates?.[0];
-            if (!candidate) throw new Error("Safety filters blocked image generation.");
+            const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+            if (!part?.inlineData?.data) throw new Error("Gemini Image conversion failed.");
 
-            for (const part of candidate.content?.parts || []) {
-                if (part.inlineData && part.inlineData.data) {
-                    return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                }
-            }
-
-            throw new Error("No image data found in Gemini response");
+            return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
         }
     } catch (error: any) {
-        console.error("Image generation error:", error);
+        console.error("[SERVER] Generation error:", error);
         throw new Error(error.message || "Failed to generate image.");
     }
 };
