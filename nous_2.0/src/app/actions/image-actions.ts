@@ -1,15 +1,17 @@
+'use server';
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
 import { AI_CONFIG, getGeminiKey } from '@/lib/ai/config';
 
 // Defer initialization to avoid crash if API key is missing on load
 const getAI = () => {
+    // On server, getGeminiKey will access process.env.GEMINI_API_KEY correctly
     const apiKey = getGeminiKey();
     if (!apiKey) {
-        throw new Error("Gemini API Key missing. Please check your environment variables (NEXT_PUBLIC_GEMINI_API_KEYS).");
+        throw new Error("Gemini API Key missing. Please check your environment variables (GEMINI_API_KEY).");
     }
 
-    console.log(`[GEMINI ROTATION] Using Rotating Key`);
     return new GoogleGenAI({ apiKey });
 };
 
@@ -47,7 +49,7 @@ const imagePlanSchema: Schema = {
     required: ["featuredImage", "inlineImages"]
 };
 
-export const analyzeTextAndPlanImages = async (
+export const analyzeTextAndPlanImagesAction = async (
     paragraphs: string[],
     instructions: string = "",
     language: SupportedLanguage = 'en',
@@ -133,7 +135,7 @@ const getImagen4AspectRatio = (ratio: AspectRatio): "1:1" | "3:4" | "4:3" | "9:1
     }
 };
 
-export const generateImage = async (
+export const generateImageAction = async (
     prompt: string,
     modelId: string,
     aspectRatio: AspectRatio = '16:9',

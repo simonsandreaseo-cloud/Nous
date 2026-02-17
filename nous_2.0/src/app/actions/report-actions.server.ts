@@ -9,7 +9,7 @@ import { GscRow } from '@/types/report';
 import { AnalyticsService } from '@/lib/services/report/analyticsService';
 import { identifyAiTrafficSources, generateContent, generateInsightAnalysis } from '@/lib/services/report/geminiService';
 import { supabase } from '@/lib/supabase';
-import { ApiKeyRotationService } from '@/lib/services/ai/apiKeyRotation';
+import { AI_CONFIG, getGeminiKey } from '@/lib/ai/config';
 import { GoogleExportService } from '@/lib/services/export/googleExportService';
 
 export async function generateReportAction(
@@ -19,7 +19,7 @@ export async function generateReportAction(
     dateRange?: { start: string, end: string }
 ) {
     try {
-        const apiKey = ApiKeyRotationService.getApiKey();
+        const apiKey = getGeminiKey();
         if (!apiKey) throw new Error("API Key de IA no configurada en el sistema");
 
         // 1. Determine Date Ranges
@@ -260,7 +260,7 @@ export async function getReportByIdAction(reportId: string) {
 export async function analyzeStructureAction(projectId: string) {
     console.log("[SERVER ACTION] analyzeStructureAction started for Project:", projectId);
     try {
-        const apiKey = ApiKeyRotationService.getApiKey();
+        const apiKey = getGeminiKey();
         if (!apiKey) throw new Error("API Key de IA no configurada");
 
         // Fetch just the last 28 days to analyze structure
@@ -307,7 +307,7 @@ export async function analyzeStructureAction(projectId: string) {
 
 export async function generateAiContentAction(prompt: string, context: string) {
     try {
-        const apiKey = ApiKeyRotationService.getApiKey();
+        const apiKey = getGeminiKey();
         if (!apiKey) throw new Error("API Key de IA no configurada");
 
         const html = await generateContent(prompt, context, apiKey);
@@ -343,7 +343,7 @@ export async function calculateCustomChartDataAction(
     type: 'page' | 'query'
 ) {
     try {
-        const apiKey = ApiKeyRotationService.getApiKey(); // Not strictly needed for GSC but good for consistancy if we add AI later
+        const apiKey = getGeminiKey(); // Not strictly needed for GSC but good for consistancy if we add AI later
 
         // 1. Fetch Data for the Range
         const data = await GscService.fetchData(projectId, dateRange.start, dateRange.end);
@@ -404,7 +404,7 @@ export async function generateInsightDataAction(
     }
 ) {
     try {
-        const apiKey = ApiKeyRotationService.getApiKey();
+        const apiKey = getGeminiKey();
 
         // Helper to calculate previous range
         const getPreviousRange = (start: string, end: string, mode: string) => {
