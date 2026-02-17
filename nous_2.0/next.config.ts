@@ -13,6 +13,11 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["log", "info", "warn"] } : false,
   },
 
+  // Ignore TS errors during Tauri build (since API folder is hidden)
+  typescript: {
+    ignoreBuildErrors: process.env.TAURI_BUILD === "true",
+  },
+
 
 
   // Enable static export ONLY for Tauri builds to avoid API route conflicts

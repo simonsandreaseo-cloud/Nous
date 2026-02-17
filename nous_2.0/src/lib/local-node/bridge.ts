@@ -17,7 +17,7 @@ class LocalBridge {
 
     constructor() {
         if (typeof window !== 'undefined') {
-            this.connect();
+            // this.connect(); // Disabled legacy auto-connect to avoid Ollama spam
         }
     }
 
