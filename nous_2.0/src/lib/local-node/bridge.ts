@@ -17,13 +17,13 @@ class LocalBridge {
 
     constructor() {
         if (typeof window !== 'undefined') {
-            // this.connect(); // Disabled legacy auto-connect to avoid Ollama spam
+            this.connect(); // Re-enabled with correct port 9001
         }
     }
 
     private connect() {
         try {
-            this.ws = new WebSocket('ws://localhost:11434');
+            this.ws = new WebSocket('ws://localhost:9001');
 
             this.ws.onopen = () => {
                 console.log('[NOUS BRIDGE] Conectado. Enviando autenticación...');

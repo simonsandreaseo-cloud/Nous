@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/useAuthStore';
 import { CheckCircle2, AlertCircle, RefreshCcw } from 'lucide-react';
 
+import { LocalNodeBridge } from '@/lib/local-node/bridge';
+
 export default function DesktopLaunchPage() {
     const [status, setStatus] = useState<'initializing' | 'launching' | 'failed' | 'connected'>('initializing');
     const [errorMsg, setErrorMsg] = useState('');
@@ -22,22 +24,33 @@ export default function DesktopLaunchPage() {
         console.log('Launching deep link:', deepLink);
         window.location.href = deepLink;
 
-        // Fallback detection logic
+        // Fallback detection logic if no heartbeat received
         const timer = setTimeout(() => {
-            // If the browser hasn't lost focus or moved, app might not be installed
-            setStatus('failed');
-            setErrorMsg('We couldn\'t detect the Nous Desktop Engine. Make sure it is installed and running.');
-        }, 4000);
+            if (status !== 'connected') {
+                setStatus('failed');
+                setErrorMsg('We couldn\'t detect the Nous Desktop Engine. Make sure it is installed and running.');
+            }
+        }, 6000);
 
         return () => clearTimeout(timer);
-    }, [user]);
+    }, [user, status]);
 
     useEffect(() => {
+        // Listen for Real Heartbeat from Local App
+        const unsubscribe = LocalNodeBridge.on('CONNECTED', () => {
+            console.log('[Web] Heartbeat received from Desktop App!');
+            setStatus('connected');
+        });
+
         // Delay slightly to allow page components to settle
-        const timer = setTimeout(() => {
+        const initTimer = setTimeout(() => {
             launchApp();
         }, 1000);
-        return () => clearTimeout(timer);
+
+        return () => {
+            unsubscribe();
+            clearTimeout(initTimer);
+        };
     }, [launchApp]);
 
     return (
@@ -92,25 +105,37 @@ export default function DesktopLaunchPage() {
 
                 <h1 className="text-2xl font-bold tracking-tight mb-2">
                     {status === 'launching' ? 'Launching Engine...' :
-                        status === 'failed' ? 'Connection Problem' : 'Establishing Secure Bridge'}
+                        status === 'failed' ? 'Connection Problem' :
+                            status === 'connected' ? 'Engine Synchronized' : 'Establishing Secure Bridge'}
                 </h1>
 
                 <p className="text-gray-500 text-sm mb-10 leading-relaxed px-4">
                     {status === 'launching' ? 'Requesting access to your local desktop modules.' :
-                        status === 'failed' ? errorMsg : 'Please check your Desktop App for a confirmation alert.'}
+                        status === 'failed' ? errorMsg :
+                            status === 'connected' ? 'Uplink established successfully. You can now close this tab.' :
+                                'Please check your Desktop App for a confirmation alert.'}
                 </p>
 
                 <div className="flex flex-col gap-3 w-full">
-                    <button
-                        onClick={launchApp}
-                        disabled={status === 'launching'}
-                        className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-300 shadow-sm ${status === 'launching'
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                : 'bg-gray-900 text-white hover:bg-black hover:shadow-md'
-                            }`}
-                    >
-                        {status === 'launching' ? 'LAUNCHING...' : 'RETRY CONNECTION'}
-                    </button>
+                    {status === 'connected' ? (
+                        <button
+                            onClick={() => window.location.href = '/studio/dashboard'}
+                            className="w-full py-3.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-md transition-all"
+                        >
+                            GO TO DASHBOARD
+                        </button>
+                    ) : (
+                        <button
+                            onClick={launchApp}
+                            disabled={status === 'launching'}
+                            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-300 shadow-sm ${status === 'launching'
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-gray-900 text-white hover:bg-black hover:shadow-md'
+                                }`}
+                        >
+                            {status === 'launching' ? 'LAUNCHING...' : 'RETRY CONNECTION'}
+                        </button>
+                    )}
 
                     {status === 'failed' && (
                         <div className="mt-4 pt-6 border-t border-gray-100">

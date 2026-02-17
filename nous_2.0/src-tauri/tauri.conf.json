@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "url": "desktop-app",
         "title": "Nous Engine",
         "width": 450,
@@ -26,6 +27,13 @@
     ],
     "security": {
       "csp": null
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "schemes": [
+        "nous"
+      ]
     }
   },
   "bundle": {

@@ -7,53 +7,59 @@ export function DeepLinkManager() {
     const setWebConnected = useDesktopStore(state => state.setWebConnected);
 
     useEffect(() => {
-        // 1. Listen for runtime events (Warm Start - App already open)
-        const setupListener = async () => {
-            const unlisten = await listen<string>('nous-deep-link', (event) => {
-                console.log('Deep link received (Warm):', event.payload);
-                handleDeepLink(event.payload);
-            });
-            return unlisten;
+        const processDeepLink = (rawUrl: string) => {
+            try {
+                console.log('[DeepLink] Processing:', rawUrl);
+                let urlToParse = rawUrl;
+                if (!urlToParse.startsWith('http')) {
+                    urlToParse = urlToParse.replace('nous://', 'http://dummy/');
+                }
+
+                const urlObj = new URL(urlToParse);
+                const token = urlObj.searchParams.get('token');
+
+                if (token) {
+                    console.log('[DeepLink] Token found:', token);
+                    setWebConnected(true, token);
+                    // Crucial for user feedback
+                    alert(`🔗 CONEXIÓN EXITOSA\nSincronización con la nube completada.`);
+                } else {
+                    console.warn('[DeepLink] No token in URL:', rawUrl);
+                }
+            } catch (e) {
+                console.error('[DeepLink] Processing error:', e);
+            }
         };
 
+        // 1. Listen for runtime events (Warm Start)
         let unlistenFn: (() => void) | undefined;
-        setupListener().then(fn => unlistenFn = fn);
 
-        // 2. Check for pending link (Cold Start - App just launched)
-        invoke<string | null>('get_pending_deep_link')
-            .then((url) => {
+        const init = async () => {
+            console.log('[DeepLink] Initializing listeners...');
+            const unlisten = await listen<string>('nous-deep-link', (event) => {
+                console.log('[DeepLink] Event received (Warm):', event.payload);
+                processDeepLink(event.payload);
+            });
+            unlistenFn = unlisten;
+
+            // 2. Check for pending link (Cold Start)
+            try {
+                const url = await invoke<string | null>('get_pending_deep_link');
                 if (url) {
-                    console.log('Deep link received (Cold):', url);
-                    handleDeepLink(url);
+                    console.log('[DeepLink] Pending link found (Cold):', url);
+                    processDeepLink(url);
                 }
-            })
-            .catch(err => console.error('Failed to get pending deep link:', err));
+            } catch (err) {
+                console.error('[DeepLink] Failed to fetch pending link:', err);
+            }
+        };
+
+        init();
 
         return () => {
             if (unlistenFn) unlistenFn();
         };
-    }, []);
-
-    const handleDeepLink = (rawUrl: string) => {
-        try {
-            console.log('Processing URL:', rawUrl);
-            let urlToParse = rawUrl;
-            if (!urlToParse.startsWith('http')) {
-                urlToParse = urlToParse.replace('nous://', 'http://dummy/');
-            }
-
-            const urlObj = new URL(urlToParse);
-            const token = urlObj.searchParams.get('token');
-
-            if (token) {
-                console.log('Token extracted:', token);
-                setWebConnected(true, token);
-                alert(`🔗 CONEXIÓN EXITOSA\nMotor sincronizado con la nube.`);
-            }
-        } catch (e) {
-            console.error('Failed to parse deep link:', rawUrl, e);
-        }
-    };
+    }, [setWebConnected]);
 
     return null;
 }
