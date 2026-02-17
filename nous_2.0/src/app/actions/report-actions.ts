@@ -1,24 +1,111 @@
 import { supabase } from '@/lib/supabase';
 import { GscRow } from '@/types/report';
+import { GscService } from '@/lib/services/gsc'; // Correct client-side GSC service
+import { SegmentationService } from '@/lib/services/report/segmentationService';
+import { runFullAnalysis } from '@/lib/services/report/analysisService';
+import { getRelevantSections, generateHTMLReport } from '@/lib/services/report/geminiService';
+import { getGeminiKey } from '@/lib/ai/config';
+import { subDays, format } from 'date-fns';
 
-// This is a client-side friendly mock of server actions for the Desktop App.
-// Server actions are unsupported in static export (Tauri).
-// We implement local logic where possible (Supabase) and stub external API calls.
-
+/**
+ * Generates a full Deep SEO Report by fetching data from GSC, 
+ * running local heuristic analysis, and using Gemini for narrative.
+ */
 export async function generateReportAction(
     projectId: string,
     userContext: string,
     customRules?: { name: string, regex: string }[],
     dateRange?: { start: string, end: string }
 ) {
-    console.error("generateReportAction: Not supported in Desktop App without local backend.");
-    return {
-        success: false,
-        error: "La generación de informes GSC requiere un backend Node.js. En la versión de escritorio, esta función está deshabilitada temporalmente.",
-        html: "",
-        chartData: null,
-        payload: null as any
-    };
+    try {
+        console.log(`[REPORT-ACTION] Starting generation for project: ${projectId}`);
+        const geminiKey = getGeminiKey();
+        if (!geminiKey) throw new Error("Gemini API Key missing.");
+
+        // 1. Get Project & Token Info
+        const { data: project, error: pError } = await supabase
+            .from('projects')
+            .select('gsc_site_url, domain')
+            .eq('id', projectId)
+            .single();
+
+        if (pError || !project) throw new Error("Proyecto no encontrado.");
+        if (!project.gsc_site_url) throw new Error("El proyecto no tiene una URL de GSC vinculada.");
+
+        const siteUrl = project.gsc_site_url;
+
+        // 2. Define Time Periods (P1 vs P2)
+        let p2End = dateRange?.end ? new Date(dateRange.end) : subDays(new Date(), 3);
+        let p2Start = dateRange?.start ? new Date(dateRange.start) : subDays(p2End, 30);
+
+        // Calculate P1 (Previous period of same length)
+        const diffDays = Math.floor((p2End.getTime() - p2Start.getTime()) / (1000 * 60 * 60 * 24));
+        let p1End = subDays(p2Start, 1);
+        let p1Start = subDays(p1End, diffDays);
+
+        const d = (date: Date) => format(date, 'yyyy-MM-dd');
+
+        console.log(`[REPORT-ACTION] Periods: P1(${d(p1Start)} to ${d(p1End)}) vs P2(${d(p2Start)} to ${d(p2End)})`);
+
+        // 3. Fetch Data from GSC (Parallelized for speed)
+        const fetchPeriod = async (start: string, end: string) => {
+            const [pages, queries, joint] = await Promise.all([
+                GscService.getSearchAnalytics(siteUrl, start, end, ['page']),
+                GscService.getSearchAnalytics(siteUrl, start, end, ['query']),
+                GscService.getSearchAnalytics(siteUrl, start, end, ['page', 'query'])
+            ]);
+            // Map rows back to normalized GscRow format
+            const map = (rows: any[]): GscRow[] => rows.map(r => ({
+                clicks: r.clicks,
+                impressions: r.impressions,
+                ctr: r.ctr,
+                position: r.position,
+                page: r.keys[0],
+                keyword: r.keys[1] || r.keys[0], // Depending on dimension
+                date: new Date()
+            }));
+
+            return { pages: map(pages), queries: map(queries), joint: map(joint) };
+        };
+
+        const [p1Data, p2Data] = await Promise.all([
+            fetchPeriod(d(p1Start), d(p1End)),
+            fetchPeriod(d(p2Start), d(p2End))
+        ]);
+
+        // 4. Run Analysis Engine (Local/Client)
+        console.log("[REPORT-ACTION] Running Analysis Engine...");
+        const { reportPayload, chartData } = runFullAnalysis(
+            p1Data,
+            p2Data,
+            `${d(p1Start)} - ${d(p1End)}`,
+            `${d(p2Start)} - ${d(p2End)}`,
+            userContext,
+            customRules
+        );
+
+        // 5. Generate AI Narrative (Gemini)
+        console.log("[REPORT-ACTION] Generating AI Narrative...");
+        const sections = await getRelevantSections(reportPayload, geminiKey);
+        const html = await generateHTMLReport(reportPayload, sections, geminiKey);
+
+        return {
+            success: true,
+            html,
+            chartData,
+            payload: reportPayload
+        };
+
+    } catch (e: any) {
+        console.error("[REPORT-ACTION] Fatal Error:", e);
+        return {
+            success: false,
+            error: e.message || "Error desconocido al generar el informe.",
+            html: "",
+            chartData: null,
+            payload: null as any
+        };
+    }
 }
 
 export async function generateReportFromCsvAction(
@@ -27,14 +114,40 @@ export async function generateReportFromCsvAction(
     labels: { p1: string, p2: string },
     userContext: string
 ) {
-    console.error("generateReportFromCsvAction: Not fully implemented in Desktop.");
-    return {
-        success: false,
-        error: "Análisis CSV no disponible en modo escritorio.",
-        html: "",
-        chartData: null,
-        payload: null as any
-    };
+    try {
+        const geminiKey = getGeminiKey();
+        if (!geminiKey) throw new Error("Gemini API Key missing.");
+
+        // Organize data for analysis engine
+        // CSV usually is page-level or query-level, we'll try to treat it as pages
+        const wrap = (rows: GscRow[]) => ({ pages: rows, queries: rows, joint: rows });
+
+        const { reportPayload, chartData } = runFullAnalysis(
+            wrap(p1Rows),
+            wrap(p2Rows),
+            labels.p1,
+            labels.p2,
+            userContext
+        );
+
+        const sections = await getRelevantSections(reportPayload, geminiKey);
+        const html = await generateHTMLReport(reportPayload, sections, geminiKey);
+
+        return {
+            success: true,
+            html,
+            chartData,
+            payload: reportPayload
+        };
+    } catch (e: any) {
+        return {
+            success: false,
+            error: e.message,
+            html: "",
+            chartData: null,
+            payload: null as any
+        };
+    }
 }
 
 export async function saveReportAction(
@@ -103,24 +216,59 @@ export async function getReportByIdAction(reportId: string) {
 }
 
 export async function analyzeStructureAction(projectId: string) {
-    console.warn("analyzeStructureAction: Stubbed for desktop");
-    return {
-        success: false,
-        error: "Análisis de estructura requiere backend GSC.",
-        proposedRules: [],
-        uncategorizedSample: [],
-        totalUrls: 0
-    };
+    try {
+        console.log(`[REPORT-ACTION] Analyzing structure for: ${projectId}`);
+        const geminiKey = getGeminiKey();
+        if (!geminiKey) throw new Error("Gemini API Key missing.");
+
+        const { data: project } = await supabase.from('projects').select('gsc_site_url').eq('id', projectId).single();
+        if (!project?.gsc_site_url) throw new Error("Proyecto no vinculado a GSC.");
+
+        // Fetch top urls from last 30 days
+        const end = subDays(new Date(), 3);
+        const start = subDays(end, 30);
+
+        const rows = await GscService.getSearchAnalytics(
+            project.gsc_site_url,
+            format(start, 'yyyy-MM-dd'),
+            format(end, 'yyyy-MM-dd'),
+            ['page']
+        );
+
+        const urls = rows.map((r: any) => r.keys[0]);
+        if (urls.length === 0) throw new Error("No se encontraron URLs en GSC para analizar.");
+
+        const proposedRules = await SegmentationService.generateSegmentRules(urls, geminiKey);
+
+        return {
+            success: true,
+            proposedRules,
+            uncategorizedSample: urls.slice(0, 20),
+            totalUrls: urls.length
+        };
+
+    } catch (e: any) {
+        console.error("[REPORT-ACTION] Structure Analysis Error:", e);
+        return {
+            success: false,
+            error: e.message,
+            proposedRules: [],
+            uncategorizedSample: [],
+            totalUrls: 0
+        };
+    }
 }
 
 export async function generateAiContentAction(prompt: string, context: string) {
-    console.warn("generateAiContentAction: Stubbed for desktop");
-    return { success: false, error: "Generación IA requiere backend.", html: "" };
+    try {
+        const geminiKey = getGeminiKey();
+        const { generateContent } = await import('@/lib/services/report/geminiService');
+        const html = await generateContent(prompt, context, geminiKey);
+        return { success: true, html };
+    } catch (e: any) {
+        return { success: false, error: e.message, html: "" };
+    }
 }
-
-// ... (imports remain)
-
-// ... (other functions remain)
 
 export async function exportToGoogleAction(
     type: 'docs' | 'slides',
@@ -128,8 +276,21 @@ export async function exportToGoogleAction(
     content: string | string[],
     accessToken: string
 ) {
-    console.warn("exportToGoogleAction: Stubbed for desktop");
-    return { success: false, error: "Exportación a Google requiere backend.", url: "" };
+    // Note: Exporting still requires the export service which might use Node libraries.
+    // If googleExportService is only Node, this will fail.
+    // Let's check it.
+    try {
+        const { GoogleExportService } = await import('@/lib/services/export/googleExportService');
+        if (type === 'docs') {
+            const url = await GoogleExportService.exportToDocs(title, content as string, accessToken);
+            return { success: true, url };
+        } else {
+            const url = await GoogleExportService.exportToSlides(title, content as string[], accessToken);
+            return { success: true, url };
+        }
+    } catch (e: any) {
+        return { success: false, error: "Exportación no disponible en este entorno: " + e.message };
+    }
 }
 
 export async function calculateCustomChartDataAction(
@@ -139,14 +300,28 @@ export async function calculateCustomChartDataAction(
     type: 'page' | 'query'
 ) {
     try {
-        // Stub implementation - return empty or mocked data
-        console.warn("calculateCustomChartDataAction: Stubbed for desktop");
-        return { success: false, error: "Datos de gráficos no disponibles sin GSC backend.", config: null };
+        // This is used for "Deep Dive" charts in the UI.
+        // We can implement it using GscService directly.
+        const { data: project } = await supabase.from('projects').select('gsc_site_url').eq('id', projectId).single();
+        if (!project?.gsc_site_url) throw new Error("GSC not connected");
+
+        const rows = await GscService.getSearchAnalytics(
+            project.gsc_site_url,
+            dateRange.start,
+            dateRange.end,
+            [type, 'date']
+        );
+
+        // Filter for specific items if provided
+        const filtered = items.length > 0
+            ? rows.filter((r: any) => items.includes(r.keys[0]))
+            : rows;
+
+        return { success: true, data: filtered };
     } catch (e: any) {
-        return { success: false, error: e.message, config: null }; // Add config here too
+        return { success: false, error: e.message };
     }
 }
-// ... (rest remains)
 
 export async function generateInsightDataAction(
     projectId: string,
@@ -161,6 +336,40 @@ export async function generateInsightDataAction(
         regexFilter?: string;
     }
 ) {
-    console.warn("generateInsightDataAction: Stubbed for desktop");
-    return { success: false, error: "Deep Dive Analysis no disponible sin GSC backend.", data: null };
+    try {
+        const { data: project } = await supabase.from('projects').select('gsc_site_url').eq('id', projectId).single();
+        if (!project?.gsc_site_url) throw new Error("GSC not connected");
+
+        const rows = await GscService.getSearchAnalytics(
+            project.gsc_site_url,
+            dateRange.start,
+            dateRange.end,
+            [type]
+        );
+
+        let data = rows.map((r: any) => ({
+            name: r.keys[0],
+            clicks: r.clicks,
+            impressions: r.impressions,
+            ctr: r.ctr,
+            position: r.position
+        }));
+
+        if (options.regexFilter) {
+            const re = new RegExp(options.regexFilter, 'i');
+            data = data.filter(d => re.test(d.name));
+        }
+
+        if (items.length > 0) {
+            data = data.filter(d => items.includes(d.name));
+        }
+
+        data.sort((a, b) => b.clicks - a.clicks);
+        if (options.limit) data = data.slice(0, options.limit);
+
+        return { success: true, data };
+    } catch (e: any) {
+        return { success: false, error: e.message, data: null };
+    }
 }
+
