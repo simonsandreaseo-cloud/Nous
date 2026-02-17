@@ -118,9 +118,23 @@ const MODELS = [
 ];
 
 export default function ImagesPage() {
+    const [mounted, setMounted] = useState(false);
     const { activeProject } = useProjectStore();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const [language, setLanguage] = useState<SupportedLanguage>('es');
     const t = TRANSLATIONS[language];
+
+    // ... (rest of the state)
+
+    if (!mounted) return (
+        <div className="min-h-screen bg-[#FDFCFB] flex items-center justify-center">
+            <Loader2 className="animate-spin text-slate-300" size={32} />
+        </div>
+    );
 
     // State
     const [blogPost, setBlogPost] = useState<BlogPost | null>(null);
