@@ -1,6 +1,7 @@
 export interface BlogPost {
+    title?: string;
     paragraphs: string[];
-    rawText: string;
+    rawText?: string;
 }
 
 export type AspectRatio = '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | 'custom';
