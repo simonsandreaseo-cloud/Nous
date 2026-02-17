@@ -3,7 +3,7 @@
 import { cn } from "@/utils/cn";
 import { useAuthStore } from "@/store/useAuthStore";
 import Link from "next/link";
-import { User, LogOut, Wrench, ChevronDown, ChevronRight, FileText, Bot, LayoutTemplate, Calendar, Search, Activity, Building2, Settings, Wand2, Monitor } from "lucide-react";
+import { User, LogOut, Wrench, ChevronDown, ChevronRight, FileText, Bot, LayoutTemplate, Calendar, Search, Activity, Building2, Settings, Wand2, Monitor, Cpu } from "lucide-react";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
 import { NeuralLinkStatus } from "@/components/dashboard/NeuralLinkStatus";
 
@@ -84,6 +84,13 @@ export function NavigationHeader() {
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Calendario y Planificación</p>
                                     </Link>
+                                    <Link href="/studio/images" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                        <div className="flex items-center gap-3 mb-0.5">
+                                            <Wand2 size={16} className="text-emerald-500" />
+                                            <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Imagenes</span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 font-medium pl-7">BlogViz AI</p>
+                                    </Link>
                                 </div>
                             </div>
                         </div>
@@ -109,6 +116,13 @@ export function NavigationHeader() {
                             {/* Second Level Menu */}
                             <div className="absolute left-full top-0 ml-3 w-60 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/60 shadow-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
                                 <div className="space-y-1">
+                                    <Link href="/studio/monitor" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                        <div className="flex items-center gap-3 mb-0.5">
+                                            <Cpu size={16} className="text-purple-500" />
+                                            <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Helios IA</span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 font-medium pl-7">Auditoría Neural & Errores</p>
+                                    </Link>
                                     <Link href="/herramientas/generador-informes" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <FileText size={16} className="text-purple-500" />

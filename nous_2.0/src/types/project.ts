@@ -21,6 +21,7 @@ export interface Project {
     wp_url?: string;
     wp_token?: string;
     target_country?: string; // ISO 3166-1 alpha-2 or similar
+    logo_url?: string;
     created_at?: string;
 }
 

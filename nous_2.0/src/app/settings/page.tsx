@@ -28,6 +28,8 @@ export default function SettingsPage() {
     const [editWpUrl, setEditWpUrl] = useState("");
     const [editWpToken, setEditWpToken] = useState("");
     const [editTargetCountry, setEditTargetCountry] = useState("ES"); // Default Spain
+    const [editLogoUrl, setEditLogoUrl] = useState("");
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
     const [gscSites, setGscSites] = useState<{ url: string; permission: string }[]>([]);
     const [isLoadingSites, setIsLoadingSites] = useState(false);
@@ -92,6 +94,7 @@ export default function SettingsPage() {
             setEditWpUrl(activeProject.wp_url || "");
             setEditWpToken(activeProject.wp_token || "");
             setEditTargetCountry(activeProject.target_country || "ES");
+            setEditLogoUrl(activeProject.logo_url || "");
         }
     }, [activeProject?.id]);
 
@@ -132,7 +135,8 @@ export default function SettingsPage() {
                 wp_url: editWpUrl,
 
                 wp_token: editWpToken,
-                target_country: editTargetCountry
+                target_country: editTargetCountry,
+                logo_url: editLogoUrl
             });
             alert("Cambios guardados correctamente.");
         } catch (e: any) {
@@ -174,6 +178,36 @@ export default function SettingsPage() {
             console.error("Failed to update GSC site:", e);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !activeProject) return;
+
+        setIsUploadingLogo(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${activeProject.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const filePath = `logos/${fileName}`;
+
+            // Upload to Supabase Storage
+            const { error: uploadError, data } = await supabase.storage
+                .from('project-assets')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // Get Public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('project-assets')
+                .getPublicUrl(filePath);
+
+            setEditLogoUrl(publicUrl);
+        } catch (error: any) {
+            alert("Error al subir el logo: " + error.message);
+        } finally {
+            setIsUploadingLogo(false);
         }
     };
 
@@ -361,6 +395,59 @@ export default function SettingsPage() {
                                                 <option value="EC">Ecuador (EC)</option>
                                             </select>
                                             <p className="text-[9px] text-slate-400 font-medium ml-1">Determina qué resultados de Google se analizarán para tus briefings.</p>
+                                        </div>
+
+                                        {/* Logo Upload Section */}
+                                        <div className="space-y-4 p-8 rounded-3xl border border-slate-100 bg-slate-50/50">
+                                            <div className="flex items-center gap-4 mb-2">
+                                                <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                                                    <Plus size={24} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Identidad Visual</h3>
+                                                    <p className="text-[10px] text-slate-500 font-medium tracking-tight">Sube el logo de tu marca para las imágenes generadas.</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-6">
+                                                <div className="w-24 h-24 rounded-3xl border-2 border-dashed border-slate-200 bg-white flex items-center justify-center overflow-hidden relative group">
+                                                    {editLogoUrl ? (
+                                                        <>
+                                                            <img src={editLogoUrl} alt="Logo" className="max-w-full max-h-full object-contain p-2" />
+                                                            <button
+                                                                onClick={() => setEditLogoUrl("")}
+                                                                className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <Trash2 size={24} />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <div className="text-slate-300">
+                                                            <Globe size={32} className="opacity-20" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 space-y-3">
+                                                    <input
+                                                        type="file"
+                                                        id="logo-upload"
+                                                        className="hidden"
+                                                        accept="image/png,image/webp"
+                                                        onChange={handleLogoUpload}
+                                                    />
+                                                    <label
+                                                        htmlFor="logo-upload"
+                                                        className={cn(
+                                                            "inline-flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-50 transition-all shadow-sm",
+                                                            isUploadingLogo && "opacity-50 pointer-events-none"
+                                                        )}
+                                                    >
+                                                        {isUploadingLogo ? <Loader2 className="animate-spin" size={14} /> : <Plus size={14} />}
+                                                        {editLogoUrl ? "Cambiar Logo" : "Subir Logo PNG"}
+                                                    </label>
+                                                    <p className="text-[9px] text-slate-400">Recomendado: PNG Transparente o WebP. Tamaño sugerido 400x400px.</p>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* Project Property Selection - Only if GSC Linked Globally */}

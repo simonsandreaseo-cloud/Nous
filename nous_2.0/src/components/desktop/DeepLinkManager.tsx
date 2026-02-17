@@ -21,8 +21,8 @@ export function DeepLinkManager() {
                 if (token) {
                     console.log('[DeepLink] Token found:', token);
                     setWebConnected(true, token);
-                    // Crucial for user feedback
-                    alert(`🔗 CONEXIÓN EXITOSA\nSincronización con la nube completada.`);
+                    // Native alert() removed to prevent window lock issues
+                    console.log('[DeepLink] Connection synchronized successfully.');
                 } else {
                     console.warn('[DeepLink] No token in URL:', rawUrl);
                 }

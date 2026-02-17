@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+"use client";
+import React from 'react';
 import { motion } from 'framer-motion';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ConnectionStatus } from './ConnectionStatus';
 
 interface DesktopLayoutProps {
     children: React.ReactNode;
@@ -9,95 +9,83 @@ interface DesktopLayoutProps {
 }
 
 export function DesktopLayout({ children, isConnected = false }: DesktopLayoutProps) {
-    const minimizeWindow = async () => {
-        try {
-            await getCurrentWindow().minimize();
-        } catch (e) {
-            console.error('Minimize failed:', e);
-        }
-    };
-    const closeWindow = async () => {
-        try {
-            await getCurrentWindow().close();
-        } catch (e) {
-            console.error('Close failed:', e);
-        }
+    const appWindow = typeof window !== 'undefined' ? getCurrentWindow() : null;
+
+    const minimizeWindow = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (appWindow) await appWindow.minimize();
     };
 
-    const startDrag = async () => {
-        await getCurrentWindow().startDragging();
+    const closeWindow = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (appWindow) await appWindow.close();
     };
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
-            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.5, ease: "circOut" }}
-            className="h-screen w-screen overflow-hidden bg-white text-gray-900 font-sans selection:bg-gray-200 border border-gray-200 rounded-xl flex flex-col shadow-2xl relative"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="h-screen w-screen overflow-hidden bg-white/90 backdrop-blur-xl text-gray-900 font-sans border border-white/20 rounded-2xl flex flex-col shadow-2xl relative"
         >
-            {/* Draggable Title Bar (Explicit Handler) */}
+            {/* Native Drag Region Title Bar */}
             <div
-                className="h-8 flex items-center justify-end px-3 select-none cursor-move bg-gray-50/50 border-b border-gray-100 relative z-50"
-                onMouseDown={startDrag}
+                data-tauri-drag-region
+                className="h-10 flex items-center justify-between px-4 select-none bg-gray-50/30 border-b border-gray-100/50 relative z-[100]"
             >
+                <div className="flex items-center gap-2 pointer-events-none">
+                    <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-amber-400 animate-pulse'}`} />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+                        Nous Engine {isConnected ? 'Online' : 'Linking...'}
+                    </span>
+                </div>
+
                 {/* Window Controls */}
-                <div className="flex gap-2" onMouseDown={(e) => e.stopPropagation()}>
+                <div className="flex gap-2.5">
                     <button
                         onClick={minimizeWindow}
-                        className="w-3 h-3 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors"
-                        title="Minimize"
-                    />
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="w-3.5 h-3.5 rounded-full bg-gray-200 hover:bg-gray-300 transition-all flex items-center justify-center group"
+                    >
+                        <div className="w-1.5 h-[1px] bg-gray-500 group-hover:bg-gray-700" />
+                    </button>
                     <button
                         onClick={closeWindow}
-                        className="w-3 h-3 rounded-full bg-rose-400/80 hover:bg-rose-500 transition-colors"
-                        title="Close"
-                    />
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="w-3.5 h-3.5 rounded-full bg-rose-100 hover:bg-rose-500 transition-all flex items-center justify-center group"
+                    >
+                        <div className="relative w-1.5 h-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-1/2 left-0 w-full h-[1px] bg-white rotate-45" />
+                            <div className="absolute top-1/2 left-0 w-full h-[1px] bg-white -rotate-45" />
+                        </div>
+                    </button>
                 </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col p-6 gap-6 relative overflow-hidden">
-
-                {/* Header Zen */}
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
-                            Nous Engine
-                        </h1>
-                        <p className="text-xs text-gray-500 mt-0.5 font-medium flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}`}></span>
-                            {isConnected ? 'Connected to Brain' : 'Waiting for connection...'}
-                        </p>
-                    </div>
-                    {/* Minimal Status Icon (can replace ConnectionStatus component or simplify it) */}
-                    <div className={`p-2 rounded-full ${isConnected ? 'bg-emerald-50 text-emerald-600' : 'bg-white/5 text-gray-400'}`}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                        </svg>
-                    </div>
-                </div>
-
-                {/* Content Injection */}
-                <div className="flex-1 flex flex-col min-h-0 relative z-10">
+            <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
+                <div className="flex-1 flex flex-col p-5 gap-5 overflow-y-auto no-scrollbar pb-10">
                     {children}
                 </div>
-
-                {/* Resize Handle (Bottom Right) */}
-                <div
-                    className="absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-end justify-end p-0.5 opacity-20 hover:opacity-50 transition-opacity"
-                    onMouseDown={(e) => {
-                        // Using Tauri's startDragging is tricky from React directly on resize.
-                        // Usually window.resize is handled by OS if hit-test works.
-                        // For borderless, we might need a specific plugin command or CSS 'resize: both' if overflow allows.
-                        // Actually, Tauri 'resizable: true' + 'decorations: false' usually supports edge resizing on Windows.
-                        // But let's add a visual cue.
-                    }}
-                >
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor">
-                        <path d="M10 0L10 10L0 10" fill="currentColor" />
-                    </svg>
-                </div>
             </div>
+
+            {/* Bottom-Right corner handle for resizing (Tauri usually handles this but we add a hit area) */}
+            <div
+                className="absolute bottom-0 right-0 w-6 h-6 z-[101] pointer-events-none"
+                style={{ cursor: 'se-resize' }}
+            >
+                <div
+                    className="absolute bottom-1 right-1 w-2 h-2 border-r-2 border-b-2 border-gray-300 opacity-30"
+                    style={{ pointerEvents: 'auto' }}
+                    onMouseDown={async (e) => {
+                        // In some Tauri versions you can trigger start_resizing
+                        // @ts-ignore
+                        if (appWindow?.startResizing) await appWindow.startResizing('BottomRight');
+                    }}
+                />
+            </div>
+
+            {/* Subtle Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 pointer-events-none" />
         </motion.div>
     );
 }

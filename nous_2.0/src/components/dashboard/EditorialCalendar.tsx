@@ -37,7 +37,8 @@ import {
     TableProperties,
     LayoutDashboard,
     Upload,
-    Database
+    Database,
+    Wand2
 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
 import { supabase } from "@/lib/supabase";
@@ -53,6 +54,7 @@ import StrategyGrid from "./StrategyGrid";
 import IntelligenceHub from "./IntelligenceHub";
 
 import { StrategyService } from "@/lib/services/strategy";
+import { ImagesModal } from "../studio/images/ImagesModal";
 
 export function EditorialCalendar() {
     const { tasks, activeProject, updateTask, addTask } = useProjectStore();
@@ -64,6 +66,8 @@ export function EditorialCalendar() {
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
     const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
+    const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
+    const [taskForImages, setTaskForImages] = useState<Task | null>(null);
     const [suggestedTasks, setSuggestedTasks] = useState<any[]>([]);
     const [isLoadingStrategy, setIsLoadingStrategy] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -280,101 +284,111 @@ export function EditorialCalendar() {
     }, [tasks]);
 
     return (
-        <div className="flex flex-col h-full bg-white rounded-[40px] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
+        <div className="flex flex-col h-full bg-white rounded-[24px] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
             {/* Header */}
-            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white/50 backdrop-blur-xl sticky top-0 z-20">
+            <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white/50 backdrop-blur-xl sticky top-0 z-20">
                 <div className="flex items-center gap-6">
                     <div>
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] font-mono leading-none mb-2">Editorial</h3>
-                        <p className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic leading-none">Calendario</p>
+                        <h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono leading-none mb-1.5">Editorial</h3>
+                        <p className="text-xl font-black text-slate-900 tracking-tight uppercase italic leading-none">Calendario</p>
                     </div>
 
-                    <div className="h-12 w-px bg-slate-100 mx-2" />
+                    <div className="h-8 w-px bg-slate-100 mx-1" />
 
-                    <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
-                        <button onClick={prevMonth} className="p-2.5 hover:bg-white rounded-xl shadow-sm transition-all text-slate-400 hover:text-slate-900">
-                            <ChevronLeft size={20} />
+                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
+                        <button onClick={prevMonth} className="p-2 hover:bg-white rounded-lg transition-all text-slate-400 hover:text-slate-900">
+                            <ChevronLeft size={16} />
                         </button>
-                        <span className="text-sm font-black uppercase tracking-widest min-w-[160px] text-center text-slate-700">
+                        <span className="text-[11px] font-bold uppercase tracking-widest min-w-[120px] text-center text-slate-600">
                             {format(viewDate, 'MMMM yyyy', { locale: es })}
                         </span>
-                        <button onClick={nextMonth} className="p-2.5 hover:bg-white rounded-xl shadow-sm transition-all text-slate-400 hover:text-slate-900">
-                            <ChevronRight size={20} />
+                        <button onClick={nextMonth} className="p-2 hover:bg-white rounded-lg transition-all text-slate-400 hover:text-slate-900">
+                            <ChevronRight size={16} />
                         </button>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                     {/* View Switcher */}
-                    <div className="flex items-center bg-slate-100 p-1 rounded-2xl mr-4">
+                    <div className="flex items-center bg-slate-50 p-1 rounded-xl mr-2 border border-slate-100">
                         <button
                             onClick={() => setCurrentView('calendar')}
                             className={cn(
-                                "p-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                currentView === 'calendar' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                "p-1.5 px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2",
+                                currentView === 'calendar' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                             )}
                         >
-                            <CalendarIcon size={14} /> Calendario
+                            <CalendarIcon size={12} /> Calendario
                         </button>
                         <button
                             onClick={() => setCurrentView('grid')}
                             className={cn(
-                                "p-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                currentView === 'grid' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                "p-1.5 px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2",
+                                currentView === 'grid' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
                             )}
                         >
-                            <TableProperties size={14} /> Grilla
+                            <TableProperties size={12} /> Grilla
                         </button>
                     </div>
 
-                    <button
-                        onClick={handleGenerateStrategy}
-                        disabled={isLoadingStrategy}
-                        className={cn(
-                            "px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/20 transition-all flex items-center gap-2",
-                            isLoadingStrategy && "opacity-70 cursor-wait"
-                        )}
-                    >
-                        {isLoadingStrategy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                        {isLoadingStrategy ? "Analizando..." : "Sugerir Estrategia"}
-                    </button>
-                    <button
-                        onClick={() => setIsSchedulingModalOpen(true)}
-                        className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2"
-                    >
-                        <LayoutList size={14} /> Importar Planificación
-                    </button>
                     <div className="flex items-center gap-2">
+                        {/* Secondary Actions (Grouped) */}
+                        <div className="flex items-center bg-slate-50 rounded-xl px-1 border border-slate-100">
+                            <button
+                                onClick={() => setIsSchedulingModalOpen(true)}
+                                className="p-2.5 text-slate-400 hover:text-slate-600 transition-all rounded-lg"
+                                title="Importar Planificación"
+                            >
+                                <LayoutList size={16} />
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const url = prompt("Ingresa la URL de tu Google Sheet para IMPORTAR tareas:");
+                                    if (url) handleSyncWithSheet(url);
+                                }}
+                                className="p-2.5 text-slate-400 hover:text-green-600 transition-all rounded-lg"
+                                title="Importar Google Sheet"
+                            >
+                                <Database size={16} />
+                            </button>
+                            <button
+                                onClick={handleExportToSheet}
+                                disabled={tasks.length === 0}
+                                className="p-2.5 text-slate-400 hover:text-green-600 transition-all rounded-lg"
+                                title="Exportar a Sheet"
+                            >
+                                <FileUp size={16} />
+                            </button>
+                            <button
+                                onClick={() => setIsBulkModalOpen(true)}
+                                className="p-2.5 text-slate-400 hover:text-slate-600 transition-all rounded-lg"
+                                title="Importar CSV"
+                            >
+                                <Upload size={16} />
+                            </button>
+                        </div>
+
+                        <div className="w-px h-6 bg-slate-100 mx-1" />
+
                         <button
-                            onClick={() => {
-                                const url = prompt("Ingresa la URL de tu Google Sheet para IMPORTAR tareas:");
-                                if (url) handleSyncWithSheet(url);
-                            }}
-                            className="px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-all flex items-center gap-2"
+                            onClick={handleGenerateStrategy}
+                            disabled={isLoadingStrategy}
+                            className={cn(
+                                "px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/20 transition-all flex items-center gap-2",
+                                isLoadingStrategy && "opacity-70 cursor-wait"
+                            )}
                         >
-                            <Database size={14} /> Importar Sheet
+                            {isLoadingStrategy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                            {isLoadingStrategy ? "..." : "Sugerir Estrategia"}
                         </button>
+
                         <button
-                            onClick={handleExportToSheet}
-                            disabled={tasks.length === 0}
-                            className="px-4 py-3 bg-white border border-green-200 text-green-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-50 transition-all flex items-center gap-2"
+                            onClick={() => setIsNewTaskModalOpen(true)}
+                            className="px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md flex items-center gap-2"
                         >
-                            <FileUp size={14} /> Exportar
+                            <Plus size={14} /> Nuevo
                         </button>
                     </div>
-
-                    <button
-                        onClick={() => setIsBulkModalOpen(true)}
-                        className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2"
-                    >
-                        <FileUp size={14} /> CSV
-                    </button>
-                    <button
-                        onClick={() => setIsNewTaskModalOpen(true)}
-                        className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 flex items-center gap-2"
-                    >
-                        <Plus size={14} /> Nuevo
-                    </button>
                 </div>
             </div>
 
@@ -390,7 +404,7 @@ export function EditorialCalendar() {
                             ))}
                         </div>
 
-                        <div className="grid grid-cols-7 auto-rows-[180px]">
+                        <div className="grid grid-cols-7 auto-rows-[130px]">
                             {days.map((day, i) => {
                                 const dateStr = format(day, 'yyyy-MM-dd');
                                 const dayTasks = tasksByDay[dateStr] || [];
@@ -401,15 +415,15 @@ export function EditorialCalendar() {
                                     <div
                                         key={i}
                                         className={cn(
-                                            "border-r border-b border-slate-50 p-3 flex flex-col gap-2 transition-colors relative group",
+                                            "border-r border-b border-slate-50 p-2 flex flex-col gap-1 transition-colors relative group",
                                             !isCurrentMonth && "bg-slate-50/30 opacity-40",
-                                            isToday && "bg-cyan-50/20"
+                                            isToday && "bg-cyan-50/10"
                                         )}
                                     >
-                                        <div className="flex justify-between items-start mb-1">
+                                        <div className="flex justify-between items-start mb-0.5">
                                             <span className={cn(
-                                                "text-sm font-black w-7 h-7 flex items-center justify-center rounded-full transition-all",
-                                                isToday ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/30" : "text-slate-400 group-hover:text-slate-900"
+                                                "text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full transition-all",
+                                                isToday ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-300 group-hover:text-slate-600"
                                             )}>
                                                 {format(day, 'd')}
                                             </span>
@@ -417,43 +431,26 @@ export function EditorialCalendar() {
                                                 setNewTaskDate(dateStr);
                                                 setIsNewTaskModalOpen(true);
                                             }}>
-                                                <Plus size={14} className="text-slate-400" />
+                                                <Plus size={12} className="text-slate-400" />
                                             </button>
                                         </div>
 
-                                        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1.5">
+                                        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1">
                                             {dayTasks.map(task => (
                                                 <motion.div
                                                     key={task.id}
                                                     layoutId={task.id}
                                                     onClick={() => setSelectedTask(task)}
                                                     className={cn(
-                                                        "p-2.5 rounded-xl border text-[11px] font-bold leading-tight cursor-pointer transition-all shadow-sm hover:translate-y-[-2px]",
+                                                        "p-1.5 rounded-lg border text-[10px] font-bold leading-tight cursor-pointer transition-all hover:border-slate-300",
                                                         task.status === 'done'
-                                                            ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                                                            ? "bg-emerald-50/50 border-emerald-100 text-emerald-700"
                                                             : task.status === 'in_progress'
-                                                                ? "bg-purple-50 border-purple-100 text-purple-700"
-                                                                : "bg-white border-slate-100 text-slate-600 hover:border-slate-300"
+                                                                ? "bg-purple-50/50 border-purple-100 text-purple-700"
+                                                                : "bg-white border-slate-100 text-slate-500"
                                                     )}
                                                 >
-                                                    <div className="flex items-center gap-1.5 mb-1 opacity-60 justify-between">
-                                                        <div className="flex items-center gap-1.5">
-                                                            {task.status === 'done' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                                                            <span className="text-[8px] uppercase tracking-wider">{task.status}</span>
-                                                        </div>
-                                                        <button
-                                                            className="hover:text-cyan-600 hover:scale-110 transition-all p-0.5 rounded-full"
-                                                            title="Redactar ahora"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                initializeFromTask(task, activeProject);
-                                                                router.push('/studio/writer');
-                                                            }}
-                                                        >
-                                                            <Sparkles size={10} />
-                                                        </button>
-                                                    </div>
-                                                    <p className="line-clamp-2">{task.title}</p>
+                                                    <p className="line-clamp-1">{task.title}</p>
                                                 </motion.div>
                                             ))}
                                         </div>
@@ -630,6 +627,16 @@ export function EditorialCalendar() {
                                             >
                                                 <Paperclip size={16} /> Adjuntar Contenido Externo
                                             </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setTaskForImages(selectedTask);
+                                                    setIsImagesModalOpen(true);
+                                                }}
+                                                className="w-full py-5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-[24px] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center gap-3 group"
+                                            >
+                                                <Wand2 size={16} className="group-hover:rotate-12 transition-transform" /> Generar Imágenes con IA
+                                            </button>
                                         </div>
                                     </div>
 
@@ -793,6 +800,11 @@ export function EditorialCalendar() {
                 {isSchedulingModalOpen && (
                     <MassSchedulingModal onClose={() => setIsSchedulingModalOpen(false)} />
                 )}
+                <ImagesModal
+                    isOpen={isImagesModalOpen}
+                    onClose={() => setIsImagesModalOpen(false)}
+                    task={taskForImages}
+                />
             </AnimatePresence>
         </div>
     );

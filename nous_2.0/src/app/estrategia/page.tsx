@@ -6,27 +6,25 @@ import { useProjectStore } from "@/store/useProjectStore";
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
 import { EditorialCalendar } from "@/components/dashboard/EditorialCalendar";
 import MetricsDashboard from "@/components/dashboard/MetricsDashboard";
-import HeliosConsole from "@/components/dashboard/HeliosConsole";
 import CrawlerConsole from "@/components/dashboard/CrawlerConsole";
 import DataRefinery from "@/components/dashboard/DataRefinery";
 import ProjectUrlManager from "@/components/dashboard/ProjectUrlManager";
 import { QuickActionFab } from "@/components/dashboard/QuickActionFab";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, LayoutDashboard, LineChart, Cpu, Globe, Database } from "lucide-react";
+import { ChevronLeft, LayoutDashboard, LineChart, Globe, Database } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/utils/cn";
-
 import { Suspense } from "react";
 
 function StrategyContent() {
     const { activeProject } = useProjectStore();
     const searchParams = useSearchParams();
     const initialView = (searchParams.get('view') as any) || 'planner';
-    const [view, setView] = useState<'planner' | 'metrics' | 'helios' | 'crawler' | 'refinery' | 'inventory'>(initialView);
+    const [view, setView] = useState<'planner' | 'metrics' | 'crawler' | 'refinery' | 'inventory'>(initialView);
 
     useEffect(() => {
         const v = searchParams.get('view');
-        if (v && ['planner', 'metrics', 'helios', 'crawler', 'refinery', 'inventory'].includes(v)) {
+        if (v && ['planner', 'metrics', 'crawler', 'refinery', 'inventory'].includes(v)) {
             setView(v as any);
         }
     }, [searchParams]);
@@ -51,20 +49,17 @@ function StrategyContent() {
                         </Link>
 
                         <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-black tracking-[0.3em] text-cyan-500 uppercase font-mono">
+                            <span className="text-[9px] font-bold tracking-widest text-cyan-600 uppercase font-mono">
                                 {view === 'planner' ? 'Planner Estratégico' :
                                     view === 'metrics' ? 'Inteligencia de Datos' :
-                                        view === 'helios' ? 'Auditoría Neural' :
-                                            view === 'crawler' ? 'Deep Crawler Engine' :
-                                                view === 'inventory' ? 'Inventario de URLs' : 'Refinería Pro'}
+                                        view === 'crawler' ? 'Deep Crawler Engine' :
+                                            view === 'inventory' ? 'Inventario de URLs' : 'Refinería Pro'}
                             </span>
-                            <h1 className="text-5xl md:text-6xl font-black tracking-tighter text-slate-900 uppercase italic">
+                            <h1 className="text-4xl font-black tracking-tight text-slate-900 uppercase italic">
                                 {view === 'planner' ? (
                                     <>Planificación <span className="text-slate-300">Mensual</span></>
                                 ) : view === 'metrics' ? (
                                     <>Métricas <span className="text-slate-300">Clave</span></>
-                                ) : view === 'helios' ? (
-                                    <>Helios <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">Engine</span></>
                                 ) : view === 'crawler' ? (
                                     <>Crawler <span className="text-emerald-500">Pro</span></>
                                 ) : view === 'inventory' ? (
@@ -95,15 +90,6 @@ function StrategyContent() {
                                 )}
                             >
                                 <LineChart size={14} /> Métricas
-                            </button>
-                            <button
-                                onClick={() => setView('helios')}
-                                className={cn(
-                                    "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'helios' ? "bg-purple-600 text-white shadow-md shadow-purple-500/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-                                )}
-                            >
-                                <Cpu size={14} /> Helios
                             </button>
                             <button
                                 onClick={() => setView('crawler')}
@@ -151,7 +137,6 @@ function StrategyContent() {
                     >
                         {view === 'planner' && <EditorialCalendar />}
                         {view === 'metrics' && <MetricsDashboard />}
-                        {view === 'helios' && <HeliosConsole />}
                         {view === 'crawler' && <CrawlerConsole />}
                         {view === 'inventory' && <ProjectUrlManager />}
                         {view === 'refinery' && <DataRefinery />}
@@ -164,7 +149,7 @@ function StrategyContent() {
             {/* Background elements */}
             <div className={cn(
                 "fixed top-0 right-0 w-[500px] h-[500px] blur-[120px] rounded-full pointer-events-none opacity-60 z-0 transition-colors duration-700",
-                view === 'helios' ? "bg-purple-200/40" : "bg-gradient-to-br from-cyan-100/40 to-blue-100/40"
+                "bg-gradient-to-br from-cyan-100/40 to-blue-100/40"
             )} />
         </div>
     );
