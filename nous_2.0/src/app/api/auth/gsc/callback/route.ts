@@ -80,35 +80,22 @@ export async function GET(req: Request) {
 
         // We can't access user session reliably with a standard createClient() in API Routes 
         // without passing cookies manually. 
-        // To be safe, we will assume the original code knew what it was doing, OR
-        // we use the Service Role to update if we can identify the user. 
-        // But we can't identify the user without the session.
+        oauth2Client.setCredentials(tokens);
 
-        // Let's just try to update. If it fails, we redirect with error.
-
-        // However, since I cannot verify if the Supabase client handles cookies automatically (it usually doesn't in API routes),
-        // I will use the 'Exchange Code for Tokens' pattern but maybe we should handle the 'Save' on the client?
-        // No, that exposes Client Secret.
-
-        // Strategy: 
-        // 1. Get tokens here.
-        // 2. If we can get User, save to DB.
-        // 3. If we can't get User (no session), redirect to a client page `/settings/gsc-callback?access_token=...`
-        //    and let the client save it? 
-        //    NO, NEVER expose Refresh Token to client URL.
-
-        // Let's assume the auth cookie works or the project uses a middleware that configures supabase.
+        // Fetch User Info to get the email
+        const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+        const userInfo = await oauth2.userinfo.get();
+        const googleEmail = userInfo.data.email;
 
         const { data: { user } } = await supabase.auth.getUser();
         const { data: { session } } = await supabase.auth.getSession();
 
         if (!user && !session) {
-            // FALLBACK TRICK: If server can't see the session, we pass a temporary state
-            // to a client-side page that WILL have the session to complete the save.
             const params = new URLSearchParams();
             if (tokens.access_token) params.set('at', tokens.access_token);
             if (tokens.refresh_token) params.set('rt', tokens.refresh_token);
             if (tokens.expiry_date) params.set('ex', tokens.expiry_date.toString());
+            if (googleEmail) params.set('email', googleEmail);
 
             return NextResponse.redirect(new URL(`/settings/gsc-complete?${params.toString()}`, req.url));
         }
@@ -116,37 +103,14 @@ export async function GET(req: Request) {
         const currentUser = user || session?.user;
 
         if (!currentUser) {
-            console.error('No user found in session callback even after fallback check');
+            console.error('No user found in session callback');
             return NextResponse.redirect(new URL('/settings?error=no_user_session', req.url));
         }
 
-        const updates: any = {
-            gsc_connected: true,
-            gsc_expiration: tokens.expiry_date, // GSC access token expiry
-        };
-
-        if (tokens.access_token) {
-            updates.gsc_access_token = tokens.access_token;
-        }
-
-        if (tokens.refresh_token) {
-            updates.google_refresh_token = tokens.refresh_token;
-        }
-
-        // Update Projects
-        const { error: updateError } = await supabase
-            .from('projects')
-            .update(updates)
-            .eq('user_id', currentUser.id);
-
-        if (updateError) {
-            console.error('Error updating GSC tokens in projects:', updateError);
-            return NextResponse.redirect(new URL('/settings?error=db_update_failed', req.url));
-        }
-
-        // Also update the centralized user_gsc_tokens table
+        // Prepare token updates for centralized table
         const tokenUpdates: any = {
             user_id: currentUser.id,
+            email: googleEmail,
             updated_at: new Date().toISOString(),
         };
 
@@ -154,14 +118,20 @@ export async function GET(req: Request) {
         if (tokens.refresh_token) tokenUpdates.refresh_token = tokens.refresh_token;
         if (tokens.expiry_date) tokenUpdates.expires_at = new Date(tokens.expiry_date).toISOString();
 
-        const { error: tokenError } = await supabase
+        // Upsert based on (user_id, email)
+        const { data: savedToken, error: tokenError } = await supabase
             .from('user_gsc_tokens')
-            .upsert(tokenUpdates);
+            .upsert(tokenUpdates, { onConflict: 'user_id, email' })
+            .select()
+            .single();
 
         if (tokenError) {
             console.error('Error updating user_gsc_tokens:', tokenError);
-            // We don't block the flow here, but it's good to know
+            return NextResponse.redirect(new URL(`/settings?error=token_save_failed`, req.url));
         }
+
+        // Optional: Auto-link to projects if it's the first connection or if user has only one project
+        // For now, we just redirect. The user will select the account in settings.
 
         return NextResponse.redirect(new URL('/settings?gsc=connected', req.url));
 

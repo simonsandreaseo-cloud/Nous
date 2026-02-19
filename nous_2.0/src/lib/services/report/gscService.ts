@@ -83,19 +83,29 @@ export const GscService = {
 
             const { data: tokens, error: tokenError } = await (async () => {
                 const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-                const { data: stdTokens } = await supabase.from('user_gsc_tokens').select('refresh_token').eq('user_id', project.user_id).maybeSingle();
+                const email = (project as any).gsc_account_email;
+
+                let query = supabase.from('user_gsc_tokens').select('*').eq('user_id', project.user_id);
+                if (email) query = query.eq('email', email);
+                else query = query.order('updated_at', { ascending: false });
+
+                const { data: stdTokens } = await query.maybeSingle();
                 if (stdTokens) return { data: stdTokens, error: null };
 
                 if (adminKey) {
                     const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, adminKey);
-                    return await adminClient.from('user_gsc_tokens').select('refresh_token').eq('user_id', project.user_id).maybeSingle();
+                    let admQuery = adminClient.from('user_gsc_tokens').select('*').eq('user_id', project.user_id);
+                    if (email) admQuery = admQuery.eq('email', email);
+                    else admQuery = admQuery.order('updated_at', { ascending: false });
+
+                    return await admQuery.maybeSingle();
                 }
                 return { data: null, error: null };
             })();
 
             if (tokenError || !tokens?.refresh_token) {
                 console.error("[GSC-SERVICE] Token lookup failed:", tokenError);
-                throw new Error("Usuario no ha conectado GSC (Token no encontrado o acceso denegado)");
+                throw new Error(`Google account ${(project as any).gsc_account_email || ''} not connected or token missing.`);
             }
 
             if (!project.gsc_site_url) {
@@ -164,37 +174,52 @@ export const GscService = {
         }
     },
 
-    async findSites(userId: string): Promise<{ url: string; permission: string }[]> {
+    async findSites(userId: string, email?: string): Promise<{ url: string; permission: string; accountEmail?: string }[]> {
         const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const { data: tokens } = await (async () => {
-            const { data: stdTokens } = await supabase.from('user_gsc_tokens').select('refresh_token').eq('user_id', userId).maybeSingle();
-            if (stdTokens) return { data: stdTokens, error: null };
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+        let query = supabase.from('user_gsc_tokens').select('*').eq('user_id', userId);
+        if (email) query = query.eq('email', email);
+
+        const { data: accounts } = await query;
+        if (!accounts || accounts.length === 0) {
+            // Fallback to admin client if possible
             if (adminKey) {
-                const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, adminKey);
-                return await adminClient.from('user_gsc_tokens').select('refresh_token').eq('user_id', userId).maybeSingle();
+                const adminClient = createClient(supabaseUrl, adminKey);
+                const { data: admAccounts } = await adminClient.from('user_gsc_tokens').select('*').eq('user_id', userId);
+                if (admAccounts && admAccounts.length > 0) return this.listFromAccounts(admAccounts);
             }
-            return { data: null, error: null };
-        })();
-
-        if (!tokens?.refresh_token) return [];
-
-        const auth = new google.auth.OAuth2(
-            process.env.GOOGLE_CLIENT_ID,
-            process.env.GOOGLE_CLIENT_SECRET
-        );
-        auth.setCredentials({ refresh_token: tokens.refresh_token });
-        const sc = google.searchconsole({ version: 'v1', auth });
-
-        try {
-            const res = await sc.sites.list();
-            return (res.data.siteEntry || []).map(s => ({
-                url: s.siteUrl || '',
-                permission: s.permissionLevel || ''
-            })).filter(s => s.url);
-        } catch (e) {
-            console.error("[GSC-SERVICE] Error listing sites:", e);
             return [];
         }
+
+        return this.listFromAccounts(accounts);
+    },
+
+    async listFromAccounts(accounts: any[]) {
+        const allSites: { url: string; permission: string; accountEmail?: string }[] = [];
+        for (const token of accounts) {
+            try {
+                const auth = new google.auth.OAuth2(
+                    process.env.GOOGLE_CLIENT_ID,
+                    process.env.GOOGLE_CLIENT_SECRET
+                );
+                auth.setCredentials({ refresh_token: token.refresh_token });
+                const sc = google.searchconsole({ version: 'v1', auth });
+                const res = await sc.sites.list();
+
+                (res.data.siteEntry || []).forEach(s => {
+                    if (s.siteUrl) {
+                        allSites.push({
+                            url: s.siteUrl,
+                            permission: s.permissionLevel || '',
+                            accountEmail: token.email
+                        });
+                    }
+                });
+            } catch (err) {
+                console.error(`Error fetching sites for account ${token.email}:`, err);
+            }
+        }
+        return allSites;
     }
 };
-

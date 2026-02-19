@@ -18,8 +18,10 @@ export interface Project {
     settings?: Record<string, any>;
     gsc_connected: boolean;
     gsc_site_url?: string;
+    gsc_account_email?: string;
     ga4_connected?: boolean;
     ga4_property_id?: string;
+    ga4_account_email?: string;
     wp_url?: string;
     wp_token?: string;
     target_country?: string; // ISO 3166-1 alpha-2 or similar

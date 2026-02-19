@@ -23,6 +23,9 @@ export default function SettingsPage() {
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectDomain, setNewProjectDomain] = useState("");
     const [isCreating, setIsCreating] = useState(false);
+    const [activeTab, setActiveTab] = useState<'projects' | 'integrations' | 'billing'>('projects');
+    const [isUserGscConnected, setIsUserGscConnected] = useState(false);
+    const [connectedAccounts, setConnectedAccounts] = useState<{ id: string, email: string }[]>([]);
 
     // Editing state for the active project
     const [editName, setEditName] = useState("");
@@ -33,13 +36,11 @@ export default function SettingsPage() {
     const [editLogoUrl, setEditLogoUrl] = useState("");
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
-    const [gscSites, setGscSites] = useState<{ url: string; permission: string }[]>([]);
-    const [ga4Properties, setGa4Properties] = useState<{ id: string; name: string }[]>([]);
+    const [gscSites, setGscSites] = useState<{ url: string; permission: string; accountEmail?: string }[]>([]);
+    const [ga4Properties, setGa4Properties] = useState<{ id: string; name: string; accountEmail?: string }[]>([]);
     const [isLoadingSites, setIsLoadingSites] = useState(false);
     const [isLoadingGa4, setIsLoadingGa4] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [isUserGscConnected, setIsUserGscConnected] = useState(false);
-    const [activeTab, setActiveTab] = useState<'projects' | 'integrations'>('projects');
 
     useEffect(() => {
         fetchProjects();
@@ -202,7 +203,23 @@ export default function SettingsPage() {
         }
     };
 
+    const fetchConnectedAccounts = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        try {
+            const { data, error } = await supabase
+                .from('user_gsc_tokens')
+                .select('id, email')
+                .eq('user_id', session.user.id);
+            if (data) setConnectedAccounts(data);
+            setIsUserGscConnected((data?.length || 0) > 0);
+        } catch (e) {
+            console.error("Error fetching accounts:", e);
+        }
+    };
+
     useEffect(() => {
+        fetchConnectedAccounts();
         if (isUserGscConnected && activeTab === 'integrations') {
             fetchGscSites();
             fetchGa4Sites();
@@ -211,11 +228,12 @@ export default function SettingsPage() {
 
     const handleUpdateGscSite = async (siteUrl: string) => {
         if (!activeProject) return;
-        // Optimization: Immediate local update via store if needed, but here we just call the action
+        const selectedSite = gscSites.find(s => s.url === siteUrl);
         try {
             await updateProject(activeProject.id, {
                 gsc_site_url: siteUrl,
-                gsc_connected: siteUrl !== ""
+                gsc_connected: siteUrl !== "",
+                gsc_account_email: selectedSite?.accountEmail
             });
             console.log("[DEBUG] Project GSC site updated to:", siteUrl);
         } catch (e) {
@@ -225,10 +243,12 @@ export default function SettingsPage() {
 
     const handleUpdateGa4Property = async (propertyId: string) => {
         if (!activeProject) return;
+        const selectedProp = ga4Properties.find(p => p.id === propertyId);
         try {
             await updateProject(activeProject.id, {
                 ga4_property_id: propertyId,
-                ga4_connected: propertyId !== ""
+                ga4_connected: propertyId !== "",
+                ga4_account_email: selectedProp?.accountEmail
             });
             console.log("[DEBUG] Project GA4 property updated to:", propertyId);
         } catch (e) {
@@ -548,7 +568,9 @@ export default function SettingsPage() {
                                                         >
                                                             <option value="">Selecciona una propiedad de Google...</option>
                                                             {gscSites.map(site => (
-                                                                <option key={site.url} value={site.url}>{site.url}</option>
+                                                                <option key={site.url} value={site.url}>
+                                                                    {site.url} {site.accountEmail && connectedAccounts.length > 1 ? `(${site.accountEmail})` : ''}
+                                                                </option>
                                                             ))}
                                                         </select>
                                                         {isLoadingSites && <div className="w-5 h-5 border-3 border-cyan-500 border-t-transparent rounded-full animate-spin self-center" />}
@@ -596,7 +618,9 @@ export default function SettingsPage() {
                                                         >
                                                             <option value="">Selecciona una propiedad GA4...</option>
                                                             {ga4Properties.map(prop => (
-                                                                <option key={prop.id} value={prop.id}>{prop.name} (ID: {prop.id})</option>
+                                                                <option key={prop.id} value={prop.id}>
+                                                                    {prop.name} {prop.accountEmail && connectedAccounts.length > 1 ? `(${prop.accountEmail})` : ''}
+                                                                </option>
                                                             ))}
                                                         </select>
                                                         {isLoadingGa4 && <div className="w-5 h-5 border-3 border-amber-500 border-t-transparent rounded-full animate-spin self-center" />}
@@ -703,7 +727,7 @@ export default function SettingsPage() {
                                                     <div className="flex items-center gap-2">
                                                         <div className={cn("w-2 h-2 rounded-full", isUserGscConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
                                                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                            {isUserGscConnected ? "Cuenta Conectada" : "Sin Vincular"}
+                                                            {isUserGscConnected ? `${connectedAccounts.length} Cuenta(s) Conectada(s)` : "Sin Vincular"}
                                                         </span>
                                                     </div>
                                                     <p className="text-xs text-slate-400 mt-3 max-w-sm">Permite que Simon SEO acceda a tus métricas de tráfico y rendimiento directamente desde Google.</p>
@@ -718,12 +742,70 @@ export default function SettingsPage() {
                                                         : "bg-slate-900 text-white hover:bg-cyan-600 shadow-slate-900/10"
                                                 )}
                                             >
-                                                {isUserGscConnected ? "Cambiar Cuenta" : "Vincular Ahora"}
+                                                {isUserGscConnected ? "Agregar Otra Cuenta" : "Vincular Ahora"}
                                             </button>
                                         </div>
                                         {/* Background Decor */}
                                         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl" />
                                     </div>
+
+                                    {/* Google Analytics 4 - Global Connection */}
+                                    <div className={cn(
+                                        "p-8 rounded-[32px] border transition-all duration-700 relative overflow-hidden",
+                                        isUserGscConnected ? "bg-amber-50/20 border-amber-100" : "bg-slate-50 border-slate-100"
+                                    )}>
+                                        <div className="flex items-center justify-between relative z-10">
+                                            <div className="flex gap-5">
+                                                <div className={cn(
+                                                    "w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg",
+                                                    isUserGscConnected ? "bg-amber-500 text-white shadow-amber-500/20" : "bg-white text-slate-300"
+                                                )}>
+                                                    <BarChart3 size={32} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-black text-slate-900 uppercase italic leading-none mb-2">Google Analytics 4</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={cn("w-2 h-2 rounded-full", isUserGscConnected ? "bg-amber-500 animate-pulse" : "bg-slate-300")} />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                            {isUserGscConnected ? "Integración Activa" : "Sin Configurar"}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-400 mt-3 max-w-sm">Analiza el tráfico proveniente de LLMs y Chatbots AI vinculando tus propiedades de GA4.</p>
+                                                </div>
+                                            </div>
+                                            {!isUserGscConnected && (
+                                                <button
+                                                    onClick={() => window.location.href = '/api/auth/gsc/login'}
+                                                    className="px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all bg-slate-900 text-white hover:bg-amber-600 shadow-xl"
+                                                >
+                                                    Vincular GA4
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/5 rounded-full blur-3xl" />
+                                    </div>
+
+                                    {/* Connected Accounts List */}
+                                    {connectedAccounts.length > 0 && (
+                                        <div className="mt-12">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 ml-2">Cuentas de Google Vinculadas</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {connectedAccounts.map((account) => (
+                                                    <div key={account.id} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shadow-sm">
+                                                                <Globe size={14} />
+                                                            </div>
+                                                            <span className="text-xs font-bold text-slate-700">{account.email || "Cuenta de Google"}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-100/50 px-2 py-1 rounded-full">Activa</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Placeholder for future integrations */}
                                     <div className="p-8 rounded-[32px] border border-slate-50 bg-slate-50 opacity-40 grayscale pointer-events-none">
@@ -733,8 +815,10 @@ export default function SettingsPage() {
                                                     <Shield size={32} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-lg font-black text-slate-300 uppercase italic">Claude / OpenAI</h3>
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Próximamente</span>
+                                                    <h3 className="text-lg font-black text-slate-300 uppercase italic leading-none mb-2">Claude / OpenAI</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Próximamente</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
