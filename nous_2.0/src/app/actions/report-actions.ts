@@ -618,3 +618,14 @@ export async function fetchGa4PropertiesAction(userId: string) {
         return { success: false, error: e.message, sites: [] };
     }
 }
+
+export async function fetchGscSitesAction(userId: string) {
+    try {
+        console.log(`[REPORT-ACTION] Fetching GSC sites for: ${userId}`);
+        const sites = await GscService.findSites(userId);
+        return { success: true, sites };
+    } catch (e: any) {
+        console.error("[REPORT-ACTION] GSC Sites Fetch Error:", e);
+        return { success: false, error: e.message, sites: [] };
+    }
+}

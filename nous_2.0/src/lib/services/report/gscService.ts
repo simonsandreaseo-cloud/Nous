@@ -162,6 +162,39 @@ export const GscService = {
             console.error("[GSC-SERVICE] Fatal Error:", e);
             throw new Error(`GSC Service Error: ${e.message}`);
         }
+    },
+
+    async findSites(userId: string): Promise<{ url: string; permission: string }[]> {
+        const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const { data: tokens } = await (async () => {
+            const { data: stdTokens } = await supabase.from('user_gsc_tokens').select('refresh_token').eq('user_id', userId).maybeSingle();
+            if (stdTokens) return { data: stdTokens, error: null };
+            if (adminKey) {
+                const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, adminKey);
+                return await adminClient.from('user_gsc_tokens').select('refresh_token').eq('user_id', userId).maybeSingle();
+            }
+            return { data: null, error: null };
+        })();
+
+        if (!tokens?.refresh_token) return [];
+
+        const auth = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET
+        );
+        auth.setCredentials({ refresh_token: tokens.refresh_token });
+        const sc = google.searchconsole({ version: 'v1', auth });
+
+        try {
+            const res = await sc.sites.list();
+            return (res.data.siteEntry || []).map(s => ({
+                url: s.siteUrl || '',
+                permission: s.permissionLevel || ''
+            })).filter(s => s.url);
+        } catch (e) {
+            console.error("[GSC-SERVICE] Error listing sites:", e);
+            return [];
+        }
     }
 };
 
