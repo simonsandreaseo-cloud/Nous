@@ -40,6 +40,7 @@ ADD COLUMN IF NOT EXISTS semantic_refs JSONB DEFAULT '[]'::jsonb; -- Holds the s
 -- 4. Enable RLS on project_urls
 ALTER TABLE project_urls ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view project_urls of their projects" ON project_urls;
 CREATE POLICY "Users can view project_urls of their projects" ON project_urls
     FOR SELECT USING (
         auth.uid() IN (
@@ -47,6 +48,7 @@ CREATE POLICY "Users can view project_urls of their projects" ON project_urls
         )
     );
 
+DROP POLICY IF EXISTS "Users can insert project_urls for their projects" ON project_urls;
 CREATE POLICY "Users can insert project_urls for their projects" ON project_urls
     FOR INSERT WITH CHECK (
         auth.uid() IN (
@@ -54,6 +56,7 @@ CREATE POLICY "Users can insert project_urls for their projects" ON project_urls
         )
     );
 
+DROP POLICY IF EXISTS "Users can update project_urls of their projects" ON project_urls;
 CREATE POLICY "Users can update project_urls of their projects" ON project_urls
     FOR UPDATE USING (
         auth.uid() IN (
@@ -61,6 +64,7 @@ CREATE POLICY "Users can update project_urls of their projects" ON project_urls
         )
     );
 
+DROP POLICY IF EXISTS "Users can delete project_urls of their projects" ON project_urls;
 CREATE POLICY "Users can delete project_urls of their projects" ON project_urls
     FOR DELETE USING (
         auth.uid() IN (
