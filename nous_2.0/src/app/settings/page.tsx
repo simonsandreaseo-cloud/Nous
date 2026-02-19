@@ -505,6 +505,7 @@ export default function SettingsPage() {
                                             "p-8 rounded-3xl border transition-all duration-700 relative overflow-hidden",
                                             isUserGscConnected ? "bg-cyan-50/20 border-cyan-100" : "bg-slate-50 border-slate-100"
                                         )}>
+                                            <div className="absolute top-2 right-2 text-[8px] font-black text-cyan-500 uppercase tracking-tighter opacity-50">GSC Module v2.0</div>
                                             <div className="flex items-center gap-4 relative z-10 mb-6">
                                                 <div className={cn(
                                                     "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
@@ -553,6 +554,7 @@ export default function SettingsPage() {
                                             "p-8 rounded-3xl border transition-all duration-700 relative overflow-hidden",
                                             isUserGscConnected ? "bg-amber-50/20 border-amber-100" : "bg-slate-50 border-slate-100"
                                         )}>
+                                            <div className="absolute top-2 right-2 text-[8px] font-black text-amber-500 uppercase tracking-tighter opacity-50">GA4 Module v2.0</div>
                                             <div className="flex items-center gap-4 relative z-10 mb-6">
                                                 <div className={cn(
                                                     "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
