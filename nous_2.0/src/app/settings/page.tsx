@@ -282,6 +282,13 @@ export default function SettingsPage() {
             <NavigationHeader />
 
             <main className="relative z-10 pt-32 pb-20 px-6 md:px-12 max-w-[1200px] mx-auto">
+                <div style={{ background: 'red', color: 'white', padding: '20px', fontSize: '30px', fontWeight: 'bold', textAlign: 'center' }}>
+                    DEPLOYMENT VERIFIED: GA4 CODE IS PRESENT
+                </div>
+                <div className="mb-8 bg-red-600 text-white p-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] flex items-center justify-between shadow-2xl shadow-red-500/20 animate-pulse">
+                    <span>Active Deployment: GA4 Integration Sync</span>
+                    <span>Commit: 50cc319</span>
+                </div>
                 <header className="mb-12">
                     <div className="flex items-center gap-3 text-[10px] font-black tracking-[0.3em] text-cyan-600 uppercase font-mono">
                         <SettingsIcon size={14} />
