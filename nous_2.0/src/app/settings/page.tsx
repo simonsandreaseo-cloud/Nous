@@ -188,8 +188,14 @@ export default function SettingsPage() {
         setIsLoadingGa4(true);
         try {
             const res = await fetchGa4PropertiesAction(session.user.id);
-            if (res.success) setGa4Properties(res.sites);
-        } catch (e) {
+            if (res.success) {
+                setGa4Properties(res.sites);
+            } else {
+                if (res.error?.includes("Permisos")) {
+                    alert(res.error);
+                }
+            }
+        } catch (e: any) {
             console.error("Failed to fetch GA4 sites:", e);
         } finally {
             setIsLoadingGa4(false);

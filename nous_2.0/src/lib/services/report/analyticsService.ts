@@ -63,24 +63,54 @@ export const AnalyticsService = {
             const auth = await this.getAuthClient(userId);
             const admin = google.analyticsadmin({ version: 'v1beta', auth });
 
-            const res = await admin.accountSummaries.list();
-            const summaries = res.data.accountSummaries || [];
+            console.log("[ANALYTICS-SERVICE] Fetching properties for user:", userId);
 
-            const allProps: { id: string, name: string }[] = [];
-
-            for (const account of summaries) {
-                for (const prop of account.propertySummaries || []) {
-                    allProps.push({
-                        id: prop.property?.split('/')[1] || '',
-                        name: prop.displayName || ''
-                    });
+            // Try Account Summaries first (most efficient)
+            let res;
+            try {
+                res = await admin.accountSummaries.list();
+            } catch (summariesError: any) {
+                console.warn("[ANALYTICS-SERVICE] accountSummaries.list failed, trying fallback...", summariesError.message);
+                // If this failed with 403, it's likely a scope issue
+                if (summariesError.code === 403) {
+                    throw new Error("Permisos insuficientes. Por favor, desvincula y vuelve a vincular tu cuenta de Google en la pestaña Integraciones para activar GA4.");
                 }
             }
 
+            const allProps: { id: string, name: string }[] = [];
+
+            if (res?.data?.accountSummaries) {
+                for (const account of res.data.accountSummaries) {
+                    for (const prop of account.propertySummaries || []) {
+                        allProps.push({
+                            id: prop.property?.split('/')[1] || '',
+                            name: prop.displayName || ''
+                        });
+                    }
+                }
+            } else {
+                // Fallback: List accounts then properties for each
+                console.log("[ANALYTICS-SERVICE] Fallback: Listing accounts manually...");
+                const accountsRes = await admin.accounts.list();
+                const accounts = accountsRes.data.accounts || [];
+
+                for (const account of accounts) {
+                    const propertiesRes = await admin.properties.list({ filter: `parent:${account.name}` });
+                    const props = propertiesRes.data.properties || [];
+                    for (const prop of props) {
+                        allProps.push({
+                            id: prop.name?.split('/')[1] || '',
+                            name: prop.displayName || ''
+                        });
+                    }
+                }
+            }
+
+            console.log(`[ANALYTICS-SERVICE] Found ${allProps.length} GA4 properties.`);
             return allProps.filter(p => p.id);
-        } catch (e) {
-            console.error("Error listing GA4 Properties:", e);
-            return [];
+        } catch (e: any) {
+            console.error("[ANALYTICS-SERVICE] Error listing GA4 Properties:", e);
+            throw e; // Throw so the action can catch it
         }
     },
 
