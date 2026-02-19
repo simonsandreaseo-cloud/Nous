@@ -13,7 +13,7 @@ export const TableDatasetSlide: React.FC<TableDatasetProps> = ({
 }) => {
 
     // Safety check
-    if (!tableData || !Array.isArray(tableData) || tableData.length === 0) {
+    if (!tableData || !Array.isArray(tableData) || tableData.length === 0 || !tableData[0]) {
         return (
             <section className="report-slide bg-white h-full relative overflow-hidden p-12 flex flex-col items-center justify-center">
                 <p className="text-slate-400">Sin datos de tabla para mostrar.</p>

@@ -24,6 +24,7 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
     // For a robust app, we'd use react-markdown here, 
     // but for now we'll naively render the markdown string HTML
     const createMarkup = (markdown: string) => {
+        if (!markdown || typeof markdown !== 'string') return { __html: '' };
         // Very basic bold replacement, etc. (Or we inject a pre-parsed HTML string)
         let html = markdown.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         return { __html: html };
@@ -56,6 +57,10 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
         };
 
         let type = chartConfig.type || 'bar';
+        // Validate type. The prompt sometimes makes Gemini return "type": "insight" which crashes Chart.js
+        const validTypes = ['bar', 'line', 'pie', 'doughnut', 'radar', 'polarArea', 'bubble', 'scatter'];
+        if (!validTypes.includes(type)) type = 'bar';
+
         let datasets = chartConfig.datasets || [];
         let labels = chartConfig.labels || [];
 

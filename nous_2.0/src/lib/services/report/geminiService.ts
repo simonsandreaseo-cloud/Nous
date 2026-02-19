@@ -70,7 +70,7 @@ Focus: Deep insights and narrative.
       { "label": "[Metric 2]", "value": "[Value]", "trend": "up|down|neutral" }
   ],
   "chartConfig": {
-      "type": "insight",
+      "type": "bar",
       "chartType": "[trend|ai-traffic|losers|bar]",
       "title": "Data Projection v2"
   }
@@ -138,13 +138,18 @@ ${safePayload}
             { text: SYSTEM_PROMPT_WRITER },
             { text: prompt }
         ]);
-        let text = result.response.text();
+        let text = result.response.text().trim();
 
         // Clean markdown backticks if Gemini includes them despite instructions
-        if (text.startsWith('```json')) text = text.replace('```json', '');
-        if (text.startsWith('```')) text = text.replace('```', '');
-        if (text.endsWith('```')) text = text.replace(/```$/, '');
-        text = text.trim();
+        const match = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
+        if (match && match[1]) {
+            text = match[1].trim();
+        } else {
+            if (text.startsWith('```json')) text = text.replace('```json', '');
+            if (text.startsWith('```')) text = text.replace('```', '');
+            text = text.trim();
+            if (text.endsWith('```')) text = text.slice(0, -3).trim();
+        }
 
         const jsonSlides = JSON.parse(text);
 
