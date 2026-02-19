@@ -10,11 +10,13 @@ import {
     Save,
     Plus,
     Trash2,
-    Loader2
+    Loader2,
+    BarChart3
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
+import { fetchGscSitesAction, fetchGa4PropertiesAction } from "@/app/actions/report-actions";
 
 export default function SettingsPage() {
     const { activeProject, projects, createProject, deleteProject, fetchProjects, updateProject, setActiveProject } = useProjectStore();
@@ -32,7 +34,9 @@ export default function SettingsPage() {
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
     const [gscSites, setGscSites] = useState<{ url: string; permission: string }[]>([]);
+    const [ga4Properties, setGa4Properties] = useState<{ id: string; name: string }[]>([]);
     const [isLoadingSites, setIsLoadingSites] = useState(false);
+    const [isLoadingGa4, setIsLoadingGa4] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isUserGscConnected, setIsUserGscConnected] = useState(false);
     const [activeTab, setActiveTab] = useState<'projects' | 'integrations'>('projects');
@@ -164,11 +168,45 @@ export default function SettingsPage() {
         }
     };
 
+    const fetchGscSites = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        setIsLoadingSites(true);
+        try {
+            const res = await fetchGscSitesAction(session.user.id);
+            if (res.success) setGscSites(res.sites);
+        } catch (e) {
+            console.error("Failed to fetch GSC sites:", e);
+        } finally {
+            setIsLoadingSites(false);
+        }
+    };
+
+    const fetchGa4Sites = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        setIsLoadingGa4(true);
+        try {
+            const res = await fetchGa4PropertiesAction(session.user.id);
+            if (res.success) setGa4Properties(res.sites);
+        } catch (e) {
+            console.error("Failed to fetch GA4 sites:", e);
+        } finally {
+            setIsLoadingGa4(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isUserGscConnected && activeTab === 'integrations') {
+            fetchGscSites();
+            fetchGa4Sites();
+        }
+    }, [isUserGscConnected, activeTab]);
+
     const handleUpdateGscSite = async (siteUrl: string) => {
         if (!activeProject) return;
-        setIsSaving(true);
+        // Optimization: Immediate local update via store if needed, but here we just call the action
         try {
-            // When user selects a site, we explicitly mark the project as connected
             await updateProject(activeProject.id, {
                 gsc_site_url: siteUrl,
                 gsc_connected: siteUrl !== ""
@@ -176,8 +214,19 @@ export default function SettingsPage() {
             console.log("[DEBUG] Project GSC site updated to:", siteUrl);
         } catch (e) {
             console.error("Failed to update GSC site:", e);
-        } finally {
-            setIsSaving(false);
+        }
+    };
+
+    const handleUpdateGa4Property = async (propertyId: string) => {
+        if (!activeProject) return;
+        try {
+            await updateProject(activeProject.id, {
+                ga4_property_id: propertyId,
+                ga4_connected: propertyId !== ""
+            });
+            console.log("[DEBUG] Project GA4 property updated to:", propertyId);
+        } catch (e) {
+            console.error("Failed to update GA4 property:", e);
         }
     };
 
@@ -498,6 +547,55 @@ export default function SettingsPage() {
                                                 </div>
                                             )}
                                         </div>
+
+                                        <div className={cn(
+                                            "p-8 rounded-3xl border transition-all duration-700 relative overflow-hidden",
+                                            isUserGscConnected ? "bg-amber-50/20 border-amber-100" : "bg-slate-50 border-slate-100"
+                                        )}>
+                                            <div className="flex items-center gap-4 relative z-10 mb-6">
+                                                <div className={cn(
+                                                    "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
+                                                    isUserGscConnected ? "bg-amber-500 text-white" : "bg-white text-slate-300"
+                                                )}>
+                                                    <BarChart3 size={24} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Google Analytics 4</h3>
+                                                    <p className="text-[10px] text-slate-500 font-medium tracking-tight">Vínculo para el análisis de tráfico AI (ChatGPT, Perplexity, etc).</p>
+                                                </div>
+                                            </div>
+
+                                            {!isUserGscConnected ? (
+                                                <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-2xl">
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Primero vincula tu cuenta de Google en Integraciones</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4 relative z-10">
+                                                    <div className="flex gap-3">
+                                                        <select
+                                                            value={activeProject.ga4_property_id || ''}
+                                                            onChange={(e) => handleUpdateGa4Property(e.target.value)}
+                                                            className="flex-1 p-3.5 bg-white border border-amber-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-amber-500/10 transition-all appearance-none cursor-pointer"
+                                                            disabled={isLoadingGa4}
+                                                        >
+                                                            <option value="">Selecciona una propiedad GA4...</option>
+                                                            {ga4Properties.map(prop => (
+                                                                <option key={prop.id} value={prop.id}>{prop.name} (ID: {prop.id})</option>
+                                                            ))}
+                                                        </select>
+                                                        {isLoadingGa4 && <div className="w-5 h-5 border-3 border-amber-500 border-t-transparent rounded-full animate-spin self-center" />}
+                                                    </div>
+                                                    {activeProject.ga4_property_id && (
+                                                        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-600 rounded-lg border border-amber-100 inline-block w-fit">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                                            <span className="text-[9px] font-black uppercase">Vinculado a GA4 ID: {activeProject.ga4_property_id}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+
 
                                         <div className="p-8 rounded-3xl border border-slate-100 bg-slate-50/30 space-y-6">
                                             <div className="flex items-center gap-4 mb-4">

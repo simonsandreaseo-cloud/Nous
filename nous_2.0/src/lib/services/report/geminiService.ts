@@ -17,9 +17,10 @@ DECISION RULES:
 8. If 'newKeywords' > 2, include 'OPORTUNIDAD_NUEVAS_KEYWORDS'.
 9. If 'ctrRedFlags' > 0 OR 'ctrOpportunities' > 0, include 'ANALISIS_CTR'.
 10. If 'segments' > 0, include 'ANALISIS_SEGMENTOS'.
-11. Include 'ANALISIS_TRAFICO' and 'ANALISIS_VISIBILIDAD' only if 'trafficMovers' > 0 or 'visibilityMovers' > 0.
-12. If 'countries' > 0, include 'ANALISIS_GEOGRAFICO'.
-13. If 'userContext' mentions "ignore X", use judgment but generally keep alerts.
+11. If 'aiChatTraffic' > 0, include 'APARICION_CHATS_IA'.
+12. Include 'ANALISIS_TRAFICO' and 'ANALISIS_VISIBILIDAD' only if 'trafficMovers' > 0 or 'visibilityMovers' > 0.
+13. If 'countries' > 0, include 'ANALISIS_GEOGRAFICO'.
+14. If 'userContext' mentions "ignore X", use judgment but generally keep alerts.
 
 Reply ONLY with the JSON array.`;
 
@@ -88,7 +89,7 @@ Template:
    - Slide 2: Table of Top 15 Gainers (Winners) or Top 15 Losers depending on net trend.
 
 2. **APARICION_CHATS_IA**:
-   - Slide 1 Chart: <div data-chart-type="custom" ...></div> (Visualize sessions per source).
+   - Slide 1 Chart: <div data-chart-type="ai-traffic" ...></div> (Visualize sessions per source).
    - Slide 1 Analysis: Use 'aiTrafficAnalysis'. Discuss 'estimatedImpressions'.
    - Slide 2: Table of 'Top AI Referrers' and 'Top Pages via AI'.
 
@@ -124,7 +125,8 @@ export const getRelevantSections = async (payload: ReportPayload, apiKey: string
         newKeywords: payload.newKeywordDiscovery.length,
         segments: payload.segmentAnalysis.length,
         trafficMovers: payload.topLosers.length + payload.topWinners.length,
-        countries: payload.countryAnalysis.length
+        countries: payload.countryAnalysis.length,
+        aiChatTraffic: payload.aiTrafficAnalysis ? payload.aiTrafficAnalysis.totalSessions : 0
     };
 
     const genAI = new GoogleGenerativeAI(apiKey);

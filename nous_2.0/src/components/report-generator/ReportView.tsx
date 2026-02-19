@@ -554,6 +554,35 @@ function renderChart(canvas: HTMLCanvasElement, type: string | null, chartData: 
                 options: { ...commonOptions, indexAxis: 'y' }
             });
         }
+    } else if (type === 'ai-traffic') {
+        const aiData = chartData.aiTrafficAnalysis;
+        if (aiData && aiData.sources) {
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: aiData.sources.map((s: any) => s.source),
+                    datasets: [{
+                        data: aiData.sources.map((s: any) => s.sessions),
+                        backgroundColor: [
+                            'rgba(139, 92, 246, 0.8)',
+                            'rgba(14, 165, 233, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(244, 63, 94, 0.8)',
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    cutout: '60%',
+                    plugins: {
+                        ...commonOptions.plugins,
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
     }
 }
 

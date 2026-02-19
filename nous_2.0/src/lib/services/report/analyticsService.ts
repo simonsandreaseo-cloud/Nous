@@ -57,33 +57,47 @@ export const AnalyticsService = {
         return oauth2Client;
     },
 
-    // 1. Auto-discover GA4 Property ID based on Domain
-    async findPropertyId(domain: string, userId: string): Promise<string | null> {
+    // 1. List all GA4 Properties
+    async findProperties(userId: string): Promise<{ id: string, name: string }[]> {
         try {
             const auth = await this.getAuthClient(userId);
             const admin = google.analyticsadmin({ version: 'v1beta', auth });
 
-            // List Account Summaries (lightweight way to get properties)
             const res = await admin.accountSummaries.list();
             const summaries = res.data.accountSummaries || [];
 
-            // Normalize domain
-            const cleanDomain = domain.replace(/https?:\/\/(www\.)?/, '').split('/')[0].toLowerCase();
+            const allProps: { id: string, name: string }[] = [];
 
             for (const account of summaries) {
                 for (const prop of account.propertySummaries || []) {
-                    // Check if property display name contains domain parts or exact match
-                    const propName = prop.displayName?.toLowerCase() || '';
-                    if (propName.includes(cleanDomain)) {
-                        return prop.property?.split('/')[1] || null; // properties/12345 -> 12345
-                    }
+                    allProps.push({
+                        id: prop.property?.split('/')[1] || '',
+                        name: prop.displayName || ''
+                    });
                 }
             }
 
-            // Fallback: Return first property found if only one exists (common for solo users)
-            if (summaries.length === 1 && summaries[0].propertySummaries?.length === 1) {
-                return summaries[0].propertySummaries[0].property?.split('/')[1] || null;
+            return allProps.filter(p => p.id);
+        } catch (e) {
+            console.error("Error listing GA4 Properties:", e);
+            return [];
+        }
+    },
+
+    // 2. Auto-discover GA4 Property ID based on Domain (Fallback or for legacy use)
+    async findPropertyId(domain: string, userId: string): Promise<string | null> {
+        try {
+            const props = await this.findProperties(userId);
+            const cleanDomain = domain.replace(/https?:\/\/(www\.)?/, '').split('/')[0].toLowerCase();
+
+            for (const prop of props) {
+                if (prop.name.toLowerCase().includes(cleanDomain)) {
+                    return prop.id;
+                }
             }
+
+            // Fallback: If only one exists
+            if (props.length === 1) return props[0].id;
 
             return null;
         } catch (e) {
@@ -92,7 +106,7 @@ export const AnalyticsService = {
         }
     },
 
-    // 2. Fetch Session Sources (to identify AI)
+    // 3. Fetch Session Sources (to identify AI)
     async fetchTrafficSources(propertyId: string, userId: string, startDate: string, endDate: string) {
         const auth = await this.getAuthClient(userId);
         const analytics = google.analyticsdata({ version: 'v1beta', auth });
@@ -113,7 +127,7 @@ export const AnalyticsService = {
         })) || [];
     },
 
-    // 3. Fetch Pages for Specific Sources (The AI Traffic Detail)
+    // 4. Fetch Pages for Specific Sources (The AI Traffic Detail)
     async fetchPagesBySource(propertyId: string, userId: string, sources: string[], startDate: string, endDate: string) {
         const auth = await this.getAuthClient(userId);
         const analytics = google.analyticsdata({ version: 'v1beta', auth });

@@ -66,10 +66,18 @@ export async function generateReportAction(
         let aiTrafficAnalysis: any = undefined;
         try {
             // We need the project's user_id and domain to find the GA4 property
-            const { data: project } = await supabase.from('projects').select('user_id, domain').eq('id', projectId).single();
+            const { data: project } = await supabase
+                .from('projects')
+                .select('user_id, domain, ga4_property_id, ga4_connected')
+                .eq('id', projectId)
+                .single();
 
             if (project) {
-                const propertyId = await AnalyticsService.findPropertyId(project.domain, project.user_id);
+                // Use saved property ID if available and connected, otherwise try discovery
+                let propertyId = project.ga4_property_id;
+                if (!propertyId && project.domain) {
+                    propertyId = await AnalyticsService.findPropertyId(project.domain, project.user_id);
+                }
 
                 if (propertyId) {
                     const startP2Str = format(startP2, 'yyyy-MM-dd');
@@ -599,3 +607,14 @@ export async function generateInsightDataAction(
     }
 }
 
+
+export async function fetchGa4PropertiesAction(userId: string) {
+    try {
+        console.log(`[REPORT-ACTION] Fetching GA4 properties for: ${userId}`);
+        const sites = await AnalyticsService.findProperties(userId);
+        return { success: true, sites };
+    } catch (e: any) {
+        console.error("[REPORT-ACTION] GA4 Sites Fetch Error:", e);
+        return { success: false, error: e.message, sites: [] };
+    }
+}
