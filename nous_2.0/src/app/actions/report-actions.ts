@@ -2,12 +2,17 @@
 
 import { GscService } from '@/lib/services/report/gscService';
 import { runFullAnalysis } from '@/lib/services/report/analysisService';
-import { getRelevantSections, generateHTMLReport } from '@/lib/services/report/geminiService';
+import {
+    getRelevantSections,
+    generateContent,
+    generateInsightAnalysis,
+    identifyAiTrafficSources,
+    generateJSONReportState
+} from '@/lib/services/report/geminiService';
 import { SegmentationService } from '@/lib/services/report/segmentationService';
 import { parseISO, subDays, format } from 'date-fns';
 import { GscRow } from '@/types/report';
 import { AnalyticsService } from '@/lib/services/report/analyticsService';
-import { identifyAiTrafficSources, generateContent, generateInsightAnalysis } from '@/lib/services/report/geminiService';
 import { supabase } from '@/lib/supabase';
 import { AI_CONFIG, getGeminiKey } from '@/lib/ai/config';
 import { GoogleExportService } from '@/lib/services/export/googleExportService';
@@ -128,16 +133,13 @@ export async function generateReportAction(
 
         // 5. Generate with AI
         const sections = await getRelevantSections(analysis.reportPayload, apiKey);
-        // Ensure new sections are included if needed or handled by dynamic sectioning
-        // The Prompt in 'geminiService' handles selection. We need to update Gemini Prompt later or assume it's general enough.
-        // Actually, I should force 'ESTADO_SEO' section.
         if (!sections.includes('ESTADO_SEO')) sections.unshift('ESTADO_SEO');
 
-        const html = await generateHTMLReport(analysis.reportPayload, sections, apiKey);
+        const jsonState = await generateJSONReportState(analysis.reportPayload, sections, apiKey);
 
         return {
             success: true,
-            html,
+            jsonState, // Returning JSON state now
             chartData: analysis.chartData,
             payload: analysis.reportPayload
         };
@@ -185,11 +187,11 @@ export async function generateReportFromCsvAction(
         const sections = await getRelevantSections(analysis.reportPayload, apiKey);
         if (!sections.includes('ESTADO_SEO')) sections.unshift('ESTADO_SEO');
 
-        const html = await generateHTMLReport(analysis.reportPayload, sections, apiKey);
+        const jsonState = await generateJSONReportState(analysis.reportPayload, sections, apiKey);
 
         return {
             success: true,
-            html,
+            jsonState, // Return JSON state instead of HTML string
             chartData: analysis.chartData,
             payload: analysis.reportPayload
         };
@@ -206,7 +208,7 @@ export async function saveReportAction(
     userId: string,
     projectId: string | null,
     title: string,
-    htmlContent: string,
+    jsonState: any[], // Now accepting JSON state instead of HTML
     payload: any,
     periodLabel: string
 ) {
@@ -217,7 +219,7 @@ export async function saveReportAction(
             user_id: userId,
             project_id: projectId,
             title,
-            html_content: htmlContent,
+            html_content: JSON.stringify(jsonState), // Storing JSON in the legacy html_content column for now to avoid db migrations if possible, or we could add a json_state column. Let's stringify for now.
             payload_json: payload,
             period_label: periodLabel,
             created_at: new Date().toISOString()

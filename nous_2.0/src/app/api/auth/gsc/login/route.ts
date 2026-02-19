@@ -3,16 +3,14 @@ import { google } from 'googleapis';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
+    const { searchParams } = new URL(req.url);
+    const redirectTo = searchParams.get('redirect') || '/settings';
+
     // Limpiamos las variables por si vienen con espacios o barras accidentales
     const clientId = process.env.GOOGLE_CLIENT_ID?.trim().replace(/\/$/, '');
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
     const publicUrl = process.env.NEXT_PUBLIC_URL?.trim().replace(/\/$/, '');
-
-    // DEBUG: Verificamos si las variables están cargadas (ofuscado)
-    console.log("GOOGLE_CLIENT_ID loaded:", !!clientId, clientId?.substring(0, 10) + "...");
-    console.log("GOOGLE_CLIENT_SECRET loaded:", !!clientSecret);
-    console.log("NEXT_PUBLIC_URL:", publicUrl);
 
     const redirectUri = `${publicUrl || 'http://localhost:3000'}/api/auth/gsc/callback`;
 
@@ -37,6 +35,7 @@ export async function GET() {
         ],
         prompt: 'consent', // Force consent prompt to ensure refresh token is returned
         include_granted_scopes: true,
+        state: redirectTo, // Use state to pass the return URL
         redirect_uri: redirectUri // FORCE explicit redirect_uri
     });
 

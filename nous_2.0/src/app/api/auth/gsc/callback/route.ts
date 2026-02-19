@@ -8,13 +8,14 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get('code');
     const error = searchParams.get('error');
+    const state = searchParams.get('state') || '/settings'; // Default to settings if no state
 
     if (error) {
-        return NextResponse.redirect(new URL('/settings?error=access_denied', req.url));
+        return NextResponse.redirect(new URL(`${state}${state.includes('?') ? '&' : '?'}error=access_denied`, req.url));
     }
 
     if (!code) {
-        return NextResponse.redirect(new URL('/settings?error=no_code', req.url));
+        return NextResponse.redirect(new URL(`${state}${state.includes('?') ? '&' : '?'}error=no_code`, req.url));
     }
 
     try {
@@ -133,10 +134,11 @@ export async function GET(req: Request) {
         // Optional: Auto-link to projects if it's the first connection or if user has only one project
         // For now, we just redirect. The user will select the account in settings.
 
-        return NextResponse.redirect(new URL('/settings?gsc=connected', req.url));
+        return NextResponse.redirect(new URL(`${state}${state.includes('?') ? '&' : '?'}gsc=connected`, req.url));
 
     } catch (err: any) {
         console.error('Auth Callback Error:', err);
-        return NextResponse.redirect(new URL(`/settings?error=${encodeURIComponent(err.message)}`, req.url));
+        const state = new URL(req.url).searchParams.get('state') || '/settings';
+        return NextResponse.redirect(new URL(`${state}${state.includes('?') ? '&' : '?'}error=${encodeURIComponent(err.message)}`, req.url));
     }
 }

@@ -767,14 +767,17 @@ export default function SettingsPage() {
                                                     <p className="text-xs text-slate-400 mt-3 max-w-sm">Analiza el tráfico proveniente de LLMs y Chatbots AI vinculando tus propiedades de GA4.</p>
                                                 </div>
                                             </div>
-                                            {!isUserGscConnected && (
-                                                <button
-                                                    onClick={() => window.location.href = '/api/auth/gsc/login'}
-                                                    className="px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all bg-slate-900 text-white hover:bg-amber-600 shadow-xl"
-                                                >
-                                                    Vincular GA4
-                                                </button>
-                                            )}
+                                            <button
+                                                onClick={() => window.location.href = '/api/auth/gsc/login'}
+                                                className={cn(
+                                                    "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl",
+                                                    isUserGscConnected
+                                                        ? "bg-white border border-amber-100 text-amber-600 hover:bg-amber-50 shadow-amber-100/10"
+                                                        : "bg-slate-900 text-white hover:bg-amber-600 shadow-slate-900/10"
+                                                )}
+                                            >
+                                                {isUserGscConnected ? "Agregar Otra Cuenta" : "Vincular GA4"}
+                                            </button>
                                         </div>
                                         <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/5 rounded-full blur-3xl" />
                                     </div>

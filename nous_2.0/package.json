@@ -45,6 +45,7 @@
     "framer-motion": "^12.23.26",
     "googleapis": "^171.4.0",
     "groq-sdk": "^0.37.0",
+    "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.11.0",

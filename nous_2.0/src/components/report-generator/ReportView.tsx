@@ -1,141 +1,75 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Chart } from 'chart.js/auto';
 import { Maximize2, Minimize2, ChevronLeft, ChevronRight, Moon, Sun, X, Plus, Trash2, GripVertical, FileText } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import html2canvas from 'html2canvas';
 
-import { useEditor, EditorContent, Node, mergeAttributes } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { ReportEditorToolbar } from './ReportEditorToolbar';
-import { InsightBuilder, InsightConfig } from './InsightBuilder';
-import { SlideLayouts } from './SlideLayouts';
+import { SplitAnalysisSlide } from './slides/SplitAnalysisSlide';
+import { TableDatasetSlide } from './slides/TableDatasetSlide';
 
-interface ReportViewProps {
-    htmlContent: string;
-    chartData: any;
-    onContentChange?: (newHtml: string) => void;
-    projectId?: string;
-    dateRange?: { start: string, end: string };
+export interface ReportViewProps {
+    jsonState: any[];
+    onStateChange?: (newState: any[]) => void;
+    theme?: string;
 }
 
-// Custom Extension to preserve Chart Placeholders
-const ChartExtension = Node.create({
-    name: 'chartPlaceholder',
-    group: 'block',
-    atom: true, // Treated as a single unit
-    draggable: true,
+export interface ReportViewRef {
+    captureAllSlides: () => Promise<string[]>;
+}
 
-    addAttributes() {
-        return {
-            'data-chart-type': { default: null },
-            'data-chart-url': { default: null },
-            'data-chart-config': { default: null },
-        }
-    },
-
-    parseHTML() {
-        return [
-            {
-                tag: 'div[data-chart-type]',
-            },
-        ]
-    },
-
-    renderHTML({ HTMLAttributes }) {
-        return ['div', mergeAttributes(HTMLAttributes, { class: 'chart-placeholder w-full relative' }), '']
-    },
-});
-
-export function ReportView({ htmlContent, chartData, onContentChange, projectId, dateRange }: ReportViewProps) {
+export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonState, onStateChange, theme = '#4f46e5' }, ref) => {
     // --- State ---
-    const [slides, setSlides] = useState<string[]>([]);
+    const [slides, setSlides] = useState<any[]>(jsonState || []);
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
     const [isPresenting, setIsPresenting] = useState(false);
-    const [theme, setTheme] = useState<'light' | 'dark'>('light');
-    const [showInsightBuilder, setShowInsightBuilder] = useState(false);
+    const [viewTheme, setViewTheme] = useState<'light' | 'dark'>('light');
+    const hiddenContainerRef = useRef<HTMLDivElement>(null);
 
-    // --- Initialization ---
+    useImperativeHandle(ref, () => ({
+        captureAllSlides: async () => {
+            if (!hiddenContainerRef.current) return [];
+
+            // Wait slightly to ensure charts render fully before snapshotting
+            await new Promise(r => setTimeout(r, 500));
+
+            const snapshots: string[] = [];
+            const slideNodes = hiddenContainerRef.current.children;
+
+            // Render sequentially to not overload browser memory
+            for (let i = 0; i < slideNodes.length; i++) {
+                const node = slideNodes[i] as HTMLElement;
+                const canvas = await html2canvas(node, { scale: 2, useCORS: true, logging: false });
+                snapshots.push(canvas.toDataURL('image/png'));
+            }
+            return snapshots;
+        }
+    }));
+
+    // Sync from props if generation completes
     useEffect(() => {
-        if (!htmlContent) {
-            setSlides(['<section><h1>Nueva Diapositiva</h1><p>Comienza a escribir...</p></section>']);
-            return;
+        if (jsonState && jsonState.length > 0) {
+            setSlides(jsonState);
         }
+    }, [jsonState]);
 
-        // Parse initial HTML into slides
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlContent, 'text/html');
-        const sections = Array.from(doc.querySelectorAll('section'));
-
-        if (sections.length > 0) {
-            setSlides(sections.map(s => s.outerHTML));
-        } else {
-            // If no sections, wrap content in one
-            setSlides([`<section class="report-slide">${htmlContent}</section>`]);
-        }
-    }, []); // Run once on mount (or if we want to reset from prop, add logic)
-
-    // --- Tiptap Editor (Per Slide) ---
-    const editor = useEditor({
-        extensions: [
-            StarterKit.configure({
-                heading: { levels: [1, 2, 3] },
-            }),
-            ChartExtension
-        ],
-        content: slides[currentSlideIndex] || '', // Load current slide
-        editorProps: {
-            attributes: {
-                class: 'prose prose-slate max-w-none focus:outline-none min-h-[500px] p-8 bg-white shadow-sm rounded-3xl border border-slate-100',
-            },
-        },
-        onUpdate: ({ editor }) => {
-            const newContent = editor.getHTML();
-
-            // Update single slide in state
-            setSlides(prev => {
-                const newSlides = [...prev];
-                newSlides[currentSlideIndex] = newContent;
-
-                // Debounce parent update? For now direct.
-                if (onContentChange) {
-                    onContentChange(newSlides.join('\n\n'));
-                }
-
-                return newSlides;
-            });
-        },
-    });
-
-    // Sync Editor Content when Slide Changes
-    useEffect(() => {
-        if (editor && slides[currentSlideIndex] !== undefined) {
-            const currentContent = editor.getHTML();
-            // Only update if different to avoid cursor jumps / loops
-            // BUT: slides[i] might be different because we switched index.
-            // We need to check if the editor content matches the TARGET slide content.
-
-            // Hard set content when index changes
-            editor.commands.setContent(slides[currentSlideIndex]);
-        }
-    }, [currentSlideIndex, editor]); // Removed 'slides' dependency to avoid loop on typing
+    const handleStateUpdate = (newSlides: any[]) => {
+        setSlides(newSlides);
+        if (onStateChange) onStateChange(newSlides);
+    };
 
 
     // --- Slide Management ---
     const addSlide = () => {
-        const newSlide = `<section class="report-slide bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-12 relative overflow-hidden">
-            <div class="flex items-center space-x-3 border-b border-gray-200 pb-3 mb-4">
-                <h2 class="text-xl font-bold text-gray-900">Nueva Sección</h2>
-            </div>
-            <p>Contenido...</p>
-        </section>`;
+        const newSlide = {
+            type: 'split_analysis',
+            title: 'Nueva Sección',
+            analysis: 'Comienza a escribir el análisis aquí...',
+            chartConfig: { type: 'bar', chartType: 'custom', title: 'Nuevo Gráfico' }
+        };
 
-        setSlides(prev => {
-            const updated = [...prev, newSlide];
-            if (onContentChange) onContentChange(updated.join('\n\n'));
-            return updated;
-        });
-        // Switch to new slide
+        handleStateUpdate([...slides, newSlide]);
         setTimeout(() => setCurrentSlideIndex(slides.length), 10);
     };
 
@@ -144,112 +78,15 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
         if (slides.length <= 1) return; // Prevent deleting last slide
 
         const newSlides = slides.filter((_, i) => i !== index);
-        setSlides(newSlides);
-        if (onContentChange) onContentChange(newSlides.join('\n\n'));
+        handleStateUpdate(newSlides);
 
         if (currentSlideIndex >= index && currentSlideIndex > 0) {
             setCurrentSlideIndex(prev => prev - 1);
         }
     };
 
-    const handleInsertInsight = (config: InsightConfig) => {
-        let content = '';
-        let metricsHtml = '';
-
-        // 1. Generate Metrics HTML
-        if (config.options.includeMetrics && config.data.summary) {
-            const s = config.data.summary.current;
-            const comp = config.data.summary.previous;
-            const getDiff = (curr: number, prev: number) => {
-                if (!prev) return undefined;
-                return curr > prev ? 'up' : (curr < prev ? 'down' : 'neutral');
-            };
-            const formatDiff = (curr: number, prev: number) => {
-                if (!prev) return '';
-                const diff = curr - prev;
-                return (diff > 0 ? '+' : '') + diff.toFixed(1);
-            }
-
-            metricsHtml += SlideLayouts.MetricCard('Clicks', s.clicks.toLocaleString(), comp ? formatDiff(s.clicks, comp.clicks) : '', getDiff(s.clicks, comp?.clicks));
-            metricsHtml += SlideLayouts.MetricCard('Impresiones', s.impressions.toLocaleString(), comp ? formatDiff(s.impressions, comp.impressions) : '', getDiff(s.impressions, comp?.impressions));
-            metricsHtml += SlideLayouts.MetricCard('CTR', s.ctr.toFixed(2) + '%', comp ? (s.ctr - comp.ctr).toFixed(2) + '%' : '', getDiff(s.ctr, comp?.ctr));
-            metricsHtml += SlideLayouts.MetricCard('Posición', s.position.toFixed(1), comp ? (s.position - comp.position).toFixed(1) : '', s.position < (comp?.position || 100) ? 'up' : 'down'); // Lower position is better (green/up)
-        }
-
-        // 2. Determine Layout Strategy
-        if (config.options.visualization === 'table' || (config.options.includeTable && config.options.visualization === 'text')) {
-            // Table Layout
-            const rows = config.data.items.slice(0, config.options.limit || 15).map((item: any) => SlideLayouts.TableRow(item)).join('');
-            content = SlideLayouts.TableDashboard(config.options.title, rows);
-
-        } else if (config.options.visualization !== 'text') {
-            // Chart Layout (Split)
-            const chartConfig = {
-                type: config.options.visualization, // 'bubble', 'bar', 'line'
-                data: config.data,
-                title: config.options.title
-            };
-
-            // If AI is not included, we might want a different layout or just empty right side? 
-            // For now, let's put the analysis or a placeholder text.
-            const analysis = config.options.includeAI && config.data.analysis
-                ? config.data.analysis.replace(/\n/g, '<br/>')
-                : `<p>Visualización de datos para ${config.options.title}.</p>`;
-
-            content = SlideLayouts.SplitChartAnalysis(config.options.title, chartConfig, analysis, metricsHtml);
-
-        } else {
-            // Text/Just Analysis Layout (Fallback to Split with no chart? or Generic)
-            content = `
-             <section class="report-slide bg-white p-12 rounded-[30px] flex flex-col justify-center">
-                <h2 class="text-3xl font-black text-slate-800 mb-8">${config.options.title}</h2>
-                <div class="prose prose-lg text-slate-600">
-                    ${config.options.includeAI ? config.data.analysis : 'Contenido generado...'}
-                </div>
-             </section>`;
-        }
-
-        if (config.options.placement === 'new_slide') {
-            // SlideLayouts already return <section> tags
-            setSlides(prev => [...prev, content]);
-            setTimeout(() => setCurrentSlideIndex(slides.length), 100);
-        } else {
-            editor?.commands.insertContent(content);
-        }
-        setShowInsightBuilder(false);
-    };
-
-    // --- Chart Rendering Logic (Reused) ---
-    const containerRef = useRef<HTMLDivElement>(null);
+    // --- Presentation Logic ---
     const presentationRef = useRef<HTMLDivElement>(null);
-
-    // Effect to render charts in the DOM (both Editor and Presentation)
-    useEffect(() => {
-        const root = isPresenting ? presentationRef.current : containerRef.current;
-        if (!root) return;
-
-        // Small timeout to allow Tiptap/React to render the DOM nodes
-        const timeout = setTimeout(() => {
-            const placeholders = root.querySelectorAll('.chart-placeholder');
-            placeholders.forEach((el) => {
-                if (el.querySelector('canvas')) return; // Already rendered
-
-                const type = el.getAttribute('data-chart-type');
-                const canvas = document.createElement('canvas');
-                canvas.style.maxHeight = isPresenting ? '60vh' : '400px';
-                canvas.style.width = '100%';
-                el.innerHTML = '';
-                el.appendChild(canvas);
-
-                // ... Chart Config (Keep existing logic or simplify for this snippet) ...
-                // For brevity, I'm calling a helper or reusing the logic if possible.
-                // Re-implementing basic render for stability in this refactor.
-                renderChart(canvas, type, chartData, theme, isPresenting);
-            });
-        }, 100);
-
-        return () => clearTimeout(timeout);
-    }, [slides, currentSlideIndex, isPresenting, theme, chartData]);
 
     // Presentation Navigation
     const nextSlide = () => setCurrentSlideIndex(prev => Math.min(prev + 1, slides.length - 1));
@@ -261,19 +98,11 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
 
 
     return (
-        <div className="flex flex-col h-[85vh] min-h-[600px] bg-slate-50/50 rounded-[30px] overflow-hidden border border-slate-200 shadow-sm">
+        <div className="flex flex-col h-[85vh] min-h-[600px] bg-slate-50/50 rounded-[30px] overflow-hidden border border-slate-200 shadow-sm report-container">
             {/* Toolbar Area */}
             <div className="bg-white border-b border-slate-200 p-4 flex justify-between items-center">
                 <div className="flex items-center gap-4">
                     <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Editor de Diapositivas</h3>
-                    <div className="h-4 w-px bg-slate-200"></div>
-                    {/* Editor Toolbar (Text formatting) */}
-                    {!isPresenting && (
-                        <ReportEditorToolbar
-                            editor={editor}
-                            onOpenSectionBuilder={() => setShowInsightBuilder(true)}
-                        />
-                    )}
                 </div>
 
                 <button
@@ -331,9 +160,14 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
                 </div>
 
                 {/* Editor Area */}
-                <div className="flex-1 bg-slate-50 overflow-y-auto p-8 flex justify-center" ref={containerRef}>
-                    <div className="w-full max-w-5xl">
-                        <EditorContent editor={editor} />
+                <div className="flex-1 bg-slate-50 overflow-y-auto p-8 flex justify-center">
+                    <div className="w-full max-w-6xl">
+                        {/* Dynamic Component Rendering instead of EditorContent */}
+                        {slides.length > 0 && currentSlideIndex < slides.length ? (
+                            <SlideRenderer slide={slides[currentSlideIndex]} theme={theme} />
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-slate-400">Selecciona o añade una diapositiva</div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -352,8 +186,8 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
                             </span>
                         </div>
                         <div className="flex items-center gap-2 bg-black/10 backdrop-blur-md p-1 rounded-full border border-white/10">
-                            <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="p-2 rounded-full hover:bg-white/20 transition-all">
-                                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                            <button onClick={() => setViewTheme(viewTheme === 'light' ? 'dark' : 'light')} className="p-2 rounded-full hover:bg-white/20 transition-all">
+                                {viewTheme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
                             </button>
                             <div className="w-px h-4 bg-white/20"></div>
                             <button onClick={togglePresentation} className="p-2 rounded-full hover:bg-white/20 transition-all">
@@ -376,213 +210,91 @@ export function ReportView({ htmlContent, chartData, onContentChange, projectId,
                     <div
                         ref={presentationRef}
                         className={cn(
-                            "w-full max-w-5xl h-[80vh] flex items-center justify-center p-8 overflow-y-auto presentation-slide",
-                            // Inject dark mode styles via class or style tag if needed
-                            // Using a simple wrapper class approach
+                            "w-full max-w-7xl h-[85vh] flex items-center justify-center p-12 overflow-y-auto presentation-slide report-container",
                         )}
                     >
-                        <style>{`
-                            .presentation-slide h1, .presentation-slide h2 { color: ${theme === 'dark' ? '#f8fafc' : '#0f172a'}; }
-                            .presentation-slide p { color: ${theme === 'dark' ? '#cbd5e1' : '#334155'}; }
-                            .presentation-slide section { background: transparent !important; box-shadow: none !important; border: none !important; }
-                         `}</style>
-                        <div
-                            className="w-full prose prose-xl max-w-none"
-                            dangerouslySetInnerHTML={{ __html: slides[currentSlideIndex] }}
-                        />
+                        <div className="w-full max-w-none report-container">
+                            {slides[currentSlideIndex] && (
+                                <SlideRenderer slide={slides[currentSlideIndex]} theme={theme} />
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Chart Builder Modal */}
-            {/* Insight Builder Modal */}
-            {showInsightBuilder && (
-                <InsightBuilder
-                    projectId={projectId}
-                    dateRange={dateRange}
-                    onClose={() => setShowInsightBuilder(false)}
-                    onInsert={handleInsertInsight}
-                />
-            )}
+            {/* Hidden container for html2canvas snapshots */}
+            <div
+                ref={hiddenContainerRef}
+                className="fixed top-0 left-0 -z-50 pointer-events-none opacity-0"
+                style={{ width: '1920px' }}
+            >
+                {slides.map((slide, idx) => (
+                    <div key={idx} className="bg-white" style={{ width: '1920px', height: '1080px' }}>
+                        <div className="w-full h-full report-container flex items-center justify-center p-12">
+                            <SlideRenderer slide={slide} theme={theme} />
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
-}
+});
 
-// Helper to render chart (simplified from original)
+// Helper Component to map JSON slide types to React Components
+const SlideRenderer = ({ slide, theme }: { slide: any, theme: string }) => {
+    if (!slide) return null;
 
-function renderChart(canvas: HTMLCanvasElement, type: string | null, chartData: any, theme: string, isPresenting: boolean) {
-    if (!type || !chartData) return;
+    switch (slide.type) {
+        case 'split_analysis':
+            return (
+                <SplitAnalysisSlide
+                    title={slide.title}
+                    analysis={slide.analysis}
+                    metrics={slide.metrics}
+                    chartConfig={slide.chartConfig}
+                    theme={theme as any}
+                />
+            );
+        case 'table_dataset':
+            return (
+                <TableDatasetSlide
+                    title={slide.title}
+                    subtitle={slide.subtitle}
+                    tableData={slide.tableData || slide.data || []}
+                />
+            );
+        case 'title_slide':
+            return (
+                <section className="report-slide bg-white h-full relative overflow-hidden flex flex-col justify-center p-20 min-h-[600px]">
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-purple-50 rounded-bl-full opacity-40 -mr-20 -mt-20"></div>
+                    <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-50/30 rounded-tr-full opacity-40 -ml-32 -mb-24"></div>
 
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                labels: {
-                    color: theme === 'dark' && isPresenting ? '#cbd5e1' : '#475569',
-                    font: { family: 'Inter', size: 11, weight: 600 }
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                titleColor: '#f8fafc',
-                bodyColor: '#e2e8f0',
-                padding: 10,
-                cornerRadius: 8,
-                displayColors: true
-            }
-        },
-        scales: {
-            x: {
-                ticks: { color: theme === 'dark' && isPresenting ? '#94a3b8' : '#64748b', font: { family: 'Inter', size: 10 } },
-                grid: { color: theme === 'dark' && isPresenting ? '#334155' : '#f1f5f9', drawBorder: false }
-            },
-            y: {
-                ticks: { color: theme === 'dark' && isPresenting ? '#94a3b8' : '#64748b', font: { family: 'Inter', size: 10 } },
-                grid: { color: theme === 'dark' && isPresenting ? '#334155' : '#f1f5f9', drawBorder: false }
-            }
-        }
-    };
-
-    // Handle "Insight" charts (Dynamic Config from SlideLayouts)
-    if (type === 'insight' || type === 'custom') {
-        const configStr = canvas.parentElement?.getAttribute('data-chart-config');
-        if (configStr) {
-            try {
-                const config = JSON.parse(configStr);
-
-                // Mapper for InsightBuilder simplifie config to Chart.js
-                let type = config.type || 'bar';
-                let datasets = [];
-                let labels = [];
-
-                if (config.type === 'bubble') {
-                    type = 'bubble';
-                    // Bubble data structure: { x, y, r, label }
-                    // Chart.js expects data: [{x,y,r}]
-                    // config.data.bubbleData should be passed from InsightBuilder
-                    datasets = [{
-                        label: config.title || 'Oportunidades',
-                        data: config.data.bubbleData || [],
-                        backgroundColor: 'rgba(139, 92, 246, 0.6)',
-                        borderColor: '#8b5cf6',
-                        borderWidth: 1
-                    }];
-                    // Bubbles don't strictly need labels array on X, but tooltip needs them
-                } else {
-                    // Standard Bar/Line
-                    // If complex structure (InsightBuilder) vs Simple (Custom)
-                    if (config.data && config.data.items) {
-                        // It's from InsightBuilder
-                        labels = config.data.items.map((i: any) => i.key.substring(0, 15) + '...');
-                        datasets = [{
-                            label: 'Clicks',
-                            data: config.data.items.map((i: any) => i.clicks),
-                            backgroundColor: '#8b5cf6',
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'Impresiones (x100)',
-                            data: config.data.items.map((i: any) => i.impressions / 100), // Scale for visibility
-                            backgroundColor: '#cbd5e1',
-                            borderRadius: 4,
-                            hidden: true // Hide by default to not clutter
-                        }];
-                    } else {
-                        // Generic/Custom fallback
-                        labels = config.labels || [];
-                        datasets = config.datasets || [{
-                            label: config.title || 'Datos',
-                            data: config.data || [],
-                            backgroundColor: '#8b5cf6',
-                            borderColor: '#8b5cf6',
-                        }];
-                    }
-                }
-
-                new Chart(canvas, {
-                    type,
-                    data: {
-                        labels,
-                        datasets
-                    },
-                    options: {
-                        ...commonOptions,
-                        plugins: {
-                            ...commonOptions.plugins,
-                            title: { display: !!config.title, text: config.title, color: theme === 'dark' ? '#fff' : '#1e293b', font: { size: 14, weight: 'bold' } }
-                        }
-                    }
-                });
-            } catch (e) {
-                console.error("Error parsing insight chart config", e);
-            }
-        }
-        return;
+                    <div className="relative z-10 max-w-4xl">
+                        <div className="inline-block px-5 py-2 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] mb-8 shadow-xl shadow-slate-900/10">
+                            Estrategia SEO Global
+                        </div>
+                        <h1 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter leading-[0.9] mb-8 italic uppercase">
+                            {slide.title}
+                        </h1>
+                        <p className="text-2xl text-slate-500 font-medium mb-12 max-w-2xl leading-relaxed">
+                            {slide.subtitle}
+                        </p>
+                        <div className="flex items-center gap-6">
+                            <div className="h-1 w-20 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full"></div>
+                            <div className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">
+                                {slide.date}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            );
+        case 'error_slide':
+        default:
+            return (
+                <section className="report-slide p-12 flex flex-col items-center justify-center min-h-[300px] bg-slate-50 border border-slate-200">
+                    <p className="text-slate-500 text-center font-bold">{slide.message || 'Diapositiva en blanco o formato no reconocido.'}</p>
+                </section>
+            );
     }
-
-
-    // Legacy/Hardcoded Types
-    if (type === 'trend') {
-        const trendData = chartData.seoStatus?.monthlyTrend;
-        const labels = trendData?.p2?.map((_: any, i: number) => `Día ${i + 1}`) || [];
-        new Chart(canvas, {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Anterior', data: trendData?.p1 || [], borderColor: '#94a3b8', borderDash: [5, 5], tension: 0.4, pointRadius: 0 },
-                    { label: 'Actual', data: trendData?.p2 || [], borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4, pointRadius: 2 }
-                ]
-            },
-            options: commonOptions
-        });
-    } else if (type === 'clicks' || type === 'losers') {
-        const metrics = chartData[type === 'clicks' ? 'topWinners' : 'topLosers'];
-        if (metrics) {
-            new Chart(canvas, {
-                type: 'bar',
-                data: {
-                    labels: metrics.map((m: any) => m.name.substring(0, 30) + '...'),
-                    datasets: [{
-                        label: type === 'clicks' ? 'Subida' : 'Bajada',
-                        data: metrics.map((m: any) => m.clicksChange),
-                        backgroundColor: type === 'clicks' ? '#10b981' : '#ef4444',
-                        borderRadius: 4
-                    }]
-                },
-                options: { ...commonOptions, indexAxis: 'y' }
-            });
-        }
-    } else if (type === 'ai-traffic') {
-        const aiData = chartData.aiTrafficAnalysis;
-        if (aiData && aiData.sources) {
-            new Chart(canvas, {
-                type: 'doughnut',
-                data: {
-                    labels: aiData.sources.map((s: any) => s.source),
-                    datasets: [{
-                        data: aiData.sources.map((s: any) => s.sessions),
-                        backgroundColor: [
-                            'rgba(139, 92, 246, 0.8)',
-                            'rgba(14, 165, 233, 0.8)',
-                            'rgba(16, 185, 129, 0.8)',
-                            'rgba(245, 158, 11, 0.8)',
-                            'rgba(244, 63, 94, 0.8)',
-                        ],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    ...commonOptions,
-                    cutout: '60%',
-                    plugins: {
-                        ...commonOptions.plugins,
-                        legend: { position: 'bottom' }
-                    }
-                }
-            });
-        }
-    }
-}
+};
 

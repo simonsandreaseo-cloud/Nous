@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import { generateReportAction, generateReportFromCsvAction, analyzeStructureAction, saveReportAction, getSavedReportsAction, exportToGoogleAction } from '@/app/actions/report-actions';
 import { parseCSV } from '@/lib/services/report/csvService';
@@ -9,6 +9,7 @@ import { ReportView } from '@/components/report-generator/ReportView';
 import { Loader2, Sparkles, FileText, Settings, AlertCircle, CheckCircle2, ListFilter, Trash2, Plus, History, Save, ChevronRight, LayoutGrid, Calendar } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { supabase } from '@/lib/supabase';
+import '@/app/reports.css';
 
 export default function ReportGeneratorPage() {
     const { projects, activeProject, setActiveProject, fetchProjects } = useProjectStore();
@@ -21,6 +22,7 @@ export default function ReportGeneratorPage() {
     const [mainTab, setMainTab] = useState<'generator' | 'history'>('generator');
     const [step, setStep] = useState<'settings' | 'validation' | 'complete'>('settings');
     const [loadingState, setLoadingState] = useState<string | null>(null);
+    const reportViewRef = useRef<any>(null);
 
     // Generator Data State
     const [mode, setMode] = useState<'api' | 'csv'>('api');
@@ -165,7 +167,7 @@ export default function ReportGeneratorPage() {
 
             if (result.success) {
                 setReportResult({
-                    html: result.html,
+                    jsonState: result.jsonState,
                     chartData: result.chartData,
                     payload: result.payload,
                     periodLabel: result.payload?.period2Name
@@ -189,7 +191,7 @@ export default function ReportGeneratorPage() {
             userId,
             activeProject?.id || null, // Null if CSV
             saveTitle,
-            reportResult.html,
+            reportResult.jsonState,
             reportResult.payload,
             reportResult.periodLabel || 'Reporte Personalizado'
         );
@@ -219,7 +221,7 @@ export default function ReportGeneratorPage() {
         // To fix: We should save `chartData` as well. For now, let's load HTML.
 
         setReportResult({
-            html: report.html_content,
+            jsonState: report.html_content ? (typeof report.html_content === 'string' ? JSON.parse(report.html_content) : report.html_content) : [],
             chartData: report.payload_json?.seoStatus ? { seoStatus: report.payload_json.seoStatus } : {}, // Partial reconstruction
             payload: report.payload_json
         });
@@ -256,32 +258,37 @@ export default function ReportGeneratorPage() {
             };
             sessionStorage.setItem('report_generator_state', JSON.stringify(stateToSave));
 
-            // Trigger Auth
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    scopes: 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/drive.file',
-                    redirectTo: window.location.href
-                }
-            });
-            if (error) alert("Error al conectar con Google: " + error.message);
+            // Trigger Unified Auth Flow
+            const currentPath = window.location.pathname;
+            window.location.href = `/api/auth/gsc/login?redirect=${encodeURIComponent(currentPath)}`;
             return;
         }
 
         if (!reportResult) return;
         setLoadingState(`Exporting to Google ${type === 'docs' ? 'Docs' : 'Slides'}...`);
 
-        let content: string | string[] = reportResult.html;
+        let content: string | string[] = reportResult.jsonState ? JSON.stringify(reportResult.jsonState) : '';
 
         if (type === 'slides') {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(reportResult.html, 'text/html');
-            const sections = Array.from(doc.querySelectorAll('section'));
+            if (!reportViewRef.current) {
+                alert("Error: El componente de renderizado no está disponible.");
+                setLoadingState(null);
+                return;
+            }
 
-            if (sections.length > 0) {
-                content = sections.map(s => s.outerHTML);
-            } else {
-                content = [reportResult.html];
+            setLoadingState(`Generando imágenes de las diapositivas (puede tardar un momento)...`);
+            try {
+                // Return an array of base64 PNG images from html2canvas
+                const snapshots = await reportViewRef.current.captureAllSlides();
+                if (!snapshots || snapshots.length === 0) {
+                    throw new Error("No se generaron imágenes.");
+                }
+                content = snapshots;
+            } catch (e: any) {
+                console.error(e);
+                alert("Error capturando diapositivas: " + e.message);
+                setLoadingState(null);
+                return;
             }
         }
 
@@ -505,11 +512,10 @@ export default function ReportGeneratorPage() {
                                     </div>
 
                                     <ReportView
-                                        htmlContent={reportResult.html}
-                                        chartData={reportResult.chartData}
-                                        onContentChange={(newHtml) => setReportResult((prev: any) => ({ ...prev, html: newHtml }))}
-                                        projectId={activeProject?.id}
-                                        dateRange={dateRange}
+                                        ref={reportViewRef}
+                                        jsonState={reportResult.jsonState}
+                                        onStateChange={(newJsonState) => setReportResult((prev: any) => ({ ...prev, jsonState: newJsonState }))}
+                                        theme={(activeProject as any)?.brand_color || '#4f46e5'}
                                     />
                                 </div>
                             )}

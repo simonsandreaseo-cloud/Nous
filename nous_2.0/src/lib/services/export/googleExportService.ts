@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { supabase } from '@/lib/supabase';
 
 export class GoogleExportService {
     private auth;
@@ -52,36 +53,57 @@ export class GoogleExportService {
             return { success: false, error: error.message };
         }
     }
-
     async exportToSlides(title: string, slidesContent: string[]) {
         const slides = google.slides({ version: 'v1', auth: this.auth });
-        const drive = google.drive({ version: 'v3', auth: this.auth });
+        const uploadedPaths: string[] = [];
 
         try {
-            // 1. Create Presentation
+            // 1. Upload Base64 images to Supabase temporarily
+            const imageUrls: string[] = [];
+            const tempDir = `temp_slides_${Date.now()}`;
+
+            for (let i = 0; i < slidesContent.length; i++) {
+                const base64Data = slidesContent[i].replace(/^data:image\/\w+;base64,/, '');
+                const buffer = Buffer.from(base64Data, 'base64');
+                const path = `${tempDir}/slide_${i}.png`;
+
+                const { error } = await supabase.storage
+                    .from('project-assets')
+                    .upload(path, buffer, { contentType: 'image/png', upsert: true });
+
+                if (error) throw new Error(`Supabase Upload Error: ${error.message}`);
+
+                uploadedPaths.push(path);
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('project-assets')
+                    .getPublicUrl(path);
+
+                imageUrls.push(publicUrl);
+            }
+
+            // 2. Create Presentation
             const createRes = await slides.presentations.create({
                 requestBody: { title: title }
             });
             const presentationId = createRes.data.presentationId;
             if (!presentationId) throw new Error("Failed to create Google Slides");
 
-            // 2. Add Slides
+            // 3. Add Slides and Images
             const requests: any[] = [];
 
-            slidesContent.forEach((html, index) => {
-                const uniqueId = Date.now().toString();
-                const slideId = `slide_${uniqueId}_${index}`;
-                const titleId = `title_${uniqueId}_${index}`;
-                const bodyId = `body_${uniqueId}_${index}`;
+            // Delete the default slide that gets created with a new presentation
+            const defaultSlideId = createRes.data.slides?.[0]?.objectId;
+            if (defaultSlideId) {
+                requests.push({ deleteObject: { objectId: defaultSlideId } });
+            }
 
-                // Extract simple text content (Strip HTML)
-                const text = html.replace(/<[^>]+>/g, '\n').trim();
-                const titleMatch = html.match(/<h[1-3][^>]*>(.*?)<\/h[1-3]>/i);
-                const titleText = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '') : `Slide ${index + 1}`;
-                // Simple body extraction (removing title roughly)
-                const bodyText = text.replace(titleText, '').trim().substring(0, 1500); // Limit chars
+            // Create blank slides and insert images
+            imageUrls.forEach((url, i) => {
+                const slideId = `slide_${tempDir}_${i}`;
+                const imageId = `img_${tempDir}_${i}`;
 
-                // A. Create Slide
+                // Create Slide
                 requests.push({
                     createSlide: {
                         objectId: slideId,
@@ -89,50 +111,16 @@ export class GoogleExportService {
                     }
                 });
 
-                // B. Add Title Box
+                // Create Image stretching to full slide dimensions
                 requests.push({
-                    createShape: {
-                        objectId: titleId,
-                        shapeType: 'TEXT_BOX',
+                    createImage: {
+                        objectId: imageId,
+                        url: url,
                         elementProperties: {
                             pageObjectId: slideId,
-                            size: { width: { magnitude: 600, unit: 'PT' }, height: { magnitude: 50, unit: 'PT' } },
-                            transform: { scaleX: 1, scaleY: 1, translateX: 50, translateY: 30, unit: 'PT' }
+                            size: { width: { magnitude: 720, unit: 'PT' }, height: { magnitude: 405, unit: 'PT' } }, // 16:9 ratio assuming default
+                            transform: { scaleX: 1, scaleY: 1, translateX: 0, translateY: 0, unit: 'PT' }
                         }
-                    }
-                });
-                requests.push({
-                    insertText: {
-                        objectId: titleId,
-                        text: titleText
-                    }
-                });
-                // Style Title
-                requests.push({
-                    updateTextStyle: {
-                        objectId: titleId,
-                        style: { fontSize: { magnitude: 24, unit: 'PT' }, bold: true },
-                        textRange: { type: 'ALL' },
-                        fields: 'fontSize,bold'
-                    }
-                });
-
-                // C. Add Body Box
-                requests.push({
-                    createShape: {
-                        objectId: bodyId,
-                        shapeType: 'TEXT_BOX',
-                        elementProperties: {
-                            pageObjectId: slideId,
-                            size: { width: { magnitude: 600, unit: 'PT' }, height: { magnitude: 350, unit: 'PT' } },
-                            transform: { scaleX: 1, scaleY: 1, translateX: 50, translateY: 100, unit: 'PT' }
-                        }
-                    }
-                });
-                requests.push({
-                    insertText: {
-                        objectId: bodyId,
-                        text: bodyText
                     }
                 });
             });
@@ -144,9 +132,20 @@ export class GoogleExportService {
                 });
             }
 
+            // 4. Cleanup Temp Images
+            if (uploadedPaths.length > 0) {
+                await supabase.storage.from('project-assets').remove(uploadedPaths);
+            }
+
             return { success: true, url: `https://docs.google.com/presentation/d/${presentationId}/edit` };
         } catch (error: any) {
             console.error("Google Slides Export Error:", error);
+
+            // Cleanup on error
+            if (uploadedPaths.length > 0) {
+                await supabase.storage.from('project-assets').remove(uploadedPaths);
+            }
+
             return { success: false, error: error.message };
         }
     }
