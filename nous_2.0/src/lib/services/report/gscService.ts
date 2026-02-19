@@ -41,7 +41,7 @@ export const GscService = {
                 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
                 // Try with standard client first
-                const { data: stdProject, error: stdError } = await supabase.from('projects').select('user_id, gsc_site_url, domain').eq('id', projectId).maybeSingle();
+                const { data: stdProject, error: stdError } = await supabase.from('projects').select('user_id, gsc_site_url, domain, gsc_account_email').eq('id', projectId).maybeSingle();
                 if (stdProject) return { data: { ...stdProject, source: 'standard' }, error: null };
                 if (stdError) console.warn("[GSC-SERVICE] Standard client project lookup error:", stdError.message);
 
@@ -49,7 +49,7 @@ export const GscService = {
                 if (adminKey) {
                     console.log("[GSC-SERVICE] Falling back to Admin Client for project lookup...");
                     const adminClient = createClient(url, adminKey);
-                    const { data: admProject, error: admError } = await adminClient.from('projects').select('user_id, gsc_site_url, domain').eq('id', projectId).maybeSingle();
+                    const { data: admProject, error: admError } = await adminClient.from('projects').select('user_id, gsc_site_url, domain, gsc_account_email').eq('id', projectId).maybeSingle();
                     if (admProject) return { data: { ...admProject, source: 'admin' }, error: null };
                     return { data: null, error: admError }; // Return admin error if project not found with admin client
                 }

@@ -113,9 +113,9 @@ export const AnalyticsService = {
     },
 
     // 2. Auto-discover GA4 Property ID based on Domain (Fallback or for legacy use)
-    async findPropertyId(domain: string, userId: string): Promise<string | null> {
+    async findPropertyId(domain: string, userId: string, email?: string): Promise<string | null> {
         try {
-            const props = await this.findProperties(userId);
+            const props = await this.findProperties(userId, email);
             const cleanDomain = domain.replace(/https?:\/\/(www\.)?/, '').split('/')[0].toLowerCase();
 
             for (const prop of props) {

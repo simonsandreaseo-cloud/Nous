@@ -30,3 +30,5 @@ END $$;
 -- Update projects to reference a specific account
 ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS gsc_account_id uuid;
 ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS ga4_account_id uuid;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS gsc_account_email text;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS ga4_account_email text;

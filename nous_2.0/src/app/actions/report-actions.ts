@@ -68,29 +68,31 @@ export async function generateReportAction(
             // We need the project's user_id and domain to find the GA4 property
             const { data: project } = await supabase
                 .from('projects')
-                .select('user_id, domain, ga4_property_id, ga4_connected')
+                .select('user_id, domain, ga4_property_id, ga4_connected, ga4_account_email')
                 .eq('id', projectId)
                 .single();
 
             if (project) {
                 // Use saved property ID if available and connected, otherwise try discovery
                 let propertyId = project.ga4_property_id;
+                const ga4Email = (project as any).ga4_account_email;
+
                 if (!propertyId && project.domain) {
-                    propertyId = await AnalyticsService.findPropertyId(project.domain, project.user_id);
+                    propertyId = await AnalyticsService.findPropertyId(project.domain, project.user_id, ga4Email);
                 }
 
                 if (propertyId) {
                     const startP2Str = format(startP2, 'yyyy-MM-dd');
                     const endP2Str = format(endP2, 'yyyy-MM-dd');
 
-                    const sources = await AnalyticsService.fetchTrafficSources(propertyId, project.user_id, startP2Str, endP2Str);
+                    const sources = await AnalyticsService.fetchTrafficSources(propertyId, project.user_id, startP2Str, endP2Str, ga4Email);
                     const sourceNames = sources.map(s => s.source);
 
                     if (sourceNames.length > 0) {
                         const aiSourceNames = await identifyAiTrafficSources(sourceNames, apiKey);
 
                         if (aiSourceNames.length > 0) {
-                            const pages = await AnalyticsService.fetchPagesBySource(propertyId, project.user_id, aiSourceNames, startP2Str, endP2Str);
+                            const pages = await AnalyticsService.fetchPagesBySource(propertyId, project.user_id, aiSourceNames, startP2Str, endP2Str, ga4Email);
                             const totalSessions = pages.reduce((acc, p) => acc + p.sessions, 0);
 
                             aiTrafficAnalysis = {
