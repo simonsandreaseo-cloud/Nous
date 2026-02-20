@@ -2,6 +2,7 @@
 
 import { useProjectStore } from "@/store/useProjectStore";
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
+import { NousLogo } from "@/components/dom/NousLogo";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -48,8 +49,8 @@ export default function StudioLayout({
 
                         {/* NOUS LOGO AREA */}
                         <div className="mb-10 px-3 py-2 flex items-center justify-between">
-                            <Link href="/" className="text-xl font-light tracking-elegant uppercase text-slate-800 select-none">
-                                NOUS
+                            <Link href="/" className="select-none inline-block">
+                                <NousLogo className="scale-[0.85] origin-left" />
                             </Link>
                             <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-white/50 text-[var(--color-nous-mint)] rounded-full border border-hairline">
                                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-nous-mint)] animate-pulse" />

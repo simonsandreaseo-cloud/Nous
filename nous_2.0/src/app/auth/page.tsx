@@ -112,11 +112,11 @@ export default function AuthPage() {
                     <div className="text-center mb-10">
                         <motion.h1
                             layoutId="auth-title"
-                            className="text-4xl font-black text-slate-900 tracking-tighter"
+                            className="text-4xl font-light text-slate-800 tracking-elegant"
                         >
                             {mode === "login" ? "Bienvenido" : "Únete a Nous"}
                         </motion.h1>
-                        <p className="text-slate-500 text-sm mt-3 font-medium">
+                        <p className="text-[var(--color-nous-mist)] text-[10px] uppercase tracking-widest mt-3 font-medium">
                             {mode === "login"
                                 ? "Ingresa a tu santuario SEO inteligente"
                                 : "Crea tu nodo en el ecosistema digital"}
@@ -158,7 +158,7 @@ export default function AuthPage() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="ejemplo@nous.tech"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-sm font-light focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)]/30 focus:border-[var(--color-nous-mist)] transition-all"
                                 />
                             </div>
                         </div>
@@ -175,7 +175,7 @@ export default function AuthPage() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-12 text-sm font-light focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)]/30 focus:border-[var(--color-nous-mist)] transition-all"
                                 />
                                 <button
                                     type="button"
@@ -239,7 +239,7 @@ export default function AuthPage() {
                         <button
                             type="submit"
                             disabled={loading || (mode === "register" && strength < 3)}
-                            className="group relative w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm tracking-widest overflow-hidden hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-slate-900/10"
+                            className="group relative w-full py-4 bg-[var(--color-nous-mist)]/20 text-slate-800 border border-[var(--color-nous-mist)]/30 rounded-2xl font-medium tracking-elegant text-[10px] uppercase overflow-hidden hover:bg-[var(--color-nous-mist)]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
                                 <Loader2 className="w-5 h-5 animate-spin mx-auto" />
@@ -259,7 +259,7 @@ export default function AuthPage() {
 
                     <button
                         onClick={handleGoogleLogin}
-                        className="w-full flex items-center justify-center gap-3 py-4 border border-slate-200 rounded-2xl bg-white hover:bg-slate-50 transition-all font-semibold text-sm text-slate-700"
+                        className="w-full flex items-center justify-center gap-3 py-4 border border-hairline rounded-2xl bg-white hover:bg-slate-50 transition-all font-light tracking-widest uppercase text-[10px] text-slate-700 glass-panel-hover"
                     >
                         <Chrome size={20} className="text-blue-500" />
                         Google

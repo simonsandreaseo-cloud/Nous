@@ -6,6 +6,7 @@ import Link from "next/link";
 import { User, LogOut, Wrench, ChevronDown, ChevronRight, FileText, Bot, LayoutTemplate, Calendar, Search, Activity, Building2, Settings, Wand2, Monitor, Cpu } from "lucide-react";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
 import { NeuralLinkStatus } from "@/components/dashboard/NeuralLinkStatus";
+import { NousLogo } from "@/components/dom/NousLogo";
 
 export function NavigationHeader() {
     const { user, signOut } = useAuthStore();
@@ -14,8 +15,8 @@ export function NavigationHeader() {
         <div className="absolute top-0 left-0 w-full flex justify-between items-center vacio-pad py-8 pointer-events-none z-50">
             {/* Logo */}
             <div className="pointer-events-auto flex items-center gap-8">
-                <Link href="/" className="text-xl font-light tracking-elegant uppercase text-slate-800 cursor-pointer">
-                    NOUS
+                <Link href="/" className="cursor-pointer">
+                    <NousLogo />
                 </Link>
                 {/* Project Selector embedded in header */}
                 <ProjectSelector />

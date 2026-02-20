@@ -13,17 +13,32 @@ interface FeatureCardProps {
 export default function FeatureCard({ icon: Icon, title, description, index }: FeatureCardProps) {
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: index * 0.1 }}
-            className="p-8 rounded-3xl bg-slate-900/50 border border-slate-800 hover:border-cyan-500/30 transition-all hover:-translate-y-1 group"
+            transition={{ duration: 0.6, delay: index * 0.2 }}
+            whileHover={{ scale: 1.02, y: -5 }}
+            className="group relative p-8 rounded-[32px] glass-panel bg-white/40 border-hairline overflow-hidden transition-all duration-500 hover:shadow-sm"
         >
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Icon className="w-6 h-6 text-cyan-400" />
+            {/* Ambient Glow */}
+            <div className="absolute inset-0 bg-[var(--color-nous-mist)]/0 group-hover:bg-[var(--color-nous-mist)]/5 transition-all duration-700 pointer-events-none" />
+
+            {/* Icon */}
+            <div className="relative mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-[var(--color-nous-mist)]/10 border border-[var(--color-nous-mist)]/20 flex items-center justify-center group-hover:bg-[var(--color-nous-mist)]/20 transition-all duration-300">
+                    <Icon className="w-6 h-6 text-[var(--color-nous-mist)] group-hover:scale-110 transition-transform duration-300" />
+                </div>
             </div>
-            <h3 className="text-xl font-bold mb-3">{title}</h3>
-            <p className="text-slate-400 leading-relaxed">{description}</p>
+
+            {/* Content */}
+            <div className="relative">
+                <h3 className="text-xl font-black tracking-tight mb-3 text-slate-800 uppercase italic group-hover:text-[var(--color-nous-mist)] transition-colors duration-300">
+                    {title}
+                </h3>
+                <p className="text-slate-500 font-light leading-relaxed text-sm">
+                    {description}
+                </p>
+            </div>
         </motion.div>
     );
 }

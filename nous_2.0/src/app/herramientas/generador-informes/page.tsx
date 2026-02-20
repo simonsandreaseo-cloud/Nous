@@ -320,13 +320,13 @@ export default function ReportGeneratorPage() {
                     <div className="flex justify-center gap-4 mb-8">
                         <button
                             onClick={() => setMainTab('generator')}
-                            className={cn("flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all", mainTab === 'generator' ? "bg-slate-900 text-white shadow-lg" : "bg-white text-slate-500 hover:bg-slate-50")}
+                            className={cn("flex items-center gap-2 px-6 py-3 rounded-xl font-medium tracking-elegant uppercase text-[10px] transition-all", mainTab === 'generator' ? "bg-[var(--color-nous-mist)]/20 text-slate-800 shadow-sm border border-[var(--color-nous-mist)]/30" : "bg-white text-slate-500 hover:bg-slate-50")}
                         >
                             <LayoutGrid size={18} /> Generador
                         </button>
                         <button
                             onClick={() => setMainTab('history')}
-                            className={cn("flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all", mainTab === 'history' ? "bg-slate-900 text-white shadow-lg" : "bg-white text-slate-500 hover:bg-slate-50")}
+                            className={cn("flex items-center gap-2 px-6 py-3 rounded-xl font-medium tracking-elegant uppercase text-[10px] transition-all", mainTab === 'history' ? "bg-[var(--color-nous-mist)]/20 text-slate-800 shadow-sm border border-[var(--color-nous-mist)]/30" : "bg-white text-slate-500 hover:bg-slate-50")}
                         >
                             <History size={18} /> Mis Informes
                         </button>
@@ -411,7 +411,7 @@ export default function ReportGeneratorPage() {
 
                                     <div className="mt-6">
                                         {step === 'settings' && (
-                                            <button onClick={handleAnalyze} disabled={!!loadingState} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-purple-600 transition-all shadow-lg flex items-center justify-center gap-2">
+                                            <button onClick={handleAnalyze} disabled={!!loadingState} className="w-full py-4 bg-[var(--color-nous-lavender)]/20 text-slate-800 border border-[var(--color-nous-lavender)]/30 rounded-xl font-medium uppercase tracking-elegant text-[10px] hover:bg-[var(--color-nous-lavender)]/30 transition-all shadow-sm flex items-center justify-center gap-2">
                                                 {loadingState ? <Loader2 className="animate-spin" /> : <ListFilter size={16} />}
                                                 {mode === 'api' ? "Analizar Estructura" : "Generar"}
                                             </button>
@@ -491,22 +491,22 @@ export default function ReportGeneratorPage() {
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => setShowSaveModal(true)}
-                                                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all"
+                                                className="flex items-center gap-2 px-4 py-2 bg-[var(--color-nous-mist)]/20 text-slate-800 border border-[var(--color-nous-mist)]/30 rounded-lg text-[10px] font-medium uppercase tracking-elegant hover:bg-[var(--color-nous-mist)]/30 transition-all"
                                             >
                                                 <Save size={14} /> Guardar Informe
                                             </button>
                                             <div className="h-6 w-px bg-slate-200 mx-2"></div>
                                             <button
                                                 onClick={() => handleGoogleExport('docs')}
-                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-blue-500 transition-all"
+                                                className="flex items-center gap-2 px-4 py-2 bg-[var(--color-nous-mist)]/10 text-slate-800 border border-[var(--color-nous-mist)]/20 rounded-lg text-[10px] font-medium uppercase tracking-elegant hover:bg-[var(--color-nous-mist)]/20 transition-all font-sans"
                                             >
-                                                <FileText size={14} /> Docs
+                                                <FileText size={14} className="text-blue-500" /> Docs
                                             </button>
                                             <button
                                                 onClick={() => handleGoogleExport('slides')}
-                                                className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-orange-400 transition-all"
+                                                className="flex items-center gap-2 px-4 py-2 bg-[var(--color-nous-mint)]/10 text-slate-800 border border-[var(--color-nous-mint)]/20 rounded-lg text-[10px] font-medium uppercase tracking-elegant hover:bg-[var(--color-nous-mint)]/20 transition-all font-sans"
                                             >
-                                                <LayoutGrid size={14} /> Slides
+                                                <LayoutGrid size={14} className="text-orange-500" /> Slides
                                             </button>
                                         </div>
                                     </div>
@@ -537,16 +537,16 @@ export default function ReportGeneratorPage() {
                             <div className="col-span-full text-center py-20 text-slate-400">No tienes informes guardados.</div>
                         )}
                         {savedReports.map(report => (
-                            <div key={report.id} onClick={() => handleViewSavedReport(report)} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group">
+                            <div key={report.id} onClick={() => handleViewSavedReport(report)} className="glass-panel bg-white/40 p-6 rounded-3xl border-hairline hover:shadow-sm transition-all cursor-pointer group">
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="p-3 bg-purple-50 text-purple-600 rounded-xl group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                    <div className="p-3 bg-[var(--color-nous-lavender)]/20 text-[var(--color-nous-lavender)] rounded-xl group-hover:bg-[var(--color-nous-lavender)] group-hover:text-white transition-colors">
                                         <FileText size={24} />
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase">{new Date(report.created_at).toLocaleDateString()}</span>
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{new Date(report.created_at).toLocaleDateString()}</span>
                                 </div>
-                                <h3 className="font-bold text-slate-900 mb-1">{report.title}</h3>
-                                <p className="text-xs text-slate-500 mb-4">{report.period_label || 'Sin periodo'}</p>
-                                <div className="flex items-center text-purple-600 text-xs font-bold gap-1 mt-auto">
+                                <h3 className="font-bold text-slate-800 mb-1 uppercase tracking-tight italic">{report.title}</h3>
+                                <p className="text-[10px] font-light text-slate-500 mb-4">{report.period_label || 'Sin periodo'}</p>
+                                <div className="flex items-center text-[var(--color-nous-mist)] text-[10px] font-medium uppercase tracking-elegant gap-1 mt-auto">
                                     Ver Informe <ChevronRight size={12} />
                                 </div>
                             </div>
@@ -556,19 +556,19 @@ export default function ReportGeneratorPage() {
 
                 {/* MODALS */}
                 {showSaveModal && (
-                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl">
-                            <h3 className="font-bold text-lg mb-4">Guardar Informe</h3>
+                    <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="glass-panel bg-white/80 p-8 rounded-[40px] w-full max-w-sm border-hairline shadow-2xl">
+                            <h3 className="font-black text-lg mb-6 uppercase tracking-tighter italic text-slate-900">Guardar Informe</h3>
                             <input
                                 value={saveTitle}
                                 onChange={e => setSaveTitle(e.target.value)}
                                 placeholder="Título del Informe (ej: SEO Enero 2025)"
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4 text-sm"
+                                className="w-full p-4 bg-white/50 border border-slate-100 rounded-2xl mb-6 text-sm font-light focus:outline-none focus:ring-4 ring-[var(--color-nous-mist)]/10 transition-all"
                                 autoFocus
                             />
-                            <div className="flex justify-end gap-2">
-                                <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 text-slate-500 text-sm font-bold">Cancelar</button>
-                                <button onClick={handleSaveReport} disabled={!saveTitle} className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-bold">Guardar</button>
+                            <div className="flex justify-end gap-3">
+                                <button onClick={() => setShowSaveModal(false)} className="px-6 py-2 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
+                                <button onClick={handleSaveReport} disabled={!saveTitle} className="px-8 py-3 bg-[var(--color-nous-mist)] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:opacity-90 transition-all disabled:opacity-30">Guardar</button>
                             </div>
                         </div>
                     </div>
@@ -576,10 +576,13 @@ export default function ReportGeneratorPage() {
 
                 {/* Loading Overlay */}
                 {loadingState && (
-                    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div className="fixed inset-0 bg-white/60 backdrop-blur-md z-50 flex items-center justify-center">
                         <div className="flex flex-col items-center">
-                            <Loader2 size={48} className="text-purple-600 animate-spin mb-4" />
-                            <p className="text-slate-600 font-bold animate-pulse">{loadingState}</p>
+                            <div className="relative mb-6">
+                                <div className="absolute inset-0 bg-[var(--color-nous-mist)]/20 blur-xl rounded-full scale-150 animate-pulse" />
+                                <Loader2 size={48} className="text-[var(--color-nous-mist)] animate-spin relative z-10" />
+                            </div>
+                            <p className="text-slate-800 text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">{loadingState}</p>
                         </div>
                     </div>
                 )}

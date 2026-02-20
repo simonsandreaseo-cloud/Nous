@@ -91,12 +91,12 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
         <section className="report-slide bg-white h-full relative overflow-hidden p-12 flex flex-col min-h-[600px]">
             <div className="flex items-center justify-between mb-10 shrink-0">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg">
+                    <div className="w-12 h-12 bg-[var(--color-nous-mist)]/30 text-[var(--color-nous-mist)] rounded-2xl flex items-center justify-center shadow-sm">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
                     </div>
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic gradient-text">{title}</h2>
+                    <h2 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic">{title}</h2>
                 </div>
-                <div className="px-4 py-1.5 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-black uppercase text-slate-400 tracking-widest">Análisis Profundo</div>
+                <div className="px-4 py-1.5 glass-panel bg-[var(--color-nous-lavender)]/10 border-hairline rounded-full text-[10px] font-black uppercase text-[var(--color-nous-lavender)] tracking-widest">Análisis Profundo</div>
             </div>
 
             <div className="flex-1 grid grid-cols-12 gap-10 min-h-0">
@@ -110,8 +110,8 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
 
                     <div className="chart-container-premium flex-1 group relative">
                         <div className="absolute top-6 right-6 flex gap-2">
-                            <div className="h-2 w-2 rounded-full bg-purple-400"></div>
-                            <div className="h-2 w-2 rounded-full bg-indigo-400"></div>
+                            <div className="h-2 w-2 rounded-full bg-[var(--color-nous-lavender)]"></div>
+                            <div className="h-2 w-2 rounded-full bg-[var(--color-nous-mist)]"></div>
                         </div>
                         <div className="w-full h-full min-h-[300px] relative">
                             <canvas ref={canvasRef}></canvas>
@@ -121,7 +121,7 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
 
                 {/* Right: Analysis */}
                 <div className="col-span-5 flex flex-col h-full overflow-hidden">
-                    <div className="report-card h-full flex flex-col bg-slate-50/30">
+                    <div className="report-card h-full flex flex-col p-8 glass-panel bg-white/40 border-hairline rounded-3xl">
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 italic">Visualización y Estrategia</h3>
                         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             <div
@@ -129,11 +129,11 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
                                 dangerouslySetInnerHTML={createMarkup(analysis)}
                             />
                         </div>
-                        <div className="mt-6 pt-6 border-t border-slate-100 flex justify-between items-center">
+                        <div className="mt-6 pt-6 border-t border-hairline flex justify-between items-center">
                             <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Powered by Gemini AI</span>
                             <div className="flex -space-x-2">
-                                <div className="w-6 h-6 rounded-full bg-purple-100 border-2 border-white"></div>
-                                <div className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white"></div>
+                                <div className="w-6 h-6 rounded-full bg-[var(--color-nous-lavender)] border-2 border-white"></div>
+                                <div className="w-6 h-6 rounded-full bg-[var(--color-nous-mist)] border-2 border-white"></div>
                             </div>
                         </div>
                     </div>

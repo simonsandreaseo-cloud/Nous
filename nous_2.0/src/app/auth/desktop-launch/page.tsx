@@ -105,13 +105,13 @@ export default function DesktopLaunchPage() {
                     )}
                 </div>
 
-                <h1 className="text-2xl font-bold tracking-tight mb-2">
-                    {status === 'launching' ? 'Launching Engine...' :
-                        status === 'failed' ? 'Connection Problem' :
-                            status === 'connected' ? 'Engine Synchronized' : 'Establishing Secure Bridge'}
+                <h1 className="text-2xl font-light tracking-elegant mb-2 uppercase text-slate-800">
+                    {status === 'launching' ? 'Lanzando Motor...' :
+                        status === 'failed' ? 'Problema de Conexión' :
+                            status === 'connected' ? 'Motor Sincronizado' : 'Estableciendo Puente Seguro'}
                 </h1>
 
-                <p className="text-gray-500 text-sm mb-10 leading-relaxed px-4">
+                <p className="text-[var(--color-nous-mist)] text-[10px] uppercase font-bold tracking-widest mb-10 leading-relaxed px-4">
                     {status === 'launching' ? 'Requesting access to your local desktop modules.' :
                         status === 'failed' ? errorMsg :
                             status === 'connected' ? 'Uplink established successfully. You can now use the studio.' :
@@ -122,20 +122,20 @@ export default function DesktopLaunchPage() {
                     {status === 'connected' ? (
                         <button
                             onClick={() => window.location.href = '/studio/dashboard'}
-                            className="w-full py-3.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-md transition-all"
+                            className="w-full py-3.5 rounded-xl font-medium tracking-elegant text-[10px] uppercase bg-[var(--color-nous-mint)]/20 text-[var(--color-nous-mint)] border border-[var(--color-nous-mint)]/30 hover:bg-[var(--color-nous-mint)]/30 shadow-none transition-all"
                         >
-                            GO TO STUDIO DASHBOARD
+                            IR AL DASHBOARD DEL STUDIO
                         </button>
                     ) : (
                         <button
                             onClick={launchApp}
                             disabled={status === 'launching'}
-                            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-300 shadow-sm ${status === 'launching'
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    : 'bg-gray-900 text-white hover:bg-black hover:shadow-md'
+                            className={`w-full py-3.5 rounded-xl font-medium tracking-elegant text-[10px] uppercase transition-all duration-300 shadow-none border ${status === 'launching'
+                                ? 'bg-slate-50 text-slate-400 border-slate-100 cursor-not-allowed'
+                                : 'bg-[var(--color-nous-mist)]/20 text-slate-800 hover:bg-[var(--color-nous-mist)]/30 border-[var(--color-nous-mist)]/30'
                                 }`}
                         >
-                            {status === 'launching' ? 'LAUNCHING...' : 'RETRY CONNECTION'}
+                            {status === 'launching' ? 'LANZANDO...' : 'REINTENTAR CONEXIÓN'}
                         </button>
                     )}
 

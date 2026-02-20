@@ -336,8 +336,8 @@ export default function SettingsPage() {
                                         className={cn(
                                             "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
                                             activeTab === item.id
-                                                ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10"
-                                                : "text-slate-500 hover:bg-slate-50",
+                                                ? "bg-[var(--color-nous-mist)]/20 text-slate-800 shadow-sm border border-[var(--color-nous-mist)]/30"
+                                                : "text-slate-500 hover:bg-slate-50 border border-transparent",
                                             item.id === 'billing' && "opacity-40 cursor-not-allowed"
                                         )}
                                     >
@@ -350,9 +350,9 @@ export default function SettingsPage() {
 
                         {/* Quick Project Switcher - Only visible on projects tab */}
                         {activeTab === 'projects' && (
-                            <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+                            <div className="bg-white/60 backdrop-blur-md border border-[var(--color-nous-mist)]/30 text-slate-800 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
                                 <div className="relative z-10">
-                                    <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-4">Proyecto Seleccionado</h3>
+                                    <h3 className="text-[10px] font-black text-[var(--color-nous-mist)] uppercase tracking-widest mb-4">Proyecto Seleccionado</h3>
                                     <div className="space-y-3">
                                         {projects.length === 0 ? (
                                             <p className="text-xs text-slate-400 italic">No hay proyectos creados.</p>
@@ -364,13 +364,13 @@ export default function SettingsPage() {
                                                     className={cn(
                                                         "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
                                                         activeProject?.id === p.id
-                                                            ? "bg-white/10 border-white/20 text-white"
-                                                            : "border-transparent text-white/40 hover:text-white/60 hover:bg-white/5"
+                                                            ? "bg-[var(--color-nous-mist)]/10 border-[var(--color-nous-mist)]/20 text-slate-800"
+                                                            : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-white/50"
                                                     )}
                                                 >
                                                     <span className="text-xs font-bold truncate pr-4">{p.name}</span>
                                                     {p.gsc_connected && (
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-nous-mist)] shadow-[0_0_8px_var(--color-nous-mist)]" />
                                                     )}
                                                 </button>
                                             ))
@@ -393,7 +393,7 @@ export default function SettingsPage() {
                                     </div>
                                     <button
                                         onClick={() => setIsCreating(true)}
-                                        className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all flex items-center gap-2 border border-slate-200"
+                                        className="px-5 py-2.5 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--color-nous-mist)]/10 hover:text-[var(--color-nous-mist)] transition-all flex items-center gap-2 border border-slate-200"
                                     >
                                         <Plus size={14} /> Nuevo Proyecto
                                     </button>
@@ -679,7 +679,7 @@ export default function SettingsPage() {
                                             <button
                                                 onClick={handleSaveAll}
                                                 disabled={isSaving}
-                                                className="flex items-center gap-3 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] hover:bg-cyan-600 transition-all shadow-xl shadow-slate-900/10 hover:shadow-cyan-500/20 disabled:opacity-50"
+                                                className="flex items-center gap-3 px-10 py-4 bg-[var(--color-nous-mist)]/20 text-[var(--color-nous-mist)] border border-[var(--color-nous-mist)]/30 rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] hover:bg-[var(--color-nous-mist)]/30 transition-all shadow-sm disabled:opacity-50"
                                             >
                                                 {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                                                 Guardar Configuración
@@ -730,10 +730,10 @@ export default function SettingsPage() {
                                             <button
                                                 onClick={() => window.location.href = '/api/auth/gsc/login'}
                                                 className={cn(
-                                                    "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl",
+                                                    "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-sm",
                                                     isUserGscConnected
                                                         ? "bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-50 shadow-emerald-100/10"
-                                                        : "bg-slate-900 text-white hover:bg-cyan-600 shadow-slate-900/10"
+                                                        : "bg-[var(--color-nous-mist)]/20 border border-[var(--color-nous-mist)]/30 text-[var(--color-nous-mist)] hover:bg-[var(--color-nous-mist)]/30"
                                                 )}
                                             >
                                                 {isUserGscConnected ? "Agregar Otra Cuenta" : "Vincular Ahora"}
@@ -770,10 +770,10 @@ export default function SettingsPage() {
                                             <button
                                                 onClick={() => window.location.href = '/api/auth/gsc/login'}
                                                 className={cn(
-                                                    "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl",
+                                                    "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-sm",
                                                     isUserGscConnected
                                                         ? "bg-white border border-amber-100 text-amber-600 hover:bg-amber-50 shadow-amber-100/10"
-                                                        : "bg-slate-900 text-white hover:bg-amber-600 shadow-slate-900/10"
+                                                        : "bg-[var(--color-nous-mist)]/20 border border-[var(--color-nous-mist)]/30 text-[var(--color-nous-mist)] hover:bg-[var(--color-nous-mist)]/30"
                                                 )}
                                             >
                                                 {isUserGscConnected ? "Agregar Otra Cuenta" : "Vincular GA4"}

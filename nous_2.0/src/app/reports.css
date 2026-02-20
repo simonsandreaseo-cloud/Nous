@@ -1,31 +1,28 @@
 /* Report Design System - Premium Landing Page Aesthetic */
 
 .report-container {
-    --report-primary: #8b5cf6;
-    --report-primary-dark: #7c3aed;
-    --report-secondary: #6366f1;
-    --report-accent: #10b981;
+    --report-primary: var(--color-nous-mint);
+    --report-primary-dark: var(--color-nous-mist);
+    --report-secondary: var(--color-nous-lavender);
+    --report-accent: var(--color-nous-mist);
     --report-bg: #ffffff;
     --report-text: #0f172a;
     --report-subtext: #475569;
-    --report-border: rgba(226, 232, 240, 0.6);
+    --report-border: rgba(0, 0, 0, 0.05);
 }
 
 .report-slide {
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    border: 1px solid var(--report-border);
-    background: linear-gradient(145deg, #ffffff 0%, #fcfdfe 100%);
-    box-shadow:
-        0 10px 25px -5px rgba(0, 0, 0, 0.04),
-        0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    border: 0.5px solid var(--report-border);
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.02);
     position: relative;
     overflow: hidden;
 }
 
 .report-slide:hover {
-    box-shadow:
-        0 20px 50px -12px rgba(0, 0, 0, 0.08),
-        0 12px 16px -8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 8px 32px -2px rgba(0, 0, 0, 0.04);
 }
 
 .glass-effect {
@@ -36,7 +33,7 @@
 }
 
 .gradient-text {
-    background: linear-gradient(135deg, var(--report-primary) 0%, var(--report-secondary) 100%);
+    background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -74,27 +71,27 @@
 }
 
 .report-card {
-    background: white;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
     border-radius: 24px;
     padding: 2rem;
-    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
-    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.02);
+    border: 0.5px solid rgba(0, 0, 0, 0.04);
     transition: all 0.3s ease;
 }
 
 .report-card:hover {
-    border-color: var(--report-primary);
-    box-shadow: 0 10px 30px -5px rgba(139, 92, 246, 0.1);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04);
 }
 
 .chart-container-premium {
-    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    background: rgba(255, 255, 255, 0.4);
     border-radius: 28px;
     padding: 2rem;
-    border: 1px solid #f1f5f9;
+    border: 0.5px solid rgba(0, 0, 0, 0.04);
     position: relative;
     overflow: hidden;
-    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
 }
 
 .chart-container-premium::after {
@@ -105,7 +102,7 @@
     width: 100%;
     height: 4px;
     background: linear-gradient(to right, var(--report-primary), var(--report-secondary));
-    opacity: 0.6;
+    opacity: 0.4;
 }
 
 .report-table {
@@ -117,25 +114,24 @@
 }
 
 .report-table th {
-    background: #f8fafc;
+    background: rgba(255, 255, 255, 0.6);
     padding: 1.25rem 1rem;
     font-size: 0.65rem;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: #475569;
-    border-bottom: 2px solid #f1f5f9;
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.04);
 }
 
 .report-table td {
     padding: 1rem;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.02);
     font-size: 0.8rem;
     color: #1e293b;
     font-weight: 500;
 }
 
 .report-table tr:hover td {
-    background: rgba(248, 250, 252, 0.8);
-    color: var(--report-primary);
+    background: rgba(255, 255, 255, 0.8);
 }

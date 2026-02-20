@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Play, Pause, ChevronDown, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { NousLogo } from "@/components/dom/NousLogo";
 import { TimeEntry } from "@/types/time_tracking";
 import { Task } from "@/types/project";
 
@@ -153,9 +154,7 @@ export function TopBar() {
     return (
         <div className="h-16 w-full flex items-center justify-between px-6 border-b border-hairline bg-white/50 backdrop-blur-md sticky top-0 z-50">
             <div className="flex items-center space-x-4">
-                <h1 className="text-lg font-light tracking-elegant uppercase text-slate-800">
-                    NOUS<span className="text-[var(--color-nous-mist)] font-medium">OFFICE</span>
-                </h1>
+                <NousLogo className="scale-[0.80] origin-left" />
             </div>
 
             <div className="flex items-center space-x-4 bg-white/40 rounded-full px-4 py-2 border border-hairline shadow-sm">

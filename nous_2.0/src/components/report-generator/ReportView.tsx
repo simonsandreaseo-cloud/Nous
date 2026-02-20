@@ -98,16 +98,16 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
 
 
     return (
-        <div className="flex flex-col h-[85vh] min-h-[600px] bg-slate-50/50 rounded-[30px] overflow-hidden border border-slate-200 shadow-sm report-container">
+        <div className="flex flex-col h-[85vh] min-h-[600px] glass-panel bg-white/40 rounded-[30px] overflow-hidden border-hairline shadow-sm report-container">
             {/* Toolbar Area */}
-            <div className="bg-white border-b border-slate-200 p-4 flex justify-between items-center">
+            <div className="bg-white/80 backdrop-blur-md border-b border-hairline p-4 flex justify-between items-center">
                 <div className="flex items-center gap-4">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Editor de Diapositivas</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-elegant text-slate-400">Editor de Diapositivas</h3>
                 </div>
 
                 <button
                     onClick={togglePresentation}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-xs font-bold uppercase tracking-widest transition-all"
+                    className="flex items-center gap-2 px-4 py-2 glass-panel bg-[var(--color-nous-lavender)]/20 text-[var(--color-nous-lavender)] hover:bg-[var(--color-nous-lavender)]/30 border-hairline rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
                 >
                     <Maximize2 size={14} /> Presentar
                 </button>
@@ -117,21 +117,21 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
             <div className="flex-1 flex overflow-hidden">
 
                 {/* Sidebar (Thumbnails) */}
-                <div className="w-64 bg-slate-100 border-r border-slate-200 flex flex-col">
+                <div className="w-64 bg-white/50 border-r border-hairline flex flex-col backdrop-blur-sm">
                     <div className="p-4 overflow-y-auto flex-1 space-y-3">
                         {slides.map((slide, idx) => (
                             <div
                                 key={idx}
                                 onClick={() => setCurrentSlideIndex(idx)}
                                 className={cn(
-                                    "p-3 rounded-xl border-2 cursor-pointer transition-all relative group touch-none", // touch-none for DnD later
+                                    "p-3 rounded-xl border cursor-pointer transition-all relative group touch-none",
                                     currentSlideIndex === idx
-                                        ? "bg-white border-purple-500 shadow-md ring-2 ring-purple-100"
-                                        : "bg-white border-transparent hover:border-slate-300"
+                                        ? "glass-panel bg-white/80 border-[var(--color-nous-mint)] shadow-sm ring-2 ring-[var(--color-nous-mint)]/20"
+                                        : "bg-white/50 border-transparent hover:border-slate-300"
                                 )}
                             >
                                 <div className="flex justify-between items-center mb-2">
-                                    <span className={cn("text-[10px] font-bold uppercase", currentSlideIndex === idx ? "text-purple-600" : "text-slate-400")}>
+                                    <span className={cn("text-[10px] font-black uppercase tracking-widest", currentSlideIndex === idx ? "text-[var(--color-nous-mint)]" : "text-slate-400")}>
                                         Slide {idx + 1}
                                     </span>
                                     <button
@@ -149,10 +149,10 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
                         ))}
                     </div>
 
-                    <div className="p-4 border-t border-slate-200 bg-slate-50">
+                    <div className="p-4 border-t border-hairline bg-white/30 hidden">
                         <button
                             onClick={addSlide}
-                            className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold uppercase hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-3 bg-white border-hairline text-slate-600 rounded-xl text-[10px] font-black uppercase hover:bg-[var(--color-nous-mist)]/20 hover:text-slate-800 transition-all flex items-center justify-center gap-2"
                         >
                             <Plus size={14} /> Nueva Slide
                         </button>
@@ -160,7 +160,7 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
                 </div>
 
                 {/* Editor Area */}
-                <div className="flex-1 bg-slate-50 overflow-y-auto p-8 flex justify-center">
+                <div className="flex-1 bg-slate-50/30 overflow-y-auto p-8 flex justify-center">
                     <div className="w-full max-w-6xl">
                         {/* Dynamic Component Rendering instead of EditorContent */}
                         {slides.length > 0 && currentSlideIndex < slides.length ? (
@@ -266,11 +266,11 @@ const SlideRenderer = ({ slide, theme }: { slide: any, theme: string }) => {
         case 'title_slide':
             return (
                 <section className="report-slide bg-white h-full relative overflow-hidden flex flex-col justify-center p-20 min-h-[600px]">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-purple-50 rounded-bl-full opacity-40 -mr-20 -mt-20"></div>
-                    <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-50/30 rounded-tr-full opacity-40 -ml-32 -mb-24"></div>
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-[var(--color-nous-lavender)] rounded-bl-full opacity-20 -mr-20 -mt-20 blur-3xl"></div>
+                    <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[var(--color-nous-mist)] rounded-tr-full opacity-30 -ml-32 -mb-24 blur-3xl"></div>
 
                     <div className="relative z-10 max-w-4xl">
-                        <div className="inline-block px-5 py-2 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] mb-8 shadow-xl shadow-slate-900/10">
+                        <div className="inline-block px-5 py-2 glass-panel bg-[var(--color-nous-mist)]/20 border-hairline text-slate-800 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-8 shadow-sm">
                             Estrategia SEO Global
                         </div>
                         <h1 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter leading-[0.9] mb-8 italic uppercase">
@@ -280,7 +280,7 @@ const SlideRenderer = ({ slide, theme }: { slide: any, theme: string }) => {
                             {slide.subtitle}
                         </p>
                         <div className="flex items-center gap-6">
-                            <div className="h-1 w-20 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full"></div>
+                            <div className="h-1 w-20 bg-gradient-to-r from-[var(--color-nous-mint)] to-[var(--color-nous-mist)] rounded-full"></div>
                             <div className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">
                                 {slide.date}
                             </div>
