@@ -38,32 +38,32 @@ function StrategyContent() {
                         className="flex flex-col gap-1"
                     >
                         <div className="flex items-center gap-3 mb-2">
-                            <span className="px-2 py-0.5 bg-cyan-50 text-cyan-600 rounded text-[9px] font-black uppercase tracking-widest border border-cyan-100">
+                            <span className="px-2 py-0.5 bg-[var(--color-nous-mint)]/20 text-[var(--color-nous-mint)] rounded text-[9px] font-medium uppercase tracking-elegant border border-[var(--color-nous-mint)]/30">
                                 {view === 'planner' ? 'Estrategia' :
                                     view === 'metrics' ? 'Auditoría' :
                                         view === 'crawler' ? 'Crawler' : 'Refinería'}
                             </span>
                         </div>
-                        <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase italic leading-tight">
+                        <h1 className="text-3xl font-light tracking-elegant text-slate-800 uppercase leading-tight">
                             {view === 'planner' ? (
-                                <>Planificación <span className="text-slate-300">Mensual</span></>
+                                <>Planificación <span className="text-slate-400">Mensual</span></>
                             ) : view === 'metrics' ? (
-                                <>Métricas <span className="text-slate-300">Clave</span></>
+                                <>Métricas <span className="text-[var(--color-nous-mist)]">Clave</span></>
                             ) : view === 'crawler' ? (
-                                <>Deep Crawler <span className="text-emerald-500">Pro</span></>
+                                <>Deep Crawler <span className="text-[var(--color-nous-mint)]">Pro</span></>
                             ) : (
-                                <>Data <span className="text-cyan-500">Refinery</span></>
+                                <>Data <span className="text-[var(--color-nous-mist)]">Refinery</span></>
                             )}
                         </h1>
                     </motion.div>
 
                     <div className="flex flex-col items-end gap-4">
-                        <div className="flex p-1 bg-slate-50 border border-slate-100 rounded-2xl shadow-inner-sm overflow-x-auto max-w-full no-scrollbar">
+                        <div className="flex p-1 glass-panel border border-hairline rounded-2xl shadow-sm overflow-x-auto max-w-full no-scrollbar">
                             <button
                                 onClick={() => setView('planner')}
                                 className={cn(
-                                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'planner' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
+                                    "px-5 py-2.5 rounded-xl text-[10px] font-medium uppercase tracking-elegant transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'planner' ? "bg-white text-slate-900 shadow-sm border border-hairline" : "text-slate-400 hover:text-slate-600 glass-panel-hover"
                                 )}
                             >
                                 <LayoutDashboard size={14} /> Planner
@@ -71,8 +71,8 @@ function StrategyContent() {
                             <button
                                 onClick={() => setView('metrics')}
                                 className={cn(
-                                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'metrics' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
+                                    "px-5 py-2.5 rounded-xl text-[10px] font-medium uppercase tracking-elegant transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'metrics' ? "bg-white text-slate-900 shadow-sm border border-hairline" : "text-slate-400 hover:text-slate-600 glass-panel-hover"
                                 )}
                             >
                                 <LineChart size={14} /> Métricas
@@ -80,8 +80,8 @@ function StrategyContent() {
                             <button
                                 onClick={() => setView('crawler')}
                                 className={cn(
-                                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'crawler' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
+                                    "px-5 py-2.5 rounded-xl text-[10px] font-medium uppercase tracking-elegant transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'crawler' ? "bg-white text-slate-900 shadow-sm border border-hairline" : "text-slate-400 hover:text-slate-600 glass-panel-hover"
                                 )}
                             >
                                 <Globe size={14} /> Crawler
@@ -89,8 +89,8 @@ function StrategyContent() {
                             <button
                                 onClick={() => setView('refinery')}
                                 className={cn(
-                                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'refinery' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
+                                    "px-5 py-2.5 rounded-xl text-[10px] font-medium uppercase tracking-elegant transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'refinery' ? "bg-white text-slate-900 shadow-sm border border-hairline" : "text-slate-400 hover:text-slate-600 glass-panel-hover"
                                 )}
                             >
                                 <Database size={14} /> Refinería

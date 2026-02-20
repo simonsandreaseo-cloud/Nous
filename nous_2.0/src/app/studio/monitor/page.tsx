@@ -43,26 +43,26 @@ function MonitorContent() {
                         </Link>
 
                         <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-bold tracking-widest text-orange-600 uppercase font-mono">
+                            <span className="text-[9px] font-medium tracking-elegant text-[var(--color-nous-mist)] uppercase">
                                 {view === 'helios' ? 'Auditoría Neural Helios' : 'Monitoreo de Rendimiento'}
                             </span>
-                            <h1 className="text-4xl font-black tracking-tight text-slate-900 uppercase italic">
+                            <h1 className="text-4xl font-light tracking-elegant text-slate-800 uppercase italic">
                                 {view === 'helios' ? (
-                                    <>Helios <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">Engine</span></>
+                                    <>Helios <span className="text-[var(--color-nous-lavender)]">Engine</span></>
                                 ) : (
-                                    <>Performance <span className="text-orange-500">Monitor</span></>
+                                    <>Performance <span className="text-[var(--color-nous-mist)]">Monitor</span></>
                                 )}
                             </h1>
                         </div>
                     </motion.div>
 
                     <div className="flex flex-col items-end gap-4">
-                        <div className="flex p-1 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto max-w-full">
+                        <div className="flex p-1 glass-panel border border-hairline rounded-2xl shadow-sm overflow-x-auto max-w-full">
                             <button
                                 onClick={() => setView('helios')}
                                 className={cn(
-                                    "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'helios' ? "bg-purple-600 text-white shadow-md shadow-purple-500/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                                    "px-4 py-3 rounded-xl text-[10px] font-medium uppercase tracking-elegant transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'helios' ? "bg-[var(--color-nous-lavender)]/20 text-slate-800 border border-[var(--color-nous-lavender)]/30" : "text-slate-400 hover:text-slate-600 glass-panel-hover border border-transparent"
                                 )}
                             >
                                 <Cpu size={14} /> Helios
@@ -70,8 +70,8 @@ function MonitorContent() {
                             <button
                                 onClick={() => setView('performance')}
                                 className={cn(
-                                    "px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                                    view === 'performance' ? "bg-orange-600 text-white shadow-md shadow-orange-500/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                                    "px-4 py-3 rounded-xl text-[10px] font-medium uppercase tracking-elegant transition-all flex items-center gap-2 whitespace-nowrap",
+                                    view === 'performance' ? "bg-[var(--color-nous-mist)]/20 text-slate-800 border border-[var(--color-nous-mist)]/30" : "text-slate-400 hover:text-slate-600 glass-panel-hover border border-transparent"
                                 )}
                             >
                                 <Activity size={14} /> Performance

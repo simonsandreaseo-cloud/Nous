@@ -91,10 +91,10 @@ export default function WriterSidebar() {
     ] as const;
 
     return (
-        <aside className="w-80 border-l border-slate-200 bg-white h-full flex flex-col shadow-xl z-20">
+        <aside className="w-80 glass-panel border-hairline h-full flex flex-col z-20">
             {/* Header / Tabs */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-100">
-                <span className="font-semibold text-slate-800 text-sm">Herramientas</span>
+            <div className="flex items-center justify-between p-4 border-b border-hairline">
+                <span className="font-light tracking-elegant text-slate-700 text-sm uppercase">Herramientas</span>
                 <button
                     onClick={toggleSidebar}
                     className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
@@ -109,8 +109,8 @@ export default function WriterSidebar() {
                         key={tab.id}
                         onClick={() => setSidebarTab(tab.id)}
                         className={cn(
-                            "flex-1 py-3 flex justify-center items-center text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all border-b-2 border-transparent",
-                            activeSidebarTab === tab.id && "bg-white text-blue-600 border-blue-600 font-medium"
+                            "flex-1 py-3 flex justify-center items-center text-slate-400 hover:text-slate-600 hover:bg-white/40 transition-all border-b-2 border-transparent",
+                            activeSidebarTab === tab.id && "bg-[var(--color-nous-lavender)]/20 text-slate-800 border-[var(--color-nous-lavender)] font-medium"
                         )}
                         title={tab.label}
                     >
@@ -125,14 +125,14 @@ export default function WriterSidebar() {
                 {/* ASSISTANT TAB */}
                 {activeSidebarTab === 'assistant' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                            <h3 className="font-semibold text-blue-900 text-sm mb-2 flex items-center gap-2">
-                                <Bot size={14} /> AI Copilot
+                        <div className="bg-[var(--color-nous-lavender)]/30 p-4 rounded-xl border border-hairline">
+                            <h3 className="font-light tracking-elegant uppercase text-slate-800 text-xs mb-2 flex items-center gap-2">
+                                <Bot size={14} className="text-purple-400" /> AI Copilot
                             </h3>
-                            <p className="text-xs text-blue-700 leading-relaxed">
+                            <p className="text-[10px] font-light tracking-wide text-slate-600 leading-relaxed italic">
                                 {statusMessage || "Estoy leyendo tu contenido en tiempo real. Puedo sugerirte mejoras, continuar escribiendo o corregir el tono."}
                             </p>
-                            {isGenerating && <div className="mt-2 h-1 bg-blue-200 rounded overflow-hidden"><div className="h-full bg-blue-500 animate-progress"></div></div>}
+                            {isGenerating && <div className="mt-2 h-1 bg-white/50 rounded overflow-hidden"><div className="h-full bg-purple-400 animate-progress"></div></div>}
                         </div>
 
                         {/* API KEY CONFIG (Mini) */}

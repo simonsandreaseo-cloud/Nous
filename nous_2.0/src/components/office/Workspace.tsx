@@ -22,10 +22,10 @@ interface TaskCardProps {
 const KanbanColumn = ({ status }: { status: StatusColumn }) => (
     <div className="flex flex-col space-y-4 min-w-[300px] h-full overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
         <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${getStatusColor(status.title)}`}></div>
+            <h3 className="text-[10px] font-medium text-slate-500 uppercase tracking-elegant flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${getStatusColor(status.title)}`}></div>
                 {status.title}
-                <span className="ml-2 text-xs font-mono px-2 py-0.5 bg-white/5 rounded-full">{status.count}</span>
+                <span className="ml-2 text-[9px] font-mono px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full">{status.count}</span>
             </h3>
             <button className="text-gray-500 hover:text-white transition-colors">
                 <MoreHorizontal size={16} />
@@ -36,15 +36,15 @@ const KanbanColumn = ({ status }: { status: StatusColumn }) => (
             <KanbanCard key={idx} {...task} />
         ))}
 
-        <div className="mt-4 flex items-center justify-center p-2 rounded-lg border border-dashed border-white/10 hover:border-cyan-500/50 cursor-pointer text-gray-500 hover:text-cyan-400 transition-all group">
+        <div className="mt-4 flex items-center justify-center p-2 rounded-lg border border-dashed border-slate-200 hover:border-slate-300 cursor-pointer text-slate-400 hover:text-slate-600 transition-all group glass-panel-hover">
             <Plus size={16} className="mr-2 group-hover:rotate-90 transition-transform" />
-            <span className="text-sm">Add Task</span>
+            <span className="text-xs font-light uppercase tracking-widest">Añadir Tarea</span>
         </div>
     </div>
 );
 
 const KanbanCard = ({ title, project, assignee, priority, comments, tags }: TaskCardProps) => (
-    <div className="group relative bg-[#121212]/80 backdrop-blur-sm border border-white/5  hover:border-cyan-500/30 rounded-xl p-4 transition-all duration-300 hover:shadow-[0_0_20px_-5px_rgba(6,182,212,0.15)] hover:-translate-y-1 cursor-grab active:cursor-grabbing">
+    <div className="group relative glass-panel-hover bg-white/50 border-hairline rounded-xl p-4 transition-all duration-300 hover:shadow-sm hover:-translate-y-1 cursor-grab active:cursor-grabbing">
         {/* Tags/Project Badge */}
         <div className="flex items-center gap-2 mb-3">
             <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${project.includes('SEO') ? 'text-blue-400 border-blue-500/20 bg-blue-500/10' : 'text-purple-400 border-purple-500/20 bg-purple-500/10'}`}>
@@ -53,23 +53,23 @@ const KanbanCard = ({ title, project, assignee, priority, comments, tags }: Task
             {priority === 'High' && <div className="ml-auto w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse"></div>}
         </div>
 
-        <h4 className="text-sm font-medium text-gray-200 mb-2 leading-snug group-hover:text-cyan-100 transition-colors">{title}</h4>
+        <h4 className="text-sm font-light text-slate-800 mb-2 leading-snug group-hover:text-[var(--color-nous-mist)] transition-colors">{title}</h4>
 
-        <div className="flex items-center justify-between mt-4 border-t border-white/5 pt-3">
+        <div className="flex items-center justify-between mt-4 border-t border-hairline pt-3">
             {/* Assignee */}
             <div className="flex items-center -space-x-2">
-                <img src={assignee} alt="Assignee" className="w-6 h-6 rounded-full border border-[#121212] object-cover ring-2 ring-[#121212] group-hover:ring-cyan-500/20 transition-all" />
+                <img src={assignee} alt="Assignee" className="w-6 h-6 rounded-full border border-white object-cover ring-2 ring-white shadow-sm" />
             </div>
 
             {/* Meta Icons */}
-            <div className="flex items-center space-x-3 text-gray-500 text-xs">
+            <div className="flex items-center space-x-3 text-slate-400 text-[10px] font-medium">
                 {comments > 0 && (
-                    <div className="flex items-center gap-1 group-hover:text-cyan-400 transition-colors">
+                    <div className="flex items-center gap-1 hover:text-slate-600 transition-colors">
                         <MessageSquare size={12} />
                         <span>{comments}</span>
                     </div>
                 )}
-                <div className="flex items-center gap-1 group-hover:text-blue-400 transition-colors">
+                <div className="flex items-center gap-1 hover:text-slate-600 transition-colors">
                     <Paperclip size={12} />
                 </div>
             </div>
@@ -79,10 +79,10 @@ const KanbanCard = ({ title, project, assignee, priority, comments, tags }: Task
 
 const getStatusColor = (status: string) => {
     switch (status) {
-        case "To Do": return "bg-gray-500";
-        case "In Progress": return "bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.4)]";
-        case "Review": return "bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)]";
-        case "Done": return "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]";
+        case "To Do": return "bg-slate-300";
+        case "In Progress": return "bg-[var(--color-nous-mist)]";
+        case "Review": return "bg-[var(--color-nous-lavender)]";
+        case "Done": return "bg-[var(--color-nous-mint)]";
         default: return "bg-white";
     }
 };
@@ -184,24 +184,24 @@ export function Workspace() {
 
             {/* Workspace Toolbar / Filters */}
             <div className="mb-6 flex items-center justify-between pr-6">
-                <div className="flex items-center space-x-1 bg-white/5 p-1 rounded-lg border border-white/5 backdrop-blur-sm">
-                    <button className="px-4 py-2 text-sm font-medium text-white bg-white/10 rounded-md shadow-sm transition-all hover:bg-white/20">Board</button>
-                    <button className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-all hover:bg-white/5 rounded-md">List</button>
-                    <button className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-all hover:bg-white/5 rounded-md">Timeline</button>
+                <div className="flex items-center space-x-1 glass-panel border-hairline p-1 rounded-lg">
+                    <button className="px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-slate-800 bg-white shadow-sm rounded-md transition-all">Tablero</button>
+                    <button className="px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all rounded-md">Lista</button>
+                    <button className="px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all rounded-md">Línea de Tiempo</button>
                 </div>
 
                 <div className="flex items-center space-x-4">
                     <div className="relative group">
-                        <div className="px-3 py-1.5 rounded-full border border-white/10 bg-black/20 text-xs text-gray-400 group-hover:border-cyan-500/30 transition-colors flex items-center gap-2">
+                        <div className="px-3 py-1.5 rounded-full border border-hairline bg-white/50 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-white cursor-pointer transition-colors flex items-center gap-2">
                             <Users size={12} />
-                            <span>Filter: All Members</span>
+                            <span>Filtro: Todos</span>
                             <ChevronDown size={10} />
                         </div>
                     </div>
                     <div className="relative group">
-                        <div className="px-3 py-1.5 rounded-full border border-white/10 bg-black/20 text-xs text-gray-400 group-hover:border-purple-500/30 transition-colors flex items-center gap-2">
+                        <div className="px-3 py-1.5 rounded-full border border-hairline bg-white/50 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-white cursor-pointer transition-colors flex items-center gap-2">
                             <BarChart3 size={12} />
-                            <span>Sort: Priority</span>
+                            <span>Ordenar: Prioridad</span>
                             <ChevronDown size={10} />
                         </div>
                     </div>
@@ -217,10 +217,10 @@ export function Workspace() {
                 ))}
 
                 {/* Add Column Placeholder */}
-                <div className="min-w-[300px] h-full p-4 flex items-start justify-center opacity-40 hover:opacity-100 transition-opacity">
-                    <button className="flex items-center space-x-2 text-gray-400 hover:text-cyan-400 group border border-dashed border-gray-600 rounded-xl px-6 py-3 w-full justify-center hover:border-cyan-500 transition-colors">
+                <div className="min-w-[300px] h-full p-4 flex items-start justify-center opacity-70 hover:opacity-100 transition-opacity">
+                    <button className="flex items-center space-x-2 text-slate-400 hover:text-slate-600 group border border-dashed border-slate-300 rounded-xl px-6 py-3 w-full justify-center hover:border-slate-400 transition-colors glass-panel-hover bg-white/20">
                         <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-                        <span>Add Status</span>
+                        <span className="text-xs font-light uppercase tracking-widest">Nueva Fase</span>
                     </button>
                 </div>
             </div>

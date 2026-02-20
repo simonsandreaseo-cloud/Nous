@@ -17,15 +17,15 @@ export default function OfficePage() {
     const [currentTask, setCurrentTask] = useState<string | null>(null);
 
     return (
-        <div className="flex h-screen w-screen bg-[#050505] overflow-hidden relative">
+        <div className="flex h-screen w-screen bg-transparent overflow-hidden relative">
 
             {/* Background (Subtle Grid/Gradient) */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/10 via-[#050505] to-[#050505]"></div>
-                <div className="w-full h-full bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] opacity-40"></div>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[var(--color-nous-mist)]/30 via-transparent to-transparent"></div>
+                <div className="w-full h-full bg-[linear-gradient(to_right,rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
                 {/* Ambient Glows */}
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/10 rounded-full blur-[120px]"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-900/10 rounded-full blur-[120px]"></div>
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[var(--color-nous-mist)]/20 rounded-full blur-[120px]"></div>
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[var(--color-nous-mist)]/10 rounded-full blur-[120px]"></div>
             </div>
 
             {/* Main Content Layout */}
@@ -39,7 +39,7 @@ export default function OfficePage() {
                     </div>
 
                     {/* Right: Team Sidebar */}
-                    <div className="w-[320px] shrink-0 border-l border-white/5 bg-[#0A0A0A]/50 backdrop-blur-md">
+                    <div className="w-[320px] shrink-0 border-l border-hairline glass-panel bg-white/40">
                         <TeamSidebar />
                     </div>
                 </div>

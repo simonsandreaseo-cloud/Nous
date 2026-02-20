@@ -11,10 +11,10 @@ export function NavigationHeader() {
     const { user, signOut } = useAuthStore();
 
     return (
-        <div className="absolute top-0 left-0 w-full flex justify-between items-center px-6 md:px-12 py-8 pointer-events-none z-50 mix-blend-difference text-white md:mix-blend-normal md:text-inherit">
+        <div className="absolute top-0 left-0 w-full flex justify-between items-center vacio-pad py-8 pointer-events-none z-50">
             {/* Logo */}
             <div className="pointer-events-auto flex items-center gap-8">
-                <Link href="/" className="text-2xl font-black tracking-tighter uppercase text-slate-900 cursor-pointer">
+                <Link href="/" className="text-xl font-light tracking-elegant uppercase text-slate-800 cursor-pointer">
                     NOUS
                 </Link>
                 {/* Project Selector embedded in header */}
@@ -34,7 +34,7 @@ export function NavigationHeader() {
                     </button>
 
                     {/* First Level Menu */}
-                    <div className="absolute top-full left-0 mt-2 w-64 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/60 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-out p-2 origin-top-left z-50">
+                    <div className="absolute top-full left-0 mt-2 w-64 glass-panel rounded-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-out p-2 origin-top-left z-50">
 
                         {/* Contenidos - Nested Submenu Trigger */}
                         <div className="relative group/nested">
@@ -47,7 +47,7 @@ export function NavigationHeader() {
                             </button>
 
                             {/* Second Level Menu */}
-                            <div className="absolute left-full top-0 ml-3 w-60 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/60 shadow-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
+                            <div className="absolute left-full top-0 ml-3 w-60 glass-panel rounded-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
                                 <div className="space-y-1">
                                     <Link href="/studio/dashboard" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
@@ -114,7 +114,7 @@ export function NavigationHeader() {
                             </button>
 
                             {/* Second Level Menu */}
-                            <div className="absolute left-full top-0 ml-3 w-60 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/60 shadow-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
+                            <div className="absolute left-full top-0 ml-3 w-60 glass-panel rounded-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
                                 <div className="space-y-1">
                                     <Link href="/studio/monitor" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">

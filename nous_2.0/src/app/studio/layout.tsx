@@ -32,28 +32,28 @@ export default function StudioLayout({
     const { user, signOut } = useAuthStore();
 
     const tabs = [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/studio/dashboard', color: 'text-slate-500' },
-        { id: 'strategy', label: 'Estrategia', icon: Calendar, path: '/studio/strategy', color: 'text-cyan-500' },
-        { id: 'writer', label: 'Redactor', icon: Bot, path: '/studio/writer', color: 'text-purple-500' },
-        { id: 'refinery', label: 'Refinería', icon: Wand2, path: '/studio/refinery', color: 'text-pink-500' },
-        { id: 'distribution', label: 'Distribución', icon: Share2, path: '/studio/distribution', color: 'text-indigo-500' },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/studio/dashboard', color: 'text-[var(--color-nous-mint)]' },
+        { id: 'strategy', label: 'Estrategia', icon: Calendar, path: '/studio/strategy', color: 'text-[var(--color-nous-mist)]' },
+        { id: 'writer', label: 'Redactor', icon: Bot, path: '/studio/writer', color: 'text-[var(--color-nous-lavender)]' },
+        { id: 'refinery', label: 'Refinería', icon: Wand2, path: '/studio/refinery', color: 'text-[var(--color-nous-lavender)]' },
+        { id: 'distribution', label: 'Distribución', icon: Share2, path: '/studio/distribution', color: 'text-[var(--color-nous-mist)]' },
     ];
 
     return (
-        <div className="min-h-screen bg-[#fcfdfe] flex flex-col selection:bg-slate-900 selection:text-white">
-            <div className="flex-1 flex max-w-[1920px] mx-auto w-full px-4 md:px-6 lg:px-8 gap-6 py-6 h-screen overflow-hidden">
+        <div className="min-h-screen bg-transparent flex flex-col selection:bg-slate-100 selection:text-slate-900">
+            <div className="flex-1 flex max-w-[1920px] mx-auto w-full vacio-pad py-6 h-screen overflow-hidden">
                 {/* STUDIO SIDEBAR (Left - Floating Style) */}
-                <aside className="w-20 lg:w-72 hidden md:flex flex-col gap-6 h-full">
-                    <div className="bg-white rounded-[40px] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 h-full flex flex-col relative overflow-hidden">
+                <aside className="w-20 lg:w-72 hidden md:flex flex-col gap-6 h-full mr-6">
+                    <div className="glass-panel border-hairline rounded-[40px] p-5 h-full flex flex-col relative overflow-hidden">
 
                         {/* NOUS LOGO AREA */}
                         <div className="mb-10 px-3 py-2 flex items-center justify-between">
-                            <Link href="/" className="text-2xl font-black italic tracking-tighter text-slate-900 select-none">
+                            <Link href="/" className="text-xl font-light tracking-elegant uppercase text-slate-800 select-none">
                                 NOUS
                             </Link>
-                            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Live</span>
+                            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-white/50 text-[var(--color-nous-mint)] rounded-full border border-hairline">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-nous-mint)] animate-pulse" />
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-600">Live</span>
                             </div>
                         </div>
 
@@ -78,27 +78,19 @@ export default function StudioLayout({
                                         className={cn(
                                             "flex items-center gap-3 p-3.5 rounded-[20px] transition-all group relative overflow-hidden",
                                             isActive
-                                                ? "bg-slate-900 text-white shadow-xl shadow-slate-900/20 active:scale-95"
-                                                : "hover:bg-slate-50 text-slate-500 hover:text-slate-900 translate-x-0 hover:translate-x-1"
+                                                ? "glass-panel text-slate-900 shadow-sm"
+                                                : "hover:bg-white/40 text-slate-400 hover:text-slate-800"
                                         )}
                                     >
                                         <div className={cn(
                                             "p-2 rounded-xl transition-all relative z-10",
-                                            isActive ? "bg-white/10" : "bg-transparent group-hover:bg-white"
+                                            isActive ? "bg-white/60" : "bg-transparent group-hover:bg-white/50"
                                         )}>
-                                            <tab.icon size={18} className={cn("transition-colors", isActive ? "text-white" : tab.color)} />
+                                            <tab.icon size={18} className={cn("transition-colors", isActive ? tab.color : "text-slate-400 group-hover:text-slate-700")} />
                                         </div>
-                                        <span className={cn("text-xs font-black uppercase tracking-widest relative z-10 hidden lg:block mt-0.5", isActive ? "text-white" : "text-slate-500")}>
+                                        <span className={cn("text-[10px] font-medium tracking-elegant uppercase relative z-10 hidden lg:block mt-0.5", isActive ? "text-slate-900" : "text-slate-500")}>
                                             {tab.label}
                                         </span>
-                                        {isActive && (
-                                            <motion.div
-                                                layoutId="activeTabIndicator"
-                                                className="absolute inset-0 bg-slate-900"
-                                                initial={false}
-                                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                            />
-                                        )}
                                     </Link>
                                 );
                             })}
@@ -140,7 +132,7 @@ export default function StudioLayout({
                 </aside>
 
                 {/* MAIN CONTENT AREA */}
-                <main className="flex-1 w-full min-w-0 h-full overflow-hidden flex flex-col bg-white rounded-[40px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-slate-100/50">
+                <main className="flex-1 w-full min-w-0 h-full overflow-hidden flex flex-col glass-panel border-hairline rounded-[40px] shadow-sm">
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
                         <AnimatePresence mode="wait">
                             <motion.div

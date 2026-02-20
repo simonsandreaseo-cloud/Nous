@@ -16,16 +16,16 @@ export function EditorialPulse() {
     if (!activeProject) return null;
 
     return (
-        <section className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden group">
+        <section className="glass-panel border-hairline rounded-[24px] p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden group">
             <div className="flex items-center gap-6 z-10">
-                <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-900/20">
-                    <Activity size={28} className="text-cyan-400" />
+                <div className="w-14 h-14 rounded-2xl bg-[var(--color-nous-mint)]/20 text-[var(--color-nous-mint)] flex items-center justify-center border border-[var(--color-nous-mint)]/40 shadow-sm">
+                    <Activity size={28} />
                 </div>
                 <div>
-                    <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Estado</h2>
+                    <h2 className="text-[10px] font-medium text-slate-400 uppercase tracking-elegant mb-1">Estado</h2>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-black text-slate-900 tracking-tighter">Salud Óptima</span>
-                        <span className="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-widest">
+                        <span className="text-2xl font-light text-slate-800 tracking-elegant">Salud Óptima</span>
+                        <span className="text-[9px] font-medium text-[var(--color-nous-mint)] bg-[var(--color-nous-mint)]/10 px-2 py-0.5 rounded-full border border-[var(--color-nous-mint)]/30 uppercase tracking-elegant">
                             98% Uptime
                         </span>
                     </div>
@@ -34,29 +34,29 @@ export function EditorialPulse() {
 
             <div className="flex-1 w-full md:w-auto grid grid-cols-3 gap-4 border-l border-slate-100 ml-6 pl-6 z-10">
                 <div className="flex flex-col">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Ritmo</span>
+                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-elegant mb-1">Ritmo</span>
                     <div className="flex items-center gap-2">
-                        <Zap size={14} className="text-amber-500 fill-amber-500" />
-                        <span className="text-lg font-black text-slate-800">4.2 <span className="text-[10px] text-slate-400 font-normal">posts/sem</span></span>
+                        <Zap size={14} className="text-[var(--color-nous-mint)] fill-[var(--color-nous-mint)]" />
+                        <span className="text-lg font-light text-slate-800">4.2 <span className="text-[10px] text-slate-400 font-light">posts/sem</span></span>
                     </div>
                 </div>
                 <div className="flex flex-col">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Próximo Hueco</span>
+                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-elegant mb-1">Próximo Hueco</span>
                     <div className="flex items-center gap-2">
                         <AlertTriangle size={14} className="text-slate-300" />
-                        <span className="text-lg font-black text-slate-800">Feb 18 <span className="text-[10px] text-slate-400 font-normal">2d libres</span></span>
+                        <span className="text-lg font-light text-slate-800">Feb 18 <span className="text-[10px] text-slate-400 font-light">2d libres</span></span>
                     </div>
                 </div>
                 <div className="flex flex-col">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Calidad SEO</span>
+                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-elegant mb-1">Calidad SEO</span>
                     <div className="flex items-center gap-2">
-                        <CheckCircle2 size={14} className="text-emerald-500" />
-                        <span className="text-lg font-black text-slate-800">A+ <span className="text-[10px] text-slate-400 font-normal">avg</span></span>
+                        <CheckCircle2 size={14} className="text-[var(--color-nous-mint)]" />
+                        <span className="text-lg font-light text-slate-800">A+ <span className="text-[10px] text-slate-400 font-light">avg</span></span>
                     </div>
                 </div>
             </div>
 
-            <div className="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-cyan-50/50 to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-[var(--color-nous-mint)]/10 to-transparent pointer-events-none" />
         </section>
     );
 }

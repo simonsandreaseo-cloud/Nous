@@ -151,31 +151,31 @@ export function TopBar() {
     };
 
     return (
-        <div className="h-16 w-full flex items-center justify-between px-6 border-b border-white/10 bg-white/5 backdrop-blur-md sticky top-0 z-50">
+        <div className="h-16 w-full flex items-center justify-between px-6 border-b border-hairline bg-white/50 backdrop-blur-md sticky top-0 z-50">
             <div className="flex items-center space-x-4">
-                <h1 className="text-lg font-michroma text-white tracking-widest">
-                    NOUS<span className="text-cyan-400">OFFICE</span>
+                <h1 className="text-lg font-light tracking-elegant uppercase text-slate-800">
+                    NOUS<span className="text-[var(--color-nous-mist)] font-medium">OFFICE</span>
                 </h1>
             </div>
 
-            <div className="flex items-center space-x-4 bg-black/20 rounded-full px-4 py-2 border border-white/5 shadow-inner">
-                <div className={`font-mono text-xl tracking-wider w-28 text-center transition-colors ${timerActive ? 'text-cyan-400' : 'text-gray-500'}`}>
+            <div className="flex items-center space-x-4 bg-white/40 rounded-full px-4 py-2 border border-hairline shadow-sm">
+                <div className={`font-mono text-xl tracking-wider w-28 text-center transition-colors ${timerActive ? 'text-[var(--color-nous-mist)]' : 'text-slate-400'}`}>
                     {formatTime(seconds)}
                 </div>
 
                 <div className="relative">
                     <button
                         onClick={() => setDropdownOpen(!dropdownOpen)}
-                        className="flex items-center space-x-2 text-sm text-gray-300 hover:text-white transition-colors px-3 py-1 rounded-md hover:bg-white/5"
+                        className="flex items-center space-x-2 text-sm text-slate-500 hover:text-slate-700 transition-colors px-3 py-1 rounded-md hover:bg-white/50"
                         disabled={timerActive}
                     >
-                        <span className="truncate max-w-[200px]">{selectedTask?.title || "Select a task..."}</span>
+                        <span className="truncate max-w-[200px] font-light">{selectedTask?.title || "Select a task..."}</span>
                         <ChevronDown size={14} />
                     </button>
 
                     {dropdownOpen && (
-                        <div className="absolute top-10 left-0 w-80 bg-[#0A0A0A] border border-white/10 rounded-lg shadow-xl overflow-hidden z-50">
-                            <div className="p-2 text-xs text-gray-500 uppercase tracking-wider bg-white/5">Recent Tasks</div>
+                        <div className="absolute top-10 left-0 w-80 glass-panel border border-hairline rounded-lg shadow-xl overflow-hidden z-50">
+                            <div className="p-2 text-[10px] text-slate-400 uppercase tracking-elegant bg-white/40">Recent Tasks</div>
                             {tasks.length > 0 ? tasks.map((task) => (
                                 <button
                                     key={task.id}
@@ -183,12 +183,12 @@ export function TopBar() {
                                         setSelectedTask(task);
                                         setDropdownOpen(false);
                                     }}
-                                    className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-cyan-400 transition-colors border-b border-white/5 last:border-0"
+                                    className="w-full text-left px-4 py-3 text-sm text-slate-600 hover:bg-white/60 hover:text-slate-900 transition-colors border-b border-hairline last:border-0"
                                 >
-                                    <div className="font-medium truncate">{task.title}</div>
+                                    <div className="font-light truncate">{task.title}</div>
                                 </button>
                             )) : (
-                                <div className="p-4 text-center text-gray-500 text-sm">No active tasks found.</div>
+                                <div className="p-4 text-center text-slate-400 text-sm font-light">No active tasks found.</div>
                             )}
                         </div>
                     )}
@@ -196,9 +196,9 @@ export function TopBar() {
 
                 <button
                     onClick={handleStartTimer}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${timerActive
-                            ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse"
-                            : "bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)]"
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border border-hairline shadow-sm border-[var(--color-nous-mist)]/30 ${timerActive
+                        ? "bg-red-50 text-red-500 animate-pulse"
+                        : "bg-[var(--color-nous-mist)]/20 text-[var(--color-nous-mist)] hover:bg-[var(--color-nous-mist)]/30"
                         }`}
                 >
                     {timerActive ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-1" />}
@@ -207,15 +207,15 @@ export function TopBar() {
 
             <div className="flex items-center space-x-4">
                 <div className="flex flex-col items-end">
-                    <span className="text-sm font-medium text-white">My Workspace</span>
-                    <span className="text-xs text-gray-400 flex items-center">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${timerActive ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
-                        {timerActive ? "Tracking Time..." : "Available"}
+                    <span className="text-xs font-light tracking-elegant uppercase text-slate-700">Mi Espacio</span>
+                    <span className="text-[10px] text-slate-400 flex items-center font-light uppercase">
+                        <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${timerActive ? 'bg-[var(--color-nous-mint)] animate-pulse' : 'bg-slate-300'}`}></div>
+                        {timerActive ? "Registrando..." : "Disponible"}
                     </span>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-900 to-blue-900 flex items-center justify-center border border-white/20 relative">
-                    <User size={20} className="text-white/80" />
-                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-black rounded-full ${timerActive ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-hairline relative">
+                    <User size={18} className="text-slate-400" />
+                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${timerActive ? 'bg-[var(--color-nous-mint)]' : 'bg-slate-300'}`}></div>
                 </div>
             </div>
         </div>

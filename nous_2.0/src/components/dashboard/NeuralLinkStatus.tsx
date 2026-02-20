@@ -12,29 +12,29 @@ export function NeuralLinkStatus() {
     // Visual Mapping based on Node Status
     const statusConfig = {
         IDLE: {
-            color: "text-emerald-600 border-emerald-200 bg-emerald-50/50",
+            color: "text-[var(--color-nous-mint)] border-[var(--color-nous-mint)]/30 bg-[var(--color-nous-mint)]/10",
             icon: <Zap size={14} />,
-            label: "Neural Link Active"
+            label: "Santuario Conectado"
         },
         CRAWLING: {
-            color: "text-purple-600 border-purple-200 bg-purple-50/50",
+            color: "text-[var(--color-nous-mist)] border-[var(--color-nous-mist)]/30 bg-[var(--color-nous-mist)]/10",
             icon: <Activity size={14} className="animate-spin" />,
-            label: "Deep Crawling..."
+            label: "Crawler Activo..."
         },
         PROCESSING: {
-            color: "text-orange-600 border-orange-200 bg-orange-50/50",
+            color: "text-[var(--color-nous-lavender)] border-[var(--color-nous-lavender)]/30 bg-[var(--color-nous-lavender)]/10",
             icon: <RefreshCw size={14} className="animate-spin" />,
-            label: "Refining Data..."
+            label: "Procesando..."
         },
         ERROR: {
-            color: "text-red-600 border-red-200 bg-red-50/50",
+            color: "text-red-400 border-red-400/30 bg-red-400/10",
             icon: <AlertTriangle size={14} />,
-            label: "Node Error"
+            label: "Disonancia Nodo"
         }
     };
 
     const currentConfig = isConnected ? statusConfig[nodeStatus] || statusConfig.IDLE : {
-        color: "text-slate-400 border-slate-200 opacity-60",
+        color: "text-slate-400 border-hairline opacity-60 backdrop-blur-sm",
         icon: <ZapOff size={14} />,
         label: "Web Mode"
     };
@@ -42,7 +42,7 @@ export function NeuralLinkStatus() {
     return (
         <div className="flex items-center gap-2 group cursor-help relative">
             <div className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 shadow-sm backdrop-blur-sm",
+                "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 shadow-sm glass-panel",
                 currentConfig.color
             )}>
                 <motion.div
@@ -52,7 +52,7 @@ export function NeuralLinkStatus() {
                     {currentConfig.icon}
                 </motion.div>
 
-                <span className="text-[10px] font-black uppercase tracking-widest hidden md:flex items-center gap-2">
+                <span className="text-[10px] font-medium tracking-elegant uppercase hidden md:flex items-center gap-2">
                     {currentConfig.label}
                     {queueLength > 0 && (
                         <span className="bg-slate-900 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px]">
@@ -63,8 +63,8 @@ export function NeuralLinkStatus() {
             </div>
 
             {/* Tooltip on hover */}
-            <div className="absolute top-full right-0 mt-2 p-3 bg-slate-900 text-white rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-56 z-[100] border border-white/10">
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-cyan-400">
+            <div className="absolute top-full right-0 mt-2 p-3 glass-panel text-slate-900 rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-56 z-[100]">
+                <p className="text-[10px] font-medium uppercase tracking-elegant mb-1 text-slate-800">
                     Estado del Nodo: {isConnected ? nodeStatus : 'DESCONECTADO'}
                 </p>
                 <div className="space-y-1">
