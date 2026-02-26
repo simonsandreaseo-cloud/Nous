@@ -14,7 +14,7 @@ import { cn } from '@/utils/cn';
 import SlashMenu from './SlashMenu';
 
 export default function WriterEditor() {
-    const { content, setContent } = useWriterStore();
+    const { content, setContent, isGenerating } = useWriterStore();
     const [slashMenuPos, setSlashMenuPos] = useState<{ x: number, y: number } | null>(null);
 
     const editor = useEditor({
@@ -28,44 +28,28 @@ export default function WriterEditor() {
         content: content,
         editorProps: {
             attributes: {
-                class: 'prose prose-lg prose-indigo focus:outline-none max-w-none min-h-[500px]',
+                class: 'prose prose-lg prose-indigo focus:outline-none max-w-none min-h-[500px] pb-32 transition-all duration-500',
             },
-            handleKeyDown: (view, event) => {
-                // Should we prevent events if menu is open? 
-                // SlashMenu handles its own keys via window listener, but we might need to prevent editor from handling them too.
-                // For now, let's see if SlashMenu's preventDefault is enough.
-                return false;
-            }
         },
         onUpdate: ({ editor }) => {
-            setContent(editor.getHTML());
+            // Only update store from editor if NOT generating
+            if (!isGenerating) {
+                setContent(editor.getHTML());
+            }
 
             // Simple Slash Detection
             const { state } = editor;
             const selection = state.selection;
             const { $from } = selection;
-
-            // Get text before cursor
             const textBefore = $from.parent.textContent.substring(0, $from.parentOffset);
 
-            // If strictly just typed "/" at start or after space
             if (textBefore.endsWith('/')) {
-                // Check if it's a valid trigger (start of line or space before)
                 const charBeforeSlash = textBefore.length > 1 ? textBefore[textBefore.length - 2] : ' ';
                 if (charBeforeSlash === ' ' || textBefore.length === 1) {
                     const coords = editor.view.coordsAtPos($from.pos);
                     setSlashMenuPos({ x: coords.left, y: coords.bottom });
-                    return;
                 }
-            }
-
-            // Hide if not matching/typing
-            // Need a way to keep it open while typing filter... 
-            // For V1, let's just trigger on "/" and close on spaces or complex typing
-            // Logic to keep it open requires more state (detecting slash session)
-            // Simpler: If menu is open, and user types, update filter?
-            // For now, let's auto-close if moved away from slash
-            if (slashMenuPos && !textBefore.includes('/')) {
+            } else if (slashMenuPos) {
                 setSlashMenuPos(null);
             }
         },
@@ -74,11 +58,6 @@ export default function WriterEditor() {
     // Handle Slash Commands
     const handleSlashCommand = (commandId: string) => {
         if (!editor) return;
-
-        // Remove the "/"
-        // We know we are at the end, so delete 1 char back? 
-        // Or select and replace.
-        // Simple: Delete last char
         editor.commands.deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from });
 
         switch (commandId) {
@@ -89,25 +68,33 @@ export default function WriterEditor() {
             case 'ordered': editor.chain().focus().toggleOrderedList().run(); break;
             case 'quote': editor.chain().focus().toggleBlockquote().run(); break;
             case 'ai-write':
-                editor.chain().focus().insertContent(' ✨ (AI escribiendo...)').run();
-                // Trigger AI logic here
-                break;
-            case 'image':
-                editor.chain().focus().insertContent(' 🖼️ (Generando imagen...)').run();
+                // This will be handled in the future or via store
                 break;
         }
-
         setSlashMenuPos(null);
     };
 
-    // Sync content if changed externally (e.g. reset)
+    // Sync content if changed externally (e.g. streaming or reset)
     useEffect(() => {
         if (editor && content !== editor.getHTML()) {
-            if (content === '') {
-                editor.commands.setContent('');
+            // During generation, we want to update the editor content
+            // To avoid losing cursor position, we only do this if the content actually changed 
+            // and it's not the user's own typing (which is blocked by !isGenerating in onUpdate)
+
+            // If the content is being streamed, we might want to use a more surgical update 
+            // or just setContent if it's a full replace.
+
+            const isDifferent = content !== editor.getHTML();
+            if (isDifferent) {
+                const { from, to } = editor.state.selection;
+                editor.commands.setContent(content, false);
+                // Attempt to restore selection if not generating
+                if (!isGenerating) {
+                    editor.commands.setTextSelection({ from, to });
+                }
             }
         }
-    }, [content, editor]);
+    }, [content, editor, isGenerating]);
 
     if (!editor) return null;
 
