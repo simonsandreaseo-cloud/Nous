@@ -128,9 +128,14 @@ export default function WriterSidebar() {
         const reader = new FileReader();
         reader.onload = (ev) => {
             const text = ev.target?.result as string;
-            const parsed = parseCSV(text);
-            setCsvData(parsed, file.name);
-            setStatus(`✅ CSV cargado: ${parsed.length} páginas indexadas`);
+            try {
+                const parsed = parseCSV(text) as any;
+                const data = Array.isArray(parsed) ? parsed : (parsed.data || []);
+                setCsvData(data, file.name);
+                setStatus(`✅ CSV cargado: ${data.length} páginas indexadas`);
+            } catch (e: any) {
+                setStatus(`❌ Error CSV: ${e.message}`);
+            }
         };
         reader.readAsText(file);
     };
