@@ -14,6 +14,7 @@ import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/utils/cn";
 import { useProjectStore, Task } from "@/store/useProjectStore";
+import { ProjectBadge } from "@/components/ui/ProjectBadge";
 
 export function TimelineScheduler() {
     const { tasks } = useProjectStore();
@@ -85,15 +86,18 @@ export function TimelineScheduler() {
                                 {dayItems.map(item => (
                                     <div
                                         key={item.id}
-                                        className="relative z-10 p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group/item"
+                                        className="relative z-10 p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group/item flex flex-col"
                                     >
-                                        <div className="flex items-center gap-1 mb-1 opacity-60">
-                                            <Clock size={10} />
-                                            <span className="text-[9px] font-mono">{format(new Date(item.scheduled_date), 'HH:mm')}</span>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <ProjectBadge projectId={item.project_id} />
+                                            <div className="flex items-center gap-1 opacity-60">
+                                                <Clock size={10} />
+                                                <span className="text-[9px] font-mono">{format(new Date(item.scheduled_date), 'HH:mm')}</span>
+                                            </div>
                                         </div>
                                         <p className="text-xs font-bold text-slate-700 leading-tight mb-2 line-clamp-2">{item.title}</p>
 
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between mt-auto">
                                             <span className={cn(
                                                 "w-2 h-2 rounded-full",
                                                 item.status === 'done' ? "bg-emerald-400" :

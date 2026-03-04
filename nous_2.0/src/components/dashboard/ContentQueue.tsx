@@ -13,12 +13,7 @@ import {
 import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
 
-const mockQueue = [
-    { id: 1, title: "Los 5 Pilares de SEO Neural", status: "idea" },
-    { id: 2, title: "Casos de éxito: Clínica B2B", status: "briefing" },
-    { id: 3, title: "Podcast: Futuro Médico", status: "drafting" },
-    { id: 4, title: "Review: Herramientas 2026", status: "review" },
-];
+const mockQueue: any[] = [];
 
 const statusConfig = {
     idea: { icon: Lightbulb, color: "text-[var(--color-nous-lavender)]", label: "Ideas" },

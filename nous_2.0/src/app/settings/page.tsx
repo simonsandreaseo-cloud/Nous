@@ -17,13 +17,14 @@ import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
 import { fetchGscSitesAction, fetchGa4PropertiesAction } from "@/app/actions/report-actions";
+import { TeamSettings } from "./TeamSettings";
 
 export default function SettingsPage() {
     const { activeProject, projects, createProject, deleteProject, fetchProjects, updateProject, setActiveProject } = useProjectStore();
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectDomain, setNewProjectDomain] = useState("");
     const [isCreating, setIsCreating] = useState(false);
-    const [activeTab, setActiveTab] = useState<'projects' | 'integrations' | 'billing'>('projects');
+    const [activeTab, setActiveTab] = useState<'projects' | 'integrations' | 'billing' | 'team'>('projects');
     const [isUserGscConnected, setIsUserGscConnected] = useState(false);
     const [connectedAccounts, setConnectedAccounts] = useState<{ id: string, email: string }[]>([]);
 
@@ -34,6 +35,7 @@ export default function SettingsPage() {
     const [editWpToken, setEditWpToken] = useState("");
     const [editTargetCountry, setEditTargetCountry] = useState("ES"); // Default Spain
     const [editLogoUrl, setEditLogoUrl] = useState("");
+    const [editColor, setEditColor] = useState("#06b6d4"); // Default Cyan
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
     const [gscSites, setGscSites] = useState<{ url: string; permission: string; accountEmail?: string }[]>([]);
@@ -100,6 +102,7 @@ export default function SettingsPage() {
             setEditWpToken(activeProject.wp_token || "");
             setEditTargetCountry(activeProject.target_country || "ES");
             setEditLogoUrl(activeProject.logo_url || "");
+            setEditColor(activeProject.color || "#06b6d4");
         }
     }, [activeProject?.id]);
 
@@ -141,7 +144,8 @@ export default function SettingsPage() {
 
                 wp_token: editWpToken,
                 target_country: editTargetCountry,
-                logo_url: editLogoUrl
+                logo_url: editLogoUrl,
+                color: editColor
             });
             alert("Cambios guardados correctamente.");
         } catch (e: any) {
@@ -295,7 +299,8 @@ export default function SettingsPage() {
             budget_settings: { type: 'count', target: 10, current: 0, mode: 'target' },
             scraper_settings: { paths: ["/"] },
             gsc_connected: false,
-            ga4_connected: false
+            ga4_connected: false,
+            color: "#06b6d4"
         });
 
         setNewProjectName("");
@@ -327,6 +332,7 @@ export default function SettingsPage() {
                             <nav className="space-y-1">
                                 {[
                                     { id: 'projects', icon: Globe, label: "Proyectos & Dominios" },
+                                    { id: 'team', icon: Shield, label: "Equipo y Proveedores" },
                                     { id: 'integrations', icon: Shield, label: "Integraciones API" },
                                     { id: 'billing', icon: Wallet, label: "Presupuesto" },
                                 ].map((item) => (
@@ -472,6 +478,19 @@ export default function SettingsPage() {
                                                 <option value="EC">Ecuador (EC)</option>
                                             </select>
                                             <p className="text-[9px] text-slate-400 font-medium ml-1">Determina qué resultados de Google se analizarán para tus briefings.</p>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Color de Etiqueta</label>
+                                            <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                                <input
+                                                    type="color"
+                                                    value={editColor}
+                                                    onChange={(e) => setEditColor(e.target.value)}
+                                                    className="w-10 h-10 rounded-xl cursor-pointer bg-transparent border-0 outline-none p-0"
+                                                />
+                                                <p className="text-[10px] text-slate-500 font-medium">Este color identificará visualmente al proyecto en calendarios y reportes.</p>
+                                            </div>
                                         </div>
 
                                         {/* Logo Upload Section */}
@@ -692,6 +711,17 @@ export default function SettingsPage() {
                                         <p className="text-xs font-bold uppercase tracking-widest">Selecciona un proyecto para configurar</p>
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {activeTab === 'team' && activeProject && (
+                            <TeamSettings projectId={activeProject.id} />
+                        )}
+
+                        {activeTab === 'team' && !activeProject && (
+                            <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm flex flex-col items-center justify-center h-64">
+                                <Shield size={48} className="mb-4 text-slate-200" />
+                                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Selecciona un proyecto para gestionar su equipo</p>
                             </div>
                         )}
 

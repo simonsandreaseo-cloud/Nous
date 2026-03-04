@@ -8,6 +8,7 @@ import html2canvas from 'html2canvas';
 
 import { SplitAnalysisSlide } from './slides/SplitAnalysisSlide';
 import { TableDatasetSlide } from './slides/TableDatasetSlide';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export interface ReportViewProps {
     jsonState: any[];
@@ -26,6 +27,8 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
     const [isPresenting, setIsPresenting] = useState(false);
     const [viewTheme, setViewTheme] = useState<'light' | 'dark'>('light');
     const hiddenContainerRef = useRef<HTMLDivElement>(null);
+    const { canEditAny, canTakeReports } = usePermissions();
+    const canEditReport = canEditAny() || canTakeReports();
 
     useImperativeHandle(ref, () => ({
         captureAllSlides: async () => {
@@ -62,6 +65,7 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
 
     // --- Slide Management ---
     const addSlide = () => {
+        if (!canEditReport) return;
         const newSlide = {
             type: 'split_analysis',
             title: 'Nueva Sección',
@@ -75,7 +79,7 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
 
     const deleteSlide = (e: React.MouseEvent, index: number) => {
         e.stopPropagation();
-        if (slides.length <= 1) return; // Prevent deleting last slide
+        if (!canEditReport || slides.length <= 1) return; // Prevent deleting last slide
 
         const newSlides = slides.filter((_, i) => i !== index);
         handleStateUpdate(newSlides);
@@ -134,12 +138,14 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
                                     <span className={cn("text-[10px] font-black uppercase tracking-widest", currentSlideIndex === idx ? "text-[var(--color-nous-mint)]" : "text-slate-400")}>
                                         Slide {idx + 1}
                                     </span>
-                                    <button
-                                        onClick={(e) => deleteSlide(e, idx)}
-                                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded transition-all"
-                                    >
-                                        <Trash2 size={12} />
-                                    </button>
+                                    {canEditReport && (
+                                        <button
+                                            onClick={(e) => deleteSlide(e, idx)}
+                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded transition-all"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    )}
                                 </div>
                                 {/* Mini Preview (Stripped HTML) */}
                                 <div className="h-16 overflow-hidden text-[8px] text-slate-400 leading-tight select-none">
@@ -149,14 +155,16 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
                         ))}
                     </div>
 
-                    <div className="p-4 border-t border-hairline bg-white/30 hidden">
-                        <button
-                            onClick={addSlide}
-                            className="w-full py-3 bg-white border-hairline text-slate-600 rounded-xl text-[10px] font-black uppercase hover:bg-[var(--color-nous-mist)]/20 hover:text-slate-800 transition-all flex items-center justify-center gap-2"
-                        >
-                            <Plus size={14} /> Nueva Slide
-                        </button>
-                    </div>
+                    {canEditReport && (
+                        <div className="p-4 border-t border-hairline bg-white/30 hidden">
+                            <button
+                                onClick={addSlide}
+                                className="w-full py-3 bg-white border-hairline text-slate-600 rounded-xl text-[10px] font-black uppercase hover:bg-[var(--color-nous-mist)]/20 hover:text-slate-800 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Plus size={14} /> Nueva Slide
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Editor Area */}

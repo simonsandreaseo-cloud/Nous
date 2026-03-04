@@ -8,8 +8,19 @@ import { cn } from "@/utils/cn";
 import Link from "next/link";
 
 export function ProjectSelector() {
-    const { projects, activeProject, setActiveProject } = useProjectStore();
+    const { projects, activeProjectIds, toggleProjectActive, setAllProjectsActive } = useProjectStore();
     const [isOpen, setIsOpen] = useState(false);
+
+    const activeProjects = projects.filter(p => activeProjectIds.includes(p.id));
+
+    let displayText = "Ninguno";
+    if (activeProjectIds.length === projects.length && projects.length > 0) {
+        displayText = "Todos Activos";
+    } else if (activeProjectIds.length > 1) {
+        displayText = `Múltiples (${activeProjectIds.length})`;
+    } else if (activeProjectIds.length === 1) {
+        displayText = activeProjects[0]?.name || "Seleccionar";
+    }
 
     return (
         <div className="relative z-50">
@@ -18,11 +29,15 @@ export function ProjectSelector() {
                 className="flex items-center gap-3 pl-1 pr-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all group backdrop-blur-md"
             >
                 <div className="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-                    <Briefcase size={12} />
+                    {activeProjects.length === 1 && activeProjects[0].logo_url ? (
+                        <img src={activeProjects[0].logo_url} alt="" className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                        <Briefcase size={12} />
+                    )}
                 </div>
                 <div className="flex flex-col items-start">
                     <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-0.5">Proyecto Activo</span>
-                    <span className="text-xs font-bold text-slate-800 leading-none truncate max-w-[120px]">{activeProject?.name || "Seleccionar"}</span>
+                    <span className="text-xs font-bold text-slate-800 leading-none truncate max-w-[120px]">{displayText}</span>
                 </div>
                 <ChevronDown size={14} className={cn("text-slate-400 transition-transform duration-300", isOpen ? "rotate-180" : "rotate-0")} />
             </button>
@@ -37,48 +52,67 @@ export function ProjectSelector() {
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                             className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 p-2"
                         >
-                            <div className="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 mb-1">
-                                Mis Proyectos
+                            <div className="flex items-center justify-between px-3 py-2 border-b border-slate-50 mb-1">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                    Mis Proyectos
+                                </span>
+                                {projects.length > 0 && (
+                                    <button
+                                        onClick={() => setAllProjectsActive(activeProjectIds.length !== projects.length)}
+                                        className="text-[9px] font-black text-cyan-600 hover:text-cyan-700 uppercase"
+                                    >
+                                        {activeProjectIds.length === projects.length ? "Desmarcar Todos" : "Marcar Todos"}
+                                    </button>
+                                )}
                             </div>
 
                             <div className="space-y-1 max-h-[300px] overflow-y-auto custom-scrollbar">
                                 {projects.map((project) => {
                                     const progress = Math.min((project.budget_settings.current / project.budget_settings.target) * 100, 100);
 
+                                    const isActive = activeProjectIds.includes(project.id);
+                                    const dotColor = project.color || '#06b6d4';
+
                                     return (
                                         <button
                                             key={project.id}
-                                            onClick={() => {
-                                                setActiveProject(project.id);
-                                                setIsOpen(false);
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleProjectActive(project.id);
                                             }}
                                             className={cn(
                                                 "w-full p-2.5 rounded-xl text-left transition-all group border border-transparent",
-                                                activeProject?.id === project.id ? "bg-slate-50 border-slate-100" : "hover:bg-slate-50 hover:border-slate-50"
+                                                isActive ? "bg-slate-50 border-slate-100" : "hover:bg-slate-50 hover:border-slate-50"
                                             )}
                                         >
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex items-center gap-3 overflow-hidden">
                                                     <div className={cn(
-                                                        "w-2 h-2 rounded-full",
-                                                        activeProject?.id === project.id ? "bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]" : "bg-slate-300"
-                                                    )} />
+                                                        "w-3 h-3 rounded-full border-2 transition-all",
+                                                        isActive ? "border-transparent text-white flex items-center justify-center opacity-100" : "border-slate-200 bg-transparent opacity-50"
+                                                    )}
+                                                        style={{ backgroundColor: isActive ? dotColor : 'transparent' }}
+                                                    >
+                                                        {isActive && <Check size={8} />}
+                                                    </div>
+                                                    {project.logo_url && (
+                                                        <img src={project.logo_url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                                                    )}
                                                     <span className={cn(
                                                         "text-xs font-bold truncate",
-                                                        activeProject?.id === project.id ? "text-slate-900" : "text-slate-500"
+                                                        isActive ? "text-slate-900" : "text-slate-500"
                                                     )}>{project.name}</span>
                                                 </div>
-                                                {activeProject?.id === project.id && <Check size={14} className="text-cyan-500" />}
                                             </div>
 
                                             {/* Mini Progress Bar */}
-                                            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-2">
                                                 <div
                                                     className={cn(
                                                         "h-full rounded-full transition-all duration-500",
-                                                        activeProject?.id === project.id ? "bg-cyan-500" : "bg-slate-300"
+                                                        isActive ? "bg-cyan-500" : "bg-slate-300"
                                                     )}
-                                                    style={{ width: `${progress}%` }}
+                                                    style={{ width: `${progress}%`, backgroundColor: isActive ? dotColor : undefined }}
                                                 />
                                             </div>
                                             <div className="flex justify-between mt-1">

@@ -8,6 +8,8 @@ import { useState } from 'react';
 import { cn } from '@/utils/cn';
 import { motion } from 'framer-motion';
 import { NotificationService } from '@/lib/services/notifications';
+import { usePermissions } from '@/hooks/usePermissions';
+import { ProjectBadge } from '@/components/ui/ProjectBadge';
 
 interface StrategyGridProps {
     onSelectTask?: (task: Task) => void;
@@ -27,9 +29,11 @@ export default function StrategyGrid({ onSelectTask }: StrategyGridProps) {
     const [editingCell, setEditingCell] = useState<{ id: string, field: keyof Task } | null>(null);
     const [tempValue, setTempValue] = useState("");
     const sortedTasks = [...tasks].sort((a, b) => new Date(a.scheduled_date || 0).getTime() - new Date(b.scheduled_date || 0).getTime());
+    const { canCreateOrDelete, canEditAny, canTakeTasks } = usePermissions();
 
     const handleCellClick = (task: Task, field: keyof Task, e: React.MouseEvent) => {
         e.stopPropagation();
+        if (!canEditAny() && !canTakeTasks()) return;
         setEditingCell({ id: task.id, field });
         setTempValue(String(task[field] || ""));
     };
@@ -56,7 +60,7 @@ export default function StrategyGrid({ onSelectTask }: StrategyGridProps) {
     };
 
     const addNewRow = async () => {
-        if (!activeProject) return;
+        if (!activeProject || !canCreateOrDelete()) return;
         const newTask = {
             project_id: activeProject.id,
             title: "",
@@ -74,7 +78,7 @@ export default function StrategyGrid({ onSelectTask }: StrategyGridProps) {
     };
 
     const handlePaste = async (e: React.ClipboardEvent) => {
-        if (!activeProject) return;
+        if (!activeProject || !canCreateOrDelete()) return;
 
         const pasteData = e.clipboardData.getData('text');
         if (!pasteData) return;
@@ -199,12 +203,15 @@ export default function StrategyGrid({ onSelectTask }: StrategyGridProps) {
                                                     onKeyDown={handleKeyDown}
                                                 />
                                             ) : (
-                                                <span className={cn(
-                                                    "text-[13px] font-bold text-slate-700 block truncate transition-all",
-                                                    !task.title && "text-slate-300 italic font-medium"
-                                                )}>
-                                                    {task.title || "Escribe un título..."}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <ProjectBadge projectId={task.project_id} />
+                                                    <span className={cn(
+                                                        "text-[13px] font-bold text-slate-700 block truncate transition-all",
+                                                        !task.title && "text-slate-300 italic font-medium"
+                                                    )}>
+                                                        {task.title || "Escribe un título..."}
+                                                    </span>
+                                                </div>
                                             )}
                                         </td>
 
@@ -253,18 +260,22 @@ export default function StrategyGrid({ onSelectTask }: StrategyGridProps) {
                                         {/* Actions */}
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); onSelectTask?.(task); }}
-                                                    className="p-2 opacity-0 group-hover:opacity-100 hover:bg-slate-100 border border-transparent hover:border-slate-200 rounded-xl transition-all text-slate-400 hover:text-slate-900"
-                                                >
-                                                    <Edit3 size={14} />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); if (confirm('¿Seguro?')) deleteTask?.(task.id); }}
-                                                    className="p-2 opacity-0 group-hover:opacity-100 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-xl transition-all text-slate-400 hover:text-rose-600"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
+                                                {(canEditAny() || canTakeTasks()) && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onSelectTask?.(task); }}
+                                                        className="p-2 opacity-0 group-hover:opacity-100 hover:bg-slate-100 border border-transparent hover:border-slate-200 rounded-xl transition-all text-slate-400 hover:text-slate-900"
+                                                    >
+                                                        <Edit3 size={14} />
+                                                    </button>
+                                                )}
+                                                {canCreateOrDelete() && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); if (confirm('¿Seguro?')) deleteTask?.(task.id); }}
+                                                        className="p-2 opacity-0 group-hover:opacity-100 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-xl transition-all text-slate-400 hover:text-rose-600"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -272,19 +283,21 @@ export default function StrategyGrid({ onSelectTask }: StrategyGridProps) {
                             )}
 
                             {/* ADD NEW ROW BUTTON */}
-                            <tr className="hover:bg-slate-50/30 transition-colors border-t border-slate-100">
-                                <td colSpan={6} className="p-0">
-                                    <button
-                                        onClick={addNewRow}
-                                        className="w-full py-4 px-6 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-slate-900 transition-all flex items-center gap-3 group"
-                                    >
-                                        <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-slate-900 group-hover:text-white transition-all scale-90 group-hover:scale-100">
-                                            <Plus size={14} />
-                                        </div>
-                                        Agregar Fila Nueva
-                                    </button>
-                                </td>
-                            </tr>
+                            {canCreateOrDelete() && (
+                                <tr className="hover:bg-slate-50/30 transition-colors border-t border-slate-100">
+                                    <td colSpan={6} className="p-0">
+                                        <button
+                                            onClick={addNewRow}
+                                            className="w-full py-4 px-6 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-slate-900 transition-all flex items-center gap-3 group"
+                                        >
+                                            <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-slate-900 group-hover:text-white transition-all scale-90 group-hover:scale-100">
+                                                <Plus size={14} />
+                                            </div>
+                                            Agregar Fila Nueva
+                                        </button>
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

@@ -55,6 +55,7 @@ import IntelligenceHub from "./IntelligenceHub";
 
 import { StrategyService } from "@/lib/services/strategy";
 import { ImagesModal } from "../studio/images/ImagesModal";
+import { ProjectBadge } from "@/components/ui/ProjectBadge";
 
 export function EditorialCalendar() {
     const { tasks, activeProject, updateTask, addTask } = useProjectStore();
@@ -450,6 +451,9 @@ export function EditorialCalendar() {
                                                                 : "bg-white border-slate-100 text-slate-500"
                                                     )}
                                                 >
+                                                    <div className="flex items-center justify-between mb-1 gap-1">
+                                                        <ProjectBadge projectId={task.project_id} className="scale-75 origin-top-left" />
+                                                    </div>
                                                     <p className="line-clamp-1">{task.title}</p>
                                                 </motion.div>
                                             ))}

@@ -6,11 +6,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Briefcase, Clock, Plus, Play, Square, CheckCircle, Database, Zap, Activity, Filter } from "lucide-react";
 import { useNodeStore } from "@/store/useNodeStore";
 import { cn } from "@/utils/cn";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export function OfficePanel() {
     const { flux, createTask, startTimer, stopTimer, refreshFlux, isConnected } = useNodeStore();
     const [newTaskTitle, setNewTaskTitle] = useState("");
     const [isAddingTask, setIsAddingTask] = useState(false);
+    const { canCreateOrDelete } = usePermissions();
 
     useEffect(() => {
         if (isConnected) {
@@ -104,12 +106,14 @@ export function OfficePanel() {
                             <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Nexus Tasks</h3>
                             <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-bold">{flux.tasks.length}</span>
                         </div>
-                        <button
-                            onClick={() => setIsAddingTask(!isAddingTask)}
-                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-cyan-500 transition-all"
-                        >
-                            <Plus size={18} />
-                        </button>
+                        {canCreateOrDelete() && (
+                            <button
+                                onClick={() => setIsAddingTask(!isAddingTask)}
+                                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-cyan-500 transition-all"
+                            >
+                                <Plus size={18} />
+                            </button>
+                        )}
                     </div>
 
                     <AnimatePresence>

@@ -29,6 +29,7 @@ import BriefingModal from '@/components/studio/writer/BriefingModal';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
+import { usePermissions } from '@/hooks/usePermissions';
 
 // ── Small helpers ───────────────────────────────────────────
 function downloadBlob(blob: Blob, name: string) {
@@ -108,6 +109,8 @@ export default function WriterSidebar() {
 
     const { user } = useAuthStore();
     const { activeProject } = useProjectStore();
+    const { canTakeContents, canEditAny, canUseAllTools, hasTokens, consumeTokens, getTokensLimit, getTokensUsed } = usePermissions();
+    const hasContentAccess = canTakeContents() || canEditAny() || canUseAllTools();
 
     const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
     const [showApiConfig, setShowApiConfig] = useState(false);
@@ -165,6 +168,7 @@ export default function WriterSidebar() {
 
     // ── STEP 1 – SEO Analysis ────────────────────────────────
     const handleSEO = async () => {
+        if (!hasContentAccess) return alert('No tienes permisos para generar contenido en este proyecto.');
         if (!keyword.trim()) return alert('Introduce una palabra clave.');
         if (apiKeys.length === 0) return alert('Configura API Keys de Google Gemini primero.');
 
@@ -198,6 +202,7 @@ export default function WriterSidebar() {
 
     // ── STEP 2 – Plan Structure ──────────────────────────────
     const handlePlanStructure = async () => {
+        if (!hasContentAccess) return alert('No tienes permisos.');
         if (apiKeys.length === 0) return alert('Configura API Keys primero.');
         setPlanningStructure(true);
         setStatus('Diseñando estructura ganadora…');
@@ -228,6 +233,7 @@ export default function WriterSidebar() {
 
     // ── STEP 3 – Generate Article ────────────────────────────
     const handleGenerate = async () => {
+        if (!hasContentAccess) return alert('No tienes permisos.');
         if (!strategyH1 && !keyword) return alert('Necesitas un H1 o keyword objetivo.');
         if (apiKeys.length === 0) return alert('Configura API Keys primero.');
 
@@ -250,7 +256,15 @@ export default function WriterSidebar() {
                 isStrictMode, strictFrequency,
             };
 
+            if (!hasTokens(1)) {
+                setStatus('❌ Límite de tokens mensual alcanzado.');
+                return alert(`Has superado tu límite de ${getTokensLimit()} tokens.`);
+            }
+
             const prompt = buildPrompt(config);
+            setStatus('Redactando artículo (1 Token usado)…');
+            await consumeTokens(1);
+
             const stream = await generateArticleStream(apiKeys, model, prompt);
 
             let buffer = '';
@@ -289,6 +303,7 @@ export default function WriterSidebar() {
 
     // ── Humanizer ────────────────────────────────────────────
     const handleHumanize = async () => {
+        if (!hasContentAccess) return alert('No tienes permisos.');
         if (!content) return;
         if (apiKeys.length === 0) return alert('Configura API Keys primero.');
         setHumanizing(true);
@@ -313,6 +328,7 @@ export default function WriterSidebar() {
 
     // ── Refine with instructions ─────────────────────────────
     const handleRefine = async () => {
+        if (!hasContentAccess) return alert('No tienes permisos.');
         if (!content || !refinementInstructions) return;
         setRefining(true);
         setStatus('Refinando artículo…');
@@ -392,6 +408,7 @@ export default function WriterSidebar() {
 
     // ── Save Draft to Supabase ───────────────────────────────
     const handleSaveCloud = async () => {
+        if (!hasContentAccess) return alert('No tienes permisos para guardar contenido.');
         if (!user) return alert('Inicia sesión para guardar.');
         if (!content && !strategyH1) return alert('Nada que guardar.');
         setStatus('Guardando borrador…');

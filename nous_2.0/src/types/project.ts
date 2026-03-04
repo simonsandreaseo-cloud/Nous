@@ -26,6 +26,7 @@ export interface Project {
     wp_token?: string;
     target_country?: string; // ISO 3166-1 alpha-2 or similar
     logo_url?: string;
+    color?: string; // Hex color for the project badge
     created_at?: string;
 }
 
@@ -54,6 +55,39 @@ export interface Task {
     semantic_refs?: any[];
     url?: string;
     created_at?: string;
+}
+
+export interface CustomPermissions {
+    admin: boolean;
+    create_delete: boolean;
+    edit_all: boolean;
+    take_edit_tasks: boolean;
+    take_edit_contents: boolean;
+    take_edit_reports: boolean;
+    all_tools_access: boolean;
+    monthly_tokens_limit?: number;
+    tokens_used_this_month?: number;
+}
+
+export interface ProjectMember {
+    id: string;
+    project_id: string;
+    user_id: string;
+    role: 'owner' | 'admin' | 'editor' | 'viewer';
+    custom_permissions?: CustomPermissions;
+    created_at?: string;
+}
+
+export interface ProjectInvite {
+    id: string;
+    project_id: string;
+    email: string;
+    role: 'owner' | 'admin' | 'editor' | 'viewer';
+    custom_permissions?: CustomPermissions;
+    token: string;
+    invited_by: string;
+    created_at: string;
+    expires_at: string;
 }
 
 export type ProjectContextState = {

@@ -24,9 +24,9 @@ export function EditorialPulse() {
                 <div>
                     <h2 className="text-[10px] font-medium text-slate-400 uppercase tracking-elegant mb-1">Estado</h2>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-light text-slate-800 tracking-elegant">Salud Óptima</span>
-                        <span className="text-[9px] font-medium text-[var(--color-nous-mint)] bg-[var(--color-nous-mint)]/10 px-2 py-0.5 rounded-full border border-[var(--color-nous-mint)]/30 uppercase tracking-elegant">
-                            98% Uptime
+                        <span className="text-2xl font-light text-slate-800 tracking-elegant">Analizando...</span>
+                        <span className="text-[9px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 uppercase tracking-elegant">
+                            Standby
                         </span>
                     </div>
                 </div>
@@ -36,22 +36,22 @@ export function EditorialPulse() {
                 <div className="flex flex-col">
                     <span className="text-[9px] font-medium text-slate-400 uppercase tracking-elegant mb-1">Ritmo</span>
                     <div className="flex items-center gap-2">
-                        <Zap size={14} className="text-[var(--color-nous-mint)] fill-[var(--color-nous-mint)]" />
-                        <span className="text-lg font-light text-slate-800">4.2 <span className="text-[10px] text-slate-400 font-light">posts/sem</span></span>
+                        <Zap size={14} className="text-slate-300 fill-slate-100" />
+                        <span className="text-lg font-light text-slate-800">-- <span className="text-[10px] text-slate-400 font-light">posts/sem</span></span>
                     </div>
                 </div>
                 <div className="flex flex-col">
                     <span className="text-[9px] font-medium text-slate-400 uppercase tracking-elegant mb-1">Próximo Hueco</span>
                     <div className="flex items-center gap-2">
-                        <AlertTriangle size={14} className="text-slate-300" />
-                        <span className="text-lg font-light text-slate-800">Feb 18 <span className="text-[10px] text-slate-400 font-light">2d libres</span></span>
+                        <AlertTriangle size={14} className="text-slate-200" />
+                        <span className="text-lg font-light text-slate-800">TBD <span className="text-[10px] text-slate-400 font-light">--</span></span>
                     </div>
                 </div>
                 <div className="flex flex-col">
                     <span className="text-[9px] font-medium text-slate-400 uppercase tracking-elegant mb-1">Calidad SEO</span>
                     <div className="flex items-center gap-2">
-                        <CheckCircle2 size={14} className="text-[var(--color-nous-mint)]" />
-                        <span className="text-lg font-light text-slate-800">A+ <span className="text-[10px] text-slate-400 font-light">avg</span></span>
+                        <CheckCircle2 size={14} className="text-slate-200" />
+                        <span className="text-lg font-light text-slate-800">-- <span className="text-[10px] text-slate-400 font-light">avg</span></span>
                     </div>
                 </div>
             </div>
