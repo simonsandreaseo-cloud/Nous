@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# -----------------------------------------------
+# LOCAL NODE — Módulo local de IA (Gemma 4B)
+# Se sube directo al hosting vía file manager, NO a git.
+# -----------------------------------------------
+local-node/

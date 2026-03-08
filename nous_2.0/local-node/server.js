@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 const flux = require('./fluxEngine');
+const ai = require('./ai'); // Importar IA Local
 
 
 
@@ -19,6 +20,10 @@ const SESSION_TOKEN = "nous-dev-token-2026";
 console.log(`[NOUS NODE] Servidor iniciado.`);
 console.log(`[NOUS NODE] Token de sesión esperado: ${SESSION_TOKEN}`);
 console.log(`[NOUS NODE] Esperando conexiones en ws://localhost:${WSS_PORT}`);
+
+// Iniciar IA asíncronamente (descargará modelo si no existe)
+ai.initAI().catch(e => console.error("[NOUS NODE] Error inicializando IA:", e));
+
 
 const wss = new WebSocket.Server({
     port: WSS_PORT,
@@ -144,6 +149,27 @@ wss.on('connection', function connection(ws) {
 
                 case 'FLUX_GET_STATS':
                     ws.send(JSON.stringify({ type: 'FLUX_STATS', payload: flux.getStats() }));
+                    break;
+
+                // --- IA LOCAL (Gemma 3 4B) ---
+                case 'AI_GET_STATUS':
+                    ws.send(JSON.stringify({ type: 'AI_STATUS', payload: ai.getStatus() }));
+                    break;
+
+                case 'AI_PROMPT':
+                    const promptText = data.payload.text;
+                    const promptId = data.payload.id || crypto.randomUUID();
+                    ws.send(JSON.stringify({ type: 'AI_RESPONSE_START', payload: { id: promptId } }));
+                    
+                    ai.promptAI(promptText, (chunk) => {
+                        // Enviar cada chunk del texto generado en tiempo real
+                        ws.send(JSON.stringify({ type: 'AI_RESPONSE_CHUNK', payload: { id: promptId, textChunk: chunk } }));
+                    }).then((finalText) => {
+                        ws.send(JSON.stringify({ type: 'AI_RESPONSE_COMPLETE', payload: { id: promptId, fullText: finalText } }));
+                    }).catch((err) => {
+                        console.error("[NOUS NODE] Error en prompt IA:", err);
+                        ws.send(JSON.stringify({ type: 'AI_ERROR', payload: { id: promptId, message: err.message } }));
+                    });
                     break;
 
                 default:
