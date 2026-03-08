@@ -1,11 +1,13 @@
 import { LocalNodeBridge } from "@/lib/local-node/bridge";
 import { ReportPayload } from "@/types/report";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { cookies } from "next/headers";
 
 async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-1.5-flash', jsonResponse: boolean = false): Promise<string> {
-    const cookieStore = await cookies();
-    const aiMode = cookieStore.get('nous_ai_mode')?.value || 'local';
+    let aiMode = 'cloud';
+    if (typeof document !== 'undefined') {
+        const match = document.cookie.match(/(^| )nous_ai_mode=([^;]+)/);
+        if (match && match[2]) aiMode = match[2];
+    }
 
     if (aiMode === 'local') {
         const bridge = LocalNodeBridge as any;

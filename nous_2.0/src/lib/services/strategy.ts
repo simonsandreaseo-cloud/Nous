@@ -1,12 +1,15 @@
 import { supabase } from '@/lib/supabase';
 import { LocalNodeBridge } from '@/lib/local-node/bridge';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { cookies } from 'next/headers';
 import { getGeminiKey } from '@/lib/ai/config';
 
 async function queryAI(prompt: string, modelId: string = 'gemini-1.5-flash', jsonResponse: boolean = true): Promise<string> {
-    const cookieStore = await cookies();
-    const aiMode = cookieStore.get('nous_ai_mode')?.value || 'local';
+    // Read ai mode from cookie (compatible with Client Components and SSR)
+    let aiMode = 'cloud';
+    if (typeof document !== 'undefined') {
+        const match = document.cookie.match(/(^| )nous_ai_mode=([^;]+)/);
+        if (match && match[2]) aiMode = match[2];
+    }
 
     if (aiMode === 'local') {
         const bridge = LocalNodeBridge as any;
