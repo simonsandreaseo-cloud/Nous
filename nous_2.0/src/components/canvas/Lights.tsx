@@ -23,23 +23,35 @@ export function Lights() {
             <Environment resolution={512} background={false}>
                 {/* 1. Esfera de reflexión (Invisible para la cámara, visible para reflejos) 
                    Esto es CRÍTICO para que el vidrio no se vea negro. Necesita algo blanco que reflejar. */}
-                <mesh scale={10}>
+                <mesh scale={20}>
                     <sphereGeometry args={[1, 64, 64]} />
-                    <meshBasicMaterial color="#0a0a14" side={2} />
+                    <meshBasicMaterial color="#ffffff" side={2} />
                 </mesh>
 
-                {/* 2. Luz cenital para definición */}
+                {/* 2. Luces de estudio frontales y superiores para brillos definidos */}
                 <Lightformer
-                    position={[0, 10, 0]}
-                    rotation-x={-Math.PI / 2}
-                    scale={10}
-                    intensity={4}
+                    form="rect"
+                    position={[0, 5, 5]}
+                    scale={[10, 5, 1]}
+                    intensity={10}
                     color="#ffffff"
                 />
 
-                {/* 3. Luces laterales para bordes */}
-                <Lightformer position={[10, 0, 0]} rotation-y={Math.PI / 2} scale={5} intensity={2} />
-                <Lightformer position={[-10, 0, 0]} rotation-y={-Math.PI / 2} scale={5} intensity={2} />
+                <Lightformer
+                    form="rect"
+                    position={[-5, 2, 5]}
+                    scale={[2, 10, 1]}
+                    intensity={5}
+                    color="#ffffff"
+                />
+
+                <Lightformer
+                    form="rect"
+                    position={[5, 2, 5]}
+                    scale={[2, 10, 1]}
+                    intensity={5}
+                    color="#ffffff"
+                />
             </Environment>
 
             <ContactShadows

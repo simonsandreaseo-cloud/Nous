@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Float, MeshDistortMaterial } from "@react-three/drei";
+import { Float, MeshTransmissionMaterial } from "@react-three/drei";
 import { Mesh, Group, Vector3 } from "three";
 import { useAppStore } from "@/store/useAppStore";
 import { useNodeStore } from "@/store/useNodeStore";
@@ -32,8 +32,8 @@ function InnerStructure() {
     );
 }
 
-// Wrap MeshDistortMaterial for animation
-const AnimatedDistortMaterial = animated(MeshDistortMaterial);
+// Wrap MeshTransmissionMaterial for animation
+const AnimatedTransmissionMaterial = animated(MeshTransmissionMaterial);
 
 export function NousOrb() {
     const orbRef = useRef<Mesh>(null!);
@@ -112,7 +112,7 @@ export function NousOrb() {
         >
             <group position={[0, 1.2, 0]}>
 
-                {/* Main Orb — Synthetic Crystal Glass */}
+                {/* Main Orb — Physical Synthetic Crystal Glass */}
                 <animated.mesh
                     ref={orbRef}
                     scale={springScale as any}
@@ -121,32 +121,33 @@ export function NousOrb() {
                     onPointerOut={() => (document.body.style.cursor = "auto")}
                 >
                     <sphereGeometry args={[1.5, 64, 64]} />
-                    <AnimatedDistortMaterial
-                        color={springProps.color}
+                    <AnimatedTransmissionMaterial
+                        //@ts-ignore
+                        transmission={1.0}
+                        //@ts-ignore
+                        thickness={1.5}
+                        //@ts-ignore
+                        ior={1.2}
+                        //@ts-ignore
+                        chromaticAberration={0.06}
+                        //@ts-ignore
+                        anisotropy={0.1}
+                        //@ts-ignore
+                        distortion={0.1}
+                        //@ts-ignore
+                        distortionScale={0.3}
+                        //@ts-ignore
+                        temporalDistortion={0.5}
+                        clearcoat={1}
+                        attenuationDistance={0.5}
+                        attenuationColor={springProps.color}
+                        color="#ffffff"
                         emissive={springProps.emissive}
-                        emissiveIntensity={2.5}
-                        roughness={0.0}
+                        emissiveIntensity={1.5}
+                        roughness={0.05}
                         metalness={0.0}
-                        envMapIntensity={0}
-                        distort={springProps.distort}
-                        speed={springProps.speed}
-                        transparent={true}
-                        opacity={springProps.opacity as any}
-                        depthWrite={false}
                     />
                 </animated.mesh>
-
-                {/* Fresnel Rim — Synthetic Crystal Edge Glow */}
-                <mesh scale={1.08} renderOrder={1}>
-                    <sphereGeometry args={[1.5, 32, 32]} />
-                    <meshBasicMaterial
-                        color={rimColor}
-                        transparent={true}
-                        opacity={0.07}
-                        depthWrite={false}
-                        side={2}
-                    />
-                </mesh>
 
                 {/* Inner structure remains visible inside */}
                 <InnerStructure />
