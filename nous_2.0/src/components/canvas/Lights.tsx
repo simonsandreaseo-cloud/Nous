@@ -21,11 +21,11 @@ export function Lights() {
 
             {/* Smart Studio Environment - Lightformer + Bright Background for Reflections */}
             <Environment resolution={512} background={false}>
-                {/* 1. Esfera de reflexión (Invisible para la cámara, visible para reflejos) 
-                   Esto es CRÍTICO para que el vidrio no se vea negro. Necesita algo blanco que reflejar. */}
+                {/* 1. Fondo del estudio (oscuro) 
+                   Esto es CRÍTICO: El vidrio necesita un entorno oscuro con "luces" brillantes para no verse como un círculo plano. */}
                 <mesh scale={20}>
                     <sphereGeometry args={[1, 64, 64]} />
-                    <meshBasicMaterial color="#ffffff" side={2} />
+                    <meshBasicMaterial color="#020202" side={2} />
                 </mesh>
 
                 {/* 2. Luces de estudio perimetrales para Rim Highlights (Evita el centro) */}
