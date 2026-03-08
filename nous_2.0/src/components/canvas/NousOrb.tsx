@@ -32,9 +32,6 @@ function InnerStructure() {
     );
 }
 
-// Wrap MeshTransmissionMaterial for animation
-const AnimatedTransmissionMaterial = animated(MeshTransmissionMaterial);
-
 export function NousOrb() {
     const orbRef = useRef<Mesh>(null!);
     const hoveredItem = useAppStore((state) => state.hoveredItem);
@@ -121,33 +118,32 @@ export function NousOrb() {
                     onPointerOut={() => (document.body.style.cursor = "auto")}
                 >
                     <sphereGeometry args={[1.5, 64, 64]} />
-                    <AnimatedTransmissionMaterial
-                        //@ts-ignore
-                        transmission={1.0}
-                        //@ts-ignore
-                        thickness={0.2}
-                        //@ts-ignore
-                        ior={1.2}
-                        //@ts-ignore
-                        chromaticAberration={0.04}
-                        //@ts-ignore
-                        anisotropy={0.1}
-                        //@ts-ignore
-                        distortion={0.0}
-                        //@ts-ignore
-                        distortionScale={0.3}
-                        //@ts-ignore
-                        temporalDistortion={0.5}
-                        clearcoat={1}
-                        attenuationDistance={0.5}
-                        attenuationColor={springProps.color}
+                    <animated.meshPhysicalMaterial
                         color="#ffffff"
                         emissive={springProps.emissive}
                         emissiveIntensity={1.2}
-                        roughness={0.15}
-                        metalness={0.0}
+                        roughness={0.05}
+                        metalness={0.1}
+                        transparent={true}
+                        opacity={0.15}
+                        envMapIntensity={2.5}
+                        clearcoat={1}
+                        clearcoatRoughness={0.1}
+                        depthWrite={false}
                     />
                 </animated.mesh>
+
+                {/* Fresnel Rim — Synthetic Crystal Edge Glow */}
+                <mesh scale={1.02} renderOrder={1}>
+                    <sphereGeometry args={[1.5, 32, 32]} />
+                    <meshBasicMaterial
+                        color={rimColor}
+                        transparent={true}
+                        opacity={0.12}
+                        depthWrite={false}
+                        side={2} // BackSide
+                    />
+                </mesh>
 
                 {/* Inner structure remains visible inside */}
                 <InnerStructure />
