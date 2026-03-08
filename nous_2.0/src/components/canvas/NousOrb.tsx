@@ -120,30 +120,17 @@ export function NousOrb() {
                     <sphereGeometry args={[1.5, 64, 64]} />
                     <animated.meshPhysicalMaterial
                         color={springProps.color}
-                        emissive="#000000" // CRÍTICO: Si emite luz, se ve plano (2D). Debe captar luces externas para verse 3D.
-                        roughness={0.0}
-                        metalness={0.5} // Sutil carácter de cristal con reflejo fuerte
+                        emissive="#000000"
+                        roughness={0.05}
+                        metalness={0.2}
                         transparent={true}
-                        opacity={0.15}
-                        envMapIntensity={4} // Multiplicamos los reflejos del estadio para que brillen
+                        opacity={0.25} // Subimos un poco la opacidad para que el color del estado sea visible
+                        envMapIntensity={5} // Maximizamos los reflejos del entorno para dar el carácter 3D
                         clearcoat={1}
-                        clearcoatRoughness={0}
+                        clearcoatRoughness={0.05}
                         depthWrite={false}
                     />
                 </animated.mesh>
-
-                {/* Fresnel Rim — Synthetic Crystal Edge Glow */}
-                <mesh scale={1.03} renderOrder={1}>
-                    <sphereGeometry args={[1.5, 32, 32]} />
-                    <meshBasicMaterial
-                        color={rimColor}
-                        transparent={true}
-                        opacity={0.3}
-                        depthWrite={false}
-                        side={2} // BackSide
-                        blending={2} // THREE.AdditiveBlending para que brille intensamente sin opacar el fondo
-                    />
-                </mesh>
 
                 {/* Inner structure remains visible inside */}
                 <InnerStructure />
