@@ -3,15 +3,50 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
 import { getGeminiKey } from '@/lib/ai/config';
+import { cookies } from 'next/headers';
 
-// Robust AI initialization
-const getAI = () => {
-    const apiKey = getGeminiKey();
-    if (!apiKey) {
-        throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
-    }
-    return new GoogleGenerativeAI(apiKey);
-};
+// Promisified WebSocket function to query Local Node from Server Components/Actions
+async function queryLocalAI(promptText: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const WebSocket = global.WebSocket || require('ws');
+        const ws = new WebSocket('ws://localhost:11434');
+        const promptId = crypto.randomUUID();
+        let fullText = "";
+
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ type: 'AUTH', payload: { token: 'nous-dev-token-2026' } }));
+        };
+
+        ws.onmessage = (event: any) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'AUTH_SUCCESS') {
+                    ws.send(JSON.stringify({ type: 'AI_PROMPT', payload: { id: promptId, text: promptText } }));
+                } else if (data.type === 'AI_RESPONSE_CHUNK' && data.payload.id === promptId) {
+                    fullText += data.payload.textChunk;
+                } else if (data.type === 'AI_RESPONSE_COMPLETE' && data.payload.id === promptId) {
+                    ws.close();
+                    resolve(data.payload.fullText);
+                } else if (data.type === 'AI_ERROR' && data.payload.id === promptId) {
+                    ws.close();
+                    reject(new Error(data.payload.message));
+                }
+            } catch (e) {
+                // Ignore parse errors from node stats
+            }
+        };
+
+        ws.onerror = (e: any) => {
+            reject(new Error("Local Node unavailable: " + e.message));
+        };
+
+        // Timeout (120s)
+        setTimeout(() => {
+            ws.close();
+            reject(new Error("Timeout waiting for Local AI"));
+        }, 120000);
+    });
+}
 
 export const analyzeTextAndPlanImagesAction = async (
     paragraphs: string[],
@@ -45,28 +80,47 @@ export const analyzeTextAndPlanImagesAction = async (
     Plan the images now.`;
 
     try {
-        console.log("[NOUS_DEBUG] Starting Image Planning...");
-        const ai = getAI();
-        const model = ai.getGenerativeModel({
-            model: "gemini-1.5-flash",
-            systemInstruction: systemPrompt
-        });
+        const cookieStore = await cookies();
+        const aiMode = cookieStore.get('nous_ai_mode')?.value || 'local';
 
-        const response = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                temperature: 0.3
-            }
-        });
+        let text = "";
 
-        const text = response.response.text();
-        if (!text) {
-            throw new Error("No response from AI Planner.");
+        if (aiMode === 'local') {
+            console.log("[NOUS_DEBUG] Starting Image Planning on Local Node...");
+            const fullPrompt = `[System]: ${systemPrompt}\n\n[User]: ${userPrompt}`;
+            text = await queryLocalAI(fullPrompt);
+        } else {
+            console.log("[NOUS_DEBUG] Starting Image Planning on Cloud AI...");
+            const apiKey = getGeminiKey();
+            if (!apiKey) throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
+            const ai = new GoogleGenerativeAI(apiKey);
+            const model = ai.getGenerativeModel({
+                model: "gemini-1.5-flash",
+                systemInstruction: systemPrompt
+            });
+
+            const response = await model.generateContent({
+                contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    temperature: 0.3
+                }
+            });
+            text = response.response.text();
+        }
+
+        // Limpieza de formato para asegurar parse JSON
+        let cleanText = text.trim();
+        if (cleanText.startsWith('```json')) cleanText = cleanText.replace('```json', '');
+        if (cleanText.startsWith('```')) cleanText = cleanText.replace('```', '');
+        if (cleanText.endsWith('```')) cleanText = cleanText.slice(0, -3).trim();
+
+        if (!cleanText) {
+            throw new Error("No response from Local AI Planner.");
         }
 
         console.log("[NOUS_DEBUG] Plan generated successfully.");
-        return JSON.parse(text) as ImagePlan;
+        return JSON.parse(cleanText) as ImagePlan;
     } catch (error: any) {
         console.error("[NOUS_DEBUG] CRITICAL PLANNING ERROR:", error);
         throw new Error(error.message || "Failed to plan images.");

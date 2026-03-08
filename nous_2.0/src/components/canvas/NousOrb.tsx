@@ -69,7 +69,7 @@ export function NousOrb() {
     // 'IDLE' | 'CRAWLING' | 'PROCESSING' | 'ERROR'
 
     const visualState = useMemo(() => {
-        if (!isConnected) return { color: "#334155", distort: 0, speed: 0.5, emissive: "#000000" }; // Slate/Off
+        if (!isConnected) return { color: "#ffffff", distort: 0.15, speed: 0.5, emissive: "#000000", opacity: 0.08 }; // Crystal/Off
 
         switch (nodeStatus) {
             case 'IDLE':
@@ -77,16 +77,17 @@ export function NousOrb() {
                     color: trend === 'down' ? "#fff1f2" : "#ecfdf5",
                     emissive: trend === 'down' ? "#f43f5e" : "#10b981",
                     distort: 0.4,
-                    speed: 2
+                    speed: 2,
+                    opacity: 0.18
                 };
             case 'CRAWLING':
-                return { color: "#d8b4fe", emissive: "#9333ea", distort: 0.8, speed: 8 }; // Purple/Fast
+                return { color: "#d8b4fe", emissive: "#9333ea", distort: 0.8, speed: 8, opacity: 0.35 }; // Purple/Fast
             case 'PROCESSING':
-                return { color: "#fed7aa", emissive: "#f97316", distort: 0.6, speed: 4 }; // Orange/Medium
+                return { color: "#fed7aa", emissive: "#f97316", distort: 0.6, speed: 4, opacity: 0.28 }; // Orange/Medium
             case 'ERROR':
-                return { color: "#fecaca", emissive: "#ef4444", distort: 1.2, speed: 0.5 }; // Red/Glitchy
+                return { color: "#fecaca", emissive: "#ef4444", distort: 1.2, speed: 0.5, opacity: 0.45 }; // Red/Glitchy
             default:
-                return { color: "#ecfdf5", emissive: "#10b981", distort: 0.4, speed: 2 };
+                return { color: "#ecfdf5", emissive: "#10b981", distort: 0.4, speed: 2, opacity: 0.18 };
         }
     }, [nodeStatus, isConnected, trend]);
 
@@ -95,6 +96,7 @@ export function NousOrb() {
         emissive: visualState.emissive,
         distort: visualState.distort,
         speed: visualState.speed,
+        opacity: visualState.opacity ?? 0.12,
         config: config.molasses // Slow transitions for colors
     });
 
@@ -119,13 +121,15 @@ export function NousOrb() {
                     <AnimatedDistortMaterial
                         color={springProps.color}
                         emissive={springProps.emissive}
-                        emissiveIntensity={0.5}
-                        roughness={0.2}
-                        metalness={0.1}
+                        emissiveIntensity={1.2}
+                        roughness={0.05}
+                        metalness={0.0}
+                        envMapIntensity={0}
                         distort={springProps.distort}
                         speed={springProps.speed}
                         transparent={true}
-                        opacity={0.6}
+                        opacity={springProps.opacity as any}
+                        depthWrite={false}
                     />
                 </animated.mesh>
 

@@ -1,4 +1,26 @@
+import { LocalNodeBridge } from "@/lib/local-node/bridge";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { cookies } from "next/headers";
+
+async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-1.5-flash', jsonResponse: boolean = false): Promise<string> {
+    const cookieStore = await cookies();
+    const aiMode = cookieStore.get('nous_ai_mode')?.value || 'local';
+
+    if (aiMode === 'local') {
+        const bridge = LocalNodeBridge as any;
+        return bridge.promptAI(prompt);
+    } else {
+        const ai = new GoogleGenerativeAI(apiKey);
+        const model = ai.getGenerativeModel({ model: modelId });
+        const config: any = {};
+        if (jsonResponse) config.responseMimeType = 'application/json';
+        const res = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: config
+        });
+        return res.response.text();
+    }
+}
 
 interface SegmentRule {
     name: string;
@@ -59,48 +81,35 @@ export const SegmentationService = {
 };
 
 async function generateAiRules(summary: string, contextType: string, apiKey: string): Promise<SegmentRule[]> {
-    // Specialized prompt based on context
     const isRoot = contextType === "Root URL Patterns";
 
-    const systemPrompt = `
-    You are a Regex Expert for SEO. 
-    Analyze the provided ${contextType} summary and group URLs into business segments.
-    
-    RULES:
-    1. Create a Javascript Regex for each group.
-    2. ${isRoot ? 'Look for patterns in the slug (e.g. keywords, prefixes, suffixes) or list critical static pages.' : 'Map folders to segment names.'}
-    3. Return JSON array: [{ "name": "Segment Name", "regex": "pattern" }]
-    4. ${isRoot ? 'If patterns are weak, group by page type (e.g. "Core Pages" for about/contact).' : 'Combine similar folders if they mean same thing (e.g. /en/blog and /es/blog -> "Blog").'}
-    
-    IMPORTANT: Return ONLY JSON.
-    `;
+    const systemPrompt = `You are a Regex Expert for SEO. 
+Analyze the provided ${contextType} summary and group URLs into business segments.
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const modelsToTry = [
-        'gemini-3-flash-preview',
-        'gemini-2.5-flash',
-        'gemini-2.5-flash-lite',
-        'gemini-1.5-flash'
-    ];
+RULES:
+1. Create a Javascript Regex for each group.
+2. ${isRoot ? 'Look for patterns in the slug (e.g. keywords, prefixes, suffixes) or list critical static pages.' : 'Map folders to segment names.'}
+3. Return JSON array: [{ "name": "Segment Name", "regex": "pattern" }]
+4. ${isRoot ? 'If patterns are weak, group by page type (e.g. "Core Pages" for about/contact).' : 'Combine similar folders if they mean same thing (e.g. /en/blog and /es/blog -> "Blog").'}
 
-    let lastError: any = null;
+IMPORTANT: Return ONLY valid JSON array without markdown blocks.`;
 
-    for (const modelId of modelsToTry) {
-        try {
-            console.log(`[AI-SEGMENTATION] Trying model: ${modelId}`);
-            const model = genAI.getGenerativeModel({ model: modelId });
-            const result = await model.generateContent([
-                { text: systemPrompt },
-                { text: `SUMMARY:\n${summary}` }
-            ]);
-            const text = result.response.text();
-            if (text) return JSON.parse(text);
-        } catch (e: any) {
-            console.warn(`[AI-SEGMENTATION] Model ${modelId} failed:`, e.message?.substring(0, 100));
-            lastError = e;
-            // If it's a 404 or 429, try next model
-            continue;
-        }
+    const fullPrompt = `[System]: ${systemPrompt}\n\n[Data]: SUMMARY:\n${summary}`;
+
+    try {
+        console.log(`[AI-SEGMENTATION] Sending to AI (Mode: auto)...`);
+        let text = await queryAI(fullPrompt, apiKey, 'gemini-1.5-flash', true);
+
+        // Limpiar backticks si los devuelve
+        if (text.startsWith('```json')) text = text.replace('```json', '');
+        if (text.startsWith('```')) text = text.replace('```', '');
+        text = text.trim();
+        if (text.endsWith('```')) text = text.slice(0, -3).trim();
+
+        if (text) return JSON.parse(text);
+    } catch (e: any) {
+        console.warn(`[AI-SEGMENTATION] AI failed:`, e.message?.substring(0, 100));
+        return [];
     }
 
     console.error(`[AI-SEGMENTATION] All models failed for ${contextType}`);

@@ -29,7 +29,7 @@ class LocalBridge {
 
     private connect() {
         try {
-            this.ws = new WebSocket('ws://localhost:9001');
+            this.ws = new WebSocket('ws://localhost:11434');
 
             this.ws.onopen = () => {
                 console.log('[NOUS BRIDGE] Conectado. Enviando autenticación...');
@@ -248,6 +248,58 @@ class LocalBridge {
 
     public getFluxStats() {
         this.send('FLUX_GET_STATS');
+    }
+
+    // --- IA LOCAL (Gemma 3 4B) ---
+
+    public getAIStatus() {
+        this.send('AI_GET_STATUS');
+    }
+
+    /**
+     * Envía un prompt a la IA local y maneja la respuesta por partes (streaming).
+     * Retorna una Promesa que se resuelve con el texto final generado.
+     */
+    public promptAI(text: string, onChunk?: (chunk: string) => void): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const promptId = crypto.randomUUID();
+            let accumulatedText = "";
+
+            const unsubscribeChunk = this.on('AI_RESPONSE_CHUNK', (payload: any) => {
+                if (payload.id === promptId) {
+                    accumulatedText += payload.textChunk;
+                    if (onChunk) onChunk(payload.textChunk);
+                }
+            });
+
+            const unsubscribeComplete = this.on('AI_RESPONSE_COMPLETE', (payload: any) => {
+                if (payload.id === promptId) {
+                    unsubscribeChunk();
+                    unsubscribeComplete();
+                    unsubscribeError();
+                    resolve(payload.fullText);
+                }
+            });
+
+            const unsubscribeError = this.on('AI_ERROR', (payload: any) => {
+                if (payload.id === promptId) {
+                    unsubscribeChunk();
+                    unsubscribeComplete();
+                    unsubscribeError();
+                    reject(new Error(payload.message));
+                }
+            });
+
+            // Timeout tras 5 minutos (la IA podría tardar)
+            setTimeout(() => {
+                unsubscribeChunk();
+                unsubscribeComplete();
+                unsubscribeError();
+                reject(new Error('AI prompt timeout'));
+            }, 300000);
+
+            this.send('AI_PROMPT', { id: promptId, text });
+        });
     }
 }
 

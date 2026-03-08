@@ -1,6 +1,30 @@
 import { supabase } from '@/lib/supabase';
+import { LocalNodeBridge } from '@/lib/local-node/bridge';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { AI_CONFIG, getGeminiKey } from '@/lib/ai/config';
+import { cookies } from 'next/headers';
+import { getGeminiKey } from '@/lib/ai/config';
+
+async function queryAI(prompt: string, modelId: string = 'gemini-1.5-flash', jsonResponse: boolean = true): Promise<string> {
+    const cookieStore = await cookies();
+    const aiMode = cookieStore.get('nous_ai_mode')?.value || 'local';
+
+    if (aiMode === 'local') {
+        const bridge = LocalNodeBridge as any;
+        return bridge.promptAI(prompt);
+    } else {
+        const apiKey = getGeminiKey();
+        if (!apiKey) throw new Error("Gemini API Key missing");
+        const ai = new GoogleGenerativeAI(apiKey);
+        const model = ai.getGenerativeModel({ model: modelId });
+        const config: any = {};
+        if (jsonResponse) config.responseMimeType = 'application/json';
+        const res = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: config
+        });
+        return res.response.text();
+    }
+}
 import { Task } from '@/types/project';
 
 // Basic interfaces ported from legacy metadataService
@@ -24,22 +48,13 @@ export class StrategyService {
      * Ports logic from legacy metadataService.ts
      */
     static async generateMetadata(taskId: string, title: string, keyword?: string): Promise<MetadataResult> {
-        // 1. Get Rotating API Key
-        const apiKey = getGeminiKey();
-        if (!apiKey) throw new Error("Gemini API Keys missing");
+        const prompt = `[System]: Actúa como un experto en SEO clínico. Genera metadatos optimizados. Responde ÚNICAMENTE en JSON con los campos: metaTitle, h1, metaDescription, slug. No incluyas markdown.
+        
+[User]:
+Título: ${title}
+Keyword: ${keyword || 'N/A'}`;
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: AI_CONFIG.gemini.models.flash });
-
-        const prompt = `Actúa como un experto en SEO clínico. Genera metadatos optimizados para:
-        Título: ${title}
-        Keyword: ${keyword || 'N/A'}
-
-        Responde en formato JSON con los campos: metaTitle, h1, metaDescription, slug.`;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const text = await queryAI(prompt);
 
         // Basic JSON extraction
         const jsonMatch = text.match(/\{[\s\S]*\}/);

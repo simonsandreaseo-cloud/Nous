@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import { AI_CONFIG, getGeminiKey } from './config';
 import { AIRequest, AIResponse } from './types';
+import { LocalNodeBridge } from '../local-node/bridge';
 
 class AIRouter {
     private groq?: Groq;
@@ -18,7 +19,47 @@ class AIRouter {
     }
 
     async generate(request: AIRequest): Promise<AIResponse> {
-        const { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode } = request;
+        let { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode } = request;
+
+        // --- GLOBAL AI MODE OVERRIDE ---
+        // If the user's aiMode cookie or state is 'local', force the model to 'gemma-local'
+        let aiMode = 'cloud';
+        if (typeof document !== 'undefined') {
+            const match = document.cookie.match(/(^| )nous_ai_mode=([^;]+)/);
+            if (match && match[2] === 'local') {
+                aiMode = 'local';
+            }
+        }
+
+        if (aiMode === 'local') {
+            model = 'gemma-local';
+            console.log("[AIRouter] Using Local AI Mode");
+        }
+
+        if (model === 'gemma-local') {
+            const bridge = LocalNodeBridge as any;
+
+            // Construir un prompt compatible con Llama/Gemma combinando System y User
+            let finalPrompt = prompt;
+            if (systemPrompt) {
+                finalPrompt = `[System]: ${systemPrompt}\n\n[User]: ${prompt}`;
+            }
+
+            try {
+                const responseText = await bridge.promptAI(finalPrompt);
+                return {
+                    text: responseText,
+                    usage: {
+                        promptTokens: 0,
+                        completionTokens: 0,
+                        totalTokens: 0
+                    }
+                };
+            } catch (error) {
+                console.error("[AIRouter] Fallo en la IA Local:", error);
+                throw new Error("Error en IA Local: " + (error as Error).message);
+            }
+        }
 
         // 1. Route to Groq (Speed Mode)
         if (model.includes('llama') || model.includes('mixtral')) {

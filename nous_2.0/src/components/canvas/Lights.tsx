@@ -25,7 +25,7 @@ export function Lights() {
                    Esto es CRÍTICO para que el vidrio no se vea negro. Necesita algo blanco que reflejar. */}
                 <mesh scale={10}>
                     <sphereGeometry args={[1, 64, 64]} />
-                    <meshBasicMaterial color="#ffffff" side={2} />
+                    <meshBasicMaterial color="#0a0a14" side={2} />
                 </mesh>
 
                 {/* 2. Luz cenital para definición */}

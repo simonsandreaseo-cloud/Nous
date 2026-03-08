@@ -1,5 +1,27 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { LocalNodeBridge } from "@/lib/local-node/bridge";
 import { ReportPayload } from "@/types/report";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { cookies } from "next/headers";
+
+async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-1.5-flash', jsonResponse: boolean = false): Promise<string> {
+    const cookieStore = await cookies();
+    const aiMode = cookieStore.get('nous_ai_mode')?.value || 'local';
+
+    if (aiMode === 'local') {
+        const bridge = LocalNodeBridge as any;
+        return bridge.promptAI(prompt);
+    } else {
+        const ai = new GoogleGenerativeAI(apiKey);
+        const model = ai.getGenerativeModel({ model: modelId });
+        const config: any = {};
+        if (jsonResponse) config.responseMimeType = 'application/json';
+        const res = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: config
+        });
+        return res.response.text();
+    }
+}
 
 // Helper to reduce payload size intelligently without breaking JSON structure
 function simplifyPayload(payload: ReportPayload): any {
@@ -115,30 +137,20 @@ async function generateSection(
     apiKey: string,
     modelId: string
 ): Promise<any[]> {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: modelId });
+    const bridge = LocalNodeBridge as any;
 
     const simplifiedPayload = simplifyPayload(payload);
     const safePayload = JSON.stringify(simplifiedPayload);
 
-    const prompt = `
---- USER CONTEXT ---
-${payload.userContext || 'No specific context.'}
+    const prompt = `[System]: ${SYSTEM_PROMPT_WRITER}
 
---- SECTION TO WRITE ---
-${sectionKey}
-
---- RESEARCH DOSSIER ---
-${safePayload}
-`;
+[UserContext]: ${payload.userContext || 'No specific context.'}
+[Section]: ${sectionKey}
+[Data]: ${safePayload}`;
 
     try {
-        console.log(`[GEMINI-SERVICE] Generating JSON section: ${sectionKey} using ${modelId}`);
-        const result = await model.generateContent([
-            { text: SYSTEM_PROMPT_WRITER },
-            { text: prompt }
-        ]);
-        let text = result.response.text().trim();
+        console.log(`[GEMINI-SERVICE] Generating JSON section: ${sectionKey}`);
+        let text = await queryAI(prompt, apiKey, modelId, true);
 
         // Clean markdown backticks if Gemini includes them despite instructions
         const match = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
@@ -232,24 +244,15 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
     // If we have explicit AI sources, we might trust regex, but Gemini is smarter for ambiguous ones.
     // Let's use Gemini for the full list to catch new ones.
 
-    const prompt = `
-    Analyze this list of web traffic sources/referrers.
-    Return a JSON array of strings containing ONLY the sources that are AI Chatbots, LLMs, or AI Search Assistants.
-    Examples to include: "chatgpt", "openai", "bard", "gemini", "bing chat", "copilot", "perplexity", "claude", "anthropic", "you.com".
-    Examples to ignore: "google", "bing", "facebook", "twitter", "direct", "(not set)", "organic".
+    const promptText = `[System]: Analyze this list of web traffic sources/referrers.
+Return a JSON array of strings containing ONLY the sources that are AI Chatbots, LLMs, or AI Search Assistants.
+Examples to include: "chatgpt", "openai", "bard", "gemini", "bing chat", "copilot", "perplexity", "claude", "anthropic", "you.com".
+Examples to ignore: "google", "bing", "facebook", "twitter", "direct", "(not set)", "organic".
 
-    List: ${JSON.stringify(sources)}
-    `;
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-        model: 'gemini-3-flash-preview', // Upgraded to Gemini 3 for consistency
-        generationConfig: { responseMimeType: "application/json" }
-    });
+[Data]: ${JSON.stringify(sources)}`;
 
     try {
-        const result = await model.generateContent([{ text: prompt }]);
-        const text = result.response.text();
+        const text = await queryAI(promptText, apiKey, 'gemini-1.5-flash', true);
         if (!text) return candidates;
 
         const aiSources = JSON.parse(text);
@@ -262,9 +265,6 @@ export const identifyAiTrafficSources = async (sources: string[], apiKey: string
 };
 
 export const generateContent = async (prompt: string, context: string = '', apiKey: string): Promise<string> => {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-
     const systemPrompt = `You are an SEO Content Assistant for a Report Editor.
     Your task is to generate or improve HTML content for an SEO report based on the user's prompt.
     Return ONLY valid HTML (elements like <p>, <h3>, <ul>, <table>).
@@ -272,19 +272,10 @@ export const generateContent = async (prompt: string, context: string = '', apiK
     Do not use markdown backticks.
     Use Tailwind CSS classes matching the report style (text-gray-600, font-bold, etc.) where appropriate.`;
 
-    const fullPrompt = `
-    ${systemPrompt}
-
-    CONTEXT (Existing Content):
-    ${context}
-
-    USER PROMPT:
-    ${prompt}
-    `;
+    const fullPrompt = `[System]: ${systemPrompt}\n\n[Context]: ${context}\n\n[User]: ${prompt}`;
 
     try {
-        const result = await model.generateContent([{ text: fullPrompt }]);
-        const text = result.response.text();
+        const text = await queryAI(fullPrompt, apiKey);
         // Strip markdown code blocks if present
         return text.replace(/```html/g, '').replace(/```/g, '').trim();
     } catch (e: any) {
@@ -293,9 +284,6 @@ export const generateContent = async (prompt: string, context: string = '', apiK
     }
 };
 export const generateInsightAnalysis = async (context: string, apiKey: string): Promise<string> => {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-
     const systemPrompt = `You are a Senior SEO Data Analyst.
     Analyze the provided SEO metrics context.
     - Focus on finding patterns, opportunities, and anomalies.
@@ -304,12 +292,10 @@ export const generateInsightAnalysis = async (context: string, apiKey: string): 
     - Do NOT output a full report, just the specific analysis for this data section.
     - Language: Spanish.`;
 
+    const fullPrompt = `[System]: ${systemPrompt}\n\n[Data]: ${context}`;
+
     try {
-        const result = await model.generateContent([
-            { text: systemPrompt },
-            { text: context }
-        ]);
-        const text = result.response.text();
+        const text = await queryAI(fullPrompt, apiKey);
         return text.replace(/```html/g, '').replace(/```/g, '').trim();
     } catch (e: any) {
         console.warn("[GEMINI-SERVICE] generateInsightAnalysis failed:", e.message);
