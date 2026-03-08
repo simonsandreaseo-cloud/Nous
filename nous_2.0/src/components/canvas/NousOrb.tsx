@@ -69,25 +69,26 @@ export function NousOrb() {
     // 'IDLE' | 'CRAWLING' | 'PROCESSING' | 'ERROR'
 
     const visualState = useMemo(() => {
-        if (!isConnected) return { color: "#ffffff", distort: 0.15, speed: 0.5, emissive: "#000000", opacity: 0.08 }; // Crystal/Off
+        if (!isConnected) return { color: "#b8d8ef", distort: 0.15, speed: 0.8, emissive: "#38a8e0", opacity: 0.12, rim: "#60d0ff" }; // Synthetic crystal/Off
 
         switch (nodeStatus) {
             case 'IDLE':
                 return {
-                    color: trend === 'down' ? "#fff1f2" : "#ecfdf5",
+                    color: trend === 'down' ? "#ffd0d8" : "#c0f0e0",
                     emissive: trend === 'down' ? "#f43f5e" : "#10b981",
                     distort: 0.4,
                     speed: 2,
-                    opacity: 0.18
+                    opacity: 0.18,
+                    rim: trend === 'down' ? "#ff6080" : "#40ffb0",
                 };
             case 'CRAWLING':
-                return { color: "#d8b4fe", emissive: "#9333ea", distort: 0.8, speed: 8, opacity: 0.35 }; // Purple/Fast
+                return { color: "#e0c8ff", emissive: "#9333ea", distort: 0.8, speed: 8, opacity: 0.30, rim: "#c080ff" };
             case 'PROCESSING':
-                return { color: "#fed7aa", emissive: "#f97316", distort: 0.6, speed: 4, opacity: 0.28 }; // Orange/Medium
+                return { color: "#ffe0c8", emissive: "#f97316", distort: 0.6, speed: 4, opacity: 0.25, rim: "#ff9040" };
             case 'ERROR':
-                return { color: "#fecaca", emissive: "#ef4444", distort: 1.2, speed: 0.5, opacity: 0.45 }; // Red/Glitchy
+                return { color: "#ffd0d0", emissive: "#ef4444", distort: 1.2, speed: 0.5, opacity: 0.40, rim: "#ff4040" };
             default:
-                return { color: "#ecfdf5", emissive: "#10b981", distort: 0.4, speed: 2, opacity: 0.18 };
+                return { color: "#c0f0e0", emissive: "#10b981", distort: 0.4, speed: 2, opacity: 0.18, rim: "#40ffb0" };
         }
     }, [nodeStatus, isConnected, trend]);
 
@@ -97,8 +98,10 @@ export function NousOrb() {
         distort: visualState.distort,
         speed: visualState.speed,
         opacity: visualState.opacity ?? 0.12,
-        config: config.molasses // Slow transitions for colors
+        config: config.molasses
     });
+
+    const rimColor = visualState.rim ?? "#60d0ff";
 
     return (
         <Float
@@ -109,7 +112,7 @@ export function NousOrb() {
         >
             <group position={[0, 1.2, 0]}>
 
-                {/* Main Orb */}
+                {/* Main Orb — Synthetic Crystal Glass */}
                 <animated.mesh
                     ref={orbRef}
                     scale={springScale as any}
@@ -121,8 +124,8 @@ export function NousOrb() {
                     <AnimatedDistortMaterial
                         color={springProps.color}
                         emissive={springProps.emissive}
-                        emissiveIntensity={1.2}
-                        roughness={0.05}
+                        emissiveIntensity={2.5}
+                        roughness={0.0}
                         metalness={0.0}
                         envMapIntensity={0}
                         distort={springProps.distort}
@@ -132,6 +135,18 @@ export function NousOrb() {
                         depthWrite={false}
                     />
                 </animated.mesh>
+
+                {/* Fresnel Rim — Synthetic Crystal Edge Glow */}
+                <mesh scale={1.08} renderOrder={1}>
+                    <sphereGeometry args={[1.5, 32, 32]} />
+                    <meshBasicMaterial
+                        color={rimColor}
+                        transparent={true}
+                        opacity={0.07}
+                        depthWrite={false}
+                        side={2}
+                    />
+                </mesh>
 
                 {/* Inner structure remains visible inside */}
                 <InnerStructure />
