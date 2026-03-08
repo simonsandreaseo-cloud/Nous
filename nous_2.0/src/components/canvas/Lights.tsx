@@ -28,28 +28,38 @@ export function Lights() {
                     <meshBasicMaterial color="#ffffff" side={2} />
                 </mesh>
 
-                {/* 2. Luces de estudio frontales y superiores para brillos definidos */}
+                {/* 2. Luces de estudio perimetrales para Rim Highlights (Evita el centro) */}
                 <Lightformer
                     form="rect"
-                    position={[0, 5, 5]}
-                    scale={[10, 5, 1]}
-                    intensity={10}
+                    position={[-10, 5, 5]}
+                    scale={[2, 20, 1]}
+                    intensity={8}
+                    color="#ffffff"
+                    rotation-y={Math.PI / 4}
+                />
+
+                <Lightformer
+                    form="rect"
+                    position={[10, 5, 5]}
+                    scale={[2, 20, 1]}
+                    intensity={8}
+                    color="#ffffff"
+                    rotation-y={-Math.PI / 4}
+                />
+
+                <Lightformer
+                    form="circle"
+                    position={[0, 10, -5]}
+                    scale={10}
+                    intensity={4}
                     color="#ffffff"
                 />
 
                 <Lightformer
                     form="rect"
-                    position={[-5, 2, 5]}
-                    scale={[2, 10, 1]}
-                    intensity={5}
-                    color="#ffffff"
-                />
-
-                <Lightformer
-                    form="rect"
-                    position={[5, 2, 5]}
-                    scale={[2, 10, 1]}
-                    intensity={5}
+                    position={[0, -5, 10]}
+                    scale={[20, 1, 1]}
+                    intensity={2}
                     color="#ffffff"
                 />
             </Environment>

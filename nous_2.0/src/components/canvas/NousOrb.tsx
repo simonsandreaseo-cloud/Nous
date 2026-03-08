@@ -125,15 +125,15 @@ export function NousOrb() {
                         //@ts-ignore
                         transmission={1.0}
                         //@ts-ignore
-                        thickness={1.5}
+                        thickness={0.2}
                         //@ts-ignore
                         ior={1.2}
                         //@ts-ignore
-                        chromaticAberration={0.06}
+                        chromaticAberration={0.04}
                         //@ts-ignore
                         anisotropy={0.1}
                         //@ts-ignore
-                        distortion={0.1}
+                        distortion={0.0}
                         //@ts-ignore
                         distortionScale={0.3}
                         //@ts-ignore
@@ -143,8 +143,8 @@ export function NousOrb() {
                         attenuationColor={springProps.color}
                         color="#ffffff"
                         emissive={springProps.emissive}
-                        emissiveIntensity={1.5}
-                        roughness={0.05}
+                        emissiveIntensity={1.2}
+                        roughness={0.15}
                         metalness={0.0}
                     />
                 </animated.mesh>
