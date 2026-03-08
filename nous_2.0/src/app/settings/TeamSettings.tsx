@@ -83,8 +83,9 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                     next.all_tools_access = true;
                 }
             } else {
-                next[key] = !prev[key as keyof Omit<CustomPermissions, 'monthly_tokens_limit' | 'admin'>];
-                if (!next[key] && key !== 'admin') {
+                const boolKey = key as keyof Omit<CustomPermissions, 'monthly_tokens_limit' | 'admin'>;
+                (next as any)[boolKey] = !prev[boolKey];
+                if (!(next as any)[boolKey] && key !== 'admin') {
                     next.admin = false; // Uncheck admin if any sub-permission is disabled
                 }
             }
