@@ -1,4 +1,4 @@
-import { google } from 'googleapis';
+// import { google } from 'googleapis'; // Removed for static export
 import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { subDays, format } from 'date-fns';
@@ -113,6 +113,7 @@ export const GscService = {
             }
 
             // 2. Auth Client
+            const { google } = await import('googleapis');
             const auth = new google.auth.OAuth2(
                 process.env.GOOGLE_CLIENT_ID,
                 process.env.GOOGLE_CLIENT_SECRET
@@ -199,6 +200,7 @@ export const GscService = {
         const allSites: { url: string; permission: string; accountEmail?: string }[] = [];
         for (const token of accounts) {
             try {
+                const { google } = await import('googleapis');
                 const auth = new google.auth.OAuth2(
                     process.env.GOOGLE_CLIENT_ID,
                     process.env.GOOGLE_CLIENT_SECRET

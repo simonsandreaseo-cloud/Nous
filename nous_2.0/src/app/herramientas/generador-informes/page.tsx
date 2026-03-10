@@ -2,7 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
-import { generateReportAction, generateReportFromCsvAction, analyzeStructureAction, saveReportAction, getSavedReportsAction, exportToGoogleAction } from '@/app/actions/report-actions';
+import {
+    generateReportAction,
+    generateReportFromCsvAction,
+    analyzeStructureAction,
+    saveReportAction,
+    getSavedReportsAction,
+    exportToGoogleAction,
+    generateAiContentAction
+} from '@/app/node-tasks/report-actions';
 import { parseCSV } from '@/lib/services/report/csvService';
 import { NavigationHeader } from '@/components/dom/NavigationHeader';
 import { ReportView } from '@/components/report-generator/ReportView';

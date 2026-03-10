@@ -1,25 +1,23 @@
-import { google } from 'googleapis';
+// import { google } from 'googleapis'; // Removed for static export
 import { supabase } from '@/lib/supabase';
 
 export class GoogleExportService {
-    private auth;
+    private accessToken: string;
 
     constructor(accessToken: string) {
-        this.auth = new google.auth.OAuth2();
-        this.auth.setCredentials({ access_token: accessToken });
+        this.accessToken = accessToken;
+    }
+
+    private async getAuth() {
+        const { google } = await import('googleapis');
+        const auth = new google.auth.OAuth2();
+        auth.setCredentials({ access_token: this.accessToken });
+        return { google, auth };
     }
 
     async exportToDocs(title: string, htmlContent: string) {
-        // Limitation: Google Docs API dealing with raw HTML is complex.
-        // Strategy: Create a blank doc, then insert text using the API structure.
-        // For HTML items, we might need a converter or just dump plain text for MVP.
-        // Better MVP: Create a Doc and return the URL. The user can copy paste? No, user wants export.
-
-        // Alternative: proper conversion.
-        // For this iteration, we will implement a basic text insertion.
-
-        const docs = google.docs({ version: 'v1', auth: this.auth });
-        const drive = google.drive({ version: 'v3', auth: this.auth });
+        const { google, auth } = await this.getAuth();
+        const docs = google.docs({ version: 'v1', auth });
 
         try {
             // 1. Create Doc
@@ -30,7 +28,6 @@ export class GoogleExportService {
             if (!docId) throw new Error("Failed to create Google Doc");
 
             // 2. Insert Content (Basic Text for MVP)
-            // We strip HTML tags for now to avoid errors, as Docs API doesn't accept HTML string directly.
             const plainText = htmlContent.replace(/<[^>]+>/g, '\n');
 
             await docs.documents.batchUpdate({
@@ -40,7 +37,7 @@ export class GoogleExportService {
                         {
                             insertText: {
                                 location: { index: 1 },
-                                text: plainText.substring(0, 10000) // Limit for safety
+                                text: plainText.substring(0, 10000)
                             }
                         }
                     ]
@@ -53,8 +50,10 @@ export class GoogleExportService {
             return { success: false, error: error.message };
         }
     }
+
     async exportToSlides(title: string, slidesContent: string[]) {
-        const slides = google.slides({ version: 'v1', auth: this.auth });
+        const { google, auth } = await this.getAuth();
+        const slides = google.slides({ version: 'v1', auth });
         const uploadedPaths: string[] = [];
 
         try {
@@ -91,8 +90,6 @@ export class GoogleExportService {
 
             // 3. Add Slides and Images
             const requests: any[] = [];
-
-            // Delete the default slide that gets created with a new presentation
             const defaultSlideId = createRes.data.slides?.[0]?.objectId;
             if (defaultSlideId) {
                 requests.push({ deleteObject: { objectId: defaultSlideId } });
@@ -103,7 +100,6 @@ export class GoogleExportService {
                 const slideId = `slide_${tempDir}_${i}`;
                 const imageId = `img_${tempDir}_${i}`;
 
-                // Create Slide
                 requests.push({
                     createSlide: {
                         objectId: slideId,
@@ -111,14 +107,13 @@ export class GoogleExportService {
                     }
                 });
 
-                // Create Image stretching to full slide dimensions
                 requests.push({
                     createImage: {
                         objectId: imageId,
                         url: url,
                         elementProperties: {
                             pageObjectId: slideId,
-                            size: { width: { magnitude: 720, unit: 'PT' }, height: { magnitude: 405, unit: 'PT' } }, // 16:9 ratio assuming default
+                            size: { width: { magnitude: 720, unit: 'PT' }, height: { magnitude: 405, unit: 'PT' } },
                             transform: { scaleX: 1, scaleY: 1, translateX: 0, translateY: 0, unit: 'PT' }
                         }
                     }
@@ -140,12 +135,9 @@ export class GoogleExportService {
             return { success: true, url: `https://docs.google.com/presentation/d/${presentationId}/edit` };
         } catch (error: any) {
             console.error("Google Slides Export Error:", error);
-
-            // Cleanup on error
             if (uploadedPaths.length > 0) {
                 await supabase.storage.from('project-assets').remove(uploadedPaths);
             }
-
             return { success: false, error: error.message };
         }
     }

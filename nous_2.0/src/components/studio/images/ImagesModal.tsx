@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileUpload } from './FileUpload';
 import { ArticlePreview } from './ArticlePreview';
 import { parseDocx } from '@/lib/services/images/docxService';
-import { analyzeTextAndPlanImagesAction, generateImageAction } from '@/app/actions/image-actions';
+import { analyzeTextAndPlanImagesAction, generateImageAction } from '@/app/node-tasks/image-actions';
 import { applyWatermark } from '@/lib/services/images/watermarkService';
 import { BlogPost, GeneratedImage, ProcessingStatus, AspectRatio, SupportedLanguage, CustomDimensions, InlineImageCount } from '@/types/images';
 import { cn } from '@/utils/cn';

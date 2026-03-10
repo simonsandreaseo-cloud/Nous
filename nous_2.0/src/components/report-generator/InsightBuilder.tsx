@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X, BarChart3, TrendingUp, PieChart, Plus, Loader2, Search, FileText, Table as TableIcon, Layout, ScatterChart } from 'lucide-react';
-import { generateInsightDataAction } from '@/app/actions/report-actions';
+import { generateInsightDataAction } from "@/app/node-tasks/report-actions";
 
 interface InsightBuilderProps {
     onInsert: (config: InsightConfig) => void;

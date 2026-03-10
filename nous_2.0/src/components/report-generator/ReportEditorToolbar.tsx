@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Editor } from '@tiptap/react';
 import { Bold, Italic, Heading1, Heading2, Heading3, List, ListOrdered, Quote, Undo, Redo, Sparkles, Loader2, X, Layout } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import { generateAiContentAction } from '@/app/actions/report-actions';
+import { saveReportAction, generateAiContentAction } from "@/app/node-tasks/report-actions";
 
 interface ToolbarProps {
     editor: Editor | null;

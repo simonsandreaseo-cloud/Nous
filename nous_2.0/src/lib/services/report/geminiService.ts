@@ -1,6 +1,5 @@
 import { LocalNodeBridge } from "@/lib/local-node/bridge";
 import { ReportPayload } from "@/types/report";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-1.5-flash', jsonResponse: boolean = false): Promise<string> {
     let aiMode = 'cloud';
@@ -10,9 +9,9 @@ async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini
     }
 
     if (aiMode === 'local') {
-        const bridge = LocalNodeBridge as any;
-        return bridge.promptAI(prompt);
+        return (LocalNodeBridge as any).promptAI(prompt);
     } else {
+        const { GoogleGenerativeAI } = await import("@google/generative-ai");
         const ai = new GoogleGenerativeAI(apiKey);
         const model = ai.getGenerativeModel({ model: modelId });
         const config: any = {};

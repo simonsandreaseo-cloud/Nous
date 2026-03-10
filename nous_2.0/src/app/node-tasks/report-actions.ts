@@ -1,4 +1,4 @@
-'use server';
+// 'use server' removed for static export compatibility
 
 import { GscService } from '@/lib/services/report/gscService';
 import { runFullAnalysis } from '@/lib/services/report/analysisService';

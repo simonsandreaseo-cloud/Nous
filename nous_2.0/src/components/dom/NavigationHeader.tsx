@@ -14,10 +14,12 @@ export function NavigationHeader() {
     return (
         <div className="absolute top-0 left-0 w-full flex justify-between items-center vacio-pad py-8 pointer-events-none z-50">
             {/* Logo */}
-            <div className="pointer-events-auto flex items-center gap-8">
-                <Link href="/" className="cursor-pointer">
+            <div className="pointer-events-auto flex items-center gap-6">
+                <Link href="/" className="cursor-pointer flex items-center gap-3">
                     <NousLogo />
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 mt-1">Contenidos</span>
                 </Link>
+                <div className="h-4 w-px bg-slate-200" />
                 {/* Project Selector embedded in header */}
                 <ProjectSelector />
                 <div className="h-4 w-px bg-slate-200" />
@@ -50,14 +52,14 @@ export function NavigationHeader() {
                             {/* Second Level Menu */}
                             <div className="absolute left-full top-0 ml-3 w-60 glass-panel rounded-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
                                 <div className="space-y-1">
-                                    <Link href="/studio/dashboard" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents?tool=dashboard" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <FileText size={16} className="text-blue-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Dashboard</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Vista general</p>
                                     </Link>
-                                    <Link href="/studio/writer" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents?tool=writer" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Bot size={16} className="text-purple-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Redactor IA</span>
@@ -71,21 +73,21 @@ export function NavigationHeader() {
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Nous Bridge WP</p>
                                     </Link>
-                                    <Link href="/studio/refinery" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents?tool=refinery" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Wand2 size={16} className="text-pink-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Refinería</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Humanizador 0%</p>
                                     </Link>
-                                    <Link href="/studio/strategy" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents?tool=strategy" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Calendar size={16} className="text-cyan-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Estrategia</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Calendario y Planificación</p>
                                     </Link>
-                                    <Link href="/studio/images" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents?tool=images" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Wand2 size={16} className="text-emerald-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Imagenes</span>

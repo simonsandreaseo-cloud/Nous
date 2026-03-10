@@ -179,7 +179,7 @@ pub async fn scrape_google_serp(app: AppHandle, keyword: String) -> Result<Vec<S
         let result_selector = Selector::parse("div.g").unwrap();
         let title_selector = Selector::parse("h3").unwrap();
         let link_selector = Selector::parse("a").unwrap();
-        let desc_selector = Selector::parse("div[style*='-webkit-line-clamp']").unwrap();
+        let desc_selector = Selector::parse("div[style*='-webkit-line-clamp'], .VwiC3b, .st").unwrap();
 
         let mut results = Vec::new();
         let mut rank = 1;
@@ -206,8 +206,6 @@ pub async fn scrape_google_serp(app: AppHandle, keyword: String) -> Result<Vec<S
                 });
                 rank += 1;
             }
-            
-            if results.len() >= 10 { break; }
         }
 
         Ok(results)

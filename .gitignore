@@ -26,3 +26,6 @@ dist-ssr
 # Installer binaries
 public/Tracker-Portable.zip
 electron-app/dist/Tracker-Setup.exe
+
+# Binary engines (Very large)
+nous_2.0/src-tauri/binaries/nous-engine-*.exe

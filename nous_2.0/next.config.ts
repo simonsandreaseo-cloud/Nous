@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+import path from "path";
 
 const nextConfig = {
   reactStrictMode: true,
@@ -33,10 +34,53 @@ const nextConfig = {
   // Turbopack configuration for Next.js 16
   turbopack: {
     root: __dirname,
+    resolveAlias: process.env.TAURI_BUILD === "true" ? {
+      "googleapis": "@/lib/mocks/node-mock",
+      "next/headers": "@/lib/mocks/node-mock",
+      "node-fetch": "@/lib/mocks/node-mock",
+      "gaxios": "@/lib/mocks/node-mock",
+      "google-auth-library": "@/lib/mocks/node-mock",
+      "@google/genai": "@/lib/mocks/node-mock",
+      "@google/generative-ai": "@/lib/mocks/node-mock",
+      "openai": "@/lib/mocks/node-mock",
+      "groq-sdk": "@/lib/mocks/node-mock"
+    } : undefined
   },
 
   // External packages that should not be bundled
   serverExternalPackages: ['googleapis'],
+
+  webpack: (config: any, { isServer }: { isServer: boolean }) => {
+    if (!isServer && process.env.TAURI_BUILD === "true") {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "googleapis": path.join(__dirname, "src/lib/mocks/node-mock.ts"),
+        "node-fetch": path.join(__dirname, "src/lib/mocks/node-mock.ts"),
+        "gaxios": path.join(__dirname, "src/lib/mocks/node-mock.ts"),
+        "google-auth-library": path.join(__dirname, "src/lib/mocks/node-mock.ts")
+      };
+
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        child_process: false,
+        http: false,
+        https: false,
+        zlib: false,
+        stream: false,
+        util: false,
+        buffer: false,
+        dns: false,
+        module: false
+      };
+    }
+    return config;
+  }
 };
 
 export default nextConfig;

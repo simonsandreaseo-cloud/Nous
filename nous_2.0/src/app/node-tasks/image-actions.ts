@@ -1,9 +1,19 @@
-'use server';
-
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
 import { getGeminiKey } from '@/lib/ai/config';
-import { cookies } from 'next/headers';
+
+// Helper to get ai mode from cookies (server) or localStorage/document.cookie (client)
+async function getAiMode(): Promise<string> {
+    if (typeof window === 'undefined') {
+        const { cookies } = await import('next/headers');
+        const cookieStore = await cookies();
+        return cookieStore.get('nous_ai_mode')?.value || 'local';
+    } else {
+        // Simple cookie parser for browser
+        const match = document.cookie.match(new RegExp('(^| )nous_ai_mode=([^;]+)'));
+        if (match) return match[2];
+        return 'local';
+    }
+}
 
 // Promisified WebSocket function to query Local Node from Server Components/Actions
 async function queryLocalAI(promptText: string): Promise<string> {
@@ -80,8 +90,7 @@ export const analyzeTextAndPlanImagesAction = async (
     Plan the images now.`;
 
     try {
-        const cookieStore = await cookies();
-        const aiMode = cookieStore.get('nous_ai_mode')?.value || 'local';
+        const aiMode = await getAiMode();
 
         let text = "";
 
@@ -93,6 +102,8 @@ export const analyzeTextAndPlanImagesAction = async (
             console.log("[NOUS_DEBUG] Starting Image Planning on Cloud AI...");
             const apiKey = getGeminiKey();
             if (!apiKey) throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
+
+            const { GoogleGenerativeAI } = await import("@google/generative-ai");
             const ai = new GoogleGenerativeAI(apiKey);
             const model = ai.getGenerativeModel({
                 model: "gemini-1.5-flash",
@@ -134,9 +145,41 @@ export const generateImageAction = async (
     customWidth?: number,
     customHeight?: number
 ): Promise<string> => {
-    // Note: Standard Gemini SDK does not support direct image generation yet.
-    // We should fallback to a REST call or a specific implementation if needed.
-    // For now, let's keep it safe to not break build.
-    throw new Error("La generación de imágenes requiere una implementación de API REST directa para compatibilidad con navegador.");
+    try {
+        const apiKey = getGeminiKey();
+        if (!apiKey) throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
+
+        console.log(`[NOUS_DEBUG] Generating image with model: ${modelId} (Key rotation active)`);
+
+        const { GoogleGenAI } = await import("@google/genai");
+        const ai = new GoogleGenAI({ apiKey });
+
+        // Ensure aspectRatio is valid for the SDK
+        const validRatio = aspectRatio === 'custom' ? '16:9' : aspectRatio;
+
+        const response = await ai.models.generateContent({
+            model: modelId,
+            contents: { parts: [{ text: prompt }] },
+            config: {
+                imageConfig: {
+                    aspectRatio: validRatio as any
+                }
+            }
+        });
+
+        const candidate = response.candidates?.[0];
+        if (!candidate) throw new Error("Safety filters blocked the generation or key quota exceeded.");
+
+        for (const part of candidate.content?.parts || []) {
+            if (part.inlineData && part.inlineData.data) {
+                return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            }
+        }
+
+        throw new Error("No image data returned from model.");
+    } catch (error: any) {
+        console.error("[NOUS_DEBUG] IMAGE GENERATION ERROR:", error);
+        throw new Error(error.message || "Image generation failed.");
+    }
 };
 

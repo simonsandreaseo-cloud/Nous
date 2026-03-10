@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileUpload } from '@/components/studio/images/FileUpload';
 import { ArticlePreview } from '@/components/studio/images/ArticlePreview';
 import { parseDocx } from '@/lib/services/images/docxService';
-import { analyzeTextAndPlanImagesAction, generateImageAction } from '@/app/actions/image-actions';
+import { analyzeTextAndPlanImagesAction, generateImageAction } from '@/app/node-tasks/image-actions';
 import { applyWatermark } from '@/lib/services/images/watermarkService';
 import { BlogPost, GeneratedImage, ProcessingStatus, AspectRatio, SupportedLanguage, CustomDimensions, InlineImageCount } from '@/types/images';
 import { cn } from '@/utils/cn';
@@ -18,7 +18,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 // Simple Translation Dictionary
 const TRANSLATIONS = {
     en: {
-        title: "BlogViz AI",
+        title: "Antigravity Visuals",
         downloadAll: "Download All",
         settings: "Visual Intelligence",
         uploadDoc: "Upload Article (.docx)",
@@ -62,7 +62,7 @@ const TRANSLATIONS = {
         language: "Analysis Language"
     },
     es: {
-        title: "BlogViz AI",
+        title: "Antigravity Visuals",
         downloadAll: "Descargar Todo",
         settings: "Inteligencia Visual",
         uploadDoc: "Subir Artículo (.docx)",
@@ -108,20 +108,54 @@ const TRANSLATIONS = {
 };
 
 const MODELS = [
-    { id: 'gemini-3-pro-image-preview', name: 'Nano Banana Pro', description: 'Gemini 3 Pro Image (Quality)', icon: Sparkles },
-    { id: 'gemini-2.5-flash-image', name: 'Nano Banana', description: 'Gemini 2.5 Flash (Speed)', icon: Zap },
-    { id: 'imagen-4.0-generate-001', name: 'Imagen 4 Generate', description: 'Google Imagen 4 Standard', icon: Cpu },
-    { id: 'imagen-4.0-ultra-generate-001', name: 'Imagen 4 Ultra', description: 'Google Imagen 4 High Fidelity', icon: Sparkles },
-    { id: 'imagen-4.0-fast-generate-001', name: 'Imagen 4 Fast', description: 'Google Imagen 4 Optimized', icon: Zap },
+    { id: 'gemini-3-flash-preview', name: 'Antigravity Pro', description: 'Gemini 3 Flash (High Performance)', icon: Sparkles },
+    { id: 'gemini-2.5-flash-image', name: 'Antigravity Express', description: 'Gemini 2.5 Flash Image (Optimized)', icon: Zap },
+    { id: 'imagen-4.0-generate-001', name: 'Antigravity Realistic', description: 'Google Imagen 4 Standard', icon: Cpu },
 ];
 
 export default function ImagesPage() {
     const [mounted, setMounted] = useState(false);
     const { activeProject } = useProjectStore();
+    const { content: storeContent, title: storeTitle, setMetadata, metadata: storeMetadata } = useWriterStore();
 
     useEffect(() => {
         setMounted(true);
-    }, []);
+        // Auto-load article from store if available
+        if (storeContent && !blogPost) {
+            const paragraphs = storeContent
+                .split(/\n\s*\n/)
+                .map(p => p.replace(/<[^>]*>/g, '').trim())
+                .filter(p => p.length > 0);
+
+            setBlogPost({
+                title: storeTitle,
+                paragraphs: paragraphs
+            });
+        }
+    }, [storeContent, storeTitle]);
+
+    const handleSyncToArticle = () => {
+        if (!generatedImages.length) return;
+
+        const visualMetadata = {
+            images: generatedImages.map(img => ({
+                id: img.id,
+                type: img.type,
+                filename: img.filename,
+                altText: img.altText,
+                title: img.title,
+                prompt: img.prompt,
+                rationale: img.rationale
+            }))
+        };
+
+        setMetadata({
+            ...(storeMetadata || {}),
+            visuals: visualMetadata
+        });
+
+        alert(language === 'es' ? "¡Inteligencia visual sincronizada con el artículo!" : "Visual intelligence synchronized with article!");
+    };
 
     const [language, setLanguage] = useState<SupportedLanguage>('es');
     const t = TRANSLATIONS[language];
@@ -330,7 +364,13 @@ export default function ImagesPage() {
                     </div>
 
                     {status === ProcessingStatus.COMPLETED && (
-                        <>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleSyncToArticle}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-100"
+                            >
+                                <Sparkles size={14} /> {language === 'es' ? 'Sincronizar' : 'Sync to Article'}
+                            </button>
                             <button
                                 onClick={handleDownloadAll}
                                 className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100"
@@ -343,7 +383,7 @@ export default function ImagesPage() {
                             >
                                 {t.startNew}
                             </button>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>

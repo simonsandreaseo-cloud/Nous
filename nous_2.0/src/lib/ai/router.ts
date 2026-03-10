@@ -1,28 +1,31 @@
-import { Groq } from 'groq-sdk';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import OpenAI from 'openai';
 import { AI_CONFIG, getGeminiKey } from './config';
 import { AIRequest, AIResponse } from './types';
 import { LocalNodeBridge } from '../local-node/bridge';
 
 class AIRouter {
-    private groq?: Groq;
-    private openai?: OpenAI;
+    private groq?: any;
+    private openai?: any;
+    private initialized = false;
 
-    constructor() {
+    private async init() {
+        if (this.initialized) return;
+
         if (AI_CONFIG.groq.apiKey) {
+            const { Groq } = await import('groq-sdk');
             this.groq = new Groq({ apiKey: AI_CONFIG.groq.apiKey, dangerouslyAllowBrowser: true });
         }
         if (AI_CONFIG.openai.apiKey) {
+            const { default: OpenAI } = await import('openai');
             this.openai = new OpenAI({ apiKey: AI_CONFIG.openai.apiKey, dangerouslyAllowBrowser: true });
         }
+        this.initialized = true;
     }
 
     async generate(request: AIRequest): Promise<AIResponse> {
+        await this.init();
         let { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode } = request;
 
-        // --- GLOBAL AI MODE OVERRIDE ---
-        // If the user's aiMode cookie or state is 'local', force the model to 'gemma-local'
+        // ... existing logic for aiMode ...
         let aiMode = 'cloud';
         if (typeof document !== 'undefined') {
             const match = document.cookie.match(/(^| )nous_ai_mode=([^;]+)/);
@@ -38,33 +41,21 @@ class AIRouter {
 
         if (model === 'gemma-local') {
             const bridge = LocalNodeBridge as any;
-
-            // Construir un prompt compatible con Llama/Gemma combinando System y User
             let finalPrompt = prompt;
             if (systemPrompt) {
                 finalPrompt = `[System]: ${systemPrompt}\n\n[User]: ${prompt}`;
             }
 
-            try {
-                const responseText = await bridge.promptAI(finalPrompt);
-                return {
-                    text: responseText,
-                    usage: {
-                        promptTokens: 0,
-                        completionTokens: 0,
-                        totalTokens: 0
-                    }
-                };
-            } catch (error) {
-                console.error("[AIRouter] Fallo en la IA Local:", error);
-                throw new Error("Error en IA Local: " + (error as Error).message);
-            }
+            const responseText = await bridge.promptAI(finalPrompt);
+            return {
+                text: responseText,
+                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+            };
         }
 
-        // 1. Route to Groq (Speed Mode)
+        // 1. Route to Groq
         if (model.includes('llama') || model.includes('mixtral')) {
             if (!this.groq) throw new Error('Groq API Key missing');
-
             const messages: any[] = [];
             if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
             messages.push({ role: 'user', content: prompt });
@@ -87,11 +78,12 @@ class AIRouter {
             };
         }
 
-        // 2. Route to Gemini (Deep Context)
+        // 2. Route to Gemini
         if (model.includes('gemini')) {
             const apiKey = getGeminiKey();
             if (!apiKey) throw new Error('Gemini API Key missing');
 
+            const { GoogleGenerativeAI } = await import('@google/generative-ai');
             const genAI = new GoogleGenerativeAI(apiKey);
             const geminiModel = genAI.getGenerativeModel({
                 model,
@@ -118,15 +110,10 @@ class AIRouter {
             };
         }
 
-        // 3. Route to OpenAI (Precision Architect)
+        // 3. Route to OpenAI
         if (model.includes('gpt') || model.includes('o1')) {
-            // FALLBACK STRATEGY: If OpenAI is requested but no key exists, fallback to Gemini 1.5 Pro
             if (!this.openai) {
-                console.warn(`[AIRouter] OpenAI key missing. Redirecting ${model} request to Gemini 1.5 Pro.`);
-                return this.generate({
-                    ...request,
-                    model: 'gemini-1.5-pro'
-                });
+                return this.generate({ ...request, model: 'gemini-1.5-pro' });
             }
 
             const messages: any[] = [];
@@ -136,7 +123,7 @@ class AIRouter {
             const completion = await this.openai.chat.completions.create({
                 messages,
                 model,
-                temperature: model.includes('o1') ? 1 : temperature, // o1 handles temp differently
+                temperature: model.includes('o1') ? 1 : temperature,
                 max_tokens: maxTokens,
                 response_format: jsonMode ? { type: 'json_object' } : undefined
             });

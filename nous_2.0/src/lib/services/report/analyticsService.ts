@@ -1,4 +1,4 @@
-import { google } from 'googleapis';
+// import { google } from 'googleapis'; // Removed for static export
 import { supabase as sharedSupabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 
@@ -35,6 +35,7 @@ export const AnalyticsService = {
 
         if (!tokens) throw new Error("No Google account connected");
 
+        const { google } = await import('googleapis');
         const oauth2Client = new google.auth.OAuth2(
             process.env.GOOGLE_CLIENT_ID,
             process.env.GOOGLE_CLIENT_SECRET
@@ -76,6 +77,7 @@ export const AnalyticsService = {
 
             for (const token of accounts) {
                 try {
+                    const { google } = await import('googleapis');
                     const auth = new google.auth.OAuth2(
                         process.env.GOOGLE_CLIENT_ID,
                         process.env.GOOGLE_CLIENT_SECRET
@@ -85,7 +87,6 @@ export const AnalyticsService = {
                         refresh_token: token.refresh_token,
                         expiry_date: new Date(token.expires_at).getTime()
                     });
-
                     const admin = google.analyticsadmin({ version: 'v1beta', auth });
                     const res = await admin.accountSummaries.list();
 
@@ -137,6 +138,7 @@ export const AnalyticsService = {
     // 3. Fetch Session Sources (to identify AI)
     async fetchTrafficSources(propertyId: string, userId: string, startDate: string, endDate: string, email?: string) {
         const auth = await this.getAuthClient(userId, email);
+        const { google } = await import('googleapis');
         const analytics = google.analyticsdata({ version: 'v1beta', auth });
 
         const response = await analytics.properties.runReport({
@@ -158,6 +160,7 @@ export const AnalyticsService = {
     // 4. Fetch Pages for Specific Sources (The AI Traffic Detail)
     async fetchPagesBySource(propertyId: string, userId: string, sources: string[], startDate: string, endDate: string, email?: string) {
         const auth = await this.getAuthClient(userId, email);
+        const { google } = await import('googleapis');
         const analytics = google.analyticsdata({ version: 'v1beta', auth });
 
         // ... (rest of the logic)

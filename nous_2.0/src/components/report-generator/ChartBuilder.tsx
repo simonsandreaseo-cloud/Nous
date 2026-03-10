@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X, BarChart3, TrendingUp, PieChart, Plus, Loader2, Search } from 'lucide-react';
-import { calculateCustomChartDataAction } from '@/app/actions/report-actions';
+import { calculateCustomChartDataAction } from "@/app/node-tasks/report-actions";
 
 interface ChartBuilderProps {
     onInsert: (chartType: string, chartConfig?: any) => void;
@@ -183,8 +183,8 @@ export function ChartBuilder({ onInsert, onClose, projectId, dateRange }: ChartB
                                             key={t}
                                             onClick={() => setCustomType(t)}
                                             className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg border ${customType === t
-                                                    ? 'bg-purple-100 border-purple-200 text-purple-700'
-                                                    : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                                                ? 'bg-purple-100 border-purple-200 text-purple-700'
+                                                : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                                                 }`}
                                         >
                                             {t === 'bar' && 'Barras'}

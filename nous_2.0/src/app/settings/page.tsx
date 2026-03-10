@@ -16,7 +16,7 @@ import {
 import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
-import { fetchGscSitesAction, fetchGa4PropertiesAction } from "@/app/actions/report-actions";
+import { fetchGscSitesAction, fetchGa4PropertiesAction } from "@/app/node-tasks/report-actions";
 import { TeamSettings } from "./TeamSettings";
 
 export default function SettingsPage() {

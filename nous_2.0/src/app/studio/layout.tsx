@@ -18,6 +18,8 @@ import {
     LogOut,
     User,
     Monitor,
+    Activity,
+    Building2,
     Cpu as EngineIcon
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -33,11 +35,11 @@ export default function StudioLayout({
     const { user, signOut } = useAuthStore();
 
     const tabs = [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/studio/dashboard', color: 'text-[var(--color-nous-mint)]' },
-        { id: 'strategy', label: 'Estrategia', icon: Calendar, path: '/studio/strategy', color: 'text-[var(--color-nous-mist)]' },
-        { id: 'writer', label: 'Redactor', icon: Bot, path: '/studio/writer', color: 'text-[var(--color-nous-lavender)]' },
-        { id: 'refinery', label: 'Refinería', icon: Wand2, path: '/studio/refinery', color: 'text-[var(--color-nous-lavender)]' },
-        { id: 'distribution', label: 'Distribución', icon: Share2, path: '/studio/distribution', color: 'text-[var(--color-nous-mist)]' },
+        { id: 'contenidos', label: 'Contenidos', icon: LayoutDashboard, path: '/contents', color: 'text-[var(--color-nous-mint)]' },
+        { id: 'seo', label: 'SEO On Page', icon: Monitor, path: '/studio/seo', color: 'text-[var(--color-nous-mist)]' },
+        { id: 'strategy', label: 'Estrategia', icon: Calendar, path: '/contents?tool=strategy', color: 'text-[var(--color-nous-lavender)]' },
+        { id: 'monitor', label: 'Monitor', icon: Activity, path: '/studio/monitor', color: 'text-[var(--color-nous-lavender)]' },
+        { id: 'office', label: 'Oficina', icon: Building2, path: '/office', color: 'text-[var(--color-nous-mist)]' },
     ];
 
     return (
