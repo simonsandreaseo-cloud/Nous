@@ -13,8 +13,8 @@ export const parseDocx = async (file: File): Promise<BlogPost> => {
         // Filter out empty strings or whitespace-only strings
         const paragraphs = rawText
             .split(/\n\s*\n/)
-            .map(p => p.trim())
-            .filter(p => p.length > 0);
+            .map((p: string) => p.trim())
+            .filter((p: string) => p.length > 0);
 
         return {
             paragraphs,
