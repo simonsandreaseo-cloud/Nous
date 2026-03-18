@@ -32,14 +32,21 @@ export function NeuralLinkStatus() {
             color: "text-red-400 border-red-400/30 bg-red-400/10",
             icon: <AlertTriangle size={14} />,
             label: "Disonancia Nodo"
+        },
+        DOWNLOADING: {
+            color: "text-amber-400 border-amber-400/30 bg-amber-400/10",
+            icon: <RefreshCw size={14} className="animate-spin" />,
+            label: "Descargando..."
         }
     };
 
-    const currentConfig = isConnected ? statusConfig[nodeStatus] || statusConfig.IDLE : {
-        color: "text-slate-400 border-hairline opacity-60 backdrop-blur-sm",
-        icon: <ZapOff size={14} />,
-        label: "Web Mode"
-    };
+    const currentConfig = isConnected 
+        ? (statusConfig[nodeStatus as keyof typeof statusConfig] || statusConfig.IDLE) 
+        : {
+            color: "text-slate-400 border-hairline opacity-60 backdrop-blur-sm",
+            icon: <ZapOff size={14} />,
+            label: "Web Mode"
+        };
 
     return (
         <div className="flex items-center gap-4">
