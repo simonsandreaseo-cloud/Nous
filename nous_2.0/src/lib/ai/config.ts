@@ -1,21 +1,35 @@
-const geminiKeys = (
-    process.env.NEXT_PUBLIC_GEMINI_API_KEYS ||
-    process.env.GEMINI_API_KEYS ||
-    process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
-    process.env.GEMINI_API_KEY ||
-    process.env.NEXT_PUBLIC_GOOGLE_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
-    ""
-).split(',').map(key => key.trim()).filter(Boolean);
+const getInitialKeys = () => {
+    return (
+        process.env.NEXT_PUBLIC_GEMINI_API_KEYS ||
+        process.env.GEMINI_API_KEYS ||
+        process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
+        process.env.GEMINI_API_KEY ||
+        process.env.NEXT_PUBLIC_GOOGLE_API_KEY ||
+        process.env.GOOGLE_API_KEY ||
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+        ""
+    ).split(',').map(key => key.trim()).filter(k => k && k !== 'OTRA_LLAVE_O_REPETIR_AQUI');
+};
+const geminiKeys = getInitialKeys();
 
 let currentKeyIndex = 0;
 
 export const getGeminiKey = () => {
-    if (geminiKeys.length === 0) return "";
-    const key = geminiKeys[currentKeyIndex];
-    currentKeyIndex = (currentKeyIndex + 1) % geminiKeys.length;
+    // Dynamic access to avoid build-time freezing if possible
+    const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "";
+    const activeKeys = rawKeys.split(',').map(key => key.trim()).filter(k => k && k !== 'OTRA_LLAVE_O_REPETIR_AQUI');
+    
+    if (activeKeys.length === 0) return "";
+    
+    const key = activeKeys[currentKeyIndex % activeKeys.length];
+    currentKeyIndex = (currentKeyIndex + 1) % activeKeys.length;
     return key;
+};
+
+export const getGeminiKeysCount = () => {
+    const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "";
+    const activeKeys = rawKeys.split(',').map(key => key.trim()).filter(k => k && k !== 'OTRA_LLAVE_O_REPETIR_AQUI');
+    return activeKeys.length;
 };
 
 export const AI_CONFIG = {

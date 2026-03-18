@@ -3,10 +3,11 @@ import { LocalNodeBridge, NodeState } from '@/lib/local-node/bridge';
 
 interface NodeStoreState {
     isConnected: boolean;
-    status: NodeState['status'];
+    status: 'IDLE' | 'CRAWLING' | 'PROCESSING' | 'ERROR' | 'DOWNLOADING';
     queueLength: number;
     lastError: string | null;
     logs: { source: string; message: string; timestamp: number; level?: 'info' | 'error' }[];
+    modelsReady: boolean;
 
     // AI Integration Mode
     aiMode: 'local' | 'cloud';
@@ -26,6 +27,7 @@ interface NodeStoreState {
 
     // Actions
     connect: () => void;
+    checkModels: () => void;
     clearLogs: () => void;
     // Flux Actions
     createTask: (title: string, category: string, priority?: 'low' | 'medium' | 'high') => void;
@@ -52,6 +54,7 @@ export const useNodeStore = create<NodeStoreState>((set) => {
         queueLength: 0,
         lastError: null,
         logs: [],
+        modelsReady: false, // Start false, check on connect
         aiMode: initialMode,
         setAiMode: (mode) => {
             set({ aiMode: mode });
@@ -83,6 +86,17 @@ export const useNodeStore = create<NodeStoreState>((set) => {
                 });
             });
 
+            LocalNodeBridge.on('DOWNLOAD_STATUS', (payload: any) => {
+                if (payload.status === 'downloading') {
+                    set({ status: 'DOWNLOADING' });
+                }
+            });
+
+            LocalNodeBridge.on('MODELS_STATUS', (payload: any) => {
+                const { gemma, sdxl } = payload;
+                set({ modelsReady: gemma === 'complete' && sdxl === 'complete' });
+            });
+
             LocalNodeBridge.on('LOG', (payload: any) => {
                 set(state => ({
                     logs: [...state.logs.slice(-99), { ...payload, timestamp: Date.now() }]
@@ -112,6 +126,7 @@ export const useNodeStore = create<NodeStoreState>((set) => {
         },
 
         clearLogs: () => set({ logs: [] }),
+        checkModels: () => LocalNodeBridge.checkModels(),
 
         // Flux Actions Implementation
         createTask: (title, category, priority) => LocalNodeBridge.createFluxTask(title, category, priority),

@@ -24,8 +24,21 @@ dist-ssr
 *.sw?
 
 # Installer binaries
+*.exe
+*.msi
 public/Tracker-Portable.zip
-electron-app/dist/Tracker-Setup.exe
 
-# Binary engines (Very large)
-nous_2.0/src-tauri/binaries/nous-engine-*.exe
+# Desktop App (Tauri)
+nous_2.0/src-tauri/target/
+nous_2.0/src-tauri/binaries/
+
+# AI Models and Core
+nous_2.0/local-node/models/
+nous-local-image-node/dist/
+nous-local-image-node/build/
+*.gguf
+*.bin
+*.pth
+*.onnx
+*.weights
+*.ckpt

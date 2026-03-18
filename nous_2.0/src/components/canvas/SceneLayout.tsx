@@ -10,9 +10,10 @@ import { useEffect, useState, useMemo } from "react";
 
 type Props = {
   children: React.ReactNode;
+  inline?: boolean;
 };
 
-export default function SceneLayout({ children }: Props) {
+export default function SceneLayout({ children, inline }: Props) {
   const isDev = process.env.NODE_ENV === "development";
   const [fov, setFov] = useState(45);
 
@@ -39,7 +40,7 @@ export default function SceneLayout({ children }: Props) {
   }, [GPUTier]);
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-10">
+    <div className={`${inline ? 'relative w-full h-full' : 'fixed inset-0'} pointer-events-none z-10`}>
       <Canvas
         shadows
         camera={{ position: [0, -1, 12], fov: 40 }}

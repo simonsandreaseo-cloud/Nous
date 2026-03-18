@@ -13,6 +13,7 @@
       "refinery.js",
       "bypass.js",
       "fluxDb.json",
+      "node_modules/node-llama-cpp/**/*",
       "node_modules/**/*"
     ]
   },

@@ -3,7 +3,7 @@ import { Task, Project } from '@/types/project';
 import { ContentItem, SEOAnalysisResult } from '@/components/tools/writer/services';
 
 export type WriterViewMode = 'workspace' | 'seo-review' | 'structure-review';
-export type SidebarTab = 'assistant' | 'generate' | 'seo' | 'research' | 'humanize' | 'media' | 'export';
+export type SidebarTab = 'assistant' | 'generate' | 'seo' | 'research' | 'humanize' | 'media' | 'history' | 'export';
 
 export interface StrategyOutlineItem {
     type: string;

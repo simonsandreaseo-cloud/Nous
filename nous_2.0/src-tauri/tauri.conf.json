@@ -47,7 +47,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/nous-engine"
+      "binaries/nous-ai-core"
     ],
     "windows": {
       "wix": {

@@ -79,26 +79,40 @@ async function getChromePath() {
             const isGoogle = window.location.hostname.includes('google');
 
             let serpResults = [];
+            let paa = [];
+            let relatedSearches = [];
+
             if (isGoogle) {
-                // Selector for Google Search Results
+                // Organic Results (no limit)
                 const results = document.querySelectorAll('#search .g');
-                serpResults = Array.from(results).map(res => {
+                serpResults = Array.from(results).map((res, index) => {
                     const titleEl = res.querySelector('h3');
                     const linkEl = res.querySelector('a');
-                    const snippetEl = res.querySelector('.VwiC3b, .st'); // Common snippet classes
+                    const snippetEl = res.querySelector('.VwiC3b, .st, [data-sncf="1"], [style*="-webkit-line-clamp"]');
 
                     return {
+                        rank: index + 1,
                         title: titleEl?.textContent || '',
                         url: linkEl?.href || '',
-                        snippet: snippetEl?.textContent || ''
+                        description: snippetEl?.textContent || ''
                     };
                 }).filter(res => res.title && res.url);
+
+                // People Also Ask
+                const paaBlocks = document.querySelectorAll('.iDjcJe, .JlqpRe, [data-initq]');
+                paa = Array.from(paaBlocks).map(block => block.textContent.trim()).filter(Boolean);
+
+                // Related Searches 
+                const relatedBlocks = document.querySelectorAll('.EIaa9b a, .k8XOCe');
+                relatedSearches = Array.from(relatedBlocks).map(el => el.textContent.trim()).filter(Boolean);
             }
 
             return {
                 title: document.title,
                 isGoogle,
                 serpResults,
+                paa,
+                relatedSearches,
                 h1: Array.from(document.querySelectorAll('h1')).map(el => el.textContent.trim()),
                 metaDescription: document.querySelector('meta[name="description"]')?.content || '',
                 text: document.body.innerText.substring(0, 500) + '...', // Preview

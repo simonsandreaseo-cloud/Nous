@@ -1,4 +1,4 @@
-import mammoth from 'mammoth';
+import mammoth from 'mammoth/mammoth.browser.js';
 import { BlogPost } from '@/types/images';
 
 export const parseDocx = async (file: File): Promise<BlogPost> => {

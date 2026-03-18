@@ -160,7 +160,7 @@ wss.on('connection', function connection(ws) {
                     const promptText = data.payload.text;
                     const promptId = data.payload.id || crypto.randomUUID();
                     ws.send(JSON.stringify({ type: 'AI_RESPONSE_START', payload: { id: promptId } }));
-                    
+
                     ai.promptAI(promptText, (chunk) => {
                         // Enviar cada chunk del texto generado en tiempo real
                         ws.send(JSON.stringify({ type: 'AI_RESPONSE_CHUNK', payload: { id: promptId, textChunk: chunk } }));

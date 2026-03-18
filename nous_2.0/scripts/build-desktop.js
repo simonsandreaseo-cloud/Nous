@@ -57,6 +57,15 @@ try {
     // 2. Disable ESLint temporarily
     safeRename(eslintConfig, eslintBackup);
 
+    // 2.5. Remove "use server" from image-actions.ts for static export compatibility
+    const imageActionsPath = path.join(__dirname, '../src/app/node-tasks/image-actions.ts');
+    let imageActionsContent = '';
+    if (fs.existsSync(imageActionsPath)) {
+        console.log('📦 Removing "use server" from image-actions.ts for desktop build...');
+        imageActionsContent = fs.readFileSync(imageActionsPath, 'utf8');
+        fs.writeFileSync(imageActionsPath, imageActionsContent.replace(/"use server";/g, '// "use server" removed for desktop build'), 'utf8');
+    }
+
     // 3. Run Next.js Build with TAURI_BUILD flag
     console.log('🚀 Building Next.js for Desktop (Static Export)...');
 
@@ -78,4 +87,14 @@ try {
 
     // 5. Restore ESLint config
     safeRename(eslintBackup, eslintConfig);
+
+    // 6. Restore "use server" link in image-actions.ts
+    const imageActionsPath = path.join(__dirname, '../src/app/node-tasks/image-actions.ts');
+    if (fs.existsSync(imageActionsPath)) {
+        const content = fs.readFileSync(imageActionsPath, 'utf8');
+        if (content.includes('// "use server" removed for desktop build')) {
+            console.log('📦 Restoring "use server" in image-actions.ts...');
+            fs.writeFileSync(imageActionsPath, content.replace(/\/\/ "use server" removed for desktop build/g, '"use server";'), 'utf8');
+        }
+    }
 }

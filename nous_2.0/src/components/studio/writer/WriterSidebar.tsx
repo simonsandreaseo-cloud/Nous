@@ -110,7 +110,7 @@ export default function WriterSidebar() {
     const { user } = useAuthStore();
     const { activeProject } = useProjectStore();
     const { canTakeContents, canEditAny, canUseAllTools, hasTokens, consumeTokens, getTokensLimit, getTokensUsed } = usePermissions();
-    const hasContentAccess = canTakeContents() || canEditAny() || canUseAllTools();
+    const hasContentAccess = activeProject ? (canTakeContents() || canEditAny() || canUseAllTools()) : true;
 
     const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
     const [showApiConfig, setShowApiConfig] = useState(false);
@@ -256,14 +256,14 @@ export default function WriterSidebar() {
                 isStrictMode, strictFrequency,
             };
 
-            if (!hasTokens(1)) {
+            if (activeProject && !hasTokens(1)) {
                 setStatus('❌ Límite de tokens mensual alcanzado.');
                 return alert(`Has superado tu límite de ${getTokensLimit()} tokens.`);
             }
 
             const prompt = buildPrompt(config);
             setStatus('Redactando artículo (1 Token usado)…');
-            await consumeTokens(1);
+            if (activeProject) await consumeTokens(1);
 
             const stream = await generateArticleStream(apiKeys, model, prompt);
 
@@ -406,12 +406,37 @@ export default function WriterSidebar() {
         }
     };
 
-    // ── Save Draft to Supabase ───────────────────────────────
+    // ── Save Draft to Supabase or Local ──────────────────────
     const handleSaveCloud = async () => {
         if (!hasContentAccess) return alert('No tienes permisos para guardar contenido.');
-        if (!user) return alert('Inicia sesión para guardar.');
+        
+        if (!user || !activeProject) {
+            // Save to local storage for anonymous/project-less users
+            if (!content && !strategyH1) return alert('Nada que guardar.');
+            setStatus('Guardando borrador localmente…');
+            try {
+                const localDrafts = JSON.parse(localStorage.getItem('nous_local_drafts') || '[]');
+                const newDraft = {
+                    id: Date.now().toString(),
+                    title: strategyH1 || keyword || 'Borrador sin título',
+                    html_content: content,
+                    strategy_data: {
+                        projectName, keyword, detectedNiche, strategyOutline, strategyTone,
+                        strategyLSI, strategyLongTail, strategyQuestions, creativityLevel, metadata,
+                    },
+                    updated_at: new Date().toISOString()
+                };
+                localDrafts.unshift(newDraft);
+                localStorage.setItem('nous_local_drafts', JSON.stringify(localDrafts));
+                setStatus('✅ Borrador guardado en tu historial local.');
+            } catch (e: any) {
+                setStatus('❌ Error al guardar localmente: ' + e.message);
+            }
+            return;
+        }
+
         if (!content && !strategyH1) return alert('Nada que guardar.');
-        setStatus('Guardando borrador…');
+        setStatus('Guardando borrador en la nube…');
         try {
             const draftData = {
                 user_id: user.id,
@@ -443,7 +468,8 @@ export default function WriterSidebar() {
         { id: 'assistant', label: 'Asistente', icon: Bot },
         { id: 'seo', label: 'SEO', icon: Search },
         { id: 'research', label: 'Estrategia', icon: Sparkles },
-        { id: 'export', label: 'Exportar', icon: FileOutput },
+        { id: 'history', label: 'Historial', icon: FileOutput },
+        { id: 'export', label: 'Exportar', icon: Download },
     ] as const;
 
     return (
@@ -732,6 +758,54 @@ export default function WriterSidebar() {
                                     ))}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB: HISTORIAL */}
+                {activeSidebarTab === 'history' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <SectionLabel>Historial Local</SectionLabel>
+                        <p className="text-[10px] text-slate-500 mb-4">
+                            Los contenidos generados sin un proyecto activo se guardan temporalmente en tu navegador.
+                        </p>
+                        
+                        <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                            {(() => {
+                                const localDrafts = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('nous_local_drafts') || '[]' : '[]');
+                                if (localDrafts.length === 0) {
+                                    return <div className="text-center py-8 text-xs text-slate-400">No hay borradores locales.</div>;
+                                }
+                                return localDrafts.map((draft: any) => (
+                                    <div key={draft.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors cursor-pointer group" onClick={() => {
+                                        if(confirm('¿Cargar este borrador? Se sobreescribirá el contenido actual del editor.')) {
+                                            setContent(draft.html_content);
+                                            setStrategyH1(draft.title);
+                                            setStatus('✅ Borrador local cargado.');
+                                        }
+                                    }}>
+                                        <div className="flex justify-between items-start mb-1">
+                                            <h4 className="text-xs font-bold text-slate-800 line-clamp-1">{draft.title}</h4>
+                                            <span className="text-[9px] text-slate-400 shrink-0">{new Date(draft.updated_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 line-clamp-2">{(draft.html_content || '').replace(/<[^>]*>?/gm, '')}</p>
+                                        <div className="mt-2 text-right">
+                                            <button 
+                                                className="text-[10px] text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if(confirm('¿Eliminar este borrador local?')) {
+                                                        const freshList = JSON.parse(localStorage.getItem('nous_local_drafts') || '[]');
+                                                        const updated = freshList.filter((d: any) => d.id !== draft.id);
+                                                        localStorage.setItem('nous_local_drafts', JSON.stringify(updated));
+                                                        setStatus('🗑️ Borrador local eliminado.');
+                                                    }
+                                                }}
+                                            >Eliminar</button>
+                                        </div>
+                                    </div>
+                                ));
+                            })()}
                         </div>
                     </div>
                 )}

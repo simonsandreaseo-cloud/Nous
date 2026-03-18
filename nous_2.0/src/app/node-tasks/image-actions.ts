@@ -1,17 +1,19 @@
+// "use server" removed for desktop build
+
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
-import { getGeminiKey } from '@/lib/ai/config';
+import { getGeminiKey, getGeminiKeysCount } from '@/lib/ai/config';
 
 // Helper to get ai mode from cookies (server) or localStorage/document.cookie (client)
 async function getAiMode(): Promise<string> {
     if (typeof window === 'undefined') {
         const { cookies } = await import('next/headers');
         const cookieStore = await cookies();
-        return cookieStore.get('nous_ai_mode')?.value || 'local';
+        return cookieStore.get('nous_ai_mode')?.value || 'cloud';
     } else {
         // Simple cookie parser for browser
         const match = document.cookie.match(new RegExp('(^| )nous_ai_mode=([^;]+)'));
         if (match) return match[2];
-        return 'local';
+        return 'cloud';
     }
 }
 
@@ -47,7 +49,7 @@ async function queryLocalAI(promptText: string): Promise<string> {
         };
 
         ws.onerror = (e: any) => {
-            reject(new Error("Local Node unavailable: " + e.message));
+            reject(new Error("Local Node unavailable: " + (e.message || "Connection refused")));
         };
 
         // Timeout (120s)
@@ -94,30 +96,59 @@ export const analyzeTextAndPlanImagesAction = async (
 
         let text = "";
 
+        const runCloudFallback = async () => {
+            const maxAttempts = getGeminiKeysCount() || 1;
+            let lastError: any = null;
+
+            for (let i = 0; i < maxAttempts; i++) {
+                try {
+                    console.log(`[NOUS_DEBUG] Planning on Cloud AI... Attempt ${i + 1}/${maxAttempts}`);
+                    const apiKey = getGeminiKey();
+                    if (!apiKey) throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
+
+                    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+                    const ai = new GoogleGenerativeAI(apiKey);
+                    const model = ai.getGenerativeModel({
+                        model: "gemini-2.5-flash",
+                        systemInstruction: systemPrompt
+                    });
+
+                    const response = await model.generateContent({
+                        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            temperature: 0.3
+                        }
+                    });
+                    
+                    return response.response.text();
+                } catch (err: any) {
+                    lastError = err;
+                    if (err.status === 429 || err?.message?.includes("exceeded")) {
+                        console.warn(`[NOUS_DEBUG] Planning Quota exceeded on key (Attempt ${i + 1}), rotating...`);
+                        continue;
+                    }
+                    if (err.status === 400 || err?.message?.includes("API key not valid")) {
+                        console.warn(`[NOUS_DEBUG] Invalid API key (Attempt ${i + 1}), rotating...`);
+                        continue;
+                    }
+                    throw err; // For other errors, fail immediately
+                }
+            }
+            throw lastError;
+        };
+
         if (aiMode === 'local') {
             console.log("[NOUS_DEBUG] Starting Image Planning on Local Node...");
             const fullPrompt = `[System]: ${systemPrompt}\n\n[User]: ${userPrompt}`;
-            text = await queryLocalAI(fullPrompt);
+            try {
+                text = await queryLocalAI(fullPrompt);
+            } catch (err) {
+                console.warn("[NOUS_DEBUG] Local AI failed, falling back to Cloud AI...", err);
+                text = await runCloudFallback();
+            }
         } else {
-            console.log("[NOUS_DEBUG] Starting Image Planning on Cloud AI...");
-            const apiKey = getGeminiKey();
-            if (!apiKey) throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
-
-            const { GoogleGenerativeAI } = await import("@google/generative-ai");
-            const ai = new GoogleGenerativeAI(apiKey);
-            const model = ai.getGenerativeModel({
-                model: "gemini-1.5-flash",
-                systemInstruction: systemPrompt
-            });
-
-            const response = await model.generateContent({
-                contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    temperature: 0.3
-                }
-            });
-            text = response.response.text();
+            text = await runCloudFallback();
         }
 
         // Limpieza de formato para asegurar parse JSON
@@ -146,40 +177,106 @@ export const generateImageAction = async (
     customHeight?: number
 ): Promise<string> => {
     try {
-        const apiKey = getGeminiKey();
-        if (!apiKey) throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
+        const aiMode = await getAiMode();
 
-        console.log(`[NOUS_DEBUG] Generating image with model: ${modelId} (Key rotation active)`);
+        if (aiMode === 'local') {
+            console.log("[NOUS_DEBUG] Generating on Local Image Node (SDXL Turbo)...");
+            return await new Promise((resolve, reject) => {
+                const WebSocket = global.WebSocket || require('ws');
+                const ws = new WebSocket('ws://localhost:8181');
+                const promptId = crypto.randomUUID();
 
-        const { GoogleGenAI } = await import("@google/genai");
-        const ai = new GoogleGenAI({ apiKey });
+                ws.onopen = () => {
+                    ws.send(JSON.stringify({ type: 'AUTH', payload: { token: 'nous-dev-token-2026' } }));
+                };
 
-        // Ensure aspectRatio is valid for the SDK
-        const validRatio = aspectRatio === 'custom' ? '16:9' : aspectRatio;
+                ws.onmessage = (event: any) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'AUTH_SUCCESS') {
+                            ws.send(JSON.stringify({ type: 'IMAGE_PROMPT', payload: { id: promptId, text: prompt } }));
+                        } else if (data.type === 'IMAGE_RESPONSE_COMPLETE' && data.payload.id === promptId) {
+                            ws.close();
+                            resolve(data.payload.base64);
+                        } else if (data.type === 'IMAGE_ERROR' && data.payload.id === promptId) {
+                            ws.close();
+                            reject(new Error(data.payload.message));
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                };
 
-        const response = await ai.models.generateContent({
-            model: modelId,
-            contents: { parts: [{ text: prompt }] },
-            config: {
-                imageConfig: {
-                    aspectRatio: validRatio as any
-                }
-            }
-        });
+                ws.onerror = (e: any) => {
+                    reject(new Error("Local Image Node unavailable. Verify the Python server is running on port 8181."));
+                };
 
-        const candidate = response.candidates?.[0];
-        if (!candidate) throw new Error("Safety filters blocked the generation or key quota exceeded.");
-
-        for (const part of candidate.content?.parts || []) {
-            if (part.inlineData && part.inlineData.data) {
-                return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-            }
+                setTimeout(() => {
+                    ws.close();
+                    reject(new Error("Timeout waiting for Local Image Node"));
+                }, 120000); // 120s timeout in case SDXL is downloading
+            });
         }
 
-        throw new Error("No image data returned from model.");
-    } catch (error: any) {
-        console.error("[NOUS_DEBUG] IMAGE GENERATION ERROR:", error);
-        throw new Error(error.message || "Image generation failed.");
+        const runCloudImageFallback = async () => {
+             const maxAttempts = getGeminiKeysCount() || 1;
+             let lastError: any = null;
+
+             for (let i = 0; i < maxAttempts; i++) {
+                 try {
+                     const apiKey = getGeminiKey();
+                     if (!apiKey) throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
+
+                     console.log(`[NOUS_DEBUG] Generating on Cloud [Attempt ${i + 1}/${maxAttempts}]: ${modelId}`);
+
+                     const { GoogleGenAI } = await import("@google/genai");
+                     const ai = new GoogleGenAI({ apiKey });
+
+                     // Ensure aspectRatio is valid for the SDK
+                     const validRatio = aspectRatio === 'custom' ? '16:9' : aspectRatio;
+
+                     const response = await ai.models.generateContent({
+                         model: modelId,
+                         contents: { parts: [{ text: prompt }] },
+                         config: {
+                             imageConfig: {
+                                 aspectRatio: validRatio as any
+                             }
+                         }
+                     });
+
+                     const candidate = response.candidates?.[0];
+                     if (!candidate) throw new Error("Safety filters blocked the generation or key quota exceeded.");
+
+                     for (const part of candidate.content?.parts || []) {
+                         if (part.inlineData && part.inlineData.data) {
+                             return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                         }
+                     }
+
+                     throw new Error("No image data returned from model.");
+
+                 } catch (error: any) {
+                     lastError = error;
+                     console.error(`[NOUS_DEBUG] CLOUD IMAGE ERROR (Attempt ${i + 1}):`, error.message);
+            
+                     if (error?.status === 429 || error?.status === 400 || 
+                         error?.message?.includes("quota") || error?.message?.includes("exceeded") ||
+                         error?.message?.includes("API key not valid") || error?.message?.includes("NOT_FOUND")) {
+                         console.warn(`[NOUS_DEBUG] Keys rotated due to error.`);
+                         continue;
+                     }
+
+                     throw new Error(error.message || "Image generation failed.");
+                 }
+             }
+             throw new Error(lastError?.message || "All API keys exhausted.");
+        }
+
+        return await runCloudImageFallback();
+
+    } catch (globalError: any) {
+        throw new Error(globalError.message || "All generation attempts failed.");
     }
 };
 

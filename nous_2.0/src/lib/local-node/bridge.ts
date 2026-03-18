@@ -29,7 +29,7 @@ class LocalBridge {
 
     private connect() {
         try {
-            this.ws = new WebSocket('ws://localhost:11434');
+            this.ws = new WebSocket('ws://127.0.0.1:8181');
 
             this.ws.onopen = () => {
                 console.log('[NOUS BRIDGE] Conectado. Enviando autenticación...');
@@ -250,10 +250,18 @@ class LocalBridge {
         this.send('FLUX_GET_STATS');
     }
 
-    // --- IA LOCAL (Gemma 3 4B) ---
+    // --- IA LOCAL (Unified Engine) ---
 
     public getAIStatus() {
         this.send('AI_GET_STATUS');
+    }
+
+    public checkModels() {
+        this.send('CHECK_MODELS');
+    }
+
+    public getModelsStatus() {
+        this.send('GET_MODELS_STATUS');
     }
 
     /**

@@ -164,7 +164,7 @@ export default function HomeClient() {
                                     <OfficePanel />
 
                                     <Link
-                                        href="/desktop-app"
+                                        href="/download"
                                         className="px-8 py-3 rounded-full bg-white/20 backdrop-blur-md border border-slate-200 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/40 hover:text-white transition-all duration-300 self-end"
                                     >
                                         DESCARGAR APP

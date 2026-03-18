@@ -14,13 +14,13 @@ import { applyWatermark } from '@/lib/services/images/watermarkService';
 import { BlogPost, GeneratedImage, ProcessingStatus, AspectRatio, SupportedLanguage, CustomDimensions, InlineImageCount } from '@/types/images';
 import { cn } from '@/utils/cn';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useWriterStore } from '@/store/useWriterStore';
 
 // Simple Translation Dictionary
 const TRANSLATIONS = {
     en: {
-        title: "Antigravity Visuals",
-        downloadAll: "Download All",
-        settings: "Visual Intelligence",
+        title: "Nous Visuals",
+        downloadAll: "Download All",        settings: "Visual Intelligence",
         uploadDoc: "Upload Article (.docx)",
         uploadLogo: "Watermark Logo (PNG/WebP)",
         featuredSize: "Front Page Aspect",
@@ -62,9 +62,8 @@ const TRANSLATIONS = {
         language: "Analysis Language"
     },
     es: {
-        title: "Antigravity Visuals",
-        downloadAll: "Descargar Todo",
-        settings: "Inteligencia Visual",
+        title: "Nous Visuals",
+        downloadAll: "Descargar Todo",        settings: "Inteligencia Visual",
         uploadDoc: "Subir Artículo (.docx)",
         uploadLogo: "Logo para Marca de Agua",
         featuredSize: "Relación Portada",
@@ -108,15 +107,29 @@ const TRANSLATIONS = {
 };
 
 const MODELS = [
-    { id: 'gemini-3-flash-preview', name: 'Antigravity Pro', description: 'Gemini 3 Flash (High Performance)', icon: Sparkles },
-    { id: 'gemini-2.5-flash-image', name: 'Antigravity Express', description: 'Gemini 2.5 Flash Image (Optimized)', icon: Zap },
-    { id: 'imagen-4.0-generate-001', name: 'Antigravity Realistic', description: 'Google Imagen 4 Standard', icon: Cpu },
+    { id: 'gemini-2.5-flash-image', name: 'Nous Express', description: 'Gemini 2.5 Flash Image (Original)', icon: Zap }
 ];
-
 export default function ImagesPage() {
     const [mounted, setMounted] = useState(false);
     const { activeProject } = useProjectStore();
     const { content: storeContent, title: storeTitle, setMetadata, metadata: storeMetadata } = useWriterStore();
+
+    const [language, setLanguage] = useState<SupportedLanguage>('es');
+    const t = TRANSLATIONS[language];
+
+    // State
+    const [blogPost, setBlogPost] = useState<BlogPost | null>(null);
+    const [logo, setLogo] = useState<string | null>(null);
+    const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+    const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
+    const [error, setError] = useState<string | null>(null);
+
+    // Settings
+    const [instructions, setInstructions] = useState<string>("");
+    const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash-image');
+    const [featuredRatio, setFeaturedRatio] = useState<AspectRatio>('16:9');
+    const [inlineRatio, setInlineRatio] = useState<AspectRatio>('16:9');
+    const [inlineImageCount, setInlineImageCount] = useState<InlineImageCount>('auto');
 
     useEffect(() => {
         setMounted(true);
@@ -132,7 +145,13 @@ export default function ImagesPage() {
                 paragraphs: paragraphs
             });
         }
-    }, [storeContent, storeTitle]);
+    }, [storeContent, storeTitle, blogPost]);
+
+    if (!mounted) return (
+        <div className="min-h-screen bg-[#FDFCFB] flex items-center justify-center">
+            <Loader2 className="animate-spin text-slate-300" size={32} />
+        </div>
+    );
 
     const handleSyncToArticle = () => {
         if (!generatedImages.length) return;
@@ -156,31 +175,6 @@ export default function ImagesPage() {
 
         alert(language === 'es' ? "¡Inteligencia visual sincronizada con el artículo!" : "Visual intelligence synchronized with article!");
     };
-
-    const [language, setLanguage] = useState<SupportedLanguage>('es');
-    const t = TRANSLATIONS[language];
-
-    // ... (rest of the state)
-
-    if (!mounted) return (
-        <div className="min-h-screen bg-[#FDFCFB] flex items-center justify-center">
-            <Loader2 className="animate-spin text-slate-300" size={32} />
-        </div>
-    );
-
-    // State
-    const [blogPost, setBlogPost] = useState<BlogPost | null>(null);
-    const [logo, setLogo] = useState<string | null>(null);
-    const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
-    const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
-    const [error, setError] = useState<string | null>(null);
-
-    // Settings
-    const [instructions, setInstructions] = useState<string>("");
-    const [selectedModel, setSelectedModel] = useState<string>('gemini-3-pro-image-preview');
-    const [featuredRatio, setFeaturedRatio] = useState<AspectRatio>('16:9');
-    const [inlineRatio, setInlineRatio] = useState<AspectRatio>('16:9');
-    const [inlineImageCount, setInlineImageCount] = useState<InlineImageCount>('auto');
 
     const handleDocUpload = async (file: File) => {
         try {
