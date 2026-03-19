@@ -29,6 +29,8 @@ export default function SettingsPage() {
         updateProject, 
         setActiveProject,
         activeTeam,
+        teams,
+        setActiveTeam,
         fetchTeams,
         createTeam
     } = useProjectStore();
@@ -349,7 +351,12 @@ export default function SettingsPage() {
                         Centro de Control
                     </div>
                     <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic leading-none mt-2 py-4">
-                        {activeTab === 'projects' ? (activeProject?.name || "Proyectos") : "Integraciones"} <span className="text-slate-400 px-2 leading-relaxed inline-block">Settings</span>
+                        {activeTab === 'projects' 
+                            ? (activeProject?.name || "Proyectos") 
+                            : activeTab === 'team' 
+                                ? (activeTeam?.name || "Equipo")
+                                : "Integraciones"} 
+                        <span className="text-slate-400 px-2 leading-relaxed inline-block">Settings</span>
                     </h1>
                 </header>
 
@@ -406,6 +413,38 @@ export default function SettingsPage() {
                                                     <span className="text-xs font-bold truncate pr-4">{p.name}</span>
                                                     {p.gsc_connected && (
                                                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-nous-mist)] shadow-[0_0_8px_var(--color-nous-mist)]" />
+                                                    )}
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all" />
+                            </div>
+                        )}
+
+                        {activeTab === 'team' && (
+                            <div className="bg-white/60 backdrop-blur-md border border-cyan-100/30 text-slate-800 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                                <div className="relative z-10">
+                                    <h3 className="text-[10px] font-black text-cyan-500 uppercase tracking-widest mb-4">Agencia / Equipo Activo</h3>
+                                    <div className="space-y-3">
+                                        {teams.length === 0 ? (
+                                            <p className="text-xs text-slate-400 italic">No tienes equipos creados.</p>
+                                        ) : (
+                                            teams.map(t => (
+                                                <button
+                                                    key={t.id}
+                                                    onClick={() => setActiveTeam(t.id)}
+                                                    className={cn(
+                                                        "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
+                                                        activeTeam?.id === t.id
+                                                            ? "bg-cyan-500/10 border-cyan-500/20 text-slate-800"
+                                                            : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-white/50"
+                                                    )}
+                                                >
+                                                    <span className="text-xs font-bold truncate pr-4">{t.name}</span>
+                                                    {activeTeam?.id === t.id && (
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_cyan]" />
                                                     )}
                                                 </button>
                                             ))

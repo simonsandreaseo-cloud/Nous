@@ -196,7 +196,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         // 3. Refresh and set active
         await get().fetchTeams();
-        set({ activeTeam: team, isLoading: false });
+        await get().setActiveTeam(team.id);
+        set({ isLoading: false });
     },
 
     fetchProjects: async (teamId) => {
