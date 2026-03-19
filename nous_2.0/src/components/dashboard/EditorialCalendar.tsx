@@ -455,7 +455,7 @@ export function EditorialCalendar() {
                                                     <div className="flex items-center justify-between mb-1 gap-1">
                                                         <ProjectBadge projectId={task.project_id} className="scale-75 origin-top-left" />
                                                         {task.locked_by && task.locked_until && new Date(task.locked_until) > new Date() && (
-                                                            <Lock size={10} className="text-red-400" title="Siendo editada" />
+                                                            <span title="Siendo editada"><Lock size={10} className="text-red-400" /></span>
                                                         )}
                                                     </div>
                                                     <p className="line-clamp-1">{task.title}</p>
