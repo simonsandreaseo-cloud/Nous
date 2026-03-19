@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Edit2, Shield, User, Mail, Loader2, CheckIcon, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Shield, User, Mail, Loader2, Check, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/utils/cn";
-import { CustomPermissions, ProjectMember, ProjectInvite } from "@/types/project";
+import { CustomPermissions, TeamMember } from "@/types/project";
 
 const DEFAULT_PERMISSIONS: CustomPermissions = {
     admin: false,
@@ -17,47 +17,40 @@ const DEFAULT_PERMISSIONS: CustomPermissions = {
     monthly_tokens_limit: 0,
 };
 
-export function TeamSettings({ projectId }: { projectId: string }) {
-    const [members, setMembers] = useState<any[]>([]);
-    const [invites, setInvites] = useState<ProjectInvite[]>([]);
+export function TeamSettings({ teamId }: { teamId: string }) {
+    const [members, setMembers] = useState<(TeamMember & { users?: { email: string }, profiles?: { full_name: string, avatar_url: string } })[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
     // Form state
     const [email, setEmail] = useState("");
-    const [role, setRole] = useState<'admin' | 'editor' | 'viewer'>('editor');
+    const [role, setRole] = useState<'owner' | 'partner' | 'manager' | 'specialist' | 'client'>('specialist');
     const [permissions, setPermissions] = useState<CustomPermissions>(DEFAULT_PERMISSIONS);
     const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        if (projectId) {
+        if (teamId) {
             fetchTeam();
         }
-    }, [projectId]);
+    }, [teamId]);
 
     const fetchTeam = async () => {
         setIsLoading(true);
         try {
-            // Fetch members
+            // Fetch members from team_members
             const { data: membersData, error: membersError } = await supabase
-                .from('project_members')
-                .select('*, users:user_id(email, raw_user_meta_data)')
-                .eq('project_id', projectId);
+                .from('team_members')
+                .select('*, users:user_id(email), profiles:user_id(full_name, avatar_url)')
+                .eq('team_id', teamId);
 
             if (membersError) throw membersError;
             setMembers(membersData || []);
 
-            // Fetch invites
-            const { data: invitesData, error: invitesError } = await supabase
-                .from('project_invites')
-                .select('*')
-                .eq('project_id', projectId);
-
-            if (invitesError) throw invitesError;
-            setInvites(invitesData || []);
         } catch (e: any) {
             console.error("Error fetching team:", e);
         } finally {
@@ -96,7 +89,7 @@ export function TeamSettings({ projectId }: { projectId: string }) {
     const openInviteModal = () => {
         setIsEditing(false);
         setEmail("");
-        setRole("editor");
+        setRole("specialist");
         setPermissions(DEFAULT_PERMISSIONS);
         setEditingMemberId(null);
         setIsModalOpen(true);
@@ -104,7 +97,7 @@ export function TeamSettings({ projectId }: { projectId: string }) {
 
     const openEditModal = (member: any) => {
         setIsEditing(true);
-        setEmail(member.users?.email || "Usuario Invitado");
+        setEmail(member.users?.email || member.profiles?.full_name || "Miembro");
         setRole(member.role);
         setPermissions(member.custom_permissions || DEFAULT_PERMISSIONS);
         setEditingMemberId(member.id);
@@ -118,7 +111,7 @@ export function TeamSettings({ projectId }: { projectId: string }) {
             if (isEditing && editingMemberId) {
                 // Update member
                 const { error } = await supabase
-                    .from('project_members')
+                    .from('team_members')
                     .update({
                         role,
                         custom_permissions: permissions
@@ -128,34 +121,28 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                 if (error) throw error;
                 alert("Permisos actualizados correctamente.");
             } else {
-                // We map this to an API route to handle email sending later
-                // For now, insert directly to project_invites
-                // The backend function will be done in the next step
-                const { data: { session } } = await supabase.auth.getSession();
-                const inviterId = session?.user?.id;
-                const inviterName = session?.user?.user_metadata?.full_name || session?.user?.email;
-                const { data: projData } = await supabase.from('projects').select('name').eq('id', projectId).single();
-                const projectName = projData?.name || 'Proyecto';
+                // Invite logic: In the new architecture, we'll try to find user by email first
+                const { data: userData } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('email', email)
+                    .maybeSingle();
 
-                const response = await fetch('/api/invites', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        projectId,
-                        email,
-                        role,
-                        custom_permissions: permissions,
-                        inviterId,
-                        inviterName,
-                        projectName
-                    })
-                });
-
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.error || "Error al invitar");
+                if (userData) {
+                    const { error } = await supabase
+                        .from('team_members')
+                        .insert({
+                            team_id: teamId,
+                            user_id: userData.id,
+                            role,
+                            custom_permissions: permissions
+                        });
+                    if (error) throw error;
+                    alert("Usuario añadido al equipo.");
+                } else {
+                    // For now, let's use the invite API but adapted (needs backend update)
+                    alert("Actualmente solo se pueden añadir usuarios registrados. Invitación por email próximamente.");
                 }
-                alert("Invitación enviada.");
             }
             setIsModalOpen(false);
             fetchTeam();
@@ -166,11 +153,10 @@ export function TeamSettings({ projectId }: { projectId: string }) {
         }
     };
 
-    const handleDeleteMember = async (id: string, isInvite = false) => {
+    const handleDeleteMember = async (id: string) => {
         if (!confirm("¿Seguro que deseas eliminar este acceso?")) return;
         try {
-            const table = isInvite ? 'project_invites' : 'project_members';
-            const { error } = await supabase.from(table).delete().eq('id', id);
+            const { error } = await supabase.from('team_members').delete().eq('id', id);
             if (error) throw error;
             fetchTeam();
         } catch (e: any) {
@@ -178,18 +164,19 @@ export function TeamSettings({ projectId }: { projectId: string }) {
         }
     };
 
+
     return (
         <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm relative overflow-hidden animate-in fade-in duration-500">
             <div className="flex justify-between items-center mb-8 relative z-10">
                 <div>
-                    <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Equipo y Accesos</h2>
-                    <p className="text-xs text-slate-400 font-medium italic">Gestiona quién tiene acceso a este proyecto y sus permisos.</p>
+                    <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Equipo y Colaboradores</h2>
+                    <p className="text-xs text-slate-400 font-medium italic">Gestiona los miembros de tu agencia y sus niveles de acceso.</p>
                 </div>
                 <button
                     onClick={openInviteModal}
                     className="px-5 py-2.5 bg-cyan-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-600 transition-all flex items-center gap-2 shadow-lg shadow-cyan-500/20"
                 >
-                    <Plus size={14} /> Invitar Miembro
+                    <Plus size={14} /> Añadir Miembro
                 </button>
             </div>
 
@@ -199,20 +186,21 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {/* Active Members */}
                     <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Miembros Activos</h3>
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Miembros de la Agencia</h3>
                         {members.length === 0 ? (
-                            <p className="text-xs text-slate-500 py-4 text-center border border-dashed rounded-xl">No hay otros miembros en este proyecto.</p>
+                            <p className="text-xs text-slate-500 py-4 text-center border border-dashed rounded-xl">No hay miembros registrados en este equipo.</p>
                         ) : (
                             members.map(member => (
                                 <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold">
-                                            {member.users?.email?.charAt(0).toUpperCase() || <User size={18} />}
+                                            {(member.profiles?.full_name || member.users?.email || 'M').charAt(0).toUpperCase()}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-slate-900">{member.users?.email || 'Usuario Desconocido'}</p>
+                                            <p className="text-sm font-bold text-slate-900">
+                                                {member.profiles?.full_name || member.users?.email || 'Miembro'}
+                                            </p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-[9px] font-black uppercase tracking-widest text-cyan-600 bg-cyan-100 px-2 py-0.5 rounded-full">{member.role}</span>
                                                 {member.custom_permissions?.admin && (
@@ -225,7 +213,7 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                                         <button onClick={() => openEditModal(member)} className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors">
                                             <Edit2 size={16} />
                                         </button>
-                                        <button onClick={() => handleDeleteMember(member.id, false)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                        <button onClick={() => handleDeleteMember(member.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                                             <Trash2 size={16} />
                                         </button>
                                     </div>
@@ -233,29 +221,6 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                             ))
                         )}
                     </div>
-
-                    {/* Pending Invites */}
-                    {invites.length > 0 && (
-                        <div className="space-y-3 mt-8">
-                            <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-widest ml-2">Invitaciones Pendientes</h3>
-                            {invites.map(invite => (
-                                <div key={invite.id} className="flex items-center justify-between p-4 bg-amber-50/30 border border-amber-100 rounded-2xl">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
-                                            <Mail size={18} />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-900">{invite.email}</p>
-                                            <p className="text-[10px] text-amber-600 font-medium">Pendiente de aceptación • Rol: {invite.role}</p>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => handleDeleteMember(invite.id, true)} className="p-2 text-amber-500 hover:bg-amber-100 rounded-lg transition-colors text-xs font-bold uppercase">
-                                        Cancelar
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -265,8 +230,8 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                     <div className="bg-white rounded-[32px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="sticky top-0 bg-white border-b border-slate-100 p-6 flex justify-between items-center z-10">
                             <div>
-                                <h3 className="text-lg font-black text-slate-900 uppercase italic">{isEditing ? 'Editar Accesos' : 'Invitar al Equipo'}</h3>
-                                <p className="text-xs text-slate-500">Configura los permisos para {isEditing ? email : 'este nuevo usuario'}.</p>
+                                <h3 className="text-lg font-black text-slate-900 uppercase italic">{isEditing ? 'Editar Accesos' : 'Añadir al Equipo'}</h3>
+                                <p className="text-xs text-slate-500">Configura los permisos para {isEditing ? email : 'este usuario'}.</p>
                             </div>
                             <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
                                 <X size={16} />
@@ -288,7 +253,25 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                             )}
 
                             <div>
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Permisos Granulares (Switches)</h4>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Rol en la Agencia</h4>
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+                                    {['owner', 'partner', 'manager', 'specialist', 'client'].map((r) => (
+                                        <button
+                                            key={r}
+                                            onClick={() => setRole(r as any)}
+                                            className={cn(
+                                                "p-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all",
+                                                role === r 
+                                                    ? "bg-[var(--color-nous-mist)]/20 border-[var(--color-nous-mist)] text-slate-800"
+                                                    : "border-slate-100 text-slate-400 hover:bg-slate-50"
+                                            )}
+                                        >
+                                            {r}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Permisos Granulares</h4>
 
                                 {/* Admin Global Toggle */}
                                 <div className={cn(
@@ -301,7 +284,7 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                                         </div>
                                         <div>
                                             <p className="text-sm font-black uppercase">Administrador Global</p>
-                                            <p className="text-[10px] text-slate-500">Activa el acceso total sin restricciones a todo el proyecto.</p>
+                                            <p className="text-[10px] text-slate-500">Activa el acceso total sin restricciones a todo el equipo.</p>
                                         </div>
                                     </div>
                                     <div className={cn("w-12 h-6 rounded-full transition-colors relative", permissions.admin ? "bg-red-500" : "bg-slate-200")}>
@@ -346,7 +329,7 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                                         value={permissions.monthly_tokens_limit}
                                         onChange={(e) => handleTogglePermission('monthly_tokens_limit', parseInt(e.target.value) || 0)}
                                     />
-                                    <p className="text-[10px] text-slate-500 w-[200px]">Si estableces esto en 0, no hay un límite estricto de consumo de tokens (O dependerá del límite de la cuenta principal).</p>
+                                    <p className="text-[10px] text-slate-500 w-[200px]">Si estableces esto en 0, no hay un límite estricto de consumo de tokens.</p>
                                 </div>
                             </div>
                         </div>
@@ -356,8 +339,8 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                                 Cancelar
                             </button>
                             <button onClick={handleSubmit} disabled={isSubmitting} className="px-8 py-3 bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 disabled:opacity-50 flex items-center gap-2">
-                                {isSubmitting ? <Loader2 className="animate-spin" size={14} /> : <CheckIcon size={14} />}
-                                {isEditing ? 'Guardar Cambios' : 'Enviar Invitación'}
+                                {isSubmitting ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
+                                {isEditing ? 'Guardar Cambios' : 'Añadir Miembro'}
                             </button>
                         </div>
                     </div>
@@ -366,3 +349,4 @@ export function TeamSettings({ projectId }: { projectId: string }) {
         </div>
     );
 }
+

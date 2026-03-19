@@ -20,7 +20,17 @@ import { fetchGscSitesAction, fetchGa4PropertiesAction } from "@/app/node-tasks/
 import { TeamSettings } from "./TeamSettings";
 
 export default function SettingsPage() {
-    const { activeProject, projects, createProject, deleteProject, fetchProjects, updateProject, setActiveProject } = useProjectStore();
+    const { 
+        activeProject, 
+        projects, 
+        createProject, 
+        deleteProject, 
+        fetchProjects, 
+        updateProject, 
+        setActiveProject,
+        activeTeam,
+        fetchTeams
+    } = useProjectStore();
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectDomain, setNewProjectDomain] = useState("");
     const [isCreating, setIsCreating] = useState(false);
@@ -46,6 +56,7 @@ export default function SettingsPage() {
 
     useEffect(() => {
         fetchProjects();
+        fetchTeams();
 
         // Check for GSC auth callback params
         if (typeof window !== 'undefined') {
@@ -714,15 +725,8 @@ export default function SettingsPage() {
                             </div>
                         )}
 
-                        {activeTab === 'team' && activeProject && (
-                            <TeamSettings projectId={activeProject.id} />
-                        )}
-
-                        {activeTab === 'team' && !activeProject && (
-                            <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm flex flex-col items-center justify-center h-64">
-                                <Shield size={48} className="mb-4 text-slate-200" />
-                                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Selecciona un proyecto para gestionar su equipo</p>
-                            </div>
+                        {activeTab === 'team' && (
+                            <TeamSettings teamId={activeTeam?.id || ''} />
                         )}
 
                         {activeTab === 'integrations' && (

@@ -323,6 +323,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     createProject: async (newProject) => {
+
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
         if (!user) {

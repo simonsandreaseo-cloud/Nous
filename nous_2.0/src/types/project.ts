@@ -44,7 +44,9 @@ export interface TeamMember {
     team_id: string;
     user_id: string;
     role: 'owner' | 'partner' | 'manager' | 'specialist' | 'client';
+    custom_permissions?: CustomPermissions;
     presence_status?: 'online' | 'busy' | 'offline';
+
     last_seen_at?: string;
     current_task_id?: string;
     created_at: string;
