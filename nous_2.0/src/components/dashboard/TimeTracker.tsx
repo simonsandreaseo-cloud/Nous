@@ -70,7 +70,7 @@ export default function TimeTracker({ taskId, taskTitle, projectId }: TimeTracke
 
             // Reset Presence to 'online' and clear task
             if (activeTeam) {
-                await PresenceService.updatePresence(activeTeam.id, 'online', null);
+                await PresenceService.updatePresence(activeTeam.id, 'online', undefined);
             }
 
             if (taskId) {
