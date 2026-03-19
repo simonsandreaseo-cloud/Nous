@@ -238,6 +238,3 @@ export function Workspace() {
         </div>
     );
 }
-
-// Helper needed for Filters
-import { ChevronDown } from "lucide-react";
