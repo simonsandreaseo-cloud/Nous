@@ -151,7 +151,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         // If a specific projectId is requested we can still filter, but usually we want all active
         // Let's modify the query to use `.in` if we want to fetch all active projects' tasks
         const { data, error } = await supabase
-            .from('content_tasks')
+            .from('tasks')
             .select('*')
             .in('project_id', activeIds)
             .order('scheduled_date', { ascending: true });
@@ -166,7 +166,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     addTask: async (newTask) => {
         const { data, error } = await supabase
-            .from('content_tasks')
+            .from('tasks')
             .insert([newTask])
             .select()
             .single();
@@ -182,7 +182,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     updateTask: async (taskId, updates) => {
         const { data, error } = await supabase
-            .from('content_tasks')
+            .from('tasks')
             .update(updates)
             .eq('id', taskId)
             .select()
@@ -200,7 +200,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     deleteTask: async (taskId) => {
         const { error } = await supabase
-            .from('content_tasks')
+            .from('tasks')
             .delete()
             .eq('id', taskId);
 

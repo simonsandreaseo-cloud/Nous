@@ -38,7 +38,8 @@ import {
     LayoutDashboard,
     Upload,
     Database,
-    Wand2
+    Wand2,
+    Lock
 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
 import { supabase } from "@/lib/supabase";
@@ -453,6 +454,9 @@ export function EditorialCalendar() {
                                                 >
                                                     <div className="flex items-center justify-between mb-1 gap-1">
                                                         <ProjectBadge projectId={task.project_id} className="scale-75 origin-top-left" />
+                                                        {task.locked_by && task.locked_until && new Date(task.locked_until) > new Date() && (
+                                                            <Lock size={10} className="text-red-400" title="Siendo editada" />
+                                                        )}
                                                     </div>
                                                     <p className="line-clamp-1">{task.title}</p>
                                                 </motion.div>
@@ -1137,7 +1141,7 @@ async function saveContentAndLink(taskId: string, html: string, userId?: string)
 
     if (linkErr) throw linkErr;
 
-    await supabase.from('content_tasks').update({ status: 'in_progress' }).eq('id', taskId);
+    await supabase.from('tasks').update({ status: 'in_progress' }).eq('id', taskId);
 
     return draft.id;
 }

@@ -66,7 +66,7 @@ Keyword: ${keyword || 'N/A'}`;
 
         // 2. Update task in Supabase
         await supabase
-            .from('content_tasks')
+            .from('tasks')
             .update({
                 metadata,
                 target_keyword: keyword,

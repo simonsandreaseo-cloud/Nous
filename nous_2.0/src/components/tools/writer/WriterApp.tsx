@@ -246,10 +246,19 @@ const App = () => {
         const taskId = searchParams?.get('activeTaskId');
         if (taskId) {
             setLinkedTaskId(taskId);
-            // Fetch task details for the banner
-            supabase.from('content_tasks').select('title').eq('id', taskId).single()
-                .then(({ data }) => {
-                    if (data) setLinkedTaskTitle(data.title);
+            
+            // Check lock
+            supabase.from('tasks').select('title, locked_by, locked_until').eq('id', taskId).single()
+                .then(async ({ data }) => {
+                    if (data) {
+                        setLinkedTaskTitle(data.title);
+                        if (data.locked_by && data.locked_by !== user?.id && new Date(data.locked_until) > new Date()) {
+                            alert("⚠️ ALERTA DE COLISIÓN: Esta tarea está siendo editada por otro usuario.");
+                        } else if (user?.id) {
+                            const lockedUntil = new Date(new Date().getTime() + 30 * 60000).toISOString();
+                            await supabase.from('tasks').update({ locked_by: user.id, locked_until: lockedUntil }).eq('id', taskId);
+                        }
+                    }
                 });
         }
 
@@ -304,6 +313,17 @@ const App = () => {
         const tid = params.get('taskId');
         if (tid) {
             try {
+                // 1. Task Locking / Checks
+                const { data: lockCheck } = await supabase.from('tasks').select('locked_by, locked_until').eq('id', tid).single();
+                if (lockCheck?.locked_by && lockCheck.locked_by !== user?.id && new Date(lockCheck.locked_until) > new Date()) {
+                    alert("⚠️ ALERTA DE COLISIÓN: Esta tarea está siendo editada por otro usuario. Cualquier cambio que guardes podría sobrescribir su trabajo.");
+                } else if (user?.id) {
+                    // Lock for 30 mins
+                    const lockedUntil = new Date(new Date().getTime() + 30 * 60000).toISOString();
+                    await supabase.from('tasks').update({ locked_by: user.id, locked_until: lockedUntil }).eq('id', tid);
+                }
+
+                // 2. Load Task Data
                 const { data, error } = await supabase.from('tasks').select('*').eq('id', tid).single();
                 if (error) throw error;
                 if (data) {
@@ -312,6 +332,8 @@ const App = () => {
                     setLinkedProjectId(data.project_id);
                     if (data.target_keyword) setTargetKeyword(data.target_keyword);
                     if (data.title && !strategyH1) setStrategyH1(data.title);
+                    if (data.associated_url) setAssociatedUrl(data.associated_url);
+                    if (data.secondary_url) setSecondaryUrl(data.secondary_url);
                     setStatus(`Modo Tarea Activo: ${data.title}`);
                 }
             } catch (e) {
@@ -378,6 +400,8 @@ const App = () => {
 
     const [targetKeyword, setTargetKeyword] = useState('');
     const [detectedNiche, setDetectedNiche] = useState('');
+    const [associatedUrl, setAssociatedUrl] = useState('');
+    const [secondaryUrl, setSecondaryUrl] = useState('');
 
     // Strategy Editable State
     const [strategyTitle, setStrategyTitle] = useState('');
@@ -1534,7 +1558,7 @@ const App = () => {
             if (artifactError && artifactError.code !== '23505') throw artifactError;
 
             // Update Task Status
-            await supabase.from('content_tasks').update({ status: 'done' }).eq('id', linkedTaskId);
+            await supabase.from('tasks').update({ status: 'done' }).eq('id', linkedTaskId);
 
             setStatus("Tarea actualizada y borrador vinculado!");
 
@@ -2257,6 +2281,30 @@ const App = () => {
                                         <div style={{ fontSize: '13px', color: '#166534' }}>● {csvData.length.toLocaleString()} URLs activas</div>
                                         <div style={{ fontSize: '13px', color: '#64748B' }}>● Nicho: {detectedNiche}</div>
                                     </div>
+
+                                    {/* INTERLINKING SUGGESTIONS */}
+                                    {(associatedUrl || secondaryUrl) && (
+                                        <div style={{ padding: '12px', background: '#FEF3C7', borderRadius: '8px', border: '1px solid #FDE68A', marginTop: '8px' }}>
+                                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#92400E', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <IconLink size={14} /> Enlaces de Interlinking
+                                            </div>
+                                            {associatedUrl && (
+                                                <div style={{ marginBottom: '6px' }}>
+                                                    <div style={{ fontSize: '10px', color: '#B45309', fontWeight: 600 }}>Principal (associated_url)</div>
+                                                    <a href={associatedUrl} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#D97706', textDecoration: 'underline', wordBreak: 'break-all' }}>{associatedUrl}</a>
+                                                </div>
+                                            )}
+                                            {secondaryUrl && (
+                                                <div>
+                                                    <div style={{ fontSize: '10px', color: '#B45309', fontWeight: 600 }}>Secundario (secondary_url)</div>
+                                                    <a href={secondaryUrl} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#D97706', textDecoration: 'underline', wordBreak: 'break-all' }}>{secondaryUrl}</a>
+                                                </div>
+                                            )}
+                                            <p style={{ fontSize: '10px', color: '#92400E', marginTop: '8px', fontStyle: 'italic', lineHeight: 1.2 }}>
+                                                Es mandatorio que incluyas estos enlaces en el contenido.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     <button style={{ ...styles.button, justifyContent: 'center' }} onClick={handleNewContent}>
                                         <IconPlus /> Nuevo Contenido

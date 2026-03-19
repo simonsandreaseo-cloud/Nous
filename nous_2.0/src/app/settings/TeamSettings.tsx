@@ -131,6 +131,12 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                 // We map this to an API route to handle email sending later
                 // For now, insert directly to project_invites
                 // The backend function will be done in the next step
+                const { data: { session } } = await supabase.auth.getSession();
+                const inviterId = session?.user?.id;
+                const inviterName = session?.user?.user_metadata?.full_name || session?.user?.email;
+                const { data: projData } = await supabase.from('projects').select('name').eq('id', projectId).single();
+                const projectName = projData?.name || 'Proyecto';
+
                 const response = await fetch('/api/invites', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -138,7 +144,10 @@ export function TeamSettings({ projectId }: { projectId: string }) {
                         projectId,
                         email,
                         role,
-                        custom_permissions: permissions
+                        custom_permissions: permissions,
+                        inviterId,
+                        inviterName,
+                        projectName
                     })
                 });
 

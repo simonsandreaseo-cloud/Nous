@@ -73,7 +73,7 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
 
             // Update Task Research Dossier
             const { error: updateError } = await supabase
-                .from('content_tasks')
+                .from('tasks')
                 .update({
                     research_dossier: normalizedData,
                     status: 'todo' // Stay in todo but with data
@@ -131,7 +131,7 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
 
             // 3. Save to task
             await supabase
-                .from('content_tasks')
+                .from('tasks')
                 .update({
                     outline_structure: outlineData,
                     quality_checklist: outlineData.quality_check

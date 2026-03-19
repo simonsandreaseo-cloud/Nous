@@ -6,6 +6,7 @@ export interface TimeSession {
     started_at: string;
     ended_at?: string;
     duration?: number; // Calculated in frontend
+    activity_events?: ActivityLog[];
 }
 
 export interface ActivityLog {
@@ -57,9 +58,19 @@ export class ActivityService {
      * Logs activity (called by Electron app or extension).
      */
     static async logActivity(log: Omit<ActivityLog, 'id' | 'created_at'>): Promise<void> {
+        const { data: session } = await supabase
+            .from('time_sessions')
+            .select('activity_events')
+            .eq('id', log.session_id)
+            .single();
+
+        const currentEvents = session?.activity_events || [];
+        const newEvent = { ...log, created_at: new Date().toISOString(), id: crypto.randomUUID() };
+
         const { error } = await supabase
-            .from('activity_logs')
-            .insert(log);
+            .from('time_sessions')
+            .update({ activity_events: [...currentEvents, newEvent] })
+            .eq('id', log.session_id);
 
         if (error) throw error;
     }

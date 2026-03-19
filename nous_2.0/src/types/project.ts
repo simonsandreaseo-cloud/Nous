@@ -54,6 +54,10 @@ export interface Task {
     quality_checklist?: any;
     semantic_refs?: any[];
     url?: string;
+    associated_url?: string; // Interlinking target URL
+    secondary_url?: string;  // Additional interlinking URL
+    locked_by?: string;      // User ID who locked the task
+    locked_until?: string;   // Timestamp until lock holds
     created_at?: string;
 }
 

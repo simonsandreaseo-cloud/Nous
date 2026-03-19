@@ -8,7 +8,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { projectId, email, role, custom_permissions } = body;
+        const { projectId, email, role, custom_permissions, inviterId, inviterName, projectName } = body;
 
         if (!projectId || !email) {
             return NextResponse.json({ error: "Faltan datos obligatorios" }, { status: 400 });
@@ -37,7 +37,27 @@ export async function POST(request: Request) {
             throw new Error(error.message);
         }
 
-        // 2. Here you would integrate with Resend, SendGrid, or any other email provider
+        // 2. Query profiles to see if the user already exists in the system
+        const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('email', email)
+            .maybeSingle();
+
+        // 3. If user exists, create an in-app notification
+        if (profile?.id) {
+            await supabaseAdmin.from('notifications').insert([{
+                user_id: profile.id,
+                actor_id: inviterId || null,
+                type: 'PROJECT_INVITE',
+                title: 'Nueva Invitación de Proyecto',
+                message: `${inviterName || 'Alguien'} te ha invitado al proyecto "${projectName || 'Desconocido'}" como ${role}.`,
+                resource_link: invite.id, // Store invite ID here so we know what to accept
+                is_read: false
+            }]);
+        }
+
+        // 4. Here you would integrate with Resend, SendGrid, or any other email provider
         // e.g., await resend.emails.send({ to: email, subject: 'Invitación a proyecto', text: `Usa este token para unirte: ${invite.token}` })
         console.log(`[Email Mock] Envío de invitación a ${email} con token: ${invite.token}`);
 

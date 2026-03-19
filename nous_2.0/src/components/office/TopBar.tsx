@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Play, Pause, ChevronDown, User } from "lucide-react";
+import { Play, Pause, ChevronDown, User, Bell } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { NousLogo } from "@/components/dom/NousLogo";
 import { TimeEntry } from "@/types/time_tracking";
 import { Task } from "@/types/project";
+import { UserProfileModal } from "./UserProfileModal";
 
 export function TopBar() {
     const [timerActive, setTimerActive] = useState(false);
@@ -15,6 +16,10 @@ export function TopBar() {
     const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
+    const [profile, setProfile] = useState<any>(null);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     // Initialize: Get User & Active Entry
     useEffect(() => {
@@ -24,6 +29,8 @@ export function TopBar() {
                 setUserId(user.id);
                 fetchActiveEntry(user.id);
                 fetchTasks(user.id);
+                fetchNotifications(user.id);
+                fetchProfile(user.id);
             }
         };
         init();
@@ -40,8 +47,20 @@ export function TopBar() {
             )
             .subscribe();
 
+        const notificationsChannel = supabase
+            .channel('notifications_changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'notifications' },
+                (payload) => {
+                    if (userId) fetchNotifications(userId);
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(channel);
+            supabase.removeChannel(notificationsChannel);
         };
     }, [userId]);
 
@@ -77,13 +96,68 @@ export function TopBar() {
 
     const fetchTasks = async (uid: string) => {
         const { data } = await supabase
-            .from('content_tasks')
+            .from('tasks')
             .select('*')
             .in('status', ['todo', 'in_progress']) // Only active tasks
             .order('created_at', { ascending: false })
             .limit(10);
 
         if (data) setTasks(data as unknown as Task[]);
+    };
+
+    const fetchNotifications = async (uid: string) => {
+        const { data } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', uid)
+            .order('created_at', { ascending: false });
+        if (data) setNotifications(data);
+    };
+
+    const fetchProfile = async (uid: string) => {
+        const { data } = await supabase
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', uid)
+            .maybeSingle();
+        if (data) setProfile(data);
+    };
+
+    const handleAcceptInvite = async (notification: any) => {
+        const inviteId = notification.resource_link;
+        if (!inviteId) return;
+        
+        const { data: invite } = await supabase.from('project_invites').select('*').eq('id', inviteId).single();
+        if (!invite) {
+            alert('Invitación no encontrada o cancelada.');
+            await supabase.from('notifications').delete().eq('id', notification.id);
+            if (userId) fetchNotifications(userId);
+            return;
+        }
+
+        const { error: memberError } = await supabase.from('project_members').insert({
+            project_id: invite.project_id,
+            user_id: userId,
+            role: invite.role,
+            custom_permissions: invite.custom_permissions
+        });
+
+        if (memberError && memberError.code !== '23505') {
+            alert('Error al unirse al proyecto: ' + memberError.message);
+            return;
+        }
+
+        await supabase.from('project_invites').delete().eq('id', invite.id);
+        await supabase.from('notifications').delete().eq('id', notification.id);
+        
+        window.location.reload();
+    };
+
+    const handleRejectInvite = async (notification: any) => {
+        const inviteId = notification.resource_link;
+        if (inviteId) await supabase.from('project_invites').delete().eq('id', inviteId);
+        await supabase.from('notifications').delete().eq('id', notification.id);
+        if (userId) fetchNotifications(userId);
     };
 
     // Timer Tick
@@ -212,11 +286,83 @@ export function TopBar() {
                         {timerActive ? "Registrando..." : "Disponible"}
                     </span>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-hairline relative">
-                    <User size={18} className="text-slate-400" />
-                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${timerActive ? 'bg-[var(--color-nous-mint)]' : 'bg-slate-300'}`}></div>
+                
+                {/* Notifications Dropdown */}
+                <div className="relative">
+                    <button 
+                        onClick={() => setShowNotifications(!showNotifications)}
+                        className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-hairline hover:bg-slate-100 transition-colors relative"
+                    >
+                        <Bell size={18} className="text-slate-500" />
+                        {notifications.length > 0 && (
+                            <div className="absolute top-0.5 right-0.5 w-3 h-3 border-2 border-white rounded-full bg-red-500"></div>
+                        )}
+                    </button>
+                    
+                    {showNotifications && (
+                        <div className="absolute top-12 right-0 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Notificaciones</h3>
+                                <span className="bg-cyan-100 text-cyan-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{notifications.length} nuevas</span>
+                            </div>
+                            <div className="max-h-96 overflow-y-auto">
+                                {notifications.length > 0 ? notifications.map((notif) => (
+                                    <div key={notif.id} className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <p className="text-xs font-bold text-slate-900">{notif.title}</p>
+                                            <span className="text-[9px] text-slate-400 font-medium">Ahora</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-600 font-medium leading-relaxed mb-3">{notif.message}</p>
+                                        
+                                        {notif.type === 'PROJECT_INVITE' && (
+                                            <div className="flex gap-2 mt-2">
+                                                <button 
+                                                    onClick={() => handleAcceptInvite(notif)}
+                                                    className="flex-1 bg-cyan-500 text-white text-[10px] font-black uppercase tracking-widest py-2 rounded-lg hover:bg-cyan-600 transition-colors"
+                                                >
+                                                    Aceptar
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleRejectInvite(notif)}
+                                                    className="flex-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg hover:bg-slate-200 transition-colors"
+                                                >
+                                                    Rechazar
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )) : (
+                                    <div className="p-8 text-center flex flex-col items-center justify-center space-y-3">
+                                        <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+                                            <Bell size={24} />
+                                        </div>
+                                        <div className="text-xs font-medium text-slate-400">No tienes notificaciones pendientes</div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                <button 
+                    onClick={() => setIsProfileModalOpen(true)}
+                    className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-hairline relative hover:bg-slate-200 transition-colors overflow-hidden"
+                >
+                    {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                        <User size={18} className="text-slate-400" />
+                    )}
+                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${timerActive ? 'bg-[var(--color-nous-mint)]' : 'bg-slate-300'}`}></div>
+                </button>
             </div>
+            
+            {/* Profile Modal */}
+            <UserProfileModal 
+                isOpen={isProfileModalOpen} 
+                onClose={() => setIsProfileModalOpen(false)} 
+                userId={userId!} 
+            />
         </div>
     );
 }
