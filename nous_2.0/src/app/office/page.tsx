@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { TopBar } from "@/components/office/TopBar";
 import { Workspace } from "@/components/office/Workspace";
 import { TeamSidebar } from "@/components/office/TeamSidebar";
+import { useProjectStore } from "@/store/useProjectStore";
+import { useEffect } from "react";
 
 // Mock Data for TopBar
 const mockTasks = [
@@ -14,7 +16,11 @@ const mockTasks = [
 ];
 
 export default function OfficePage() {
-    const [currentTask, setCurrentTask] = useState<string | null>(null);
+    const { fetchTeams } = useProjectStore();
+
+    useEffect(() => {
+        fetchTeams();
+    }, [fetchTeams]);
 
     return (
         <div className="flex h-screen w-screen bg-transparent overflow-hidden relative">

@@ -1,18 +1,22 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-export type { Project, Task } from '@/types/project';
-import { Project, Task } from '@/types/project';
+export type { Project, Task, Team, TeamMember } from '@/types/project';
+import { Project, Task, Team, TeamMember } from '@/types/project';
 
 interface ProjectState {
     projects: Project[];
     activeProjectIds: string[]; // Array of active project IDs
     activeProject: Project | null; // Primary project for creations
+    teams: Team[];
+    activeTeam: Team | null;
     tasks: Task[];
     isLoading: boolean;
     toggleProjectActive: (projectId: string) => void;
     setAllProjectsActive: (active: boolean) => void;
     setActiveProject: (projectId: string) => void;
-    fetchProjects: () => Promise<void>;
+    setActiveTeam: (teamId: string) => void;
+    fetchTeams: () => Promise<void>;
+    fetchProjects: (teamId?: string) => Promise<void>;
     fetchProjectTasks: (projectId: string) => Promise<void>;
     createProject: (project: Omit<Project, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
     updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
@@ -20,13 +24,18 @@ interface ProjectState {
     addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<void>;
     updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
     deleteTask: (taskId: string) => Promise<void>;
+    fetchPersonalTasks: () => Promise<void>;
+    assignTask: (taskId: string, userId: string | null) => Promise<void>;
     syncGscData: (siteUrl: string, startDate: string, endDate: string) => Promise<void>;
 }
+
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
     projects: [],
     activeProjectIds: [],
     activeProject: null,
+    teams: [],
+    activeTeam: null,
     tasks: [],
     isLoading: false,
 
@@ -89,15 +98,81 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
                 tasks: []
             });
             localStorage.setItem('activeProjectIds', JSON.stringify([]));
-            set({ tasks: [] });
         }
     },
 
-    fetchProjects: async () => {
+    setActiveTeam: async (teamId) => {
+        const { teams } = get();
+        const team = teams.find(t => t.id === teamId) || null;
+        set({ activeTeam: team });
+        
+        if (team) {
+            get().fetchProjects(teamId);
+            
+            // Persist preference in Profile
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.id) {
+                await supabase
+                    .from('profiles')
+                    .update({ last_active_team_id: teamId })
+                    .eq('id', session.user.id);
+            }
+        }
+    },
+
+    fetchTeams: async () => {
         set({ isLoading: true });
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+
+        // Fetch teams where user is a member
+        const { data: memberData, error: memberError } = await supabase
+            .from('team_members')
+            .select('team_id, teams(*)')
+            .eq('user_id', session.user.id);
+
+        if (memberError) {
+            console.error('Error fetching teams:', memberError);
+            set({ isLoading: false });
+            return;
+        }
+
+        const teams = memberData.map(m => Array.isArray(m.teams) ? m.teams[0] : m.teams)
+            .filter(Boolean) as Team[];
+        set({ teams });
+
+        // Fetch last active team from Profile
+        const { data: profileData } = await supabase
+            .from('profiles')
+            .select('last_active_team_id')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+        if (teams.length > 0) {
+            const lastTeamId = profileData?.last_active_team_id;
+            const targetTeam = teams.find(t => t.id === lastTeamId) || teams[0];
+            
+            set({ activeTeam: targetTeam });
+            get().fetchProjects(targetTeam.id);
+        } else {
+            set({ isLoading: false });
+        }
+    },
+
+
+    fetchProjects: async (teamId) => {
+        set({ isLoading: true });
+        const targetTeamId = teamId || get().activeTeam?.id;
+        
+        if (!targetTeamId) {
+            set({ projects: [], isLoading: false });
+            return;
+        }
+
         const { data, error } = await supabase
             .from('projects')
             .select('*')
+            .eq('team_id', targetTeamId)
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -114,9 +189,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             if (storedIds) {
                 activeIds = JSON.parse(storedIds);
             }
-        } catch (e) {
-            // ignore parse errors
-        }
+        } catch (e) {}
 
         // Default to all projects active if no stored preferences
         if (activeIds.length === 0 && projects.length > 0) {
@@ -133,12 +206,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             activeProject: projects.find(p => p.id === activeIds[0]) || null,
             isLoading: false
         });
-
-        if (activeIds.length > 0) {
-            // Need to fix fetchProjectTasks to accept multiple later, using loop for now
-            // or just trigger re-fetch on the component side. For now, fetch tasks for all.
-            // Actually, we should redefine fetchProjectTasks to accept array
-        }
     },
 
     fetchProjectTasks: async (projectId) => {
@@ -225,7 +292,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         const { data, error } = await supabase
             .from('projects')
-            .insert([{ ...newProject, user_id: user.id }])
+            .insert([{ ...newProject, user_id: user.id, team_id: get().activeTeam?.id }])
             .select()
             .single();
 
@@ -327,5 +394,49 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }
 
         set({ isLoading: false });
+    },
+
+    fetchPersonalTasks: async () => {
+        set({ isLoading: true });
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('assigned_to', session.user.id)
+            .order('scheduled_date', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching personal tasks:', error);
+            set({ isLoading: false });
+            return;
+        }
+
+        set({ tasks: data as Task[], isLoading: false });
+    },
+
+    assignTask: async (taskId, userId) => {
+        const updates: any = {
+            assigned_to: userId,
+            assigned_at: userId ? new Date().toISOString() : null
+        };
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .update(updates)
+            .eq('id', taskId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error assigning task:', error);
+            alert(`Error al asignar tarea: ${error.message}`);
+            return;
+        }
+
+        set(state => ({
+            tasks: state.tasks.map(t => t.id === taskId ? (data as Task) : t)
+        }));
     }
 }));

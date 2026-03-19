@@ -1,7 +1,6 @@
-"use client";
+import { Plus, MoreHorizontal, MessageSquare, Paperclip, BarChart3, TrendingUp, Users, ChevronDown } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
-import React from "react";
-import { Plus, MoreHorizontal, MessageSquare, Paperclip, BarChart3, TrendingUp, Users } from "lucide-react";
 
 interface StatusColumn {
     title: string;
@@ -19,8 +18,9 @@ interface TaskCardProps {
     tags: string[];
 }
 
-const KanbanColumn = ({ status }: { status: StatusColumn }) => (
+const KanbanColumn = ({ status, canAdd }: { status: StatusColumn, canAdd: boolean }) => (
     <div className="flex flex-col space-y-4 min-w-[300px] h-full overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+
         <div className="flex items-center justify-between mb-2">
             <h3 className="text-[10px] font-medium text-slate-500 uppercase tracking-elegant flex items-center gap-2">
                 <div className={`w-1.5 h-1.5 rounded-full ${getStatusColor(status.title)}`}></div>
@@ -36,12 +36,15 @@ const KanbanColumn = ({ status }: { status: StatusColumn }) => (
             <KanbanCard key={idx} {...task} />
         ))}
 
-        <div className="mt-4 flex items-center justify-center p-2 rounded-lg border border-dashed border-slate-200 hover:border-slate-300 cursor-pointer text-slate-400 hover:text-slate-600 transition-all group glass-panel-hover">
-            <Plus size={16} className="mr-2 group-hover:rotate-90 transition-transform" />
-            <span className="text-xs font-light uppercase tracking-widest">Añadir Tarea</span>
-        </div>
+        {canAdd && (
+            <div className="mt-4 flex items-center justify-center p-2 rounded-lg border border-dashed border-slate-200 hover:border-slate-300 cursor-pointer text-slate-400 hover:text-slate-600 transition-all group glass-panel-hover">
+                <Plus size={16} className="mr-2 group-hover:rotate-90 transition-transform" />
+                <span className="text-xs font-light uppercase tracking-widest">Añadir Tarea</span>
+            </div>
+        )}
     </div>
 );
+
 
 const KanbanCard = ({ title, project, assignee, priority, comments, tags }: TaskCardProps) => (
     <div className="group relative glass-panel-hover bg-white/50 border-hairline rounded-xl p-4 transition-all duration-300 hover:shadow-sm hover:-translate-y-1 cursor-grab active:cursor-grabbing">
@@ -179,7 +182,11 @@ const mockStatuses: StatusColumn[] = [
 ];
 
 export function Workspace() {
+    const { role } = usePermissions();
+    const canManage = role !== 'client';
+
     return (
+
         <div className="flex-1 h-full overflow-hidden flex flex-col pt-6 pl-6 pr-0">
 
             {/* Workspace Toolbar / Filters */}
@@ -212,18 +219,22 @@ export function Workspace() {
             <div className="flex-1 flex overflow-x-auto pb-4 space-x-2 scrollbar-none snap-x snap-mandatory">
                 {mockStatuses.map((status, idx) => (
                     <div key={idx} className="snap-start shrink-0">
-                        <KanbanColumn status={status} />
+                        <KanbanColumn status={status} canAdd={canManage} />
                     </div>
                 ))}
 
+
                 {/* Add Column Placeholder */}
-                <div className="min-w-[300px] h-full p-4 flex items-start justify-center opacity-70 hover:opacity-100 transition-opacity">
-                    <button className="flex items-center space-x-2 text-slate-400 hover:text-slate-600 group border border-dashed border-slate-300 rounded-xl px-6 py-3 w-full justify-center hover:border-slate-400 transition-colors glass-panel-hover bg-white/20">
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-                        <span className="text-xs font-light uppercase tracking-widest">Nueva Fase</span>
-                    </button>
-                </div>
+                {canManage && (
+                    <div className="min-w-[300px] h-full p-4 flex items-start justify-center opacity-70 hover:opacity-100 transition-opacity">
+                        <button className="flex items-center space-x-2 text-slate-400 hover:text-slate-600 group border border-dashed border-slate-300 rounded-xl px-6 py-3 w-full justify-center hover:border-slate-400 transition-colors glass-panel-hover bg-white/20">
+                            <Plus size={18} className="group-hover:rotate-90 transition-transform" />
+                            <span className="text-xs font-light uppercase tracking-widest">Nueva Fase</span>
+                        </button>
+                    </div>
+                )}
             </div>
+
         </div>
     );
 }

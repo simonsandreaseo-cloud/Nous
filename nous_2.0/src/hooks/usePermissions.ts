@@ -23,14 +23,14 @@ export function usePermissions(projectId?: string) {
     const targetProject = projects.find(p => p.id === targetProjectId);
 
     const [permissions, setPermissions] = useState<CustomPermissions>(DEFAULT_PERMISSIONS);
-    const [role, setRole] = useState<'owner' | 'admin' | 'editor' | 'viewer' | null>(null);
+    const [role, setRole] = useState<'owner' | 'partner' | 'manager' | 'specialist' | 'client' | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         let isMounted = true;
 
         const checkPermissions = async () => {
-            if (!targetProject?.id) {
+            if (!targetProject?.id || !targetProject?.team_id) {
                 if (isMounted) setLoading(false);
                 return;
             }
@@ -43,31 +43,12 @@ export function usePermissions(projectId?: string) {
                     return;
                 }
 
-                // If user is the project owner
-                if (targetProject.user_id === session.user.id) {
-                    if (isMounted) {
-                        setRole('owner');
-                        setPermissions({
-                            admin: true,
-                            create_delete: true,
-                            edit_all: true,
-                            take_edit_tasks: true,
-                            take_edit_contents: true,
-                            take_edit_reports: true,
-                            all_tools_access: true,
-                            monthly_tokens_limit: 0, // Unlimited
-                            tokens_used_this_month: 0
-                        });
-                        setLoading(false);
-                    }
-                    return;
-                }
-
-                // Fetch member record
+                // If user is the project creator (legacy check) or owner of the team
+                // But let's prioritize team_members for consistency
                 const { data: memberData, error } = await supabase
-                    .from('project_members')
-                    .select('role, custom_permissions')
-                    .eq('project_id', targetProject.id)
+                    .from('team_members')
+                    .select('role')
+                    .eq('team_id', targetProject.team_id)
                     .eq('user_id', session.user.id)
                     .maybeSingle();
 
@@ -75,24 +56,30 @@ export function usePermissions(projectId?: string) {
 
                 if (isMounted) {
                     if (memberData) {
-                        setRole(memberData.role);
-                        const custom = memberData.custom_permissions as CustomPermissions;
-                        if (custom && Object.keys(custom).length > 0) {
-                            setPermissions(custom);
-                        } else {
-                            // Fallback based on text role if custom is empty
-                            if (memberData.role === 'admin') {
-                                setPermissions({
-                                    admin: true,
-                                    create_delete: true,
-                                    edit_all: true,
-                                    take_edit_tasks: true,
-                                    take_edit_contents: true,
-                                    take_edit_reports: true,
-                                    all_tools_access: true,
-                                });
-                            }
+                        const userRole = memberData.role as 'owner' | 'partner' | 'manager' | 'specialist' | 'client';
+                        setRole(userRole);
+
+                        // Map roles to functional permissions
+                        const perms: CustomPermissions = { ...DEFAULT_PERMISSIONS };
+
+                        if (userRole === 'owner' || userRole === 'partner') {
+                            Object.keys(perms).forEach(key => (perms as any)[key] = true);
+                        } else if (userRole === 'manager') {
+                            perms.create_delete = true;
+                            perms.edit_all = true;
+                            perms.take_edit_tasks = true;
+                            perms.take_edit_contents = true;
+                            perms.take_edit_reports = true;
+                            perms.all_tools_access = true;
+                        } else if (userRole === 'specialist') {
+                            perms.take_edit_tasks = true;
+                            perms.take_edit_contents = true;
+                            perms.all_tools_access = true;
+                        } else if (userRole === 'client') {
+                            // Clients have minimal access
                         }
+
+                        setPermissions(perms);
                     }
                     setLoading(false);
                 }
@@ -103,6 +90,7 @@ export function usePermissions(projectId?: string) {
         };
 
         checkPermissions();
+
 
         return () => {
             isMounted = false;

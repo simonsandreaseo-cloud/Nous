@@ -28,7 +28,28 @@ export interface Project {
     logo_url?: string;
     color?: string; // Hex color for the project badge
     created_at?: string;
+    team_id?: string; // NEW: Project belongs to a team
 }
+
+export interface Team {
+    id: string;
+    name: string;
+    owner_id: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface TeamMember {
+    id: string;
+    team_id: string;
+    user_id: string;
+    role: 'owner' | 'partner' | 'manager' | 'specialist' | 'client';
+    presence_status?: 'online' | 'busy' | 'offline';
+    last_seen_at?: string;
+    current_task_id?: string;
+    created_at: string;
+}
+
 
 export interface Task {
     id: string;
@@ -58,8 +79,12 @@ export interface Task {
     secondary_url?: string;  // Additional interlinking URL
     locked_by?: string;      // User ID who locked the task
     locked_until?: string;   // Timestamp until lock holds
+    assigned_to?: string;    // NEW: User ID assigned to this task
+    assigned_at?: string;    // NEW: Timestamp when task was assigned
+    completed_at?: string;   // NEW: Timestamp when task was completed
     created_at?: string;
 }
+
 
 export interface CustomPermissions {
     admin: boolean;

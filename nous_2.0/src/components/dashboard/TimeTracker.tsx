@@ -4,17 +4,22 @@ import { useState, useEffect } from 'react';
 import { Play, Square, Timer, CheckCircle, ExternalLink, Loader2 } from 'lucide-react';
 import { TimeTrackingService } from '@/lib/services/time-tracking';
 import { cn } from '@/utils/cn';
+import { useProjectStore } from '@/store/useProjectStore';
+import { PresenceService } from '@/lib/services/presence';
+
 
 interface TimeTrackerProps {
-    taskId?: string;
+    taskId?: string | number; // Updated to allow both
     taskTitle?: string;
-    projectId?: number;
+    projectId?: number | string;
 }
 
 export default function TimeTracker({ taskId, taskTitle, projectId }: TimeTrackerProps) {
     const [isRecording, setIsRecording] = useState(false);
     const [elapsed, setElapsed] = useState(0);
     const [loading, setLoading] = useState(false);
+    
+    const { activeTeam } = useProjectStore();
 
     useEffect(() => {
         let interval: any;
@@ -39,14 +44,18 @@ export default function TimeTracker({ taskId, taskTitle, projectId }: TimeTracke
         setLoading(true);
         try {
             await TimeTrackingService.startTMetric({
-                taskId,
+                taskId: taskId?.toString(),
                 description: taskTitle || 'Writing Session',
                 startTime: new Date().toISOString()
             });
             setIsRecording(true);
+
+            // Update Presence to 'busy' with current task
+            if (activeTeam) {
+                await PresenceService.updatePresence(activeTeam.id, 'busy', taskId);
+            }
         } catch (e) {
             console.error(e);
-            // Fallback to local only if API fails
             setIsRecording(true);
         } finally {
             setLoading(false);
@@ -59,9 +68,13 @@ export default function TimeTracker({ taskId, taskTitle, projectId }: TimeTracke
             await TimeTrackingService.stopTMetric();
             setIsRecording(false);
 
-            // If we have a ClickUp/Internal task, maybe mark as in-progress or done
+            // Reset Presence to 'online' and clear task
+            if (activeTeam) {
+                await PresenceService.updatePresence(activeTeam.id, 'online', null);
+            }
+
             if (taskId) {
-                await TimeTrackingService.updateClickUpTask(taskId, 'in progress');
+                await TimeTrackingService.updateClickUpTask(taskId.toString(), 'in progress');
             }
         } catch (e) {
             console.error(e);
@@ -70,6 +83,7 @@ export default function TimeTracker({ taskId, taskTitle, projectId }: TimeTracke
             setLoading(false);
         }
     };
+
 
     return (
         <div className={cn(
