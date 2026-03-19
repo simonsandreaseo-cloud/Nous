@@ -226,9 +226,9 @@ export function TeamSettings({ teamId }: { teamId: string }) {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-[32px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="sticky top-0 bg-white border-b border-slate-100 p-6 flex justify-between items-center z-10">
+                        <div className="sticky top-0 bg-white border-b border-slate-100 p-6 flex justify-between items-center z-[110]">
                             <div>
                                 <h3 className="text-lg font-black text-slate-900 uppercase italic">{isEditing ? 'Editar Accesos' : 'Añadir al Equipo'}</h3>
                                 <p className="text-xs text-slate-500">Configura los permisos para {isEditing ? email : 'este usuario'}.</p>

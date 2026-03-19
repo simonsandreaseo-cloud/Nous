@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Suspense, useEffect, useState, useLayoutEffect } from "react";
 import { NousOrb } from "@/components/canvas/NousOrb";
-import { OfficePanel } from "@/components/dom/OfficePanel";
+import { SummaryDashboard } from "@/components/home/SummaryDashboard";
 
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
 import { LoadingScreen } from "@/components/dom/LoadingScreen";
@@ -101,13 +101,13 @@ export default function HomeClient() {
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 1, delay: 0.5 }}
-                            className="z-50"
+                            className="z-40"
                         >
                             <NavigationHeader />
                         </motion.div>
 
                         {/* MAIN INTERFACE LAYER */}
-                        <div className="relative flex flex-col h-full w-full px-6 md:px-12 pt-16 pb-10 z-30">
+                        <div className="relative flex flex-col h-full w-full px-6 md:px-12 pt-32 pb-10 z-30">
                             <div className="flex flex-col md:flex-row items-start justify-between h-full">
 
                                 {/* LEFT SIDE: MAIN TITLE & PARTNERS */}
@@ -118,7 +118,7 @@ export default function HomeClient() {
                                         transition={{ duration: 1.2, delay: 0.6 }}
                                         className="pointer-events-auto flex flex-col items-start max-w-2xl mt-4"
                                     >
-                                        <h1 className="text-[6.5rem] md:text-[12rem] leading-[0.75] font-black text-slate-900 tracking-[-0.04em] -ml-[0.06em]">
+                                        <h1 className="text-[6.5rem] md:text-[12rem] leading-[0.8] font-black text-slate-900 tracking-[-0.04em] -ml-[0.06em]">
                                             Nous
                                         </h1>
                                         <p className="text-xl md:text-3xl font-light text-slate-600 tracking-tight mt-6">
@@ -161,7 +161,7 @@ export default function HomeClient() {
                                     transition={{ duration: 1.2, delay: 0.8, ease: "easeOut" }}
                                     className="pointer-events-auto flex flex-col items-end gap-12 mt-4"
                                 >
-                                    <OfficePanel />
+                                    <SummaryDashboard />
 
                                     <Link
                                         href="/download"

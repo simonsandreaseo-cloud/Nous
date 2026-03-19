@@ -12,7 +12,7 @@ export function NavigationHeader() {
     const { user, signOut } = useAuthStore();
 
     return (
-        <div className="absolute top-0 left-0 w-full flex justify-between items-center vacio-pad py-8 pointer-events-none z-50">
+        <div className="absolute top-0 left-0 w-full flex justify-between items-center px-8 md:px-12 py-6 pointer-events-none z-40 transition-all duration-300">
             {/* Logo */}
             <div className="pointer-events-auto flex items-center gap-6">
                 <Link href="/" className="cursor-pointer flex items-center gap-3">
@@ -146,19 +146,23 @@ export function NavigationHeader() {
                     </div>
                 </div>
 
-                <Link href="/auth/desktop-launch" className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">
-                    <Monitor size={16} />
-                    Lanzar Motor
-                </Link>
-
-                <Link href="/settings" className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">
-                    <Settings size={16} />
-                    Configuración
-                </Link>
             </nav>
 
-            {/* Right Action Button */}
-            <div className="pointer-events-auto flex items-center gap-4">
+            {/* Right Action Button Cluster */}
+            <div className="pointer-events-auto flex items-center gap-6">
+                {/* Utilities moved here from center nav */}
+                <div className="hidden lg:flex items-center gap-6 border-r border-slate-100 pr-6">
+                    <Link href="/auth/desktop-launch" className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-all group">
+                        <Monitor size={16} className="text-slate-400 group-hover:text-cyan-500 transition-colors" />
+                        <span className="hidden xl:inline uppercase tracking-widest text-[10px]">Lanzar Motor</span>
+                    </Link>
+
+                    <Link href="/settings" className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-all group">
+                        <Settings size={16} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                        <span className="hidden xl:inline uppercase tracking-widest text-[10px]">Configuración</span>
+                    </Link>
+                </div>
+
                 {user ? (
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-slate-200">
@@ -178,13 +182,13 @@ export function NavigationHeader() {
                         </button>
                     </div>
                 ) : (
-                    <Link
-                        href="/auth"
-                        className="bg-slate-900 text-white px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg flex items-center gap-2"
-                    >
-                        <User size={14} />
-                        Entrar
-                    </Link>
+                        <Link
+                            href="/auth"
+                            className="bg-slate-900 text-white px-7 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] hover:bg-cyan-600 transition-all shadow-lg shadow-slate-900/10 flex items-center gap-2"
+                        >
+                            <User size={14} />
+                            Entrar
+                        </Link>
                 )}
             </div>
         </div>
