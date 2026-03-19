@@ -16,7 +16,9 @@ interface ProjectState {
     setActiveProject: (projectId: string) => void;
     setActiveTeam: (teamId: string) => void;
     fetchTeams: () => Promise<void>;
+    createTeam: (name: string) => Promise<void>;
     fetchProjects: (teamId?: string) => Promise<void>;
+
     fetchProjectTasks: (projectId: string) => Promise<void>;
     createProject: (project: Omit<Project, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
     updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
@@ -159,8 +161,46 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }
     },
 
+    createTeam: async (name: string) => {
+        set({ isLoading: true });
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+
+        // 1. Create Team
+        const { data: team, error: teamError } = await supabase
+            .from('teams')
+            .insert({ name, owner_id: session.user.id })
+            .select()
+            .single();
+
+        if (teamError) {
+            console.error('Error creating team:', teamError);
+            alert(`Error al crear equipo: ${teamError.message}`);
+            set({ isLoading: false });
+            return;
+        }
+
+        // 2. Create Owner Member
+        const { error: memberError } = await supabase
+            .from('team_members')
+            .insert({
+                team_id: team.id,
+                user_id: session.user.id,
+                role: 'owner'
+            });
+
+        if (memberError) {
+            console.error('Error creating team member:', memberError);
+            // Non-fatal if team was created? But user won't see it due to RLS.
+        }
+
+        // 3. Refresh and set active
+        await get().fetchTeams();
+        set({ activeTeam: team, isLoading: false });
+    },
 
     fetchProjects: async (teamId) => {
+
         set({ isLoading: true });
         const targetTeamId = teamId || get().activeTeam?.id;
         

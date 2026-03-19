@@ -25,6 +25,8 @@ export function TopBar() {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [showNotifications, setShowNotifications] = useState(false);
     const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
+    const [isCreateTeamModalOpen, setIsCreateTeamModalOpen] = useState(false);
+    const [newTeamName, setNewTeamName] = useState("");
 
     const { teams, activeTeam, setActiveTeam } = useProjectStore();
 
@@ -223,7 +225,18 @@ export function TopBar() {
         }
     };
 
+    const { createTeam } = useProjectStore();
+
+    const handleCreateTeamSubmit = async () => {
+        if (!newTeamName) return;
+        await createTeam(newTeamName);
+        setNewTeamName("");
+        setIsCreateTeamModalOpen(false);
+        setTeamDropdownOpen(false);
+    };
+
     const formatTime = (totalSeconds: number) => {
+
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const secs = totalSeconds % 60;
@@ -343,7 +356,10 @@ export function TopBar() {
                                 </div>
                                 {role !== 'client' && (
                                     <div className="p-2 border-t border-slate-100">
-                                        <button className="w-full py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 rounded-lg transition-colors">
+                                        <button 
+                                            onClick={() => setIsCreateTeamModalOpen(true)}
+                                            className="w-full py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 rounded-lg transition-colors"
+                                        >
                                             + Crear Nuevo Equipo
                                         </button>
                                     </div>
@@ -430,6 +446,41 @@ export function TopBar() {
                 onClose={() => setIsProfileModalOpen(false)} 
                 userId={userId!} 
             />
+
+            {/* Create Team Modal */}
+            {isCreateTeamModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border border-hairline animate-in zoom-in-95 duration-300">
+                        <h2 className="text-xl font-light text-slate-800 mb-6">Crear Nuevo Equipo</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre del Equipo</label>
+                                <input 
+                                    type="text" 
+                                    value={newTeamName}
+                                    onChange={(e) => setNewTeamName(e.target.value)}
+                                    placeholder="Ej. SEO Elite, Content Team A..."
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)] transition-all"
+                                />
+                            </div>
+                            <div className="flex gap-3 pt-4">
+                                <button 
+                                    onClick={() => setIsCreateTeamModalOpen(false)}
+                                    className="flex-1 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={handleCreateTeamSubmit}
+                                    className="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-[var(--color-nous-mist)] text-white shadow-lg shadow-[var(--color-nous-mist)]/20 transition-all hover:-translate-y-1"
+                                >
+                                    Confirmar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -30,34 +30,44 @@ export function usePermissions(projectId?: string) {
         let isMounted = true;
 
         const checkPermissions = async () => {
-            if (!targetProject?.id || !targetProject?.team_id) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user?.id) {
                 if (isMounted) setLoading(false);
                 return;
             }
 
             setLoading(true);
+
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session?.user?.id) {
-                    if (isMounted) setLoading(false);
-                    return;
+                let userRole: any = null;
+
+                if (targetProject?.id && targetProject?.team_id) {
+                    // Check project-specific team member role
+                    const { data: memberData } = await supabase
+                        .from('team_members')
+                        .select('role')
+                        .eq('team_id', targetProject.team_id)
+                        .eq('user_id', session.user.id)
+                        .maybeSingle();
+                    userRole = memberData?.role;
+                } else {
+                    // Fallback: Check role in the globally active team
+                    const activeTeam = useProjectStore.getState().activeTeam;
+                    if (activeTeam) {
+                        const { data: memberData } = await supabase
+                            .from('team_members')
+                            .select('role')
+                            .eq('team_id', activeTeam.id)
+                            .eq('user_id', session.user.id)
+                            .maybeSingle();
+                        userRole = memberData?.role;
+                    }
                 }
 
-                // If user is the project creator (legacy check) or owner of the team
-                // But let's prioritize team_members for consistency
-                const { data: memberData, error } = await supabase
-                    .from('team_members')
-                    .select('role')
-                    .eq('team_id', targetProject.team_id)
-                    .eq('user_id', session.user.id)
-                    .maybeSingle();
-
-                if (error) throw error;
-
                 if (isMounted) {
-                    if (memberData) {
-                        const userRole = memberData.role as 'owner' | 'partner' | 'manager' | 'specialist' | 'client';
+                    if (userRole) {
                         setRole(userRole);
+
 
                         // Map roles to functional permissions
                         const perms: CustomPermissions = { ...DEFAULT_PERMISSIONS };
