@@ -29,11 +29,14 @@ export default function SettingsPage() {
         updateProject, 
         setActiveProject,
         activeTeam,
-        fetchTeams
+        fetchTeams,
+        createTeam
     } = useProjectStore();
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectDomain, setNewProjectDomain] = useState("");
     const [isCreating, setIsCreating] = useState(false);
+    const [newTeamName, setNewTeamName] = useState("");
+    const [isCreatingTeam, setIsCreatingTeam] = useState(false);
     const [activeTab, setActiveTab] = useState<'projects' | 'integrations' | 'billing' | 'team'>('projects');
     const [isUserGscConnected, setIsUserGscConnected] = useState(false);
     const [connectedAccounts, setConnectedAccounts] = useState<{ id: string, email: string }[]>([]);
@@ -317,6 +320,21 @@ export default function SettingsPage() {
         setNewProjectName("");
         setNewProjectDomain("");
         setIsCreating(false);
+    };
+
+    const handleCreateTeam = async () => {
+        if (!newTeamName) return;
+        setIsSaving(true);
+        try {
+            await createTeam(newTeamName);
+            setNewTeamName("");
+            setIsCreatingTeam(false);
+            alert("Equipo creado correctamente.");
+        } catch (e: any) {
+            alert("Error al crear equipo: " + e.message);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -726,7 +744,52 @@ export default function SettingsPage() {
                         )}
 
                         {activeTab === 'team' && (
-                            <TeamSettings teamId={activeTeam?.id || ''} />
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center mb-2 px-4">
+                                    <div>
+                                        <h2 className="text-sm font-black text-slate-800 uppercase italic tracking-wider">Gestión de Equipos</h2>
+                                        <p className="text-[10px] text-slate-400 font-medium">Crea o selecciona un equipo para gestionar colaboradores.</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsCreatingTeam(true)}
+                                        className="px-4 py-2 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-50 hover:text-cyan-600 transition-all flex items-center gap-2 border border-slate-200"
+                                    >
+                                        <Plus size={14} /> Nuevo Equipo
+                                    </button>
+                                </div>
+
+                                {isCreatingTeam && (
+                                    <div className="p-8 bg-white rounded-[32px] border border-cyan-100 shadow-sm animate-in fade-in slide-in-from-top-4">
+                                        <h3 className="text-xs font-black mb-6 uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                                            <Shield size={16} className="text-cyan-500" /> Registrar Nueva Agencia / Equipo
+                                        </h3>
+                                        <div className="space-y-4 mb-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre del Equipo</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ej: Mi Agencia Creativa"
+                                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold focus:bg-white focus:ring-4 ring-cyan-500/10 outline-none transition-all"
+                                                    value={newTeamName}
+                                                    onChange={(e) => setNewTeamName(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end gap-3">
+                                            <button onClick={() => setIsCreatingTeam(false)} className="px-6 py-3 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-800">Cancelar</button>
+                                            <button 
+                                                onClick={handleCreateTeam} 
+                                                disabled={isSaving || !newTeamName}
+                                                className="px-8 py-3 bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 transition-all disabled:opacity-50"
+                                            >
+                                                {isSaving ? <Loader2 className="animate-spin" size={14} /> : "Crear Equipo"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <TeamSettings teamId={activeTeam?.id || ''} />
+                            </div>
                         )}
 
                         {activeTab === 'integrations' && (

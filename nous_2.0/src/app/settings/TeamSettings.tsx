@@ -36,6 +36,8 @@ export function TeamSettings({ teamId }: { teamId: string }) {
     useEffect(() => {
         if (teamId) {
             fetchTeam();
+        } else {
+            setIsLoading(false);
         }
     }, [teamId]);
 
@@ -183,6 +185,11 @@ export function TeamSettings({ teamId }: { teamId: string }) {
             {isLoading ? (
                 <div className="flex justify-center items-center py-12">
                     <Loader2 className="animate-spin text-cyan-500" size={32} />
+                </div>
+            ) : !teamId ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                    <Shield size={48} className="mb-4 opacity-20" />
+                    <p className="text-xs font-bold uppercase tracking-widest text-center">No hay un equipo seleccionado o activo.<br /><span className="text-[10px] font-medium normal-case mt-1 block italic text-slate-300">Crea uno nuevo para empezar a colaborar.</span></p>
                 </div>
             ) : (
                 <div className="space-y-6">
