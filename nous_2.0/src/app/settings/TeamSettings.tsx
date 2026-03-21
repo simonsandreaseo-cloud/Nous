@@ -18,7 +18,8 @@ const DEFAULT_PERMISSIONS: CustomPermissions = {
 };
 
 export function TeamSettings({ teamId }: { teamId: string }) {
-    const [members, setMembers] = useState<(TeamMember & { users?: { email: string }, profiles?: { full_name: string, avatar_url: string } })[]>([]);
+    const [members, setMembers] = useState<(TeamMember & { status?: string, users?: { email: string }, profiles?: { full_name: string, avatar_url: string } })[]>([]);
+    const [invites, setInvites] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
 
@@ -52,6 +53,15 @@ export function TeamSettings({ teamId }: { teamId: string }) {
 
             if (membersError) throw membersError;
             setMembers(membersData || []);
+
+            // Fetch pending invitations
+            const { data: invitesData, error: invitesError } = await supabase
+                .from('team_invites')
+                .select('*')
+                .eq('team_id', teamId);
+            
+            if (invitesError) console.error("Error fetching invites:", invitesError);
+            setInvites(invitesData || []);
 
         } catch (e: any) {
             console.error("Error fetching team:", e);
@@ -131,19 +141,34 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                     .maybeSingle();
 
                 if (userData) {
+                    // Start as pending if they already exist too, so they have to acknowledge? 
+                    // Or active immediately. Let's start with pending as requested.
                     const { error } = await supabase
                         .from('team_members')
                         .insert({
                             team_id: teamId,
                             user_id: userData.id,
                             role,
+                            status: 'pending',
                             custom_permissions: permissions
                         });
                     if (error) throw error;
-                    alert("Usuario añadido al equipo.");
+                    alert("Usuario añadido al equipo (Pendiente de aceptación).");
                 } else {
-                    // For now, let's use the invite API but adapted (needs backend update)
-                    alert("Actualmente solo se pueden añadir usuarios registrados. Invitación por email próximamente.");
+                    // Create an invitation in team_invites for email-based invite
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const { error } = await supabase
+                        .from('team_invites')
+                        .insert({
+                            team_id: teamId,
+                            email,
+                            role,
+                            invited_by: session?.user?.id,
+                            custom_permissions: permissions
+                        });
+                    
+                    if (error) throw error;
+                    alert("Invitación enviada correctamente.");
                 }
             }
             setIsModalOpen(false);
@@ -155,10 +180,11 @@ export function TeamSettings({ teamId }: { teamId: string }) {
         }
     };
 
-    const handleDeleteMember = async (id: string) => {
-        if (!confirm("¿Seguro que deseas eliminar este acceso?")) return;
+    const handleDeleteMember = async (id: string, isInvite: boolean = false) => {
+        if (!confirm(`¿Seguro que deseas eliminar esta ${isInvite ? 'invitación' : 'acceso'}?`)) return;
         try {
-            const { error } = await supabase.from('team_members').delete().eq('id', id);
+            const table = isInvite ? 'team_invites' : 'team_members';
+            const { error } = await supabase.from(table).delete().eq('id', id);
             if (error) throw error;
             fetchTeam();
         } catch (e: any) {
@@ -195,37 +221,68 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                 <div className="space-y-6">
                     <div className="space-y-3">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Miembros de la Agencia</h3>
-                        {members.length === 0 ? (
-                            <p className="text-xs text-slate-500 py-4 text-center border border-dashed rounded-xl">No hay miembros registrados en este equipo.</p>
+                        {members.length === 0 && invites.length === 0 ? (
+                            <p className="text-xs text-slate-500 py-4 text-center border border-dashed rounded-xl">No hay miembros registrados ni invitaciones pendientes.</p>
                         ) : (
-                            members.map(member => (
-                                <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold">
-                                            {(member.profiles?.full_name || member.users?.email || 'M').charAt(0).toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-900">
-                                                {member.profiles?.full_name || member.users?.email || 'Miembro'}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-cyan-600 bg-cyan-100 px-2 py-0.5 rounded-full">{member.role}</span>
-                                                {member.custom_permissions?.admin && (
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Admin Global</span>
-                                                )}
+                            <div className="space-y-4">
+                                {/* Members List */}
+                                {members.map(member => (
+                                    <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold">
+                                                {(member.profiles?.full_name || member.users?.email || 'M').charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-900">
+                                                    {member.profiles?.full_name || member.users?.email || 'Miembro'}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-cyan-600 bg-cyan-100 px-2 py-0.5 rounded-full">{member.role}</span>
+                                                    {member.status === 'pending' && (
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Pendiente</span>
+                                                    )}
+                                                    {member.custom_permissions?.admin && (
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Admin Global</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => openEditModal(member)} className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors">
+                                                <Edit2 size={16} />
+                                            </button>
+                                            <button onClick={() => handleDeleteMember(member.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => openEditModal(member)} className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors">
-                                            <Edit2 size={16} />
-                                        </button>
-                                        <button onClick={() => handleDeleteMember(member.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                            <Trash2 size={16} />
-                                        </button>
+                                ))}
+
+                                {/* Invites List */}
+                                {invites.map(invite => (
+                                    <div key={invite.id} className="flex items-center justify-between p-4 bg-amber-50/50 border border-amber-100/50 rounded-2xl border-dashed">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                                                <Mail size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-700">
+                                                    {invite.email}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{invite.role}</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Invitado</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleDeleteMember(invite.id, true)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>
