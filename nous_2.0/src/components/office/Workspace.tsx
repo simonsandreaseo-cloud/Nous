@@ -144,7 +144,7 @@ const mockStatuses: StatusColumn[] = [
                 title: "Brainstorming: Q3 SEO Strategy for Medical Blog",
                 project: "SEO Growth",
                 assignee: "https://i.pravatar.cc/150?u=a042581f4e29026024d",
-                priority: "Medium",
+                priority: "medium",
                 comments: 2,
                 attachments: 1,
                 tags: ["Strategy"]
@@ -153,7 +153,7 @@ const mockStatuses: StatusColumn[] = [
                 title: "Keyword Research: 'Biotech Startups' Niche",
                 project: "Research",
                 assignee: "https://i.pravatar.cc/150?u=a042581f4e29026704d",
-                priority: "Low",
+                priority: "low",
                 comments: 0,
                 attachments: 0,
                 tags: ["Keywords"]
@@ -162,7 +162,7 @@ const mockStatuses: StatusColumn[] = [
                 title: "Update Client Reporting Structure",
                 project: "Client Ops",
                 assignee: "https://i.pravatar.cc/150?u=a042581f4e29026024d",
-                priority: "Medium",
+                priority: "medium",
                 comments: 5,
                 attachments: 2,
                 tags: ["Reporting"]
@@ -177,7 +177,7 @@ const mockStatuses: StatusColumn[] = [
                 title: "Technical Audit: Site Speed Optimization",
                 project: "Tech SEO",
                 assignee: "https://i.pravatar.cc/150?u=a04258114e29026302d",
-                priority: "High",
+                priority: "high",
                 comments: 12,
                 attachments: 4,
                 tags: ["Technical", "Critical"]
@@ -186,7 +186,7 @@ const mockStatuses: StatusColumn[] = [
                 title: "Content Writing: 'Future of Clinical AI'",
                 project: "Blog",
                 assignee: "https://i.pravatar.cc/150?u=a048581f4e29026701d",
-                priority: "Medium",
+                priority: "medium",
                 comments: 1,
                 attachments: 0,
                 tags: ["Content"]
@@ -202,7 +202,7 @@ const mockStatuses: StatusColumn[] = [
                 title: "Review: On-Page Optimization for Home Page",
                 project: "On-Page",
                 assignee: "https://i.pravatar.cc/150?u=a042581f4e29026024d",
-                priority: "High",
+                priority: "high",
                 comments: 3,
                 attachments: 1,
                 tags: ["Review"]
@@ -217,7 +217,7 @@ const mockStatuses: StatusColumn[] = [
                 title: "Launch: New Landing Page",
                 project: "Development",
                 assignee: "https://i.pravatar.cc/150?u=a04258114e29026302d",
-                priority: "High",
+                priority: "high",
                 comments: 8,
                 attachments: 5,
                 tags: ["Launch"]
