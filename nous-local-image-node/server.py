@@ -11,6 +11,8 @@ import time
 import collections
 import urllib.request
 import urllib.error
+import requests
+import re
 
 print("[*] BUILD_MARKER_9999")
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
@@ -338,6 +340,100 @@ def generate_image_base64_sync(prompt: str, seed=None) -> str:
     print("[*] WebP Generation complete!")
     return f"data:image/webp;base64,{img_str}"
 
+# --- Scraping Handlers ---
+
+def perform_serp_scraping(keyword):
+    """Simple SERP scraper using requests and regex"""
+    print(f"[*] Scraping SERP for: {keyword}")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+    }
+    try:
+        url = f"https://www.google.com/search?q={urllib.parse.quote(keyword)}&num=10"
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        # Simple regex to find result blocks
+        # Looking for <div class="g"> or similar patterns
+        # Google's HTML is messy, so let's try a broad approach
+        html = response.text
+        results = []
+        
+        # Extract titles and links (this is a fragile regex but works for basic needs)
+        matches = re.findall(r'<a href="(/url\?q=https://[^&]+)[^>]*><h3[^>]*><div[^>]*>([^<]+)</div>', html)
+        if not matches:
+             # Fallback regex
+             matches = re.findall(r'<a href="(https://[^"]+)"[^>]*><h3[^>]*>([^<]+)</h3>', html)
+        
+        for i, (link, title) in enumerate(matches[:10]):
+            clean_link = link
+            if link.startswith("/url?q="):
+                clean_link = urllib.parse.unquote(link.split("/url?q=")[1])
+            
+            results.append({
+                "rank": i + 1,
+                "title": title.strip(),
+                "url": clean_link,
+                "description": "" # Description is harder without a full parser
+            })
+            
+        print(f"[*] Found {len(results)} SERP results.")
+        return results
+    except Exception as e:
+        print(f"[!] SERP Scraping error: {e}")
+        return []
+
+def perform_url_scraping(url):
+    """Extract content and headers from a URL"""
+    print(f"[*] Scraping URL: {url}")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        html = response.text
+        
+        # Extract Title
+        title_match = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+        title = title_match.group(1) if title_match else url
+        
+        # Extract Headers (H1, H2, H3)
+        h_tags = re.findall(r'<(h[1-3])[^>]*>(.*?)</\1>', html, re.IGNORECASE | re.DOTALL)
+        extracted_headers = []
+        for tag, text in h_tags:
+            clean_text = re.sub('<[^<]+?>', '', text).strip()
+            if clean_text:
+                extracted_headers.append({
+                    "tag": tag.upper(),
+                    "text": clean_text
+                })
+        
+        # Extract Main Content (paragraphs)
+        p_tags = re.findall(r'<p[^>]*>(.*?)</p>', html, re.IGNORECASE | re.DOTALL)
+        content_parts = []
+        for p in p_tags:
+            clean_p = re.sub('<[^<]+?>', '', p).strip()
+            if clean_p:
+                content_parts.append(clean_p)
+        
+        full_content = "\n\n".join(content_parts[:20]) # Limit length
+        
+        return {
+            "url": url,
+            "title": title,
+            "content": full_content,
+            "headers": extracted_headers
+        }
+    except Exception as e:
+        print(f"[!] URL Scraping error {url}: {e}")
+        return {
+            "url": url,
+            "title": "Error al scrapear",
+            "content": str(e),
+            "headers": []
+        }
+
 async def handler(websocket):
     print(f"[+] Client connected: {websocket.remote_address}")
     connected_clients.add(websocket)
@@ -419,6 +515,42 @@ async def handler(websocket):
                     await websocket.send(json.dumps({
                         "type": "IMAGE_ERROR",
                         "payload": {"id": request_id, "message": str(e), "error": str(e)}
+                    }))
+
+            # 5. Route: SERP Scraping
+            elif msg_type == "SERP_REQUEST":
+                keyword = payload.get("keyword", "")
+                request_id = payload.get("id", str(uuid.uuid4()))
+                try:
+                    results = await asyncio.to_thread(perform_serp_scraping, keyword)
+                    await websocket.send(json.dumps({
+                        "type": "SERP_RESPONSE",
+                        "payload": {"id": request_id, "results": results}
+                    }))
+                except Exception as e:
+                    await websocket.send(json.dumps({
+                        "type": "SERP_ERROR",
+                        "payload": {"id": request_id, "message": str(e)}
+                    }))
+
+            # 6. Route: URL Scraping
+            elif msg_type == "SCRAPE_REQUEST":
+                urls = payload.get("urls", [])
+                request_id = payload.get("id", str(uuid.uuid4()))
+                try:
+                    results = []
+                    for url in urls:
+                        data = await asyncio.to_thread(perform_url_scraping, url)
+                        results.append(data)
+                    
+                    await websocket.send(json.dumps({
+                        "type": "SCRAPE_RESPONSE",
+                        "payload": {"id": request_id, "results": results}
+                    }))
+                except Exception as e:
+                    await websocket.send(json.dumps({
+                        "type": "SCRAPE_ERROR",
+                        "payload": {"id": request_id, "message": str(e)}
                     }))
 
     except websockets.exceptions.ConnectionClosed:
