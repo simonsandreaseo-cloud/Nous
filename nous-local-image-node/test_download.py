@@ -11,6 +11,7 @@ os.makedirs(PERSISTENT_MODEL_DIR, exist_ok=True)
 TEXT_MODEL_REPO = "bartowski/google_gemma-3-4b-it-GGUF"
 TEXT_MODEL_FILE = "google_gemma-3-4b-it-Q4_K_M.gguf"
 
+
 print(f"[*] Testing download to: {PERSISTENT_MODEL_DIR}")
 try:
     # Test head only (force_download=False would check existence)
