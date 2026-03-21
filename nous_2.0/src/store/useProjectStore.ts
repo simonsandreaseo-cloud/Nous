@@ -337,7 +337,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         const user = session?.user;
         if (!user) {
             alert("No se pudo detectar la sesión. Por favor, asegúrate de estar logueado.");
-            return;
+            return null;
         }
 
         const colorToAssign = newProject.color || getRandomNousColor();
@@ -357,7 +357,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         if (error) {
             console.error('Error creating project:', error);
             alert(`Error al crear proyecto: ${error.message}`);
-            return;
+            return null;
         }
 
         const project = data as Project;
@@ -368,6 +368,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             activeProject: get().projects.find(p => p.id === newActiveIds[0]) || project
         }));
         localStorage.setItem('activeProjectIds', JSON.stringify(newActiveIds));
+        return project;
     },
 
     updateProject: async (projectId, updates) => {
