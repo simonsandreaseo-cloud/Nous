@@ -21,7 +21,7 @@ interface ProjectState {
     fetchProjects: (teamId?: string) => Promise<void>;
 
     fetchProjectTasks: (projectId: string) => Promise<void>;
-    createProject: (project: Omit<Project, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
+    createProject: (project: Omit<Project, 'id' | 'created_at' | 'user_id'>) => Promise<Project | null>;
     updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
     deleteProject: (projectId: string) => Promise<void>;
     addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<void>;
