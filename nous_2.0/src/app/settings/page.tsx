@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchGscSitesAction, fetchGa4PropertiesAction } from "@/app/node-tasks/report-actions";
 import { TeamSettings } from "./TeamSettings";
 import { NOUS_PALETTE } from "@/constants/colors";
+import { getProjectNameFromDomain, getFaviconUrl } from "@/utils/domain";
 
 export default function SettingsPage() {
     const { 
@@ -52,6 +53,9 @@ export default function SettingsPage() {
     const [editTargetCountry, setEditTargetCountry] = useState("ES"); // Default Spain
     const [editLogoUrl, setEditLogoUrl] = useState("");
     const [editColor, setEditColor] = useState("#06b6d4"); // Default Cyan
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [lastCreatedProjectId, setLastCreatedProjectId] = useState("");
+    const [newTeamId, setNewTeamId] = useState("");
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
     const [gscSites, setGscSites] = useState<{ url: string; permission: string; accountEmail?: string }[]>([]);
@@ -162,7 +166,8 @@ export default function SettingsPage() {
                 wp_token: editWpToken,
                 target_country: editTargetCountry,
                 logo_url: editLogoUrl,
-                color: editColor
+                color: editColor,
+                team_id: newTeamId || activeProject.team_id
             });
             alert("Cambios guardados correctamente.");
         } catch (e: any) {
@@ -308,20 +313,29 @@ export default function SettingsPage() {
     };
 
     const handleCreate = async () => {
-        if (!newProjectName || !newProjectDomain) return;
+        if (!newProjectDomain) return;
 
-        await createProject({
-            name: newProjectName,
+        const derivedName = getProjectNameFromDomain(newProjectDomain);
+        const faviconUrl = getFaviconUrl(newProjectDomain);
+
+        const newProject = await createProject({
+            name: derivedName,
             domain: newProjectDomain,
             budget_settings: { type: 'count', target: 10, current: 0, mode: 'target' },
             scraper_settings: { paths: ["/"] },
             gsc_connected: false,
             ga4_connected: false,
+            logo_url: faviconUrl
         });
 
+        if (newProject) {
+            setLastCreatedProjectId(newProject.id);
+        }
+        
         setNewProjectName("");
         setNewProjectDomain("");
         setIsCreating(false);
+        setShowSuccessModal(true);
     };
 
     const handleCreateTeam = async () => {
@@ -482,19 +496,9 @@ export default function SettingsPage() {
                                 {isCreating && (
                                     <div className="mb-8 p-8 bg-slate-50 rounded-3xl border border-slate-200 animate-in fade-in slide-in-from-top-4">
                                         <h3 className="text-xs font-black mb-6 uppercase tracking-widest text-slate-900">Crear Nuevo Nodo</h3>
-                                        <div className="grid grid-cols-2 gap-6 mb-6">
+                                        <div className="grid grid-cols-1 gap-6 mb-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Ej: Mi Proyecto Pro"
-                                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm font-bold focus:ring-4 ring-cyan-500/10 outline-none transition-all"
-                                                    value={newProjectName}
-                                                    onChange={(e) => setNewProjectName(e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dominio</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dominio / URL Raíz</label>
                                                 <input
                                                     type="text"
                                                     placeholder="Ej: sitio.com"
@@ -502,6 +506,9 @@ export default function SettingsPage() {
                                                     value={newProjectDomain}
                                                     onChange={(e) => setNewProjectDomain(e.target.value)}
                                                 />
+                                                <p className="text-[9px] text-slate-400 font-medium ml-1 italic">
+                                                    Nous extraerá el nombre y el logo automáticamente a partir del dominio.
+                                                </p>
                                             </div>
                                         </div>
                                         <div className="flex justify-end gap-3">
@@ -534,24 +541,45 @@ export default function SettingsPage() {
                                             </div>
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">País Objetivo (SERP)</label>
-                                            <select
-                                                className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all appearance-none cursor-pointer"
-                                                value={editTargetCountry}
-                                                onChange={(e) => setEditTargetCountry(e.target.value)}
-                                            >
-                                                <option value="ES">España (ES)</option>
-                                                <option value="MX">México (MX)</option>
-                                                <option value="AR">Argentina (AR)</option>
-                                                <option value="CO">Colombia (CO)</option>
-                                                <option value="CL">Chile (CL)</option>
-                                                <option value="US">Estados Unidos (US)</option>
-                                                <option value="VE">Venezuela (VE)</option>
-                                                <option value="PE">Perú (PE)</option>
-                                                <option value="EC">Ecuador (EC)</option>
-                                            </select>
-                                            <p className="text-[9px] text-slate-400 font-medium ml-1">Determina qué resultados de Google se analizarán para tus briefings.</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">País Objetivo (SERP)</label>
+                                                <select
+                                                    className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all appearance-none cursor-pointer"
+                                                    value={editTargetCountry}
+                                                    onChange={(e) => setEditTargetCountry(e.target.value)}
+                                                >
+                                                    <option value="ES">España (ES)</option>
+                                                    <option value="MX">México (MX)</option>
+                                                    <option value="AR">Argentina (AR)</option>
+                                                    <option value="CO">Colombia (CO)</option>
+                                                    <option value="CL">Chile (CL)</option>
+                                                    <option value="US">Estados Unidos (US)</option>
+                                                    <option value="VE">Venezuela (VE)</option>
+                                                    <option value="PE">Perú (PE)</option>
+                                                    <option value="EC">Ecuador (EC)</option>
+                                                </select>
+                                                <p className="text-[9px] text-slate-400 font-medium ml-1">Determina los resultados de Google analizados.</p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Agencia / Equipo</label>
+                                                <select
+                                                    className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all appearance-none cursor-pointer"
+                                                    value={newTeamId || activeProject?.team_id || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setNewTeamId(val);
+                                                        // Auto-save team change if we want, or just let handleSave do it
+                                                    }}
+                                                >
+                                                    <option value="">Sin Equipo (Personal)</option>
+                                                    {teams.map(t => (
+                                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                                    ))}
+                                                </select>
+                                                <p className="text-[9px] text-slate-400 font-medium ml-1">El equipo que gestiona este proyecto.</p>
+                                            </div>
                                         </div>
 
                                         <div className="space-y-4">
@@ -975,6 +1003,41 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </main>
+            {/* Success Modal */}
+            <AnimatePresence>
+                {showSuccessModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+                        <div className="bg-white rounded-[40px] shadow-2xl border border-slate-100 p-10 max-w-sm w-full text-center animate-in zoom-in-95 slide-in-from-bottom-8 duration-500">
+                            <div className="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/20">
+                                <Plus size={40} className="rotate-45" />
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-900 uppercase italic leading-tight mb-2">¡Nodo Activado!</h2>
+                            <p className="text-sm text-slate-500 font-medium mb-8">El proyecto se ha creado correctamente. ¿Quieres configurar los detalles ahora?</p>
+                            
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={() => {
+                                        if (lastCreatedProjectId) {
+                                            setActiveProject(lastCreatedProjectId);
+                                            setActiveTab('projects');
+                                        }
+                                        setShowSuccessModal(false);
+                                    }}
+                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-cyan-600 transition-all shadow-lg"
+                                >
+                                    Configurar Ahora
+                                </button>
+                                <button
+                                    onClick={() => setShowSuccessModal(false)}
+                                    className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-100 hover:text-slate-600 transition-all"
+                                >
+                                    Quizás más tarde
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
