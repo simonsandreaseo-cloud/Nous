@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { getRandomNousColor } from '@/constants/colors';
 export type { Project, Task, Team, TeamMember } from '@/types/project';
 import { Project, Task, Team, TeamMember } from '@/types/project';
 
@@ -341,7 +342,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         const { data, error } = await supabase
             .from('projects')
-            .insert([{ ...newProject, user_id: user.id, team_id: get().activeTeam?.id }])
+            .insert([{ 
+                ...newProject, 
+                user_id: user.id, 
+                team_id: get().activeTeam?.id,
+                color: newProject.color || getRandomNousColor()
+            }])
             .select()
             .single();
 

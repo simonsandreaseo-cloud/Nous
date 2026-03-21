@@ -18,6 +18,7 @@ import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
 import { fetchGscSitesAction, fetchGa4PropertiesAction } from "@/app/node-tasks/report-actions";
 import { TeamSettings } from "./TeamSettings";
+import { NOUS_PALETTE } from "@/constants/colors";
 
 export default function SettingsPage() {
     const { 
@@ -316,7 +317,6 @@ export default function SettingsPage() {
             scraper_settings: { paths: ["/"] },
             gsc_connected: false,
             ga4_connected: false,
-            color: "#06b6d4"
         });
 
         setNewProjectName("");
@@ -410,7 +410,13 @@ export default function SettingsPage() {
                                                             : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-white/50"
                                                     )}
                                                 >
-                                                    <span className="text-xs font-bold truncate pr-4">{p.name}</span>
+                                                    <div className="flex items-center gap-2 truncate pr-4">
+                                                        <div 
+                                                            className="w-2 h-2 rounded-full shrink-0" 
+                                                            style={{ backgroundColor: p.color || '#06b6d4' }} 
+                                                        />
+                                                        <span className="text-xs font-bold truncate">{p.name}</span>
+                                                    </div>
                                                     {p.gsc_connected && (
                                                         <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-nous-mist)] shadow-[0_0_8px_var(--color-nous-mist)]" />
                                                     )}
@@ -548,17 +554,24 @@ export default function SettingsPage() {
                                             <p className="text-[9px] text-slate-400 font-medium ml-1">Determina qué resultados de Google se analizarán para tus briefings.</p>
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Color de Etiqueta</label>
-                                            <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                                                <input
-                                                    type="color"
-                                                    value={editColor}
-                                                    onChange={(e) => setEditColor(e.target.value)}
-                                                    className="w-10 h-10 rounded-xl cursor-pointer bg-transparent border-0 outline-none p-0"
-                                                />
-                                                <p className="text-[10px] text-slate-500 font-medium">Este color identificará visualmente al proyecto en calendarios y reportes.</p>
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Color de Identidad</label>
+                                            <div className="grid grid-cols-10 gap-2 bg-white p-4 rounded-3xl border border-slate-100 shadow-inner">
+                                                {NOUS_PALETTE.map((c) => (
+                                                    <button
+                                                        key={c}
+                                                        onClick={() => setEditColor(c)}
+                                                        className={cn(
+                                                            "w-full aspect-square rounded-lg border-2 transition-all",
+                                                            editColor === c ? "border-slate-900 scale-110 shadow-lg" : "border-transparent hover:scale-105"
+                                                        )}
+                                                        style={{ backgroundColor: c }}
+                                                    />
+                                                ))}
                                             </div>
+                                            <p className="text-[9px] text-slate-400 font-medium ml-1 italic">
+                                                Este color identificará visualmente al proyecto en el tablero, calendarios y reportes.
+                                            </p>
                                         </div>
 
                                         {/* Logo Upload Section */}

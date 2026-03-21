@@ -28,7 +28,10 @@ export function ProjectSelector() {
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-3 pl-1 pr-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all group backdrop-blur-md"
             >
-                <div className="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+                <div 
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform"
+                    style={{ backgroundColor: activeProjectIds.length === 1 ? (activeProjects[0]?.color || '#0f172a') : '#0f172a' }}
+                >
                     {activeProjects.length === 1 && activeProjects[0].logo_url ? (
                         <img src={activeProjects[0].logo_url} alt="" className="w-full h-full object-cover rounded-full" />
                     ) : (
