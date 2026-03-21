@@ -1,94 +1,139 @@
-import { Plus, MoreHorizontal, MessageSquare, Paperclip, BarChart3, TrendingUp, Users, ChevronDown } from "lucide-react";
+import { 
+    Plus, 
+    MoreHorizontal, 
+    MessageSquare, 
+    Paperclip, 
+    BarChart3, 
+    Users, 
+    ChevronDown, 
+    Loader2, 
+    Calendar,
+    Target,
+    AlertCircle
+} from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
-
+import { useProjectStore, Task } from "@/store/useProjectStore";
+import { useEffect, useState, useMemo } from "react";
+import { cn } from "@/utils/cn";
 
 interface StatusColumn {
+    id: Task['status'];
     title: string;
     count: number;
-    tasks: TaskCardProps[];
+    tasks: Task[];
 }
 
 interface TaskCardProps {
-    title: string;
-    project: string;
-    assignee: string; // Mock avatar URL
-    priority: "High" | "Medium" | "Low";
-    comments: number;
-    attachments: number;
-    tags: string[];
+    task: Task;
 }
 
-const KanbanColumn = ({ status, canAdd }: { status: StatusColumn, canAdd: boolean }) => (
-    <div className="flex flex-col space-y-4 min-w-[300px] h-full overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+const KanbanColumn = ({ status, canAdd, onAddTask }: { status: StatusColumn, canAdd: boolean, onAddTask: (status: Task['status']) => void }) => (
+    <div className="flex flex-col space-y-4 min-w-[320px] h-full overflow-y-auto px-4 py-6 scrollbar-thin scrollbar-thumb-slate-200">
 
         <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[10px] font-medium text-slate-500 uppercase tracking-elegant flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${getStatusColor(status.title)}`}></div>
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                <div className={cn("w-1.5 h-1.5 rounded-full", getStatusColor(status.id))}></div>
                 {status.title}
                 <span className="ml-2 text-[9px] font-mono px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full">{status.count}</span>
             </h3>
-            <button className="text-gray-500 hover:text-white transition-colors">
-                <MoreHorizontal size={16} />
+            <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                <MoreHorizontal size={14} />
             </button>
         </div>
 
-        {status.tasks.map((task, idx) => (
-            <KanbanCard key={idx} {...task} />
-        ))}
+        <div className="space-y-4">
+            {status.tasks.map((task) => (
+                <KanbanCard key={task.id} task={task} />
+            ))}
+        </div>
 
         {canAdd && (
-            <div className="mt-4 flex items-center justify-center p-2 rounded-lg border border-dashed border-slate-200 hover:border-slate-300 cursor-pointer text-slate-400 hover:text-slate-600 transition-all group glass-panel-hover">
+            <button 
+                onClick={() => onAddTask(status.id)}
+                className="mt-2 flex items-center justify-center w-full p-4 rounded-2xl border-2 border-dashed border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 cursor-pointer text-slate-400 hover:text-slate-500 transition-all group"
+            >
                 <Plus size={16} className="mr-2 group-hover:rotate-90 transition-transform" />
-                <span className="text-xs font-light uppercase tracking-widest">Añadir Tarea</span>
-            </div>
+                <span className="text-[10px] font-black uppercase tracking-widest">Añadir Tarea</span>
+            </button>
         )}
     </div>
 );
 
 
-const KanbanCard = ({ title, project, assignee, priority, comments, tags }: TaskCardProps) => (
-    <div className="group relative glass-panel-hover bg-white/50 border-hairline rounded-xl p-4 transition-all duration-300 hover:shadow-sm hover:-translate-y-1 cursor-grab active:cursor-grabbing">
-        {/* Tags/Project Badge */}
-        <div className="flex items-center gap-2 mb-3">
-            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${project.includes('SEO') ? 'text-blue-400 border-blue-500/20 bg-blue-500/10' : 'text-purple-400 border-purple-500/20 bg-purple-500/10'}`}>
-                {project}
-            </span>
-            {priority === 'High' && <div className="ml-auto w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse"></div>}
-        </div>
-
-        <h4 className="text-sm font-light text-slate-800 mb-2 leading-snug group-hover:text-[var(--color-nous-mist)] transition-colors">{title}</h4>
-
-        <div className="flex items-center justify-between mt-4 border-t border-hairline pt-3">
-            {/* Assignee */}
-            <div className="flex items-center -space-x-2">
-                <img src={assignee} alt="Assignee" className="w-6 h-6 rounded-full border border-white object-cover ring-2 ring-white shadow-sm" />
+const KanbanCard = ({ task }: { task: Task }) => {
+    const { projects } = useProjectStore();
+    const project = projects.find(p => p.id === task.project_id);
+    
+    return (
+        <div className="group relative bg-white border border-slate-100 rounded-2xl p-5 transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 cursor-grab active:cursor-grabbing">
+            {/* Project / Priority */}
+            <div className="flex items-center gap-2 mb-4">
+                <span className={cn(
+                    "text-[9px] uppercase font-black px-2.5 py-1 rounded-lg border",
+                    project?.color ? `border-opacity-20` : "text-slate-400 border-slate-200 bg-slate-50"
+                )} style={project?.color ? { borderColor: `${project.color}33`, backgroundColor: `${project.color}11`, color: project.color } : {}}>
+                    {project?.name || "Global"}
+                </span>
+                
+                {task.priority === 'high' || task.priority === 'critical' ? (
+                    <div className="ml-auto w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)] animate-pulse"></div>
+                ) : null}
             </div>
 
-            {/* Meta Icons */}
-            <div className="flex items-center space-x-3 text-slate-400 text-[10px] font-medium">
-                {comments > 0 && (
-                    <div className="flex items-center gap-1 hover:text-slate-600 transition-colors">
-                        <MessageSquare size={12} />
-                        <span>{comments}</span>
+            <h4 className="text-sm font-medium text-slate-800 mb-4 leading-relaxed group-hover:text-indigo-600 transition-colors">{task.title}</h4>
+
+            {/* Keyword / URL context if available */}
+            {task.target_keyword && (
+                <div className="flex items-center gap-2 mb-4">
+                    <Target size={12} className="text-slate-300" />
+                    <span className="text-[10px] font-bold text-slate-400 truncate">{task.target_keyword}</span>
+                </div>
+            )}
+
+            <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50">
+                {/* Meta */}
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                        <Calendar size={12} />
+                        <span className="text-[10px] font-bold">
+                            {task.scheduled_date ? new Date(task.scheduled_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : 'Sin fecha'}
+                        </span>
                     </div>
-                )}
-                <div className="flex items-center gap-1 hover:text-slate-600 transition-colors">
-                    <Paperclip size={12} />
+                </div>
+
+                {/* Assignee Avatar Mock */}
+                <div className="flex -space-x-1.5">
+                    {task.assigned_to ? (
+                        <div className="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-white border-2 border-white uppercase">
+                            {task.assigned_to.substring(0, 1)}
+                        </div>
+                    ) : (
+                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-300 border-2 border-white">
+                            <Plus size={10} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
-const getStatusColor = (status: string) => {
+const getStatusColor = (status: Task['status']) => {
     switch (status) {
-        case "To Do": return "bg-slate-300";
-        case "In Progress": return "bg-[var(--color-nous-mist)]";
-        case "Review": return "bg-[var(--color-nous-lavender)]";
-        case "Done": return "bg-[var(--color-nous-mint)]";
-        default: return "bg-white";
+        case "todo": return "bg-slate-300";
+        case "in_progress": return "bg-indigo-500";
+        case "review": return "bg-amber-400";
+        case "done": return "bg-emerald-500";
+        default: return "bg-slate-200";
     }
 };
+
+const STATUS_CONFIG: { id: Task['status'], title: string }[] = [
+    { id: "todo", title: "Para Hacer" },
+    { id: "in_progress", title: "En Proceso" },
+    { id: "review", title: "Revisión" },
+    { id: "done", title: "Finalizado" }
+];
 
 const mockStatuses: StatusColumn[] = [
     {
@@ -184,31 +229,64 @@ const mockStatuses: StatusColumn[] = [
 export function Workspace() {
     const { role } = usePermissions();
     const canManage = role !== 'client';
+    const { tasks, fetchProjectTasks, activeProject, addTask, isLoading, projects } = useProjectStore();
+
+    useEffect(() => {
+        if (activeProject) {
+            fetchProjectTasks(activeProject.id);
+        }
+    }, [activeProject, fetchProjectTasks]);
+
+    const columns: StatusColumn[] = useMemo(() => {
+        return STATUS_CONFIG.map(config => ({
+            id: config.id,
+            title: config.title,
+            count: tasks.filter(t => t.status === config.id).length,
+            tasks: tasks.filter(t => t.status === config.id)
+        }));
+    }, [tasks]);
+
+    const handleAddTask = async (status: Task['status']) => {
+        if (!activeProject) {
+            alert("No hay un proyecto activo seleccionado.");
+            return;
+        }
+
+        const title = prompt("Título de la nueva tarea:");
+        if (!title) return;
+
+        await addTask({
+            project_id: activeProject.id,
+            title,
+            status,
+            priority: 'medium',
+            scheduled_date: new Date().toISOString()
+        });
+    };
 
     return (
-
         <div className="flex-1 h-full overflow-hidden flex flex-col pt-6 pl-6 pr-0">
 
             {/* Workspace Toolbar / Filters */}
-            <div className="mb-6 flex items-center justify-between pr-6">
-                <div className="flex items-center space-x-1 glass-panel border-hairline p-1 rounded-lg">
-                    <button className="px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-slate-800 bg-white shadow-sm rounded-md transition-all">Tablero</button>
-                    <button className="px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all rounded-md">Lista</button>
-                    <button className="px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all rounded-md">Línea de Tiempo</button>
+            <div className="mb-8 flex items-center justify-between pr-6">
+                <div className="flex items-center gap-6">
+                    <div>
+                        <h2 className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">{activeProject?.name || "Global Workspace"}</h2>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Gestión de Tareas SEO</p>
+                    </div>
+
+                    <div className="flex items-center space-x-1 glass-panel border-hairline p-1 rounded-xl bg-white/40">
+                        <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-800 bg-white shadow-sm rounded-lg transition-all">Tablero</button>
+                        <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all rounded-lg">Lista</button>
+                    </div>
                 </div>
 
                 <div className="flex items-center space-x-4">
+                    {isLoading && <Loader2 className="animate-spin text-slate-300" size={16} />}
                     <div className="relative group">
-                        <div className="px-3 py-1.5 rounded-full border border-hairline bg-white/50 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-white cursor-pointer transition-colors flex items-center gap-2">
+                        <div className="px-4 py-2 rounded-xl border border-hairline bg-white/50 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white cursor-pointer transition-colors flex items-center gap-2">
                             <Users size={12} />
                             <span>Filtro: Todos</span>
-                            <ChevronDown size={10} />
-                        </div>
-                    </div>
-                    <div className="relative group">
-                        <div className="px-3 py-1.5 rounded-full border border-hairline bg-white/50 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-white cursor-pointer transition-colors flex items-center gap-2">
-                            <BarChart3 size={12} />
-                            <span>Ordenar: Prioridad</span>
                             <ChevronDown size={10} />
                         </div>
                     </div>
@@ -216,21 +294,21 @@ export function Workspace() {
             </div>
 
             {/* Kanban Board Container */}
-            <div className="flex-1 flex overflow-x-auto pb-4 space-x-2 scrollbar-none snap-x snap-mandatory">
-                {mockStatuses.map((status, idx) => (
-                    <div key={idx} className="snap-start shrink-0">
-                        <KanbanColumn status={status} canAdd={canManage} />
+            <div className="flex-1 flex overflow-x-auto pb-8 space-x-4 scrollbar-thin scrollbar-thumb-slate-200 snap-x snap-mandatory pr-6">
+                {columns.map((st) => (
+                    <div key={st.id} className="snap-start shrink-0">
+                        <KanbanColumn status={st} canAdd={canManage} onAddTask={handleAddTask} />
                     </div>
                 ))}
 
 
-                {/* Add Column Placeholder */}
-                {canManage && (
-                    <div className="min-w-[300px] h-full p-4 flex items-start justify-center opacity-70 hover:opacity-100 transition-opacity">
-                        <button className="flex items-center space-x-2 text-slate-400 hover:text-slate-600 group border border-dashed border-slate-300 rounded-xl px-6 py-3 w-full justify-center hover:border-slate-400 transition-colors glass-panel-hover bg-white/20">
-                            <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-                            <span className="text-xs font-light uppercase tracking-widest">Nueva Fase</span>
-                        </button>
+                {/* Empty State / Hints */}
+                {tasks.length === 0 && !isLoading && (
+                    <div className="flex-1 flex flex-col items-center justify-center -ml-6 opacity-30">
+                        <div className="p-10 rounded-[3rem] border-2 border-dashed border-slate-200 flex flex-col items-center">
+                            <AlertCircle size={48} className="text-slate-300 mb-4" />
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 text-center">No hay tareas activas<br/>en este proyecto</p>
+                        </div>
                     </div>
                 )}
             </div>

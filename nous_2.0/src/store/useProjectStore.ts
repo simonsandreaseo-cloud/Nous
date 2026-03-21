@@ -134,13 +134,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             .eq('user_id', session.user.id);
 
         if (memberError) {
-            console.error('Error fetching teams:', memberError);
+            console.error('[fetchTeams] Error fetching teams:', memberError);
             set({ isLoading: false });
             return;
         }
 
+        console.log('[fetchTeams] Member data:', memberData);
+
         const teams = memberData.map(m => Array.isArray(m.teams) ? m.teams[0] : m.teams)
             .filter(Boolean) as Team[];
+        
+        console.log('[fetchTeams] Filtered teams:', teams);
         set({ teams });
 
         // Fetch last active team from Profile
@@ -191,7 +195,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         if (memberError) {
             console.error('Error creating team member:', memberError);
-            // Non-fatal if team was created? But user won't see it due to RLS.
+            alert(`Error al unirse al equipo: ${memberError.message}`);
+            // Don't return, as the team might have been created
+        } else {
+            console.log('Successfully created team member for owner');
         }
 
         // 3. Refresh and set active

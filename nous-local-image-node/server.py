@@ -15,13 +15,124 @@ import urllib.error
 print("[*] BUILD_MARKER_9999")
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 
-from piexif import ImageIFD, ExifIFD
-from io import BytesIO
-from diffusers import AutoPipelineForText2Image
-from huggingface_hub import hf_hub_download
+import sys
 import huggingface_hub.utils.tqdm as hf_tqdm
 from tqdm.auto import tqdm as std_tqdm
+from piexif import ImageIFD, ExifIFD
+from io import BytesIO
+
+# --- Globals and State ---
+connected_clients = set()
+ws_queue = collections.deque()
+current_download_model = "model"
+last_sent_progress = {}
+last_sent_bytes = {}
+last_full_progress_payload = None
+is_initializing = False
+image_pipeline = None
+text_pipeline = None
+
+# --- TQDM Monkey Patch and Logging Redirect ---
+# (State moved to Globals section above)
+
+
+# Custom stream to capture prints and send them over WS
+class WSLogger:
+    def __init__(self, original_stream):
+        self.original_stream = original_stream
+    
+    def write(self, message):
+        self.original_stream.write(message)
+        if message.strip():
+            # Avoid flooding with empty lines or progress bar raw text
+            if "|" not in message: 
+                 msg_data = {"type": "LOG", "payload": {"message": message.strip(), "level": "info"}}
+                 ws_queue.append(msg_data)
+    
+    def flush(self):
+        self.original_stream.flush()
+
+# Redirect stdout to catch all print calls
+sys.stdout = WSLogger(sys.stdout)
+
+class WSTqdm(std_tqdm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Use description to distinguish bars
+        self.bar_id = kwargs.get("desc") or "download"
+        if hasattr(self, 'total') and self.total and self.total > 0:
+            self._send_to_ws()
+        
+    def update(self, n=1):
+        super().update(n)
+        if hasattr(self, 'total') and self.total is not None and self.total > 0:
+            progress = round((self.n / self.total) * 100, 1)
+            # Use specific key for each bar description
+            last_key = f"{current_download_model}:{self.bar_id}"
+            bytes_since_last = self.n - last_sent_bytes.get(last_key, 0)
+            
+            if (last_sent_progress.get(last_key) != progress or 
+                bytes_since_last > 2 * 1024 * 1024): # Update every 2MB or 0.1%
+                self._send_to_ws(progress)
+
+    def _send_to_ws(self, progress=None):
+        if progress is None:
+            progress = round((self.n / self.total) * 100, 1) if getattr(self, 'total', None) else 0
+            
+        last_key = f"{current_download_model}:{self.bar_id}"
+        last_sent_progress[last_key] = progress
+        last_sent_bytes[last_key] = self.n
+        
+        payload = {
+            "model": current_download_model,
+            "label": self.bar_id,
+            "progress": progress,
+            "downloaded": self.n,
+            "total": self.total
+        }
+        global last_full_progress_payload
+        # Only set as primary display if it's a large file or explicit download
+        if self.total > 1024 * 1024:
+            last_full_progress_payload = payload
+            
+        ws_queue.append({"type": "DOWNLOAD_PROGRESS", "payload": payload})
+
+hf_tqdm.tqdm = WSTqdm
+import tqdm
+tqdm.tqdm = WSTqdm
+import tqdm.auto
+tqdm.auto.tqdm = WSTqdm
+
+from diffusers import AutoPipelineForText2Image
+from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
+
+
+async def progress_broadcaster():
+    """Background task to broadcast progress to all clients in parallel"""
+    print("[*] Progress Broadcaster iniciado.")
+    while True:
+        if len(ws_queue) > 10:
+            while len(ws_queue) > 1:
+                ws_queue.popleft()
+        
+        while ws_queue:
+            msg = ws_queue.popleft()
+            if not connected_clients:
+                continue
+            
+            # If msg is already a structured dict with 'type', use it. Otherwise wrap it as progress.
+            if isinstance(msg, dict) and "type" in msg:
+                 message = json.dumps(msg)
+            else:
+                 message = json.dumps({"type": "DOWNLOAD_PROGRESS", "payload": msg})
+            
+            tasks = [ws.send(message) for ws in list(connected_clients)]
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+                
+        await asyncio.sleep(0.1)
+
 
 # Configuración del servidor
 HOST = "127.0.0.1"
@@ -47,52 +158,13 @@ print("=========================================")
 print("  NOUS LOCAL ENGINE - UNIFIED AI CORE")
 print("=========================================")
 
-# Variables globales para los modelos
-image_pipeline = None
-text_pipeline = None
-connected_clients = set()
-ws_queue = collections.deque()
-current_download_model = "model"
-
-# --- TQDM Monkey Patch for Progress Bars ---
-class WSTqdm(std_tqdm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # print(f"[DEBUG TQDM] Init for {current_download_model}")
-        
-    def update(self, n=1):
-        super().update(n)
-        # Only broadcast large chunks (files > 1MB) to avod noise
-        if self.total is not None and self.total > 1000: # Lowered threshold for debugging
-            # print(f"[DEBUG TQDM] {current_download_model}: {self.n}/{self.total}")
-            ws_queue.append({
-                "model": current_download_model,
-                "progress": round((self.n / self.total) * 100, 1),
-                "downloaded": self.n,
-                "total": self.total
-            })
-
-hf_tqdm.tqdm = WSTqdm
-import tqdm.auto
-tqdm.auto.tqdm = WSTqdm
+# (Globals moved to top)
 
 
-async def progress_broadcaster():
-    """Background task to broadcast tqdm progress from the queue"""
-    while True:
-        while ws_queue:
-            msg = ws_queue.popleft()
-            # print(f"[DEBUG BROADCASTER] Popped message: {msg['model']} {msg['progress']}%")
-            targets = list(connected_clients)
-            for ws in targets:
-                try:
-                    await ws.send(json.dumps({
-                        "type": "DOWNLOAD_PROGRESS",
-                        "payload": msg
-                    }))
-                except:
-                    pass
-        await asyncio.sleep(0.5)
+# (WSTqdm moved to top for earlier patching)
+
+
+# (Internal logic below)
 
 async def download_model_with_progress(repo_id, filename=None, websocket=None, label="model"):
     global current_download_model
@@ -137,38 +209,53 @@ async def download_model_with_progress(repo_id, filename=None, websocket=None, l
         return None
 
 async def init_models(websocket=None):
-    global image_pipeline, text_pipeline
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"[*] Initializing Unified Engine on: {device}")
-    
-    # 1. Load Text Model (Gemma 3)
-    if not text_pipeline:
-        path = await download_model_with_progress(TEXT_MODEL_REPO, TEXT_MODEL_FILE, websocket, "Gemma-3-4B")
-        if path:
-            print("[*] Loading Llama.cpp for Gemma 3...")
-            # Unblock the event loop while the massive file is loaded into VRAM/RAM
-            text_pipeline = await asyncio.to_thread(
-                Llama,
-                model_path=path,
-                n_gpu_layers=-1 if device == "cuda" else 0, # Offload to GPU if available
-                n_ctx=2048,
-                verbose=False
-            )
-            print("[*] Text Engine Ready!")
-            if websocket:
-                await websocket.send(json.dumps({"type": "ENGINE_READY", "payload": {"engine": "text"}}))
-
-    # 2. Load Image Model (SDXL Turbo)
-    if not image_pipeline:     
-        global current_download_model
-        current_download_model = "SDXL-Turbo"
+    global image_pipeline, text_pipeline, is_initializing, current_download_model
+    if is_initializing:
+        print("[*] Models already initializing, notifying new client of current status.")
         if websocket:
-            await websocket.send(json.dumps({
-                "type": "DOWNLOAD_STATUS",
-                "payload": { "model": "SDXL-Turbo", "status": "downloading" }
-            }))
-            
-        try:
+            try:
+                await websocket.send(json.dumps({
+                    "type": "DOWNLOAD_STATUS",
+                    "payload": { "model": current_download_model, "status": "downloading" }
+                }))
+                if last_full_progress_payload:
+                    await websocket.send(json.dumps({
+                        "type": "DOWNLOAD_PROGRESS",
+                        "payload": last_full_progress_payload
+                    }))
+            except: pass
+        return
+    
+    is_initializing = True
+    try:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"[*] Initializing Unified Engine on: {device}")
+        
+        # 1. Load Text Model (Gemma 3)
+        if not text_pipeline:
+            path = await download_model_with_progress(TEXT_MODEL_REPO, TEXT_MODEL_FILE, websocket, "Gemma-3-4B")
+            if path:
+                print("[*] Loading Llama.cpp for Gemma 3...")
+                text_pipeline = await asyncio.to_thread(
+                    Llama,
+                    model_path=path,
+                    n_gpu_layers=-1 if device == "cuda" else 0,
+                    n_ctx=2048,
+                    verbose=False
+                )
+                print("[*] Text Engine Ready!")
+                if websocket:
+                    await websocket.send(json.dumps({"type": "ENGINE_READY", "payload": {"engine": "text"}}))
+
+        # 2. Load Image Model (SDXL Turbo)
+        if not image_pipeline:     
+            current_download_model = "SDXL-Turbo"
+            if websocket:
+                await websocket.send(json.dumps({
+                    "type": "DOWNLOAD_STATUS",
+                    "payload": { "model": "SDXL-Turbo", "status": "downloading" }
+                }))
+                
             print("[*] Loading SDXL Turbo pipeline...")
             image_pipeline = await asyncio.to_thread(
                 AutoPipelineForText2Image.from_pretrained,
@@ -176,8 +263,10 @@ async def init_models(websocket=None):
                 torch_dtype=torch.float16 if device == "cuda" else torch.float32, 
                 variant="fp16" if device == "cuda" else None,
                 use_safetensors=True,
-                cache_dir=PERSISTENT_MODEL_DIR
+                cache_dir=PERSISTENT_MODEL_DIR,
+                low_cpu_mem_usage=True
             )
+
             image_pipeline.to(device)
             print("[*] Image Engine Ready for blazing fast generations.")
             if websocket:
@@ -186,13 +275,17 @@ async def init_models(websocket=None):
                     "payload": { "model": "SDXL-Turbo", "status": "complete" }
                 }))
                 await websocket.send(json.dumps({"type": "ENGINE_READY", "payload": {"engine": "image"}}))
-        except Exception as e:
-            print(f"[!] Image Error: {e}")
-            if websocket:
+    except Exception as e:
+        print(f"[!] Engine Error: {e}")
+        if websocket:
+            try:
                 await websocket.send(json.dumps({
                     "type": "DOWNLOAD_STATUS",
                     "payload": { "model": "SDXL-Turbo", "status": "error", "message": str(e) }
                 }))
+            except: pass
+    finally:
+        is_initializing = False
 
 def generate_text_sync(prompt, system=""):
     global text_pipeline

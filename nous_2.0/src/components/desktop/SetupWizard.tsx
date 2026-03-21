@@ -1,14 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Cpu, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
-import { NousOrb } from '../canvas/NousOrb';
-
-const SceneLayout = dynamic(
-    () => import("../canvas/SceneLayout"),
-    { ssr: false }
-);
+import { LocalNodeBridge } from '../../lib/local-node/bridge';
 
 interface SetupStep {
     id: 'welcome' | 'checking' | 'downloading' | 'finishing';
@@ -19,10 +13,12 @@ interface SetupStep {
 export function SetupWizard({ onComplete }: { onComplete: () => void }) {
     const [step, setStep] = useState<SetupStep['id']>('welcome');
     const [progress, setProgress] = useState(0);
-    const [downloadInfo, setDownloadInfo] = useState({ downloaded: 0, total: 0, model: '' });
-    const [ws, setWs] = useState<WebSocket | null>(null);
-    const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+    const [downloadInfo, setDownloadInfo] = useState({ downloaded: 0, total: 0, model: 'Iniciando...', label: '' });
+    const [logs, setLogs] = useState<{message: string, type: 'info' | 'warn' | 'error'}[]>([]);
+    const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connected');
     const [mounted, setMounted] = useState(false);
+    const [enginesReady, setEnginesReady] = useState<{ text: boolean; image: boolean }>({ text: false, image: false });
+
 
     useEffect(() => {
         setMounted(true);
@@ -30,47 +26,60 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
 
     useEffect(() => {
         if (step === 'downloading') {
-            setConnectionStatus('connecting');
-            const socket = new WebSocket('ws://127.0.0.1:8181');
-            
-            socket.onopen = () => {
-                setConnectionStatus('connected');
-                socket.send(JSON.stringify({ type: 'AUTH', payload: { token: 'nous-dev-token-2026' } }));
-            };
+            const unSubStatus = LocalNodeBridge.on('MODELS_STATUS', (payload: any) => {
+                const { image_ready, text_ready } = payload;
+                setEnginesReady({ text: text_ready, image: image_ready });
+                if (image_ready && text_ready) {
+                    setStep('finishing');
+                }
+            });
 
-            socket.onerror = () => {
-                setConnectionStatus('error');
-            };
+            const unSubDownloadStatus = LocalNodeBridge.on('DOWNLOAD_STATUS', (payload: any) => {
 
-            socket.onclose = () => {
-                if (progress < 100) setConnectionStatus('error');
-            };
+                const { model, status, message } = payload;
+                if (status === 'downloading') {
+                    setDownloadInfo(prev => ({ ...prev, model }));
+                } else if (status === 'error') {
+                    setConnectionStatus('error');
+                    console.error('Download error:', message);
+                }
+            });
 
-            socket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.type === 'DOWNLOAD_STATUS') {
-                        const { model, status, message } = data.payload;
-                        if (status === 'downloading') {
-                            setDownloadInfo(prev => ({ ...prev, model }));
-                        } else if (status === 'error') {
-                            setConnectionStatus('error');
-                            console.error('Download error:', message);
-                        }
-                    } else if (data.type === 'DOWNLOAD_PROGRESS') {
-                        const { progress, downloaded, total, model } = data.payload;
-                        setProgress(progress);
-                        setDownloadInfo({ downloaded, total, model });
-                    } else if (data.type === 'ENGINE_READY') {
-                        // The server sends this when a model pipeline is fully loaded
+            const unSubProgress = LocalNodeBridge.on('DOWNLOAD_PROGRESS', (payload: any) => {
+                const { progress, downloaded, total, model, label } = payload;
+                setProgress(progress);
+                setDownloadInfo({ downloaded, total, model, label: label || '' });
+            });
+
+            const unSubLog = LocalNodeBridge.on('LOG', (payload: any) => {
+                setLogs(prev => [...prev.slice(-3), { message: payload.message, type: payload.level || 'info' }]);
+            });
+
+
+            const unSubEngine = LocalNodeBridge.on('ENGINE_READY', (payload: any) => {
+                const engine = payload.engine;
+                setEnginesReady(prev => {
+                    const newState = { ...prev, [engine]: true };
+                    // If both are ready, proceed to finishing
+                    if (newState.text && newState.image) {
                         setStep('finishing');
                     }
-                } catch(e) {}
+                    return newState;
+                });
+            });
+
+            // Re-sync with bridge
+            LocalNodeBridge.send('CHECK_MODELS');
+            
+            return () => {
+                unSubStatus();
+                unSubDownloadStatus();
+                unSubProgress();
+                unSubEngine();
+                unSubLog();
             };
 
-            setWs(socket);
-            return () => socket.close();
+
         }
     }, [step]);
 
@@ -80,29 +89,29 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
         setTimeout(() => setStep('downloading'), 2000);
     };
 
-    const formatBytes = (bytes: number) => {
-        if (!bytes) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    const formatProgressValues = (downloaded: number, total: number) => {
+        if (!total) return 'Iniciando...';
+        
+        // If it looks like bytes (heuristics: total > 1000)
+        if (total > 1000) {
+            const formatBytes = (bytes: number) => {
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            };
+            return `${formatBytes(downloaded)} / ${formatBytes(total)}`;
+        }
+        
+        // Otherwise it's a counter (like 4/7 files / 517/517 weights)
+        return `${downloaded} / ${total} unidades`;
     };
+
 
     return (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center overflow-hidden">
             {/* Ambient Background Gradient */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-50/50 via-white to-white" />
-
-            {/* 3D Background Layer */}
-            {mounted && (
-                <div className="absolute inset-0 z-0 select-none pointer-events-none">
-                    <SceneLayout>
-                        <group position={[0, -0.5, -4]} scale={2.5}>
-                            <NousOrb />
-                        </group>
-                    </SceneLayout>
-                </div>
-            )}
 
             {/* Content Layer */}
             <div className="relative z-10 w-full max-w-xl px-8 flex flex-col items-center text-center">
@@ -179,18 +188,21 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
                                             {connectionStatus === 'connecting' && <Loader2 size={10} className="animate-spin" />}
                                             {connectionStatus === 'connected' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                                             {connectionStatus === 'error' && <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />}
-                                            Descargando: {downloadInfo.model || 'Iniciando...'}
+                                            {downloadInfo.model}
+                                        </div>
+                                        <div className="text-[10px] text-slate-400 font-medium mb-1">
+                                            {downloadInfo.label || 'Sincronizando...'}
                                         </div>
                                         <div className="text-2xl font-black text-slate-800">
                                             {progress.toFixed(1)}%
                                         </div>
                                     </div>
                                     <div className="text-right text-sm font-medium text-slate-400">
-                                        {formatBytes(downloadInfo.downloaded)} / {formatBytes(downloadInfo.total)}
+                                        {formatProgressValues(downloadInfo.downloaded, downloadInfo.total)}
                                     </div>
                                 </div>
 
-                                <div className="w-full bg-slate-200/50 h-3 rounded-full overflow-hidden mb-2">
+                                <div className="w-full bg-slate-200/50 h-3 rounded-full overflow-hidden mb-4">
                                     <motion.div 
                                         className="h-full bg-indigo-600 rounded-full"
                                         initial={{ width: 0 }}
@@ -198,6 +210,24 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
                                         transition={{ duration: 0.5 }}
                                     />
                                 </div>
+
+                                {/* Log Monitor / Console View (Light Theme) */}
+                                <div className="w-full bg-slate-50/80 rounded-2xl p-4 font-mono text-[10px] text-slate-500 mb-6 h-28 overflow-hidden border border-slate-200/60 shadow-inner">
+                                    <div className="flex flex-col gap-1.5">
+                                        {logs.map((log, i) => (
+                                            <div key={i} className="flex gap-2 items-start">
+                                                <span className="opacity-40 shrink-0 font-bold text-indigo-400">{new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</span>
+                                                <span className={log.type === 'error' ? 'text-rose-500 font-semibold' : log.type === 'warn' ? 'text-amber-600' : 'text-slate-600'}>
+                                                    {log.message}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {logs.length === 0 && <div className="opacity-40 italic py-2">Estableciendo puente de datos con el núcleo...</div>}
+                                        <div className="w-1.5 h-3 bg-indigo-500/20 animate-pulse inline-block rounded-sm" />
+                                    </div>
+                                </div>
+
+
                                 <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
                                     <Download size={12} /> Conexión segura punto a punto con HuggingFace Hub
                                 </div>

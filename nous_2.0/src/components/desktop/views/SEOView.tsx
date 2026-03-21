@@ -1,13 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Square, Terminal as TerminalIcon, Download, Server, Cpu } from 'lucide-react';
-import dynamic from 'next/dynamic';
-import { NousOrb } from '../../canvas/NousOrb';
-
-const SceneLayout = dynamic(
-    () => import("../../canvas/SceneLayout"),
-    { ssr: false }
-);
+import { Play, Square, Terminal as TerminalIcon, Download, Server, Cpu, Zap } from 'lucide-react';
 
 interface ModelStatus {
     id: string;
@@ -140,12 +133,13 @@ export function SEOView({ isConnected }: { isConnected: boolean }) {
                 <div className="flex gap-8 h-[320px] shrink-0">
                     {/* 3D Orb Card */}
                     <div className="w-1/2 relative bg-white/20 backdrop-blur-md rounded-[2.5rem] border border-white/30 overflow-hidden flex items-center justify-center shadow-2xl group transition-transform duration-500 hover:scale-[1.01]">
-                        <div className="w-full h-full relative" style={{ isolation: 'isolate' }}>
-                             <SceneLayout inline>
-                                <group scale={1.8} position={[0, -0.5, 0]}>
-                                    <NousOrb />
-                                </group>
-                             </SceneLayout>
+                        <div className="w-full h-full relative flex items-center justify-center" style={{ isolation: 'isolate' }}>
+                             <div className="relative">
+                                <Zap className={`w-32 h-32 transition-all duration-700 ${isRunning ? 'text-indigo-500 scale-110' : 'text-slate-300'}`} />
+                                {isRunning && (
+                                    <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full scale-150 animate-pulse" />
+                                )}
+                             </div>
                         </div>
                         
                         {/* Status Float */}

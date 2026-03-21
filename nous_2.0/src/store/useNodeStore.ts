@@ -93,11 +93,22 @@ export const useNodeStore = create<NodeStoreState>((set) => {
             });
 
             LocalNodeBridge.on('MODELS_STATUS', (payload: any) => {
-                const { gemma, sdxl } = payload;
-                set({ modelsReady: gemma === 'complete' && sdxl === 'complete' });
+                const { image_ready, text_ready, gemma, sdxl } = payload;
+                // Support both new boolean format and old 'complete' string format for robustness
+                const isImageReady = image_ready === true || sdxl === 'complete';
+                const isTextReady = text_ready === true || gemma === 'complete';
+                
+                set({ modelsReady: isImageReady && isTextReady });
+            });
+
+
+            LocalNodeBridge.on('ENGINE_READY', (payload: any) => {
+                // When an engine is ready, we force a check to sync the whole state
+                LocalNodeBridge.checkModels();
             });
 
             LocalNodeBridge.on('LOG', (payload: any) => {
+
                 set(state => ({
                     logs: [...state.logs.slice(-99), { ...payload, timestamp: Date.now() }]
                 }));
