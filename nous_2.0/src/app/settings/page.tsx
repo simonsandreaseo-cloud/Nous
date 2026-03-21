@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
 import { NavigationHeader } from "@/components/dom/NavigationHeader";
 import {
     Settings as SettingsIcon,
