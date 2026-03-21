@@ -554,45 +554,77 @@ export default function WriterSidebar() {
                         </div>
 
                         {/* Pipeline Steps */}
-                        <div className="space-y-2">
+                        <div className="space-y-4 relative">
                             <SectionLabel>Pipeline de Generación</SectionLabel>
+                            
+                            {/* Vertical Connector Line */}
+                            <div className="absolute left-[23px] top-[40px] bottom-[20px] w-0.5 bg-slate-100 -z-0" />
+
                             <button
                                 onClick={handleSEO}
                                 disabled={isAnyLoading || !keyword.trim()}
-                                className="w-full flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 hover:border-blue-200 transition-all disabled:opacity-50 text-left group"
+                                className={cn(
+                                    "w-full flex items-center gap-3 p-3 bg-white border rounded-xl hover:shadow-md transition-all disabled:opacity-50 text-left group relative z-10",
+                                    rawSeoData ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200 hover:border-blue-300"
+                                )}
                             >
-                                <div className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-black shrink-0">1</div>
+                                <div className={cn(
+                                    "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 transition-colors",
+                                    rawSeoData ? "bg-emerald-500 text-white" : "bg-blue-500 text-white"
+                                )}>
+                                    {rawSeoData ? <Check size={12} /> : "1"}
+                                </div>
                                 <div>
-                                    <p className="text-xs font-bold text-blue-800">Analizar SERP & Keywords</p>
-                                    <p className="text-[10px] text-blue-600">{rawSeoData ? '✅ Análisis disponible' : 'Competitors, LSI, PAA'}</p>
+                                    <p className={cn("text-xs font-bold", rawSeoData ? "text-emerald-800" : "text-slate-800")}>Analizar SERP & Keywords</p>
+                                    <p className="text-[10px] text-slate-500">{rawSeoData ? '✅ Análisis disponible' : 'Competitors, LSI, PAA'}</p>
                                 </div>
                                 {isAnalyzingSEO
                                     ? <Loader2 size={14} className="ml-auto text-blue-600 animate-spin" />
-                                    : <ArrowRight size={14} className="ml-auto text-blue-400 group-hover:translate-x-0.5 transition-transform" />}
+                                    : <ArrowRight size={14} className="ml-auto text-slate-300 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />}
                             </button>
+
                             <button
                                 onClick={handlePlanStructure}
-                                disabled={isAnyLoading}
-                                className="w-full flex items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-xl hover:bg-purple-100 hover:border-purple-200 transition-all disabled:opacity-50 text-left group"
+                                disabled={isAnyLoading || !rawSeoData}
+                                className={cn(
+                                    "w-full flex items-center gap-3 p-3 bg-white border rounded-xl hover:shadow-md transition-all disabled:opacity-50 text-left group relative z-10",
+                                    strategyOutline.length > 0 ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200 hover:border-purple-300",
+                                    !rawSeoData && "grayscale opacity-60"
+                                )}
                             >
-                                <div className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center text-[10px] font-black shrink-0">2</div>
+                                <div className={cn(
+                                    "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 transition-colors",
+                                    strategyOutline.length > 0 ? "bg-emerald-500 text-white" : "bg-purple-500 text-white"
+                                )}>
+                                    {strategyOutline.length > 0 ? <Check size={12} /> : "2"}
+                                </div>
                                 <div>
-                                    <p className="text-xs font-bold text-purple-800">Planificar Estructura</p>
-                                    <p className="text-[10px] text-purple-600">{strategyOutline.length > 0 ? `✅ ${strategyOutline.length} secciones` : 'H1, Meta, Outline con IA'}</p>
+                                    <p className={cn("text-xs font-bold", strategyOutline.length > 0 ? "text-emerald-800" : "text-slate-800")}>Planificar Estructura</p>
+                                    <p className="text-[10px] text-slate-500">{strategyOutline.length > 0 ? `✅ ${strategyOutline.length} secciones` : 'H1, Meta, Outline con IA'}</p>
                                 </div>
                                 {isPlanningStructure
                                     ? <Loader2 size={14} className="ml-auto text-purple-600 animate-spin" />
-                                    : <ArrowRight size={14} className="ml-auto text-purple-400 group-hover:translate-x-0.5 transition-transform" />}
+                                    : <ArrowRight size={14} className="ml-auto text-slate-300 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />}
                             </button>
+
                             <button
                                 onClick={handleGenerate}
-                                disabled={isAnyLoading}
-                                className="w-full flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl hover:bg-emerald-100 hover:border-emerald-200 transition-all disabled:opacity-50 text-left group"
+                                disabled={isAnyLoading || strategyOutline.length === 0}
+                                className={cn(
+                                    "w-full flex items-center gap-3 p-3 bg-white border rounded-xl hover:shadow-md transition-all disabled:opacity-50 text-left group relative z-10",
+                                    content.length > 1000 ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200 hover:border-emerald-400",
+                                    strategyOutline.length === 0 && "grayscale opacity-60"
+                                )}
                             >
-                                <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black shrink-0">3</div>
+                                <div className={cn(
+                                    "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 transition-colors",
+                                    content.length > 1000 ? "bg-emerald-500 text-white" : "bg-emerald-500 text-white"
+                                )}>
+                                    {content.length > 1000 ? <Check size={12} /> : "3"}
+                                </div>
                                 <div>
-                                    <p className="text-xs font-bold text-emerald-800">Generar Artículo</p>
-                                    <p className="text-[10px] text-emerald-600">Streaming con Gemini + interlinking</p>
+                                    <p className="text-xs font-bold text-slate-800">Generar Artículo</p>
+                                    <p className="text-[10px] text-slate-500">Streaming con Gemini + interlinking</p>
                                 </div>
                                 {isGenerating
                                     ? <Loader2 size={14} className="ml-auto text-emerald-600 animate-spin" />
@@ -630,13 +662,12 @@ export default function WriterSidebar() {
                                 </div>
                             </div>
                         </details>
-                        <Button variant="secondary" className="w-full justify-start gap-2 h-9 text-xs bg-cyan-50 text-cyan-700" onClick={() => setIsBriefingModalOpen(true)}>
-                            <Globe size={14} className="text-cyan-500" /> Generar Brief Neural (SERP)
-                        </Button>
                     </div>
                 )}
 
-                {/* TAB: ASISTENTE */}
+
+
+
                 {activeSidebarTab === 'assistant' && (
                     <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="bg-[var(--color-nous-lavender)]/30 p-4 rounded-xl border border-hairline">

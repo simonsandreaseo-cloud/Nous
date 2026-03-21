@@ -52,11 +52,11 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
     const pathname = usePathname();
 
     return (
-        <aside className="w-[72px] shrink-0 h-full flex flex-col glass-panel border-hairline rounded-[28px] overflow-hidden">
+        <aside className="w-[72px] shrink-0 h-full flex flex-col glass-panel border-hairline rounded-[28px] overflow-hidden overflow-x-hidden">
             {/* Logo */}
             <div className="p-3 flex justify-center items-center border-b border-slate-100/60 h-16 shrink-0">
                 <Link href="/" className="flex items-center justify-center">
-                    <NousLogo className="scale-75 origin-center" />
+                    <NousLogo showText={false} className="scale-75 origin-center" />
                 </Link>
             </div>
 

@@ -15,6 +15,52 @@ export interface ScrapedContent {
 }
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+const WS_URL = "ws://127.0.0.1:8181";
+const AUTH_TOKEN = "nous-dev-token-2026";
+
+/**
+ * Helper to communicate with local node via WebSockets
+ */
+async function callLocalNode(type: string, payload: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const ws = new WebSocket(WS_URL);
+        const requestId = Math.random().toString(36).substring(7);
+
+        const timeout = setTimeout(() => {
+            ws.close();
+            reject(new Error(`Timeout waiting for ${type} response`));
+        }, 30000);
+
+        ws.onopen = () => {
+            // 1. Auth first
+            ws.send(JSON.stringify({ type: "AUTH", payload: { token: AUTH_TOKEN } }));
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === "AUTH_SUCCESS") {
+                // 2. Send actual request after auth
+                ws.send(JSON.stringify({ type, payload: { ...payload, id: requestId } }));
+            } else if (data.type === `${type.replace('_REQUEST', '')}_RESPONSE`) {
+                if (data.payload.id === requestId) {
+                    clearTimeout(timeout);
+                    ws.close();
+                    resolve(data.payload.results);
+                }
+            } else if (data.type.endsWith("_ERROR")) {
+                clearTimeout(timeout);
+                ws.close();
+                reject(new Error(data.payload.message || "Error in local node"));
+            }
+        };
+
+        ws.onerror = (err) => {
+            clearTimeout(timeout);
+            reject(err);
+        };
+    });
+}
 
 export const BriefingService = {
     /**
@@ -22,12 +68,16 @@ export const BriefingService = {
      */
     async fetchSERP(keyword: string, countryCode: string): Promise<SERPResult[]> {
         if (!isTauri) {
-            console.warn("BriefingService: Not in Tauri environment. Returning mock data.");
-            return [
-                { rank: 1, title: `Guía Completa de ${keyword}`, url: "https://example.com/guia", description: "Aprende todo sobre..." },
-                { rank: 2, title: `10 Tips para ${keyword}`, url: "https://example.com/tips", description: "Los mejores consejos..." },
-                { rank: 3, title: `¿Qué es ${keyword}?`, url: "https://example.com/que-es", description: "Definición y conceptos..." },
-            ];
+            console.log("BriefingService: Fetching SERP via WebSocket fallback...");
+            try {
+                return await callLocalNode("SERP_REQUEST", { keyword });
+            } catch (error) {
+                console.error("BriefingService: WebSocket SERP error", error);
+                // Fallback to mock only if everything fails
+                return [
+                    { rank: 1, title: `Guía Completa de ${keyword}`, url: "https://example.com/guia", description: "Aprende todo sobre..." },
+                ];
+            }
         }
 
         try {
@@ -49,12 +99,18 @@ export const BriefingService = {
      */
     async scrapeContent(urls: string[]): Promise<ScrapedContent[]> {
         if (!isTauri) {
-            return urls.map(url => ({
-                url,
-                title: "Mock Title",
-                content: "Mock Content",
-                headers: []
-            }));
+            console.log("BriefingService: Scraping content via WebSocket fallback...");
+            try {
+                return await callLocalNode("SCRAPE_REQUEST", { urls });
+            } catch (error) {
+                console.error("BriefingService: WebSocket Scrape error", error);
+                return urls.map(url => ({
+                    url,
+                    title: "Error al scrapear",
+                    content: "No se pudo conectar con el nodo local.",
+                    headers: []
+                }));
+            }
         }
 
         const results: ScrapedContent[] = [];
@@ -74,3 +130,4 @@ export const BriefingService = {
         return results;
     }
 };
+

@@ -7,10 +7,11 @@ import { cn } from "@/utils/cn";
 
 export interface NousLogoProps {
     isProcessing?: boolean;
+    showText?: boolean;
     className?: string;
 }
 
-export function NousLogo({ isProcessing = false, className }: NousLogoProps) {
+export function NousLogo({ isProcessing = false, showText = true, className }: NousLogoProps) {
     const pathname = usePathname();
     const [mounted, setMounted] = useState(false);
 
@@ -134,15 +135,18 @@ export function NousLogo({ isProcessing = false, className }: NousLogoProps) {
             </div>
 
             {/* Tipografía Nous */}
-            <motion.div
-                className="text-2xl tracking-elegant text-slate-800"
-                style={{ fontWeight: 200 }}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 1.5, delay: 0.5, ease: [0.4, 0, 0.2, 1] }}
-            >
-                Nous
-            </motion.div>
+            {showText && (
+                <motion.div
+                    className="text-2xl tracking-elegant text-slate-800"
+                    style={{ fontWeight: 200 }}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 1.5, delay: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                >
+                    Nous
+                </motion.div>
+            )}
         </div>
+
     );
 }
