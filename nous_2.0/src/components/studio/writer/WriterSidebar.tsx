@@ -159,10 +159,22 @@ export default function WriterSidebar() {
         });
     }, [user]);
 
-    // Auto-populate project name from active project
+    // Auto-populate project name & keyword from active project
     useEffect(() => {
-        if (activeProject && !projectName) {
-            setProjectName(activeProject.name || '');
+        if (activeProject) {
+            console.log("[WriterSidebar] Active project changed:", activeProject.name);
+            // Always update if current projectName is empty or default
+            if (!projectName || projectName === 'General') {
+                setProjectName(activeProject.name || '');
+            }
+            // If keyword is empty, try to use a heuristic from project (e.g. domain or first word of name)
+            if (!keyword) {
+                // Heuristic: If we don't have a keyword yet, use the project name or domain
+                const suggestedKeyword = activeProject.name || '';
+                if (suggestedKeyword) {
+                    setKeyword(suggestedKeyword);
+                }
+            }
         }
     }, [activeProject]);
 

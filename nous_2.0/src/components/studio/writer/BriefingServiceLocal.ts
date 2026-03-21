@@ -22,42 +22,69 @@ const AUTH_TOKEN = "nous-dev-token-2026";
  * Helper to communicate with local node via WebSockets
  */
 async function callLocalNode(type: string, payload: any): Promise<any> {
+    console.log(`[BriefingServiceLocal] Attempting ${type} via ${WS_URL}...`);
     return new Promise((resolve, reject) => {
-        const ws = new WebSocket(WS_URL);
+        let ws: WebSocket;
+        try {
+            ws = new WebSocket(WS_URL);
+        } catch (e) {
+            console.error("[BriefingServiceLocal] Failed to create WebSocket instance:", e);
+            return reject(new Error("No se pudo iniciar la conexión WebSocket."));
+        }
+
         const requestId = Math.random().toString(36).substring(7);
 
         const timeout = setTimeout(() => {
+            console.error(`[BriefingServiceLocal] Timeout (${type}) reached after 30s.`);
             ws.close();
-            reject(new Error(`Timeout waiting for ${type} response`));
+            reject(new Error(`Tiempo de espera agotado para ${type}. ¿Está encendido el servidor Python?`));
         }, 30000);
 
         ws.onopen = () => {
-            // 1. Auth first
+            console.log(`[BriefingServiceLocal] WS Open. Sending AUTH...`);
             ws.send(JSON.stringify({ type: "AUTH", payload: { token: AUTH_TOKEN } }));
         };
 
         ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            
-            if (data.type === "AUTH_SUCCESS") {
-                // 2. Send actual request after auth
-                ws.send(JSON.stringify({ type, payload: { ...payload, id: requestId } }));
-            } else if (data.type === `${type.replace('_REQUEST', '')}_RESPONSE`) {
-                if (data.payload.id === requestId) {
+            try {
+                const data = JSON.parse(event.data);
+                console.log(`[BriefingServiceLocal] Received: ${data.type}`);
+
+                if (data.type === "AUTH_SUCCESS") {
+                    console.log(`[BriefingServiceLocal] Auth Success. Sending request ${requestId}`);
+                    ws.send(JSON.stringify({ type, payload: { ...payload, id: requestId } }));
+                } else if (data.type === "AUTH_FAILED") {
+                    console.error(`[BriefingServiceLocal] Authentication Failed. check token.`);
                     clearTimeout(timeout);
                     ws.close();
-                    resolve(data.payload.results);
+                    reject(new Error("Error de autenticación con el nodo local."));
+                } else if (data.type === `${type.replace('_REQUEST', '')}_RESPONSE`) {
+                    if (data.payload.id === requestId) {
+                        console.log(`[BriefingServiceLocal] Match found for ${requestId}. Resolving.`);
+                        clearTimeout(timeout);
+                        ws.close();
+                        resolve(data.payload.results);
+                    }
+                } else if (data.type.endsWith("_ERROR")) {
+                    console.error(`[BriefingServiceLocal] Server Error:`, data.payload.message);
+                    clearTimeout(timeout);
+                    ws.close();
+                    reject(new Error(data.payload.message || "Error en el nodo local"));
                 }
-            } else if (data.type.endsWith("_ERROR")) {
-                clearTimeout(timeout);
-                ws.close();
-                reject(new Error(data.payload.message || "Error in local node"));
+            } catch (err) {
+                console.error("[BriefingServiceLocal] Error parsing message:", err);
             }
         };
 
         ws.onerror = (err) => {
+            console.error(`[BriefingServiceLocal] WebSocket ERROR event:`, err);
             clearTimeout(timeout);
-            reject(err);
+            reject(new Error("No se pudo conectar con el servidor local (ws://localhost:8181)."));
+        };
+
+        ws.onclose = (event) => {
+            console.log(`[BriefingServiceLocal] WS Closed. Code: ${event.code}, Reason: ${event.reason}`);
+            clearTimeout(timeout);
         };
     });
 }

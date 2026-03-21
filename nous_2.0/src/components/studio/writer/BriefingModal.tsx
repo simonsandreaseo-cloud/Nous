@@ -23,15 +23,21 @@ export default function BriefingModal({ isOpen, onClose, keyword, country = 'ES'
 
     // Step 1: Analyze SERP
     const handleAnalyzeSERP = async () => {
+        if (!keyword || keyword.trim().length < 2) {
+            alert("Por favor, introduce una palabra clave válida en el Topic o selecciona un proyecto.");
+            return;
+        }
+
         setIsLoading(true);
         try {
+            console.log(`[BriefingModal] Starting SERP analysis for: ${keyword}`);
             const results = await BriefingService.fetchSERP(keyword, country);
             setSerpResults(results.slice(0, 10)); // Top 10
             setSelectedUrls(results.slice(0, 3).map(r => r.url)); // Default select top 3
             setStep('analyze');
-        } catch (error) {
-            console.error(error);
-            alert("Error al analizar SERP. Verifica que la App de Escritorio esté activa.");
+        } catch (error: any) {
+            console.error("[BriefingModal] SERP Error:", error);
+            alert(`Error al analizar SERP: ${error.message || "Error desconocido"}. \n\n¿Está encendida la App de Escritorio (python server.py)?`);
         } finally {
             setIsLoading(false);
         }
