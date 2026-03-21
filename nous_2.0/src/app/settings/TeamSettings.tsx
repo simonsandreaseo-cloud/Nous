@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Edit2, Shield, User, Mail, Loader2, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Shield, User, Mail, Loader2, Check, X, AlertCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/utils/cn";
 import { CustomPermissions, TeamMember } from "@/types/project";
@@ -21,6 +21,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
     const [members, setMembers] = useState<(TeamMember & { status?: string, users?: { email: string }, profiles?: { full_name: string, avatar_url: string } })[]>([]);
     const [invites, setInvites] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
 
 
@@ -48,7 +49,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
             // Fetch members from team_members
             const { data: membersData, error: membersError } = await supabase
                 .from('team_members')
-                .select('*, users:user_id(email), profiles:user_id(full_name, avatar_url)')
+                .select('*, profiles:user_id(email, full_name, avatar_url)')
                 .eq('team_id', teamId);
 
             if (membersError) throw membersError;
@@ -64,9 +65,11 @@ export function TeamSettings({ teamId }: { teamId: string }) {
             if (invitesError) console.error("Error fetching invites:", invitesError);
             console.log(`[TeamSettings] Fetched ${invitesData?.length || 0} invites for team ${teamId}`, invitesData);
             setInvites(invitesData || []);
+            setError(null);
 
         } catch (e: any) {
             console.error("Error fetching team:", e);
+            setError(e.message || "Error al cargar el equipo");
         } finally {
             setIsLoading(false);
         }
@@ -197,6 +200,14 @@ export function TeamSettings({ teamId }: { teamId: string }) {
 
     return (
         <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm relative overflow-hidden animate-in fade-in duration-500">
+            {error ? (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl mb-8">
+                    <p className="text-xs font-bold text-red-600 flex items-center gap-2">
+                        <AlertCircle size={14} /> {error}
+                    </p>
+                </div>
+            ) : null}
+
             <div className="flex justify-between items-center mb-8 relative z-10">
                 <div>
                     <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Equipo y Colaboradores</h2>
@@ -232,11 +243,11 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                                     <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold">
-                                                {(member.profiles?.full_name || member.users?.email || 'M').charAt(0).toUpperCase()}
+                                                {(member.profiles?.full_name || member.profiles?.email || 'M').charAt(0).toUpperCase()}
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-slate-900">
-                                                    {member.profiles?.full_name || member.users?.email || 'Miembro'}
+                                                    {member.profiles?.full_name || member.profiles?.email || 'Miembro'}
                                                 </p>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <span className="text-[9px] font-black uppercase tracking-widest text-cyan-600 bg-cyan-100 px-2 py-0.5 rounded-full">{member.role}</span>
@@ -289,6 +300,13 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                     </div>
                 </div>
             )}
+
+            {/* Debug Info (Visible only in development or for owners) */}
+            <div className="mt-8 pt-4 border-t border-slate-50 opacity-20 hover:opacity-100 transition-opacity">
+                <p className="text-[8px] font-mono text-slate-400">Team ID: {teamId || 'null'}</p>
+                <p className="text-[8px] font-mono text-slate-400">Members fetched: {members.length}</p>
+                <p className="text-[8px] font-mono text-slate-400">Invites fetched: {invites.length}</p>
+            </div>
 
             {/* Modal */}
             {isModalOpen && (
