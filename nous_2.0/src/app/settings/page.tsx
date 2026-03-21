@@ -818,14 +818,14 @@ export default function SettingsPage() {
                                         <div className="flex items-center justify-between border-t border-slate-50 pt-8">
                                             <button
                                                 onClick={() => handleDelete(activeProject.id, activeProject.name)}
-                                                className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-red-500 transition-colors"
+                                                className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-red-500 transition-colors"
                                             >
                                                 <Trash2 size={14} /> Eliminar Proyecto
                                             </button>
                                             <button
                                                 onClick={handleSaveAll}
                                                 disabled={isSaving}
-                                                className="flex items-center gap-3 px-10 py-4 bg-[var(--color-nous-mist)]/20 text-[var(--color-nous-mist)] border border-[var(--color-nous-mist)]/30 rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] hover:bg-[var(--color-nous-mist)]/30 transition-all shadow-sm disabled:opacity-50"
+                                                className="flex items-center gap-3 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 disabled:opacity-50"
                                             >
                                                 {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                                                 Guardar Configuración
@@ -928,7 +928,7 @@ export default function SettingsPage() {
                                                     "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-sm",
                                                     isUserGscConnected
                                                         ? "bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-50 shadow-emerald-100/10"
-                                                        : "bg-[var(--color-nous-mist)]/20 border border-[var(--color-nous-mist)]/30 text-[var(--color-nous-mist)] hover:bg-[var(--color-nous-mist)]/30"
+                                                        : "bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/10"
                                                 )}
                                             >
                                                 {isUserGscConnected ? "Agregar Otra Cuenta" : "Vincular Ahora"}
@@ -968,7 +968,7 @@ export default function SettingsPage() {
                                                     "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-sm",
                                                     isUserGscConnected
                                                         ? "bg-white border border-amber-100 text-amber-600 hover:bg-amber-50 shadow-amber-100/10"
-                                                        : "bg-[var(--color-nous-mist)]/20 border border-[var(--color-nous-mist)]/30 text-[var(--color-nous-mist)] hover:bg-[var(--color-nous-mist)]/30"
+                                                        : "bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/10"
                                                 )}
                                             >
                                                 {isUserGscConnected ? "Agregar Otra Cuenta" : "Vincular GA4"}
