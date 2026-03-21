@@ -25,15 +25,16 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- 2. Clean up old recursive policies
 -- Drop all conflicting policies to start fresh
-DROP POLICY IF EXISTS "Authenticated users can create teams" ON public.teams;
-DROP POLICY IF EXISTS "Users can view teams they are members of" ON public.teams;
-DROP POLICY IF EXISTS "Owners can manage their teams" ON public.teams;
 DROP POLICY IF EXISTS "Users can view teams they have access to" ON public.teams;
+DROP POLICY IF EXISTS "Owners can manage their teams" ON public.teams;
+DROP POLICY IF EXISTS "Authenticated users can create teams" ON public.teams;
 
-DROP POLICY IF EXISTS "Users can insert themselves as team owners" ON public.team_members;
 DROP POLICY IF EXISTS "View team members" ON public.team_members;
-DROP POLICY IF EXISTS "Manage team members" ON public.team_members;
+DROP POLICY IF EXISTS "Owners can manage team members" ON public.team_members;
+DROP POLICY IF EXISTS "Users can manage their own membership" ON public.team_members;
 DROP POLICY IF EXISTS "Owners and Admins can manage team members" ON public.team_members;
+DROP POLICY IF EXISTS "Manage team members" ON public.team_members;
+DROP POLICY IF EXISTS "Users can insert themselves as team owners" ON public.team_members;
 
 -- 3. Teams Policies
 ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
