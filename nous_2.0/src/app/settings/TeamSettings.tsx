@@ -52,6 +52,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                 .eq('team_id', teamId);
 
             if (membersError) throw membersError;
+            console.log(`[TeamSettings] Fetched ${membersData?.length || 0} members for team ${teamId}`, membersData);
             setMembers(membersData || []);
 
             // Fetch pending invitations
@@ -61,6 +62,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                 .eq('team_id', teamId);
             
             if (invitesError) console.error("Error fetching invites:", invitesError);
+            console.log(`[TeamSettings] Fetched ${invitesData?.length || 0} invites for team ${teamId}`, invitesData);
             setInvites(invitesData || []);
 
         } catch (e: any) {
