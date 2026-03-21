@@ -697,13 +697,12 @@ export default function SettingsPage() {
                                                                 </div>
                                                                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Search Console</span>
                                                             </div>
-                                                            <a 
-                                                                href="https://search.google.com/search-console/welcome" 
-                                                                target="_blank" 
-                                                                className="text-[9px] font-black text-cyan-600 uppercase hover:underline flex items-center gap-1"
+                                                            <button 
+                                                                onClick={() => window.location.href = '/api/auth/gsc/login'}
+                                                                className="text-[9px] font-black text-cyan-600 uppercase hover:underline flex items-center gap-1 bg-cyan-50 px-2 py-1 rounded-lg border border-cyan-100 transition-all hover:bg-cyan-100"
                                                             >
-                                                                <Plus size={10} /> Nueva Propiedad
-                                                            </a>
+                                                                <Plus size={10} /> Vincular Cuenta
+                                                            </button>
                                                         </div>
                                                         <div className="relative">
                                                             <select
@@ -740,13 +739,12 @@ export default function SettingsPage() {
                                                                 </div>
                                                                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">GA4 Property</span>
                                                             </div>
-                                                            <a 
-                                                                href="https://analytics.google.com/analytics/web/" 
-                                                                target="_blank" 
-                                                                className="text-[9px] font-black text-amber-600 uppercase hover:underline flex items-center gap-1"
+                                                            <button 
+                                                                onClick={() => window.location.href = '/api/auth/gsc/login'}
+                                                                className="text-[9px] font-black text-amber-600 uppercase hover:underline flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100 transition-all hover:bg-amber-100"
                                                             >
-                                                                <Plus size={10} /> Nueva Propiedad
-                                                            </a>
+                                                                <Plus size={10} /> Vincular Cuenta
+                                                            </button>
                                                         </div>
                                                         <div className="relative">
                                                             <select
