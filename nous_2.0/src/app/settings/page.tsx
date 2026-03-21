@@ -656,104 +656,123 @@ export default function SettingsPage() {
                                             </div>
                                         </div>
 
-                                        {/* Project Property Selection - Only if GSC Linked Globally */}
+                                        {/* Google Integrations Group */}
                                         <div className={cn(
-                                            "p-8 rounded-3xl border transition-all duration-700 relative overflow-hidden",
-                                            isUserGscConnected ? "bg-cyan-50/20 border-cyan-100" : "bg-slate-50 border-slate-100"
+                                            "p-8 rounded-[32px] border transition-all duration-700 relative overflow-hidden",
+                                            isUserGscConnected ? "bg-white border-slate-200 shadow-sm" : "bg-slate-50 border-slate-100"
                                         )}>
-                                            <div className="absolute top-2 right-2 text-[8px] font-black text-cyan-500 uppercase tracking-tighter opacity-50">GSC Module v2.0</div>
-                                            <div className="flex items-center gap-4 relative z-10 mb-6">
-                                                <div className={cn(
-                                                    "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
-                                                    isUserGscConnected ? "bg-cyan-500 text-white" : "bg-white text-slate-300"
-                                                )}>
+                                            <div className="absolute top-4 right-4 flex gap-2">
+                                                <div className="text-[8px] font-black text-cyan-500 uppercase tracking-tighter opacity-50 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-100">GSC v2.0</div>
+                                                <div className="text-[8px] font-black text-amber-500 uppercase tracking-tighter opacity-50 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">GA4 v2.0</div>
+                                            </div>
+
+                                            <div className="flex items-center gap-4 mb-10">
+                                                <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-900/10">
                                                     <Globe size={24} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Propiedad Search Console</h3>
-                                                    <p className="text-[10px] text-slate-500 font-medium">Asigna un sitio de tu cuenta de Google a este proyecto.</p>
+                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Google Search & Analytics</h3>
+                                                    <p className="text-[10px] text-slate-500 font-medium tracking-tight">Vinculación de datos de tráfico y posicionamiento orgánico.</p>
                                                 </div>
                                             </div>
 
                                             {!isUserGscConnected ? (
-                                                <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-2xl">
-                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Primero vincula tu cuenta de Google en la pestaña de Integraciones</p>
-                                                    <button onClick={() => setActiveTab('integrations')} className="text-[10px] font-black text-cyan-600 uppercase underline decoration-cyan-200 underline-offset-4">Ir a Integraciones</button>
+                                                <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-[24px] bg-white/50">
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-6">Para empezar, vincula tu cuenta de Google en la pestaña de Integraciones</p>
+                                                    <button 
+                                                        onClick={() => setActiveTab('integrations')} 
+                                                        className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-600 transition-all shadow-lg"
+                                                    >
+                                                        Ir a Integraciones
+                                                    </button>
                                                 </div>
                                             ) : (
-                                                <div className="space-y-4 relative z-10">
-                                                    <div className="flex gap-3">
-                                                        <select
-                                                            value={activeProject.gsc_site_url || ''}
-                                                            onChange={(e) => handleUpdateGscSite(e.target.value)}
-                                                            className="flex-1 p-3.5 bg-white border border-cyan-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-cyan-500/10 transition-all appearance-none cursor-pointer"
-                                                            disabled={isLoadingSites}
-                                                        >
-                                                            <option value="">Selecciona una propiedad de Google...</option>
-                                                            {gscSites.map(site => (
-                                                                <option key={site.url} value={site.url}>
-                                                                    {site.url} {site.accountEmail && connectedAccounts.length > 1 ? `(${site.accountEmail})` : ''}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        {isLoadingSites && <div className="w-5 h-5 border-3 border-cyan-500 border-t-transparent rounded-full animate-spin self-center" />}
-                                                    </div>
-                                                    {activeProject.gsc_site_url && (
-                                                        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 inline-block w-fit">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                            <span className="text-[9px] font-black uppercase">Vinculado a: {activeProject.gsc_site_url}</span>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                                    {/* GSC Column */}
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-lg bg-cyan-500/10 text-cyan-600 flex items-center justify-center">
+                                                                    <Globe size={14} />
+                                                                </div>
+                                                                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Search Console</span>
+                                                            </div>
+                                                            <a 
+                                                                href="https://search.google.com/search-console/welcome" 
+                                                                target="_blank" 
+                                                                className="text-[9px] font-black text-cyan-600 uppercase hover:underline flex items-center gap-1"
+                                                            >
+                                                                <Plus size={10} /> Nueva Propiedad
+                                                            </a>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className={cn(
-                                            "p-8 rounded-3xl border transition-all duration-700 relative overflow-hidden",
-                                            isUserGscConnected ? "bg-amber-50/20 border-amber-100" : "bg-slate-50 border-slate-100"
-                                        )}>
-                                            <div className="absolute top-2 right-2 text-[8px] font-black text-amber-500 uppercase tracking-tighter opacity-50">GA4 Module v2.0</div>
-                                            <div className="flex items-center gap-4 relative z-10 mb-6">
-                                                <div className={cn(
-                                                    "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
-                                                    isUserGscConnected ? "bg-amber-500 text-white" : "bg-white text-slate-300"
-                                                )}>
-                                                    <BarChart3 size={24} />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Google Analytics 4</h3>
-                                                    <p className="text-[10px] text-slate-500 font-medium tracking-tight">Vínculo para el análisis de tráfico AI (ChatGPT, Perplexity, etc).</p>
-                                                </div>
-                                            </div>
-
-                                            {!isUserGscConnected ? (
-                                                <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-2xl">
-                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Primero vincula tu cuenta de Google en Integraciones</p>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-4 relative z-10">
-                                                    <div className="flex gap-3">
-                                                        <select
-                                                            value={activeProject.ga4_property_id || ''}
-                                                            onChange={(e) => handleUpdateGa4Property(e.target.value)}
-                                                            className="flex-1 p-3.5 bg-white border border-amber-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-amber-500/10 transition-all appearance-none cursor-pointer"
-                                                            disabled={isLoadingGa4}
-                                                        >
-                                                            <option value="">Selecciona una propiedad GA4...</option>
-                                                            {ga4Properties.map(prop => (
-                                                                <option key={prop.id} value={prop.id}>
-                                                                    {prop.name} {prop.accountEmail && connectedAccounts.length > 1 ? `(${prop.accountEmail})` : ''}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        {isLoadingGa4 && <div className="w-5 h-5 border-3 border-amber-500 border-t-transparent rounded-full animate-spin self-center" />}
-                                                    </div>
-                                                    {activeProject.ga4_property_id && (
-                                                        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-600 rounded-lg border border-amber-100 inline-block w-fit">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                                            <span className="text-[9px] font-black uppercase">Vinculado a GA4 ID: {activeProject.ga4_property_id}</span>
+                                                        <div className="relative">
+                                                            <select
+                                                                value={activeProject.gsc_site_url || ''}
+                                                                onChange={(e) => handleUpdateGscSite(e.target.value)}
+                                                                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-cyan-500/10 transition-all appearance-none cursor-pointer pr-10"
+                                                                disabled={isLoadingSites}
+                                                            >
+                                                                <option value="">Selecciona Propiedad...</option>
+                                                                {gscSites.map(site => (
+                                                                    <option key={site.url} value={site.url}>{site.url}</option>
+                                                                ))}
+                                                            </select>
+                                                            {isLoadingSites && (
+                                                                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                                                    <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
+                                                        {activeProject.gsc_site_url && (
+                                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 w-fit">
+                                                                <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                                                                <span className="text-[8px] font-black uppercase tracking-tighter">Nodo GSC Activo</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* GA4 Column */}
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                                                                    <BarChart3 size={14} />
+                                                                </div>
+                                                                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">GA4 Property</span>
+                                                            </div>
+                                                            <a 
+                                                                href="https://analytics.google.com/analytics/web/" 
+                                                                target="_blank" 
+                                                                className="text-[9px] font-black text-amber-600 uppercase hover:underline flex items-center gap-1"
+                                                            >
+                                                                <Plus size={10} /> Nueva Propiedad
+                                                            </a>
+                                                        </div>
+                                                        <div className="relative">
+                                                            <select
+                                                                value={activeProject.ga4_property_id || ''}
+                                                                onChange={(e) => handleUpdateGa4Property(e.target.value)}
+                                                                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-amber-500/10 transition-all appearance-none cursor-pointer pr-10"
+                                                                disabled={isLoadingGa4}
+                                                            >
+                                                                <option value="">Selecciona Propiedad...</option>
+                                                                {ga4Properties.map(prop => (
+                                                                    <option key={prop.id} value={prop.id}>{prop.name}</option>
+                                                                ))}
+                                                            </select>
+                                                            {isLoadingGa4 && (
+                                                                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                                                    <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {activeProject.ga4_property_id && (
+                                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-lg border border-amber-100 w-fit">
+                                                                <div className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
+                                                                <span className="text-[8px] font-black uppercase tracking-tighter">Nodo GA4 Activo</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
