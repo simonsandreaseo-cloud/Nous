@@ -18,7 +18,7 @@ const DEFAULT_PERMISSIONS: CustomPermissions = {
 };
 
 export function TeamSettings({ teamId }: { teamId: string }) {
-    const [members, setMembers] = useState<(TeamMember & { status?: string, users?: { email: string }, profiles?: { full_name: string, avatar_url: string } })[]>([]);
+    const [members, setMembers] = useState<(TeamMember & { status?: string, users?: { email: string }, profiles?: { email: string, full_name: string, avatar_url: string } })[]>([]);
     const [invites, setInvites] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
