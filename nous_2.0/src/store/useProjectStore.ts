@@ -340,13 +340,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             return;
         }
 
+        const colorToAssign = newProject.color || getRandomNousColor();
+        console.log("[DEBUG] Assigning color to project:", colorToAssign);
+
         const { data, error } = await supabase
             .from('projects')
             .insert([{ 
                 ...newProject, 
                 user_id: user.id, 
                 team_id: get().activeTeam?.id,
-                color: newProject.color || getRandomNousColor()
+                color: colorToAssign
             }])
             .select()
             .single();
