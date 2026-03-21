@@ -49,7 +49,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
             // Fetch members from team_members
             const { data: membersData, error: membersError } = await supabase
                 .from('team_members')
-                .select('*, profiles:user_id(email, full_name, avatar_url)')
+                .select('*, profiles(email, full_name, avatar_url)')
                 .eq('team_id', teamId);
 
             if (membersError) throw membersError;
