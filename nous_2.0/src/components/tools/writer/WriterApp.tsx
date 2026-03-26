@@ -305,6 +305,13 @@ const App = () => {
     }
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // Sync HTML to editor REF only on external changes
+    useEffect(() => {
+        if (previewRef.current && previewRef.current.innerHTML !== htmlContent) {
+            previewRef.current.innerHTML = htmlContent;
+        }
+    }, [htmlContent]);
     const [configStep, setConfigStep] = useState<'data' | 'keyword'>('data');
 
     // Humanizer Interface State
@@ -665,6 +672,7 @@ const App = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [fullResponse, setFullResponse] = useState('');
     const [htmlContent, setHtmlContent] = useState('');
+    const keywordsRef = useRef<HTMLDivElement>(null);
     const [metadata, setMetadata] = useState<any>(null);
     const [status, setStatus] = useState('');
     const [dragActive, setDragActive] = useState(false);
@@ -713,10 +721,11 @@ const App = () => {
         }
     }, [fullResponse, setContent]);
 
-    // Sync local changes to store for SEO sidebar
+    // Sync local changes to store and calculate real-time SEO stats
     const handleEditorChange = () => {
         if (previewRef.current) {
             const newContent = previewRef.current.innerHTML;
+            // Only update store/SEO, DO NOT re-render editor via htmlContent state if internal
             setHtmlContent(newContent);
             setContent(newContent);
         }
@@ -936,8 +945,13 @@ const App = () => {
             // USE STORE ACTION FOR AUTOMATION
             updateStrategyFromSeo(data);
             
-            setViewMode('seo-review');
+            setSidebarTab('seo');
             setStatus("");
+
+            // UX: Scroll to keywords so user sees change
+            setTimeout(() => {
+                keywordsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
         } catch (e: any) {
             handleApiError(e);
             setStatus("Error. Intenta nuevamente.");
@@ -1888,30 +1902,28 @@ const App = () => {
                 isOpen={showUploadModal}
                 onClose={() => setShowUploadModal(false)}
                 onSave={(content) => {
-                    setUploadContent(content);
-                    // trigger logic immediately since setUploadContent is async, we pass content directly to a wrapper or rely on effect. 
-                    // Actually handleLoadExisting uses uploadContent state. 
-                    // Let's modify handleLoadExisting to accept arg or use ref.
-                    // For simplicity, I'll update the state then call a modified handler logic.
-                    // Or better, update handleLoadExisting to take content as argument.
-
-                    if (!content.trim()) return;
-
-                    // Logic from handleLoadExisting adapted to take content
-                    if (!strategyH1) {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(content, 'text/html');
-                        const h1 = doc.querySelector('h1')?.textContent;
-                        if (h1) setStrategyH1(h1);
-                        else setStrategyH1("Artículo Importado");
-                    }
-
-                    setHtmlContent(content);
-                    setFullResponse(content);
-                    setStatus("Artículo cargado externamente.");
+                    // UX: Close immediately for snappiness
                     setShowUploadModal(false);
-                    setViewMode('workspace');
-                    setIsSidebarOpen(false);
+                    setStatus("Cargando contenido...");
+
+                    setTimeout(() => {
+                        if (!content.trim()) return;
+                        
+                        setUploadContent(content);
+                        if (!strategyH1) {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(content, 'text/html');
+                            const h1 = doc.querySelector('h1')?.textContent;
+                            if (h1) setStrategyH1(h1);
+                            else setStrategyH1("Artículo Importado");
+                        }
+
+                        setHtmlContent(content);
+                        setFullResponse(content);
+                        setStatus("¡Listo para editar!");
+                        setViewMode('workspace');
+                        setIsSidebarOpen(false);
+                    }, 50);
                 }}
             />
 
@@ -2699,10 +2711,9 @@ const App = () => {
                                                 className="article-content custom-editor" 
                                                 ref={previewRef} 
                                                 contentEditable={!isGenerating}
-                                                onBlur={handleEditorChange}
                                                 onInput={handleEditorChange}
-                                                dangerouslySetInnerHTML={{ __html: htmlContent }} 
                                                 style={{ outline: 'none', minHeight: '500px' }}
+                                                onBlur={handleEditorChange}
                                             />
                                         )}
                                         <div style={{ height: '100px' }}></div>
@@ -2953,9 +2964,12 @@ const App = () => {
                                 ) : (
                                     <>
                                                       {/* SEO TAB CONTENT - Fully Interactive */}
-                                        <div style={styles.toolCard as any}>
-                                            <div style={styles.toolCardHeader}>
-                                                <IconRadar /> <span>Keywords Principales</span>
+                                        <div style={styles.toolCard as any} ref={keywordsRef}>
+                                            <div style={{...styles.toolCardHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                    <IconRadar /> <span>Keywords Principales</span>
+                                                </div>
+                                                <span style={{ fontSize: '10px', backgroundColor: '#E0F2FE', color: '#0EA5E9', padding: '2px 6px', borderRadius: '100px', fontWeight: 700 }}>LIVE SYNC</span>
                                             </div>
                                             <div style={styles.toolCardBody}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
