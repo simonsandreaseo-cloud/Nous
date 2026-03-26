@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useWriterStore } from '@/store/useWriterStore';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 // Keeping styles for gradual migration, but will replace usage with Tailwind
@@ -218,6 +219,7 @@ const UploadModal = ({ isOpen, onClose, onSave }: { isOpen: boolean, onClose: ()
 const App = () => {
     const { user } = useAuthStore();
     const { activeProject } = useProjectStore();
+    const { apiKeys, setApiKeys } = useWriterStore();
     const router = useRouter();
     const [draftId, setDraftId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -297,8 +299,37 @@ const App = () => {
     const [humanizeInput, setHumanizeInput] = useState('');
 
     // Configuration State
-    const [apiKeys, setApiKeys] = useState<string[]>(process.env.API_KEY ? [process.env.API_KEY] : []);
     const [showKeyModal, setShowKeyModal] = useState(false);
+
+    const loadUserKeys = async () => {
+        if (!user) return;
+        try {
+            // Check for keys in profiles settings or dedicated field
+            const { data } = await supabase.from('profiles').select('settings').eq('id', user.id).maybeSingle();
+            if (data?.settings?.api_keys) {
+                setApiKeys(data.settings.api_keys);
+            }
+        } catch (e) {
+            console.error("Error loading user keys:", e);
+        }
+    };
+
+    const checkIfKeySaved = async (value: string, type: string) => {
+        if (!value || !user) return;
+        try {
+            const { data: profile } = await supabase.from('profiles').select('settings').eq('id', user.id).maybeSingle();
+            const settings = profile?.settings || {};
+            const api_keys = settings.api_keys || {};
+            
+            // Avoid redundant updates
+            if (api_keys[type] === value) return;
+            
+            api_keys[type] = value;
+            await supabase.from('profiles').update({ settings: { ...settings, api_keys } }).eq('id', user.id);
+        } catch (e) {
+            console.error("Error auto-saving key", e);
+        }
+    };
 
     useEffect(() => {
         if (user) {
@@ -918,7 +949,12 @@ const App = () => {
                 lsiKeywords: strategyLSI.map(l => l.keyword).concat(strategyLongTail)
             };
 
-            const structureData = await generateOutlineStrategy(apiKeys, currentConfig, targetKeyword);
+            if (!rawSeoData) {
+                alert("Primero debes realizar el Análisis SEO (Fase 1).");
+                return;
+            }
+
+            const structureData = await generateOutlineStrategy(apiKeys, currentConfig, targetKeyword, rawSeoData, model);
 
             setStrategyTitle(structureData.snippet.metaTitle);
             setStrategyH1(structureData.snippet.h1);
