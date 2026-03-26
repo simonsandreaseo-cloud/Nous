@@ -175,10 +175,12 @@ async def download_model_with_progress(repo_id, filename=None, websocket=None, l
     print(f"[*] Checking/Downloading {label} using HuggingFace Hub...")
     
     if websocket:
-        await websocket.send(json.dumps({
-            "type": "DOWNLOAD_STATUS",
-            "payload": { "model": label, "status": "downloading" }
-        }))
+        try:
+            await websocket.send(json.dumps({
+                "type": "DOWNLOAD_STATUS",
+                "payload": { "model": label, "status": "downloading" }
+            }))
+        except: pass
         
     try:
         def do_download():
@@ -195,19 +197,25 @@ async def download_model_with_progress(repo_id, filename=None, websocket=None, l
         print(f"[*] {label} ready at: {path}")
         
         if websocket:
-            await websocket.send(json.dumps({
-                "type": "DOWNLOAD_STATUS",
-                "payload": { "model": label, "status": "complete", "path": path }
-            }))
+            try:
+                await websocket.send(json.dumps({
+                    "type": "DOWNLOAD_STATUS",
+                    "payload": { "model": label, "status": "complete", "path": path }
+                }))
+            except: pass
         return path
         
     except Exception as e:
-        print(f"[!] Download Failed for {label}: {e}")
+        print(f"[!] Download Warning for {label}: {e}")
+        # The underlying download/cache load MIGHT have worked, but let's try to get path anyway
+        # Actually if hf_hub_download fails we really don't have the path.
         if websocket:
-            await websocket.send(json.dumps({
-                "type": "DOWNLOAD_STATUS",
-                "payload": { "model": label, "status": "error", "message": str(e) }
-            }))
+            try:
+                await websocket.send(json.dumps({
+                    "type": "DOWNLOAD_STATUS",
+                    "payload": { "model": label, "status": "error", "message": str(e) }
+                }))
+            except: pass
         return None
 
 async def init_models(websocket=None):
@@ -242,12 +250,14 @@ async def init_models(websocket=None):
                     Llama,
                     model_path=path,
                     n_gpu_layers=-1 if device == "cuda" else 0,
-                    n_ctx=2048,
+                    n_ctx=8192,
                     verbose=False
                 )
                 print("[*] Text Engine Ready!")
                 if websocket:
-                    await websocket.send(json.dumps({"type": "ENGINE_READY", "payload": {"engine": "text"}}))
+                    try:
+                        await websocket.send(json.dumps({"type": "ENGINE_READY", "payload": {"engine": "text"}}))
+                    except: pass
 
         # 2. Load Image Model (SDXL Turbo)
         if not image_pipeline:     
@@ -272,11 +282,13 @@ async def init_models(websocket=None):
             image_pipeline.to(device)
             print("[*] Image Engine Ready for blazing fast generations.")
             if websocket:
-                await websocket.send(json.dumps({
-                    "type": "DOWNLOAD_STATUS",
-                    "payload": { "model": "SDXL-Turbo", "status": "complete" }
-                }))
-                await websocket.send(json.dumps({"type": "ENGINE_READY", "payload": {"engine": "image"}}))
+                try:
+                    await websocket.send(json.dumps({
+                        "type": "DOWNLOAD_STATUS",
+                        "payload": { "model": "SDXL-Turbo", "status": "complete" }
+                    }))
+                    await websocket.send(json.dumps({"type": "ENGINE_READY", "payload": {"engine": "image"}}))
+                except: pass
     except Exception as e:
         print(f"[!] Engine Error: {e}")
         if websocket:
@@ -435,7 +447,7 @@ def perform_url_scraping(url):
         }
 
 async def handler(websocket):
-    print(f"[+] Client connected: {websocket.remote_address}")
+    # print(f"[+] Client connected: {websocket.remote_address}")
     connected_clients.add(websocket)
     authenticated = False
     
@@ -479,6 +491,8 @@ async def handler(websocket):
                 text = payload.get("text", "")
                 
                 try:
+                    while is_initializing and not text_pipeline:
+                        await asyncio.sleep(1)
                     print(f"[*] Text Request: {text[:50]}...")
                     # Warning: Unblocking the loop for heavy text generation
                     result = await asyncio.to_thread(generate_text_sync, text, payload.get("system", ""))

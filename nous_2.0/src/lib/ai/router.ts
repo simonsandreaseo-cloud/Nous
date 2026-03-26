@@ -89,34 +89,51 @@ class AIRouter {
 
         // 2. Route to Gemini
         if (model.includes('gemini')) {
-            const apiKey = getGeminiKey();
-            if (!apiKey) throw new Error('Gemini API Key missing');
+            const { getGeminiKey, getGeminiKeysCount } = await import('./config');
+            const totalKeys = getGeminiKeysCount() || 1;
+            let lastError: any = null;
 
-            const { GoogleGenerativeAI } = await import('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const geminiModel = genAI.getGenerativeModel({
-                model,
-                systemInstruction: systemPrompt
-            });
+            for (let i = 0; i < totalKeys; i++) {
+                const apiKey = getGeminiKey();
+                if (!apiKey) continue;
 
-            const result = await geminiModel.generateContent({
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature,
-                    maxOutputTokens: maxTokens,
-                    responseMimeType: jsonMode ? 'application/json' : 'text/plain'
+                try {
+                    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+                    const genAI = new GoogleGenerativeAI(apiKey);
+                    const geminiModel = genAI.getGenerativeModel({
+                        model,
+                        systemInstruction: systemPrompt
+                    });
+
+                    const result = await geminiModel.generateContent({
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            temperature,
+                            maxOutputTokens: maxTokens,
+                            responseMimeType: jsonMode ? 'application/json' : 'text/plain'
+                        }
+                    });
+
+                    const response = await result.response;
+                    return {
+                        text: response.text(),
+                        usage: {
+                            promptTokens: result.response.usageMetadata?.promptTokenCount || 0,
+                            completionTokens: result.response.usageMetadata?.candidatesTokenCount || 0,
+                            totalTokens: result.response.usageMetadata?.totalTokenCount || 0
+                        }
+                    };
+                } catch (err: any) {
+                    lastError = err;
+                    // Rotate on quota or server errors
+                    if (err.status === 429 || err.status === 503 || err.status === 500 || err.message?.includes('quota')) {
+                        console.warn(`[AIRouter] Key ${i+1} failed, rotating...`, err.message);
+                        continue;
+                    }
+                    throw err; // Other errors should fail immediately
                 }
-            });
-
-            const response = await result.response;
-            return {
-                text: response.text(),
-                usage: {
-                    promptTokens: result.response.usageMetadata?.promptTokenCount || 0,
-                    completionTokens: result.response.usageMetadata?.candidatesTokenCount || 0,
-                    totalTokens: result.response.usageMetadata?.totalTokenCount || 0
-                }
-            };
+            }
+            throw lastError || new Error('Gemini API Key missing');
         }
 
         // 3. Route to OpenAI

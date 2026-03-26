@@ -245,7 +245,7 @@ export default function HumanizerPage() {
     const [isFetchingModels, setIsFetchingModels] = useState(false);
 
     const fetchModels = async () => {
-        const key = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+        const key = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS;
         if (!key) {
             alert("Necesitas una API Key para listar modelos.");
             return;
@@ -513,8 +513,9 @@ export default function HumanizerPage() {
     // =================================================================
 
     const runFullPipeline = async () => {
-        if (!apiKey && !process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-            setError("Por favor ingresa tu API Key de Google");
+        const hasKeys = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS;
+        if (!hasKeys) {
+            setError("Por favor ingresa tu API Key de Google o configúrala en el sistema.");
             return;
         }
         if (!inputText) {

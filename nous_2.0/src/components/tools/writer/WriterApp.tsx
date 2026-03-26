@@ -896,10 +896,10 @@ const App = () => {
         }
 
         // Check for state keys OR global environment keys (fallback)
-        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY);
+        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS);
 
         if (!hasEffectiveKeys) {
-            alert("No hay API Keys configuradas. Por favor agrega tus Google AI Keys (Gemma o Gemini) o configura las llaves globales (GEMINI_API_KEYS) en el sistema.");
+            alert("No hay API Keys configuradas. Por favor agrega tus Google AI Keys en los Ajustes o configura las llaves globales (NEXT_PUBLIC_GEMINI_API_KEYS) en el sistema.");
             return;
         }
 
@@ -933,7 +933,7 @@ const App = () => {
     // STEP 2: Plan Structure
     const handlePlanStructure = async () => {
         // Ensure we have keys
-        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY);
+        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS);
         if (!hasEffectiveKeys) return alert("Configura tus API Keys (plural) para planificar la estructura.");
 
         setIsPlanningStructure(true);
@@ -987,7 +987,7 @@ const App = () => {
         }
 
         // Ensure we have keys
-        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY);
+        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS);
         if (!hasEffectiveKeys) return alert("Configura tus API Keys (plural) para generar el artículo.");
 
         setViewMode('workspace');
@@ -1078,7 +1078,7 @@ const App = () => {
         if (!htmlContent || !refinementInstructions) return;
 
         // Ensure we have keys
-        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY);
+        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS);
         if (!hasEffectiveKeys) return alert("Configura tus API Keys (plural) para refinar el contenido.");
 
         setIsRefining(true);
@@ -1204,7 +1204,7 @@ const App = () => {
         if (!sourceHtml) return;
 
         // Ensure we have keys for cloud or a local node active
-        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY);
+        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS);
         // Only skip if NOT local
         if (!hasEffectiveKeys && !model.startsWith('gemma')) {
              alert("Configura tus API Keys (plural) para usar el humanizador en la nube.");

@@ -410,8 +410,8 @@ export default function HumanizerPage() {
 
     const callGeminiAPI = async (systemPrompt: string, userText: string, phaseName: string, responseSchema: any = null) => {
         // Get keys from input or env
-        const rawKeys = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-        if (!rawKeys) throw new Error("API KEY no configurada (GEMINI_API_KEYS).");
+        const rawKeys = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS;
+        if (!rawKeys) throw new Error("API KEY no configurada (NEXT_PUBLIC_GEMINI_API_KEYS).");
 
         const allKeys = rawKeys.split(',').map(k => k.trim()).filter(k => k.length > 5);
         if (allKeys.length === 0) throw new Error("No se encontraron API Keys válidas.");
