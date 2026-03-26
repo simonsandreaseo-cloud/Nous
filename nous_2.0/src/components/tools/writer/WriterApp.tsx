@@ -931,7 +931,7 @@ const App = () => {
 
         try {
             // Pass all keys
-            const data = await runSEOAnalysis(apiKeys, targetKeyword, csvData, projectName, serperKey, valueSerpKey, jinaKey, !isTitleOnly);
+            const data = await runSEOAnalysis(apiKeys, targetKeyword, csvData, projectName, serperKey, valueSerpKey, jinaKey, model, !isTitleOnly);
             
             // USE STORE ACTION FOR AUTOMATION
             updateStrategyFromSeo(data);
