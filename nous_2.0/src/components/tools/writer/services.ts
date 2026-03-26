@@ -695,10 +695,16 @@ export const generateArticleStream = async (apiKeys: string[] | string, model: s
                 temperature: 0.7,
             }
         });
-        const stream = await modelObj.generateContentStream({
+        const result = await modelObj.generateContentStream({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
-        return stream;
+
+        // Unified stream wrapper
+        return (async function* () {
+            for await (const chunk of result.stream) {
+                yield { text: chunk.text() };
+            }
+        })();
     });
 };
 
