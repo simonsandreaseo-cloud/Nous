@@ -69,8 +69,6 @@
     "google-auth-library": false,
     "openai": false,
     "groq-sdk": false,
-    "@google/genai": false,
-    "@google/generative-ai": false,
     "mammoth": false,
     "fs": false,
     "path": false,

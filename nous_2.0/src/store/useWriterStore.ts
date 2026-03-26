@@ -108,6 +108,8 @@ interface WriterState {
     setExporting: (v: boolean) => void;
     setRefining: (v: boolean) => void;
     setStatus: (msg: string) => void;
+    downloadProgress: number | null;
+    setDownloadProgress: (progress: number | null) => void;
 
     setApiKeys: (keys: string[]) => void;
     setSerperKey: (key: string) => void;
@@ -174,6 +176,7 @@ const defaultState = {
     isRefining: false,
     lastSaved: null,
     statusMessage: '',
+    downloadProgress: null,
 
     apiKeys: [],
     serperKey: '',
@@ -240,8 +243,9 @@ export const useWriterStore = create<WriterState>((set) => ({
     setPlanningStructure: (isPlanningStructure) => set({ isPlanningStructure }),
     setHumanizing: (isHumanizing) => set({ isHumanizing }),
     setExporting: (isExporting) => set({ isExporting }),
-    setRefining: (isRefining) => set({ isRefining }),
+    setRefining: (v) => set({ isRefining: v }),
     setStatus: (statusMessage) => set({ statusMessage }),
+    setDownloadProgress: (progress) => set({ downloadProgress: progress }),
 
     setApiKeys: (apiKeys) => set({ apiKeys }),
     setSerperKey: (serperKey) => set({ serperKey }),

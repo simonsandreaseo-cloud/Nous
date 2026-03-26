@@ -26,6 +26,7 @@ export default function WriterEditor() {
             }),
         ],
         content: content,
+        immediatelyRender: false,
         editorProps: {
             attributes: {
                 class: 'prose prose-lg prose-indigo focus:outline-none max-w-none min-h-[500px] pb-32 transition-all duration-500',

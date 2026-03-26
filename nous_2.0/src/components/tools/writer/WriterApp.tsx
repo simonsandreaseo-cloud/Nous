@@ -668,39 +668,6 @@ const App = () => {
         }
     }, [fullResponse]);
 
-    const loadUserKeys = async () => {
-        try {
-            const { data } = await supabase.from('user_api_keys').select('*');
-            if (data) {
-                const gKeys = data.filter(k => k.provider === 'gemini').map(k => k.key_value);
-                if (gKeys.length > 0) setApiKeys(gKeys);
-
-                const sKey = data.find(k => k.provider === 'serper');
-                if (sKey) setSerperKey(sKey.key_value);
-
-                const vKey = data.find(k => k.provider === 'valueserp');
-                if (vKey) setValueSerpKey(vKey.key_value);
-
-                const jKey = data.find(k => k.provider === 'jina');
-                if (jKey) setJinaKey(jKey.key_value);
-
-                const uKey = data.find(k => k.provider === 'unstructured');
-                if (uKey) setUnstructuredKey(uKey.key_value);
-            }
-        } catch (e) { console.error("Error loading keys", e); }
-    };
-
-    const checkIfKeySaved = async (val: string, provider: string) => {
-        if (!user || !val || val.length < 10) return;
-        const { data } = await supabase.from('user_api_keys').select('id').eq('key_value', val).eq('provider', provider);
-        if (!data || data.length === 0) {
-            if (confirm(`¿Deseas guardar esta nueva API Key de ${provider} en tu perfil para usarla automáticamente después?`)) {
-                await supabase.from('user_api_keys').insert([{ user_id: user.id, provider, key_value: val, label: 'Auto-guardada' }]);
-                alert("Clave guardada con éxito.");
-            }
-        }
-    };
-
     // --- Error Handler Helper ---
     const handleApiError = async (e: any, retryAction?: () => Promise<void>) => {
         console.error("API Error caught:", e);

@@ -65,11 +65,11 @@ export function Lights() {
             </Environment>
 
             <ContactShadows
-                position={[0, -2, 0]}
-                opacity={0.4}
+                position={[0, -3.5, 0]}
+                opacity={0.3}
                 scale={40}
                 blur={2.5}
-                far={4}
+                far={5}
                 resolution={256}
                 color="#000000"
                 frames={1}

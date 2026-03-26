@@ -4,13 +4,11 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Suspense, useEffect, useState, useLayoutEffect } from "react";
 import { NousOrb } from "@/components/canvas/NousOrb";
-import { SummaryDashboard } from "@/components/home/SummaryDashboard";
-
-import { NavigationHeader } from "@/components/dom/NavigationHeader";
 import { LoadingScreen } from "@/components/dom/LoadingScreen";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/store/useAppStore";
 import { cn } from "@/utils/cn";
+import { HomeHeader } from "@/components/home/HomeHeader";
 
 const SceneLayout = dynamic(
     () => import("@/components/canvas/SceneLayout"),
@@ -19,69 +17,43 @@ const SceneLayout = dynamic(
 
 export default function HomeClient() {
     const isLoaded = useAppStore((state) => state.isLoaded);
-    const highContrast = useAppStore((state) => state.highContrast);
-    const toggleHighContrast = useAppStore((state) => state.toggleHighContrast);
     const setMode = useAppStore((state) => state.setMode);
     const [isRedirecting, setIsRedirecting] = useState(false);
 
     // Desktop App Redirect
     useLayoutEffect(() => {
-        // Check for Tauri environment (v1 or v2 strategies)
         if (typeof window !== 'undefined' && ((window as any).__TAURI__ || (window as any).__TAURI_INTERNALS__)) {
             setIsRedirecting(true);
             window.location.replace('/desktop-app');
         }
     }, []);
 
-    if (isRedirecting) return null;
-
     useEffect(() => {
         setMode('home');
     }, [setMode]);
 
-    // 15.2.2 Easter Egg: Console message
-    useEffect(() => {
-        console.log(
-            "%c NOUS CLINICAL TECH %c SYSTEM_INITIALIZED %c",
-            "background: #111827; color: #5EEAD4; font-weight: bold; padding: 4px 8px; border-radius: 4px 0 0 4px;",
-            "background: #5EEAD4; color: #111827; font-weight: bold; padding: 4px 8px; border-radius: 0 4px 4px 0;",
-            "color: transparent"
-        );
-        console.log("%c Welcome to the neural interface components. Neural paths verified. %c", "color: #94A3B8; font-style: italic;", "");
-    }, []);
+    if (isRedirecting) return null;
 
     return (
         <main
             id="main-content"
-            className={cn(
-                "relative w-full h-screen overflow-hidden transition-colors duration-700",
-                highContrast ? "bg-black" : "bg-[url('/Fondo_Nous.webp')] bg-cover bg-center bg-no-repeat w-full h-full fixed inset-0"
-            )}
+            className="relative w-full h-screen overflow-hidden bg-[url('/Fondo_Nous.webp')] bg-cover bg-center bg-no-repeat selection:bg-blue-100"
         >
 
-            {/* 11.1 Progressive Loader */}
             <LoadingScreen />
 
-            {/* BACKGROUND IS NOW INSIDE SCENE LAYOUT FOR REFRACTION */}
-            {/* <Background2D /> REMOVED */}
-
-            {/* WEBGL LAYER */}
+            {/* WEBGL LAYER - Orb positioned on the right */}
             <motion.div
                 aria-hidden="true"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: isLoaded ? 1 : 0 }}
                 transition={{ duration: 2, ease: "easeOut" }}
-                className="absolute inset-0 z-10"
+                className="absolute inset-0 z-10 pointer-events-none"
             >
                 <Suspense fallback={null}>
                     <SceneLayout>
-                        {/* <NousText3D /> */}
-                        {/* <CurvedGrid /> */}
-
-                        {/* <TaskField /> */}
-                        {/* <CurvedGrid /> */}
-
-                        <group position={[0, -0.8, -4.5]} scale={1.4}>
+                        {/* Adjusted orb slightly to the right, slightly higher, and smaller */}
+                        <group position={[5.2, -0.6, -3]} scale={1.55}>
                             <NousOrb />
                         </group>
                     </SceneLayout>
@@ -91,93 +63,45 @@ export default function HomeClient() {
             {/* UI OVERLAY LAYER */}
             <AnimatePresence>
                 {isLoaded && (
-                    <div className={cn(
-                        "relative z-20 pointer-events-none h-full w-full flex flex-col transition-colors duration-700",
-                        highContrast ? "text-white" : "text-foreground"
-                    )}>
-
-                        {/* HEADER FIXED SECTION */}
+                    <div className="relative z-20 h-full w-full flex flex-col pointer-events-none">
+                        
                         <motion.div
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 1, delay: 0.5 }}
-                            className="z-40"
                         >
-                            <NavigationHeader />
+                            <HomeHeader />
                         </motion.div>
 
-                        {/* MAIN INTERFACE LAYER */}
-                        <div className="relative flex flex-col h-full w-full px-6 md:px-12 pt-32 pb-10 z-30">
-                            <div className="flex flex-col md:flex-row items-start justify-between h-full">
-
-                                {/* LEFT SIDE: MAIN TITLE & PARTNERS */}
-                                <div className="flex flex-col gap-10">
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 1.2, delay: 0.6 }}
-                                        className="pointer-events-auto flex flex-col items-start max-w-2xl mt-4"
-                                    >
-                                        <h1 className="text-[6.5rem] md:text-[12rem] leading-[0.8] font-black text-slate-900 tracking-[-0.04em] -ml-[0.06em]">
-                                            Nous
-                                        </h1>
-                                        <p className="text-xl md:text-3xl font-light text-slate-600 tracking-tight mt-6">
-                                            Tu ecosistema SEO inteligente
-                                        </p>
-                                    </motion.div>
-
-                                    {/* PARTNERS MOVED HERE */}
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 1, delay: 0.9 }}
-                                        className="pointer-events-auto"
-                                    >
-                                        <section aria-label="Partner Indicators">
-                                            <div className="flex flex-col gap-3">
-                                                <div className={cn(
-                                                    "flex items-center gap-3 text-xs md:text-sm font-bold transition-colors cursor-crosshair group",
-                                                    highContrast ? "text-white/80 hover:text-white" : "text-foreground/70 hover:text-foreground"
-                                                )}>
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-color-deep-cyan shadow-[0_0_8px_rgba(0,128,128,0.5)] transition-transform group-hover:scale-125" />
-                                                    Simón Sandrea Rojas
-                                                </div>
-                                                <div className={cn(
-                                                    "flex items-center gap-3 text-xs md:text-sm font-bold transition-colors cursor-crosshair group",
-                                                    highContrast ? "text-white/80 hover:text-white" : "text-foreground/70 hover:text-foreground"
-                                                )}>
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-color-surgical-blue shadow-[0_0_8px_rgba(0,127,255,0.5)] transition-transform group-hover:scale-125" />
-                                                    C3nootics
-                                                </div>
-                                            </div>
-                                        </section>
-                                    </motion.div>
-                                </div>
-
-                                {/* RIGHT SIDE: OFFICE PANEL */}
-                                <motion.div
-                                    initial={{ opacity: 0, x: 60 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ duration: 1.2, delay: 0.8, ease: "easeOut" }}
-                                    className="pointer-events-auto flex flex-col items-end gap-12 mt-4"
+                        {/* MAIN CONTENT LAYER */}
+                        <div className="relative flex flex-col h-full w-full px-8 md:px-16 lg:px-24 z-30 justify-center">
+                            
+                            <motion.div
+                                initial={{ opacity: 0, y: 30 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 1.2, delay: 0.6 }}
+                                className="pointer-events-auto flex flex-col items-start max-w-2xl mt-12"
+                            >
+                                <h1 className="text-5xl md:text-7xl lg:text-[5.5rem] leading-[1.05] font-medium text-[#111] tracking-tight mb-12">
+                                    Ecosistema<br />
+                                    SEO Inteligente
+                                </h1>
+                                
+                                <Link
+                                    href="/auth"
+                                    className="relative overflow-hidden group px-10 py-4 rounded-full bg-gradient-to-r from-[#62cff4] to-[#3b82f6] text-white text-lg font-bold tracking-wide shadow-[0_8px_25px_-8px_rgba(59,130,246,0.5)] hover:shadow-[0_8px_30px_-5px_rgba(59,130,246,0.6)] hover:-translate-y-0.5 transition-all duration-300"
                                 >
-                                    <SummaryDashboard />
+                                    <span className="relative z-10">EMPEZAR</span>
+                                    {/* Hover shine effect */}
+                                    <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:animate-[shimmer_1.5s_infinite]" />
+                                </Link>
 
-                                    <Link
-                                        href="/download"
-                                        className="px-8 py-3 rounded-full bg-white/20 backdrop-blur-md border border-slate-200 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/40 hover:text-white transition-all duration-300 self-end"
-                                    >
-                                        DESCARGAR APP
-                                    </Link>
-                                </motion.div>
+                            </motion.div>
 
-                            </div>
                         </div>
-
                     </div>
                 )}
             </AnimatePresence>
-
         </main>
     );
 }

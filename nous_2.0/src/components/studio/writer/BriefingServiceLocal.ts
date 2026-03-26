@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { useWriterStore } from '@/store/useWriterStore';
 
 export interface SERPResult {
     title: string;
@@ -34,11 +35,11 @@ async function callLocalNode(type: string, payload: any): Promise<any> {
 
         const requestId = Math.random().toString(36).substring(7);
 
-        const timeout = setTimeout(() => {
-            console.error(`[BriefingServiceLocal] Timeout (${type}) reached after 30s.`);
+        let timeout = setTimeout(() => {
+            console.error(`[BriefingServiceLocal] Timeout (${type}) reached after 10m.`);
             ws.close();
-            reject(new Error(`Tiempo de espera agotado para ${type}. ¿Está encendido el servidor Python?`));
-        }, 30000);
+            reject(new Error(`Tiempo de espera agotado para ${type} (10 minutos). El modelo es pesado o el servidor crasheó.`));
+        }, 600000);
 
         ws.onopen = () => {
             console.log(`[BriefingServiceLocal] WS Open. Sending AUTH...`);
@@ -58,18 +59,41 @@ async function callLocalNode(type: string, payload: any): Promise<any> {
                     clearTimeout(timeout);
                     ws.close();
                     reject(new Error("Error de autenticación con el nodo local."));
-                } else if (data.type === `${type.replace('_REQUEST', '')}_RESPONSE`) {
+                } else if (data.type === "DOWNLOAD_STATUS") {
+                    if (data.payload.status === 'downloading') {
+                        useWriterStore.getState().setStatus(`[Nodo Local] Preparando motor ${data.payload.model}...`);
+                        useWriterStore.getState().setDownloadProgress(0);
+                    } else if (data.payload.status === 'complete') {
+                        useWriterStore.getState().setStatus(`[Nodo Local] Motor ${data.payload.model} cargado en memoria.`);
+                        useWriterStore.getState().setDownloadProgress(100);
+                        setTimeout(() => useWriterStore.getState().setDownloadProgress(null), 2000);
+                    }
+                } else if (data.type === "DOWNLOAD_PROGRESS") {
+                    if (data.payload.percentage !== undefined) {
+                        const pct = data.payload.percentage.toFixed(1);
+                        useWriterStore.getState().setStatus(`[Nodo Local] Arrancando: ${pct}% | ${data.payload.speed || ''}`);
+                        useWriterStore.getState().setDownloadProgress(data.payload.percentage);
+                    }
+                } else if (
+                    data.type === `${type.replace('_REQUEST', '')}_RESPONSE` ||
+                    data.type === "AI_RESPONSE_COMPLETE" ||
+                    data.type === "IMAGE_RESPONSE_COMPLETE" ||
+                    data.type === "SERP_RESPONSE" ||
+                    data.type === "SCRAPE_RESPONSE"
+                ) {
                     if (data.payload.id === requestId) {
                         console.log(`[BriefingServiceLocal] Match found for ${requestId}. Resolving.`);
                         clearTimeout(timeout);
                         ws.close();
-                        resolve(data.payload.results);
+                        // Support different payload structures
+                        const results = data.payload.results || data.payload.fullText || data.payload.base64 || data.payload.image;
+                        resolve(results);
                     }
                 } else if (data.type.endsWith("_ERROR")) {
-                    console.error(`[BriefingServiceLocal] Server Error:`, data.payload.message);
+                    console.error(`[BriefingServiceLocal] Server Error:`, data.payload.message || data.payload.error);
                     clearTimeout(timeout);
                     ws.close();
-                    reject(new Error(data.payload.message || "Error en el nodo local"));
+                    reject(new Error(data.payload.message || data.payload.error || "Error en el nodo local"));
                 }
             } catch (err) {
                 console.error("[BriefingServiceLocal] Error parsing message:", err);
@@ -91,6 +115,12 @@ async function callLocalNode(type: string, payload: any): Promise<any> {
 
 export const BriefingService = {
     /**
+     * Ask Local Gemma 3
+     */
+    async askGemma(prompt: string, system?: string): Promise<string> {
+        return await callLocalNode("AI_PROMPT", { text: prompt, system });
+    },
+    /**
      * Fetch Google SERP results using the local Desktop Crawler
      */
     async fetchSERP(keyword: string, countryCode: string): Promise<SERPResult[]> {
@@ -98,12 +128,9 @@ export const BriefingService = {
             console.log("BriefingService: Fetching SERP via WebSocket fallback...");
             try {
                 return await callLocalNode("SERP_REQUEST", { keyword });
-            } catch (error) {
-                console.error("BriefingService: WebSocket SERP error", error);
-                // Fallback to mock only if everything fails
-                return [
-                    { rank: 1, title: `Guía Completa de ${keyword}`, url: "https://example.com/guia", description: "Aprende todo sobre..." },
-                ];
+            } catch (e) {
+                console.error("BriefingService: WebSocket error during fetchSERP", e);
+                throw e;
             }
         }
 

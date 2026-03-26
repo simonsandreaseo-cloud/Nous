@@ -1,4 +1,13 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
+
+export const Type = {
+    STRING: 'STRING',
+    NUMBER: 'NUMBER',
+    INTEGER: 'INTEGER',
+    BOOLEAN: 'BOOLEAN',
+    ARRAY: 'ARRAY',
+    OBJECT: 'OBJECT',
+} as const;
 
 // --- Types ---
 export interface ContentItem {
@@ -112,18 +121,67 @@ const isValidKey = (k: string) => k && k.trim().length > 10;
 // Executor that handles rotation across multiple keys
 const executeWithKeyRotation = async <T>(
     keys: string[] | string,
-    operation: (client: GoogleGenAI) => Promise<T>
+    operation: (client: GoogleGenAI) => Promise<T>,
+    modelName?: string
 ): Promise<T> => {
-    // Normalize to array
+    // 1. Detect Local Model
+    const isLocal = modelName && modelName.startsWith('gemma');
+    
+    if (isLocal) {
+        console.log(`[services] Routing request to LOCAL NODE (Model: ${modelName})`);
+        try {
+            const { BriefingService } = await import('../../studio/writer/BriefingServiceLocal');
+            
+            // We need to extract the prompt from the operation. 
+            // This is tricky because operation is a black box.
+            // However, most operations in this file are simple enough that we can't easily "intercept" them.
+            // So for local models, we might need to handle them in the caller functions instead.
+            
+            // BUT, if we reached here, it means we want to use the local node.
+            // I'll add a special "local" client that mimics the GoogleGenAI interface enough for our needs.
+            const localClient = {
+                models: {
+                    generateContent: async (args: any) => {
+                        const prompt = typeof args.contents === 'string' ? args.contents : (args.contents?.[0]?.parts?.[0]?.text || "");
+                        const system = args.config?.systemInstruction || "";
+                        const text = await BriefingService.askGemma(prompt, system);
+                        return { text };
+                    },
+                    generateContentStream: async (args: any) => {
+                        const prompt = args.contents?.[0]?.parts?.[0]?.text || "";
+                        const system = args.config?.systemInstruction || "";
+                        const text = await BriefingService.askGemma(prompt, system);
+                        return (async function* () {
+                             yield { text };
+                        })();
+                    }
+                }
+            } as any;
+            
+            return await operation(localClient);
+        } catch (e: any) {
+            console.error("[services] Local node execution failed:", e);
+            // Fallback to cloud if we have keys? 
+            // The user wanted local, but if it fails we might want to try cloud.
+            // But for now, let's just throw.
+            throw e;
+        }
+    }
+
+    // 2. Cloud Execution (Rotating Keys)
     const keyList = Array.isArray(keys) ? keys : [keys];
     const validKeys = keyList.filter(isValidKey);
-
+    
     if (validKeys.length === 0) {
-        // Fallback to env if available, otherwise throw
-        if (process.env.API_KEY && isValidKey(process.env.API_KEY)) {
-            validKeys.push(process.env.API_KEY);
-        } else {
-            throw new Error("API Keys faltantes o inválidas.");
+        if (typeof process !== 'undefined') {
+            const envKeys = process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+            if (envKeys) {
+                const arr = envKeys.split(',').map(k => k.trim()).filter(isValidKey);
+                validKeys.push(...arr);
+            }
+        }
+        if (validKeys.length === 0) {
+             throw new Error("API Keys faltantes o inválidas.");
         }
     }
 
@@ -133,35 +191,22 @@ const executeWithKeyRotation = async <T>(
         const currentKey = validKeys[i];
         try {
             const client = new GoogleGenAI({ apiKey: currentKey });
-            // Attempt operation
             return await operation(client);
         } catch (e: any) {
             lastError = e;
-            // Check for Quota (429) or Service Unavailable (503) or generic 500
             const isQuotaError = e.status === 429 || e.code === 429 || (e.message && e.message.includes('quota'));
             const isServerIssue = e.status === 503 || e.status === 500;
 
             if (isQuotaError || isServerIssue) {
-                console.warn(`⚠️ Key ending in ...${currentKey.slice(-4)} failed (${e.status || 'Quota'}). Rotating to next key...`);
-                // If this was the last key, we can't rotate.
-                if (i === validKeys.length - 1) {
-                    const quotaError = new Error("Todas las API Keys han agotado su cuota o fallado. Por favor añade nuevas keys.");
-                    (quotaError as any).isQuota = true;
-                    throw quotaError;
-                }
-                // Otherwise continue loop to next key
-                continue;
-            }
-
-            // If it's a 400 (Bad Request) or 403 (Permission), it might be the key itself being invalid
-            // We should also rotate if it's a key issue
-            if (e.status === 400 || e.status === 403) {
-                console.warn(`⚠️ Key ending in ...${currentKey.slice(-4)} is invalid. Rotating...`);
+                console.warn(`⚠️ Key failed. Rotating...`);
                 if (i === validKeys.length - 1) throw e;
                 continue;
             }
-
-            // For other errors (logic errors), throw immediately
+            if (e.status === 400 || e.status === 403) {
+                console.warn(`⚠️ Key invalid. Rotating...`);
+                if (i === validKeys.length - 1) throw e;
+                continue;
+            }
             throw e;
         }
     }
@@ -640,10 +685,21 @@ Seguido inmediatamente de un objeto JSON válido con este formato:
 // --- API Calls (Resilient) ---
 
 export const generateArticleStream = async (apiKeys: string[] | string, model: string, prompt: string) => {
+    // Local Model Fallback
+    if (model && model.startsWith('gemma')) {
+        const { BriefingService } = await import('../../studio/writer/BriefingServiceLocal');
+        const fullText = await BriefingService.askGemma(prompt, "Eres un redactor HTML experto. Generas HTML limpio.");
+        
+        // Simulate a stream for compatibility
+        return (async function* () {
+            yield { text: fullText };
+        })();
+    }
+
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const stream = await ai.models.generateContentStream({
-            // Force Flash model regardless of input to avoid 429 on Pro models
-            model: model || 'gemini-2.0-flash', // Use selected model or default
+            // Force Flash model regardless of input if model is empty to avoid 429 on Pro models
+            model: model || 'gemini-2.5-flash', // Use selected model or default
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: {
                 temperature: 0.7,
@@ -654,7 +710,7 @@ export const generateArticleStream = async (apiKeys: string[] | string, model: s
     });
 };
 
-export const refineArticleContent = async (apiKeys: string[] | string, currentHtml: string, instructions: string): Promise<string> => {
+export const refineArticleContent = async (apiKeys: string[] | string, currentHtml: string, instructions: string, modelName?: string): Promise<string> => {
     const prompt = `
     Role: Content Editor.
     Task: Refine the following HTML article based strictly on user instructions.
@@ -673,15 +729,15 @@ export const refineArticleContent = async (apiKeys: string[] | string, currentHt
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: modelName || 'gemini-2.5-flash',
             contents: prompt
         });
         const resText = response.text || currentHtml;
         return resText.replace(/```html/g, '').replace(/```/g, '');
-    });
+    }, modelName);
 }
 
-export const findCampaignAssets = async (apiKeys: string[] | string, query: string, projectName: string, csvData?: ContentItem[]): Promise<VisualResource[]> => {
+export const findCampaignAssets = async (apiKeys: string[] | string, query: string, projectName: string, csvData?: ContentItem[], modelName?: string): Promise<VisualResource[]> => {
     const safeProjectName = projectName || "mysite";
     const excludeTerms = `-site:${safeProjectName.replace(/\s+/g, '').toLowerCase()}.com -site:${safeProjectName.replace(/\s+/g, '').toLowerCase()}.es -inurl:${safeProjectName.replace(/\s+/g, '').toLowerCase()}`;
 
@@ -695,7 +751,7 @@ export const findCampaignAssets = async (apiKeys: string[] | string, query: stri
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: modelName || 'gemini-2.5-flash',
             contents: prompt,
             tools: [{ googleSearch: {} }],
         } as any);
@@ -903,7 +959,16 @@ const filterQualityResults = async (apiKeys: string[] | string, results: any[], 
     });
 }
 
-export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string, csvData: any[], projectName?: string, serperKey?: string, valueSerpKey?: string, jinaKey?: string): Promise<SEOAnalysisResult> => {
+export const runSEOAnalysis = async (
+    apiKeys: string[] | string,
+    keyword: string,
+    csvData: any[],
+    projectName?: string,
+    serperKey?: string,
+    valueSerpKey?: string,
+    jinaKey?: string,
+    modelName?: string
+): Promise<SEOAnalysisResult> => {
     // 1. Context Retrieval (Internal Data)
     const context = retrieveContext(csvData, keyword, "");
     const productContext = context.products.slice(0, 30).map(p => `- ${p.title} (${p.url})`).join('\n');
@@ -924,7 +989,7 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
             // Use key rotation for this generative step
             await executeWithKeyRotation(apiKeys, async (ai) => {
                 const queryResponse = await ai.models.generateContent({
-                    model: 'gemini-2.0-flash',
+                    model: 'gemini-2.5-flash',
                     contents: intentPrompt
                 });
                 smartQuery = queryResponse.text?.trim().replace(/^"|"$/g, '') || `${keyword} blog guía`;
@@ -1033,14 +1098,33 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: modelName || 'gemini-2.5-flash',
             contents: systemPrompt,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: schema
             }
         });
-        const json = JSON.parse(response.text || "{}");
+        let json: any = {};
+        try {
+            let text = response.text || "{}";
+            // Strip markdown block if it exists
+            if (text.includes('```json')) {
+                text = text.split('```json')[1].split('```')[0].trim();
+            } else if (text.includes('```')) {
+                text = text.split('```')[1].split('```')[0].trim();
+            }
+            // Strip conversational wrapper
+            const start = text.indexOf('{');
+            const end = text.lastIndexOf('}');
+            if (start !== -1 && end !== -1 && end >= start) {
+                text = text.substring(start, end + 1);
+            }
+            json = JSON.parse(text);
+        } catch (e) {
+            console.error("[services] JSON Parse Error fallback triggered.", e, "Raw Text:", response.text);
+            json = {};
+        }
 
         if (!json.keywordIdeas) json.keywordIdeas = { shortTail: [], midTail: [] };
         if (!json.top10Urls) json.top10Urls = [];
@@ -1054,10 +1138,10 @@ export const runSEOAnalysis = async (apiKeys: string[] | string, keyword: string
         json.outline = { headers: [] };
 
         return json as SEOAnalysisResult;
-    });
+    }, modelName);
 };
 
-export const generateOutlineStrategy = async (apiKeys: string[] | string, config: ArticleConfig, keyword: string) => {
+export const generateOutlineStrategy = async (apiKeys: string[] | string, config: ArticleConfig, keyword: string, rawSeoData: SEOAnalysisResult, modelName?: string) => {
     const prompt = `
     Act as an SEO Strategist.
     Project: ${config.projectName}. Niche: ${config.niche}.
@@ -1117,7 +1201,7 @@ export const generateOutlineStrategy = async (apiKeys: string[] | string, config
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: modelName || 'gemini-2.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: "application/json",

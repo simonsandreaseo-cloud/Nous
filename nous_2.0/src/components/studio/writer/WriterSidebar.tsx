@@ -25,6 +25,7 @@ import {
     ContentItem,
     parseCSV,
 } from '@/components/tools/writer/services';
+import { BriefingService } from '@/components/studio/writer/BriefingServiceLocal';
 import BriefingModal from '@/components/studio/writer/BriefingModal';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -102,6 +103,7 @@ export default function WriterSidebar() {
         strictFrequency, setStrictFrequency,
         metadata, setMetadata,
         statusMessage, setStatus,
+        downloadProgress,
         refinementInstructions, setRefinementInstructions,
         humanizerStatus, setHumanizerStatus,
         draftId, setDraftId,
@@ -113,16 +115,40 @@ export default function WriterSidebar() {
     const hasContentAccess = activeProject ? (canTakeContents() || canEditAny() || canUseAllTools()) : true;
 
     const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
-    const [showApiConfig, setShowApiConfig] = useState(false);
-    const [apiKeysText, setApiKeysText] = useState(apiKeys.join('\n'));
-    const [isKeysSectionOpen, setIsKeysSectionOpen] = useState(false);
+    const [isLocalConnected, setIsLocalConnected] = useState(false);
+
+    // Connection health check
+    useEffect(() => {
+        const checkConnection = () => {
+            try {
+                const ws = new WebSocket('ws://127.0.0.1:8181');
+                ws.onopen = () => {
+                    setIsLocalConnected(true);
+                    ws.close();
+                };
+                ws.onerror = () => setIsLocalConnected(false);
+            } catch (e) {
+                setIsLocalConnected(false);
+            }
+        };
+        checkConnection();
+        const interval = setInterval(checkConnection, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Auto-switch model based on local node connection
+    useEffect(() => {
+        if (isLocalConnected) {
+            setModel('gemma-3-4b-it');
+        } else {
+            setModel('gemini-2.5-flash');
+        }
+    }, [isLocalConnected, setModel]);
+
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Sync keys text → store
-    useEffect(() => {
-        setApiKeysText(apiKeys.join('\n'));
-    }, [apiKeys]);
+
 
     // ── CSV loader ───────────────────────────────────────────
     const handleCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,21 +169,7 @@ export default function WriterSidebar() {
         reader.readAsText(file);
     };
 
-    // ── Load user keys from Supabase ─────────────────────────
-    useEffect(() => {
-        if (!user) return;
-        supabase.from('user_api_keys').select('*').then(({ data }) => {
-            if (!data) return;
-            const gKeys = data.filter((k) => k.provider === 'gemini').map((k) => k.key_value);
-            if (gKeys.length > 0) setApiKeys(gKeys);
-            const sKey = data.find((k) => k.provider === 'serper');
-            if (sKey) setSerperKey(sKey.key_value);
-            const vKey = data.find((k) => k.provider === 'valueserp');
-            if (vKey) setValueSerpKey(vKey.key_value);
-            const jKey = data.find((k) => k.provider === 'jina');
-            if (jKey) setJinaKey(jKey.key_value);
-        });
-    }, [user]);
+
 
     // Auto-populate project name & keyword from active project
     useEffect(() => {
@@ -180,19 +192,42 @@ export default function WriterSidebar() {
 
     // ── STEP 1 – SEO Analysis ────────────────────────────────
     const handleSEO = async () => {
-        if (!hasContentAccess) return alert('No tienes permisos para generar contenido en este proyecto.');
-        if (!keyword.trim()) return alert('Introduce una palabra clave.');
-        if (apiKeys.length === 0) return alert('Configura API Keys de Google Gemini primero.');
+        console.log("[WriterSidebar] handleSEO clicked. State check:", {
+            keyword,
+            hasContentAccess,
+            apiKeysCount: apiKeys.length,
+            isAnyLoading
+        });
+
+        if (!hasContentAccess) {
+            console.warn("[WriterSidebar] handleSEO: No content access");
+            return alert('No tienes permisos para generar contenido en este proyecto.');
+        }
+        if (!keyword.trim()) {
+            console.warn("[WriterSidebar] handleSEO: No keyword");
+            return alert('Introduce una palabra clave.');
+        }
+
+        // Only require env keys if NOT using a local model
+        const isLocal = model.includes('local') || model.startsWith('gemma');
+        const hasEnvKeys = !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+        if (!hasEnvKeys && !isLocal && !isLocalConnected) {
+            console.warn("[WriterSidebar] handleSEO: No API keys for cloud model and local not connected");
+            return alert('No hay API Keys globales configuradas o el nodo Local está desconectado.');
+        }
 
         setAnalyzingSEO(true);
         setStatus('Analizando SERP y keywords…');
+        console.log("[WriterSidebar] handleSEO: Calling runSEOAnalysis with model:", model);
         try {
             const data = await runSEOAnalysis(
                 apiKeys, keyword, csvData, projectName,
-                serperKey || undefined,
+                serperKey || process.env.NEXT_PUBLIC_SERPER_API_KEY || undefined,
                 valueSerpKey || undefined,
-                jinaKey || undefined
+                jinaKey || undefined,
+                model // Pass model to runSEOAnalysis
             );
+            console.log("[WriterSidebar] handleSEO: Success", data);
             setRawSeoData(data);
             setSeoResults(data);
             setStrategyCompetitors(data.top10Urls?.map((u) => u.url).join('\n') || '');
@@ -205,7 +240,7 @@ export default function WriterSidebar() {
             setStatus('✅ Análisis completo. Revisa y ajusta la estrategia.');
             setSidebarTab('research');
         } catch (e: any) {
-            console.error(e);
+            console.error("[WriterSidebar] handleSEO: ERROR", e);
             setStatus('❌ Error en análisis: ' + e.message);
         } finally {
             setAnalyzingSEO(false);
@@ -215,7 +250,8 @@ export default function WriterSidebar() {
     // ── STEP 2 – Plan Structure ──────────────────────────────
     const handlePlanStructure = async () => {
         if (!hasContentAccess) return alert('No tienes permisos.');
-        if (apiKeys.length === 0) return alert('Configura API Keys primero.');
+        if (!rawSeoData) return alert('Primero analiza el SERP.'); // Added check for rawSeoData
+        if (apiKeys.length === 0 && !isLocalConnected) return alert('Configura API Keys primero o conecta el nodo local.'); // Added isLocalConnected check
         setPlanningStructure(true);
         setStatus('Diseñando estructura ganadora…');
         try {
@@ -227,14 +263,15 @@ export default function WriterSidebar() {
                 questions: strategyQuestions,
                 lsiKeywords: strategyLSI.map((l) => l.keyword).concat(strategyLongTail),
             };
-            const structureData = await generateOutlineStrategy(apiKeys, config, keyword);
+            const structureData = await generateOutlineStrategy(apiKeys, config, keyword, rawSeoData, model); // Updated call
             setStrategyTitle(structureData.snippet.metaTitle);
             setStrategyH1(structureData.snippet.h1);
             setStrategySlug(structureData.snippet.slug);
             setStrategyDesc(structureData.snippet.metaDescription);
             setStrategyOutline(structureData.outline.headers);
             setStrategyNotes(structureData.outline.introNote);
-            setStatus('✅ Estructura generada. Edítala y genera el artículo.');
+            setStatus('✅ Estrategia lista. ¡Genera el artículo ahora!');
+            setSidebarTab('research'); // Transition to Strategy review
         } catch (e: any) {
             console.error(e);
             setStatus('❌ Error: ' + e.message);
@@ -247,7 +284,7 @@ export default function WriterSidebar() {
     const handleGenerate = async () => {
         if (!hasContentAccess) return alert('No tienes permisos.');
         if (!strategyH1 && !keyword) return alert('Necesitas un H1 o keyword objetivo.');
-        if (apiKeys.length === 0) return alert('Configura API Keys primero.');
+        if (apiKeys.length === 0 && !isLocalConnected) return alert('Configura API Keys primero o conecta el nodo local.'); // Added isLocalConnected check
 
         setGenerating(true);
         setContent('');
@@ -317,7 +354,7 @@ export default function WriterSidebar() {
     const handleHumanize = async () => {
         if (!hasContentAccess) return alert('No tienes permisos.');
         if (!content) return;
-        if (apiKeys.length === 0) return alert('Configura API Keys primero.');
+        if (apiKeys.length === 0 && !isLocalConnected) return alert('Configura API Keys primero o conecta el nodo local.'); // Added isLocalConnected check
         setHumanizing(true);
         setHumanizerStatus('Iniciando humanización…');
         try {
@@ -345,7 +382,7 @@ export default function WriterSidebar() {
         setRefining(true);
         setStatus('Refinando artículo…');
         try {
-            const refined = await refineArticleContent(apiKeys, content, refinementInstructions);
+            const refined = await refineArticleContent(apiKeys, content, refinementInstructions, model); // Pass model to refineArticleContent
             const styled = refineStyling(refined);
             setContent(styled);
             setRefinementInstructions('');
@@ -497,6 +534,46 @@ export default function WriterSidebar() {
                     <X size={16} />
                 </button>
             </div>
+
+            {/* Connection Indicator */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border-b border-slate-100">
+                <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isLocalConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-300")} />
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">
+                    {isLocalConnected ? 'Nodo Local Activo' : 'Nube (Gemini API)'}
+                </span>
+            </div>
+
+            {/* BEAUTIFUL NODE PROGRESS BAR */}
+            {downloadProgress !== null && (
+                <div className="bg-slate-900 p-4 border-b border-indigo-900 shadow-inner relative overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-emerald-500/10 opacity-50" />
+                    
+                    <div className="relative flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest flex items-center gap-2 flex-1 truncate">
+                            <span className="relative flex h-2 w-2 shrink-0">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            PREPARANDO NODO LOCAL
+                        </span>
+                        <span className="text-[11px] font-black text-white shrink-0 tabular-nums">
+                            {(downloadProgress || 0).toFixed(1)}%
+                        </span>
+                    </div>
+
+                    <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden shadow-inner border border-slate-700/50 relative">
+                        <div 
+                            className="h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-emerald-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(52,211,153,0.8)] relative" 
+                            style={{ width: `${downloadProgress}%` }} 
+                        />
+                    </div>
+                    
+                    <p className="text-[10px] text-slate-400 mt-2 truncate font-medium flex items-center gap-1.5 italic">
+                        <Loader2 size={10} className="animate-spin text-emerald-400" />
+                        {statusMessage.replace('[Nodo Local] ', '')}
+                    </p>
+                </div>
+            )}
 
             {/* ── Tabs ── */}
             <div className="flex border-b border-slate-200 bg-slate-50/50">
@@ -659,6 +736,7 @@ export default function WriterSidebar() {
                                     <select value={model} onChange={(e) => setModel(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
                                         <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                                         <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                        <option value="gemma-3-4b-it">Local (Gemma 3 4B)</option>
                                     </select>
                                 </div>
                                 <div className="p-3 bg-orange-50 border border-orange-100 rounded-xl space-y-2">
@@ -689,25 +767,6 @@ export default function WriterSidebar() {
                             <p className="text-[10px] font-light tracking-wide text-slate-600 italic">
                                 {humanizerStatus || statusMessage || 'Listo para ayudarte.'}
                             </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <button onClick={() => setIsKeysSectionOpen(!isKeysSectionOpen)} className="w-full flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                <span>API Keys ({apiKeys.length} Gemini)</span>
-                                {isKeysSectionOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            </button>
-                            {isKeysSectionOpen && (
-                                <div className="space-y-2">
-                                    <textarea value={apiKeysText} onChange={(e) => setApiKeysText(e.target.value)} onBlur={() => setApiKeys(apiKeysText.split('\n').filter(k => k.trim().length > 5))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] h-20" placeholder="Keys..." />
-                                    <input type="text" value={serperKey} onChange={(e) => setSerperKey(e.target.value)} placeholder="Serper Key" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px]" />
-                                    <Button variant="secondary" size="sm" className="w-full text-xs" onClick={async () => {
-                                        if (!user) return;
-                                        const keys = apiKeysText.split('\n').filter(k => k.trim().length > 5);
-                                        for (const k of keys) await supabase.from('user_api_keys').upsert([{ user_id: user.id, provider: 'gemini', key_value: k, label: 'Studio' }]);
-                                        setStatus('✅ Keys guardadas.');
-                                    }}>Guardar Keys</Button>
-                                </div>
-                            )}
                         </div>
 
                         <div className="space-y-3 pt-4 border-t border-slate-100">
@@ -757,11 +816,20 @@ export default function WriterSidebar() {
                                         ))}
                                     </div>
                                 </div>
+                                <div className="pt-4 border-t border-slate-100">
+                                    <Button variant="primary" className="w-full gap-2 h-10 bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handlePlanStructure} disabled={isAnyLoading}>
+                                        {isPlanningStructure ? <Loader2 size={16} className="animate-spin" /> : <Layers size={16} />}
+                                        Generar Estrategia Completa
+                                        <ArrowRight size={14} className="ml-auto" />
+                                    </Button>
+                                    <p className="text-[9px] text-slate-400 text-center mt-2">Siguiente paso: Diseñar estructura y metadatos.</p>
+                                </div>
                             </div>
                         ) : (
                             <div className="text-center py-12">
                                 <Search size={32} className="mx-auto text-slate-200 mb-4" />
-                                <Button variant="secondary" size="sm" onClick={handleSEO}>Analizar ahora</Button>
+                                <p className="text-xs text-slate-400 mb-4">No hay datos de SEO todavía.</p>
+                                <Button variant="secondary" size="sm" onClick={() => setSidebarTab('generate')}>Ir a Configuración</Button>
                             </div>
                         )}
                     </div>
@@ -781,7 +849,7 @@ export default function WriterSidebar() {
                                     {strategyOutline.map((s, i) => (
                                         <div key={i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl group relative">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <input value={s.text} onChange={(e) => { const n = [...strategyOutline]; n[i].text = e.target.value; setStrategyOutline(n); }} className="text-xs font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 w-full" />
+                                                <input value={s.text} onChange={(e) => { const n = [...strategyOutline]; n[i].text = e.target.value; setStrategyOutline(n); }} className="text-xs font-bold text-slate-800 bg-transparent border-none p-0 focus:ring-0 w-full" />
                                             </div>
                                             <textarea value={s.notes || ''} onChange={(e) => { const n = [...strategyOutline]; n[i].notes = e.target.value; setStrategyOutline(n); }} className="w-full bg-transparent border-none p-0 text-[10px] text-slate-500 italic focus:ring-0 resize-none h-10" placeholder="Notas..." />
                                             <button onClick={() => setStrategyOutline(strategyOutline.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash size={12} /></button>
@@ -800,6 +868,14 @@ export default function WriterSidebar() {
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+                            <div className="pt-4 border-t border-slate-100">
+                                <Button variant="primary" className="w-full gap-2 h-10 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleGenerate} disabled={isAnyLoading}>
+                                    {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                                    Redactar Artículo Completo
+                                    <ArrowRight size={14} className="ml-auto" />
+                                </Button>
+                                <p className="text-[9px] text-slate-400 text-center mt-2">Paso final: Escribir el artículo basado en esta estrategia.</p>
                             </div>
                         </div>
                     </div>

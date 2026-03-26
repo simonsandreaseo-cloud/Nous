@@ -24,7 +24,7 @@ import {
 // ── Global areas (navigate to other sections of Nous) ──────────────────────
 const GLOBAL_AREAS = [
     { id: "contenidos", label: "Contenidos", icon: Home, href: "/contents" },
-    { id: "seo", label: "SEO On Page", icon: Search, href: "/seo" },
+    { id: "seo", label: "SEO On Page", icon: Search, href: "/studio/seo" },
     { id: "estrategia", label: "Estrategia", icon: BarChart2, href: "/estrategia" },
     { id: "monitor", label: "Monitor", icon: Monitor, href: "/studio/monitor" },
     { id: "oficina", label: "Oficina", icon: Building2, href: "/office" },
