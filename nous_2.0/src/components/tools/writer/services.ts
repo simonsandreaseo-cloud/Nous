@@ -1,13 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI as GoogleGenAI, SchemaType as Type } from "@google/generative-ai";
 
-export const Type = {
-    STRING: 'STRING',
-    NUMBER: 'NUMBER',
-    INTEGER: 'INTEGER',
-    BOOLEAN: 'BOOLEAN',
-    ARRAY: 'ARRAY',
-    OBJECT: 'OBJECT',
-} as const;
+export { Type };
 
 // --- Types ---
 export interface ContentItem {
@@ -190,7 +183,7 @@ const executeWithKeyRotation = async <T>(
     for (let i = 0; i < validKeys.length; i++) {
         const currentKey = validKeys[i];
         try {
-            const client = new GoogleGenAI({ apiKey: currentKey });
+            const client = new GoogleGenAI(currentKey);
             return await operation(client);
         } catch (e: any) {
             lastError = e;
@@ -389,11 +382,9 @@ export const searchMoreLinks = async (apiKeys: string[] | string, keyword: strin
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.0-flash',
-                contents: prompt
-            });
-            const terms = (response.text || '').split(',').map(t => t.trim());
+            const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+            const response = await model.generateContent(prompt);
+            const terms = (response.response.text() || '').split(',').map(t => t.trim());
             const extraString = terms.join(' ');
 
             const context = retrieveContext(csvData, keyword, extraString);
@@ -798,14 +789,11 @@ export const generateRealImage = async (apiKeys: string[] | string, basePrompt: 
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.0-flash',
-                contents: {
-                    parts: [{ text: finalPrompt }]
-                }
-            });
+            const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+            const response = await model.generateContent(finalPrompt);
 
-            for (const part of response.candidates?.[0]?.content?.parts || []) {
+            const result = await response.response;
+            for (const part of result.candidates?.[0]?.content?.parts || []) {
                 if (part.inlineData) {
                     return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
                 }
@@ -859,12 +847,12 @@ export const generateSchemaMarkup = async (apiKeys: string[] | string, metadata:
     const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0, 500)}. Include 'image' placeholder. Return JSON only.`;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
+        const model = ai.getGenerativeModel({
+            model: 'gemini-2.0-flash-exp',
+            generationConfig: { responseMimeType: "application/json" }
         });
-        return response.text || "{}";
+        const response = await model.generateContent(prompt);
+        return response.response.text() || "{}";
     });
 }
 
@@ -1097,35 +1085,45 @@ export const runSEOAnalysis = async (
         Retorna JSON válido.`;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const response = await ai.models.generateContent({
-            model: modelName || 'gemini-2.5-flash',
-            contents: systemPrompt,
-            config: {
+        const model = ai.getGenerativeModel({
+            model: modelName || 'gemini-2.0-flash-exp', // Use realistic fallback
+            generationConfig: {
                 responseMimeType: "application/json",
-                responseSchema: schema
+                responseSchema: schema as any
             }
         });
+
+        const response = await model.generateContent(systemPrompt);
+        const result = response.response;
         let json: any = {};
+        let rawText = "";
+
         try {
-            let text = response.text || "{}";
-            // Strip markdown block if it exists
-            if (text.includes('```json')) {
-                text = text.split('```json')[1].split('```')[0].trim();
-            } else if (text.includes('```')) {
-                text = text.split('```')[1].split('```')[0].trim();
+            rawText = result.text() || "{}";
+            console.log("[runSEOAnalysis] Raw Gemini text:", rawText);
+            
+            let cleanText = rawText.trim();
+            // Handle markdown blocks
+            if (cleanText.includes('```json')) {
+                cleanText = cleanText.split('```json')[1].split('```')[0].trim();
+            } else if (cleanText.includes('```')) {
+                cleanText = cleanText.split('```')[1].split('```')[0].trim();
             }
-            // Strip conversational wrapper
-            const start = text.indexOf('{');
-            const end = text.lastIndexOf('}');
+            
+            // Extract innermost JSON object if conversational wrapper exists
+            const start = cleanText.indexOf('{');
+            const end = cleanText.lastIndexOf('}');
             if (start !== -1 && end !== -1 && end >= start) {
-                text = text.substring(start, end + 1);
+                cleanText = cleanText.substring(start, end + 1);
             }
-            json = JSON.parse(text);
+            
+            json = JSON.parse(cleanText);
         } catch (e) {
-            console.error("[services] JSON Parse Error fallback triggered.", e, "Raw Text:", response.text);
+            console.error("[runSEOAnalysis] JSON Parse Error.", e, "Raw Text:", rawText);
             json = {};
         }
 
+        // Deep defaults to avoid empty UI
         if (!json.keywordIdeas) json.keywordIdeas = { shortTail: [], midTail: [] };
         if (!json.top10Urls) json.top10Urls = [];
         if (!json.suggestedInternalLinks) json.suggestedInternalLinks = [];
@@ -1134,8 +1132,8 @@ export const runSEOAnalysis = async (
         if (!json.lsiKeywords) json.lsiKeywords = [];
 
         json.recommendedWordCount = json.recommendedWordCount || "1500";
-        json.snippet = { metaTitle: "", h1: "", metaDescription: "", slug: "" };
-        json.outline = { headers: [] };
+        json.snippet = json.snippet || { metaTitle: "", h1: "", metaDescription: "", slug: "" };
+        json.outline = json.outline || { headers: [] };
 
         return json as SEOAnalysisResult;
     }, modelName);
@@ -1268,12 +1266,10 @@ export const runHumanizerPipeline = async (
     onStatus("Rewriting text (AI De-patterning)...");
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt
-        });
+        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const response = await model.generateContent(prompt);
 
-        let newHtml = response.text || html;
+        let newHtml = response.response.text() || html;
         // Clean markdown block if present
         newHtml = newHtml.replace(/```html/g, '').replace(/```/g, '');
 
@@ -1332,11 +1328,9 @@ export const runSmartEditor = async (
     `;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt
-        });
-        const resText = response.text || html;
+        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const response = await model.generateContent(prompt);
+        const resText = response.response.text() || html;
         return resText.replace(/```html/g, '').replace(/```/g, '');
     });
 };
