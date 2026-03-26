@@ -688,14 +688,15 @@ export const generateArticleStream = async (apiKeys: string[] | string, model: s
     }
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const stream = await ai.models.generateContentStream({
-            // Force Flash model regardless of input if model is empty to avoid 429 on Pro models
-            model: model || 'gemini-2.5-flash', // Use selected model or default
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: {
+        const modelObj = ai.getGenerativeModel({
+            model: model || 'gemini-2.0-flash-exp',
+            systemInstruction: "Eres un redactor HTML experto. Generas HTML limpio.",
+            generationConfig: {
                 temperature: 0.7,
-                systemInstruction: "Eres un redactor HTML experto. Generas HTML limpio.",
             }
+        });
+        const stream = await modelObj.generateContentStream({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
         return stream;
     });
@@ -719,11 +720,9 @@ export const refineArticleContent = async (apiKeys: string[] | string, currentHt
     `;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const response = await ai.models.generateContent({
-            model: modelName || 'gemini-2.5-flash',
-            contents: prompt
-        });
-        const resText = response.text || currentHtml;
+        const modelObj = ai.getGenerativeModel({ model: modelName || 'gemini-2.0-flash-exp' });
+        const response = await modelObj.generateContent(prompt);
+        const resText = response.response.text() || currentHtml;
         return resText.replace(/```html/g, '').replace(/```/g, '');
     }, modelName);
 }
@@ -741,12 +740,12 @@ export const findCampaignAssets = async (apiKeys: string[] | string, query: stri
     `;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const response = await ai.models.generateContent({
-            model: modelName || 'gemini-2.5-flash',
-            contents: prompt,
-            tools: [{ googleSearch: {} }],
-        } as any);
-        let text = response.text || "[]";
+        const modelObj = ai.getGenerativeModel({
+            model: modelName || 'gemini-2.0-flash-exp',
+            tools: [{ googleSearchRetrieval: {} } as any]
+        });
+        const response = await modelObj.generateContent(prompt);
+        let text = response.response.text() || "[]";
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const start = text.indexOf('[');
         const end = text.lastIndexOf(']');
@@ -770,12 +769,12 @@ export const suggestImagePlacements = async (apiKeys: string[] | string, article
     `;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: truncated + "\n\n" + prompt,
-            config: { responseMimeType: "application/json" }
+        const modelObj = ai.getGenerativeModel({
+            model: 'gemini-2.0-flash-exp',
+            generationConfig: { responseMimeType: "application/json" }
         });
-        const json = JSON.parse(response.text || "[]");
+        const response = await modelObj.generateContent(truncated + "\n\n" + prompt);
+        const json = JSON.parse(response.response.text() || "[]");
         return json.map((item: any, idx: number) => ({ ...item, id: `body_${idx}`, status: 'pending' }));
     });
 };
@@ -935,12 +934,12 @@ const filterQualityResults = async (apiKeys: string[] | string, results: any[], 
     `;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
+        const modelObj = ai.getGenerativeModel({
+            model: 'gemini-1.5-flash',
+            generationConfig: { responseMimeType: "application/json" }
         });
-        const goodIds: number[] = JSON.parse(response.text || "[]");
+        const response = await modelObj.generateContent(prompt);
+        const goodIds: number[] = JSON.parse(response.response.text() || "[]");
         const filtered = results.filter((_, index) => goodIds.includes(index));
         if (filtered.length === 0) return results.slice(0, 3);
         return filtered.slice(0, 8);
@@ -976,11 +975,9 @@ export const runSEOAnalysis = async (
         try {
             // Use key rotation for this generative step
             await executeWithKeyRotation(apiKeys, async (ai) => {
-                const queryResponse = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: intentPrompt
-                });
-                smartQuery = queryResponse.text?.trim().replace(/^"|"$/g, '') || `${keyword} blog guía`;
+                const modelObj = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                const queryResponse = await modelObj.generateContent(intentPrompt);
+                smartQuery = queryResponse.response.text()?.trim().replace(/^"|"$/g, '') || `${keyword} blog guía`;
             });
 
             if (!smartQuery.includes('-site:amazon')) smartQuery += " -site:amazon.es -site:zalando.es -inurl:cart";
@@ -1198,16 +1195,16 @@ export const generateOutlineStrategy = async (apiKeys: string[] | string, config
     };
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const response = await ai.models.generateContent({
-            model: modelName || 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
+        const modelObj = ai.getGenerativeModel({
+            model: modelName || 'gemini-2.0-flash-exp',
+            generationConfig: {
                 responseMimeType: "application/json",
-                responseSchema: schema
+                responseSchema: schema as any
             }
         });
 
-        return JSON.parse(response.text || "{}");
+        const response = await modelObj.generateContent(prompt);
+        return JSON.parse(response.response.text() || "{}");
     });
 };
 
