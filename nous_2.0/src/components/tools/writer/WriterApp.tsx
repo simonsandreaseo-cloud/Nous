@@ -220,7 +220,7 @@ const UploadModal = ({ isOpen, onClose, onSave }: { isOpen: boolean, onClose: ()
 const App = () => {
     const { user } = useAuthStore();
     const { activeProject, tasks } = useProjectStore();
-    const { apiKeys, setApiKeys, initializeFromTask, setContent, updateStrategyFromSeo } = useWriterStore();
+    const { apiKeys, setApiKeys, initializeFromTask, setContent, updateStrategyFromSeo, activeSidebarTab, setSidebarTab } = useWriterStore();
     const router = useRouter();
     const [draftId, setDraftId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
