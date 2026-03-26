@@ -217,15 +217,6 @@ const UploadModal = ({ isOpen, onClose, onSave }: { isOpen: boolean, onClose: ()
     )
 }
 
-const MetadataField = ({ label, value }: { label: string, value?: string }) => (
-    <div style={{ marginBottom: '10px' }}>
-        <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '4px' }}>{label}</div>
-        <div style={{ fontSize: '12px', color: '#0F172A', lineHeight: '1.4', background: '#F8FAFC', padding: '8px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
-            {value || 'Sin definir'}
-        </div>
-    </div>
-);
-
 const App = () => {
     const { user } = useAuthStore();
     const { activeProject, tasks } = useProjectStore();
@@ -3088,7 +3079,7 @@ const App = () => {
                                                 onClick={handleGenerateSchema}
                                                 style={{ ...styles.button, width: '100%', justifyContent: 'center', background: '#0F172A', color: 'white' }}
                                             >
-                                                <IconCode size={16} /> Generar Schema JSON-LD
+                                                <IconJson size={16} /> Generar Schema JSON-LD
                                             </button>
                                             <button 
                                                 onClick={performSEO}
