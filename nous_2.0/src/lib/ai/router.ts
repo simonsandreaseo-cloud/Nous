@@ -1,10 +1,12 @@
 import { AI_CONFIG, getGeminiKey } from './config';
 import { AIRequest, AIResponse } from './types';
 import { LocalNodeBridge } from '../local-node/bridge';
+import { OllamaProvider } from './providers/ollama';
 
 class AIRouter {
     private groq?: any;
     private openai?: any;
+    private ollama = new OllamaProvider();
     private initialized = false;
 
     private async init() {
@@ -35,8 +37,15 @@ class AIRouter {
         }
 
         if (aiMode === 'local') {
-            model = 'gemma-local';
-            console.log("[AIRouter] Using Local AI Mode");
+            model = 'gemma3-local';
+            console.log("[AIRouter] Using Local AI Mode (Ollama)");
+        }
+
+        if (model === 'gemma3-local' || model === 'ollama') {
+            return this.ollama.generate({
+                ...request,
+                model: AI_CONFIG.ollama.models.gemma3
+            });
         }
 
         if (model === 'gemma-local') {

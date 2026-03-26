@@ -174,7 +174,7 @@ const executeWithKeyRotation = async <T>(
     
     if (validKeys.length === 0) {
         if (typeof process !== 'undefined') {
-            const envKeys = process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+            const envKeys = process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
             if (envKeys) {
                 const arr = envKeys.split(',').map(k => k.trim()).filter(isValidKey);
                 validKeys.push(...arr);

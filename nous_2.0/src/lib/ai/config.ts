@@ -55,5 +55,13 @@ export const AI_CONFIG = {
             architect: 'gpt-4o', // Precision and logic
             reasoning: 'o1-preview' // Complex problem solving
         }
+    },
+    ollama: {
+        baseUrl: 'http://localhost:11434',
+        models: {
+            gemma3: 'nous-gemma3',
+            fast: 'phi3',
+            fallback: 'llama3'
+        }
     }
 };

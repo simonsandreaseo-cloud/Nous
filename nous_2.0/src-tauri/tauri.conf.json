@@ -47,7 +47,8 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/nous-ai-core"
+      "binaries/nous-ai-core",
+      "binaries/ollama"
     ],
     "windows": {
       "wix": {

@@ -29,7 +29,7 @@ class LocalBridge {
 
     private connect() {
         try {
-            this.ws = new WebSocket('ws://127.0.0.1:8181');
+            this.ws = new WebSocket('ws://127.0.0.1:9001');
 
             this.ws.onopen = () => {
                 console.log('[NOUS BRIDGE] Conectado. Enviando autenticación...');

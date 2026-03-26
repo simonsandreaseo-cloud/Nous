@@ -409,72 +409,77 @@ export default function HumanizerPage() {
     // =================================================================
 
     const callGeminiAPI = async (systemPrompt: string, userText: string, phaseName: string, responseSchema: any = null) => {
-        // Usar la clave proporcionada o una variable de entorno como fallback si quisiéramos
-        const currentApiKey = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+        // Get keys from input or env
+        const rawKeys = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+        if (!rawKeys) throw new Error("API KEY no configurada (GEMINI_API_KEYS).");
 
-        if (!currentApiKey) throw new Error("API KEY no configurada.");
+        const allKeys = rawKeys.split(',').map(k => k.trim()).filter(k => k.length > 5);
+        if (allKeys.length === 0) throw new Error("No se encontraron API Keys válidas.");
 
-        // MODELO EXACTO DEL SCRIPT ORIGINAL
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${currentApiKey}`;
-        // NOTA: El script original decia gemini-2.5-flash-preview-09-2025 pero eso suele ser efímero. 
-        // Usaré gemini-2.0-flash-exp o gemini-1.5-flash que son estables/actuales si falla, 
-        // pero intentaré respetar el original si es válido. 
-        // Al revisar la documentación, los modelos `preview` expiran. 
-        // Usaré `gemini-1.5-flash` como fallback seguro o `gemini-2.0-flash-exp` si el usuario insiste en lo más nuevo.
-        // El script original tenia: gemini-2.5-flash-preview-09-2025.
-        // Voy a usar `gemini-1.5-pro` o `gemini-1.5-flash` para estabilidad, o `gemini-pro`.
-        // Mejor usar `gemini-1.5-flash` que es rápido y barato, similar al original.
+        let lastError: any = null;
 
-        // Por ahora hardcodeo a un modelo conocido que funcione.
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${currentApiKey}`;
+        // Try rotating through all available keys
+        for (let keyIdx = 0; keyIdx < allKeys.length; keyIdx++) {
+            const currentKey = allKeys[keyIdx];
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${currentKey}`;
+            const isGemma = selectedModel.toLowerCase().includes("gemma");
 
-        const isGemma = selectedModel.toLowerCase().includes("gemma");
-
-        const payload: any = {
-            contents: [{ parts: [{ text: isGemma ? `${systemPrompt}\n\n---\n\n${userText}` : userText }] }],
-        };
-
-        if (!isGemma) {
-            payload.systemInstruction = { parts: [{ text: systemPrompt }] };
-        }
-
-        if (responseSchema) {
-            payload.generationConfig = {
-                responseMimeType: "application/json",
-                responseSchema: responseSchema
+            const payload: any = {
+                contents: [{ parts: [{ text: isGemma ? `${systemPrompt}\n\n---\n\n${userText}` : userText }] }],
             };
-        }
 
-        // Retry logic
-        for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-                await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+            if (!isGemma) {
+                payload.systemInstruction = { parts: [{ text: systemPrompt }] };
+            }
 
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+            if (responseSchema) {
+                payload.generationConfig = {
+                    responseMimeType: "application/json",
+                    responseSchema: responseSchema
+                };
+            }
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`API Error ${response.status}: ${errorData.error?.message || 'Unknown error'}`);
+            // Retry logic for THIS specific key
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        const isQuota = response.status === 429 || (errorData.error?.message && errorData.error.message.includes('quota'));
+                        
+                        if (isQuota && keyIdx < allKeys.length - 1) {
+                            console.warn(`Key ${keyIdx + 1} exhausted. Rotating to next key...`);
+                            break; // Break retries and go to next key in outer loop
+                        }
+                        
+                        throw new Error(`API Error ${response.status}: ${errorData.error?.message || 'Unknown error'}`);
+                    }
+
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (!text) throw new Error("Respuesta de la API vacía o inválida.");
+
+                    if (responseSchema) return JSON.parse(text);
+                    return text.trim();
+
+                } catch (error: any) {
+                    lastError = error;
+                    console.warn(`[${phaseName}] Intento ${attempt} con llave ${keyIdx + 1} fallido.`, error.message);
+                    if (attempt === 2 && keyIdx === allKeys.length - 1) throw error;
+                    // Exponential backoff
+                    await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
                 }
-
-                const result = await response.json();
-                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                if (!text) throw new Error("Respuesta de la API vacía o inválida.");
-
-                if (responseSchema) return JSON.parse(text);
-                return text.trim();
-
-            } catch (error: any) {
-                console.warn(`[${phaseName}] Intento ${attempt} fallido.`, error.message);
-                if (attempt === 3) throw new Error(`[${phaseName}] Fallo definitivo de la API.`);
-                await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
             }
         }
+        throw lastError;
     };
 
     const processTextInChunks = async (htmlChunks: string[], phaseBuilder: Function, settings: any, phaseName: string) => {

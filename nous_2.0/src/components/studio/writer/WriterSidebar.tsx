@@ -210,10 +210,12 @@ export default function WriterSidebar() {
 
         // Only require env keys if NOT using a local model
         const isLocal = model.includes('local') || model.startsWith('gemma');
-        const hasEnvKeys = !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-        if (!hasEnvKeys && !isLocal && !isLocalConnected) {
+        // Check both store keys and env keys (including plural versions and non-prefixed as fallback)
+        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
+        
+        if (!hasEffectiveKeys && !isLocal && !isLocalConnected) {
             console.warn("[WriterSidebar] handleSEO: No API keys for cloud model and local not connected");
-            return alert('No hay API Keys globales configuradas o el nodo Local está desconectado.');
+            return alert('Configura tus API Keys (plural) en los ajustes o conecta el nodo local para procesar el contenido.');
         }
 
         setAnalyzingSEO(true);
@@ -250,8 +252,10 @@ export default function WriterSidebar() {
     // ── STEP 2 – Plan Structure ──────────────────────────────
     const handlePlanStructure = async () => {
         if (!hasContentAccess) return alert('No tienes permisos.');
-        if (!rawSeoData) return alert('Primero analiza el SERP.'); // Added check for rawSeoData
-        if (apiKeys.length === 0 && !isLocalConnected) return alert('Configura API Keys primero o conecta el nodo local.'); // Added isLocalConnected check
+        if (!rawSeoData) return alert('Primero analiza el SERP.');
+        
+        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
+        if (!hasEffectiveKeys && !isLocalConnected) return alert('Configura tus API Keys (plural) primero o conecta el nodo local.');
         setPlanningStructure(true);
         setStatus('Diseñando estructura ganadora…');
         try {
@@ -284,7 +288,9 @@ export default function WriterSidebar() {
     const handleGenerate = async () => {
         if (!hasContentAccess) return alert('No tienes permisos.');
         if (!strategyH1 && !keyword) return alert('Necesitas un H1 o keyword objetivo.');
-        if (apiKeys.length === 0 && !isLocalConnected) return alert('Configura API Keys primero o conecta el nodo local.'); // Added isLocalConnected check
+        
+        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
+        if (!hasEffectiveKeys && !isLocalConnected) return alert('Configura tus API Keys (plural) primero o conecta el nodo local.');
 
         setGenerating(true);
         setContent('');
@@ -354,7 +360,9 @@ export default function WriterSidebar() {
     const handleHumanize = async () => {
         if (!hasContentAccess) return alert('No tienes permisos.');
         if (!content) return;
-        if (apiKeys.length === 0 && !isLocalConnected) return alert('Configura API Keys primero o conecta el nodo local.'); // Added isLocalConnected check
+        
+        const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
+        if (!hasEffectiveKeys && !isLocalConnected) return alert('Configura tus API Keys (plural) primero o conecta el nodo local.');
         setHumanizing(true);
         setHumanizerStatus('Iniciando humanización…');
         try {

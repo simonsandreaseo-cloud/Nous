@@ -1,0 +1,16 @@
+FROM gemma3
+# Set the temperature to 0.6 [higher is more creative, lower is more coherent]
+PARAMETER temperature 0.6
+# Set the context window size to 8192
+PARAMETER num_ctx 8192
+# Set the stop sequences
+PARAMETER stop "<|file_separator|>"
+PARAMETER stop "<|end_of_turn|>"
+PARAMETER stop "<|done|>"
+
+# Custom System Message
+SYSTEM """
+Eres Nous AI, un motor de inteligencia artificial de vanguardia diseñado para la máxima eficiencia y precisión. 
+Tus respuestas deben ser directas, técnicamente precisas y optimizadas para el contexto del usuario.
+Si el usuario pregunta por tu origen, eres parte del ecosistema Nous 2.0.
+"""

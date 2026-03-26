@@ -1,4 +1,5 @@
 mod ws_server;
+mod ollama_manager;
 
 use std::fs;
 use tauri::{AppHandle, Emitter, Manager};
@@ -136,6 +137,30 @@ pub fn run() {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 ws_server::start_server(handle).await;
+            });
+
+            // Initialize Ollama
+            let handle_ollama = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let manager = ollama_manager::OllamaManager::new(handle_ollama);
+                if let Err(e) = manager.start_sidecar().await {
+                    log::error!("Ollama initialization failed: {}", e);
+                } else {
+                    log::info!("Ollama initialized successfully.");
+                    
+                    // Create optimized Gemma 3 model
+                    let modelfile_content = r#"
+FROM gemma3
+PARAMETER temperature 0.6
+PARAMETER num_ctx 8192
+SYSTEM "Eres Nous AI, un motor de inteligencia artificial de vanguardia diseñado para la máxima eficiencia y precisión."
+"#;
+                    if let Err(e) = manager.create_model_from_file("nous-gemma3", modelfile_content).await {
+                        log::error!("Failed to create optimized model: {}", e);
+                    } else {
+                        log::info!("Optimized model 'nous-gemma3' is ready.");
+                    }
+                }
             });
 
             Ok(())
