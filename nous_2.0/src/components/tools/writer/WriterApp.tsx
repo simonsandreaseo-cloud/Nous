@@ -15,7 +15,8 @@ import {
     Save, Cloud, Upload, Sparkles, Copy, FileText, Globe, Image as ImageIcon,
     Download, RefreshCw, Wand2, FileArchive, Search, Menu, ChevronLeft,
     ArrowRight, Settings, User, Radar, Edit, Check, Trash, Code, Link as LinkIcon,
-    Plus, ExternalLink, Palette, ChevronDown, ChevronUp, Ghost, Loader2, FileUp
+    Plus, ExternalLink, Palette, ChevronDown, ChevronUp, Ghost, Loader2, FileUp,
+    LayoutDashboard, Calendar
 } from 'lucide-react';
 
 import { MetadataField } from './components'; // Might need to inline this or update it
@@ -216,10 +217,19 @@ const UploadModal = ({ isOpen, onClose, onSave }: { isOpen: boolean, onClose: ()
     )
 }
 
+const MetadataField = ({ label, value }: { label: string, value?: string }) => (
+    <div style={{ marginBottom: '10px' }}>
+        <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: '4px' }}>{label}</div>
+        <div style={{ fontSize: '12px', color: '#0F172A', lineHeight: '1.4', background: '#F8FAFC', padding: '8px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+            {value || 'Sin definir'}
+        </div>
+    </div>
+);
+
 const App = () => {
     const { user } = useAuthStore();
-    const { activeProject } = useProjectStore();
-    const { apiKeys, setApiKeys } = useWriterStore();
+    const { activeProject, tasks } = useProjectStore();
+    const { apiKeys, setApiKeys, initializeFromTask } = useWriterStore();
     const router = useRouter();
     const [draftId, setDraftId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -237,11 +247,12 @@ const App = () => {
     const searchParams = useSearchParams();
 
     // --- APP STATE ---
-    const [viewMode, setViewMode] = useState<'setup' | 'seo-review' | 'structure-review' | 'workspace' | 'humanize'>('setup');
+    const [viewMode, setViewMode] = useState<'dashboard' | 'new-content' | 'setup' | 'seo-review' | 'structure-review' | 'workspace' | 'humanize'>('dashboard');
+    const [isTitleOnly, setIsTitleOnly] = useState(true); // true = Es un título, false = Es una idea
 
     useEffect(() => {
         const mode = searchParams?.get('mode');
-        if (mode && ['setup', 'seo-review', 'structure-review', 'workspace', 'humanize'].includes(mode)) {
+        if (mode && ['dashboard', 'new-content', 'setup', 'seo-review', 'structure-review', 'workspace', 'humanize'].includes(mode)) {
             setViewMode(mode as any);
         }
 
@@ -271,6 +282,15 @@ const App = () => {
         }
     }, [searchParams]);
 
+    const handleTaskSelect = (task: any) => {
+        initializeFromTask(task, activeProject);
+        setLinkedTaskId(task.id);
+        setLinkedTaskTitle(task.title);
+        setTargetKeyword(task.target_keyword || "");
+        setStrategyH1(task.title);
+        setViewMode('workspace');
+    };
+
     const loadDraft = async (id: string) => {
         const { data, error } = await supabase.from('content_drafts').select('*').eq('id', id).single();
         if (data && !error) {
@@ -288,6 +308,7 @@ const App = () => {
                 setStrategyQuestions(s.strategyQuestions || []);
                 setCreativityLevel(s.creativityLevel || 'medium');
                 setStrategyH1(s.strategyH1 || "");
+                setStrategyCompetitors(s.strategyCompetitors || "");
             }
         }
     }
@@ -684,6 +705,7 @@ const App = () => {
             let contentPart = parts[0];
             contentPart = cleanAndFormatHtml(contentPart);
             setHtmlContent(contentPart);
+            setContent(contentPart); // Sync to store
 
             let jsonStr = parts[1].trim();
             jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '');
@@ -696,8 +718,18 @@ const App = () => {
         } else {
             const safeContent = cleanAndFormatHtml(cleanText);
             setHtmlContent(safeContent);
+            setContent(safeContent); // Sync to store
         }
-    }, [fullResponse]);
+    }, [fullResponse, setContent]);
+
+    // Sync local changes to store for SEO sidebar
+    const handleEditorChange = () => {
+        if (previewRef.current) {
+            const newContent = previewRef.current.innerHTML;
+            setHtmlContent(newContent);
+            setContent(newContent);
+        }
+    };
 
     // --- Error Handler Helper ---
     const handleApiError = async (e: any, retryAction?: () => Promise<void>) => {
@@ -908,18 +940,11 @@ const App = () => {
 
         try {
             // Pass all keys
-            const data = await runSEOAnalysis(apiKeys, targetKeyword, csvData, projectName, serperKey, valueSerpKey, jinaKey);
-            setRawSeoData(data);
-
-            setStrategyCompetitors(data.top10Urls?.map(u => u.url).join('\n') || "");
-            setDetectedNiche(data.nicheDetected || "General");
-            setStrategyLinks(data.suggestedInternalLinks || []);
-            setStrategyWordCount(data.recommendedWordCount || "1500");
-
-            setStrategyLSI(data.lsiKeywords || []);
-            setStrategyLongTail(data.autocompleteLongTail || []);
-            setStrategyQuestions(data.frequentQuestions || []);
-
+            const data = await runSEOAnalysis(apiKeys, targetKeyword, csvData, projectName, serperKey, valueSerpKey, jinaKey, !isTitleOnly);
+            
+            // USE STORE ACTION FOR AUTOMATION
+            updateStrategyFromSeo(data);
+            
             setViewMode('seo-review');
             setStatus("");
         } catch (e: any) {
@@ -1077,19 +1102,36 @@ const App = () => {
     const handleRefineContent = async () => {
         if (!htmlContent || !refinementInstructions) return;
 
+        // Try to get current selection
+        const selection = window.getSelection();
+        const selectedText = selection ? selection.toString().trim() : '';
+        const isSelection = selectedText.length > 0;
+
         // Ensure we have keys
         const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS);
         if (!hasEffectiveKeys) return alert("Configura tus API Keys (plural) para refinar el contenido.");
 
         setIsRefining(true);
-        setStatus("Refinando artículo con IA...");
+        setStatus(isSelection ? "Refinando selección con IA..." : "Refinando artículo con IA...");
 
         try {
-            const refined = await refineArticleContent(apiKeys, htmlContent, refinementInstructions);
-            const styled = refineStyling(refined); // Maintain style
-            setHtmlContent(styled);
-            setRefinementInstructions(''); // Clear after success
-            setStatus("Refinamiento completado.");
+            const refined = await refineArticleContent(apiKeys, htmlContent, refinementInstructions, model, selectedText);
+            
+            if (isSelection) {
+                // Replacement logic for selection in contentEditable is tricky via state,
+                // but a simple string replace works for most cases.
+                setStatus("Reemplazando selección...");
+                const newHtml = htmlContent.replace(selectedText, refined);
+                setHtmlContent(newHtml);
+                setContent(newHtml);
+            } else {
+                const styled = refineStyling(refined); // Maintain style for full article
+                setHtmlContent(styled);
+                setContent(styled);
+            }
+            
+            setRefinementInstructions(''); // Clear instructions
+            setStatus(isSelection ? "Selección refinada." : "Refinamiento completado.");
         } catch (e: any) {
             handleApiError(e);
             setStatus("Error al refinar.");
@@ -1557,7 +1599,8 @@ const App = () => {
                     strategyLongTail,
                     strategyQuestions,
                     creativityLevel,
-                    strategyH1
+                    strategyH1,
+                    strategyCompetitors
                 },
                 user_id: user?.id,
                 updated_at: new Date()
@@ -1601,9 +1644,41 @@ const App = () => {
         }
     };
 
+    // --- SEO CALCULATIONS ---
+    const calculateSeoStats = () => {
+        const text = htmlContent.replace(/<[^>]*>/g, ' ').toLowerCase();
+        const words = text.split(/\s+/).filter(w => w.length > 0);
+        const totalWords = words.length;
+
+        const getCount = (kw: string) => {
+            if (!kw) return 0;
+            const regex = new RegExp(`\\b${kw.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+            return (text.match(regex) || []).length;
+        };
+
+        const density = (count: number) => totalWords > 0 ? ((count / totalWords) * 100).toFixed(2) : "0";
+
+        return {
+            totalWords,
+            mainKeyword: {
+                keyword: targetKeyword,
+                count: getCount(targetKeyword),
+                density: density(getCount(targetKeyword))
+            },
+            lsi: strategyLSI.map(k => ({
+                keyword: k.keyword,
+                count: getCount(k.keyword),
+                density: density(getCount(k.keyword))
+            }))
+        };
+    };
+
+    const seoStats = calculateSeoStats();
+
     // --- NAVIGATION HELPERS ---
     const steps = [
-        { id: 'setup', label: 'Configuración', icon: <IconSettings />, enabled: true },
+        { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} />, enabled: true },
+        { id: 'setup', label: 'Proyecto', icon: <IconSettings />, enabled: true },
         { id: 'seo-review', label: 'Estrategia SEO', icon: <IconRadar />, enabled: true },
         { id: 'structure-review', label: 'Estructura', icon: <IconFile />, enabled: true },
         { id: 'workspace', label: 'Editor & Visuales', icon: <IconEdit />, enabled: true },
@@ -1619,6 +1694,172 @@ const App = () => {
         if (canNavigate(id)) {
             setViewMode(id);
         }
+    };
+
+    const renderDashboard = () => {
+        const scheduledTasks = tasks.filter(t => t.status !== 'done');
+
+        return (
+            <div style={styles.hubContainer as any}>
+                <div style={{ ...styles.hubContent, maxWidth: '1000px' } as any}>
+                    <div style={styles.hubHeader as any}>
+                        <div style={styles.hubTitle}>Content Studio AI</div>
+                        <div style={styles.hubSubtitle}>Gestiona tus contenidos programados o crea uno nuevo desde cero.</div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px', marginTop: '32px' }}>
+                        {/* NEW CONTENT CARD */}
+                        <div 
+                            style={{ 
+                                ...styles.stepCard, 
+                                border: '2px dashed #CBD5E1', 
+                                background: '#F8FAFC',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minHeight: '200px',
+                                gap: '16px',
+                                transition: 'all 0.2s'
+                            } as any}
+                            onClick={() => setViewMode('new-content')}
+                        >
+                            <div style={{ padding: '12px', borderRadius: '50%', background: '#6366F1', color: 'white' }}>
+                                <IconPlus size={32} />
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Nuevo Contenido</div>
+                                <div style={{ fontSize: '13px', color: '#64748B' }}>Empieza una investigación desde cero.</div>
+                            </div>
+                        </div>
+
+                        {/* SCHEDULED TASKS */}
+                        {scheduledTasks.map(task => (
+                            <div 
+                                key={task.id}
+                                style={{ ...styles.stepCard, cursor: 'pointer', border: '1px solid #E2E8F0', position: 'relative' } as any}
+                                onClick={() => handleTaskSelect(task)}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                                    <div style={{ background: '#F1F5F9', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
+                                        {task.status}
+                                    </div>
+                                    <div style={{ color: '#94A3B8', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <Calendar size={12} /> {task.scheduled_date}
+                                    </div>
+                                </div>
+                                <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A', marginBottom: '8px', lineHeight: '1.3' }}>{task.title}</h3>
+                                <p style={{ fontSize: '13px', color: '#64748B', lineClamp: '2', overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, minHeight: '38px' }}>
+                                    {task.target_keyword ? `Keyword: ${task.target_keyword}` : (task.brief || 'Sin descripción')}
+                                </p>
+                                <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'end' }}>
+                                    <button style={{ ...styles.button, padding: '6px 12px', fontSize: '11px', backgroundColor: '#F1F5F9' }}>
+                                        Continuar <IconArrowRight size={12} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderNewContent = () => {
+        return (
+            <div style={styles.hubContainer as any}>
+                <div style={{ ...styles.hubContent, maxWidth: '700px' } as any}>
+                    <div style={styles.hubHeader as any}>
+                        <div style={styles.hubTitle}>Nuevo Contenido</div>
+                        <div style={styles.hubSubtitle}>Define el punto de partida para tu próximo artículo.</div>
+                    </div>
+
+                    <div style={styles.stepCard as any}>
+                        <div style={{ marginBottom: '24px' }}>
+                            <div style={{ display: 'flex', gap: '8px', background: '#F1F5F9', padding: '4px', borderRadius: '12px', marginBottom: '20px' }}>
+                                <button 
+                                    onClick={() => setIsTitleOnly(true)}
+                                    style={{ 
+                                        flex: 1, 
+                                        padding: '10px', 
+                                        borderRadius: '8px', 
+                                        fontSize: '12px', 
+                                        fontWeight: 700,
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        backgroundColor: isTitleOnly ? 'white' : 'transparent',
+                                        color: isTitleOnly ? '#0F172A' : '#64748B',
+                                        boxShadow: isTitleOnly ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    Es un Título
+                                </button>
+                                <button 
+                                    onClick={() => setIsTitleOnly(false)}
+                                    style={{ 
+                                        flex: 1, 
+                                        padding: '10px', 
+                                        borderRadius: '8px', 
+                                        fontSize: '12px', 
+                                        fontWeight: 700,
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        backgroundColor: !isTitleOnly ? 'white' : 'transparent',
+                                        color: !isTitleOnly ? '#0F172A' : '#64748B',
+                                        boxShadow: !isTitleOnly ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    Es una Idea
+                                </button>
+                            </div>
+
+                            <label style={styles.label}>{isTitleOnly ? "Título del Artículo" : "Idea o Concepto del Contenido"}</label>
+                            <input 
+                                style={styles.inputLarge}
+                                value={targetKeyword}
+                                onChange={(e) => setTargetKeyword(e.target.value)}
+                                placeholder={isTitleOnly ? "Ej: 10 Mejores Zapatillas de Running para 2024" : "Ej: Quiero un artículo sobre beneficios de correr por la mañana..."}
+                            />
+                            {!isTitleOnly && (
+                                <p style={{ fontSize: '11px', color: '#94A3B8', marginTop: '8px' }}>🚀 La IA generará un título SEO optimizado basado en tu idea.</p>
+                            )}
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                            <button 
+                                style={{ ...styles.bigButton, background: '#6366F1' } as any}
+                                onClick={performSEO}
+                                disabled={isAnalyzingSEO || !targetKeyword.trim()}
+                            >
+                                {isAnalyzingSEO ? <LoadingSpinner /> : <><Sparkles size={18} /> Investigación Nous</>}
+                            </button>
+                            <button 
+                                style={{ ...styles.bigButton, backgroundColor: '#0F172A', color: 'white' } as any}
+                                onClick={() => {
+                                    setStrategyH1(isTitleOnly ? targetKeyword : "Borrador IA");
+                                    setViewMode('setup');
+                                }}
+                                disabled={!targetKeyword.trim()}
+                            >
+                                Configuración Manual
+                            </button>
+                        </div>
+                        
+                        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                            <button 
+                                onClick={() => setViewMode('dashboard')}
+                                style={{ background: 'none', border: 'none', color: '#64748B', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                            >
+                                <IconChevronLeft size={14} /> Volver al Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     const getStrictLabel = (val: number) => {
@@ -1706,6 +1947,12 @@ const App = () => {
 
             {/* CONTENT AREA */}
             <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+
+                {/* VIEW: DASHBOARD */}
+                {viewMode === 'dashboard' && renderDashboard()}
+
+                {/* VIEW: NEW CONTENT */}
+                {viewMode === 'new-content' && renderNewContent()}
 
                 {/* VIEW: SETUP */}
                 {viewMode === 'setup' && (
@@ -2432,6 +2679,14 @@ const App = () => {
                                         taskTitle={linkedTaskTitle || undefined}
                                         projectId={linkedProjectId || undefined}
                                     />
+                                    {htmlContent && (
+                                        <button 
+                                            style={{ ...styles.button, backgroundColor: '#ECFDF5', color: '#059669', border: '1px solid #D1FAE5' } as any} 
+                                            onClick={() => setSidebarTab('seo')}
+                                        >
+                                            <IconRadar size={16} /> Re-analizar SEO
+                                        </button>
+                                    )}
                                     {metadata && (
                                         <button style={styles.button as any} onClick={copyRichText}>
                                             <IconCopy /> Copiar
@@ -2449,7 +2704,15 @@ const App = () => {
                                                 <p>Esperando contenido...</p>
                                             </div>
                                         ) : (
-                                            <div className="article-content" ref={previewRef} dangerouslySetInnerHTML={{ __html: htmlContent }} />
+                                            <div 
+                                                className="article-content custom-editor" 
+                                                ref={previewRef} 
+                                                contentEditable={!isGenerating}
+                                                onBlur={handleEditorChange}
+                                                onInput={handleEditorChange}
+                                                dangerouslySetInnerHTML={{ __html: htmlContent }} 
+                                                style={{ outline: 'none', minHeight: '500px' }}
+                                            />
                                         )}
                                         <div style={{ height: '100px' }}></div>
                                     </div>
@@ -2461,247 +2724,382 @@ const App = () => {
                         <div style={{ ...styles.rightSidebar, height: '100%', display: 'flex', flexDirection: 'column', flexShrink: 0 } as any}>
 
                             {/* FIXED HEADER AREA IN SIDEBAR */}
-                            <div style={{ padding: '16px', borderBottom: '1px solid #E2E8F0', background: '#fff', zIndex: 20 }}>
-                                <div style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', marginBottom: '12px', fontFamily: "'Outfit', sans-serif" }}>Asistente Creativo</div>
-                                <button
-                                    onClick={handleRunCombined}
-                                    disabled={!htmlContent || isRunningCombined || isHumanizing || isEditing}
-                                    style={{ ...styles.button, width: '100%', justifyContent: 'center', fontSize: '12px' } as any}
-                                >
-                                    {isRunningCombined ? <LoadingSpinner /> : "Humanizar + Editar (Auto)"}
-                                </button>
-                                {combinedStatus && <div style={{ textAlign: 'center', fontSize: '10px', color: '#6366F1', marginTop: '4px', fontWeight: 600 }}>{combinedStatus}</div>}
+                            <div style={{ borderBottom: '1px solid #E2E8F0', background: '#fff', zIndex: 20 }}>
+                                <div style={{ display: 'flex', borderBottom: '1px solid #F1F5F9' }}>
+                                    <button 
+                                        onClick={() => setSidebarTab('generate')}
+                                        style={{ 
+                                            flex: 1, 
+                                            padding: '12px', 
+                                            fontSize: '12px', 
+                                            fontWeight: 700, 
+                                            border: 'none', 
+                                            background: activeSidebarTab === 'generate' ? '#fff' : '#F8FAFC',
+                                            color: activeSidebarTab === 'generate' ? '#6366F1' : '#64748B',
+                                            borderBottom: activeSidebarTab === 'generate' ? '2px solid #6366F1' : 'none',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        Generación
+                                    </button>
+                                    <button 
+                                        onClick={() => setSidebarTab('seo')}
+                                        style={{ 
+                                            flex: 1, 
+                                            padding: '12px', 
+                                            fontSize: '12px', 
+                                            fontWeight: 700, 
+                                            border: 'none', 
+                                            background: activeSidebarTab === 'seo' ? '#fff' : '#F8FAFC',
+                                            color: activeSidebarTab === 'seo' ? '#6366F1' : '#64748B',
+                                            borderBottom: activeSidebarTab === 'seo' ? '2px solid #6366F1' : 'none',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        SEO Review
+                                    </button>
+                                </div>
+                                <div style={{ padding: '16px' }}>
+                                    {activeSidebarTab === 'generate' ? (
+                                        <>
+                                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', marginBottom: '12px', fontFamily: "'Outfit', sans-serif" }}>Asistente Creativo</div>
+                                            <button
+                                                onClick={handleRunCombined}
+                                                disabled={!htmlContent || isRunningCombined || isHumanizing || isEditing}
+                                                style={{ ...styles.button, width: '100%', justifyContent: 'center', fontSize: '12px' } as any}
+                                            >
+                                                {isRunningCombined ? <LoadingSpinner /> : "Humanizar + Editar (Auto)"}
+                                            </button>
+                                            {combinedStatus && <div style={{ textAlign: 'center', fontSize: '10px', color: '#6366F1', marginTop: '4px', fontWeight: 600 }}>{combinedStatus}</div>}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', marginBottom: '12px', fontFamily: "'Outfit', sans-serif" }}>Analizador SEO Real-Time</div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748B' }}>
+                                                <span>Palabras: <strong>{seoStats.totalWords}</strong></span>
+                                                <span style={{ color: '#166534' }}>Meta: {strategyWordCount}</span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
                             <div style={{ ...styles.inspectorScroll, flexGrow: 1, overflowY: 'auto', minHeight: 0 } as any}>
-                                {/* HUMANIZER SECTION */}
-                                <div style={styles.toolCard as any}>
-                                    <div style={styles.toolCardHeader}>
-                                        <IconGhost /> <span>Humanizador Manual</span>
-                                    </div>
-                                    <div style={styles.toolCardBody}>
-                                        <div style={{ marginBottom: '10px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px', color: '#64748B' }}>
-                                                <span>Intensidad</span>
-                                                <span>{humanizerPercent}%</span>
+                                {activeSidebarTab === 'generate' ? (
+                                    <>
+                                        {/* HUMANIZER SECTION */}
+                                        <div style={styles.toolCard as any}>
+                                            <div style={styles.toolCardHeader}>
+                                                <IconGhost /> <span>Humanizador Manual</span>
                                             </div>
-                                            <input
-                                                type="range" min="30" max="100" step="10"
-                                                value={humanizerPercent}
-                                                onChange={(e) => setHumanizerPercent(parseInt(e.target.value))}
-                                                style={{ width: '100%', cursor: 'pointer' }}
-                                            />
-                                        </div>
-                                        <textarea
-                                            style={{ ...styles.input, fontSize: '11px', minHeight: '50px', marginBottom: '8px' }}
-                                            placeholder="Notas de tono (ej: Imperfecto, casual...)"
-                                            value={humanizerNotes}
-                                            onChange={(e) => setHumanizerNotes(e.target.value)}
-                                        />
-
-                                        <button
-                                            onClick={() => handleHumanize()}
-                                            disabled={!htmlContent || isHumanizing}
-                                            style={{ ...styles.button, width: '100%', justifyContent: 'center', fontSize: '12px' }}
-                                        >
-                                            {isHumanizing ? <LoadingSpinner /> : "Ejecutar Humanizador"}
-                                        </button>
-
-                                        {humanizerStatus && <div style={{ fontSize: '10px', color: '#DC2626', marginTop: '8px', fontWeight: 600 }}>{humanizerStatus}</div>}
-                                    </div>
-                                </div>
-
-                                {/* SMART EDITOR SECTION */}
-                                <div style={styles.toolCard as any}>
-                                    <div style={styles.toolCardHeader}>
-                                        <IconEdit /> <span>Editor Manual</span>
-                                    </div>
-                                    <div style={styles.toolCardBody}>
-                                        <div style={{ marginBottom: '10px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px', color: '#64748B' }}>
-                                                <span>Límite Edición</span>
-                                                <span>{editorPercentage}%</span>
-                                            </div>
-                                            <input
-                                                type="range" min="5" max="40" step="5"
-                                                value={editorPercentage}
-                                                onChange={(e) => setEditorPercentage(parseInt(e.target.value))}
-                                                style={{ width: '100%', cursor: 'pointer' }}
-                                            />
-                                        </div>
-                                        <textarea
-                                            style={{ ...styles.input, fontSize: '11px', minHeight: '50px', marginBottom: '8px' }}
-                                            placeholder="Instrucciones..."
-                                            value={editorNotes}
-                                            onChange={(e) => setEditorNotes(e.target.value)}
-                                        />
-
-                                        <button
-                                            onClick={handleSmartEdit}
-                                            disabled={!htmlContent || isEditing}
-                                            style={{ ...styles.button, width: '100%', justifyContent: 'center', fontSize: '12px' }}
-                                        >
-                                            {isEditing ? <LoadingSpinner /> : "Ejecutar Editor"}
-                                        </button>
-
-                                        {editorStatus && <div style={{ fontSize: '10px', color: '#0F172A', marginTop: '8px', fontWeight: 600 }}>{editorStatus}</div>}
-                                    </div>
-                                </div>
-
-                                {metadata && (
-                                    <div>
-                                        <div style={styles.sectionTitle}>SEO Metadata</div>
-                                        <MetadataField label="Title Tag" value={metadata.title} />
-                                        <MetadataField label="Meta Description" value={metadata.description} />
-                                        <MetadataField label="Slug" value={metadata.slug} />
-                                        <div style={{ borderTop: '1px solid #F1F5F9', margin: '20px 0' }}></div>
-                                    </div>
-                                )}
-
-                                {/* Schema Generator */}
-                                {/* ... (Rest of sidebar remains same) ... */}
-                                {/* SHOOTING AI */}
-                                <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center', cursor: 'pointer' }} onClick={() => setIsImageConfigOpen(!isImageConfigOpen)}>
-                                        <div style={styles.sectionTitle}>Shooting AI (Generación)</div>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            {(aiImages.length > 0 || featuredImage) && <button onClick={(e) => { e.stopPropagation(); handleDownloadZip(); }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#6366F1' }}><IconZip /></button>}
-                                            {isImageConfigOpen ? <IconChevronUp /> : <IconChevronDown />}
-                                        </div>
-                                    </div>
-
-                                    {/* Configuration Section */}
-                                    {isImageConfigOpen && (
-                                        <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
-
-                                            <label style={styles.label}>Marca de Agua (PNG Logo)</label>
-                                            <div style={styles.customSizeBox as any}>
-                                                <input
-                                                    type="file"
-                                                    accept="image/png"
-                                                    onChange={handleUploadWatermark}
-                                                    ref={watermarkInputRef}
-                                                    style={{ display: 'none' }}
+                                            <div style={styles.toolCardBody}>
+                                                <div style={{ marginBottom: '10px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px', color: '#64748B' }}>
+                                                        <span>Intensidad</span>
+                                                        <span>{humanizerPercent}%</span>
+                                                    </div>
+                                                    <input
+                                                        type="range" min="30" max="100" step="10"
+                                                        value={humanizerPercent}
+                                                        onChange={(e) => setHumanizerPercent(parseInt(e.target.value))}
+                                                        style={{ width: '100%', cursor: 'pointer' }}
+                                                    />
+                                                </div>
+                                                <textarea
+                                                    style={{ ...styles.input, fontSize: '11px', minHeight: '50px', marginBottom: '8px' }}
+                                                    placeholder="Notas de tono (ej: Imperfecto, casual...)"
+                                                    value={humanizerNotes}
+                                                    onChange={(e) => setHumanizerNotes(e.target.value)}
                                                 />
                                                 <button
-                                                    onClick={() => watermarkInputRef.current?.click()}
-                                                    style={{ ...styles.button, fontSize: '11px', padding: '4px 8px' }}
+                                                    onClick={() => handleHumanize()}
+                                                    disabled={!htmlContent || isHumanizing}
+                                                    style={{ ...styles.button, width: '100%', justifyContent: 'center', fontSize: '12px' }}
                                                 >
-                                                    {watermarkFile ? "✅ Logo Cargado (Guardado)" : "Subir PNG (Transparente)"}
+                                                    {isHumanizing ? <LoadingSpinner /> : "Ejecutar Humanizador"}
                                                 </button>
+                                                {humanizerStatus && <div style={{ fontSize: '10px', color: '#DC2626', marginTop: '8px', fontWeight: 600 }}>{humanizerStatus}</div>}
                                             </div>
-                                            <br />
+                                        </div>
 
-                                            <label style={styles.label}>Estilo & Prompt Global</label>
-                                            <select
-                                                style={{ ...styles.select, marginBottom: '8px' }}
-                                                value={imageConfig.style}
-                                                onChange={e => setImageConfig({ ...imageConfig, style: e.target.value })}
-                                            >
-                                                <option value="Auto">Auto (Recomendado)</option>
-                                                <option value="Hyperrealistic">Hiperrealista (Fotografía)</option>
-                                                <option value="2D Vector">Ilustración Vectorial 2D</option>
-                                                <option value="3D Isometric">3D Isométrico</option>
-                                                <option value="Minimalist">Minimalista Plano</option>
-                                                <option value="Cinematic">Cinemático / Película</option>
-                                            </select>
-                                            <textarea
-                                                style={{ ...styles.input, fontSize: '11px', minHeight: '50px', marginBottom: '12px' }}
-                                                placeholder="Instrucciones visuales extra..."
-                                                value={imageConfig.userPrompt}
-                                                onChange={e => setImageConfig({ ...imageConfig, userPrompt: e.target.value })}
-                                            />
+                                        {/* SMART EDITOR SECTION */}
+                                        <div style={styles.toolCard as any}>
+                                            <div style={styles.toolCardHeader}>
+                                                <IconEdit /> <span>Editor Manual</span>
+                                            </div>
+                                            <div style={styles.toolCardBody}>
+                                                <div style={{ marginBottom: '10px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px', color: '#64748B' }}>
+                                                        <span>Límite Edición</span>
+                                                        <span>{editorPercentage}%</span>
+                                                    </div>
+                                                    <input
+                                                        type="range" min="5" max="40" step="5"
+                                                        value={editorPercentage}
+                                                        onChange={(e) => setEditorPercentage(parseInt(e.target.value))}
+                                                        style={{ width: '100%', cursor: 'pointer' }}
+                                                    />
+                                                </div>
+                                                <textarea
+                                                    style={{ ...styles.input, fontSize: '11px', minHeight: '50px', marginBottom: '8px' }}
+                                                    placeholder="Instrucciones..."
+                                                    value={editorNotes}
+                                                    onChange={(e) => setEditorNotes(e.target.value)}
+                                                />
+                                                <button
+                                                    onClick={handleSmartEdit}
+                                                    disabled={!htmlContent || isEditing}
+                                                    style={{ ...styles.button, width: '100%', justifyContent: 'center', fontSize: '12px' }}
+                                                >
+                                                    {isEditing ? <LoadingSpinner /> : "Ejecutar Editor"}
+                                                </button>
+                                                {editorStatus && <div style={{ fontSize: '10px', color: '#0F172A', marginTop: '8px', fontWeight: 600 }}>{editorStatus}</div>}
+                                            </div>
+                                        </div>
 
-                                            <label style={styles.label}>Paleta de Colores (Max 5)</label>
-                                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                                                {imageConfig.colors.map((col, idx) => (
-                                                    <div key={idx} style={{ position: 'relative' }}>
+                                        {/* SHOOTING AI */}
+                                        <div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center', cursor: 'pointer' }} onClick={() => setIsImageConfigOpen(!isImageConfigOpen)}>
+                                                <div style={styles.sectionTitle}>Shooting AI (Generación)</div>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {(aiImages.length > 0 || featuredImage) && <button onClick={(e) => { e.stopPropagation(); handleDownloadZip(); }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#6366F1' }}><IconZip /></button>}
+                                                    {isImageConfigOpen ? <IconChevronUp /> : <IconChevronDown />}
+                                                </div>
+                                            </div>
+
+                                            {isImageConfigOpen && (
+                                                <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
+
+                                                    <label style={styles.label}>Marca de Agua (PNG Logo)</label>
+                                                    <div style={styles.customSizeBox as any}>
                                                         <input
-                                                            type="color"
-                                                            value={col}
-                                                            onChange={e => handleUpdateColor(idx, e.target.value)}
-                                                            style={{ width: '24px', height: '24px', border: 'none', padding: 0, borderRadius: '4px', cursor: 'pointer' }}
+                                                            type="file"
+                                                            accept="image/png"
+                                                            onChange={handleUploadWatermark}
+                                                            ref={watermarkInputRef}
+                                                            style={{ display: 'none' }}
                                                         />
-                                                        <div style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', width: '10px', height: '10px', borderRadius: '50%', cursor: 'pointer' }} onClick={() => handleRemoveColor(idx)}></div>
+                                                        <button
+                                                            onClick={() => watermarkInputRef.current?.click()}
+                                                            style={{ ...styles.button, fontSize: '11px', padding: '4px 8px' }}
+                                                        >
+                                                            {watermarkFile ? "✅ Logo Cargado (Guardado)" : "Subir PNG (Transparente)"}
+                                                        </button>
                                                     </div>
-                                                ))}
-                                                {imageConfig.colors.length < 5 && (
-                                                    <button onClick={handleAddColor} style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px dashed #94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>+</button>
-                                                )}
-                                            </div>
+                                                    <br />
 
-                                            <div style={{ display: 'flex', gap: '12px' }}>
-                                                <div style={{ flex: 1 }}>
-                                                    <label style={styles.label}>Tamaño Portada</label>
-                                                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                                        <input style={styles.smallInput} value={imageConfig.customDimensions.w} onChange={e => setImageConfig({ ...imageConfig, customDimensions: { ...imageConfig.customDimensions, w: e.target.value } })} placeholder="W" />
-                                                        <span style={{ fontSize: '10px' }}>x</span>
-                                                        <input style={styles.smallInput} value={imageConfig.customDimensions.h} onChange={e => setImageConfig({ ...imageConfig, customDimensions: { ...imageConfig.customDimensions, h: e.target.value } })} placeholder="H" />
-                                                    </div>
-                                                </div>
-                                                <div style={{ flex: 1 }}>
-                                                    <label style={styles.label}>Cant. Cuerpo</label>
-                                                    <select style={styles.select} value={imageConfig.count} onChange={e => setImageConfig({ ...imageConfig, count: e.target.value })}>
-                                                        <option value="auto">Auto</option>
-                                                        <option value="1">1 Imagen</option>
-                                                        <option value="3">3 Imágenes</option>
-                                                        <option value="5">5 Imágenes</option>
+                                                    <label style={styles.label}>Estilo & Prompt Global</label>
+                                                    <select
+                                                        style={{ ...styles.select, marginBottom: '8px' }}
+                                                        value={imageConfig.style}
+                                                        onChange={e => setImageConfig({ ...imageConfig, style: e.target.value })}
+                                                    >
+                                                        <option value="Auto">Auto (Recomendado)</option>
+                                                        <option value="Hyperrealistic">Hiperrealista (Fotografía)</option>
+                                                        <option value="2D Vector">Ilustración Vectorial 2D</option>
+                                                        <option value="3D Isometric">3D Isométrico</option>
+                                                        <option value="Minimalist">Minimalista Plano</option>
+                                                        <option value="Cinematic">Cinemático / Película</option>
                                                     </select>
+                                                    <textarea
+                                                        style={{ ...styles.input, fontSize: '11px', minHeight: '50px', marginBottom: '12px' }}
+                                                        placeholder="Instrucciones visuales extra..."
+                                                        value={imageConfig.userPrompt}
+                                                        onChange={e => setImageConfig({ ...imageConfig, userPrompt: e.target.value })}
+                                                    />
+
+                                                    <button
+                                                        style={{ ...styles.button, ...styles.accentBtn, width: '100%', justifyContent: 'center' }}
+                                                        onClick={handleGenerateAllImages}
+                                                        disabled={!htmlContent || isGeneratingImages}
+                                                    >
+                                                        {isGeneratingImages ? <><LoadingSpinner /> Generando...</> : <><IconMagic /> Generar Set Gráfico</>}
+                                                    </button>
                                                 </div>
-                                            </div>
+                                            )}
                                         </div>
-                                    )}
 
-                                    <button
-                                        style={{ ...styles.button, ...styles.accentBtn, width: '100%', justifyContent: 'center', marginBottom: '20px' }}
-                                        onClick={handleGenerateAllImages}
-                                        disabled={!htmlContent || isGeneratingImages}
-                                    >
-                                        {isGeneratingImages ? <><LoadingSpinner /> Generando Set...</> : <><IconMagic /> Generar Todo el Set Gráfico</>}
-                                    </button>
-
-                                    {featuredImage && (
-                                        <div style={{ marginBottom: '20px' }}>
-                                            <label style={styles.label}>Portada</label>
-                                            <div style={styles.aiImageCard as any}>
-                                                <div style={styles.aiImagePreview as any}>
-                                                    {featuredImage.status === 'generating' && <div className="shimmer" style={{ width: '100%', height: '100%', position: 'absolute' }}></div>}
-                                                    <img src={featuredImage.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                                                </div>
-                                                <div style={styles.aiImageMeta as any}>
-                                                    <div style={styles.metaLabel}>{featuredImage.filename}</div>
-                                                    <div style={styles.aiActions}>
-                                                        <button style={styles.iconBtn as any} onClick={() => handleDownloadSingle(featuredImage)}><IconDownload /></button>
-                                                        <button style={{ ...styles.iconBtn, flex: 1 } as any} onClick={() => handleRegenerateImage('featured')} disabled={featuredImage.status === 'generating'}><IconRefresh /></button>
-                                                    </div>
-                                                    <input style={{ ...styles.input, marginTop: '8px', padding: '6px', fontSize: '11px' }} value={regenNotes['featured'] || ''} onChange={(e) => setRegenNotes({ ...regenNotes, 'featured': e.target.value })} placeholder="Ajustes portada..." />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {aiImages.length > 0 && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                            <label style={styles.label}>Imágenes del Cuerpo</label>
-                                            {aiImages.map((img, idx) => (
-                                                <div key={idx} style={styles.aiImageCard as any}>
+                                        {featuredImage && (
+                                            <div style={{ marginBottom: '20px' }}>
+                                                <label style={styles.label}>Portada</label>
+                                                <div style={styles.aiImageCard as any}>
                                                     <div style={styles.aiImagePreview as any}>
-                                                        {img.status === 'generating' && <div className="shimmer" style={{ width: '100%', height: '100%', position: 'absolute' }}></div>}
-                                                        {img.imageUrl && <img src={img.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                                                        {featuredImage.status === 'generating' && <div className="shimmer" style={{ width: '100%', height: '100%', position: 'absolute' }}></div>}
+                                                        <img src={featuredImage.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                                     </div>
                                                     <div style={styles.aiImageMeta as any}>
-                                                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#6366F1', marginBottom: '4px' }}>{img.placement}</div>
+                                                        <div style={styles.metaLabel}>{featuredImage.filename}</div>
                                                         <div style={styles.aiActions}>
-                                                            <button style={styles.iconBtn as any} onClick={() => handleDownloadSingle(img)} disabled={!img.imageUrl}><IconDownload /></button>
-                                                            <button style={{ ...styles.iconBtn, flex: 1 } as any} onClick={() => handleRegenerateImage(idx)} disabled={img.status === 'generating'}><IconRefresh /></button>
+                                                            <button style={styles.iconBtn as any} onClick={() => handleDownloadSingle(featuredImage)}><IconDownload /></button>
+                                                            <button style={{ ...styles.iconBtn, flex: 1 } as any} onClick={() => handleRegenerateImage('featured')} disabled={featuredImage.status === 'generating'}><IconRefresh /></button>
                                                         </div>
-                                                        <input style={{ ...styles.input, marginTop: '8px', padding: '6px', fontSize: '11px' }} value={regenNotes[img.id] || ''} onChange={(e) => setRegenNotes({ ...regenNotes, [img.id]: e.target.value })} placeholder="Ajustes visuales..." />
                                                     </div>
                                                 </div>
-                                            ))}
+                                            </div>
+                                        )}
+
+                                        {aiImages.length > 0 && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                                <label style={styles.label}>Imágenes del Cuerpo</label>
+                                                {aiImages.map((img, idx) => (
+                                                    <div key={idx} style={styles.aiImageCard as any}>
+                                                        <div style={styles.aiImagePreview as any}>
+                                                            {img.status === 'generating' && <div className="shimmer" style={{ width: '100%', height: '100%', position: 'absolute' }}></div>}
+                                                            {img.imageUrl && <img src={img.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                                                        </div>
+                                                        <div style={styles.aiImageMeta as any}>
+                                                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#6366F1', marginBottom: '4px' }}>{img.placement}</div>
+                                                            <div style={styles.aiActions}>
+                                                                <button style={styles.iconBtn as any} onClick={() => handleDownloadSingle(img)} disabled={!img.imageUrl}><IconDownload /></button>
+                                                                <button style={{ ...styles.iconBtn, flex: 1 } as any} onClick={() => handleRegenerateImage(idx)} disabled={img.status === 'generating'}><IconRefresh /></button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                                      {/* SEO TAB CONTENT - Fully Interactive */}
+                                        <div style={styles.toolCard as any}>
+                                            <div style={styles.toolCardHeader}>
+                                                <IconRadar /> <span>Keywords Principales</span>
+                                            </div>
+                                            <div style={styles.toolCardBody}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                                    <span style={{ fontSize: '14px', fontWeight: 700 }}>{seoStats.mainKeyword.keyword}</span>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                        <span style={{ 
+                                                            fontSize: '12px', 
+                                                            fontWeight: 800,
+                                                            color: parseFloat(seoStats.mainKeyword.density) > 3 ? '#EF4444' : '#10B981'
+                                                        }}>
+                                                            {seoStats.mainKeyword.density}%
+                                                        </span>
+                                                        <span style={{ fontSize: '10px', color: '#64748B' }}>{seoStats.mainKeyword.count} veces</span>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '12px', marginTop: '4px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>LSI & Semántica ({strategyLSI.length})</div>
+                                                    </div>
+                                                    
+                                                    <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                                                        <input 
+                                                            style={{ ...styles.input, fontSize: '11px', height: '32px' }} 
+                                                            placeholder="Añadir Keyword..."
+                                                            value={tempLsiInput}
+                                                            onChange={e => setTempLsiInput(e.target.value)}
+                                                            onKeyDown={e => e.key === 'Enter' && handleAddLSI()}
+                                                        />
+                                                        <button onClick={handleAddLSI} style={{ ...styles.button, width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}>+</button>
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '150px', overflowY: 'auto', paddingRight: '4px' }}>
+                                                        {seoStats.lsi.map((k, i) => (
+                                                            <div key={i} style={{ 
+                                                                ...styles.keywordTag, 
+                                                                fontSize: '11px', 
+                                                                padding: '4px 8px',
+                                                                display: 'flex', 
+                                                                alignItems: 'center', 
+                                                                gap: '6px',
+                                                                backgroundColor: k.count > 0 ? '#ECFDF5' : '#F8FAFC',
+                                                                borderColor: k.count > 0 ? '#10B981' : '#E2E8F0',
+                                                                color: k.count > 0 ? '#065F46' : '#64748B'
+                                                            } as any}>
+                                                                {k.count > 0 && <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }}></span>}
+                                                                {k.keyword} ({k.count})
+                                                                <button onClick={() => handleRemoveLSI(i)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94A3B8', padding: 0 }}>×</button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
+
+                                        <div style={styles.toolCard as any}>
+                                            <div style={{ ...styles.toolCardHeader, justifyContent: 'space-between' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><IconLink /> <span>Enlaces ({strategyLinks.length})</span></div>
+                                                <button onClick={handleSearchMoreLinks} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#6366F1', fontSize: '11px', fontWeight: 700 }}>Buscar Más</button>
+                                            </div>
+                                            <div style={{ ...styles.toolCardBody, maxHeight: '200px', overflowY: 'auto' }}>
+                                                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                                                    <input 
+                                                        style={{ ...styles.input, fontSize: '11px', height: '30px' }} 
+                                                        placeholder="https://..."
+                                                        value={tempLinkUrl}
+                                                        onChange={e => setTempLinkUrl(e.target.value)}
+                                                    />
+                                                    <button onClick={handleAddLink} style={{ ...styles.button, width: '30px', height: '30px', padding: 0, justifyContent: 'center' }}>+</button>
+                                                </div>
+                                                {strategyLinks.map((l, i) => (
+                                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginBottom: '6px', padding: '6px', background: '#F8FAFC', borderRadius: '6px' }}>
+                                                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }} title={l.url}>
+                                                            {l.title || l.url}
+                                                        </div>
+                                                        <button onClick={() => handleRemoveLink(l.url)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#EF4444' }}><IconTrash size={12} /></button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div style={styles.toolCard as any}>
+                                            <div style={styles.toolCardHeader}>
+                                                <IconRadar /> <span>FAQs Strategy ({strategyQuestions.length})</span>
+                                            </div>
+                                            <div style={{ ...styles.toolCardBody, maxHeight: '200px', overflowY: 'auto' }}>
+                                                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                                                    <input 
+                                                        style={{ ...styles.input, fontSize: '11px', height: '32px' }} 
+                                                        placeholder="Nueva Pregunta..."
+                                                        value={tempFaqInput}
+                                                        onChange={e => setTempFaqInput(e.target.value)}
+                                                        onKeyDown={e => e.key === 'Enter' && handleAddFAQ()}
+                                                    />
+                                                    <button onClick={handleAddFAQ} style={{ ...styles.button, width: '32px', height: '32px', padding: 0, justifyContent: 'center' }}>+</button>
+                                                </div>
+                                                {strategyQuestions.map((q, i) => (
+                                                    <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', fontSize: '11px', marginBottom: '8px', padding: '6px', borderLeft: '3px solid #6366F1', background: '#F5F3FF' }}>
+                                                        <span style={{ flex: 1 }}>{q}</span>
+                                                        <button onClick={() => handleRemoveFAQ(i)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#94A3B8' }}>×</button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {metadata && (
+                                            <div style={styles.toolCard as any}>
+                                                <div style={styles.toolCardHeader}>
+                                                    <IconSEO /> <span>Metadata SEO</span>
+                                                </div>
+                                                <div style={styles.toolCardBody}>
+                                                    <MetadataField label="Title Tag" value={metadata.title} />
+                                                    <MetadataField label="Description" value={metadata.description} />
+                                                    <MetadataField label="URL Slug" value={metadata.slug} />
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <button 
+                                                onClick={handleGenerateSchema}
+                                                style={{ ...styles.button, width: '100%', justifyContent: 'center', background: '#0F172A', color: 'white' }}
+                                            >
+                                                <IconCode size={16} /> Generar Schema JSON-LD
+                                            </button>
+                                            <button 
+                                                onClick={performSEO}
+                                                style={{ ...styles.button, width: '100%', justifyContent: 'center', border: '1px solid #6366F1', color: '#6366F1' }}
+                                            >
+                                                <IconRefresh size={16} /> Re-analizar SEO
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                                <div style={{ height: '100px' }}></div>
                             </div>
                         </div>
                     </div>

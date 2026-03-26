@@ -38,7 +38,6 @@ export const CONTENT_TOOLS = [
     { id: "briefings", label: "Briefings", icon: FileText, color: "text-[var(--color-nous-mist)]" },
     { id: "writer", label: "Redactor", icon: PenLine, color: "text-[var(--color-nous-lavender)]" },
     { id: "humanizer", label: "Humanizador", icon: Sparkles, color: "text-pink-400" },
-    { id: "images", label: "Imágenes", icon: ImageIcon, color: "text-emerald-400" },
     { id: "interlinking", label: "Interlinking", icon: Link2, color: "text-[var(--color-nous-mist)]" },
     { id: "publisher", label: "Maquetador", icon: LayoutTemplate, color: "text-indigo-400" },
 ];

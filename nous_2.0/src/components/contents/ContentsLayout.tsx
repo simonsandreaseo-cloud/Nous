@@ -29,10 +29,6 @@ const StrategyGrid = dynamic(
     () => import("@/components/dashboard/StrategyGrid"),
     { loading: () => <ToolPlaceholder name="Briefings" />, ssr: false }
 );
-const ImagesPage = dynamic(
-    () => import("@/app/studio/images/page"),
-    { loading: () => <ToolPlaceholder name="Imágenes" />, ssr: false }
-);
 
 // Placeholder for tools not yet fully wired
 function ToolPlaceholder({ name }: { name: string }) {
@@ -88,7 +84,6 @@ function ToolView({ toolId }: { toolId: string }) {
         case "refinery": return <DataRefinery />;
         case "planner": return <EditorialCalendar />;
         case "briefings": return <StrategyGrid />;
-        case "images": return <ImagesPage />;
         default: return <ToolPlaceholder name={toolId} />;
     }
 }

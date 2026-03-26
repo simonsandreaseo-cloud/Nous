@@ -55,7 +55,6 @@ import StrategyGrid from "./StrategyGrid";
 import IntelligenceHub from "./IntelligenceHub";
 
 import { StrategyService } from "@/lib/services/strategy";
-import { ImagesModal } from "../studio/images/ImagesModal";
 import { ProjectBadge } from "@/components/ui/ProjectBadge";
 
 export function EditorialCalendar() {
@@ -68,7 +67,6 @@ export function EditorialCalendar() {
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
     const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
-    const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
     const [taskForImages, setTaskForImages] = useState<Task | null>(null);
     const [suggestedTasks, setSuggestedTasks] = useState<any[]>([]);
     const [isLoadingStrategy, setIsLoadingStrategy] = useState(false);
@@ -636,15 +634,6 @@ export function EditorialCalendar() {
                                                 <Paperclip size={16} /> Adjuntar Contenido Externo
                                             </button>
 
-                                            <button
-                                                onClick={() => {
-                                                    setTaskForImages(selectedTask);
-                                                    setIsImagesModalOpen(true);
-                                                }}
-                                                className="w-full py-5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-[24px] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center gap-3 group"
-                                            >
-                                                <Wand2 size={16} className="group-hover:rotate-12 transition-transform" /> Generar Imágenes con IA
-                                            </button>
                                         </div>
                                     </div>
 
@@ -808,11 +797,7 @@ export function EditorialCalendar() {
                 {isSchedulingModalOpen && (
                     <MassSchedulingModal onClose={() => setIsSchedulingModalOpen(false)} />
                 )}
-                <ImagesModal
-                    isOpen={isImagesModalOpen}
-                    onClose={() => setIsImagesModalOpen(false)}
-                    task={taskForImages}
-                />
+
             </AnimatePresence>
         </div>
     );

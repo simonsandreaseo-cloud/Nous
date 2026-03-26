@@ -149,6 +149,8 @@ interface WriterState {
     setHumanizerStatus: (msg: string) => void;
     setRefinementInstructions: (v: string) => void;
 
+    updateStrategyFromSeo: (seoData: SEOAnalysisResult) => void;
+
     toggleSidebar: () => void;
     setSidebarTab: (tab: SidebarTab) => void;
 
@@ -286,6 +288,32 @@ export const useWriterStore = create<WriterState>((set) => ({
     })),
     setHumanizerStatus: (humanizerStatus) => set({ humanizerStatus }),
     setRefinementInstructions: (refinementInstructions) => set({ refinementInstructions }),
+
+    updateStrategyFromSeo: (seoData: SEOAnalysisResult) => {
+        // We import it here or at top to avoid circular if any
+        const { generateBriefingText } = require('@/components/tools/writer/services');
+        const brief = generateBriefingText(seoData);
+        
+        set({
+            rawSeoData: seoData,
+            seoResults: seoData,
+            strategyLSI: seoData.lsiKeywords || [],
+            strategyQuestions: seoData.frequentQuestions || [],
+            strategyTitle: seoData.snippet?.metaTitle || '',
+            strategyH1: seoData.snippet?.h1 || '',
+            strategySlug: seoData.snippet?.slug || '',
+            strategyDesc: seoData.snippet?.metaDescription || '',
+            strategyWordCount: seoData.recommendedWordCount || '1500',
+            strategyOutline: (seoData.outline?.headers || []).map((h: any) => ({
+                type: h.type || 'H2',
+                text: h.text || '',
+                wordCount: h.wordCount || '200',
+                notes: h.notes || ''
+            })),
+            strategyNotes: brief, // Automated Briefing
+            detectedNiche: seoData.nicheDetected || '',
+        });
+    },
 
     toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
     setSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),

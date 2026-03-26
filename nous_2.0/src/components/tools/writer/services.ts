@@ -377,7 +377,6 @@ const retrieveContext = (allData: ContentItem[], topic: string, keywords: string
 };
 
 export const searchMoreLinks = async (apiKeys: string[] | string, keyword: string, csvData: ContentItem[]): Promise<ContentItem[]> => {
-    // Use AI to find related terms to search in the CSV
     const prompt = `Give me 5 search terms to find relevant products in a database for the topic "${keyword}". Return CSV.`;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
@@ -391,12 +390,12 @@ export const searchMoreLinks = async (apiKeys: string[] | string, keyword: strin
             const mix = [...context.collections.slice(0, 10), ...context.products.slice(0, 10)];
             return mix;
         } catch (e) {
-            // Fallback logic doesn't need API
             const context = retrieveContext(csvData, keyword, "oferta catalogo");
             return [...context.collections.slice(0, 5), ...context.products.slice(0, 5)];
         }
     });
 }
+
 
 // --- Post-Generation Auto Interlinking (Optimized) ---
 
@@ -708,28 +707,45 @@ export const generateArticleStream = async (apiKeys: string[] | string, model: s
     });
 };
 
-export const refineArticleContent = async (apiKeys: string[] | string, currentHtml: string, instructions: string, modelName?: string): Promise<string> => {
+export const refineArticleContent = async (
+    apiKeys: string[] | string, 
+    currentHtml: string, 
+    instructions: string, 
+    modelName?: string, 
+    selectedText?: string
+): Promise<string> => {
+    const isSelection = !!selectedText && selectedText.trim().length > 0;
+    
+    const target = isSelection 
+        ? `TEXT TO REFINE (SPECIFIC SECTION):\n"${selectedText}"` 
+        : `FULL ARTICLE TO REFINE:\n${currentHtml}`;
+        
+    const context = isSelection 
+        ? `\nFULL ARTICLE CONTEXT (FOR REFERENCE ONLY):\n${currentHtml.substring(0, 3000)}` 
+        : '';
+
     const prompt = `
     Role: Content Editor.
-    Task: Refine the following HTML article based strictly on user instructions.
+    Task: Refine the following ${isSelection ? 'SPECIFIC TEXT SECTION' : 'HTML article'} based strictly on user instructions.
     
     USER INSTRUCTIONS:
     "${instructions}"
     
-    Current Article:
-    ${currentHtml}
+    ${target}
+    ${context}
     
     OUTPUT RULES:
-    1. Return valid HTML content only (inside body).
+    1. ${isSelection ? 'Return ONLY the refined version of the specific text provided. Do NOT return the whole article.' : 'Return valid HTML content for the whole article (inside body).'}
     2. Do NOT strip existing images or links unless instructed.
-    3. Apply the requested changes while maintaining tone and style.
+    3. Apply requested changes while maintaining tone and style.
+    4. Return the result WITHOUT any markdown blocks (like \`\`\`html).
     `;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
         const modelObj = ai.getGenerativeModel({ model: modelName || 'gemini-2.0-flash-exp' });
         const response = await modelObj.generateContent(prompt);
-        const resText = response.response.text() || currentHtml;
-        return resText.replace(/```html/g, '').replace(/```/g, '');
+        const resText = response.response.text() || (isSelection ? selectedText : currentHtml);
+        return resText.replace(/```html/g, '').replace(/```/g, '').trim();
     }, modelName);
 }
 
@@ -885,6 +901,33 @@ const fetchSerperSearch = async (query: string, apiKey: string): Promise<any> =>
     }
 }
 
+export const searchOfficialAssets = async (apiKey: string, query: string): Promise<VisualResource[]> => {
+    try {
+        const res = await fetch("https://google.serper.dev/images", {
+            method: "POST",
+            headers: {
+                "X-API-KEY": apiKey,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                q: query,
+                gl: "es",
+                hl: "es"
+            })
+        });
+        if (!res.ok) throw new Error("Serper Images API Error");
+        const data = await res.json();
+        return (data.images || []).map((img: any) => ({
+            brand: query,
+            description: img.title,
+            url: img.imageUrl,
+            isImage: true
+        }));
+    } catch (e) {
+        return [];
+    }
+}
+
 // 2. Value SERP Integration (GET)
 const fetchRealSERP = async (query: string, apiKey: string): Promise<any> => {
     try {
@@ -960,7 +1003,8 @@ export const runSEOAnalysis = async (
     serperKey?: string,
     valueSerpKey?: string,
     jinaKey?: string,
-    modelName?: string
+    modelName?: string,
+    isIdea: boolean = false
 ): Promise<SEOAnalysisResult> => {
     // 1. Context Retrieval (Internal Data)
     const context = retrieveContext(csvData, keyword, "");
@@ -1067,7 +1111,32 @@ export const runSEOAnalysis = async (
             recommendedWordCount: { type: Type.STRING },
             searchIntent: { type: Type.STRING },
             keywordDifficulty: { type: Type.STRING },
-            searchVolume: { type: Type.STRING }
+            searchVolume: { type: Type.STRING },
+            outline: {
+                type: Type.OBJECT,
+                properties: {
+                    headers: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                type: { type: Type.STRING }, // h2, h3
+                                text: { type: Type.STRING },
+                                notes: { type: Type.STRING }
+                            }
+                        }
+                    }
+                }
+            },
+            snippet: {
+                type: Type.OBJECT,
+                properties: {
+                    metaTitle: { type: Type.STRING },
+                    h1: { type: Type.STRING },
+                    metaDescription: { type: Type.STRING },
+                    slug: { type: Type.STRING }
+                }
+            }
         },
         required: [
             "nicheDetected", "keywordIdeas", "autocompleteLongTail", "frequentQuestions", "top10Urls",
@@ -1077,12 +1146,19 @@ export const runSEOAnalysis = async (
 
     const systemPrompt = `Eres un estratega SEO experto.
         PROYECTO: ${projectName || 'Desconocido'}.
-        KEYWORD OBJETIVO: "${keyword}".
+        ${isIdea ? 'LA ENTRADA ES UNA IDEA/CONCEPTO, NO UN TÍTULO FINAL. DEBES GENERAR UN TÍTULO SEO OPTIMIZADO.' : 'KEYWORD/TÍTULO OBJETIVO: "' + keyword + '"'}
         === EXTERNAL INTELLIGENCE ===
         ${serpContext}
         === INTERNAL DATABASE ===
         ${productContext}
         ${collectionContext}
+        
+        Tu tarea es:
+        1. Analizar el nicho y la intención.
+        2. Proponer keywords (Short, Mid, Long Tail).
+        3. Generar un OUTLINE (Estructura de encabezados H2, H3) basado en lo que busca el usuario según las SERP.
+        4. Identificar competidores y extraer FAQs.
+        ${isIdea ? '5. Generar un Título H1 definitivo y sugerente.' : ''}
         
         TAREA: Analiza y extrae solo los datos brutos.
         Retorna JSON válido.`;
@@ -1221,63 +1297,57 @@ export const runHumanizerPipeline = async (
     intensity: number,
     onStatus: (msg: string) => void
 ): Promise<{ html: string }> => {
-    onStatus("Analyzing content patterns...");
-
-    // STRICT MODE LOGIC
-    let strictInstructions = "";
-    if (config.isStrictMode) {
-        const freq = config.strictFrequency || 30;
-        let keywordInstruction = "";
-        if (freq <= 30) {
-            keywordInstruction = "Ensure keywords appear naturally (1-2% density). Do not force if it hurts readability.";
-        } else if (freq <= 60) {
-            keywordInstruction = "Increase keyword density (3-4%). Repeat keywords in headings and first paragraphs.";
-        } else {
-            keywordInstruction = "MAXIMUM DENSITY. Force keywords into the text repeatedly (Keyword Stuffing). Ignore flow if necessary.";
-        }
-
-        strictInstructions = `
-        STRICT SEO MODE ACTIVE (Intensity: ${freq}/100):
-        1. YOU MUST PRESERVE OR ADD the following keywords: [${config.lsiKeywords?.join(', ')}].
-        2. ${keywordInstruction}
-        3. Do NOT remove specific FAQ answers if present.
-        `;
-    }
-
-    const prompt = `
-    Role: Senior Editor & Copywriter.
-    Task: "Humanize" this HTML content. Remove AI patterns, repetitive structures, and generic transitions.
+    onStatus("Fase 1: Analizando naturalidad y ritmo...");
+    const prompt1 = `
+    Eres un editor experto en humanizar contenido IA. 
+    Analiza este HTML y mejora el flujo, el ritmo y la conexión emocional.
+    Nicho: ${config.niche}. Audiencia: ${config.audience}.
+    Keywords a respetar: ${config.keywords}.
+    Instrucciones extra: ${config.notes || 'No hay notas adicionales'}.
     
-    Configuration:
-    - Niche: ${config.niche}
-    - Audience: ${config.audience}
-    - Intensity: ${intensity}% (Where 100% is completely rewritten in a natural, erratic human flow).
-    - Style Notes: ${config.notes || "Natural, conversational, varied sentence length."}
+    REGLAS:
+    1. No inventes datos ni cambies el sentido técnico. 
+    2. Usa un tono cercano y profesional.
+    3. Rompe la estructura robótica (evita enumeraciones excesivas parecidas entre sí).
+    4. Retorna SOLO el HTML del body.
     
-    ${strictInstructions}
-    
-    Strict Rules:
-    1. KEEP HTML TAGS INTACT (Links, lists, tables). Only change the text inside paragraphs and headers.
-    2. Vary sentence length significantly.
-    3. Use idiomatic expressions where appropriate for Spanish (Spain).
-    4. Avoid "En conclusión", "En resumen", "Por otro lado" unless natural.
-    
-    Content:
+    HTML:
     ${html}
     `;
 
-    onStatus("Rewriting text (AI De-patterning)...");
-
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        const response = await model.generateContent(prompt);
+        const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+        
+        let res = await model.generateContent(prompt1);
+        let currentHtml = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
-        let newHtml = response.response.text() || html;
-        // Clean markdown block if present
-        newHtml = newHtml.replace(/```html/g, '').replace(/```/g, '');
+        if (intensity > 50) {
+            onStatus("Fase 2: Aplicando variaciones léxicas y SEO natural...");
+            const prompt2 = `
+            Mejora el léxico de este HTML para que sea rico y variado.
+            Usa sinónimos y expresiones naturales.
+            Keywords LSI para integrar: [${config.lsiKeywords?.join(', ') || 'N/A'}].
+            HTML:
+            ${currentHtml}
+            `;
+            res = await model.generateContent(prompt2);
+            currentHtml = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+        }
 
-        onStatus("Final Polish...");
-        return { html: newHtml };
+        if (intensity > 80) {
+            onStatus("Fase 3: Refinando engagement y preguntas clave...");
+            const prompt3 = `
+            Añade toques de engagement y mejora la respuesta a intenciones de búsqueda.
+            Asegúrate de que cubra estas preguntas (FAQs): [${config.questions?.join(', ') || 'N/A'}].
+            Si hay un modo estricto activo, fuerza la presencia de estas preguntas.
+            HTML:
+            ${currentHtml}
+            `;
+            res = await model.generateContent(prompt3);
+            currentHtml = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+        }
+
+        return { html: currentHtml };
     });
 };
 
@@ -1292,49 +1362,34 @@ export const runSmartEditor = async (
     lsiKeywords?: string[],
     questions?: string[]
 ): Promise<string> => {
-    onStatus("Applying editorial changes...");
-
-    // STRICT MODE LOGIC
+    onStatus("Ejecutando editor inteligente...");
+    
     let strictInstructions = "";
     if (isStrictMode) {
         const freq = strictFrequency || 30;
-        let keywordInstruction = "";
-        if (freq <= 30) {
-            keywordInstruction = "Ensure keywords appear naturally (1-2% density).";
-        } else if (freq <= 60) {
-            keywordInstruction = "Ensure high keyword density (3-4%).";
-        } else {
-            keywordInstruction = "Force keyword stuffing (>5%).";
-        }
-
         strictInstructions = `
-        STRICT SEO MODE ACTIVE (Intensity: ${freq}/100):
-        1. MANDATORY: Ensure these keywords appear in the text: [${lsiKeywords?.join(', ')}].
-        2. ${keywordInstruction}
-        3. ${freq > 80 ? "Answer these FAQs explicitly if missing:" : "Ensure these FAQs are covered:"} [${questions?.join(', ')}].
+        MODO ESTRICTO ACTIVO (${freq}%):
+        - Asegura densidad de keywords LSI: [${lsiKeywords?.join(', ')}]
+        - Incluye respuestas a FAQs: [${questions?.join(', ')}]
+        - Si la intensidad es > 80, prioriza la densidad sobre la fluidez.
         `;
     }
 
     const prompt = `
-    Role: Content Editor.
-    Task: Edit the following HTML content based on specific instructions.
-    
-    Edit Strength: ${percentage}% of the text should be touched.
-    Instructions: ${notes}
-    
+    Eres un Editor Senior. Tu tarea es mejorar este artículo HTML.
+    Intensidad de edición: ${percentage}%
+    Instrucciones específicas: ${notes}
     ${strictInstructions}
     
-    Constraint: maintain the HTML structure (images, tables, lists). Return full valid HTML body.
-    
-    Input HTML:
+    REGLA DE ORO: Mantén intacta la estructura HTML (enlaces, imágenes, listas).
+    HTML:
     ${html}
     `;
 
     return executeWithKeyRotation(apiKeys, async (ai) => {
-        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
         const response = await model.generateContent(prompt);
-        const resText = response.response.text() || html;
-        return resText.replace(/```html/g, '').replace(/```/g, '');
+        return response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
     });
 };
 
@@ -1365,6 +1420,53 @@ export async function exportToGoogleDoc(title: string, htmlContent: string, sess
         console.error('Export Error:', error);
         throw error;
     }
+}
+
+// --- Briefing Generation Helper ---
+export function generateBriefingText(seoData: SEOAnalysisResult): string {
+    const { snippet, top10Urls, lsiKeywords, frequentQuestions, outline } = seoData;
+    
+    let brief = `# Briefing Estratégico: ${snippet?.h1 || 'Nuevo Artículo'}\n\n`;
+    
+    if (snippet?.metaTitle) brief += `**Meta Title:** ${snippet.metaTitle}\n`;
+    if (snippet?.metaDescription) brief += `**Meta Description:** ${snippet.metaDescription}\n`;
+    if (snippet?.slug) brief += `**URL Suggestion:** /${snippet.slug}/\n\n`;
+    
+    if (top10Urls && top10Urls.length > 0) {
+        brief += `## Análisis de Competidores (Top 10)\n`;
+        top10Urls.forEach((comp: any, i: number) => {
+            brief += `${i + 1}. [${comp.title}](${comp.url})\n`;
+        });
+        brief += `\n`;
+    }
+    
+    if (lsiKeywords && lsiKeywords.length > 0) {
+        brief += `## Palabras Clave LSI & Semánticas\n`;
+        lsiKeywords.forEach((k: any) => {
+            brief += `- ${k.keyword}\n`;
+        });
+        brief += `\n`;
+    }
+    
+    if (frequentQuestions && frequentQuestions.length > 0) {
+        brief += `## Preguntas Frecuentes (PAA)\n`;
+        frequentQuestions.forEach((q: string) => {
+            brief += `- ${q}\n`;
+        });
+        brief += `\n`;
+    }
+    
+    if (outline?.headers && outline.headers.length > 0) {
+        brief += `## Estructura Sugerida\n`;
+        outline.headers.forEach((h: any) => {
+            brief += `### ${h.type}: ${h.text}\n`;
+            if (h.notes) brief += `> ${h.notes}\n`;
+        });
+    }
+    
+    brief += `\n---\n*Generado automáticamente por Nous Research Engine.*`;
+    
+    return brief.trim();
 }
 
 // --- Export to Google Sheets ---

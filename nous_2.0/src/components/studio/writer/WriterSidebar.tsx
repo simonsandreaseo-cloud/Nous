@@ -82,7 +82,7 @@ export default function WriterSidebar() {
         isRefining, setRefining,
         rawSeoData, setRawSeoData,
         seoResults, setSeoResults,
-        researchDossier, outlineStructure, setOutlineStructure,
+        researchDossier, setResearchDossier, outlineStructure, setOutlineStructure,
         strategyTitle, setStrategyTitle,
         strategyH1, setStrategyH1,
         strategySlug, setStrategySlug,
@@ -239,6 +239,7 @@ export default function WriterSidebar() {
             setStrategyLSI(data.lsiKeywords || []);
             setStrategyLongTail(data.autocompleteLongTail || []);
             setStrategyQuestions(data.frequentQuestions || []);
+            setStrategyOutline(data.outline?.headers || []);
             setStatus('✅ Análisis completo. Revisa y ajusta la estrategia.');
             setSidebarTab('research');
         } catch (e: any) {
@@ -363,16 +364,29 @@ export default function WriterSidebar() {
         
         const hasEffectiveKeys = (apiKeys && apiKeys.length > 0) || !!(process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS);
         if (!hasEffectiveKeys && !isLocalConnected) return alert('Configura tus API Keys (plural) primero o conecta el nodo local.');
+        
         setHumanizing(true);
-        setHumanizerStatus('Iniciando humanización…');
+        setHumanizerStatus('Iniciando humanización...');
         try {
+            const config: any = {
+                projectName, niche: detectedNiche || 'General', audience: 'Público General',
+                keywords: keyword, notes: humanizerConfig.notes || '',
+                lsiKeywords: strategyLSI.map(l => l.keyword).concat(strategyLongTail),
+                links: strategyLinks, isStrictMode, strictFrequency,
+                questions: strategyQuestions
+            };
+
             const result = await runHumanizerPipeline(
                 apiKeys, content,
-                { ...humanizerConfig, isStrictMode: false, keywords: '' },
+                config as any, // Cast to any to handle type mismatch if services.ts was updated
                 humanizerConfig.intensity,
                 (msg) => setHumanizerStatus(msg)
             );
-            setContent(result.html);
+
+            // Apply styling refinement after humanization
+            const refined = refineStyling(result.html);
+            setContent(refined);
+            
             setHumanizerStatus('✅ ¡Humanización completada!');
             setTimeout(() => setHumanizerStatus(''), 3000);
         } catch (e: any) {
@@ -525,6 +539,7 @@ export default function WriterSidebar() {
         { id: 'assistant', label: 'Asistente', icon: Bot },
         { id: 'seo', label: 'SEO', icon: Search },
         { id: 'research', label: 'Estrategia', icon: Sparkles },
+        { id: 'media', label: 'Multimedia', icon: ImageIcon },
         { id: 'history', label: 'Historial', icon: FileOutput },
         { id: 'export', label: 'Exportar', icon: Download },
     ] as const;
@@ -804,23 +819,66 @@ export default function WriterSidebar() {
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         {rawSeoData ? (
                             <div className="space-y-4">
-                                <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
-                                    <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest mb-1">Dificultad</p>
-                                    <p className="text-lg font-bold text-indigo-900">{rawSeoData.keywordDifficulty || 'N/A'}</p>
+                                 <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+                                    <div>
+                                        <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest mb-1">Dificultad</p>
+                                        <p className="text-lg font-bold text-indigo-900">{rawSeoData.keywordDifficulty || 'N/A'}</p>
+                                    </div>
+                                    <button 
+                                        onClick={handleSEO}
+                                        className="p-2 bg-white rounded-lg text-indigo-400 hover:text-indigo-600 shadow-sm border border-indigo-100 transition-all"
+                                        title="Regenerar Análisis"
+                                    >
+                                        <RefreshCw size={14} className={cn(isAnalyzingSEO && "animate-spin")} />
+                                    </button>
                                 </div>
                                 <div className="space-y-2">
-                                    <SectionLabel>LSI Keywords</SectionLabel>
+                                    <div className="flex items-center justify-between">
+                                        <SectionLabel>LSI Keywords</SectionLabel>
+                                        <button 
+                                            onClick={() => {
+                                                const k = prompt('Introduce keyword LSI:');
+                                                if(k) {
+                                                    const current = rawSeoData.lsiKeywords || [];
+                                                    setRawSeoData({...rawSeoData, lsiKeywords: [...current, {keyword: k, count: 'N/A'}]});
+                                                }
+                                            }}
+                                            className="text-slate-400 hover:text-indigo-600 transition-colors"
+                                        >
+                                            <Plus size={12} />
+                                        </button>
+                                    </div>
                                     <div className="flex flex-wrap gap-1">
                                         {rawSeoData.lsiKeywords?.map((k: any, i: number) => (
-                                            <span key={i} className={cn("px-2 py-1 rounded text-[10px] border", content.toLowerCase().includes(k.keyword.toLowerCase()) ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-white text-slate-400 border-slate-100")}>{k.keyword}</span>
+                                            <span key={i} className={cn("px-2 py-1 rounded text-[10px] border relative group", content.toLowerCase().includes(k.keyword.toLowerCase()) ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-white text-slate-400 border-slate-100")}>
+                                                {k.keyword}
+                                                <button onClick={() => setRawSeoData({...rawSeoData, lsiKeywords: rawSeoData.lsiKeywords.filter((_, idx) => idx !== i)})} className="absolute -top-1 -right-1 bg-white rounded-full text-red-500 border border-red-100 opacity-0 group-hover:opacity-100 transition-opacity"><X size={8} /></button>
+                                            </span>
                                         ))}
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <SectionLabel>Preguntas (PAA)</SectionLabel>
+                                    <div className="flex items-center justify-between">
+                                        <SectionLabel>Preguntas (PAA)</SectionLabel>
+                                        <button 
+                                            onClick={() => {
+                                                const q = prompt('Introduce nueva pregunta:');
+                                                if(q) {
+                                                    const current = rawSeoData.frequentQuestions || [];
+                                                    setRawSeoData({...rawSeoData, frequentQuestions: [...current, q]});
+                                                }
+                                            }}
+                                            className="text-slate-400 hover:text-indigo-600 transition-colors"
+                                        >
+                                            <Plus size={12} />
+                                        </button>
+                                    </div>
                                     <div className="space-y-1">
                                         {rawSeoData.frequentQuestions?.map((q: string, i: number) => (
-                                            <div key={i} className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-[10px] text-slate-600">{q}</div>
+                                            <div key={i} className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-[10px] text-slate-600 flex items-center justify-between group">
+                                                <span className="truncate pr-4">{q}</span>
+                                                <button onClick={() => setRawSeoData({...rawSeoData, frequentQuestions: rawSeoData.frequentQuestions.filter((_, idx) => idx !== i)})} className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
@@ -867,14 +925,41 @@ export default function WriterSidebar() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <SectionLabel>Enlaces Internos</SectionLabel>
+                                <div className="flex items-center justify-between">
+                                    <SectionLabel>Enlaces Internos ({strategyLinks.length})</SectionLabel>
+                                    <div className="flex gap-1">
+                                        <button 
+                                            onClick={async () => {
+                                                const { searchMoreLinks } = await import('@/components/tools/writer/services');
+                                                const more = await searchMoreLinks(apiKeys, keyword, csvData);
+                                                setStrategyLinks([...strategyLinks, ...more.filter(m => !strategyLinks.some(sl => sl.url === m.url))]);
+                                            }}
+                                            className="p-1 hover:bg-slate-100 rounded text-slate-400" 
+                                            title="Buscar Más"
+                                        >
+                                            <Plus size={12} />
+                                        </button>
+                                        <button 
+                                            onClick={async () => {
+                                                const { searchMoreLinks } = await import('@/components/tools/writer/services');
+                                                const fresh = await searchMoreLinks(apiKeys, keyword, csvData);
+                                                setStrategyLinks(fresh);
+                                            }}
+                                            className="p-1 hover:bg-slate-100 rounded text-slate-400" 
+                                            title="Regenerar"
+                                        >
+                                            <RefreshCw size={12} />
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="space-y-1">
-                                    {strategyLinks.slice(0, 10).map((l, i) => (
+                                    {strategyLinks.slice(0, 15).map((l, i) => (
                                         <div key={i} className="flex items-center justify-between p-2 bg-emerald-50/50 border border-emerald-100 rounded-lg group">
                                             <span className="text-[10px] text-emerald-800 font-medium truncate">{l.title}</span>
                                             <button onClick={() => setStrategyLinks(strategyLinks.filter((_, idx) => idx !== i))} className="text-emerald-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
                                         </div>
                                     ))}
+                                    {strategyLinks.length > 15 && <p className="text-[9px] text-slate-400 text-center">+ {strategyLinks.length - 15} más...</p>}
                                 </div>
                             </div>
                             <div className="pt-4 border-t border-slate-100">
@@ -886,6 +971,77 @@ export default function WriterSidebar() {
                                 <p className="text-[9px] text-slate-400 text-center mt-2">Paso final: Escribir el artículo basado en esta estrategia.</p>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* TAB: MULTIMEDIA */}
+                {activeSidebarTab === 'media' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-3">
+                            <SectionLabel>Investigación de Assets</SectionLabel>
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    placeholder="Ej: logo nike png" 
+                                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                                    id="asset-query"
+                                    onKeyDown={async (e) => {
+                                        if (e.key === 'Enter') {
+                                            const query = (e.target as HTMLInputElement).value;
+                                            if (!query) return;
+                                            setStatus('Buscando assets oficiales...');
+                                            try {
+                                                const { searchOfficialAssets } = await import('@/components/tools/writer/services');
+                                                const results = await searchOfficialAssets(serperKey || process.env.NEXT_PUBLIC_SERPER_API_KEY || '', query);
+                                                setResearchDossier({ ...researchDossier, assets: results });
+                                                setStatus('✅ Búsqueda completada.');
+                                            } catch (err) {
+                                                setStatus('❌ Error en búsqueda.');
+                                            }
+                                        }
+                                    }}
+                                />
+                                <Button size="sm" variant="secondary" onClick={async () => {
+                                    const input = document.getElementById('asset-query') as HTMLInputElement;
+                                    const query = input.value;
+                                    if (!query) return;
+                                    setStatus('Buscando assets oficiales...');
+                                    try {
+                                        const { searchOfficialAssets } = await import('@/components/tools/writer/services');
+                                        const results = await searchOfficialAssets(serperKey || process.env.NEXT_PUBLIC_SERPER_API_KEY || '', query);
+                                        setResearchDossier({ ...researchDossier, assets: results });
+                                        setStatus('✅ Búsqueda completada.');
+                                    } catch (err) {
+                                        setStatus('❌ Error en búsqueda.');
+                                    }
+                                }}>
+                                    <Search size={14} />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {researchDossier?.assets && (
+                            <div className="grid grid-cols-2 gap-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                {researchDossier.assets.map((asset: any, i: number) => (
+                                    <div key={i} className="group relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 cursor-pointer hover:border-indigo-400 transition-all" onClick={() => window.open(asset.url, '_blank')}>
+                                        <img src={asset.url} alt={asset.description} className="w-full h-24 object-contain p-2" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <LinkIcon size={16} className="text-white" />
+                                        </div>
+                                        <div className="p-1.5 bg-white border-t border-slate-100">
+                                            <p className="text-[8px] text-slate-500 truncate">{asset.description}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        
+                        {!researchDossier?.assets && (
+                            <div className="text-center py-12">
+                                <ImageIcon size={32} className="mx-auto text-slate-200 mb-4" />
+                                <p className="text-xs text-slate-400">Busca logos o fotos oficiales para incluirlos en el briefing.</p>
+                            </div>
+                        )}
                     </div>
                 )}
 
