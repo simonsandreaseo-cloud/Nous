@@ -12,12 +12,12 @@ import {
     Plus,
     Trash2,
     Loader2,
-    BarChart3
+    BarChart3,
+    RefreshCw
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
-import { fetchGscSitesAction, fetchGa4PropertiesAction } from "@/app/node-tasks/report-actions";
 import { TeamSettings } from "./TeamSettings";
 import { NOUS_PALETTE } from "@/constants/colors";
 import { getProjectNameFromDomain, getFaviconUrl } from "@/utils/domain";
@@ -61,9 +61,11 @@ export default function SettingsPage() {
 
     const [gscSites, setGscSites] = useState<{ url: string; permission: string; accountEmail?: string }[]>([]);
     const [ga4Properties, setGa4Properties] = useState<{ id: string; name: string; accountEmail?: string }[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isSyncingGsc, setIsSyncingGsc] = useState(false);
+    const [syncProgress, setSyncProgress] = useState("");
     const [isLoadingSites, setIsLoadingSites] = useState(false);
     const [isLoadingGa4, setIsLoadingGa4] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         fetchProjects();
@@ -72,6 +74,11 @@ export default function SettingsPage() {
         // Check for GSC auth callback params
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
+            if (params.get('google') === 'connected') {
+                alert("Cuenta de Google vinculada correctamente.");
+                router.replace('/settings');
+                setActiveTab('integrations');
+            }
             if (params.get('gsc') === 'connected') {
                 fetchProjects().then(() => {
                     alert("Google Search Console conectado exitosamente.");
@@ -129,31 +136,17 @@ export default function SettingsPage() {
     }, [activeProject?.id]);
 
     useEffect(() => {
-        const fetchGscSites = async () => {
-            // Now we fetch sites if user is connected OR project is connected
-            if ((activeProject?.gsc_connected || isUserGscConnected)) {
-                setIsLoadingSites(true);
-                try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const res = await fetch('/api/gsc/sites', {
-                        headers: {
-                            'Authorization': `Bearer ${session?.access_token}`
-                        }
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        setGscSites(data.sites);
-                    }
-                } catch (e) {
-                    console.error("Error fetching GSC sites:", e);
-                } finally {
-                    setIsLoadingSites(false);
-                }
+        const fetchAllSites = async () => {
+            if (isUserGscConnected || activeProject?.gsc_connected) {
+                await Promise.all([
+                    fetchGscSites(),
+                    fetchGa4Sites(),
+                    fetchConnectedAccounts()
+                ]);
             }
         };
-
-        fetchGscSites();
-    }, [activeProject?.id, activeProject?.gsc_connected, isUserGscConnected]);
+        fetchAllSites();
+    }, [activeProject?.id, isUserGscConnected, activeTab]);
 
     const handleSaveAll = async () => {
         if (!activeProject) return;
@@ -201,8 +194,13 @@ export default function SettingsPage() {
         if (!session?.user?.id) return;
         setIsLoadingSites(true);
         try {
-            const res = await fetchGscSitesAction(session.user.id);
-            if (res.success) setGscSites(res.sites);
+            const res = await fetch('/api/gsc/sites', {
+                headers: {
+                    'Authorization': `Bearer ${session?.access_token}`
+                }
+            });
+            const data = await res.json();
+            if (data.success) setGscSites(data.sites);
         } catch (e) {
             console.error("Failed to fetch GSC sites:", e);
         } finally {
@@ -215,13 +213,14 @@ export default function SettingsPage() {
         if (!session?.user?.id) return;
         setIsLoadingGa4(true);
         try {
-            const res = await fetchGa4PropertiesAction(session.user.id);
-            if (res.success) {
-                setGa4Properties(res.sites);
-            } else {
-                if (res.error?.includes("Permisos")) {
-                    alert(res.error);
+            const res = await fetch('/api/ga4/properties', {
+                headers: {
+                    'Authorization': `Bearer ${session?.access_token}`
                 }
+            });
+            const data = await res.json();
+            if (data.success) {
+                setGa4Properties(data.sites);
             }
         } catch (e: any) {
             console.error("Failed to fetch GA4 sites:", e);
@@ -280,6 +279,30 @@ export default function SettingsPage() {
             console.log("[DEBUG] Project GA4 property updated to:", propertyId);
         } catch (e) {
             console.error("Failed to update GA4 property:", e);
+        }
+    };
+
+    const handleSyncGscInventory = async () => {
+        if (!activeProject || !activeProject.gsc_site_url) return alert("Selecciona una propiedad GSC primero.");
+        
+        setIsSyncingGsc(true);
+        setSyncProgress("Iniciando sincronización...");
+        try {
+            const response = await fetch('/api/gsc/sync-urls', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId: activeProject.id })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Error al sincronizar");
+            
+            alert(`Sincronización completada: ${data.count} URLs indexadas han sido guardadas.`);
+        } catch (e: any) {
+            console.error("GSC Sync Failed:", e);
+            alert("Error: " + e.message);
+        } finally {
+            setIsSyncingGsc(false);
+            setSyncProgress("");
         }
     };
 
@@ -666,14 +689,32 @@ export default function SettingsPage() {
                                                 <div className="text-[8px] font-black text-amber-500 uppercase tracking-tighter opacity-50 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">GA4 v2.0</div>
                                             </div>
 
-                                            <div className="flex items-center gap-4 mb-10">
-                                                <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-900/10">
-                                                    <Globe size={24} />
+                                            <div className="flex items-center justify-between mb-10">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-900/10">
+                                                        <Globe size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Google Search & Analytics</h3>
+                                                        <p className="text-[10px] text-slate-500 font-medium tracking-tight">Vincular con Google Ecosistema v2.0</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Google Search & Analytics</h3>
-                                                    <p className="text-[10px] text-slate-500 font-medium tracking-tight">Vinculación de datos de tráfico y posicionamiento orgánico.</p>
-                                                </div>
+
+                                                {/* MASTER SYNC BUTTON */}
+                                                {isUserGscConnected && activeProject?.gsc_site_url && (
+                                                    <button 
+                                                        onClick={handleSyncGscInventory}
+                                                        disabled={isSyncingGsc}
+                                                        className="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/20 border border-white/10 disabled:opacity-50"
+                                                    >
+                                                        {isSyncingGsc ? (
+                                                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                                                        ) : (
+                                                            <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500 text-cyan-400" />
+                                                        )}
+                                                        <span>{isSyncingGsc ? "Procesando Nodos..." : "Sincronizar Datos SEO (GSC + GA4)"}</span>
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {!isUserGscConnected ? (
@@ -723,7 +764,7 @@ export default function SettingsPage() {
                                                             )}
                                                         </div>
                                                         {activeProject.gsc_site_url && (
-                                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 w-fit">
+                                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 w-fit mt-2">
                                                                 <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
                                                                 <span className="text-[8px] font-black uppercase tracking-tighter">Nodo GSC Activo</span>
                                                             </div>
@@ -747,17 +788,32 @@ export default function SettingsPage() {
                                                             </button>
                                                         </div>
                                                         <div className="relative">
-                                                            <select
-                                                                value={activeProject.ga4_property_id || ''}
-                                                                onChange={(e) => handleUpdateGa4Property(e.target.value)}
-                                                                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-amber-500/10 transition-all appearance-none cursor-pointer pr-10"
-                                                                disabled={isLoadingGa4}
-                                                            >
-                                                                <option value="">Selecciona Propiedad...</option>
-                                                                {ga4Properties.map(prop => (
-                                                                    <option key={prop.id} value={prop.id}>{prop.name}</option>
-                                                                ))}
-                                                            </select>
+                                                            <div className="flex gap-2">
+                                                                <select
+                                                                    value={activeProject.ga4_property_id || ''}
+                                                                    onChange={(e) => handleUpdateGa4Property(e.target.value)}
+                                                                    className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-amber-500/10 transition-all appearance-none cursor-pointer pr-10"
+                                                                    disabled={isLoadingGa4}
+                                                                >
+                                                                    <option value="">Selecciona Propiedad...</option>
+                                                                    {ga4Properties.map(prop => (
+                                                                        <option key={prop.id} value={prop.id}>{prop.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <button 
+                                                                    onClick={fetchGa4Sites}
+                                                                    disabled={isLoadingGa4}
+                                                                    className="p-4 bg-white border border-slate-100 rounded-2xl text-amber-500 hover:bg-amber-50 transition-all shadow-sm flex items-center justify-center"
+                                                                    title="Refrescar Propiedades"
+                                                                >
+                                                                    <RefreshCw size={14} className={isLoadingGa4 ? "animate-spin" : ""} />
+                                                                </button>
+                                                            </div>
+                                                            {ga4Properties.length === 0 && !isLoadingGa4 && isUserGscConnected && (
+                                                                <p className="mt-2 text-[9px] text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100 flex items-center gap-1.5 font-bold animate-fadeIn">
+                                                                    <RefreshCw size={10} className="animate-spin" /> No se detectan propiedades. Revisa si la "Analytics Admin API" está activa en Google Cloud.
+                                                                </p>
+                                                            )}
                                                             {isLoadingGa4 && (
                                                                 <div className="absolute right-4 top-1/2 -translate-y-1/2">
                                                                     <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -947,31 +1003,31 @@ export default function SettingsPage() {
                                             <div className="flex gap-5">
                                                 <div className={cn(
                                                     "w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg",
-                                                    isUserGscConnected ? "bg-amber-500 text-white shadow-amber-500/20" : "bg-white text-slate-300"
+                                                    isUserGscConnected ? "bg-emerald-500 text-white shadow-emerald-500/20" : "bg-white text-slate-300"
                                                 )}>
                                                     <BarChart3 size={32} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-lg font-black text-slate-900 uppercase italic leading-none mb-2">Google Analytics 4</h3>
+                                                    <h3 className="text-sm font-black text-slate-900 uppercase italic leading-none mb-2 tracking-tight">Google Analytics 4</h3>
                                                     <div className="flex items-center gap-2">
-                                                        <div className={cn("w-2 h-2 rounded-full", isUserGscConnected ? "bg-amber-500 animate-pulse" : "bg-slate-300")} />
+                                                        <div className={cn("w-2 h-2 rounded-full", isUserGscConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
                                                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                            {isUserGscConnected ? "Integración Activa" : "Sin Configurar"}
+                                                            {isUserGscConnected ? `${connectedAccounts.length} CUENTA(S) CONECTADA(S)` : "Sin Configurar"}
                                                         </span>
                                                     </div>
-                                                    <p className="text-xs text-slate-400 mt-3 max-w-sm">Analiza el tráfico proveniente de LLMs y Chatbots AI vinculando tus propiedades de GA4.</p>
+                                                    <p className="text-[10px] text-slate-400 mt-2 max-w-sm font-medium tracking-tight">Analiza el tráfico, rebote y fuentes de tus proyectos vinculando propiedades de GA4.</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => window.location.href = '/api/auth/gsc/login'}
                                                 className={cn(
-                                                    "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-sm",
+                                                    "px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm",
                                                     isUserGscConnected
-                                                        ? "bg-white border border-amber-100 text-amber-600 hover:bg-amber-50 shadow-amber-100/10"
+                                                        ? "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                                                         : "bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/10"
                                                 )}
                                             >
-                                                {isUserGscConnected ? "Agregar Otra Cuenta" : "Vincular GA4"}
+                                                {isUserGscConnected ? "Agregar Otra Cuenta" : "Vincular Google"}
                                             </button>
                                         </div>
                                         <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-500/5 rounded-full blur-3xl" />

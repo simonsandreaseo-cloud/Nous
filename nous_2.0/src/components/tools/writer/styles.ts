@@ -36,12 +36,16 @@ export const styles: any = {
         color: '#64748B',
         cursor: 'pointer',
         transition: 'all 0.2s',
-        border: '1px solid transparent',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: 'transparent',
         height: '40px'
     },
     navTabActive: {
         backgroundColor: '#F1F5F9',
         color: '#0F172A',
+        borderWidth: '1px',
+        borderStyle: 'solid',
         borderColor: '#E2E8F0'
     },
     navTabDisabled: {
@@ -233,7 +237,9 @@ export const styles: any = {
         backgroundColor: '#FFFFFF',
         borderRadius: '16px',
         padding: '32px',
-        border: '1px solid #E2E8F0',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: '#E2E8F0',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)',
         display: 'flex',
         flexDirection: 'column',
@@ -373,7 +379,9 @@ export const styles: any = {
 
     // Dropzone
     dropzone: {
-        border: '2px dashed #CBD5E1',
+        borderWidth: '2px',
+        borderStyle: 'dashed',
+        borderColor: '#CBD5E1',
         borderRadius: '12px',
         padding: '40px',
         textAlign: 'center',
@@ -386,7 +394,7 @@ export const styles: any = {
         gap: '12px'
     },
     dropzoneActive: {
-        borderColor: '#0F172A',
+        border: '2px dashed #0F172A',
         backgroundColor: '#E2E8F0'
     },
 
@@ -533,7 +541,9 @@ export const styles: any = {
     iconBtn: {
         padding: '8px',
         borderRadius: '6px',
-        border: '1px solid #E2E8F0',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: '#E2E8F0',
         backgroundColor: 'white',
         cursor: 'pointer',
         display: 'flex',
@@ -680,7 +690,9 @@ export const styles: any = {
         borderRadius: '6px',
         fontSize: '12px',
         color: '#334155',
-        border: '1px solid #E2E8F0'
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: '#E2E8F0'
     },
     faqCard: {
         padding: '10px',
@@ -705,6 +717,52 @@ export const styles: any = {
     '@keyframes spin': {
         '0%': { transform: 'rotate(0deg)' },
         '100%': { transform: 'rotate(360deg)' }
+    },
+    // Competitor Visualization
+    competitorList: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+        gap: '16px',
+        marginTop: '16px'
+    },
+    competitorCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        padding: '16px',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: '#E2E8F0',
+        cursor: 'pointer',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        position: 'relative',
+        overflow: 'hidden'
+    },
+    competitorCardActive: {
+        borderColor: '#6366F1',
+        backgroundColor: '#F5F3FF',
+        boxShadow: '0 10px 15px -3px rgba(99, 102, 241, 0.1)'
+    },
+    competitorStatus: {
+        fontSize: '10px',
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        padding: '4px 8px',
+        borderRadius: '20px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        width: 'fit-content'
+    },
+    statusSuccess: {
+        backgroundColor: '#DCFCE7',
+        color: '#166534'
+    },
+    statusPending: {
+        backgroundColor: '#F1F5F9',
+        color: '#64748B'
     }
 };
 

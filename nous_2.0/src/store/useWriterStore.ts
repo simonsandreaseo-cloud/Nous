@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Task, Project } from '@/types/project';
 import { ContentItem, SEOAnalysisResult } from '@/components/tools/writer/services';
 
-export type WriterViewMode = 'workspace' | 'seo-review' | 'structure-review';
+export type WriterViewMode = 'dashboard' | 'setup' | 'workspace' | 'seo-review' | 'structure-review';
 export type SidebarTab = 'assistant' | 'generate' | 'seo' | 'research' | 'humanize' | 'media' | 'history' | 'export';
 
 export interface StrategyOutlineItem {
@@ -35,12 +35,8 @@ interface WriterState {
     isRefining: boolean;
     lastSaved: Date | null;
     statusMessage: string;
+    downloadProgress: number | null;
 
-    // ── API Configuration ─────────────────────────────────
-    apiKeys: string[];
-    serperKey: string;
-    valueSerpKey: string;
-    jinaKey: string;
     model: string;
 
     // ── CSV / Project Data ────────────────────────────────
@@ -52,7 +48,7 @@ interface WriterState {
     rawSeoData: SEOAnalysisResult | null;
     seoResults: any; // alias for sidebar
     researchDossier: any;
-    outlineStructure: any; // neural outline from BriefingModal
+    outlineStructure: any; // neural content structure
 
     // ── Strategy State ────────────────────────────────────
     strategyTitle: string;   // Meta Title
@@ -65,7 +61,16 @@ interface WriterState {
     strategyCompetitors: string;
     strategyNotes: string;
     strategyLinks: ContentItem[];
+    strategyCannibalization: string[];
+    strategyVolume: string;
+    strategyDifficulty: string;
+    competitorDetails: any[];
     strategyLSI: { keyword: string; count: string }[];
+    strategyKeywords: { keyword: string; volume: string }[];
+    strategyInternalLinks: { url: string; title: string }[];
+    strategyExternalLinks: { url: string; title: string }[];
+    strategyMinWords: string;
+    strategyMaxWords: string;
     strategyLongTail: string[];
     strategyQuestions: string[];
     detectedNiche: string;
@@ -92,6 +97,11 @@ interface WriterState {
     isSidebarOpen: boolean;
     activeSidebarTab: SidebarTab;
 
+    // ── Dashboard State ───────────────────────────────────
+    projectContents: any[];
+    setProjectContents: (contents: any[]) => void;
+    loadProjectContents: (projectId: string | string[]) => Promise<void>;
+
     // ── Actions ───────────────────────────────────────────
     setContent: (content: string) => void;
     setTitle: (title: string) => void;
@@ -108,13 +118,8 @@ interface WriterState {
     setExporting: (v: boolean) => void;
     setRefining: (v: boolean) => void;
     setStatus: (msg: string) => void;
-    downloadProgress: number | null;
     setDownloadProgress: (progress: number | null) => void;
 
-    setApiKeys: (keys: string[]) => void;
-    setSerperKey: (key: string) => void;
-    setValueSerpKey: (key: string) => void;
-    setJinaKey: (key: string) => void;
     setModel: (model: string) => void;
 
     setCsvData: (data: ContentItem[], fileName?: string) => void;
@@ -135,7 +140,16 @@ interface WriterState {
     setStrategyCompetitors: (v: string) => void;
     setStrategyNotes: (v: string) => void;
     setStrategyLinks: (links: ContentItem[]) => void;
+    setStrategyCannibalization: (v: string[]) => void;
+    setStrategyVolume: (v: string) => void;
+    setStrategyDifficulty: (v: string) => void;
+    setCompetitorDetails: (v: any[]) => void;
     setStrategyLSI: (lsi: { keyword: string; count: string }[]) => void;
+    setStrategyKeywords: (k: { keyword: string; volume: string }[]) => void;
+    setStrategyInternalLinks: (links: { url: string; title: string }[]) => void;
+    setStrategyExternalLinks: (links: { url: string; title: string }[]) => void;
+    setStrategyMinWords: (v: string) => void;
+    setStrategyMaxWords: (v: string) => void;
     setStrategyLongTail: (lt: string[]) => void;
     setStrategyQuestions: (q: string[]) => void;
     setDetectedNiche: (niche: string) => void;
@@ -150,6 +164,9 @@ interface WriterState {
     setRefinementInstructions: (v: string) => void;
 
     updateStrategyFromSeo: (seoData: SEOAnalysisResult) => void;
+    loadProjectInventory: (projectId: string) => Promise<void>;
+    saveResearchData: (contentId: string, keyword: string, serp: any, competitors: any) => Promise<void>;
+    loadResearchData: (contentId: string) => Promise<void>;
 
     toggleSidebar: () => void;
     setSidebarTab: (tab: SidebarTab) => void;
@@ -157,6 +174,8 @@ interface WriterState {
     initializeFromTask: (task: Task, project: Project | null) => void;
     resetStrategy: () => void;
     reset: () => void;
+    loadContentById: (contentId: string) => Promise<void>;
+    deleteContent: (contentId: string) => Promise<boolean>;
 }
 
 const defaultState = {
@@ -166,7 +185,8 @@ const defaultState = {
     draftId: null,
     linkedTaskId: null,
     linkedTaskTitle: null,
-    viewMode: 'workspace' as WriterViewMode,
+    viewMode: 'dashboard' as WriterViewMode,
+    projectContents: [],
 
     isSaving: false,
     isCheckSaving: false,
@@ -180,10 +200,6 @@ const defaultState = {
     statusMessage: '',
     downloadProgress: null,
 
-    apiKeys: [],
-    serperKey: '',
-    valueSerpKey: '',
-    jinaKey: '',
     model: 'gemini-2.5-flash',
 
     csvData: [],
@@ -205,7 +221,16 @@ const defaultState = {
     strategyCompetitors: '',
     strategyNotes: '',
     strategyLinks: [],
+    strategyCannibalization: [],
+    strategyVolume: '0',
+    strategyDifficulty: '0',
+    competitorDetails: [],
     strategyLSI: [],
+    strategyKeywords: [],
+    strategyInternalLinks: [],
+    strategyExternalLinks: [],
+    strategyMinWords: '1000',
+    strategyMaxWords: '2000',
     strategyLongTail: [],
     strategyQuestions: [],
     detectedNiche: '',
@@ -249,10 +274,6 @@ export const useWriterStore = create<WriterState>((set) => ({
     setStatus: (statusMessage) => set({ statusMessage }),
     setDownloadProgress: (progress) => set({ downloadProgress: progress }),
 
-    setApiKeys: (apiKeys) => set({ apiKeys }),
-    setSerperKey: (serperKey) => set({ serperKey }),
-    setValueSerpKey: (valueSerpKey) => set({ valueSerpKey }),
-    setJinaKey: (jinaKey) => set({ jinaKey }),
     setModel: (model) => set({ model }),
 
     setCsvData: (csvData, csvFileName) => set({ csvData, csvFileName: csvFileName ?? null }),
@@ -273,7 +294,16 @@ export const useWriterStore = create<WriterState>((set) => ({
     setStrategyCompetitors: (strategyCompetitors) => set({ strategyCompetitors }),
     setStrategyNotes: (strategyNotes) => set({ strategyNotes }),
     setStrategyLinks: (strategyLinks) => set({ strategyLinks }),
+    setStrategyCannibalization: (strategyCannibalization) => set({ strategyCannibalization }),
+    setStrategyVolume: (strategyVolume) => set({ strategyVolume }),
+    setStrategyDifficulty: (strategyDifficulty) => set({ strategyDifficulty }),
+    setCompetitorDetails: (competitorDetails) => set({ competitorDetails }),
     setStrategyLSI: (strategyLSI) => set({ strategyLSI }),
+    setStrategyKeywords: (strategyKeywords) => set({ strategyKeywords }),
+    setStrategyInternalLinks: (strategyInternalLinks) => set({ strategyInternalLinks }),
+    setStrategyExternalLinks: (strategyExternalLinks) => set({ strategyExternalLinks }),
+    setStrategyMinWords: (strategyMinWords) => set({ strategyMinWords }),
+    setStrategyMaxWords: (strategyMaxWords) => set({ strategyMaxWords }),
     setStrategyLongTail: (strategyLongTail) => set({ strategyLongTail }),
     setStrategyQuestions: (strategyQuestions) => set({ strategyQuestions }),
     setDetectedNiche: (detectedNiche) => set({ detectedNiche }),
@@ -290,35 +320,88 @@ export const useWriterStore = create<WriterState>((set) => ({
     setRefinementInstructions: (refinementInstructions) => set({ refinementInstructions }),
 
     updateStrategyFromSeo: (seoData: SEOAnalysisResult) => {
-        // We import it here or at top to avoid circular if any
         const { generateBriefingText } = require('@/components/tools/writer/services');
         const brief = generateBriefingText(seoData);
-        
         set({
             rawSeoData: seoData,
             seoResults: seoData,
             strategyLSI: seoData.lsiKeywords || [],
             strategyQuestions: seoData.frequentQuestions || [],
-            strategyTitle: seoData.snippet?.metaTitle || '',
-            strategyH1: seoData.snippet?.h1 || '',
-            strategySlug: seoData.snippet?.slug || '',
-            strategyDesc: seoData.snippet?.metaDescription || '',
             strategyWordCount: seoData.recommendedWordCount || '1500',
-            strategyOutline: (seoData.outline?.headers || []).map((h: any) => ({
-                type: h.type || 'H2',
-                text: h.text || '',
-                wordCount: h.wordCount || '200',
-                notes: h.notes || ''
-            })),
-            strategyNotes: brief, // Automated Briefing
+            strategyNotes: brief,
             detectedNiche: seoData.nicheDetected || '',
+            strategyCannibalization: seoData.cannibalizationUrls || [],
+            strategyVolume: seoData.searchVolume || '0',
+            strategyDifficulty: seoData.keywordDifficulty || '0',
+            competitorDetails: seoData.competitors || seoData.top10Urls || [],
+            strategyLinks: seoData.suggestedInternalLinks || [],
         });
+    },
+
+    loadProjectInventory: async (projectId: string) => {
+        const { supabase } = require('@/lib/supabase');
+        const { data, error } = await supabase
+            .from('project_inventory')
+            .select('url, title, type')
+            .eq('project_id', projectId);
+
+        if (!error && data) {
+            set({ 
+                csvData: data.map((item: any) => {
+                    const title = item.title || item.url;
+                    const type = item.type || 'page';
+                    return {
+                        url: item.url,
+                        title,
+                        type,
+                        search_index: `${title} ${type} ${item.url}`.toLowerCase()
+                    };
+                })
+            });
+        }
+    },
+
+    syncProjectInventory: async (projectId: string, siteUrl: string) => {
+        const { useProjectStore } = require('@/store/useProjectStore');
+        const { syncProjectInventory } = useProjectStore.getState();
+        await syncProjectInventory(projectId, siteUrl);
+        const { loadProjectInventory } = useWriterStore.getState();
+        await loadProjectInventory(projectId);
+    },
+
+    saveResearchData: async (contentId, keyword, serp, competitors) => {
+        const { supabase } = require('@/lib/supabase');
+        const { error } = await supabase
+            .from('content_research')
+            .upsert({
+                content_id: contentId,
+                keyword,
+                serp_data: serp,
+                competitors_data: competitors
+            }, { onConflict: 'content_id' });
+        if (error) console.error('[saveResearchData] Error:', error);
+    },
+
+    loadResearchData: async (contentId) => {
+        const { supabase } = require('@/lib/supabase');
+        const { data, error } = await supabase
+            .from('content_research')
+            .select('*')
+            .eq('content_id', contentId)
+            .maybeSingle();
+        if (!error && data) {
+            set({
+                rawSeoData: data.serp_data,
+                competitorDetails: data.competitors_data || [],
+                strategyLinks: data.serp_data?.suggestedInternalLinks || []
+            });
+        }
     },
 
     toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
     setSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),
 
-    initializeFromTask: (task: Task, project: Project | null) => set((state) => ({
+    initializeFromTask: (task, project) => set((state) => ({
         title: task.title,
         keyword: task.target_keyword || '',
         strategyH1: task.title || '',
@@ -329,8 +412,70 @@ export const useWriterStore = create<WriterState>((set) => ({
             ...state.humanizerConfig,
             niche: project?.settings?.niche || project?.description || 'General',
             audience: project?.settings?.audience || 'General',
-        }
+        },
+        strategyLinks: (task as any).suggested_links || [],
+        viewMode: 'workspace'
     })),
+
+    setProjectContents: (projectContents) => set({ projectContents }),
+    loadProjectContents: async (projectId) => {
+        const { supabase } = require('@/lib/supabase');
+        let query = supabase.from('contents').select('*');
+
+        if (Array.isArray(projectId)) {
+            query = query.in('project_id', projectId);
+        } else {
+            query = query.eq('project_id', projectId);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (!error && data) set({ projectContents: data });
+    },
+
+    loadContentById: async (contentId) => {
+        const { supabase } = require('@/lib/supabase');
+        const { data, error } = await supabase
+            .from('contents')
+            .select('*')
+            .eq('id', contentId)
+            .maybeSingle();
+
+        if (!error && data) {
+            set((state) => ({
+                draftId: data.id,
+                title: data.title,
+                content: data.content_body || '',
+                statusMessage: `Cargado: ${data.title}`,
+                viewMode: 'workspace',
+                keyword: data.target_keyword || state.keyword
+            }));
+            const { loadResearchData, loadProjectInventory } = useWriterStore.getState();
+            await loadResearchData(contentId);
+            if (data.project_id) {
+                await loadProjectInventory(data.project_id);
+            }
+        }
+    },
+
+    deleteContent: async (contentId) => {
+        const { supabase } = require('@/lib/supabase');
+        const { error } = await supabase
+            .from('contents')
+            .delete()
+            .eq('id', contentId);
+        
+        if (error) {
+            console.error('[deleteContent] Error:', error);
+            return false;
+        }
+
+        const { loadProjectContents } = useWriterStore.getState();
+        const { activeProjectIds } = require('@/store/useProjectStore').useProjectStore.getState();
+        if (activeProjectIds.length > 0) {
+            await loadProjectContents(activeProjectIds);
+        }
+        return true;
+    },
 
     resetStrategy: () => set({
         keyword: '',
@@ -350,7 +495,7 @@ export const useWriterStore = create<WriterState>((set) => ({
         contextInstructions: '',
         metadata: null,
         statusMessage: '',
-        viewMode: 'workspace',
+        viewMode: 'setup',
     }),
 
     reset: () => set({ ...defaultState }),

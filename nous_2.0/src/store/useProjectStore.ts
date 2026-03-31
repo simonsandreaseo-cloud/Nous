@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { getRandomNousColor } from '@/constants/colors';
+import { GscService } from '@/lib/services/gsc';
 export type { Project, Task, Team, TeamMember } from '@/types/project';
 import { Project, Task, Team, TeamMember } from '@/types/project';
 
@@ -30,6 +31,8 @@ interface ProjectState {
     fetchPersonalTasks: () => Promise<void>;
     assignTask: (taskId: string, userId: string | null) => Promise<void>;
     syncGscData: (siteUrl: string, startDate: string, endDate: string) => Promise<void>;
+    syncProjectInventory: (projectId: string, siteUrl: string) => Promise<void>;
+    fetchProjectInventory: (projectId: string) => Promise<{url: string, title?: string, type?: string}[]>;
 }
 
 
@@ -124,9 +127,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     fetchTeams: async () => {
+        if (get().isLoading && get().teams.length > 0) return;
         set({ isLoading: true });
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return;
+        if (!session?.user) {
+            set({ isLoading: false });
+            return;
+        }
 
         // Fetch teams where user is a member
         const { data: memberData, error: memberError } = await supabase
@@ -493,9 +500,56 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             alert(`Error al asignar tarea: ${error.message}`);
             return;
         }
-
         set(state => ({
             tasks: state.tasks.map(t => t.id === taskId ? (data as Task) : t)
         }));
+    },
+
+    syncProjectInventory: async (projectId, siteUrl) => {
+        set({ isLoading: true });
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error("No hay sesión activa.");
+
+            const response = await fetch('/api/gsc/sync-urls', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ projectId })
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                // Check for specific GSC auth errors
+                if (result.error?.includes('invalid authentication credentials') || response.status === 401) {
+                    throw new Error("Conexión con Google Search Console expirada. Por favor, ve a Mis Proyectos y vuelve a vincular tu cuenta.");
+                }
+                throw new Error(result.error || "Error al sincronizar con GSC");
+            }
+
+            console.log(`Synced ${result.count} URLs for project ${projectId}`);
+            return result.count;
+        } catch (error: any) {
+            console.error('[syncProjectInventory] Error:', error);
+            alert(`Error al sincronizar inventario: ${error.message}`);
+        } finally {
+            set({ isLoading: false });
+        }
+    },
+
+    fetchProjectInventory: async (projectId) => {
+        const { data, error } = await supabase
+            .from('project_inventory')
+            .select('url, title, type')
+            .eq('project_id', projectId);
+
+        if (error) {
+            console.error('[fetchProjectInventory] Error:', error);
+            return [];
+        }
+
+        return data || [];
     }
 }));

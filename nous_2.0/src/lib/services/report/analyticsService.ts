@@ -68,15 +68,20 @@ export const AnalyticsService = {
         try {
             const supabase = getSupabaseClient();
             let query = supabase.from('user_gsc_tokens').select('*').eq('user_id', userId);
+            const clientId = process.env.GOOGLE_CLIENT_ID;
+            const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
             if (email) query = query.eq('email', email);
 
             const { data: accounts } = await query;
+            console.log(`[GA4-DISCOVERY] Found ${accounts?.length || 0} connected tokens for user ${userId}`);
             if (!accounts || accounts.length === 0) return [];
 
             const allProps: { id: string, name: string, accountEmail?: string }[] = [];
 
             for (const token of accounts) {
                 try {
+                    console.log(`[GA4-DISCOVERY] START for: ${token.email}`);
                     const { google } = await import('googleapis');
                     const auth = new google.auth.OAuth2(
                         process.env.GOOGLE_CLIENT_ID,
@@ -87,12 +92,16 @@ export const AnalyticsService = {
                         refresh_token: token.refresh_token,
                         expiry_date: new Date(token.expires_at).getTime()
                     });
+                    
                     const admin = google.analyticsadmin({ version: 'v1beta', auth });
-                    const res = await admin.accountSummaries.list();
+                    
+                    // --- STRATEGY A: Account Summaries (Fast) ---
+                    console.log(`[GA4-DISCOVERY] Trying accountSummaries.list...`);
+                    const res = await admin.accountSummaries.list({ pageSize: 200 });
 
-                    if (res.data.accountSummaries) {
-                        for (const account of res.data.accountSummaries) {
-                            for (const prop of account.propertySummaries || []) {
+                    if (res.data.accountSummaries && res.data.accountSummaries.length > 0) {
+                        for (const account of (res.data.accountSummaries || [])) {
+                            for (const prop of (account.propertySummaries || [])) {
                                 allProps.push({
                                     id: prop.property?.split('/')[1] || '',
                                     name: prop.displayName || '',
@@ -100,15 +109,41 @@ export const AnalyticsService = {
                                 });
                             }
                         }
+                    } 
+                    
+                    // --- STRATEGY B: Fallback to Manual Accounts Listing if A is empty ---
+                    if (allProps.length === 0) {
+                        console.log(`[GA4-DISCOVERY] Strategy A empty. Trying manual accounts.list...`);
+                        const accountsRes = await admin.accounts.list();
+                        console.log(`[GA4-DISCOVERY] Strategy B: Found ${accountsRes.data.accounts?.length || 0} direct accounts.`);
+                        
+                        for (const account of (accountsRes.data.accounts || [])) {
+                            console.log(`[GA4-DISCOVERY] Fetching properties for Account: ${account.displayName} (${account.name})`);
+                            const propsRes = await admin.properties.list({ filter: `parent:${account.name}`, pageSize: 200 });
+                            console.log(`[GA4-DISCOVERY] Found ${propsRes.data.properties?.length || 0} properties in account ${account.displayName}`);
+                            
+                            for (const prop of (propsRes.data.properties || [])) {
+                                allProps.push({
+                                    id: prop.name?.split('/')[1] || '',
+                                    name: prop.displayName || '',
+                                    accountEmail: token.email
+                                });
+                            }
+                        }
                     }
-                } catch (err) {
-                    console.error(`Error fetching properties for account ${token.email}:`, err);
+
+                } catch (err: any) {
+                    console.error(`[GA4-DISCOVERY] Error for ${token.email}:`, err.message);
+                    if (err.code === 403) {
+                        console.error(`[GA4-DISCOVERY] !!! CRITICAL: Analytics Admin API not enabled in Google Cloud Console or insufficient permissions.`);
+                    }
                 }
             }
 
+            console.log(`[GA4-DISCOVERY] END. Total: ${allProps.length}`);
             return allProps.filter(p => p.id);
         } catch (e: any) {
-            console.error("[ANALYTICS-SERVICE] Error listing GA4 Properties:", e);
+            console.error("[GA4-DISCOVERY] Fatal Error:", e.message);
             throw e;
         }
     },
@@ -163,8 +198,6 @@ export const AnalyticsService = {
         const { google } = await import('googleapis');
         const analytics = google.analyticsdata({ version: 'v1beta', auth });
 
-        // ... (rest of the logic)
-
         // Build Filter Expression
         const filterExpression = {
             orGroup: {
@@ -197,5 +230,93 @@ export const AnalyticsService = {
             sessions: parseInt(row.metricValues?.[0].value || '0'),
             engagementRate: parseFloat(row.metricValues?.[1].value || '0')
         })) || [];
+    },
+
+    // 5. EXTRACT BEHAVIOR METRICS BY URL
+    async fetchFullUrlMetrics(propertyId: string, userId: string, email?: string) {
+        try {
+            console.log(`[GA4-SYNC] Fetching deep behavior metrics for property: ${propertyId}`);
+            const auth = await this.getAuthClient(userId, email);
+            const { google } = await import('googleapis');
+            const analytics = google.analyticsdata({ version: 'v1beta', auth });
+
+            const endDate = 'today';
+            const startDate = '90daysAgo';
+
+            const response = await analytics.properties.runReport({
+                property: `properties/${propertyId}`,
+                requestBody: {
+                    dateRanges: [{ startDate, endDate }],
+                    dimensions: [
+                        { name: 'fullPageUrl' }, // "URL de página completa" as requested
+                        { name: 'sessionSource' }
+                    ],
+                    metrics: [
+                        { name: 'sessions' },
+                        { name: 'averageSessionDuration' },
+                        { name: 'bounceRate' }
+                    ],
+                    limit: 20000 
+                }
+            } as any); // Cast to any to avoid complex TS library overload issues
+
+            if (!response || !response.data) {
+                console.warn("[GA4-SYNC] No data returned from GA4 report.");
+                return [];
+            }
+
+            // Group by URL to consolidate sources for each page
+            const pageMap = new Map<string, any>();
+
+            (response.data.rows || []).forEach((row: any) => {
+                const rawPath = row.dimensionValues?.[0].value || '/';
+                // Normalize path to match GSC format: remove protocol, www, trailing slash and query params
+                const path = rawPath
+                    .toLowerCase()
+                    .replace(/^https?:\/\//, '')
+                    .replace(/^www\./, '')
+                    .replace(/\/$/, '')
+                    .split('?')[0]
+                    .split('#')[0];
+
+                const source = row.dimensionValues?.[1].value || '(direct)';
+                const sessions = parseInt(row.metricValues?.[0].value || '0');
+                const avgDuration = parseFloat(row.metricValues?.[1].value || '0');
+                const bounceRate = parseFloat(row.metricValues?.[2].value || '0');
+
+                if (!pageMap.has(path)) {
+                    pageMap.set(path, {
+                        path,
+                        sessions: 0,
+                        durations: [],
+                        bounces: [],
+                        sources: []
+                    });
+                }
+
+                const entry = pageMap.get(path);
+                entry.sessions += sessions;
+                entry.durations.push(avgDuration * sessions); // Weighted average prep
+                entry.bounces.push(bounceRate * sessions);
+                entry.sources.push({ source, sessions });
+            });
+
+            // Calculate final averages and top sources
+            return Array.from(pageMap.values()).map(entry => {
+                const avgDuration = entry.sessions > 0 ? entry.durations.reduce((a: any, b: any) => a + b, 0) / entry.sessions : 0;
+                const bounceRate = entry.sessions > 0 ? entry.bounces.reduce((a: any, b: any) => a + b, 0) / entry.sessions : 0;
+                const sortedSources = entry.sources.sort((a: any, b: any) => b.sessions - a.sessions).slice(0, 5);
+
+                return {
+                    path: entry.path,
+                    avg_session_duration: avgDuration,
+                    bounce_rate: bounceRate,
+                    top_sources: JSON.stringify(sortedSources)
+                };
+            });
+        } catch (e: any) {
+            console.error("[GA4-SYNC] Fatal Error:", e.message);
+            return [];
+        }
     }
 };

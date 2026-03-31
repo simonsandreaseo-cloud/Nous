@@ -16,6 +16,7 @@ import SlashMenu from './SlashMenu';
 export default function WriterEditor() {
     const { content, setContent, isGenerating } = useWriterStore();
     const [slashMenuPos, setSlashMenuPos] = useState<{ x: number, y: number } | null>(null);
+    const [activeTab, setActiveTab] = useState<'visual' | 'html'>('visual');
 
     const editor = useEditor({
         extensions: [
@@ -38,20 +39,23 @@ export default function WriterEditor() {
                 setContent(editor.getHTML());
             }
 
-            // Simple Slash Detection
+            // Simple Slash Detection optimizing Keystroke performance
             const { state } = editor;
             const selection = state.selection;
-            const { $from } = selection;
-            const textBefore = $from.parent.textContent.substring(0, $from.parentOffset);
-
-            if (textBefore.endsWith('/')) {
-                const charBeforeSlash = textBefore.length > 1 ? textBefore[textBefore.length - 2] : ' ';
-                if (charBeforeSlash === ' ' || textBefore.length === 1) {
+            
+            // Only run the check if selection is empty (cursor point) to save performance
+            if (selection.empty) {
+                const { $from } = selection;
+                const textBefore = $from.parent.textContent.substring(0, $from.parentOffset);
+                if (textBefore.endsWith('/')) {
                     const coords = editor.view.coordsAtPos($from.pos);
                     setSlashMenuPos({ x: coords.left, y: coords.bottom });
+                } else if (slashMenuPos && textBefore.trim().length > 0) {
+                    // Cierra el menu si el caracter no es '/' y hay texto
+                    setSlashMenuPos(null);
                 }
             } else if (slashMenuPos) {
-                setSlashMenuPos(null);
+                 setSlashMenuPos(null);
             }
         },
     });
@@ -76,117 +80,153 @@ export default function WriterEditor() {
     };
 
     // Sync content if changed externally (e.g. streaming or reset)
+    // Usamos debounce o comparaciones directas para evitar re-posicionar el cursor constantemente
     useEffect(() => {
-        if (editor && content !== editor.getHTML()) {
-            // During generation, we want to update the editor content
-            // To avoid losing cursor position, we only do this if the content actually changed 
-            // and it's not the user's own typing (which is blocked by !isGenerating in onUpdate)
-
-            // If the content is being streamed, we might want to use a more surgical update 
-            // or just setContent if it's a full replace.
-
-            const isDifferent = content !== editor.getHTML();
-            if (isDifferent) {
-                const { from, to } = editor.state.selection;
-                editor.commands.setContent(content, false);
-                // Attempt to restore selection if not generating
-                if (!isGenerating) {
-                    editor.commands.setTextSelection({ from, to });
-                }
+        if (!editor) return;
+        
+        const currentHtml = editor.getHTML();
+        if (content !== currentHtml) {
+            // Solo actualizamos programáticamente si estamos en modo generación/streaming
+            // O si el contenido viene nuevo y necesitamos forzar carga inicial
+            if (isGenerating || !editor.isFocused) {
+               const { from, to } = editor.state.selection;
+               editor.commands.setContent(content, false);
+               
+               // Restore selection on streaming quietly if the update wasn't manual typed
+               if (!isGenerating && editor.isFocused) {
+                   editor.commands.setTextSelection({ from, to });
+               }
             }
         }
     }, [content, editor, isGenerating]);
+
 
     if (!editor) return null;
 
     return (
         <div className="relative w-full max-w-4xl mx-auto py-12 px-6 md:px-12">
+            
+            {/* TAB SWITCHER */}
+            <div className="flex items-center gap-1 mb-8 p-1 bg-slate-100 rounded-xl w-fit mx-auto shadow-inner border border-slate-200/50">
+                <button 
+                    onClick={() => setActiveTab('visual')}
+                    className={cn(
+                        "px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                        activeTab === 'visual' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                    )}
+                >
+                    Visual
+                </button>
+                <button 
+                    onClick={() => setActiveTab('html')}
+                    className={cn(
+                        "px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all",
+                        activeTab === 'html' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                    )}
+                >
+                    Código HTML
+                </button>
+            </div>
 
-            <SlashMenu
-                position={slashMenuPos}
-                onSelect={handleSlashCommand}
-                onClose={() => setSlashMenuPos(null)}
-            />
+            <div className={cn(activeTab !== 'visual' && 'hidden')}>
+                <SlashMenu
+                    position={slashMenuPos}
+                    onSelect={handleSlashCommand}
+                    onClose={() => setSlashMenuPos(null)}
+                />
 
-            {/* BUBBLE MENU (Selection) */}
-            {editor && (
-                <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
-                    <div className="flex items-center gap-1 bg-white shadow-xl border border-slate-200 rounded-lg p-1">
-                        <button
-                            onClick={() => editor.chain().focus().toggleBold().run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('bold') && 'bg-slate-200 text-slate-900')}
-                        >
-                            <Bold size={16} />
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleItalic().run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('italic') && 'bg-slate-200 text-slate-900')}
-                        >
-                            <Italic size={16} />
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleStrike().run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('strike') && 'bg-slate-200 text-slate-900')}
-                        >
-                            <Strikethrough size={16} />
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleCode().run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('code') && 'bg-slate-200 text-slate-900')}
-                        >
-                            <Code size={16} />
-                        </button>
-                    </div>
-                </BubbleMenu>
-            )}
+                {/* BUBBLE MENU (Selection) */}
+                {editor && (
+                    <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
+                        <div className="flex items-center gap-1 bg-white shadow-xl border border-slate-200 rounded-lg p-1">
+                            <button
+                                onClick={() => editor.chain().focus().toggleBold().run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('bold') && 'bg-slate-200 text-slate-900')}
+                            >
+                                <Bold size={16} />
+                            </button>
+                            <button
+                                onClick={() => editor.chain().focus().toggleItalic().run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('italic') && 'bg-slate-200 text-slate-900')}
+                            >
+                                <Italic size={16} />
+                            </button>
+                            <button
+                                onClick={() => editor.chain().focus().toggleStrike().run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('strike') && 'bg-slate-200 text-slate-900')}
+                            >
+                                <Strikethrough size={16} />
+                            </button>
+                            <button
+                                onClick={() => editor.chain().focus().toggleCode().run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('code') && 'bg-slate-200 text-slate-900')}
+                            >
+                                <Code size={16} />
+                            </button>
+                        </div>
+                    </BubbleMenu>
+                )}
 
-            {/* FLOATING MENU (Empty Line) */}
-            {editor && (
-                <FloatingMenu editor={editor} tippyOptions={{ duration: 100 }}>
-                    <div className="flex items-center gap-1 bg-white shadow-xl border border-slate-200 rounded-lg p-1">
-                        <button
-                            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('heading', { level: 1 }) && 'bg-slate-200 text-slate-900')}
-                        >
-                            <Heading1 size={16} />
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('heading', { level: 2 }) && 'bg-slate-200 text-slate-900')}
-                        >
-                            <Heading2 size={16} />
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('heading', { level: 3 }) && 'bg-slate-200 text-slate-900')}
-                        >
-                            <Heading3 size={16} />
-                        </button>
-                        <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-                        <button
-                            onClick={() => editor.chain().focus().toggleBulletList().run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('bulletList') && 'bg-slate-200 text-slate-900')}
-                        >
-                            <List size={16} />
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('orderedList') && 'bg-slate-200 text-slate-900')}
-                        >
-                            <ListOrdered size={16} />
-                        </button>
-                        <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-                        <button
-                            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                            className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('blockquote') && 'bg-slate-200 text-slate-900')}
-                        >
-                            <Quote size={16} />
-                        </button>
-                    </div>
-                </FloatingMenu>
-            )}
+                {/* FLOATING MENU (Empty Line) */}
+                {editor && (
+                    <FloatingMenu editor={editor} tippyOptions={{ duration: 100 }}>
+                        <div className="flex items-center gap-1 bg-white shadow-xl border border-slate-200 rounded-lg p-1">
+                            <button
+                                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('heading', { level: 1 }) && 'bg-slate-200 text-slate-900')}
+                            >
+                                <Heading1 size={16} />
+                            </button>
+                            <button
+                                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('heading', { level: 2 }) && 'bg-slate-200 text-slate-900')}
+                            >
+                                <Heading2 size={16} />
+                            </button>
+                            <button
+                                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('heading', { level: 3 }) && 'bg-slate-200 text-slate-900')}
+                            >
+                                <Heading3 size={16} />
+                            </button>
+                            <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+                            <button
+                                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('bulletList') && 'bg-slate-200 text-slate-900')}
+                            >
+                                <List size={16} />
+                            </button>
+                            <button
+                                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('orderedList') && 'bg-slate-200 text-slate-900')}
+                            >
+                                <ListOrdered size={16} />
+                            </button>
+                            <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+                            <button
+                                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                                className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('blockquote') && 'bg-slate-200 text-slate-900')}
+                            >
+                                <Quote size={16} />
+                            </button>
+                        </div>
+                    </FloatingMenu>
+                )}
 
-            <EditorContent editor={editor} />
+                <EditorContent editor={editor} />
+            </div>
+
+            <div className={cn("relative animate-in fade-in duration-300", activeTab !== 'html' && 'hidden')}>
+                <textarea 
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    className="w-full min-h-[600px] p-6 bg-slate-900 text-emerald-400 font-mono text-sm rounded-2xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 selection:bg-indigo-500/30 custom-scrollbar resize-none"
+                    spellCheck={false}
+                />
+                <div className="absolute top-4 right-4 bg-slate-800 text-[10px] text-slate-400 px-2 py-1 rounded border border-slate-700 font-bold tracking-widest uppercase">
+                    Modo Código
+                </div>
+            </div>
         </div>
     );
 }

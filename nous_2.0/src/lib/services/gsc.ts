@@ -110,4 +110,28 @@ export const GscService = {
         const data = await response.json();
         return data.rows || [];
     },
+
+    /**
+     * fetchProjectInventory - specialized call to get all indexed pages
+     * that have had any traffic/impressions in the last 180 days.
+     */
+    async fetchProjectInventory(siteUrl: string, accessToken?: string) {
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        const rows = await this.getSearchAnalytics(
+            siteUrl,
+            startDate,
+            endDate,
+            ['page'],
+            {},
+            accessToken
+        );
+
+        return rows.map((row: any) => ({
+            url: row.keys[0],
+            clicks: row.clicks,
+            impressions: row.impressions
+        }));
+    },
 };

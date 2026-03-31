@@ -15,7 +15,9 @@ export class DataForSeoService {
      * Uses the Search Volume Live endpoint.
      */
     static async getKeywordsMetrics(keywords: string[], locationCode: number = 2724, languageCode: string = 'es'): Promise<KeywordMetrics[]> {
-        const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64');
+        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
+        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/keywords_data/google/search_volume/live`, {
             method: 'POST',
@@ -50,7 +52,9 @@ export class DataForSeoService {
      * Fetches keyword suggestions based on a seed keyword.
      */
     static async getKeywordSuggestions(keyword: string, locationCode: number = 2724, languageCode: string = 'es'): Promise<any[]> {
-        const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64');
+        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
+        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/keywords_data/google/keyword_suggestions/live`, {
             method: 'POST',
@@ -76,7 +80,9 @@ export class DataForSeoService {
      * Uses the Google Ads Keywords For Site Live endpoint.
      */
     static async getKeywordsForSite(target: string, targetType: 'site' | 'page' = 'page', locationCode: number = 2724, languageCode: string = 'es'): Promise<any[]> {
-        const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64');
+        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
+        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/keywords_data/google_ads/keywords_for_site/live`, {
             method: 'POST',
@@ -109,7 +115,9 @@ export class DataForSeoService {
      * This provides ACTUAL organic ranking data, not just Ads data.
      */
     static async getRankedKeywords(target: string, targetType: 'site' | 'page' = 'page', locationCode: number = 2840, languageCode: string = 'es', limit: number = 100): Promise<any[]> {
-        const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64');
+        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
+        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/dataforseo_labs/google/ranked_keywords/live`, {
             method: 'POST',
@@ -154,7 +162,9 @@ export class DataForSeoService {
      * Essential for "New Content" to know who to emulate.
      */
     static async getSerpForKeyword(keyword: string, locationCode: number = 2724, languageCode: string = 'es'): Promise<any[]> {
-        const auth = Buffer.from(`${process.env.DATAFORSEO_LOGIN}:${process.env.DATAFORSEO_PASSWORD}`).toString('base64');
+        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
+        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/serp/google/organic/live/advanced`, {
             method: 'POST',

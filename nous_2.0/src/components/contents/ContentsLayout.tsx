@@ -8,6 +8,7 @@ import { ContentsHeader } from "./ContentsHeader";
 import { ArticleCardGrid } from "./ArticleCardGrid";
 import { ArticleCalendar } from "./ArticleCalendar";
 import { ArticleTable } from "./ArticleTable";
+import { cn } from "@/utils/cn";
 
 // Lazy-load heavy tool components from studio (already exist in the project)
 // They render inside the central zone without unmounting the shell
@@ -133,7 +134,10 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
                             {activeTool === "dashboard" ? (
                                 <DashboardViewWithViewMode viewMode={viewMode} onToolSelect={handleToolSelect} />
                             ) : (
-                                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                                <div className={cn(
+                                    "flex-1 flex flex-col",
+                                    activeTool === "writer" ? "overflow-hidden" : "overflow-y-auto custom-scrollbar p-6"
+                                )}>
                                     <ToolView toolId={activeTool} />
                                 </div>
                             )}

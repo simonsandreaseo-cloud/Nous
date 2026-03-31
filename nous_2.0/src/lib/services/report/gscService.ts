@@ -29,6 +29,20 @@ const formatRow = (row: any, dimensions: string[]) => {
     return result;
 };
 
+import { AnalyticsService } from './analyticsService';
+
+// Helper to normalize URLs for smarter matching (ignores protocol, www, trailing slashes, and params)
+const normalizeUrl = (url: string): string => {
+    if (!url) return '';
+    return url
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .replace(/\/$/, '')
+        .split('?')[0]
+        .split('#')[0];
+};
+
 export const GscService = {
     async fetchData(projectId: string, startDate: string, endDate: string) {
         console.log(`[GSC-SERVICE] Fetching data for ProjectId: ${projectId}, Range: ${startDate} to ${endDate}`);
@@ -131,7 +145,7 @@ export const GscService = {
                 const rowLimit = 25000;
 
                 try {
-                    while (rows.length < 100000) { // Limit to 100k for now to verify stability
+                    while (rows.length < 100000) { // Deep scan to 100k
                         console.log(`[GSC-API] Querying ${siteUrl} for [${dimensions.join(',')}] - StartRow: ${startRow}`);
                         const res = await searchconsole.searchanalytics.query({
                             siteUrl,
@@ -139,12 +153,18 @@ export const GscService = {
                                 startDate,
                                 endDate,
                                 dimensions,
-                                rowLimit,
+                                rowLimit: 25000,
                                 startRow
                             }
                         });
 
                         if (!res.data.rows || res.data.rows.length === 0) break;
+                        
+                        // Log example of URL format
+                        if (rows.length === 0 && res.data.rows[0]?.keys) {
+                            console.log(`[GSC-API] Example row keys:`, res.data.rows[0].keys);
+                        }
+
                         rows.push(...res.data.rows.map(r => formatRow(r, dimensions)));
 
                         startRow += rowLimit;
@@ -172,6 +192,160 @@ export const GscService = {
         } catch (e: any) {
             console.error("[GSC-SERVICE] Fatal Error:", e);
             throw new Error(`GSC Service Error: ${e.message}`);
+        }
+    },
+
+    async fetchAndStoreIndexedUrls(projectId: string): Promise<{ count: number }> {
+        console.log(`[GSC-SERVICE] Fetching and storing indexed URLs for ProjectId: ${projectId}`);
+        try {
+            const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+            const client = adminKey ? createClient(url, adminKey) : supabase;
+
+            // 1. Get Project and Token (Using admin client to bypass RLS in background sync)
+            const { data: project, error: projectError } = await client.from('projects').select('user_id, gsc_site_url, gsc_account_email').eq('id', projectId).single();
+            if (projectError || !project) throw new Error("Proyecto no encontrado o DB inaccesible (Backend Sync).");
+            if (!project.gsc_site_url) throw new Error("El proyecto no tiene Propiedad GSC vinculada.");
+            
+            let tokenQuery = client.from('user_gsc_tokens').select('*').eq('user_id', project.user_id);
+            if ((project as any).gsc_account_email) tokenQuery = tokenQuery.eq('email', (project as any).gsc_account_email);
+            const { data: tokens } = await tokenQuery.maybeSingle();
+
+            if (!tokens?.refresh_token) throw new Error("Google account no conectada o token perdido.");
+
+            const { google } = await import('googleapis');
+            const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+            auth.setCredentials({ refresh_token: tokens.refresh_token });
+            const searchconsole = google.searchconsole({ version: 'v1', auth });
+
+            // Fetch data over the last 90 days for trends
+            const endDate = format(new Date(), 'yyyy-MM-dd');
+            const startDate = format(subDays(new Date(), 90), 'yyyy-MM-dd');
+            
+            let siteUrl = project.gsc_site_url;
+            if (siteUrl.startsWith('http') && !siteUrl.endsWith('/')) {
+                siteUrl += '/';
+            }
+
+            console.log(`[GSC-SERVICE] DEEP-SYNC: Requesting page+query data for ${siteUrl}`);
+
+            const rowLimit = 10000;
+            const uniqueUrls = new Map<string, any>();
+
+            // --- CALL 1: MASTER URL METRICS (dimensions: ['page']) ---
+            console.log(`[GSC-SERVICE] Master Sync: Fetching aggregate URL metrics...`);
+            let startRowPage = 0;
+            while (true) {
+                const resPage = await searchconsole.searchanalytics.query({
+                    siteUrl,
+                    requestBody: {
+                        startDate, endDate,
+                        dimensions: ['page'],
+                        rowLimit: 5000,
+                        startRow: startRowPage
+                    }
+                });
+                if (!resPage.data.rows || resPage.data.rows.length === 0) break;
+
+                for (const row of resPage.data.rows) {
+                    const pageUrl = row.keys![0];
+                    const normUrl = normalizeUrl(pageUrl);
+                    let derivedTitle = pageUrl.replace(/\/$/, '').split('/').pop()?.replace(/-/g, ' ') || 'Página Indexada';
+                    if (derivedTitle.length < 3) derivedTitle = "Página Principal / Home";
+
+                    uniqueUrls.set(normUrl, {
+                        project_id: projectId,
+                        url: pageUrl,
+                        title: derivedTitle.charAt(0).toUpperCase() + derivedTitle.slice(1),
+                        impressions_gsc: row.impressions || 0,
+                        organic_traffic_gsc: row.clicks || 0,
+                        ctr_gsc: row.ctr || 0,
+                        position_gsc: row.position || 0,
+                        top_query_list: [],
+                        keywords_data: []
+                    });
+                }
+                startRowPage += 5000;
+                if (resPage.data.rows.length < 5000) break;
+            }
+
+            // --- CALL 2: DEEP QUERY METRICS (dimensions: ['page', 'query']) ---
+            console.log(`[GSC-SERVICE] Deep Sync: Fetching Keyword-level data...`);
+            let startRowDeep = 0;
+            let totalMatches = 0;
+            let totalMisses = 0;
+            
+            while (true) {
+                const resDeep = await searchconsole.searchanalytics.query({
+                    siteUrl,
+                    requestBody: {
+                        startDate, endDate,
+                        dimensions: ['page', 'query'],
+                        rowLimit,
+                        startRow: startRowDeep
+                    }
+                });
+
+                if (!resDeep.data.rows || resDeep.data.rows.length === 0) break;
+
+                for (const row of resDeep.data.rows) {
+                    const pageUrl = row.keys![0];
+                    const query = row.keys![1];
+                    const normUrl = normalizeUrl(pageUrl);
+                    const entry = uniqueUrls.get(normUrl);
+                    
+                    if (entry) {
+                        entry.top_query_list.push(query);
+                        entry.keywords_data.push({
+                            project_id: projectId,
+                            keyword: query,
+                            impressions: row.impressions || 0,
+                            clicks: row.clicks || 0,
+                            ctr: row.ctr || 0,
+                            position: row.position || 0
+                        });
+                        totalMatches++;
+                    } else {
+                        totalMisses++;
+                        if (totalMisses === 1) {
+                            console.log(`[DEBUG-GSC] First Miss Example: URL[${pageUrl}] -> Normalized[${normUrl}]`);
+                        }
+                    }
+                }
+                startRowDeep += rowLimit;
+                if (resDeep.data.rows.length < rowLimit || startRowDeep > 100000) break;
+            }
+            
+            console.log(`[GSC-SERVICE] Mapping Finished: ${totalMatches} keywords mapped, ${totalMisses} failures.`);
+
+            const urlsArray = Array.from(uniqueUrls.values());
+            console.log(`[GSC-SERVICE] Mapping ${urlsArray.length} URLs for total sync...`);
+
+            if (urlsArray.length > 0) {
+                // 1. Prepare Pages updates
+                const pagesToUpsert = urlsArray.map(u => {
+                    return {
+                        project_id: projectId,
+                        url: u.url,
+                        title: u.title,
+                        impressions_gsc: u.impressions_gsc,
+                        clicks_gsc: u.organic_traffic_gsc,
+                        last_synced_at: new Date().toISOString()
+                    };
+                });
+
+                console.log(`[GSC-SERVICE] Data Preview: URL[${pagesToUpsert[0]?.url.slice(0, 30)}...] -> Impressions[${pagesToUpsert[0]?.impressions_gsc}]`);
+
+                const chunkSize = 400;
+                for (let i = 0; i < pagesToUpsert.length; i += chunkSize) {
+                    await client.from('project_inventory').upsert(pagesToUpsert.slice(i, i + chunkSize), { onConflict: 'project_id,url' });
+                }
+            }
+
+            return { count: urlsArray.length };
+        } catch (e: any) {
+            console.error("[GSC-SERVICE] Fatal Error during Deep Sync:", e);
+            throw new Error(`Sync Error: ${e.message}`);
         }
     },
 

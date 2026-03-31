@@ -134,7 +134,7 @@ export async function GET(req: Request) {
         // Optional: Auto-link to projects if it's the first connection or if user has only one project
         // For now, we just redirect. The user will select the account in settings.
 
-        return NextResponse.redirect(new URL(`${state}${state.includes('?') ? '&' : '?'}gsc=connected`, req.url));
+        return NextResponse.redirect(new URL(`${state}${state.includes('?') ? '&' : '?'}google=connected`, req.url));
 
     } catch (err: any) {
         console.error('Auth Callback Error:', err);

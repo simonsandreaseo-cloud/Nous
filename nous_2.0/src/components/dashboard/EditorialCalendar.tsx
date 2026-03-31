@@ -49,7 +49,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { NotificationService } from "@/lib/services/notifications";
 import { useWriterStore } from "@/store/useWriterStore";
-import { parseDocx, parseHtml } from "../tools/writer/services";
+import { parseDocx, parseHtml } from "@/lib/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
 import IntelligenceHub from "./IntelligenceHub";
