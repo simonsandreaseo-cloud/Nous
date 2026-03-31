@@ -93,20 +93,29 @@ const blobFragmentShader = `
   }
 `;
 
-
+const BG_COLOR = new THREE.Color("#ffffff");
 
 function SurfaceWaves({ isCrawling }: { isCrawling: boolean }) {
     const groupRef = useRef<Group>(null!);
+    const smoothedMouse = useRef(new THREE.Vector2());
     
-    useFrame((state) => {
+    useFrame((state, delta) => {
         const t = state.clock.elapsedTime;
         const { mouse } = state; // Normalized mouse coordinates (-1 to +1)
 
+        // Frame-rate independent dampening of mouse movement
+        const dampFactor = 1 - Math.exp(-10 * delta);
+        smoothedMouse.current.lerp(mouse, dampFactor);
+
         if (groupRef.current) {
             // Mouse Influence: Tilt the whole light group slightly towards the cursor
-            // This makes the "waves" feel like they are following the user
-            groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, t * (isCrawling ? 1.5 : 0.8) + (mouse.x * 0.5), 0.1);
-            groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, t * (isCrawling ? 0.8 : 0.3) + (mouse.y * -0.5), 0.1);
+            // Add smoothed mouse offset EXACTLY onto the continuous time-based rotation
+            // This prevents the frame-rate dependent "lag/saltos" caused by lerping to a moving target
+            const baseY = t * (isCrawling ? 1.5 : 0.8);
+            const baseX = t * (isCrawling ? 0.8 : 0.3);
+
+            groupRef.current.rotation.y = baseY + (smoothedMouse.current.x * 0.5);
+            groupRef.current.rotation.x = baseX + (smoothedMouse.current.y * -0.5);
             groupRef.current.rotation.z = Math.sin(t * 0.5) * 0.5;
             
             // Pulse intensities to create "waves" of light
@@ -128,10 +137,10 @@ function SurfaceWaves({ isCrawling }: { isCrawling: boolean }) {
                 const ty = Math.sin(angle) * rad;
                 const tz = Math.sin(t + i) * 0.5;
 
-                // Influence each light slightly towards the mouse world-space relative to the orb
-                // We use + 0.001 to avoid NaN/Parkinson issues confirmed earlier
-                light.position.x = tx + (mouse.x * 0.2) + 0.001;
-                light.position.y = ty + (mouse.y * 0.2) + 0.001;
+                // Influence each light slightly towards the smoothed mouse world-space relative to the orb
+                // We keep a small offset (+ 0.001) to avoid NaN/Parkinson issues at absolute center
+                light.position.x = tx + (smoothedMouse.current.x * 0.2) + 0.001;
+                light.position.y = ty + (smoothedMouse.current.y * 0.2) + 0.001;
                 light.position.z = tz + 0.001;
             });
         }
@@ -147,6 +156,7 @@ function SurfaceWaves({ isCrawling }: { isCrawling: boolean }) {
     );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CoreLight({ emissive, isCrawling }: { emissive: any, isCrawling: boolean }) {
     const meshRef = useRef<Mesh>(null!);
     
@@ -177,7 +187,7 @@ function CoreLight({ emissive, isCrawling }: { emissive: any, isCrawling: boolea
             <animated.pointLight
                 intensity={isCrawling ? 60 : 35}
                 distance={15}
-                color="#ffffff"
+                color={emissive as unknown as string}
                 decay={1.5}
                 position={[0, 0, 0]}
             />
@@ -272,8 +282,6 @@ export function NousOrb() {
         config: config.molasses
     });
 
-    const rimColor = visualState.rim ?? "#60d0ff";
-
     return (
         <Float
             speed={nodeStatus === 'CRAWLING' ? 5 : 2}
@@ -286,7 +294,7 @@ export function NousOrb() {
                 {/* Main Orb — Advanced MeshTransmissionMaterial for realistic frosted glass refractions */}
                 <animated.mesh
                     ref={orbRef}
-                    scale={springScale as any}
+                    scale={springScale as unknown as number}
                     onDoubleClick={handleDoubleClick}
                     onPointerOver={() => (document.body.style.cursor = "pointer")}
                     onPointerOut={() => (document.body.style.cursor = "auto")}
@@ -296,7 +304,7 @@ export function NousOrb() {
                         otherwise it falls back to black rendering (no scene background is detected in pure fiber setups).
                         We balance ior to 1.15 to keep reflections without harsh edges, and use resolution=512 for quality. */}
                     <MeshTransmissionMaterial
-                        background={new THREE.Color("#ffffff")}
+                        background={BG_COLOR}
                         color="#ffffff"
                         roughness={0.18}      // Smooth but slightly textured
                         transmission={1.0}    // Fully transmissive
