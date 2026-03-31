@@ -152,7 +152,7 @@ const App: React.FC = () => {
                         <ol className="list-decimal list-inside space-y-1">
                             <li>Selecciona tu propiedad de Search Console en el reporte de abajo.</li>
                             <li>Asegúrate de que el rango de fechas cubra un periodo significativo (ej. últimos 3 meses).</li>
-                            <li>Haz clic derecho en la tabla -> Exportar -> CSV.</li>
+                            <li>Haz clic derecho en la tabla -&gt; Exportar -&gt; CSV.</li>
                         </ol>
                     </div>
                     <div className="relative pb-[75%] h-0 border rounded-lg overflow-hidden shadow-inner bg-gray-100">
