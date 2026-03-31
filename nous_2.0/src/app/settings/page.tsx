@@ -76,7 +76,7 @@ export default function SettingsPage() {
             const params = new URLSearchParams(window.location.search);
             if (params.get('google') === 'connected') {
                 alert("Cuenta de Google vinculada correctamente.");
-                router.replace('/settings');
+                window.history.replaceState({}, '', window.location.pathname);
                 setActiveTab('integrations');
             }
             if (params.get('gsc') === 'connected') {

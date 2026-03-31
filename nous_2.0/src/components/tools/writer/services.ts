@@ -385,7 +385,7 @@ export const searchMoreLinks = async (keyword: string, csvData: ContentItem[]): 
 // --- Post-Generation Auto Interlinking (Optimized - Async Chunking) ---
 
 export const autoInterlinkAsync = async (html: string, csvData: ContentItem[]): Promise<string> => {
-    const candidates = csvData.filter(i => i.type === 'product' || i.type === 'collection' || i.type === 'page');
+    const candidates = csvData.filter(i => i.type === 'product' || i.type === 'collection' || i.type === 'static' || i.type === 'blog');
     candidates.sort((a, b) => b.title.length - a.title.length);
 
     let linkedHtml = html;

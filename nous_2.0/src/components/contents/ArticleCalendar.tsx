@@ -7,7 +7,7 @@ import { useWriterStore } from "@/store/useWriterStore";
 import { useProjectStore } from "@/store/useProjectStore";
 
 // Simple monthly calendar view
-export function ArticleCalendar() {
+export function ArticleCalendar({ onToolSelect }: { onToolSelect?: (toolId: string) => void }) {
     const { projectContents } = useWriterStore();
     const { activeProjectIds, projects } = useProjectStore();
     

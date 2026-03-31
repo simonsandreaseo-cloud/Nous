@@ -1,4 +1,11 @@
-"use client";
+const fs = require('fs');
+const path = require('path');
+
+const layoutPath = path.join(__dirname, 'nous_2.0/src/components/contents/ContentsLayout.tsx');
+let layoutCode = fs.readFileSync(layoutPath, 'utf8');
+
+// The file was mangled. Let's rewrite it completely properly based on what it was originally but fixing the bugs.
+const newCode = `"use client";
 
 import { useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -66,8 +73,8 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
 
     const handleToolSelect = useCallback((toolId: string) => {
         setActiveTool(toolId);
-        const params = toolId === "dashboard" ? "" : `?tool=${toolId}`;
-        router.push(`/contents${params}`, { scroll: false });
+        const params = toolId === "dashboard" ? "" : \`?tool=\${toolId}\`;
+        router.push(\`/contents\${params}\`, { scroll: false });
     }, [router]);
 
     return (
@@ -134,3 +141,7 @@ function DashboardViewWithViewMode({
         </AnimatePresence>
     );
 }
+`;
+
+fs.writeFileSync(layoutPath, newCode);
+console.log("Rewrote ContentsLayout.tsx");
