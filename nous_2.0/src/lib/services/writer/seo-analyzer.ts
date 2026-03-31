@@ -270,7 +270,7 @@ export const runDeepSEOAnalysis = async (
 
     let suggestedLinks: any[] = [];
     if (projectId) {
-        const { data: dbLinks } = await supabase.from('project_inventory').select('url, title').eq('project_id', projectId).limit(50);
+        const { data: dbLinks } = await supabase.from('project_urls').select('url, title').eq('project_id', projectId).limit(50);
         if (dbLinks) suggestedLinks = (await selectSemanticInternalLinks(keyword, dbLinks)).filter(s => dbLinks.some(d => d.url === s.url));
     }
 

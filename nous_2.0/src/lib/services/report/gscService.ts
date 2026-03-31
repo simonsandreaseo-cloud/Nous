@@ -329,7 +329,7 @@ export const GscService = {
                         url: u.url,
                         title: u.title,
                         impressions_gsc: u.impressions_gsc,
-                        clicks_gsc: u.organic_traffic_gsc,
+                        organic_traffic_gsc: u.organic_traffic_gsc,
                         last_synced_at: new Date().toISOString()
                     };
                 });
@@ -338,7 +338,7 @@ export const GscService = {
 
                 const chunkSize = 400;
                 for (let i = 0; i < pagesToUpsert.length; i += chunkSize) {
-                    await client.from('project_inventory').upsert(pagesToUpsert.slice(i, i + chunkSize), { onConflict: 'project_id,url' });
+                    await client.from('project_urls').upsert(pagesToUpsert.slice(i, i + chunkSize), { onConflict: 'project_id,url' });
                 }
             }
 

@@ -40,8 +40,22 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# -----------------------------------------------
 # LOCAL NODE — Módulo local de IA (Gemma 4B)
 # Se sube directo al hosting vía file manager, NO a git.
 # -----------------------------------------------
 local-node/
+
+# -----------------------------------------------
+# TAURI & BINARIES
+# -----------------------------------------------
+src-tauri/target/
+src-tauri/binaries/
+bin/
+*.exe
+*.msi
+*.dmg
+*.app
+*.deb
+*.rpm
+*.zip
+*.tar.gz

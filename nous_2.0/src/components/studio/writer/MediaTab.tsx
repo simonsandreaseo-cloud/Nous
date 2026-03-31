@@ -13,14 +13,14 @@ export function MediaTab() {
 
     const handleGenerateImage = async () => {
         setIsGenerating(true);
-        store.setStatusMessage('Generando imagen con IA...');
+        store.setStatus('Generando imagen con IA...');
         try {
             // Placeholder for real image generation logic
             await new Promise(resolve => setTimeout(resolve, 2000));
-            store.setStatusMessage('✅ Imagen generada (Simulación)');
+            store.setStatus('✅ Imagen generada (Simulación)');
         } catch (error) {
             console.error(error);
-            store.setStatusMessage('❌ Error al generar imagen');
+            store.setStatus('❌ Error al generar imagen');
         } finally {
             setIsGenerating(false);
         }

@@ -1786,16 +1786,18 @@ export const runDeepSEOAnalysis = async (
     let suggestedLinks: any[] = [];
     
     if (projectId) {
-        console.log(`[Deep-SEO] Querying Supabase project_inventory for internal linking (Pool of 50 candidates) for Project ID: ${projectId}`);
+        console.log(`[Deep-SEO] Querying Supabase project_urls for internal linking (Pool of 50 candidates) for Project ID: ${projectId}`);
         // Fetch best URLs for this project by GSC impressions to ensure we link to authority pages
-        const { data: dbLinks, error: dbError } = await supabase
-            .from('project_inventory')
+        let { data: dbLinks, error: dbError } = await supabase
+            .from('project_urls')
             .select('url, title, impressions_gsc')
             .eq('project_id', projectId)
             .order('impressions_gsc', { ascending: false })
-            .limit(100); // Higher limit to ensure we find matches
+            .limit(100); 
         
-        if (dbError) console.error("[Deep-SEO] Supabase GSC Query Error:", dbError);
+        if (dbError) {
+             console.error("[Deep-SEO] Supabase project_urls Query Error:", dbError.message, dbError.details);
+        }
         
         if (dbLinks && dbLinks.length > 0) {
             console.log(`[Deep-SEO] Found ${dbLinks.length} GSC candidates. Invoking Gemini for semantic reranking...`);

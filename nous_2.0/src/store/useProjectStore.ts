@@ -541,8 +541,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     fetchProjectInventory: async (projectId) => {
         const { data, error } = await supabase
-            .from('project_inventory')
-            .select('url, title, type')
+            .from('project_urls')
+            .select('url, title')
             .eq('project_id', projectId);
 
         if (error) {

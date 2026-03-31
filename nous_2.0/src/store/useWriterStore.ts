@@ -341,8 +341,8 @@ export const useWriterStore = create<WriterState>((set) => ({
     loadProjectInventory: async (projectId: string) => {
         const { supabase } = require('@/lib/supabase');
         const { data, error } = await supabase
-            .from('project_inventory')
-            .select('url, title, type')
+            .from('project_urls')
+            .select('url, title')
             .eq('project_id', projectId);
 
         if (!error && data) {

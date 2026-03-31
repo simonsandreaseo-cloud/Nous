@@ -24,7 +24,7 @@ export function useWriterActions() {
     const store = useWriterStore();
     const { user } = useAuthStore();
     const { activeProject } = useProjectStore();
-    const { hasContentAccess, canTakeContents, canEditAny, canUseAllTools, hasTokens, consumeTokens, getTokensLimit } = usePermissions();
+    const { canTakeContents, canEditAny, canUseAllTools, hasTokens, consumeTokens, getTokensLimit } = usePermissions();
 
     const [isLocalConnected, setIsLocalConnected] = useState(false);
 
