@@ -123,7 +123,7 @@ export default function WriterEditor() {
                         activeTab === 'visual' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                     )}
                 >
-                    Visual
+                    VISUAL
                 </button>
                 <button 
                     onClick={() => setActiveTab('html')}
@@ -132,7 +132,7 @@ export default function WriterEditor() {
                         activeTab === 'html' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                     )}
                 >
-                    Código HTML
+                    Código CÓDIGO HTML
                 </button>
             </div>
 

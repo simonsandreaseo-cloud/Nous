@@ -75,12 +75,14 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
             <ContentsSidebar activeTool={activeTool} onToolSelect={handleToolSelect} />
 
             <div className="flex-1 flex flex-col min-w-0 glass-panel border-hairline rounded-[28px] overflow-hidden shadow-sm">
-                <ContentsHeader
-                    activeTool={activeTool}
-                    onToolSelect={handleToolSelect}
-                    viewMode={viewMode}
-                    onViewModeChange={setViewMode}
-                />
+                {activeTool !== "writer" && (
+                    <ContentsHeader
+                        activeTool={activeTool}
+                        onToolSelect={handleToolSelect}
+                        viewMode={viewMode}
+                        onViewModeChange={setViewMode}
+                    />
+                )}
 
                 <div className="flex-1 overflow-hidden flex flex-col">
                     <AnimatePresence mode="wait">

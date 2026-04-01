@@ -31,7 +31,6 @@ export default function WriterStudio() {
         <div className="flex w-full h-full bg-transparent overflow-hidden">
             <main className="flex-1 flex flex-col min-w-0 glass-panel border-r-0 rounded-tl-3xl relative shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
                 {/* Header / Toolkit */}
-                {/* Header / Toolkit */}
                 <header className="h-16 border-b border-hairline flex items-center justify-between px-8 bg-white/40 backdrop-blur-md z-10 sticky top-0 shrink-0">
                     <div className="flex items-center gap-4">
                         <Button 
