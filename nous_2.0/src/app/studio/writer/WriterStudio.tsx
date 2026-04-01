@@ -1,5 +1,6 @@
 
 'use client';
+import { useRef, useState } from 'react';
 
 import { useWriterStore } from '@/store/useWriterStore';
 import WriterEditor from '@/components/studio/writer/WriterEditor';
@@ -16,6 +17,22 @@ export default function WriterStudio() {
     } = useWriterStore();
 
     // ── DASHBOARD VIEW ──────────────────────────────────────
+
+    const [splitWidth, setSplitWidth] = useState(50);
+        const containerRef = useRef<HTMLDivElement>(null);
+
+    const handleDrag = (event: any, info: any) => {
+        if (!containerRef.current) return;
+        const containerWidth = containerRef.current.getBoundingClientRect().width;
+        // Calculate new percentage based on mouse movement
+        const deltaPercentage = (info.delta.x / containerWidth) * 100;
+        setSplitWidth((prev: number) => {
+            const newVal = prev + deltaPercentage;
+            // Clamp between 30% and 70%
+            return Math.min(Math.max(newVal, 30), 70);
+        });
+    };
+
     if (viewMode === 'dashboard') {
         return <WriterDashboard />;
     }
@@ -85,24 +102,39 @@ export default function WriterStudio() {
                 </header>
 
                 {/* Editor Area & Split View */}
-                <div className="flex-1 overflow-hidden flex relative bg-white/20">
+                <div className="flex-1 overflow-hidden flex relative bg-white/20" ref={containerRef}>
 
                     {/* Left Side: Zen Editor */}
-                    <div className={cn(
-                        "h-full overflow-y-auto custom-scrollbar transition-all duration-500 ease-[0.23,1,0.32,1]",
-                        isSidebarOpen ? "w-1/2" : "w-full"
-                    )}>
+                    <div className={cn("h-full overflow-y-auto custom-scrollbar", isSidebarOpen ? "transition-none" : "transition-all duration-500 ease-[0.23,1,0.32,1]")}
+                        style={{ width: isSidebarOpen ? `${splitWidth}%` : '100%' }}>
                         <div className={cn("mx-auto min-h-full transition-all duration-500 px-4 sm:px-8", isSidebarOpen ? "max-w-[700px]" : "max-w-4xl")}>
                             <WriterEditor />
                         </div>
                     </div>
+
+
+                    {/* Drag Handle */}
+                    {isSidebarOpen && (
+                        <motion.div
+                            drag="x"
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={0}
+                            dragMomentum={false}
+                            onDrag={handleDrag}
+                            className="absolute top-0 bottom-0 z-50 w-2 hover:bg-indigo-500/20 cursor-col-resize flex items-center justify-center group"
+                            style={{ left: `calc(${splitWidth}% - 4px)` }}
+                        >
+                            <div className="h-8 w-1 bg-slate-300 rounded-full group-hover:bg-indigo-400 transition-colors" />
+                        </motion.div>
+                    )}
+
 
                     {/* Right Side: Competitors / Research (50/50 Mode) */}
                     <AnimatePresence>
                         {isSidebarOpen && (
                             <motion.div
                                 initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: "50%", opacity: 1 }}
+                                animate={{ width: `${100 - splitWidth}%`, opacity: 1 }}
                                 exit={{ width: 0, opacity: 0 }}
                                 transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
                                 className="h-full bg-slate-50 flex flex-col overflow-hidden border-l border-slate-200/50 shadow-[inset_10px_0_20px_rgba(0,0,0,0.02)]"

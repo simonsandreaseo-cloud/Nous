@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
 import {
     LayoutGrid,
+    Columns,
     CalendarDays,
     Table2,
     Plus,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import { CONTENT_TOOLS } from "./ContentsSidebar";
 
-type ViewMode = "cards" | "calendar" | "table";
+type ViewMode = "cards" | "kanban" | "calendar" | "table";
 
 interface ContentsHeaderProps {
     activeTool: string;
@@ -81,6 +82,7 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
                     >
                         {[
                             { id: "cards" as ViewMode, icon: LayoutGrid, label: "Tarjetas" },
+                            { id: "kanban" as ViewMode, icon: Columns, label: "Tablero" },
                             { id: "calendar" as ViewMode, icon: CalendarDays, label: "Calendario" },
                             { id: "table" as ViewMode, icon: Table2, label: "Tabla" },
                         ].map(({ id, icon: Icon, label }) => (
