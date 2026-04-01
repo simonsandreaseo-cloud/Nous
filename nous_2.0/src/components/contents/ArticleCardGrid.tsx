@@ -3,12 +3,17 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
-import { Key, ChevronRight, AlertCircle, Trash2, ExternalLink } from "lucide-react";
+import { Key, X, ChevronRight, AlertCircle, Trash2, ExternalLink, RefreshCw, FileText, PenLine, Image, Sparkles, Link as LinkIcon, CheckCircle } from "lucide-react";
 import { useWriterStore } from "@/store/useWriterStore";
 import { useProjectStore } from "@/store/useProjectStore";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 // Mapping Supabase 'contents' status to visual display
+
+// Internal icons helper
+
+
+
 export type ArticleStatus = "drafting" | "ready" | "published" | "archived";
 
 export interface Article {
@@ -19,6 +24,7 @@ export interface Article {
     scheduledDate: string; 
     appliedTools: string[];
     author_id?: string;
+    seo_data?: any;
 }
 
 // ── Status config ──────────────────────────────────────────────────────────
@@ -106,11 +112,32 @@ function ArticleCard({ article, onOpen }: { article: Article; onOpen: (a: Articl
 }
 
 // ── Article Detail Drawer ─────────────────────────────────────────────────
-function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete }: {
+
+function TrafficLightItem({ active, icon, label }: { active: boolean, icon: React.ReactNode, label: string }) {
+    return (
+        <div className={cn(
+            "flex flex-col items-center gap-1.5 transition-all duration-300",
+            active ? "text-emerald-500" : "text-slate-300 opacity-50"
+        )}>
+            <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center border-2",
+                active ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white"
+            )}>
+                {active ? <CheckCircle size={14} /> : icon}
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-wider">{label}</span>
+        </div>
+    );
+}
+
+// Internal icons helper
+
+export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, onUpdateStatus }: {
     article: Article | null;
     onClose: () => void;
     onOpenTool: (articleId: string, toolId: string) => void;
     onDelete: (articleId: string) => Promise<void>;
+    onUpdateStatus?: (articleId: string, newStatus: string) => Promise<void>;
 }) {
     if (!article) return null;
     const status = STATUS_CONFIG[article.status] || STATUS_CONFIG.drafting;
@@ -122,6 +149,10 @@ function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete }: {
         await onDelete(article.id);
         setIsDeleting(false);
     };
+
+
+    const seoData = article.seo_data || {};
+    const hasBriefing = !!seoData.structure;
 
     return (
         <AnimatePresence>
@@ -136,58 +167,92 @@ function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete }: {
                 initial={{ x: "100%" }}
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
-                transition={{ type: "spring", stiffness: 400, damping: 40 }}
-                className="fixed right-0 top-0 h-full w-[420px] z-50 bg-white shadow-[-20px_0_60px_rgba(0,0,0,0.1)] border-l border-slate-100 flex flex-col"
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-[400px] bg-white shadow-2xl flex flex-col border-l border-slate-100"
             >
                 {/* Header */}
-                <div className="p-8 border-b border-slate-50 bg-slate-50/30">
-                    <div className="flex items-start justify-between mb-4">
-                        <span className={cn(
-                            "inline-flex items-center gap-1.5 text-[9px] font-black tracking-widest uppercase px-3 py-1.5 rounded-full border",
-                            status.color
-                        )}>
-                            <span className={cn("w-1.5 h-1.5 rounded-full", status.dot)} />
-                            {status.label}
-                        </span>
-                        <button onClick={onClose} className="p-2 hover:bg-white rounded-xl text-slate-400 transition-all">
-                            <XComp size={18} />
-                        </button>
+                <div className="h-20 px-8 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 shrink-0">
+                    <div>
+                        <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Panel de Control</p>
+                        <h2 className="text-sm font-bold text-slate-800 mt-0.5">Estado del Contenido</h2>
                     </div>
-                    <h2 className="text-lg font-black text-slate-800 leading-tight">{article.title}</h2>
-                    {article.keyword && (
-                        <p className="flex items-center gap-2 mt-3 bg-white self-start px-3 py-1.5 rounded-lg border border-slate-100 w-fit">
-                            <Key size={12} className="text-indigo-400" />
-                            <span className="text-[11px] font-bold text-slate-500">{article.keyword}</span>
-                        </p>
-                    )}
+                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors">
+                        <X size={16} />
+                    </button>
                 </div>
 
-                {/* Content Details */}
-                <div className="p-8 flex-1 overflow-y-auto space-y-8">
-                    <div className="space-y-4">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acceso Directo</p>
-                        <button
-                            onClick={() => onOpenTool(article.id, 'writer')}
-                            className="w-full h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center gap-3 transition-transform active:scale-95 group"
-                        >
-                            <span className="text-sm font-black uppercase tracking-widest">Abrir en Redactor</span>
-                            <ExternalLink size={16} className="text-slate-500 group-hover:text-white transition-colors" />
-                        </button>
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+                    <div className="mb-8">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200 mb-4">
+                            {article.keyword || "Sin Keyword"}
+                        </span>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight leading-snug">{article.title || "Artículo sin título"}</h3>
                     </div>
 
-                    <div className="h-[1px] bg-slate-100" />
-
-                    <div className="space-y-4">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zona de Peligro</p>
-                        <button 
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                            className="w-full h-12 rounded-xl border border-rose-100 bg-rose-50/30 text-rose-500 flex items-center justify-center gap-2 hover:bg-rose-50 transition-colors disabled:opacity-50"
-                        >
-                            {isDeleting ? <RefreshCw className="animate-spin" size={16} /> : <Trash2 size={16} />}
-                            <span className="text-[11px] font-black uppercase tracking-widest">Eliminar permanentemente</span>
-                        </button>
+                    {/* Semáforo de Completitud */}
+                    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-8">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Semáforo de Completitud</h4>
+                        <div className="flex justify-between items-center">
+                            <TrafficLightItem active={hasBriefing} icon={<FileText size={14} />} label="Briefing" />
+                            <div className={`flex-1 h-[2px] mx-2 rounded-full ${hasBriefing ? 'bg-emerald-200' : 'bg-slate-200'}`} />
+                            <TrafficLightItem active={article.status === 'ready' || article.status === 'published'} icon={<PenLine size={14} />} label="Texto" />
+                            <div className={`flex-1 h-[2px] mx-2 rounded-full ${article.status === 'ready' || article.status === 'published' ? 'bg-emerald-200' : 'bg-slate-200'}`} />
+                            <TrafficLightItem active={false} icon={<Image size={14} />} label="Imágenes" />
+                        </div>
                     </div>
+
+                    {/* Acciones */}
+                    <div className="space-y-4">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Centro de Acción</h4>
+
+                        {!hasBriefing ? (
+                            <button
+                                onClick={() => onUpdateStatus?.(article.id, 'drafting')} // Simulate briefing gen
+                                className="w-full bg-indigo-600 text-white rounded-xl py-4 font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+                            >
+                                <Sparkles size={16} />
+                                Generar Briefing con Nous
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => onOpenTool(article.id, 'writer')}
+                                className="w-full bg-slate-900 text-white rounded-xl py-4 font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition flex items-center justify-center gap-2"
+                            >
+                                <PenLine size={16} />
+                                Entrar al Redactor Zen
+                            </button>
+                        )}
+
+                        {hasBriefing && (
+                            <div className="flex gap-3 mt-4">
+                                <button
+                                    onClick={() => onOpenTool(article.id, 'refinery')}
+                                    className="flex-1 bg-white border border-slate-200 text-slate-600 rounded-xl py-3 font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 transition flex items-center justify-center gap-2"
+                                >
+                                    <Image size={14} /> Refinar Arte
+                                </button>
+                                <button
+                                    onClick={() => onOpenTool(article.id, 'writer')} // Interlinking is part of Redactor now
+                                    className="flex-1 bg-white border border-slate-200 text-slate-600 rounded-xl py-3 font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 transition flex items-center justify-center gap-2"
+                                >
+                                    <LinkIcon size={14} /> Interlinking
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-8 border-t border-slate-50 bg-white shrink-0">
+                    <button
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        className="w-full h-12 rounded-xl border border-rose-100 bg-rose-50/30 text-rose-500 flex items-center justify-center gap-2 hover:bg-rose-50 transition-colors disabled:opacity-50"
+                    >
+                        {isDeleting ? <RefreshCw className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                        <span className="text-[11px] font-black uppercase tracking-widest">Eliminar permanentemente</span>
+                    </button>
                 </div>
             </motion.div>
         </AnimatePresence>
@@ -195,12 +260,8 @@ function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete }: {
 }
 
 // Internal icons helper
-const XComp = ({ size }: { size: number }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-);
-const RefreshCw = ({ className, size }: { className?: string, size: number }) => (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-);
+
+
 
 // ── Main ArticleCardGrid ──────────────────────────────────────────────────
 export function ArticleCardGrid({ onToolSelect }: { onToolSelect: (toolId: string) => void }) {

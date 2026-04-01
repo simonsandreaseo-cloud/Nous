@@ -27,6 +27,7 @@ export default function SlashMenu({ position, onSelect, onClose }: SlashMenuProp
         { id: 'ordered', label: 'Lista Numerada', icon: ListOrdered, desc: 'Secuencia ordenada' },
         { id: 'quote', label: 'Cita', icon: Quote, desc: 'Cita destacada' },
         { id: 'divider', label: 'Separador', icon: null, desc: '' }, // Logic separator
+        { id: 'ai-nous', label: 'Agente Nous', icon: Sparkles, desc: '/nous [instrucción]', highlight: true },
         { id: 'ai-write', label: 'Continuar con IA', icon: Sparkles, desc: 'Autocompletar texto', highlight: true },
         { id: 'image', label: 'Imagen IA', icon: ImageIcon, desc: 'Generar imagen' },
     ];

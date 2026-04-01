@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ContentsSidebar } from "./ContentsSidebar";
 import { ContentsHeader } from "./ContentsHeader";
 import { ArticleCardGrid } from "./ArticleCardGrid";
+import { ArticleKanbanBoard } from "./ArticleKanbanBoard";
 import { ArticleCalendar } from "./ArticleCalendar";
 import { ArticleTable } from "./ArticleTable";
 import { cn } from "@/utils/cn";
@@ -43,7 +44,7 @@ function ToolPlaceholder({ name }: { name: string }) {
     );
 }
 
-type ViewMode = "cards" | "calendar" | "table";
+type ViewMode = "cards" | "kanban" | "calendar" | "table";
 
 function ToolView({ toolId }: { toolId: string }) {
     switch (toolId) {
@@ -75,12 +76,14 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
             <ContentsSidebar activeTool={activeTool} onToolSelect={handleToolSelect} />
 
             <div className="flex-1 flex flex-col min-w-0 glass-panel border-hairline rounded-[28px] overflow-hidden shadow-sm">
-                <ContentsHeader
-                    activeTool={activeTool}
-                    onToolSelect={handleToolSelect}
-                    viewMode={viewMode}
-                    onViewModeChange={setViewMode}
-                />
+                {activeTool !== "writer" && (
+                    <ContentsHeader
+                        activeTool={activeTool}
+                        onToolSelect={handleToolSelect}
+                        viewMode={viewMode}
+                        onViewModeChange={setViewMode}
+                    />
+                )}
 
                 <div className="flex-1 overflow-hidden flex flex-col">
                     <AnimatePresence mode="wait">
@@ -127,7 +130,8 @@ function DashboardViewWithViewMode({
                 transition={{ duration: 0.15 }}
                 className="flex-1 overflow-y-auto custom-scrollbar p-6 h-full"
             >
-                {viewMode === "cards" && <ArticleCardGrid onToolSelect={onToolSelect} />}
+                                {viewMode === "cards" && <ArticleCardGrid onToolSelect={onToolSelect} />}
+                {viewMode === "kanban" && <ArticleKanbanBoard onToolSelect={onToolSelect} />}
                 {viewMode === "calendar" && <ArticleCalendar onToolSelect={onToolSelect} />}
                 {viewMode === "table" && <ArticleTable onToolSelect={onToolSelect} />}
             </motion.div>
