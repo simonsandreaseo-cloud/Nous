@@ -20,5 +20,11 @@ if (start !== -1) {
     // If DashboardView is not found, what is at line 72?
     // Let's read it
     console.log(lines.slice(65, 80).join('\n'));
+<<<<<<< Updated upstream
     // ah I see, inside DashboardViewWithViewMode usage? No, wait.
 }
+=======
+    // ah I see, inside DashboardViewWithViewMode usage? No, wait.
+}
+
+>>>>>>> Stashed changes

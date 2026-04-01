@@ -22,3 +22,7 @@ if (index !== -1) {
     fs.writeFileSync(seoPath, lines.join('\n'));
     console.log("Fixed SEOTab directly");
 }
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes

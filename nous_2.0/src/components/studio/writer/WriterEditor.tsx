@@ -23,14 +23,22 @@ export default function WriterEditor() {
             StarterKit,
             Typography,
             Placeholder.configure({
-                placeholder: 'Escribe algo increíble... (Teclea "/" para comandos)',
+                placeholder: 'Escribe algo increíble... (Teclea "/nous" para llamar a la IA o "/" para comandos)',
             }),
         ],
         content: content,
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: 'prose prose-lg prose-indigo focus:outline-none max-w-none min-h-[500px] pb-32 transition-all duration-500',
+
+                class: 'prose prose-lg prose-indigo focus:outline-none max-w-none min-h-[700px] pb-32 transition-all duration-500 mx-auto ' +
+                       'prose-h1:text-4xl prose-h1:font-black prose-h1:text-slate-800 prose-h1:mb-8 prose-h1:tracking-tight ' +
+                       'prose-h2:text-2xl prose-h2:font-extrabold prose-h2:text-slate-800 prose-h2:mt-12 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-100 ' +
+                       'prose-h3:text-xl prose-h3:font-bold prose-h3:text-indigo-900 prose-h3:mt-8 prose-h3:mb-3 ' +
+                       'prose-p:text-slate-600 prose-p:leading-relaxed prose-p:text-[17px] ' +
+                       'prose-a:text-indigo-600 prose-a:font-bold prose-a:no-underline hover:prose-a:underline ' +
+                       'prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/50 prose-blockquote:py-2 prose-blockquote:px-6 prose-blockquote:rounded-r-2xl prose-blockquote:not-italic prose-blockquote:text-indigo-900',
+
             },
         },
         onUpdate: ({ editor }) => {
@@ -227,6 +235,26 @@ export default function WriterEditor() {
                     Modo Código
                 </div>
             </div>
+            {/* AGENTE NOUS - ORBE FLOTANTE */}
+            <div className="fixed bottom-8 right-8 z-[100] group">
+                <div className="absolute inset-0 bg-indigo-500 rounded-full blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-500 animate-pulse" />
+                <button
+                    onClick={() => {
+                        // Open Setup Modal or trigger AI command
+                        alert("Agente Nous: Configuración rápida (Tono, Creatividad, Palabras) en desarrollo.");
+                    }}
+                    className="relative w-16 h-16 bg-white/80 backdrop-blur-xl border border-indigo-100 rounded-full flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300"
+                >
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center relative overflow-hidden">
+                        <div className="absolute inset-0 bg-white/20 w-full h-full animate-[spin_4s_linear_infinite]" />
+                        <span className="text-white font-black text-xs relative z-10">N</span>
+                    </div>
+                </button>
+                <div className="absolute -top-12 right-0 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                    Agente Nous
+                </div>
+            </div>
+
         </div>
     );
 }
