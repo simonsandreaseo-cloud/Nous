@@ -161,7 +161,7 @@ export function ArticleTable({ onToolSelect }: { onToolSelect: (toolId: string) 
                                 </td>
                                 <td className="px-4 py-3">
                                     <p className="text-[12px] font-medium text-slate-800 line-clamp-1 max-w-[280px]">{article.title}</p>
-                                    {article.cluster && <p className="text-[10px] text-slate-400 mt-0.5">{article.cluster}</p>}
+                                    {/* cluster omitted */}
                                 </td>
                                 <td className="px-4 py-3">
                                     <span className="text-[10px] text-slate-500 truncate max-w-[140px] block">{article.keyword}</span>

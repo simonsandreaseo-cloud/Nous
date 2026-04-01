@@ -39,7 +39,7 @@ export default function WriterSidebar() {
         let content = null;
         switch (store.activeSidebarTab) {
             case 'seo':
-                content = <SEOTab onSEO={handleSEO} isAnalyzing={store.isAnalyzingSEO} onPlanStructure={handlePlanStructure} isPlanning={store.isPlanningStructure} />;
+                content = <SEOTab onSEO={handleSEO} isAnalyzing={store.isAnalyzingSEO} />; // Removed onPlanStructure from SEOTab since it isn't defined there.
                 break;
             case 'generate':
                 content = <GenerateTab onGenerate={handleGenerate} onHumanize={handleHumanize} isLoading={store.isGenerating} />;
@@ -48,7 +48,7 @@ export default function WriterSidebar() {
                 content = <AssistantTab onRefine={handleRefine} isRefining={store.isRefining} />;
                 break;
             case 'research':
-                content = <ResearchTab />;
+                content = <ResearchTab onPlanStructure={handlePlanStructure} isPlanning={store.isPlanningStructure} />;
                 break;
             case 'export':
                 content = <ExportTab onExportWP={() => {}} onSaveCloud={() => {}} />;

@@ -87,7 +87,7 @@ export function SEOTab({ onSEO, isAnalyzing }: { onSEO: () => void; isAnalyzing:
                 </div>
                 <div className="pt-2 border-t border-white/10 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <pie size={12} />
+                        <PieChart size={12} />
                         <span className="text-[9px] font-bold opacity-80">Search Intent: Informacional</span>
                     </div>
                 </div>
