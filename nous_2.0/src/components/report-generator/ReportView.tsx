@@ -147,9 +147,11 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
                                         </button>
                                     )}
                                 </div>
-                                {/* Mini Preview (Stripped HTML) */}
+                                {/* Mini Preview (Safe title rendering) */}
                                 <div className="h-16 overflow-hidden text-[8px] text-slate-400 leading-tight select-none">
-                                    <div dangerouslySetInnerHTML={{ __html: slide }} className="scale-50 origin-top-left w-[200%]" />
+                                    <div className="scale-50 origin-top-left w-[200%] font-bold uppercase">
+                                        {slide.title || "Untitled Slide"}
+                                    </div>
                                 </div>
                             </div>
                         ))}
