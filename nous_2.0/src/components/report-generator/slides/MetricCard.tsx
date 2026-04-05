@@ -14,7 +14,7 @@ export const MetricCard: React.FC<Metric> = ({ label, value, trend }) => {
             : 'bg-slate-50 text-slate-400';
 
     return (
-        <div className="glass-panel bg-white/40 border-hairline rounded-3xl p-6 flex flex-col justify-between group hover:!border-[var(--color-nous-lavender)]/50 transition-all">
+        <div className="glass-panel bg-white/40 border-hairline rounded-lg p-6 flex flex-col justify-between group hover:!border-[var(--color-nous-lavender)]/50 transition-all">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{label}</span>
             <div className="flex items-baseline justify-between">
                 <span className="text-4xl font-black text-slate-800 tracking-tighter">{value}</span>

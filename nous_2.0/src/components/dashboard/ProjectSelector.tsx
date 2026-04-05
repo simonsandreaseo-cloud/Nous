@@ -53,7 +53,7 @@ export function ProjectSelector() {
                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 p-2"
+                            className="absolute top-full right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-slate-100 overflow-hidden z-50 p-2"
                         >
                             <div className="flex items-center justify-between px-3 py-2 border-b border-slate-50 mb-1">
                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -84,7 +84,7 @@ export function ProjectSelector() {
                                                 toggleProjectActive(project.id);
                                             }}
                                             className={cn(
-                                                "w-full p-2.5 rounded-xl text-left transition-all group border border-transparent",
+                                                "w-full p-2.5 rounded-md text-left transition-all group border border-transparent",
                                                 isActive ? "bg-slate-50 border-slate-100" : "hover:bg-slate-50 hover:border-slate-50"
                                             )}
                                         >
@@ -131,7 +131,7 @@ export function ProjectSelector() {
                                 <Link
                                     href="/settings"
                                     onClick={() => setIsOpen(false)}
-                                    className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-slate-200 text-[10px] font-bold text-slate-400 hover:text-cyan-600 hover:border-cyan-200 transition-all uppercase tracking-widest bg-slate-50/50 hover:bg-white"
+                                    className="w-full flex items-center justify-center gap-2 p-2.5 rounded-md border border-dashed border-slate-200 text-[10px] font-bold text-slate-400 hover:text-cyan-600 hover:border-cyan-200 transition-all uppercase tracking-widest bg-slate-50/50 hover:bg-white"
                                 >
                                     <Plus size={14} />
                                     Gestionar Proyectos

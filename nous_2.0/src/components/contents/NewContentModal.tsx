@@ -141,12 +141,12 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                     {/* Header */}
                     <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <div className="w-8 h-8 rounded-md bg-indigo-50 flex items-center justify-center text-indigo-600">
                                 <Sparkles size={18} />
                             </div>
                             <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-800">Programar Contenido</h3>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400">
+                        <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-md transition-all text-slate-400">
                             <X size={20} />
                         </button>
                     </div>
@@ -162,7 +162,7 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                                         value={idea}
                                         onChange={(e) => setIdea(e.target.value)}
                                         placeholder="Ej: Las 10 mejores zapatillas para running en 2025..."
-                                        className="w-full min-h-[120px] p-6 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-bold text-slate-900 outline-none focus:border-indigo-200 transition-all resize-none"
+                                        className="w-full min-h-[120px] p-6 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold text-slate-900 outline-none focus:border-indigo-200 transition-all resize-none"
                                     />
                                 </div>
 
@@ -236,7 +236,7 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-2 p-4 bg-amber-50 rounded-2xl border border-amber-100 max-w-xs mx-auto">
+                                        <div className="flex gap-2 p-4 bg-amber-50 rounded-lg border border-amber-100 max-w-xs mx-auto">
                                             <Info size={16} className="text-amber-500 shrink-0 mt-0.5" />
                                             <p className="text-[10px] font-bold text-amber-700 leading-tight">
                                                 Estamos analizando la competencia y extrayendo enlaces internos relevantes para tu proyecto.
@@ -259,7 +259,7 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                                                 <input 
                                                     value={editedData.title}
                                                     onChange={e => setEditedData({...editedData, title: e.target.value})}
-                                                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-900 italic outline-none focus:border-indigo-200"
+                                                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold text-slate-900 italic outline-none focus:border-indigo-200"
                                                 />
                                             </div>
                                         </div>
@@ -272,7 +272,7 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                                                         type="date"
                                                         value={editedData.scheduled_date}
                                                         onChange={e => setEditedData({...editedData, scheduled_date: e.target.value})}
-                                                        className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:border-indigo-200"
+                                                        className="w-full p-4 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold text-slate-900 outline-none focus:border-indigo-200"
                                                     />
                                                     <Calendar size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
                                                 </div>
@@ -283,7 +283,7 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                                                     <input 
                                                         value={editedData.target_keyword}
                                                         onChange={e => setEditedData({...editedData, target_keyword: e.target.value})}
-                                                        className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:border-indigo-200"
+                                                        className="w-full p-4 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold text-slate-900 outline-none focus:border-indigo-200"
                                                     />
                                                     <Tag size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
                                                 </div>
@@ -300,11 +300,11 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-3">
-                                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg">
                                                     <span className="text-[9px] font-black text-slate-400 uppercase block mb-1">Dificultad</span>
                                                     <span className="text-xs font-bold text-slate-800">{seoData.keywordDifficulty || 'Media'}</span>
                                                 </div>
-                                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg">
                                                     <span className="text-[9px] font-black text-slate-400 uppercase block mb-1">Volumen Sugerido</span>
                                                     <span className="text-xs font-bold text-slate-800">{seoData.searchVolume || 'No disponible'}</span>
                                                 </div>
@@ -314,7 +314,7 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Palabras Clave LSI / Semánticas</label>
                                                 <div className="flex flex-wrap gap-2">
                                                     {seoData.lsiKeywords?.slice(0, 15).map((kw: any, i: number) => (
-                                                        <span key={i} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-bold border border-indigo-100">
+                                                        <span key={i} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-md text-[10px] font-bold border border-indigo-100">
                                                             {kw.keyword} {kw.count ? `(${kw.count})` : ''}
                                                         </span>
                                                     ))}
@@ -329,7 +329,7 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                                                             key={i} 
                                                             href={comp.url} 
                                                             target="_blank" 
-                                                            className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:border-indigo-200 transition-all group"
+                                                            className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-md hover:border-indigo-200 transition-all group"
                                                         >
                                                             <span className="text-[11px] font-bold text-slate-600 truncate max-w-[80%]">{comp.title}</span>
                                                             <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400" />

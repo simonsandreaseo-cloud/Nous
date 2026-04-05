@@ -52,7 +52,7 @@ export function ColaDeContenidos() {
                                         <motion.div
                                             key={item.id}
                                             whileHover={{ scale: 1.02 }}
-                                            className="p-4 bg-white/40 glass-panel-hover border-hairline rounded-xl group cursor-pointer flex items-center gap-3"
+                                            className="p-4 bg-white/40 glass-panel-hover border-hairline rounded-md group cursor-pointer flex items-center gap-3"
                                         >
                                             <GripVertical size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 cursor-grab transition-opacity" />
                                             <span className="text-[13px] font-light text-slate-700 flex-1 truncate">{item.title}</span>
@@ -62,7 +62,7 @@ export function ColaDeContenidos() {
                                         </motion.div>
                                     ))
                                 ) : (
-                                    <div className="border-2 border-dashed border-slate-100 rounded-xl p-4 text-center">
+                                    <div className="border-2 border-dashed border-slate-100 rounded-md p-4 text-center">
                                         <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Sin tareas activas</span>
                                     </div>
                                 )}

@@ -43,7 +43,7 @@ function ToolLoading({ name }: { name: string }) {
         <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
                 <div className="relative w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                    <div className="absolute inset-0 rounded-[32px] bg-indigo-50 animate-pulse border border-indigo-100/50 shadow-inner"></div>
+                    <div className="absolute inset-0 rounded-lg bg-indigo-50 animate-pulse border border-indigo-100/50 shadow-inner"></div>
                     <Loader2 className="w-8 h-8 text-indigo-500 animate-spin stroke-[2.5px] relative z-10" />
                 </div>
                 <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] mb-1">{name}</h3>
@@ -96,27 +96,31 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
     }, [router]);
 
     return (
-        <div className="flex h-screen overflow-hidden bg-[#f5f5f0] p-4 gap-4">
+        <div className="flex h-screen overflow-hidden bg-white text-slate-900">
+            {/* Sidebar now flush and distinct */}
             <ContentsSidebar activeTool={activeTool} onToolSelect={handleToolSelect} />
 
-            <div className="flex-1 flex flex-col min-w-0 glass-panel border-hairline rounded-[28px] overflow-hidden shadow-sm">
+            {/* Main area flush, imitating serper. We use our light theme variables */}
+            <div className="flex-1 flex flex-col min-w-0 bg-[#f5f5f0] overflow-hidden">
                 {activeTool !== "writer" && activeTool !== "planner" && (
-                    <ContentsHeader
-                        activeTool={activeTool}
-                        onToolSelect={handleToolSelect}
-                        viewMode={viewMode}
-                        onViewModeChange={setViewMode}
-                    />
+                    <div className="bg-white border-b border-slate-200 shadow-sm z-10">
+                         <ContentsHeader
+                            activeTool={activeTool}
+                            onToolSelect={handleToolSelect}
+                            viewMode={viewMode}
+                            onViewModeChange={setViewMode}
+                        />
+                    </div>
                 )}
 
-                <div className="flex-1 overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-hidden flex flex-col relative z-0">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={activeTool}
-                            initial={{ opacity: 0, scale: 0.99 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 1.01 }}
-                            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            transition={{ duration: 0.15 }}
                             className="flex-1 overflow-hidden flex flex-col"
                         >
                             {activeTool === "dashboard" ? (
@@ -152,9 +156,9 @@ function DashboardViewWithViewMode({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="flex-1 overflow-y-auto custom-scrollbar p-6 h-full"
+                className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-8 h-full"
             >
-                                {viewMode === "cards" && <ArticleCardGrid onToolSelect={onToolSelect} />}
+                {viewMode === "cards" && <ArticleCardGrid onToolSelect={onToolSelect} />}
                 {viewMode === "kanban" && <ArticleKanbanBoard onToolSelect={onToolSelect} />}
                 {viewMode === "calendar" && <ArticleCalendar onToolSelect={onToolSelect} />}
                 {viewMode === "table" && <ArticleTable onToolSelect={onToolSelect} />}

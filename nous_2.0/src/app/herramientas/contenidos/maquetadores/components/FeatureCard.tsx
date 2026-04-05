@@ -25,7 +25,7 @@ export default function FeatureCard({ icon: Icon, title, description, index }: F
 
             {/* Icon */}
             <div className="relative mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--color-nous-mist)]/10 border border-[var(--color-nous-mist)]/20 flex items-center justify-center group-hover:bg-[var(--color-nous-mist)]/20 transition-all duration-300">
+                <div className="w-14 h-14 rounded-lg bg-[var(--color-nous-mist)]/10 border border-[var(--color-nous-mist)]/20 flex items-center justify-center group-hover:bg-[var(--color-nous-mist)]/20 transition-all duration-300">
                     <Icon className="w-6 h-6 text-[var(--color-nous-mist)] group-hover:scale-110 transition-transform duration-300" />
                 </div>
             </div>

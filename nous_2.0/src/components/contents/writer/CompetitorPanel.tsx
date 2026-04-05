@@ -80,7 +80,7 @@ export default function CompetitorPanel() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+                    <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-md">
                         <button 
                             disabled={activeIdx === 0}
                             onClick={prevComp}
@@ -157,7 +157,7 @@ export default function CompetitorPanel() {
                                 { label: 'H2s', value: currentComp.h2_count || (currentComp.headers?.filter?.((h: any) => h.tag === 'h2').length) || '—' },
                                 { label: 'Dominio', value: currentComp.domain_authority ? `DA${currentComp.domain_authority}` : '—' },
                             ].map(m => (
-                                <div key={m.label} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-col items-center justify-center">
+                                <div key={m.label} className="bg-white rounded-lg p-4 border border-slate-100 shadow-sm flex flex-col items-center justify-center">
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{m.label}</span>
                                     <span className="text-sm font-black text-slate-700">{m.value}</span>
                                 </div>
@@ -183,7 +183,7 @@ export default function CompetitorPanel() {
                                                 <div 
                                                     onClick={() => toggleHeader(headerId)}
                                                     className={cn(
-                                                        "group flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer select-none",
+                                                        "group flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer select-none",
                                                         h.tag === 'h1' ? "bg-slate-900 border-slate-900 text-white" :
                                                         h.tag === 'h2' ? "bg-white border-slate-200 text-slate-700 hover:border-indigo-200" :
                                                         "bg-white border-slate-100 text-slate-500 hover:border-indigo-100"
@@ -212,7 +212,7 @@ export default function CompetitorPanel() {
                                                             className="overflow-hidden"
                                                         >
                                                             <div className="pt-2 pb-1 pl-4">
-                                                                <div className="p-4 bg-slate-50 border border-slate-200 border-dashed rounded-2xl mb-2">
+                                                                <div className="p-4 bg-slate-50 border border-slate-200 border-dashed rounded-lg mb-2">
                                                                     <p className="text-[10px] text-slate-400 font-medium italic leading-relaxed">
                                                                         Contenido de la sección bajo el encabezado {h.tag}. Analizado semánticamente para detectar patrones.
                                                                     </p>
@@ -235,7 +235,7 @@ export default function CompetitorPanel() {
 
                         {/* Bottom AI Note - Matches Dashboard Summary */}
                         {currentComp.summary && (
-                            <div className="bg-indigo-600 rounded-[28px] p-6 shadow-xl shadow-indigo-200 relative overflow-hidden group">
+                            <div className="bg-indigo-600 rounded-lg p-6 shadow-xl shadow-indigo-200 relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12 group-hover:rotate-0 transition-transform">
                                     <Lightbulb size={60} className="text-white" />
                                 </div>

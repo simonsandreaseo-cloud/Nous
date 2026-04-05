@@ -50,7 +50,7 @@ const KanbanColumn = ({ status, canAdd, onAddTask }: { status: StatusColumn, can
         {canAdd && (
             <button 
                 onClick={() => onAddTask(status.id)}
-                className="mt-2 flex items-center justify-center w-full p-4 rounded-2xl border-2 border-dashed border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 cursor-pointer text-slate-400 hover:text-slate-500 transition-all group"
+                className="mt-2 flex items-center justify-center w-full p-4 rounded-lg border-2 border-dashed border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 cursor-pointer text-slate-400 hover:text-slate-500 transition-all group"
             >
                 <Plus size={16} className="mr-2 group-hover:rotate-90 transition-transform" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Añadir Tarea</span>
@@ -65,7 +65,7 @@ const KanbanCard = ({ task }: { task: Task }) => {
     const project = projects.find(p => p.id === task.project_id);
     
     return (
-        <div className="group relative bg-white border border-slate-100 rounded-2xl p-5 transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 cursor-grab active:cursor-grabbing">
+        <div className="group relative bg-white border border-slate-100 rounded-lg p-5 transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 cursor-grab active:cursor-grabbing">
             {/* Project / Priority */}
             <div className="flex items-center gap-2 mb-4">
                 <span className={cn(
@@ -186,7 +186,7 @@ export function Workspace() {
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Gestión de Tareas SEO</p>
                     </div>
 
-                    <div className="flex items-center space-x-1 glass-panel border-hairline p-1 rounded-xl bg-white/40">
+                    <div className="flex items-center space-x-1 glass-panel border-hairline p-1 rounded-md bg-white/40">
                         <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-800 bg-white shadow-sm rounded-lg transition-all">Tablero</button>
                         <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all rounded-lg">Lista</button>
                     </div>
@@ -195,7 +195,7 @@ export function Workspace() {
                 <div className="flex items-center space-x-4">
                     {isLoading && <Loader2 className="animate-spin text-slate-300" size={16} />}
                     <div className="relative group">
-                        <div className="px-4 py-2 rounded-xl border border-hairline bg-white/50 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white cursor-pointer transition-colors flex items-center gap-2">
+                        <div className="px-4 py-2 rounded-md border border-hairline bg-white/50 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white cursor-pointer transition-colors flex items-center gap-2">
                             <Users size={12} />
                             <span>Filtro: Todos</span>
                             <ChevronDown size={10} />

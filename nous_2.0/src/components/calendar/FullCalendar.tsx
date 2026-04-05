@@ -67,7 +67,7 @@ export function FullCalendar() {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl">
+                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-md">
                     <button onClick={prevMonth} className="p-2 hover:bg-white rounded-lg shadow-sm transition-all text-slate-400 hover:text-slate-900">
                         <ChevronLeft size={18} />
                     </button>
@@ -90,7 +90,7 @@ export function FullCalendar() {
             </div>
 
             {/* Grid Body */}
-            <div className="grid grid-cols-7 auto-rows-[minmax(120px,auto)] gap-1 bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden">
+            <div className="grid grid-cols-7 auto-rows-[minmax(120px,auto)] gap-1 bg-slate-50 border border-slate-100 rounded-lg overflow-hidden">
                 {days.map((day, dayIdx) => {
                     const isToday = isSameDay(day, new Date());
                     const isCurrentMonth = isSameMonth(day, currentMonth);

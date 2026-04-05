@@ -61,13 +61,13 @@ export function ArticleCalendar({ onToolSelect }: { onToolSelect?: (toolId: stri
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-500 hover:border-indigo-100 transition-all shadow-sm"
+                        className="w-10 h-10 flex items-center justify-center rounded-md bg-white border border-slate-100 text-slate-400 hover:text-indigo-500 hover:border-indigo-100 transition-all shadow-sm"
                     >
                         <ChevronLeft size={18} />
                     </button>
                     <button
                         onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-500 hover:border-indigo-100 transition-all shadow-sm"
+                        className="w-10 h-10 flex items-center justify-center rounded-md bg-white border border-slate-100 text-slate-400 hover:text-indigo-500 hover:border-indigo-100 transition-all shadow-sm"
                     >
                         <ChevronRight size={18} />
                     </button>
@@ -82,7 +82,7 @@ export function ArticleCalendar({ onToolSelect }: { onToolSelect?: (toolId: stri
                     ))}
                     
                     {cells.map((day, i) => {
-                        if (day === null) return <div key={`empty-${i}`} className="min-h-[120px] rounded-2xl bg-slate-50/30 border border-transparent" />;
+                        if (day === null) return <div key={`empty-${i}`} className="min-h-[120px] rounded-lg bg-slate-50/30 border border-transparent" />;
                         
                         const dayArticles = getArticlesForDay(day);
                         const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
@@ -91,7 +91,7 @@ export function ArticleCalendar({ onToolSelect }: { onToolSelect?: (toolId: stri
                             <div
                                 key={day}
                                 className={cn(
-                                    "min-h-[120px] rounded-2xl p-2.5 border transition-all relative group",
+                                    "min-h-[120px] rounded-lg p-2.5 border transition-all relative group",
                                     isToday 
                                         ? "border-indigo-200 bg-indigo-50/30 shadow-sm" 
                                         : "border-slate-100 bg-white/40 hover:bg-white hover:shadow-md hover:border-indigo-100"

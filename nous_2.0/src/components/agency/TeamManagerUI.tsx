@@ -50,7 +50,7 @@ export function TeamManagerUI() {
     };
 
     if (loading) return <div className="space-y-4 animate-pulse">
-        {[1, 2, 3].map(i => <div key={i} className="h-24 bg-white/40 rounded-2xl border border-hairline"></div>)}
+        {[1, 2, 3].map(i => <div key={i} className="h-24 bg-white/40 rounded-lg border border-hairline"></div>)}
     </div>;
 
     return (
@@ -62,7 +62,7 @@ export function TeamManagerUI() {
                 </div>
                 <button 
                     onClick={() => setShowCreateModal(true)}
-                    className="px-6 py-2.5 bg-[var(--color-nous-mist)] text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                    className="px-6 py-2.5 bg-[var(--color-nous-mist)] text-white rounded-md text-xs font-black uppercase tracking-widest shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
                 >
                     <Plus size={16} />
                     Nuevo Equipo
@@ -73,9 +73,9 @@ export function TeamManagerUI() {
                 {teams.map((team) => {
                     const manager = team.team_members?.find((m: any) => m.role === 'manager' || m.role === 'owner');
                     return (
-                        <div key={team.id} className="glass-panel border border-hairline bg-white/40 rounded-2xl p-6 flex items-center justify-between hover:bg-white/60 transition-colors">
+                        <div key={team.id} className="glass-panel border border-hairline bg-white/40 rounded-lg p-6 flex items-center justify-between hover:bg-white/60 transition-colors">
                             <div className="flex items-center gap-6">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-lg">
+                                <div className="w-12 h-12 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-lg">
                                     {team.name[0]}
                                 </div>
                                 <div>
@@ -114,7 +114,7 @@ export function TeamManagerUI() {
             {/* Create Team Modal */}
             {showCreateModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border border-hairline animate-in zoom-in-95 duration-300">
+                    <div className="bg-white rounded-lg p-8 w-full max-w-md shadow-2xl border border-hairline animate-in zoom-in-95 duration-300">
                         <h2 className="text-xl font-light text-slate-800 mb-6">Crear Nuevo Equipo</h2>
                         <div className="space-y-4">
                             <div>
@@ -124,19 +124,19 @@ export function TeamManagerUI() {
                                     value={newTeamName}
                                     onChange={(e) => setNewTeamName(e.target.value)}
                                     placeholder="Ej. SEO Elite, Content Team A..."
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)] transition-all"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-md px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)] transition-all"
                                 />
                             </div>
                             <div className="flex gap-3 pt-4">
                                 <button 
                                     onClick={() => setShowCreateModal(false)}
-                                    className="flex-1 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-colors"
+                                    className="flex-1 px-4 py-3 rounded-md text-xs font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-colors"
                                 >
                                     Cancelar
                                 </button>
                                 <button 
                                     onClick={handleCreateTeam}
-                                    className="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-[var(--color-nous-mist)] text-white shadow-lg shadow-[var(--color-nous-mist)]/20 transition-all hover:-translate-y-1"
+                                    className="flex-1 px-4 py-3 rounded-md text-xs font-black uppercase tracking-widest bg-[var(--color-nous-mist)] text-white shadow-lg shadow-[var(--color-nous-mist)]/20 transition-all hover:-translate-y-1"
                                 >
                                     Confirmar
                                 </button>

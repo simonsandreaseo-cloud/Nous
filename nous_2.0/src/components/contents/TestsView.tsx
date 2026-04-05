@@ -46,7 +46,7 @@ export default function TestsView() {
                 <ImagenTesterWidget />
 
                 
-                <div className="glass-panel border-dashed border-slate-200 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[140px] opacity-10 hover:opacity-50 transition-all">
+                <div className="glass-panel border-dashed border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center min-h-[140px] opacity-10 hover:opacity-50 transition-all">
                     <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Modulo Vacío</p>
                 </div>
             </div>
@@ -151,7 +151,7 @@ function GeminiTesterWidget() {
         <section className="glass-panel border-hairline rounded-[24px] p-4 shadow-sm flex flex-col gap-4 min-w-[280px] max-w-[320px] bg-white/40 backdrop-blur-md">
             {/* Header & Tabs */}
             <div className="flex items-center justify-between">
-                <div className="flex bg-slate-100/60 p-1 rounded-xl">
+                <div className="flex bg-slate-100/60 p-1 rounded-md">
                     <button 
                         onClick={() => setActiveTab('test')}
                         className={cn(
@@ -209,7 +209,7 @@ function GeminiTesterWidget() {
                                     value={modelName}
                                     onChange={(e) => setModelName(e.target.value)}
                                     placeholder="Modelo ID..."
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-9 pr-4 py-2.5 text-[11px] font-bold text-slate-800 focus:outline-none focus:border-indigo-200 transition-all placeholder:text-slate-300"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-md pl-9 pr-4 py-2.5 text-[11px] font-bold text-slate-800 focus:outline-none focus:border-indigo-200 transition-all placeholder:text-slate-300"
                                 />
                             </div>
 
@@ -222,7 +222,7 @@ function GeminiTesterWidget() {
                                     value={customQuery}
                                     onChange={(e) => setCustomQuery(e.target.value)}
                                     placeholder="Pregunta (Opcional)..."
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-9 pr-4 py-2.5 text-[11px] font-bold text-slate-800 focus:outline-none focus:border-indigo-200 transition-all placeholder:text-slate-300"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-md pl-9 pr-4 py-2.5 text-[11px] font-bold text-slate-800 focus:outline-none focus:border-indigo-200 transition-all placeholder:text-slate-300"
                                 />
                             </div>
 
@@ -235,7 +235,7 @@ function GeminiTesterWidget() {
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
                                     placeholder="API Key Específica"
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-9 pr-4 py-2.5 text-[11px] font-bold text-slate-800 focus:outline-none focus:border-indigo-200 transition-all placeholder:text-slate-300"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-md pl-9 pr-4 py-2.5 text-[11px] font-bold text-slate-800 focus:outline-none focus:border-indigo-200 transition-all placeholder:text-slate-300"
                                 />
                             </div>
                         </div>
@@ -268,7 +268,7 @@ function GeminiTesterWidget() {
                         <button 
                             onClick={runTest}
                             disabled={isTesting}
-                            className="w-full relative h-[42px] rounded-xl bg-slate-900 group/btn overflow-hidden transition-all active:scale-[0.98] disabled:opacity-50"
+                            className="w-full relative h-[42px] rounded-md bg-slate-900 group/btn overflow-hidden transition-all active:scale-[0.98] disabled:opacity-50"
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-indigo-500 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
                             <div className="relative flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white">
@@ -289,7 +289,7 @@ function GeminiTesterWidget() {
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     className={cn(
-                                        "rounded-xl px-3 py-2 border flex items-center gap-2",
+                                        "rounded-md px-3 py-2 border flex items-center gap-2",
                                         result.status === 'success' 
                                             ? "bg-emerald-50 border-emerald-100 text-emerald-700" 
                                             : "bg-rose-50 border-rose-100 text-rose-700"
@@ -316,7 +316,7 @@ function GeminiTesterWidget() {
                             </div>
                         ) : (
                             history.map((item) => (
-                                <div key={item.id} className="p-3 rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col gap-2">
+                                <div key={item.id} className="p-3 rounded-lg bg-white border border-slate-100 shadow-sm flex flex-col gap-2">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2 overflow-hidden">
                                             <div className={cn(
@@ -337,7 +337,7 @@ function GeminiTesterWidget() {
                                     </div>
 
                                     {item.rotationDetails && item.rotationDetails.length > 0 && (
-                                        <div className="flex flex-col gap-1 p-2 bg-slate-50/50 rounded-xl border border-slate-100">
+                                        <div className="flex flex-col gap-1 p-2 bg-slate-50/50 rounded-md border border-slate-100">
                                             <p className="text-[7px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
                                                 <ShieldAlert size={8} /> Fallos previos
                                             </p>
@@ -348,7 +348,7 @@ function GeminiTesterWidget() {
                                     )}
 
                                     <p className={cn(
-                                        "text-[9px] font-bold p-2.5 rounded-xl line-clamp-3 leading-relaxed",
+                                        "text-[9px] font-bold p-2.5 rounded-md line-clamp-3 leading-relaxed",
                                         item.status === 'success' ? "bg-slate-50/50 text-slate-600 italic" : "bg-rose-50/30 text-rose-500 font-black"
                                     )}>
                                         "{item.response}"
@@ -456,7 +456,7 @@ function ImagenTesterWidget() {
         <section className="glass-panel border-hairline rounded-[24px] p-5 shadow-sm flex flex-col gap-5 min-w-[320px] max-w-[360px] bg-white/40 backdrop-blur-md border-violet-100/50">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-violet-50 text-violet-600">
+                    <div className="p-2 rounded-md bg-violet-50 text-violet-600">
                         <ImageIcon size={16} />
                     </div>
                     <h3 className="text-[11px] font-black uppercase tracking-[0.2rem] text-slate-800">Prueba Imagen 4</h3>
@@ -480,7 +480,7 @@ function ImagenTesterWidget() {
                             value={modelName}
                             onChange={(e) => setModelName(e.target.value)}
                             placeholder="Nombre del Modelo"
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-3 text-[12px] font-bold text-slate-800 focus:outline-none focus:border-violet-200 transition-all placeholder:text-slate-300"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-md pl-10 pr-4 py-3 text-[12px] font-bold text-slate-800 focus:outline-none focus:border-violet-200 transition-all placeholder:text-slate-300"
                         />
                     </div>
 
@@ -493,13 +493,13 @@ function ImagenTesterWidget() {
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
                             placeholder="Tu API Key (Opcional - usa sistema)"
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-3 text-[12px] font-bold text-slate-800 focus:outline-none focus:border-violet-200 transition-all placeholder:text-slate-300"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-md pl-10 pr-4 py-3 text-[12px] font-bold text-slate-800 focus:outline-none focus:border-violet-200 transition-all placeholder:text-slate-300"
                         />
 
                     </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-indigo-50/40 border border-indigo-100/30 text-[10px] text-slate-600 leading-relaxed italic">
+                <div className="p-4 rounded-lg bg-indigo-50/40 border border-indigo-100/30 text-[10px] text-slate-600 leading-relaxed italic">
                     <span className="font-black uppercase tracking-widest text-indigo-400 block mb-1.5 text-[8px]">Prompt de Prueba:</span>
                     "{TEST_PROMPT}"
                 </div>
@@ -507,7 +507,7 @@ function ImagenTesterWidget() {
                 <button 
                     onClick={runTest}
                     disabled={isTesting}
-                    className="w-full h-12 rounded-2xl bg-violet-600 text-white text-[10px] font-black uppercase tracking-[0.15em] hover:bg-violet-700 transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-lg shadow-violet-100/50"
+                    className="w-full h-12 rounded-lg bg-violet-600 text-white text-[10px] font-black uppercase tracking-[0.15em] hover:bg-violet-700 transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-lg shadow-violet-100/50"
                 >
 
                     {isTesting ? (
@@ -522,7 +522,7 @@ function ImagenTesterWidget() {
             </div>
 
             {error && (
-                <div className="p-4 rounded-2xl bg-orange-50 border border-orange-100 text-orange-600 text-[10px] font-bold flex items-start gap-3">
+                <div className="p-4 rounded-lg bg-orange-50 border border-orange-100 text-orange-600 text-[10px] font-bold flex items-start gap-3">
                     <AlertCircle size={14} className="shrink-0 mt-0.5" />
                     <p className="leading-relaxed">{error}</p>
                 </div>
@@ -541,13 +541,13 @@ function ImagenTesterWidget() {
                                         link.download = `test-imagen-${Date.now()}.png`;
                                         link.click();
                                     }}
-                                    className="p-3 rounded-2xl bg-white/20 hover:bg-white/40 text-white backdrop-blur-md transition-all"
+                                    className="p-3 rounded-lg bg-white/20 hover:bg-white/40 text-white backdrop-blur-md transition-all"
                                 >
                                     <Download size={16} />
                                 </button>
                                 <button 
                                     onClick={() => window.open(img.url, '_blank')}
-                                    className="p-3 rounded-2xl bg-white/20 hover:bg-white/40 text-white backdrop-blur-md transition-all"
+                                    className="p-3 rounded-lg bg-white/20 hover:bg-white/40 text-white backdrop-blur-md transition-all"
                                 >
                                     <Eye size={16} />
                                 </button>
@@ -565,7 +565,7 @@ function ImagenTesterWidget() {
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
                         {history.map((entry) => (
-                            <div key={entry.id} className="shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 relative group cursor-pointer" onClick={() => window.open(entry.images[0]?.url, '_blank')}>
+                            <div key={entry.id} className="shrink-0 w-16 h-16 rounded-md overflow-hidden border border-slate-100 bg-slate-50 relative group cursor-pointer" onClick={() => window.open(entry.images[0]?.url, '_blank')}>
                                 <img src={entry.images[0]?.url} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                                 <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors" />
                             </div>

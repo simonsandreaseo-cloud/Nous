@@ -41,7 +41,7 @@ export default function CrawlerConsole() {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-4">Neural Engine v2.0</p>
                 </div>
 
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl">
+                <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-lg">
                     <div className="flex -space-x-1">
                         {[1, 2, 3].map(i => (
                             <div key={i} className="w-5 h-5 rounded-full border-2 border-white bg-slate-200" />
@@ -88,9 +88,9 @@ export default function CrawlerConsole() {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="mx-8 mb-8 p-5 bg-rose-50 text-rose-600 rounded-3xl border border-rose-100 flex items-center gap-4 shadow-sm"
+                        className="mx-8 mb-8 p-5 bg-rose-50 text-rose-600 rounded-lg border border-rose-100 flex items-center gap-4 shadow-sm"
                     >
-                        <div className="p-2 bg-white rounded-xl shadow-sm text-rose-500">
+                        <div className="p-2 bg-white rounded-md shadow-sm text-rose-500">
                             <AlertCircle size={20} />
                         </div>
                         <div className="flex-1">
@@ -122,12 +122,12 @@ export default function CrawlerConsole() {
                                         </div>
                                         <h4 className="text-base font-black text-slate-900 leading-tight group-hover/card:text-emerald-600 transition-colors uppercase italic">{res.title}</h4>
                                     </div>
-                                    <a href={res.link} target="_blank" rel="noopener noreferrer" className="p-3 bg-white rounded-2xl shadow-sm opacity-0 group-hover/card:opacity-100 transition-all hover:text-emerald-500">
+                                    <a href={res.link} target="_blank" rel="noopener noreferrer" className="p-3 bg-white rounded-lg shadow-sm opacity-0 group-hover/card:opacity-100 transition-all hover:text-emerald-500">
                                         <ExternalLink size={18} />
                                     </a>
                                 </div>
                                 <p className="text-[10px] text-slate-400 font-mono mb-4 truncate">{res.link}</p>
-                                <div className="p-4 bg-white/60 rounded-2xl border border-slate-50 text-[13px] text-slate-600 leading-relaxed font-medium line-clamp-2">
+                                <div className="p-4 bg-white/60 rounded-lg border border-slate-50 text-[13px] text-slate-600 leading-relaxed font-medium line-clamp-2">
                                     {res.snippet}
                                 </div>
                             </motion.div>

@@ -124,7 +124,7 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
                             exit={{ opacity: 0, y: -20 }}
                             className="flex flex-col items-center"
                         >
-                            <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-indigo-200">
+                            <div className="w-20 h-20 bg-indigo-600 rounded-lg flex items-center justify-center mb-8 shadow-2xl shadow-indigo-200">
                                 <Cpu className="text-white" size={40} />
                             </div>
                             <h1 className="text-5xl font-black text-slate-900 tracking-tight mb-4">
@@ -135,7 +135,7 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
                             </p>
                             <button 
                                 onClick={startSetup}
-                                className="group flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-xl shadow-indigo-100 hover:scale-[1.02]"
+                                className="group flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-lg font-bold transition-all shadow-xl shadow-indigo-100 hover:scale-[1.02]"
                             >
                                 Iniciar Configuración <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                             </button>
@@ -155,12 +155,12 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
                             <p className="text-slate-500">Optimizando el núcleo de IA para tu procesador...</p>
                             
                             <div className="mt-8 grid grid-cols-2 gap-4 w-full">
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div className="bg-slate-50 p-4 rounded-md border border-slate-100">
                                     <ShieldCheck className="text-emerald-500 mb-2" size={20} />
                                     <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Seguridad</div>
                                     <div className="text-sm font-semibold text-slate-700">AES-NI Verified</div>
                                 </div>
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <div className="bg-slate-50 p-4 rounded-md border border-slate-100">
                                     <Cpu className="text-indigo-500 mb-2" size={20} />
                                     <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Aceleración</div>
                                     <div className="text-sm font-semibold text-slate-700">AVX2 Enabled</div>
@@ -181,7 +181,7 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
                                 <p className="text-slate-500">Descargando redes neuronales a tu almacenamiento local.</p>
                             </div>
 
-                            <div className="w-full bg-slate-100 rounded-3xl p-8 border border-slate-200 shadow-sm">
+                            <div className="w-full bg-slate-100 rounded-lg p-8 border border-slate-200 shadow-sm">
                                 <div className="flex justify-between items-end mb-4">
                                     <div className="text-left">
                                         <div className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-1 flex items-center gap-2">
@@ -212,7 +212,7 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
                                 </div>
 
                                 {/* Log Monitor / Console View (Light Theme) */}
-                                <div className="w-full bg-slate-50/80 rounded-2xl p-4 font-mono text-[10px] text-slate-500 mb-6 h-28 overflow-hidden border border-slate-200/60 shadow-inner">
+                                <div className="w-full bg-slate-50/80 rounded-lg p-4 font-mono text-[10px] text-slate-500 mb-6 h-28 overflow-hidden border border-slate-200/60 shadow-inner">
                                     <div className="flex flex-col gap-1.5">
                                         {logs.map((log, i) => (
                                             <div key={i} className="flex gap-2 items-start">
@@ -233,7 +233,7 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
                                 </div>
                             </div>
 
-                            <div className="mt-8 p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-center gap-3 text-left">
+                            <div className="mt-8 p-4 bg-amber-50 rounded-md border border-amber-100 flex items-center gap-3 text-left">
                                 <div className={`w-2 h-2 rounded-full ${connectionStatus === 'error' ? 'bg-rose-500' : 'bg-amber-400 animate-pulse'} shrink-0`} />
                                 <p className={`text-xs ${connectionStatus === 'error' ? 'text-rose-700' : 'text-amber-700'} font-medium leading-tight`}>
                                     {connectionStatus === 'error' 
@@ -269,7 +269,7 @@ export function SetupWizard({ onComplete }: { onComplete: () => void }) {
                             </p>
                             <button 
                                 onClick={onComplete}
-                                className="bg-slate-900 hover:bg-black text-white px-12 py-4 rounded-2xl font-bold transition-all shadow-xl hover:scale-[1.02]"
+                                className="bg-slate-900 hover:bg-black text-white px-12 py-4 rounded-lg font-bold transition-all shadow-xl hover:scale-[1.02]"
                             >
                                 Entrar al Dashboard
                             </button>

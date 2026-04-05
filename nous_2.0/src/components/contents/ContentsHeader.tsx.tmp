@@ -1,0 +1,7 @@
+import { readFileSync } from 'fs';
+let content = readFileSync('/app/nous_2.0/src/components/contents/ContentsHeader.tsx', 'utf-8');
+content = content.replace(/border-b border-slate-100\/80/g, 'border-none'); // Removed border from header, it's on wrapper
+content = content.replace(/bg-slate-100\/80/g, 'bg-slate-100');
+content = content.replace(/rounded-xl/g, 'rounded-md');
+content = content.replace(/rounded-2xl/g, 'rounded-lg');
+console.log(require('fs').writeFileSync('/app/nous_2.0/src/components/contents/ContentsHeader.tsx', content));

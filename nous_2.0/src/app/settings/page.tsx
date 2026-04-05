@@ -737,7 +737,7 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {/* Sidebar Nav */}
                     <aside className="space-y-4">
-                        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-100">
+                        <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-100">
                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 mb-4">Secciones</h3>
                             <nav className="space-y-1">
                                 {[
@@ -750,7 +750,7 @@ export default function SettingsPage() {
                                         key={item.id}
                                         onClick={() => item.id !== 'billing' && setActiveTab(item.id as any)}
                                         className={cn(
-                                            "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
+                                            "w-full flex items-center gap-3 p-3 rounded-md text-left transition-all",
                                             activeTab === item.id
                                                 ? "bg-[var(--color-nous-mist)]/20 text-slate-800 shadow-sm border border-[var(--color-nous-mist)]/30"
                                                 : "text-slate-500 hover:bg-slate-50 border border-transparent",
@@ -766,7 +766,7 @@ export default function SettingsPage() {
 
                         {/* Quick Project Switcher - Only visible on projects tab */}
                         {activeTab === 'projects' && (
-                            <div className="bg-white/60 backdrop-blur-md border border-[var(--color-nous-mist)]/30 text-slate-800 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                            <div className="bg-white/60 backdrop-blur-md border border-[var(--color-nous-mist)]/30 text-slate-800 rounded-lg p-6 shadow-sm relative overflow-hidden group">
                                 <div className="relative z-10">
                                     <h3 className="text-[10px] font-black text-[var(--color-nous-mist)] uppercase tracking-widest mb-4">Proyecto Seleccionado</h3>
                                     <div className="space-y-3">
@@ -778,7 +778,7 @@ export default function SettingsPage() {
                                                     key={p.id}
                                                     onClick={() => setActiveProject(p.id)}
                                                     className={cn(
-                                                        "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
+                                                        "w-full flex items-center justify-between p-3 rounded-md transition-all border",
                                                         activeProject?.id === p.id
                                                             ? "bg-[var(--color-nous-mist)]/10 border-[var(--color-nous-mist)]/20 text-slate-800"
                                                             : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-white/50"
@@ -804,7 +804,7 @@ export default function SettingsPage() {
                         )}
 
                         {activeTab === 'team' && (
-                            <div className="bg-white/60 backdrop-blur-md border border-cyan-100/30 text-slate-800 rounded-3xl p-6 shadow-sm relative overflow-hidden group">
+                            <div className="bg-white/60 backdrop-blur-md border border-cyan-100/30 text-slate-800 rounded-lg p-6 shadow-sm relative overflow-hidden group">
                                 <div className="relative z-10">
                                     <h3 className="text-[10px] font-black text-cyan-500 uppercase tracking-widest mb-4">Agencia / Equipo Activo</h3>
                                     <div className="space-y-3">
@@ -816,7 +816,7 @@ export default function SettingsPage() {
                                                     key={t.id}
                                                     onClick={() => setActiveTeam(t.id)}
                                                     className={cn(
-                                                        "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
+                                                        "w-full flex items-center justify-between p-3 rounded-md transition-all border",
                                                         activeTeam?.id === t.id
                                                             ? "bg-cyan-500/10 border-cyan-500/20 text-slate-800"
                                                             : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-white/50"
@@ -847,14 +847,14 @@ export default function SettingsPage() {
                                     </div>
                                     <button
                                         onClick={() => setIsCreating(true)}
-                                        className="px-5 py-2.5 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--color-nous-mist)]/10 hover:text-[var(--color-nous-mist)] transition-all flex items-center gap-2 border border-slate-200"
+                                        className="px-5 py-2.5 bg-white text-slate-600 rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-[var(--color-nous-mist)]/10 hover:text-[var(--color-nous-mist)] transition-all flex items-center gap-2 border border-slate-200"
                                     >
                                         <Plus size={14} /> Nuevo Proyecto
                                     </button>
                                 </div>
 
                                 {isCreating && (
-                                    <div className="mb-8 p-8 bg-slate-50 rounded-3xl border border-slate-200 animate-in fade-in slide-in-from-top-4">
+                                    <div className="mb-8 p-8 bg-slate-50 rounded-lg border border-slate-200 animate-in fade-in slide-in-from-top-4">
                                         <h3 className="text-xs font-black mb-6 uppercase tracking-widest text-slate-900">Crear Nuevo Nodo</h3>
                                         <div className="grid grid-cols-1 gap-6 mb-6">
                                             <div className="space-y-2">
@@ -862,7 +862,7 @@ export default function SettingsPage() {
                                                 <input
                                                     type="text"
                                                     placeholder="Ej: sitio.com"
-                                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm font-bold focus:ring-4 ring-cyan-500/10 outline-none transition-all"
+                                                    className="w-full p-4 rounded-lg border border-slate-200 bg-white text-sm font-bold focus:ring-4 ring-cyan-500/10 outline-none transition-all"
                                                     value={newProjectDomain}
                                                     onChange={(e) => setNewProjectDomain(e.target.value)}
                                                 />
@@ -873,7 +873,7 @@ export default function SettingsPage() {
                                         </div>
                                         <div className="flex justify-end gap-3">
                                             <button onClick={() => setIsCreating(false)} className="px-6 py-3 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-800">Cancelar</button>
-                                            <button onClick={handleCreate} className="px-8 py-3 bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 transition-all">Crear Proyecto</button>
+                                            <button onClick={handleCreate} className="px-8 py-3 bg-cyan-500 text-white rounded-md font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 transition-all">Crear Proyecto</button>
                                         </div>
                                     </div>
                                 )}
@@ -885,7 +885,7 @@ export default function SettingsPage() {
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Identificador Público</label>
                                                 <input
                                                     type="text"
-                                                    className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all"
+                                                    className="w-full p-4 rounded-lg border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all"
                                                     value={editName}
                                                     onChange={(e) => setEditName(e.target.value)}
                                                 />
@@ -894,7 +894,7 @@ export default function SettingsPage() {
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dominio / URL Raíz</label>
                                                 <input
                                                     type="text"
-                                                    className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all font-mono"
+                                                    className="w-full p-4 rounded-lg border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all font-mono"
                                                     value={editDomain}
                                                     onChange={(e) => setEditDomain(e.target.value)}
                                                 />
@@ -905,7 +905,7 @@ export default function SettingsPage() {
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">País Objetivo (SERP)</label>
                                                 <select
-                                                    className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all appearance-none cursor-pointer"
+                                                    className="w-full p-4 rounded-lg border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all appearance-none cursor-pointer"
                                                     value={editTargetCountry}
                                                     onChange={(e) => setEditTargetCountry(e.target.value)}
                                                 >
@@ -925,7 +925,7 @@ export default function SettingsPage() {
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Agencia / Equipo</label>
                                                 <select
-                                                    className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all appearance-none cursor-pointer"
+                                                    className="w-full p-4 rounded-lg border border-slate-100 bg-slate-50 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:ring-4 ring-slate-100 transition-all appearance-none cursor-pointer"
                                                     value={newTeamId || activeProject?.team_id || ""}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
@@ -944,7 +944,7 @@ export default function SettingsPage() {
 
                                         <div className="space-y-4">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Color de Identidad</label>
-                                            <div className="grid grid-cols-10 gap-2 bg-white p-4 rounded-3xl border border-slate-100 shadow-inner">
+                                            <div className="grid grid-cols-10 gap-2 bg-white p-4 rounded-lg border border-slate-100 shadow-inner">
                                                 {NOUS_PALETTE.map((c) => (
                                                     <button
                                                         key={c}
@@ -963,9 +963,9 @@ export default function SettingsPage() {
                                         </div>
 
                                         {/* Logo Upload Section */}
-                                        <div className="space-y-4 p-8 rounded-3xl border border-slate-100 bg-slate-50/50">
+                                        <div className="space-y-4 p-8 rounded-lg border border-slate-100 bg-slate-50/50">
                                             <div className="flex items-center gap-4 mb-2">
-                                                <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                                                <div className="w-12 h-12 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
                                                     <Plus size={24} />
                                                 </div>
                                                 <div>
@@ -975,7 +975,7 @@ export default function SettingsPage() {
                                             </div>
 
                                             <div className="flex items-center gap-6">
-                                                <div className="w-24 h-24 rounded-3xl border-2 border-dashed border-slate-200 bg-white flex items-center justify-center overflow-hidden relative group">
+                                                <div className="w-24 h-24 rounded-lg border-2 border-dashed border-slate-200 bg-white flex items-center justify-center overflow-hidden relative group">
                                                     {editLogoUrl ? (
                                                         <>
                                                             <img src={editLogoUrl} alt="Logo" className="max-w-full max-h-full object-contain p-2" />
@@ -1003,7 +1003,7 @@ export default function SettingsPage() {
                                                     <label
                                                         htmlFor="logo-upload"
                                                         className={cn(
-                                                            "inline-flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-50 transition-all shadow-sm",
+                                                            "inline-flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-50 transition-all shadow-sm",
                                                             isUploadingLogo && "opacity-50 pointer-events-none"
                                                         )}
                                                     >
@@ -1027,7 +1027,7 @@ export default function SettingsPage() {
 
                                             <div className="flex items-center justify-between mb-10">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-900/10">
+                                                    <div className="w-12 h-12 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-900/10">
                                                         <Globe size={24} />
                                                     </div>
                                                     <div>
@@ -1041,7 +1041,7 @@ export default function SettingsPage() {
                                                     <button 
                                                         onClick={handleSyncGscInventory}
                                                         disabled={isSyncingGsc}
-                                                        className="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/20 border border-white/10 disabled:opacity-50"
+                                                        className="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/20 border border-white/10 disabled:opacity-50"
                                                     >
                                                         {isSyncingGsc ? (
                                                             <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
@@ -1058,7 +1058,7 @@ export default function SettingsPage() {
                                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-6">Para empezar, vincula tu cuenta de Google en la pestaña de Integraciones</p>
                                                     <button 
                                                         onClick={() => setActiveTab('integrations')} 
-                                                        className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-600 transition-all shadow-lg"
+                                                        className="px-6 py-2.5 bg-slate-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-cyan-600 transition-all shadow-lg"
                                                     >
                                                         Ir a Integraciones
                                                     </button>
@@ -1085,7 +1085,7 @@ export default function SettingsPage() {
                                                             <select
                                                                 value={activeProject.gsc_site_url || ''}
                                                                 onChange={(e) => handleUpdateGscSite(e.target.value)}
-                                                                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-cyan-500/10 transition-all appearance-none cursor-pointer pr-10"
+                                                                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-cyan-500/10 transition-all appearance-none cursor-pointer pr-10"
                                                                 disabled={isLoadingSites}
                                                             >
                                                                 <option value="">Selecciona Propiedad...</option>
@@ -1128,7 +1128,7 @@ export default function SettingsPage() {
                                                                 <select
                                                                     value={activeProject.ga4_property_id || ''}
                                                                     onChange={(e) => handleUpdateGa4Property(e.target.value)}
-                                                                    className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-amber-500/10 transition-all appearance-none cursor-pointer pr-10"
+                                                                    className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-slate-800 outline-none focus:ring-4 ring-amber-500/10 transition-all appearance-none cursor-pointer pr-10"
                                                                     disabled={isLoadingGa4}
                                                                 >
                                                                     <option value="">Selecciona Propiedad...</option>
@@ -1139,7 +1139,7 @@ export default function SettingsPage() {
                                                                 <button 
                                                                     onClick={fetchGa4Sites}
                                                                     disabled={isLoadingGa4}
-                                                                    className="p-4 bg-white border border-slate-100 rounded-2xl text-amber-500 hover:bg-amber-50 transition-all shadow-sm flex items-center justify-center"
+                                                                    className="p-4 bg-white border border-slate-100 rounded-lg text-amber-500 hover:bg-amber-50 transition-all shadow-sm flex items-center justify-center"
                                                                     title="Refrescar Propiedades"
                                                                 >
                                                                     <RefreshCw size={14} className={isLoadingGa4 ? "animate-spin" : ""} />
@@ -1169,9 +1169,9 @@ export default function SettingsPage() {
 
 
 
-                                        <div className="p-8 rounded-3xl border border-slate-100 bg-slate-50/30 space-y-6">
+                                        <div className="p-8 rounded-lg border border-slate-100 bg-slate-50/30 space-y-6">
                                             <div className="flex items-center gap-4 mb-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                                <div className="w-12 h-12 rounded-lg bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
                                                     <Globe size={24} />
                                                 </div>
                                                 <div>
@@ -1186,7 +1186,7 @@ export default function SettingsPage() {
                                                     <input
                                                         type="text"
                                                         placeholder="https://tusitio.com"
-                                                        className="w-full p-4 rounded-xl border border-slate-100 bg-white text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-indigo-500/10 transition-all font-mono"
+                                                        className="w-full p-4 rounded-md border border-slate-100 bg-white text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-indigo-500/10 transition-all font-mono"
                                                         value={editWpUrl}
                                                         onChange={(e) => setEditWpUrl(e.target.value)}
                                                     />
@@ -1196,13 +1196,13 @@ export default function SettingsPage() {
                                                     <input
                                                         type="password"
                                                         placeholder="••••••••••••"
-                                                        className="w-full p-4 rounded-xl border border-slate-100 bg-white text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-indigo-500/10 transition-all font-mono"
+                                                        className="w-full p-4 rounded-md border border-slate-100 bg-white text-xs font-bold text-slate-700 outline-none focus:ring-4 ring-indigo-500/10 transition-all font-mono"
                                                         value={editWpToken}
                                                         onChange={(e) => setEditWpToken(e.target.value)}
                                                     />
                                                 </div>
                                             </div>
-                                            <p className="text-[9px] text-slate-400 bg-white/50 p-3 rounded-xl border border-dashed border-slate-200">
+                                            <p className="text-[9px] text-slate-400 bg-white/50 p-3 rounded-md border border-dashed border-slate-200">
                                                 Tip: Instala el plugin <strong>Nous Bridge</strong> en tu WordPress y copia el token configurado allí para permitir la publicación automática.
                                             </p>
                                         </div>
@@ -1211,7 +1211,7 @@ export default function SettingsPage() {
                                         <div className="p-8 rounded-[40px] border border-slate-100 bg-white shadow-sm space-y-8">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-2xl bg-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                                                    <div className="w-12 h-12 rounded-lg bg-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/20">
                                                         <Search size={24} />
                                                     </div>
                                                     <div>
@@ -1226,7 +1226,7 @@ export default function SettingsPage() {
                                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instrucciones de Enlazado (IA)</label>
                                                     <textarea
                                                         placeholder="Ej: Prioriza siempre productos de temporada sobre el blog. No enlaces a páginas de agradecimiento..."
-                                                        className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-4 ring-cyan-500/10 transition-all min-h-[100px]"
+                                                        className="w-full p-4 rounded-lg border border-slate-100 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-4 ring-cyan-500/10 transition-all min-h-[100px]"
                                                         value={editArchitectureInstructions}
                                                         onChange={(e) => setEditArchitectureInstructions(e.target.value)}
                                                     />
@@ -1238,7 +1238,7 @@ export default function SettingsPage() {
                                                         <button 
                                                             onClick={handleRegenerateRegex}
                                                             disabled={isSaving}
-                                                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50"
+                                                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50"
                                                         >
                                                             {isSaving ? <Loader2 className="animate-spin" size={10} /> : <RefreshCw size={10} />}
                                                             Detectar con IA
@@ -1310,7 +1310,7 @@ export default function SettingsPage() {
 
                                                         {/* Mini Consola de Estado */}
                                                         {samplingStats && (
-                                                            <div className="mt-4 p-4 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden animate-in zoom-in duration-300">
+                                                            <div className="mt-4 p-4 bg-slate-900 rounded-lg border border-slate-800 overflow-hidden animate-in zoom-in duration-300">
                                                                 <div className="flex items-center gap-2 mb-3 border-b border-slate-800 pb-2">
                                                                     <Terminal size={14} className="text-emerald-400" />
                                                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Análisis de Estructura (Nodos IA)</span>
@@ -1367,7 +1367,7 @@ export default function SettingsPage() {
                                                         <label
                                                             htmlFor="csv-inventory-upload"
                                                             className={cn(
-                                                                "px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-cyan-500 hover:text-white transition-all shadow-sm",
+                                                                "px-6 py-3 bg-white border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-cyan-500 hover:text-white transition-all shadow-sm",
                                                                 isSaving && "opacity-50 pointer-events-none"
                                                             )}
                                                         >
@@ -1389,7 +1389,7 @@ export default function SettingsPage() {
                                             <button
                                                 onClick={handleSaveAll}
                                                 disabled={isSaving}
-                                                className="flex items-center gap-3 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 disabled:opacity-50"
+                                                className="flex items-center gap-3 px-10 py-4 bg-slate-900 text-white rounded-lg font-black text-[12px] uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 disabled:opacity-50"
                                             >
                                                 {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                                                 Guardar Configuración
@@ -1414,7 +1414,7 @@ export default function SettingsPage() {
                                     </div>
                                     <button
                                         onClick={() => setIsCreatingTeam(true)}
-                                        className="px-4 py-2 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-50 hover:text-cyan-600 transition-all flex items-center gap-2 border border-slate-200"
+                                        className="px-4 py-2 bg-white text-slate-600 rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-cyan-50 hover:text-cyan-600 transition-all flex items-center gap-2 border border-slate-200"
                                     >
                                         <Plus size={14} /> Nuevo Equipo
                                     </button>
@@ -1431,7 +1431,7 @@ export default function SettingsPage() {
                                                 <input
                                                     type="text"
                                                     placeholder="Ej: Mi Agencia Creativa"
-                                                    className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold focus:bg-white focus:ring-4 ring-cyan-500/10 outline-none transition-all"
+                                                    className="w-full p-4 rounded-lg border border-slate-200 bg-slate-50 text-sm font-bold focus:bg-white focus:ring-4 ring-cyan-500/10 outline-none transition-all"
                                                     value={newTeamName}
                                                     onChange={(e) => setNewTeamName(e.target.value)}
                                                 />
@@ -1442,7 +1442,7 @@ export default function SettingsPage() {
                                             <button 
                                                 onClick={handleCreateTeam} 
                                                 disabled={isSaving || !newTeamName}
-                                                className="px-8 py-3 bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 transition-all disabled:opacity-50"
+                                                className="px-8 py-3 bg-cyan-500 text-white rounded-md font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 transition-all disabled:opacity-50"
                                             >
                                                 {isSaving ? <Loader2 className="animate-spin" size={14} /> : "Crear Equipo"}
                                             </button>
@@ -1470,7 +1470,7 @@ export default function SettingsPage() {
                                         <div className="flex items-center justify-between relative z-10">
                                             <div className="flex gap-5">
                                                 <div className={cn(
-                                                    "w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg",
+                                                    "w-16 h-16 rounded-lg flex items-center justify-center shadow-lg",
                                                     isUserGscConnected ? "bg-emerald-500 text-white shadow-emerald-500/20" : "bg-white text-slate-300"
                                                 )}>
                                                     <Globe size={32} />
@@ -1489,7 +1489,7 @@ export default function SettingsPage() {
                                             <button
                                                 onClick={() => window.location.href = '/api/auth/gsc/login'}
                                                 className={cn(
-                                                    "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-sm",
+                                                    "px-8 py-4 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-sm",
                                                     isUserGscConnected
                                                         ? "bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-50 shadow-emerald-100/10"
                                                         : "bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/10"
@@ -1510,7 +1510,7 @@ export default function SettingsPage() {
                                         <div className="flex items-center justify-between relative z-10">
                                             <div className="flex gap-5">
                                                 <div className={cn(
-                                                    "w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg",
+                                                    "w-16 h-16 rounded-lg flex items-center justify-center shadow-lg",
                                                     isUserGscConnected ? "bg-emerald-500 text-white shadow-emerald-500/20" : "bg-white text-slate-300"
                                                 )}>
                                                     <BarChart3 size={32} />
@@ -1529,7 +1529,7 @@ export default function SettingsPage() {
                                             <button
                                                 onClick={() => window.location.href = '/api/auth/gsc/login'}
                                                 className={cn(
-                                                    "px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm",
+                                                    "px-6 py-3 rounded-md text-[9px] font-black uppercase tracking-widest transition-all shadow-sm",
                                                     isUserGscConnected
                                                         ? "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                                                         : "bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/10"
@@ -1547,7 +1547,7 @@ export default function SettingsPage() {
                                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 ml-2">Cuentas de Google Vinculadas</h4>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {connectedAccounts.map((account) => (
-                                                    <div key={account.id} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between">
+                                                    <div key={account.id} className="bg-slate-50 border border-slate-100 rounded-lg p-4 flex items-center justify-between">
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shadow-sm">
                                                                 <Globe size={14} />
@@ -1567,7 +1567,7 @@ export default function SettingsPage() {
                                     <div className="p-8 rounded-[32px] border border-slate-50 bg-slate-50 opacity-40 grayscale pointer-events-none">
                                         <div className="flex items-center justify-between">
                                             <div className="flex gap-5">
-                                                <div className="w-16 h-16 rounded-3xl bg-white flex items-center justify-center shadow-sm text-slate-200">
+                                                <div className="w-16 h-16 rounded-lg bg-white flex items-center justify-center shadow-sm text-slate-200">
                                                     <Shield size={32} />
                                                 </div>
                                                 <div>
@@ -1605,13 +1605,13 @@ export default function SettingsPage() {
                                         }
                                         setShowSuccessModal(false);
                                     }}
-                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-cyan-600 transition-all shadow-lg"
+                                    className="w-full py-4 bg-slate-900 text-white rounded-lg font-black text-xs uppercase tracking-[0.2em] hover:bg-cyan-600 transition-all shadow-lg"
                                 >
                                     Configurar Ahora
                                 </button>
                                 <button
                                     onClick={() => setShowSuccessModal(false)}
-                                    className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-100 hover:text-slate-600 transition-all"
+                                    className="w-full py-4 bg-slate-50 text-slate-400 rounded-lg font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-100 hover:text-slate-600 transition-all"
                                 >
                                     Quizás más tarde
                                 </button>

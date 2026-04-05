@@ -18,7 +18,7 @@ export function SEOTab({ onSEO, isAnalyzing }: { onSEO: () => void; isAnalyzing:
                     <div className="relative group">
                         <input 
                             type="text" 
-                            className="w-full text-xs p-3.5 pl-10 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-indigo-400 font-bold transition-all shadow-sm placeholder:text-slate-300"
+                            className="w-full text-xs p-3.5 pl-10 bg-white border-2 border-slate-100 rounded-md outline-none focus:border-indigo-400 font-bold transition-all shadow-sm placeholder:text-slate-300"
                             placeholder="Keyword o Título del Artículo..."
                             value={store.keyword}
                             onChange={(e) => store.setKeyword(e.target.value)}
@@ -28,7 +28,7 @@ export function SEOTab({ onSEO, isAnalyzing }: { onSEO: () => void; isAnalyzing:
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-3 p-3 bg-slate-50/70 border border-slate-100 rounded-xl transition-all hover:bg-white hover:shadow-sm">
+                    <div className="flex items-center gap-3 p-3 bg-slate-50/70 border border-slate-100 rounded-md transition-all hover:bg-white hover:shadow-sm">
                         <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
                             <SearchCode size={14} className="text-indigo-600" />
                         </div>
@@ -37,7 +37,7 @@ export function SEOTab({ onSEO, isAnalyzing }: { onSEO: () => void; isAnalyzing:
                             <p className="text-[10px] font-black text-indigo-900">Activo</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3 p-3 bg-slate-50/70 border border-slate-100 rounded-xl transition-all hover:bg-white hover:shadow-sm">
+                    <div className="flex items-center gap-3 p-3 bg-slate-50/70 border border-slate-100 rounded-md transition-all hover:bg-white hover:shadow-sm">
                         <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
                             <Database size={14} className="text-indigo-600" />
                         </div>
@@ -51,7 +51,7 @@ export function SEOTab({ onSEO, isAnalyzing }: { onSEO: () => void; isAnalyzing:
                 <button
                     disabled={isAnalyzing || !store.keyword}
                     onClick={onSEO}
-                    className="group relative w-full h-11 bg-white border-2 border-slate-200 text-slate-700 hover:border-black hover:text-black text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 overflow-hidden disabled:opacity-50"
+                    className="group relative w-full h-11 bg-white border-2 border-slate-200 text-slate-700 hover:border-black hover:text-black text-[11px] font-black uppercase tracking-widest rounded-md transition-all flex items-center justify-center gap-2 overflow-hidden disabled:opacity-50"
                 >
                     {isAnalyzing ? (
                         <>
@@ -68,7 +68,7 @@ export function SEOTab({ onSEO, isAnalyzing }: { onSEO: () => void; isAnalyzing:
             </div>
 
             {/* Metrics Preview */}
-            <div className="p-4 bg-slate-900 rounded-2xl text-white space-y-4 shadow-xl shadow-slate-200">
+            <div className="p-4 bg-slate-900 rounded-lg text-white space-y-4 shadow-xl shadow-slate-200">
                 <div className="flex items-center justify-between">
                     <h4 className="text-[10px] font-black uppercase tracking-widest opacity-80">Métricas Principales</h4>
                     <BarChart3 size={12} className="opacity-80 text-cyan-400" />
@@ -95,7 +95,7 @@ export function SEOTab({ onSEO, isAnalyzing }: { onSEO: () => void; isAnalyzing:
             </div>
 
             {/* NEW: Refinería Neural Integrated Section */}
-            <div className="p-5 bg-white border border-slate-100 rounded-2xl space-y-4 shadow-sm relative overflow-hidden group">
+            <div className="p-5 bg-white border border-slate-100 rounded-lg space-y-4 shadow-sm relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-2 opacity-5">
                     <Microscope size={40} className="text-indigo-600" />
                 </div>
@@ -113,7 +113,7 @@ export function SEOTab({ onSEO, isAnalyzing }: { onSEO: () => void; isAnalyzing:
 
                 <button 
                     disabled={isAnalyzing}
-                    className="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                    className="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                 >
                     <RefreshCw size={12} className={cn(isAnalyzing ? "animate-spin" : "")} />
                     Enriquecer con DataForSEO

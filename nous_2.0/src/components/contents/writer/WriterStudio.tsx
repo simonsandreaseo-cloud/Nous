@@ -258,11 +258,11 @@ export default function WriterStudio() {
                             className="h-full bg-slate-50 flex flex-col overflow-hidden border-l border-slate-200/50 shadow-[inset_10px_0_20px_rgba(0,0,0,0.02)]"
                         >
                             <div className="px-6 py-4 border-b border-slate-200/50 bg-white/80 backdrop-blur-md sticky top-0 z-30">
-                                <div className="flex items-center gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-200/40 w-fit">
+                                <div className="flex items-center gap-1 p-1 bg-slate-100/50 rounded-lg border border-slate-200/40 w-fit">
                                     <button 
                                         onClick={() => setActiveRightTab('outline')}
                                         className={cn(
-                                            "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                            "px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                                             activeRightTab === 'outline' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
                                         )}
                                     >
@@ -272,7 +272,7 @@ export default function WriterStudio() {
                                     <button 
                                         onClick={() => setActiveRightTab('competitors')}
                                         className={cn(
-                                            "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                            "px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                                             activeRightTab === 'competitors' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
                                         )}
                                     >
@@ -282,7 +282,7 @@ export default function WriterStudio() {
                                     <button 
                                         onClick={() => setActiveRightTab('seo')}
                                         className={cn(
-                                            "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                            "px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                                             activeRightTab === 'seo' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
                                         )}
                                     >
@@ -334,7 +334,7 @@ export default function WriterStudio() {
                                 if (viewMode === 'workspace' || viewMode === 'setup') setViewMode('dashboard');
                                 else setViewMode('dashboard'); 
                             }}
-                            className="h-9 px-3 md:px-4 rounded-xl text-[11px] uppercase font-black tracking-tighter text-slate-500 hover:bg-slate-100/50 transition-all border-none shrink-0"
+                            className="h-9 px-3 md:px-4 rounded-md text-[11px] uppercase font-black tracking-tighter text-slate-500 hover:bg-slate-100/50 transition-all border-none shrink-0"
                         >
                             {viewMode === 'dashboard' ? 'Salir' : <div className="flex items-center gap-2"><ChevronLeft size={14} /> Volver</div>}
                         </Button>
@@ -377,7 +377,7 @@ export default function WriterStudio() {
                                 <button
                                     onClick={toggleSidebar}
                                     className={cn(
-                                        "p-2.5 rounded-xl transition-all duration-300 border border-transparent hover:bg-slate-100/50",
+                                        "p-2.5 rounded-md transition-all duration-300 border border-transparent hover:bg-slate-100/50",
                                         isSidebarOpen ? "text-indigo-600 bg-indigo-50/50 border-indigo-100" : "text-slate-400"
                                     )}
                                     title={isSidebarOpen ? "Modo Zen" : "Modo 50/50"}

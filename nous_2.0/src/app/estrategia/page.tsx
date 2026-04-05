@@ -69,11 +69,11 @@ function StrategyContent() {
                         </div>
                     </motion.div>
 
-                    <div className="flex p-1 bg-white border border-slate-100/80 rounded-2xl shadow-sm overflow-x-auto max-w-full backdrop-blur-sm">
+                    <div className="flex p-1 bg-white border border-slate-100/80 rounded-lg shadow-sm overflow-x-auto max-w-full backdrop-blur-sm">
                         <button
                             onClick={() => setView('planner')}
                             className={cn(
-                                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                "px-5 py-2.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
                                 view === 'planner' ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                             )}
                         >
@@ -82,7 +82,7 @@ function StrategyContent() {
                         <button
                             onClick={() => setView('metrics')}
                             className={cn(
-                                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                "px-5 py-2.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
                                 view === 'metrics' ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                             )}
                         >
@@ -91,7 +91,7 @@ function StrategyContent() {
                         <button
                             onClick={() => setView('crawler')}
                             className={cn(
-                                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                "px-5 py-2.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
                                 view === 'crawler' ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                             )}
                         >
@@ -100,7 +100,7 @@ function StrategyContent() {
                         <button
                             onClick={() => setView('inventory')}
                             className={cn(
-                                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                "px-5 py-2.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
                                 view === 'inventory' ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                             )}
                         >
@@ -109,7 +109,7 @@ function StrategyContent() {
                         <button
                             onClick={() => setView('refinery')}
                             className={cn(
-                                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                                "px-5 py-2.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
                                 view === 'refinery' ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                             )}
                         >

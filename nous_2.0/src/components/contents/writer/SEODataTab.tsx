@@ -182,10 +182,10 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
 
                 <div className="grid gap-4">
                     {/* H1 Title */}
-                    <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                    <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">H1 (Título del Artículo)</label>
                         <input
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
+                            className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
                             value={strategyH1 || ''}
                             onChange={(e) => setStrategyH1(e.target.value)}
                             placeholder="Ej: Guía Suprema de SEO..."
@@ -194,19 +194,19 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
 
                     <div className="grid grid-cols-2 gap-4">
                         {/* SEO Title */}
-                        <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                        <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">SEO Title (max 60)</label>
                             <input
-                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
                                 value={strategyTitle || ''}
                                 onChange={(e) => setStrategyTitle(e.target.value)}
                                 placeholder="Título para el buscador..."
                             />
                         </div>
                         {/* Slug */}
-                        <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                        <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">Slug URL Final</label>
-                            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm group-focus-within:border-indigo-500 transition-all">
+                            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-md px-4 py-3 shadow-sm group-focus-within:border-indigo-500 transition-all">
                                 <span className="text-[10px] font-black text-slate-300">/</span>
                                 <input
                                     className="w-full text-sm font-mono text-slate-700 focus:outline-none"
@@ -219,10 +219,10 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                     </div>
 
                     {/* Meta Description */}
-                    <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                    <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">Meta Descripción</label>
                         <textarea
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
+                            className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
                             rows={3}
                             value={strategyDesc || ''}
                             onChange={(e) => setStrategyDesc(e.target.value)}
@@ -231,10 +231,10 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                     </div>
 
                     {/* Excerpt */}
-                    <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                    <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">Extracto / Resumen</label>
                         <textarea
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
+                            className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
                             rows={3}
                             value={strategyExcerpt || ''}
                             onChange={(e) => setStrategyExcerpt(e.target.value)}
@@ -256,7 +256,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                     </div>
                     <div className="grid gap-3">
                         {(researchDossier?.geoUrls || (seoData as any)?.geoUrls).map((ref: any, idx: number) => (
-                            <div key={idx} className="bg-emerald-50/30 border border-emerald-100 p-4 rounded-2xl flex items-center justify-between group shadow-sm hover:bg-white transition-all">
+                            <div key={idx} className="bg-emerald-50/30 border border-emerald-100 p-4 rounded-lg flex items-center justify-between group shadow-sm hover:bg-white transition-all">
                                 <div className="flex flex-col min-w-0 pr-4">
                                     <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wide truncate">{ref.title}</span>
                                     <span className="text-[8px] font-mono text-emerald-600/60 truncate">{ref.url}</span>
@@ -265,7 +265,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                     href={ref.url} 
                                     target="_blank" 
                                     rel="noopener noreferrer" 
-                                    className="p-2 bg-white rounded-xl shadow-sm text-emerald-400 hover:text-emerald-600 transition-colors shrink-0"
+                                    className="p-2 bg-white rounded-md shadow-sm text-emerald-400 hover:text-emerald-600 transition-colors shrink-0"
                                 >
                                     <ExternalLink size={12} />
                                 </a>
@@ -298,7 +298,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                             <div 
                                 key={id}
                                 className={cn(
-                                    "group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all shadow-sm",
+                                    "group relative flex items-center gap-2 px-3 py-1.5 rounded-md border transition-all shadow-sm",
                                     used || checkedItems.includes(id) 
                                         ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
                                         : "bg-white border-slate-200 text-slate-600 hover:border-emerald-200"
@@ -366,7 +366,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                             <div 
                                 key={id}
                                 className={cn(
-                                    "p-4 border rounded-2xl flex items-start gap-3 transition-all cursor-pointer group shadow-sm relative",
+                                    "p-4 border rounded-lg flex items-start gap-3 transition-all cursor-pointer group shadow-sm relative",
                                     isDone ? "bg-indigo-50/10 border-indigo-500/30" : "bg-white border-slate-200 hover:border-indigo-200"
                                 )}
                                 onClick={() => toggleItem(id)}
@@ -391,7 +391,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
 
             {/* INTERNAL LINKS - DASHBOARD STYLE */}
             {uniqueLinks.length > 0 && (
-                <section className="bg-white/50 border border-indigo-100 rounded-[28px] p-6 shadow-sm">
+                <section className="bg-white/50 border border-indigo-100 rounded-lg p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex flex-col">
                             <h4 className="text-[11px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-2">
@@ -418,7 +418,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                             const isDone = currentContent.includes(link.url) || (slug.length > 1 && currentContent.includes(slug));
                             return (
                                 <div key={i} className={cn(
-                                    "flex items-center justify-between px-4 py-3 border rounded-2xl transition-all group shadow-sm",
+                                    "flex items-center justify-between px-4 py-3 border rounded-lg transition-all group shadow-sm",
                                     isDone ? "bg-emerald-50 border-emerald-100" : "bg-indigo-50/50 border-indigo-100"
                                 )}>
                                     <div className="flex flex-col min-w-0 pr-4">
@@ -469,7 +469,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
 
                         return (
                             <div key={i} className={cn(
-                                "flex items-center justify-between px-4 py-3 rounded-2xl border transition-all group shadow-sm",
+                                "flex items-center justify-between px-4 py-3 rounded-lg border transition-all group shadow-sm",
                                 isDone ? "bg-emerald-50 border-emerald-100" : "bg-slate-50 border-slate-100"
                             )}>
                                 <div className="flex flex-col min-w-0">
@@ -503,7 +503,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                         <Sparkles size={14} className="text-indigo-400" />
                         <label className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] block">Schema JSON-LD Definido</label>
                     </div>
-                    <div className="bg-slate-950/50 rounded-2xl p-5 font-mono text-[10px] text-indigo-300 overflow-x-auto custom-scrollbar max-h-[250px] border border-slate-800/50">
+                    <div className="bg-slate-950/50 rounded-lg p-5 font-mono text-[10px] text-indigo-300 overflow-x-auto custom-scrollbar max-h-[250px] border border-slate-800/50">
                         <pre className="whitespace-pre-wrap">{JSON.stringify((researchDossier as any).schemas, null, 2)}</pre>
                     </div>
                     <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-4 flex items-center gap-2">

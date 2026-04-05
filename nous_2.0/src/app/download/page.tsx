@@ -44,7 +44,7 @@ export default function DownloadPage() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.8 }}
                         >
-                            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-blue-200">
+                            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-6 shadow-xl shadow-blue-200">
                                 <Monitor className="text-white" size={24} />
                             </div>
                             <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tight mb-6">
@@ -58,14 +58,14 @@ export default function DownloadPage() {
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <a 
                                     href="/nous-local-setup.exe"
-                                    className="flex items-center justify-center gap-3 bg-slate-900 hover:bg-black text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-2xl hover:scale-[1.02]"
+                                    className="flex items-center justify-center gap-3 bg-slate-900 hover:bg-black text-white px-8 py-4 rounded-lg font-bold transition-all shadow-2xl hover:scale-[1.02]"
                                 >
                                     <Download size={20} />
                                     Descargar para Windows
                                 </a>
                                 <a 
                                     href="#" 
-                                    className="flex items-center justify-center gap-3 bg-white border border-slate-200 text-slate-600 px-8 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all opacity-50 cursor-not-allowed"
+                                    className="flex items-center justify-center gap-3 bg-white border border-slate-200 text-slate-600 px-8 py-4 rounded-lg font-bold hover:bg-slate-50 transition-all opacity-50 cursor-not-allowed"
                                 >
                                     <Globe size={20} />
                                     macOS (Próximamente)
@@ -138,9 +138,9 @@ function FeatureCard({ icon, title, desc, delay }: { icon: React.ReactNode, titl
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay }}
-            className="bg-white/50 backdrop-blur-sm border border-slate-100 p-6 rounded-3xl hover:border-blue-100 hover:shadow-xl hover:shadow-blue-50/50 transition-all group"
+            className="bg-white/50 backdrop-blur-sm border border-slate-100 p-6 rounded-lg hover:border-blue-100 hover:shadow-xl hover:shadow-blue-50/50 transition-all group"
         >
-            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <div className="w-10 h-10 rounded-md bg-slate-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 {icon}
             </div>
             <h4 className="font-bold text-slate-900 mb-2">{title}</h4>

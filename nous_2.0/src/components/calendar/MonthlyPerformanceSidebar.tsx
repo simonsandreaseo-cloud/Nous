@@ -39,19 +39,19 @@ export function MonthlyPerformanceSidebar() {
                     ))}
                 </div>
 
-                <button className="w-full mt-6 py-3 rounded-xl border border-dashed border-slate-200 text-xs font-bold text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all uppercase tracking-widest">
+                <button className="w-full mt-6 py-3 rounded-md border border-dashed border-slate-200 text-xs font-bold text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all uppercase tracking-widest">
                     Ver Histórico Completo
                 </button>
             </div>
 
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                <div className="bg-white rounded-lg p-4 border border-slate-100 shadow-sm">
                     <TrendingUp size={16} className="text-cyan-500 mb-2" />
                     <span className="text-2xl font-black text-slate-900">85%</span>
                     <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Eficiencia</span>
                 </div>
-                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                <div className="bg-white rounded-lg p-4 border border-slate-100 shadow-sm">
                     <FileText size={16} className="text-purple-500 mb-2" />
                     <span className="text-2xl font-black text-slate-900">12</span>
                     <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Publicados</span>

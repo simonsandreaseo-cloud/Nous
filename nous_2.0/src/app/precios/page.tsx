@@ -82,7 +82,7 @@ export default function PricingPage() {
                     {plans.map((plan, idx) => (
                         <div 
                             key={plan.name} 
-                            className={`relative rounded-3xl p-8 bg-white/70 backdrop-blur-xl border flex flex-col transition-all duration-300 ${
+                            className={`relative rounded-lg p-8 bg-white/70 backdrop-blur-xl border flex flex-col transition-all duration-300 ${
                                 plan.popular ? 'border-sky-300 shadow-[0_8px_30px_-5px_rgba(56,189,248,0.3)] scale-105 z-10' : 'border-slate-200/60 shadow-lg'
                             }`}
                         >

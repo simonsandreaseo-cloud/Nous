@@ -29,7 +29,7 @@ export function InsightsWidget() {
                     mockInsights.map((item) => (
                         <div
                             key={item.id}
-                            className="group flex items-center justify-between p-4 hover:bg-white rounded-2xl transition-all border border-transparent hover:border-slate-100 hover:shadow-sm cursor-pointer"
+                            className="group flex items-center justify-between p-4 hover:bg-white rounded-lg transition-all border border-transparent hover:border-slate-100 hover:shadow-sm cursor-pointer"
                         >
                             <div className="flex-1 min-w-0 pr-4">
                                 <div className="flex items-center gap-2 mb-1">

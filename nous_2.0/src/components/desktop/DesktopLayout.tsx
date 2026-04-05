@@ -55,7 +55,7 @@ export function DesktopLayout({ children, isConnected = false }: DesktopLayoutPr
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="h-screen w-screen overflow-hidden bg-white text-gray-900 font-sans border border-gray-200 rounded-2xl flex flex-col shadow-2xl relative"
+            className="h-screen w-screen overflow-hidden bg-white text-gray-900 font-sans border border-gray-200 rounded-lg flex flex-col shadow-2xl relative"
         >
             {/* 100% Reliable Custom Title Bar */}
             <div
@@ -78,7 +78,7 @@ export function DesktopLayout({ children, isConnected = false }: DesktopLayoutPr
                     <button
                         onClick={handleReload}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="p-2 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all"
+                        className="p-2 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all"
                         title="Reload Interface"
                     >
                         <RotateCcw size={14} />
@@ -87,7 +87,7 @@ export function DesktopLayout({ children, isConnected = false }: DesktopLayoutPr
                     <button
                         onClick={handleMinimize}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="p-2 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all"
+                        className="p-2 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all"
                         title="Minimize"
                     >
                         <Minus size={16} />
@@ -95,7 +95,7 @@ export function DesktopLayout({ children, isConnected = false }: DesktopLayoutPr
                     <button
                         onClick={handleClose}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="p-2 rounded-xl text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition-all font-bold"
+                        className="p-2 rounded-md text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition-all font-bold"
                         title="Close"
                     >
                         <X size={16} />
@@ -110,7 +110,7 @@ export function DesktopLayout({ children, isConnected = false }: DesktopLayoutPr
                 <aside className="w-16 bg-gray-50 border-r border-gray-100 flex flex-col items-center py-6 gap-6 z-10 shrink-0 select-none">
                     <button 
                         onClick={() => setActiveTab('seo')}
-                        className={`p-3 rounded-2xl transition-all duration-300 relative group ${activeTab === 'seo' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
+                        className={`p-3 rounded-lg transition-all duration-300 relative group ${activeTab === 'seo' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
                         title="SEO Engine"
                     >
                         <Search size={20} strokeWidth={activeTab === 'seo' ? 2.5 : 2} />
@@ -119,7 +119,7 @@ export function DesktopLayout({ children, isConnected = false }: DesktopLayoutPr
                     
                     <button 
                         onClick={() => setActiveTab('tracker')}
-                        className={`p-3 rounded-2xl transition-all duration-300 relative group ${activeTab === 'tracker' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
+                        className={`p-3 rounded-lg transition-all duration-300 relative group ${activeTab === 'tracker' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
                         title="Time Tracker"
                     >
                         <Activity size={20} className={activeTab === 'tracker' ? '' : 'group-hover:scale-110 transition-transform'} strokeWidth={activeTab === 'tracker' ? 2.5 : 2} />
@@ -128,7 +128,7 @@ export function DesktopLayout({ children, isConnected = false }: DesktopLayoutPr
                     
                     <button 
                         onClick={() => setActiveTab('oficina')}
-                        className={`p-3 rounded-2xl transition-all duration-300 relative group ${activeTab === 'oficina' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
+                        className={`p-3 rounded-lg transition-all duration-300 relative group ${activeTab === 'oficina' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-gray-400 hover:bg-gray-200 hover:text-gray-600'}`}
                         title="Virtual Office"
                     >
                         <Building2 size={20} className={activeTab === 'oficina' ? '' : 'group-hover:scale-110 transition-transform'} strokeWidth={activeTab === 'oficina' ? 2.5 : 2} />
@@ -180,7 +180,7 @@ export function DesktopLayout({ children, isConnected = false }: DesktopLayoutPr
             </AnimatePresence>
 
             {/* Final aesthetic touch: Inner border */}
-            <div className="absolute inset-0 border border-white/50 rounded-2xl pointer-events-none" />
+            <div className="absolute inset-0 border border-white/50 rounded-lg pointer-events-none" />
         </motion.div>
     );
 }

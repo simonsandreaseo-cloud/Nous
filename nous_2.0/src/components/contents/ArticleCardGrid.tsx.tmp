@@ -1,0 +1,4 @@
+import { readFileSync, writeFileSync } from 'fs';
+let content = readFileSync('/app/nous_2.0/src/components/contents/ArticleCardGrid.tsx', 'utf-8');
+content = content.replace(/rounded-\[32px\]/g, 'rounded-lg');
+writeFileSync('/app/nous_2.0/src/components/contents/ArticleCardGrid.tsx', content);

@@ -417,7 +417,7 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                                                             initial={{ opacity: 0, y: 5, scale: 0.95 }}
                                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                                             exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                            className="absolute left-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-20 p-4 space-y-3"
+                                                            className="absolute left-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-2xl z-20 p-4 space-y-3"
                                                         >
                                                             <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1">Agregar Keyword Principal</span>
                                                             <div className="space-y-3">
@@ -526,7 +526,7 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                                                             initial={{ opacity: 0, y: 5, scale: 0.95 }}
                                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                                             exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                            className="absolute left-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-2xl shadow-2xl z-30 overflow-hidden"
+                                                            className="absolute left-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-2xl z-30 overflow-hidden"
                                                         >
                                                             <div className="p-2 bg-slate-50 border-b border-slate-100">
                                                                 <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Asignar a...</span>
@@ -604,7 +604,7 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                                                             initial={{ opacity: 0, y: 5, scale: 0.95 }}
                                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                                             exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                            className="absolute left-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-30 p-4 space-y-4"
+                                                            className="absolute left-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-2xl z-30 p-4 space-y-4"
                                                         >
                                                             <div>
                                                                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-2">Keywords LSI</span>
@@ -695,7 +695,7 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                                                     e.stopPropagation(); 
                                                     onSelectTask?.(task);
                                                 }}
-                                                className="px-3 py-1.5 bg-indigo-50/50 hover:bg-slate-900 text-indigo-600 hover:text-white border border-indigo-100/50 hover:border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap"
+                                                className="px-3 py-1.5 bg-indigo-50/50 hover:bg-slate-900 text-indigo-600 hover:text-white border border-indigo-100/50 hover:border-slate-900 rounded-md text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap"
                                                 title="Abrir Detalles"
                                             >
                                                 <span>Abrir Ficha</span>
@@ -710,7 +710,7 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                                                         initializeFromTask(task, activeProject);
                                                         router.push('/contents/writer');
                                                     }}
-                                                    className="px-3 py-1.5 bg-purple-50/50 hover:bg-purple-600 text-purple-600 hover:text-white border border-purple-100/50 hover:border-purple-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap"
+                                                    className="px-3 py-1.5 bg-purple-50/50 hover:bg-purple-600 text-purple-600 hover:text-white border border-purple-100/50 hover:border-purple-600 rounded-md text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap"
                                                     title="Editar en Redactor"
                                                 >
                                                     <Edit3 size={10} />
@@ -727,7 +727,7 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                                                             deleteTask(task.id);
                                                         }
                                                     }}
-                                                    className="px-3 py-1.5 bg-rose-50/50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-100/50 hover:border-rose-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap"
+                                                    className="px-3 py-1.5 bg-rose-50/50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-100/50 hover:border-rose-600 rounded-md text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap"
                                                     title="Eliminar Contenido"
                                                 >
                                                     <Trash2 size={10} />
@@ -808,7 +808,7 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                                 </div>
                                 <button 
                                     onClick={() => setSelectedCompetitor(null)}
-                                    className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-all"
+                                    className="p-2 hover:bg-slate-100 rounded-md text-slate-400 transition-all"
                                 >
                                     <X size={18} />
                                 </button>
@@ -837,13 +837,13 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
 
                                 {isEditingComp ? (
                                     <textarea 
-                                        className="w-full h-96 p-4 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-medium text-slate-600 outline-none focus:border-indigo-200 resize-none leading-relaxed"
+                                        className="w-full h-96 p-4 bg-slate-50 border border-slate-100 rounded-md text-[11px] font-medium text-slate-600 outline-none focus:border-indigo-200 resize-none leading-relaxed"
                                         value={compContent}
                                         onChange={(e) => setCompContent(e.target.value)}
                                         placeholder="Edita el contenido o agrega notas aquí..."
                                     />
                                 ) : (
-                                    <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-50 text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap font-medium h-96 overflow-y-auto custom-scrollbar">
+                                    <div className="p-4 bg-slate-50/50 rounded-md border border-slate-50 text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap font-medium h-96 overflow-y-auto custom-scrollbar">
                                         {selectedCompetitor.comp.content || (
                                             <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
                                                 <Activity size={24} className="opacity-20" />
@@ -858,7 +858,7 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                                 <div className="p-4 border-t border-slate-50 bg-slate-50/20 flex justify-end">
                                     <button 
                                         onClick={handleSaveCompetitor}
-                                        className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                                        className="px-6 py-2 bg-indigo-600 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
                                     >
                                         Guardar Cambios
                                     </button>

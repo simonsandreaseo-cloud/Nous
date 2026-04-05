@@ -132,7 +132,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                                 !(typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0);
                             return (
                                 <div key={field.key} className={cn(
-                                    'flex items-center gap-2 px-3 py-2 rounded-xl border text-[9px] font-bold uppercase',
+                                    'flex items-center gap-2 px-3 py-2 rounded-md border text-[9px] font-bold uppercase',
                                     has ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'
                                 )}>
                                     {has ? <CheckCircle2 size={10} className="shrink-0" /> : <Circle size={10} className="shrink-0" />}
@@ -148,40 +148,40 @@ export default function SEOTab({ task }: SEOTabProps) {
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Datos Críticos & SEO Técnico</span>
 
                     <div className="space-y-4">
-                        <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                        <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                             <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-2.5">Keyword Principal</label>
                             <input
-                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
                                 defaultValue={task.target_keyword || ''}
                                 onBlur={(e) => handleChange('target_keyword', e.target.value)}
                                 placeholder="Ej: marketing digital..."
                             />
                         </div>
 
-                        <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                        <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">H1 (Título del Artículo)</label>
                             <input
-                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
                                 defaultValue={task.h1 || ''}
                                 onBlur={(e) => handleChange('h1', e.target.value)}
                                 placeholder="Título H1..."
                             />
                         </div>
 
-                        <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                        <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">SEO Title (max 60)</label>
                             <input
-                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
                                 defaultValue={task.seo_title || ''}
                                 onBlur={(e) => handleChange('seo_title', e.target.value)}
                                 placeholder="Título para el buscador..."
                             />
                         </div>
 
-                        <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                        <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">Meta Descripción</label>
                             <textarea
-                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
+                                className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
                                 rows={2}
                                 defaultValue={task.meta_description || ''}
                                 onBlur={(e) => handleChange('meta_description', e.target.value)}
@@ -189,10 +189,10 @@ export default function SEOTab({ task }: SEOTabProps) {
                             />
                         </div>
 
-                        <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                        <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">Extracto / Resumen</label>
                             <textarea
-                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
+                                className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
                                 rows={3}
                                 defaultValue={task.excerpt || ''}
                                 onBlur={(e) => handleChange('excerpt', e.target.value)}
@@ -201,9 +201,9 @@ export default function SEOTab({ task }: SEOTabProps) {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                            <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">Slug URL Final</label>
-                                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm group-focus-within:border-indigo-500 transition-all">
+                                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-md px-4 py-3 shadow-sm group-focus-within:border-indigo-500 transition-all">
                                     <span className="text-[10px] font-black text-slate-300">/</span>
                                     <input
                                         className="w-full text-sm font-mono text-slate-700 focus:outline-none"
@@ -213,11 +213,11 @@ export default function SEOTab({ task }: SEOTabProps) {
                                     />
                                 </div>
                             </div>
-                            <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
+                            <div className="bg-slate-50/80 p-5 rounded-lg border border-slate-100">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">Palabras Meta</label>
                                 <input
                                     type="number"
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                    className="w-full bg-white border border-slate-200 rounded-md px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
                                     defaultValue={task.target_word_count || ''}
                                     onBlur={(e) => handleChange('target_word_count', parseInt(e.target.value))}
                                     placeholder="1500"
@@ -229,7 +229,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                     {/* LSI Keywords */}
                     <div>
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-3">Keywords LSI Sugeridas</label>
-                        <div className="flex flex-wrap gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl min-h-[100px] content-start">
+                        <div className="flex flex-wrap gap-2 p-4 bg-slate-50 border border-slate-100 rounded-lg min-h-[100px] content-start">
                             {(() => {
                                 const lsi = task.lsi_keywords || dossier.lsiKeywords || [];
                                 return lsi.length > 0 ? (
@@ -286,7 +286,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                             animate={{ opacity: 1, y: 0 }}
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="w-full py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-900 transition-all shadow-lg"
+                            className="w-full py-3 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-900 transition-all shadow-lg"
                         >
                             {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                             {isSaving ? 'Guardando...' : 'Guardar Cambios'}
@@ -305,7 +305,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                             </div>
                             <div className="space-y-2">
                                 {dossier.suggestedInternalLinks.map((link: any, i: number) => (
-                                    <div key={i} className="flex items-center justify-between px-4 py-3 bg-indigo-50/50 border border-indigo-100 rounded-2xl transition-all group shadow-sm">
+                                    <div key={i} className="flex items-center justify-between px-4 py-3 bg-indigo-50/50 border border-indigo-100 rounded-lg transition-all group shadow-sm">
                                         <div className="flex flex-col min-w-0">
                                             <span className="text-[10px] font-black uppercase tracking-wide truncate pr-4 text-indigo-700">
                                                 {link.title}
@@ -338,7 +338,7 @@ export default function SEOTab({ task }: SEOTabProps) {
 
                                 return (
                                     <div key={i} className={cn(
-                                        "flex items-center justify-between px-4 py-3 rounded-2xl border transition-all group shadow-sm",
+                                        "flex items-center justify-between px-4 py-3 rounded-lg border transition-all group shadow-sm",
                                         isPresent ? "bg-emerald-50 border-emerald-100" : "bg-slate-50 border-slate-100"
                                     )}>
                                         <div className="flex flex-col min-w-0">
@@ -361,7 +361,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                                     </div>
                                 );
                             }) : (
-                                <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-2xl">
+                                <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-lg">
                                     <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Sin URLs del proyecto. Ejecuta la auditoría GSC.</p>
                                 </div>
                             )}
@@ -379,7 +379,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                             <Sparkles size={14} className="text-indigo-400" />
                             <label className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] block">Schema JSON-LD Definido</label>
                         </div>
-                        <div className="bg-slate-950/50 rounded-2xl p-5 font-mono text-[10px] text-indigo-300 overflow-x-auto custom-scrollbar max-h-[200px] border border-slate-800/50">
+                        <div className="bg-slate-950/50 rounded-lg p-5 font-mono text-[10px] text-indigo-300 overflow-x-auto custom-scrollbar max-h-[200px] border border-slate-800/50">
                             <pre className="whitespace-pre-wrap">{JSON.stringify(task.schemas, null, 2)}</pre>
                         </div>
                         <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-4 flex items-center gap-2">
@@ -398,7 +398,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                         <Globe size={16} className="text-indigo-500" />
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Preview SERP</span>
                     </div>
-                    <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                    <div className="bg-slate-50 rounded-lg p-5 border border-slate-100">
                         <p className="text-[10px] text-slate-400 font-bold mb-1.5">
                             {task.target_url_slug ? `tusitio.com${task.target_url_slug}` : 'tusitio.com/...'}
                         </p>
@@ -412,7 +412,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                     {/* WordPress Mockup */}
                     <button
                         onClick={() => setShowWPModal(true)}
-                        className="mt-4 w-full flex items-center justify-between px-5 py-3 bg-[#21759b]/10 hover:bg-[#21759b]/15 text-[#21759b] border border-[#21759b]/20 rounded-2xl transition-all"
+                        className="mt-4 w-full flex items-center justify-between px-5 py-3 bg-[#21759b]/10 hover:bg-[#21759b]/15 text-[#21759b] border border-[#21759b]/20 rounded-lg transition-all"
                     >
                         <div className="flex items-center gap-2">
                             <Globe size={14} />
@@ -432,14 +432,14 @@ export default function SEOTab({ task }: SEOTabProps) {
                         {competitors.length > 0 && (
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setCompetitorIndex(Math.max(0, competitorIndex - 1))} disabled={competitorIndex === 0}
-                                    className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all disabled:opacity-30">
+                                    className="p-2 bg-slate-50 hover:bg-slate-100 rounded-md transition-all disabled:opacity-30">
                                     <ChevronLeft size={14} />
                                 </button>
                                 <span className="text-[10px] font-black text-slate-500 min-w-[60px] text-center">
                                     {competitorIndex + 1} / {competitors.length}
                                 </span>
                                 <button onClick={() => setCompetitorIndex(Math.min(competitors.length - 1, competitorIndex + 1))} disabled={competitorIndex === competitors.length - 1}
-                                    className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all disabled:opacity-30">
+                                    className="p-2 bg-slate-50 hover:bg-slate-100 rounded-md transition-all disabled:opacity-30">
                                     <ChevronRight size={14} />
                                 </button>
                             </div>
@@ -454,7 +454,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                                     key={i}
                                     onClick={() => setCompetitorIndex(i)}
                                     className={cn(
-                                        'px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border',
+                                        'px-4 py-2 rounded-md text-[9px] font-black uppercase tracking-widest transition-all border',
                                         i === competitorIndex
                                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20'
                                             : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200 hover:text-indigo-500'
@@ -475,7 +475,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                         >
                             {/* URL */}
                             <a href={currentComp.url} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-3 px-5 py-4 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all group"
+                                className="flex items-center gap-3 px-5 py-4 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all group"
                             >
                                 <Globe size={14} className="text-indigo-400 shrink-0" />
                                 <span className="text-[10px] font-bold truncate">{currentComp.url}</span>
@@ -489,7 +489,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                                     { label: 'H2s', value: currentComp.h2_count || '—' },
                                     { label: 'Dominio', value: currentComp.domain_authority ? `DA${currentComp.domain_authority}` : '—' },
                                 ].map(m => (
-                                    <div key={m.label} className="bg-slate-50 rounded-2xl p-4 text-center border border-slate-100">
+                                    <div key={m.label} className="bg-slate-50 rounded-lg p-4 text-center border border-slate-100">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">{m.label}</span>
                                         <span className="text-sm font-black text-slate-700">{m.value}</span>
                                     </div>
@@ -517,7 +517,7 @@ export default function SEOTab({ task }: SEOTabProps) {
                                     <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
                                         {currentComp.headers.map((h: any, i: number) => (
                                             <div key={i} className={cn(
-                                                'px-4 py-2.5 rounded-xl border text-[10px] font-bold',
+                                                'px-4 py-2.5 rounded-md border text-[10px] font-bold',
                                                 h.tag === 'h1' ? 'bg-slate-900 text-white border-slate-900 ml-0' :
                                                 h.tag === 'h2' ? 'bg-slate-100 text-slate-700 border-slate-200 ml-4' :
                                                 'bg-slate-50 text-slate-500 border-slate-100 ml-8'
@@ -532,7 +532,7 @@ export default function SEOTab({ task }: SEOTabProps) {
 
                             {/* Intent summary */}
                             {currentComp.summary && (
-                                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
+                                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-5">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Lightbulb size={12} className="text-indigo-600" />
                                         <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Resumen IA</span>
@@ -557,20 +557,20 @@ export default function SEOTab({ task }: SEOTabProps) {
             {showWPModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowWPModal(false)}>
                     <div className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <div className="w-16 h-16 bg-[#21759b]/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                        <div className="w-16 h-16 bg-[#21759b]/10 rounded-lg flex items-center justify-center mx-auto mb-6">
                             <Globe size={28} className="text-[#21759b]" />
                         </div>
                         <h3 className="text-2xl font-black text-slate-900 uppercase italic text-center tracking-tighter mb-2">WordPress Sync</h3>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-center mb-8">Próximamente disponible</p>
                         <div className="space-y-3 opacity-50 pointer-events-none">
-                            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                            <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">URL del Sitio WP</span>
-                                <input className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm" placeholder="https://tusitio.com" disabled />
+                                <input className="w-full bg-white border border-slate-200 rounded-md px-4 py-2.5 text-sm" placeholder="https://tusitio.com" disabled />
                             </div>
-                            <button className="w-full py-4 bg-[#21759b] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" disabled>
+                            <button className="w-full py-4 bg-[#21759b] text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" disabled>
                                 <Globe size={14} /> Publicar como Borrador
                             </button>
-                            <button className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" disabled>
+                            <button className="w-full py-4 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2" disabled>
                                 <ArrowRight size={14} /> Publicar Directamente
                             </button>
                         </div>

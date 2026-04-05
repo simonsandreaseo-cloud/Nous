@@ -122,7 +122,7 @@ Token: sk_live_abc123xyz789`
                         <DownloadButton />
                         <a
                             href="#tutorial"
-                            className="group px-8 py-4 rounded-2xl border border-hairline bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-slate-50 transition-all duration-300 flex items-center gap-2 font-medium tracking-elegant text-[10px] uppercase shadow-sm"
+                            className="group px-8 py-4 rounded-lg border border-hairline bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-slate-50 transition-all duration-300 flex items-center gap-2 font-medium tracking-elegant text-[10px] uppercase shadow-sm"
                         >
                             Ver Tutorial
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -230,7 +230,7 @@ Token: sk_live_abc123xyz789`
 
                         <div className="relative z-10">
                             <div className="flex items-center gap-4 mb-6">
-                                <div className="w-16 h-16 rounded-2xl bg-[var(--color-nous-mist)]/20 border border-[var(--color-nous-mist)]/30 flex items-center justify-center">
+                                <div className="w-16 h-16 rounded-lg bg-[var(--color-nous-mist)]/20 border border-[var(--color-nous-mist)]/30 flex items-center justify-center">
                                     <Download className="w-8 h-8 text-[var(--color-nous-mist)]" />
                                 </div>
                                 <div>
@@ -284,7 +284,7 @@ Token: sk_live_abc123xyz789`
                                     href="https://github.com/nous-clinical/nous-bridge"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="px-8 py-4 rounded-2xl border border-hairline bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-slate-50 transition-all duration-300 flex items-center justify-center gap-2 font-medium tracking-elegant text-[10px] uppercase"
+                                    className="px-8 py-4 rounded-lg border border-hairline bg-white/50 backdrop-blur-sm text-slate-800 hover:bg-slate-50 transition-all duration-300 flex items-center justify-center gap-2 font-medium tracking-elegant text-[10px] uppercase"
                                 >
                                     Ver en GitHub
                                     <ArrowRight className="w-4 h-4" />

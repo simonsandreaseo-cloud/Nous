@@ -1,0 +1,6 @@
+import { readFileSync, writeFileSync } from 'fs';
+let content = readFileSync('/app/nous_2.0/src/components/contents/KanbanCard.tsx', 'utf-8');
+content = content.replace(/rounded-3xl/g, 'rounded-md');
+content = content.replace(/rounded-2xl/g, 'rounded-md');
+content = content.replace(/rounded-xl/g, 'rounded-sm');
+writeFileSync('/app/nous_2.0/src/components/contents/KanbanCard.tsx', content);

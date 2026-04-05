@@ -45,7 +45,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             {!selectedFile ? (
                 <div
                     onClick={handleClick}
-                    className="border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 rounded-2xl p-6 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 h-32 group"
+                    className="border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 rounded-lg p-6 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 h-32 group"
                 >
                     <div className="p-3 bg-white rounded-full shadow-sm text-slate-400 group-hover:text-emerald-500 transition-colors">
                         <Upload size={20} />
@@ -56,9 +56,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                     </div>
                 </div>
             ) : (
-                <div className="border border-slate-200 bg-white/50 backdrop-blur-sm rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                <div className="border border-slate-200 bg-white/50 backdrop-blur-sm rounded-lg p-4 flex items-center justify-between shadow-sm">
                     <div className="flex items-center gap-3 overflow-hidden">
-                        <div className={`p-2.5 rounded-xl ${icon === 'doc' ? 'bg-blue-100/50 text-blue-600' : 'bg-emerald-100/50 text-emerald-600'}`}>
+                        <div className={`p-2.5 rounded-md ${icon === 'doc' ? 'bg-blue-100/50 text-blue-600' : 'bg-emerald-100/50 text-emerald-600'}`}>
                             {icon === 'doc' ? <FileText size={20} /> : <ImageIcon size={20} />}
                         </div>
                         <div className="flex flex-col overflow-hidden">
@@ -68,7 +68,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                     </div>
                     <button
                         onClick={(e) => { e.stopPropagation(); onClear(); }}
-                        className="p-2 hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-500 transition-all"
+                        className="p-2 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-500 transition-all"
                     >
                         <X size={16} />
                     </button>

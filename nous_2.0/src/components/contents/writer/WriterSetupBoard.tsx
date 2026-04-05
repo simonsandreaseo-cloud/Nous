@@ -164,7 +164,7 @@ export default function WriterSetupBoard({ onFinished }: { onFinished?: () => vo
                 
                 {/* 1. Setup Phase */}
                 <div className={cn("space-y-4 transition-all duration-500", activeSection === 'results' && "opacity-60 scale-[0.98] pointer-events-none")}>
-                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                    <div className="bg-white p-5 rounded-lg border border-slate-100 shadow-sm space-y-4">
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Proyecto</label>
                             <select 
@@ -432,7 +432,7 @@ export default function WriterSetupBoard({ onFinished }: { onFinished?: () => vo
             <div className="p-5 bg-white/95 backdrop-blur-md border-t border-slate-100 shrink-0">
                 <Button 
                     onClick={handleFinish}
-                    className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg flex items-center justify-center gap-2 group transition-all"
+                    className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white rounded-md shadow-lg flex items-center justify-center gap-2 group transition-all"
                 >
                     <span className="text-[10px] font-black uppercase tracking-widest">Programar</span>
                     <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -444,7 +444,7 @@ export default function WriterSetupBoard({ onFinished }: { onFinished?: () => vo
 
 function CompactSection({ title, icon: Icon, children }: { title: string, icon: any, children: React.ReactNode }) {
     return (
-        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm space-y-3">
+        <div className="bg-white p-4 rounded-md border border-slate-100 shadow-sm space-y-3">
             <div className="flex items-center gap-2 border-b border-slate-50 pb-2">
                 <Icon size={14} className="text-slate-400" />
                 <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{title}</h4>

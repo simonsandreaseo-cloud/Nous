@@ -201,7 +201,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
     return (
         <div className="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm relative overflow-hidden animate-in fade-in duration-500">
             {error ? (
-                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl mb-8">
+                <div className="p-4 bg-red-50 border border-red-100 rounded-lg mb-8">
                     <p className="text-xs font-bold text-red-600 flex items-center gap-2">
                         <AlertCircle size={14} /> {error}
                     </p>
@@ -215,7 +215,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                 </div>
                 <button
                     onClick={openInviteModal}
-                    className="px-5 py-2.5 bg-cyan-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-600 transition-all flex items-center gap-2 shadow-lg shadow-cyan-500/20"
+                    className="px-5 py-2.5 bg-cyan-500 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-cyan-600 transition-all flex items-center gap-2 shadow-lg shadow-cyan-500/20"
                 >
                     <Plus size={14} /> Añadir Miembro
                 </button>
@@ -235,12 +235,12 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                     <div className="space-y-3">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Miembros de la Agencia</h3>
                         {members.length === 0 && invites.length === 0 ? (
-                            <p className="text-xs text-slate-500 py-4 text-center border border-dashed rounded-xl">No hay miembros registrados ni invitaciones pendientes.</p>
+                            <p className="text-xs text-slate-500 py-4 text-center border border-dashed rounded-md">No hay miembros registrados ni invitaciones pendientes.</p>
                         ) : (
                             <div className="space-y-4">
                                 {/* Members List */}
                                 {members.map(member => (
-                                    <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                                    <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-lg">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold">
                                                 {(member.profiles?.full_name || member.profiles?.email || 'M').charAt(0).toUpperCase()}
@@ -273,7 +273,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
 
                                 {/* Invites List */}
                                 {invites.map(invite => (
-                                    <div key={invite.id} className="flex items-center justify-between p-4 bg-amber-50/50 border border-amber-100/50 rounded-2xl border-dashed">
+                                    <div key={invite.id} className="flex items-center justify-between p-4 bg-amber-50/50 border border-amber-100/50 rounded-lg border-dashed">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
                                                 <Mail size={16} />
@@ -329,7 +329,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                                     <input
                                         type="email"
                                         placeholder="usuario@ejemplo.com"
-                                        className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold focus:bg-white focus:ring-4 ring-cyan-500/10 outline-none transition-all"
+                                        className="w-full p-4 rounded-lg border border-slate-200 bg-slate-50 text-sm font-bold focus:bg-white focus:ring-4 ring-cyan-500/10 outline-none transition-all"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                     />
@@ -344,7 +344,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                                             key={r}
                                             onClick={() => setRole(r as any)}
                                             className={cn(
-                                                "p-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all",
+                                                "p-3 rounded-md border text-[10px] font-black uppercase tracking-widest transition-all",
                                                 role === r 
                                                     ? "bg-[var(--color-nous-mist)]/20 border-[var(--color-nous-mist)] text-slate-800"
                                                     : "border-slate-100 text-slate-400 hover:bg-slate-50"
@@ -359,11 +359,11 @@ export function TeamSettings({ teamId }: { teamId: string }) {
 
                                 {/* Admin Global Toggle */}
                                 <div className={cn(
-                                    "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between mb-4",
+                                    "p-4 rounded-lg border-2 transition-all cursor-pointer flex items-center justify-between mb-4",
                                     permissions.admin ? "border-red-500 bg-red-50" : "border-slate-200 bg-white hover:border-slate-300"
                                 )} onClick={() => handleTogglePermission('admin')}>
                                     <div className="flex gap-3 items-center">
-                                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", permissions.admin ? "bg-red-500 text-white" : "bg-slate-100 text-slate-400")}>
+                                        <div className={cn("w-10 h-10 rounded-md flex items-center justify-center", permissions.admin ? "bg-red-500 text-white" : "bg-slate-100 text-slate-400")}>
                                             <Shield size={20} />
                                         </div>
                                         <div>
@@ -387,7 +387,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                                         { key: 'all_tools_access', label: 'Herramientas IA y Limitaciones', desc: 'Acceder a todas las tools con tokens' },
                                     ].map((sw) => (
                                         <div key={sw.key} className={cn(
-                                            "p-4 rounded-2xl border transition-all cursor-pointer",
+                                            "p-4 rounded-lg border transition-all cursor-pointer",
                                             permissions[sw.key as keyof CustomPermissions] ? "border-cyan-500 bg-cyan-50" : "border-slate-200 bg-white hover:border-slate-300"
                                         )} onClick={() => handleTogglePermission(sw.key as keyof CustomPermissions)}>
                                             <div className="flex items-center justify-between mb-2">
@@ -403,13 +403,13 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                             </div>
 
                             {/* Token Limits */}
-                            <div className={cn("p-6 rounded-2xl border border-slate-200 transition-opacity", !permissions.all_tools_access && "opacity-50 pointer-events-none bg-slate-50")}>
+                            <div className={cn("p-6 rounded-lg border border-slate-200 transition-opacity", !permissions.all_tools_access && "opacity-50 pointer-events-none bg-slate-50")}>
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Límite de Tokens IA (Mensual)</label>
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="number"
                                         min="0"
-                                        className="w-32 p-3 rounded-xl border border-slate-200 text-sm font-bold text-center outline-none focus:ring-2 ring-cyan-500/20"
+                                        className="w-32 p-3 rounded-md border border-slate-200 text-sm font-bold text-center outline-none focus:ring-2 ring-cyan-500/20"
                                         value={permissions.monthly_tokens_limit}
                                         onChange={(e) => handleTogglePermission('monthly_tokens_limit', parseInt(e.target.value) || 0)}
                                     />
@@ -422,7 +422,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                             <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-black text-slate-400 uppercase text-[10px] tracking-widest hover:text-slate-800">
                                 Cancelar
                             </button>
-                            <button onClick={handleSubmit} disabled={isSubmitting} className="px-8 py-3 bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 disabled:opacity-50 flex items-center gap-2">
+                            <button onClick={handleSubmit} disabled={isSubmitting} className="px-8 py-3 bg-cyan-500 text-white rounded-md font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 disabled:opacity-50 flex items-center gap-2">
                                 {isSubmitting ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
                                 {isEditing ? 'Guardar Cambios' : 'Añadir Miembro'}
                             </button>

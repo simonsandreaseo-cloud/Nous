@@ -20,7 +20,7 @@ export function ExportTab({
     return (
         <div className="space-y-6 pt-2 h-full pr-2 custom-scrollbar pb-32">
             {/* Direct Export Card */}
-            <div className="p-5 bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-3xl text-white space-y-4 shadow-xl shadow-indigo-200 group overflow-hidden relative">
+            <div className="p-5 bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-lg text-white space-y-4 shadow-xl shadow-indigo-200 group overflow-hidden relative">
                 <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:rotate-12 transition-transform">
                     <Globe size={120} />
                 </div>
@@ -33,13 +33,13 @@ export function ExportTab({
                 <div className="space-y-3 relative z-10 pt-2">
                     <button
                         onClick={onExportWP}
-                        className="w-full py-3.5 bg-white text-indigo-900 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/20"
+                        className="w-full py-3.5 bg-white text-indigo-900 rounded-lg text-[11px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-black/20"
                     >
                         Exportar a WordPress
                     </button>
                     <button
                         disabled
-                        className="w-full py-3.5 bg-white/10 text-white/90 rounded-2xl text-[11px] font-black uppercase tracking-widest opacity-50 cursor-not-allowed border border-white/10"
+                        className="w-full py-3.5 bg-white/10 text-white/90 rounded-lg text-[11px] font-black uppercase tracking-widest opacity-50 cursor-not-allowed border border-white/10"
                     >
                         Exportar a Shopify
                     </button>
@@ -51,7 +51,7 @@ export function ExportTab({
             </div>
 
             {/* Storage Card */}
-            <div className="p-5 bg-white border border-slate-100 rounded-3xl shadow-xl shadow-slate-100 space-y-4">
+            <div className="p-5 bg-white border border-slate-100 rounded-lg shadow-xl shadow-slate-100 space-y-4">
                 <div className="flex items-center justify-between">
                     <SectionLabel>Almacenamiento & Respaldo</SectionLabel>
                     <Save size={12} className="text-slate-400" />
@@ -60,10 +60,10 @@ export function ExportTab({
                 <div className="space-y-3 pt-1">
                     <button
                         onClick={onSaveCloud}
-                        className="group flex items-center justify-between w-full p-4 bg-slate-50 hover:bg-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 border border-slate-100/50"
+                        className="group flex items-center justify-between w-full p-4 bg-slate-50 hover:bg-black rounded-lg transition-all hover:scale-[1.02] active:scale-95 border border-slate-100/50"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+                            <div className="w-10 h-10 rounded-md bg-white flex items-center justify-center shadow-sm">
                                 <Save size={16} className="text-indigo-600" />
                             </div>
                             <div className="text-left">
@@ -74,9 +74,9 @@ export function ExportTab({
                         <ChevronRight size={14} className="text-slate-300 group-hover:text-white" />
                     </button>
 
-                    <button className="group flex items-center justify-between w-full p-4 bg-slate-50 hover:bg-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 border border-slate-100/50">
+                    <button className="group flex items-center justify-between w-full p-4 bg-slate-50 hover:bg-black rounded-lg transition-all hover:scale-[1.02] active:scale-95 border border-slate-100/50">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+                            <div className="w-10 h-10 rounded-md bg-white flex items-center justify-center shadow-sm">
                                 <Download size={16} className="text-amber-600" />
                             </div>
                             <div className="text-left">
@@ -87,9 +87,9 @@ export function ExportTab({
                         <ChevronRight size={14} className="text-slate-300 group-hover:text-white" />
                     </button>
                     
-                    <button className="group flex items-center justify-between w-full p-4 bg-slate-50 hover:bg-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 border border-slate-100/50">
+                    <button className="group flex items-center justify-between w-full p-4 bg-slate-50 hover:bg-black rounded-lg transition-all hover:scale-[1.02] active:scale-95 border border-slate-100/50">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+                            <div className="w-10 h-10 rounded-md bg-white flex items-center justify-center shadow-sm">
                                 <Copy size={16} className="text-emerald-600" />
                             </div>
                             <div className="text-left">

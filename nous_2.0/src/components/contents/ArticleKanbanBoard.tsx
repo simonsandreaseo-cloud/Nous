@@ -179,10 +179,10 @@ export function ArticleKanbanBoard({ onToolSelect }: { onToolSelect: (toolId: st
                             className="bg-white w-full max-w-md rounded-[40px] p-10 shadow-2xl overflow-hidden relative"
                         >
                             <div className="flex justify-between items-start mb-6">
-                                <div className="p-3 bg-amber-50 rounded-2xl">
+                                <div className="p-3 bg-amber-50 rounded-lg">
                                     <AlertCircle className="text-amber-500" size={24} />
                                 </div>
-                                <button onClick={() => setShowBackwardModal(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                                <button onClick={() => setShowBackwardModal(null)} className="p-2 hover:bg-slate-100 rounded-md transition-all">
                                     <X size={20} className="text-slate-400" />
                                 </button>
                             </div>
@@ -195,13 +195,13 @@ export function ArticleKanbanBoard({ onToolSelect }: { onToolSelect: (toolId: st
                             <div className="flex flex-col gap-3">
                                 <button
                                     onClick={() => handleConfirmBackward(true)}
-                                    className="w-full py-4 bg-rose-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-500/20"
+                                    className="w-full py-4 bg-rose-500 text-white rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-500/20"
                                 >
                                     <Trash2 size={16} /> Borrar datos y cambiar
                                 </button>
                                 <button
                                     onClick={() => handleConfirmBackward(false)}
-                                    className="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                                    className="w-full py-4 bg-slate-100 text-slate-600 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
                                 >
                                     Cambiar estatus sin borrar
                                 </button>

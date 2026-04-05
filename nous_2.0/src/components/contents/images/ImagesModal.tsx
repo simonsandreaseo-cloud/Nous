@@ -379,7 +379,7 @@ Prompt:    ${img.prompt}
                     {/* Header */}
                     <header className="px-10 py-6 bg-white border-b border-slate-100 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-emerald-500 rounded-2xl text-white shadow-lg shadow-emerald-500/20">
+                            <div className="p-3 bg-emerald-500 rounded-lg text-white shadow-lg shadow-emerald-500/20">
                                 <Wand2 size={24} />
                             </div>
                             <div>
@@ -399,7 +399,7 @@ Prompt:    ${img.prompt}
                                     className={cn("px-3 py-1.5 rounded-full transition-all", language === 'es' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400")}
                                 >ES</button>
                             </div>
-                            <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-slate-400">
+                            <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all text-slate-400">
                                 <X size={24} />
                             </button>
                         </div>
@@ -421,8 +421,8 @@ Prompt:    ${img.prompt}
                             )}
 
                             {activeProject?.logo_url ? (
-                                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-white border border-emerald-100 p-1 flex items-center justify-center overflow-hidden">
+                                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-md bg-white border border-emerald-100 p-1 flex items-center justify-center overflow-hidden">
                                         <img src={activeProject.logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
                                     </div>
                                     <div>
@@ -431,7 +431,7 @@ Prompt:    ${img.prompt}
                                     </div>
                                 </div>
                             ) : (
-                                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-4 opacity-70">
+                                <div className="p-4 bg-amber-50 border border-amber-100 rounded-lg flex items-center gap-4 opacity-70">
                                     <Settings2 size={24} className="text-amber-500" />
                                     <div>
                                         <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest leading-none mb-1">Sin Logo</p>
@@ -450,14 +450,14 @@ Prompt:    ${img.prompt}
                                                 key={model.id}
                                                 onClick={() => setSelectedModel(model.id)}
                                                 className={cn(
-                                                    "flex items-center gap-4 p-3 rounded-2xl border transition-all text-left group",
+                                                    "flex items-center gap-4 p-3 rounded-lg border transition-all text-left group",
                                                     selectedModel === model.id
                                                         ? "bg-emerald-50 border-emerald-500 shadow-sm"
                                                         : "bg-slate-50/50 border-slate-100 hover:border-slate-300"
                                                 )}
                                             >
                                                 <div className={cn(
-                                                    "p-2 rounded-xl transition-colors",
+                                                    "p-2 rounded-md transition-colors",
                                                     selectedModel === model.id ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:bg-slate-100"
                                                 )}>
                                                     <model.icon size={16} />
@@ -477,7 +477,7 @@ Prompt:    ${img.prompt}
                                         <select
                                             value={inlineImageCount}
                                             onChange={(e) => setInlineImageCount(e.target.value === 'auto' ? 'auto' : parseInt(e.target.value) as any)}
-                                            className="w-full text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                                            className="w-full text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-md p-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                                         >
                                             <option value="auto">{t.auto}</option>
                                             {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}</option>)}
@@ -488,7 +488,7 @@ Prompt:    ${img.prompt}
                                         <select
                                             value={featuredRatio}
                                             onChange={(e) => setFeaturedRatio(e.target.value as AspectRatio)}
-                                            className="w-full text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                                            className="w-full text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-md p-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                                         >
                                             <option value="16:9">Widescreen (16:9)</option>
                                             <option value="4:3">Standard (4:3)</option>
@@ -503,7 +503,7 @@ Prompt:    ${img.prompt}
                                         value={instructions}
                                         onChange={(e) => setInstructions(e.target.value)}
                                         placeholder={t.guidelinesPlaceholder}
-                                        className="w-full text-xs font-medium border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50 h-32 resize-none placeholder:text-slate-300 transition-all"
+                                        className="w-full text-xs font-medium border border-slate-200 rounded-lg p-4 focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50 h-32 resize-none placeholder:text-slate-300 transition-all"
                                     />
                                 </div>
                             </div>
@@ -522,7 +522,7 @@ Prompt:    ${img.prompt}
                                     {t.generateBtn}
                                 </button>
                             ) : (
-                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center space-y-4 shadow-inner">
+                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 flex flex-col items-center justify-center text-center space-y-4 shadow-inner">
                                     {status === ProcessingStatus.COMPLETED ? (
                                         <>
                                             <CheckCircle2 size={32} className="text-emerald-500" />
@@ -538,7 +538,7 @@ Prompt:    ${img.prompt}
                             )}
 
                             {error && (
-                                <div className="p-4 bg-red-50 text-red-600 text-[9px] font-bold uppercase rounded-2xl flex items-start gap-3 border border-red-100">
+                                <div className="p-4 bg-red-50 text-red-600 text-[9px] font-bold uppercase rounded-lg flex items-start gap-3 border border-red-100">
                                     <AlertCircle size={16} className="flex-shrink-0" />
                                     {error}
                                 </div>

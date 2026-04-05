@@ -56,7 +56,7 @@ export function Toaster() {
                             exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                             className={cn(
                                 "min-w-[320px] max-w-sm pointer-events-auto",
-                                "p-4 rounded-[28px] border backdrop-blur-xl shadow-2xl flex items-start gap-4 transition-all group",
+                                "p-4 rounded-lg border backdrop-blur-xl shadow-2xl flex items-start gap-4 transition-all group",
                                 style.bg,
                                 style.border
                             )}

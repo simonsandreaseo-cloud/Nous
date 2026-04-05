@@ -153,7 +153,7 @@ export default function StrategyGallery({ onSelectTask, onRunResearch }: Strateg
                                                 initializeFromTask(task, activeProject);
                                                 router.push('/contents/writer');
                                             }}
-                                            className="p-2.5 bg-slate-50/50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-100 rounded-2xl transition-all text-slate-400 hover:text-indigo-600"
+                                            className="p-2.5 bg-slate-50/50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-100 rounded-lg transition-all text-slate-400 hover:text-indigo-600"
                                             title="Redactar"
                                         >
                                             <FileText size={14} />
@@ -163,7 +163,7 @@ export default function StrategyGallery({ onSelectTask, onRunResearch }: Strateg
                                                 e.stopPropagation(); 
                                                 router.push(`/contents/corrector?taskId=${task.id}`);
                                             }}
-                                            className="p-2.5 bg-slate-50/50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-100 rounded-2xl transition-all text-slate-400 hover:text-emerald-600"
+                                            className="p-2.5 bg-slate-50/50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-100 rounded-lg transition-all text-slate-400 hover:text-emerald-600"
                                             title="Corregir"
                                         >
                                             <CheckCircle2 size={14} />
@@ -173,7 +173,7 @@ export default function StrategyGallery({ onSelectTask, onRunResearch }: Strateg
                                 {onRunResearch && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onRunResearch(task.id); }}
-                                        className="p-2.5 bg-indigo-50/50 hover:bg-indigo-100 border border-indigo-100/30 rounded-2xl transition-all text-indigo-400 hover:text-indigo-600 shadow-sm shadow-indigo-100"
+                                        className="p-2.5 bg-indigo-50/50 hover:bg-indigo-100 border border-indigo-100/30 rounded-lg transition-all text-indigo-400 hover:text-indigo-600 shadow-sm shadow-indigo-100"
                                         title="Investigar"
                                     >
                                         <Sparkles size={14} />
@@ -201,7 +201,7 @@ export default function StrategyGallery({ onSelectTask, onRunResearch }: Strateg
                                                     }
                                                 }}
                                                 onMouseLeave={() => setDeletingTaskId(null)}
-                                                className="px-3 py-1.5 bg-rose-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 animate-pulse relative z-20"
+                                                className="px-3 py-1.5 bg-rose-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest shadow-lg shadow-rose-500/20 animate-pulse relative z-20"
                                             >
                                                 ¿Seguro?
                                             </motion.button>
@@ -215,7 +215,7 @@ export default function StrategyGallery({ onSelectTask, onRunResearch }: Strateg
                                                     e.stopPropagation();
                                                     setDeletingTaskId(task.id);
                                                 }}
-                                                className="p-2.5 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-2xl transition-all text-slate-300 hover:text-rose-500 relative z-10"
+                                                className="p-2.5 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-lg transition-all text-slate-300 hover:text-rose-500 relative z-10"
                                                 title="Eliminar"
                                             >
                                                 <Trash2 size={14} />

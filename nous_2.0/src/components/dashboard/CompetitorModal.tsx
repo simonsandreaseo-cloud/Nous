@@ -119,7 +119,7 @@ export default function CompetitorModal({ isOpen, onClose, taskId }: CompetitorM
                                     Añade URLs para análisis profundo
                                 </p>
                             </div>
-                            <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-slate-400">
+                            <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all text-slate-400">
                                 <X size={18} />
                             </button>
                         </div>
@@ -131,7 +131,7 @@ export default function CompetitorModal({ isOpen, onClose, taskId }: CompetitorM
                                     <div className="relative flex-1">
                                         <input
                                             type="text"
-                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 pl-12 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-lg p-4 pl-12 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
                                             placeholder="https://dominio.com/articulo..."
                                             value={newUrl}
                                             onChange={(e) => setNewUrl(e.target.value)}
@@ -141,7 +141,7 @@ export default function CompetitorModal({ isOpen, onClose, taskId }: CompetitorM
                                     <button 
                                         onClick={handleAddCompetitor}
                                         disabled={!newUrl.trim()}
-                                        className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all disabled:opacity-50"
+                                        className="p-4 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50"
                                     >
                                         <Plus size={20} />
                                     </button>
@@ -152,12 +152,12 @@ export default function CompetitorModal({ isOpen, onClose, taskId }: CompetitorM
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block pl-1">Lista de Competidores ({competitors.length})</label>
                                 <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-2 pr-2">
                                     {competitors.length === 0 ? (
-                                        <div className="py-8 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                                        <div className="py-8 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
                                             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Sin competidores añadidos</span>
                                         </div>
                                     ) : (
                                         competitors.map((comp: any, i: number) => (
-                                            <div key={i} className="group flex items-center justify-between p-3 bg-slate-50 hover:bg-white border border-slate-100 rounded-2xl transition-all">
+                                            <div key={i} className="group flex items-center justify-between p-3 bg-slate-50 hover:bg-white border border-slate-100 rounded-lg transition-all">
                                                 <div className="flex items-center gap-3 overflow-hidden">
                                                     <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
                                                     <span className="text-[11px] font-bold text-slate-600 truncate">{comp.title || comp.url}</span>

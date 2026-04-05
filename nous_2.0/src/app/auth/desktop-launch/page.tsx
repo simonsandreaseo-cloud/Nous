@@ -74,7 +74,7 @@ export default function DesktopLaunchPage() {
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.8 }}
-                                className="w-24 h-24 rounded-3xl bg-blue-50 flex items-center justify-center"
+                                className="w-24 h-24 rounded-lg bg-blue-50 flex items-center justify-center"
                             >
                                 <RefreshCcw className="w-10 h-10 text-blue-500 animate-spin" />
                             </motion.div>
@@ -84,7 +84,7 @@ export default function DesktopLaunchPage() {
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.8 }}
-                                className="w-24 h-24 rounded-3xl bg-amber-50 flex items-center justify-center"
+                                className="w-24 h-24 rounded-lg bg-amber-50 flex items-center justify-center"
                             >
                                 <AlertCircle className="w-12 h-12 text-amber-500" />
                             </motion.div>
@@ -94,14 +94,14 @@ export default function DesktopLaunchPage() {
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.8 }}
-                                className="w-24 h-24 rounded-3xl bg-emerald-50 flex items-center justify-center"
+                                className="w-24 h-24 rounded-lg bg-emerald-50 flex items-center justify-center"
                             >
                                 <CheckCircle2 className="w-12 h-12 text-emerald-500" />
                             </motion.div>
                         )}
                     </AnimatePresence>
                     {(status === 'launching' || status === 'initializing') && (
-                        <div className="absolute inset-0 rounded-3xl bg-blue-400/10 animate-ping" />
+                        <div className="absolute inset-0 rounded-lg bg-blue-400/10 animate-ping" />
                     )}
                 </div>
 
@@ -122,7 +122,7 @@ export default function DesktopLaunchPage() {
                     {status === 'connected' ? (
                         <button
                             onClick={() => window.location.href = '/studio/dashboard'}
-                            className="w-full py-3.5 rounded-xl font-medium tracking-elegant text-[10px] uppercase bg-[var(--color-nous-mint)]/20 text-[var(--color-nous-mint)] border border-[var(--color-nous-mint)]/30 hover:bg-[var(--color-nous-mint)]/30 shadow-none transition-all"
+                            className="w-full py-3.5 rounded-md font-medium tracking-elegant text-[10px] uppercase bg-[var(--color-nous-mint)]/20 text-[var(--color-nous-mint)] border border-[var(--color-nous-mint)]/30 hover:bg-[var(--color-nous-mint)]/30 shadow-none transition-all"
                         >
                             IR AL DASHBOARD DEL STUDIO
                         </button>
@@ -130,7 +130,7 @@ export default function DesktopLaunchPage() {
                         <button
                             onClick={launchApp}
                             disabled={status === 'launching'}
-                            className={`w-full py-3.5 rounded-xl font-medium tracking-elegant text-[10px] uppercase transition-all duration-300 shadow-none border ${status === 'launching'
+                            className={`w-full py-3.5 rounded-md font-medium tracking-elegant text-[10px] uppercase transition-all duration-300 shadow-none border ${status === 'launching'
                                 ? 'bg-slate-50 text-slate-400 border-slate-100 cursor-not-allowed'
                                 : 'bg-[var(--color-nous-mist)]/20 text-slate-800 hover:bg-[var(--color-nous-mist)]/30 border-[var(--color-nous-mist)]/30'
                                 }`}

@@ -18,7 +18,7 @@ export function EditorialPulse() {
     return (
         <section className="glass-panel border-hairline rounded-[24px] p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden group">
             <div className="flex items-center gap-6 z-10">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--color-nous-mint)]/20 text-[var(--color-nous-mint)] flex items-center justify-center border border-[var(--color-nous-mint)]/40 shadow-sm">
+                <div className="w-14 h-14 rounded-lg bg-[var(--color-nous-mint)]/20 text-[var(--color-nous-mint)] flex items-center justify-center border border-[var(--color-nous-mint)]/40 shadow-sm">
                     <Activity size={28} />
                 </div>
                 <div>

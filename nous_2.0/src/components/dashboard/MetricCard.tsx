@@ -13,7 +13,7 @@ interface MetricCardProps {
 
 export function MetricCard({ title, value, icon: Icon, trend, color }: MetricCardProps) {
     return (
-        <div className="relative p-6 bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden group">
+        <div className="relative p-6 bg-black/40 backdrop-blur-xl border border-white/5 rounded-lg overflow-hidden group">
             <div className={cn(
                 "absolute top-0 right-0 w-32 h-32 bg-gradient-to-br opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:opacity-20 transition-opacity duration-700",
                 color === 'cyan' ? "from-cyan-400 to-blue-400" :
@@ -23,7 +23,7 @@ export function MetricCard({ title, value, icon: Icon, trend, color }: MetricCar
 
             <div className="flex justify-between items-start mb-4 relative z-10">
                 <div className={cn(
-                    "p-3 rounded-2xl bg-white/5 border border-white/10 text-white shadow-lg",
+                    "p-3 rounded-lg bg-white/5 border border-white/10 text-white shadow-lg",
                     color === 'cyan' ? "text-cyan-400" :
                         color === 'purple' ? "text-purple-400" :
                             "text-emerald-400"

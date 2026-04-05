@@ -42,7 +42,7 @@ export default function WriterDashboard() {
                     onClick={() => {
                         router.push("/contents/planner?action=new-research");
                     }}
-                    className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 flex items-center gap-2 group transition-all"
+                    className="h-12 px-6 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 flex items-center gap-2 group transition-all"
                 >
                     <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <Plus size={16} />
@@ -55,7 +55,7 @@ export default function WriterDashboard() {
             <main className="flex-1 overflow-y-auto custom-scrollbar px-10 pb-10">
                 {projectContents.length === 0 ? (
                     <div className="h-[60vh] flex flex-col items-center justify-center text-center space-y-6">
-                        <div className="w-20 h-20 bg-slate-100 rounded-[28px] flex items-center justify-center text-slate-300">
+                        <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center text-slate-300">
                             <FileText size={40} />
                         </div>
                         <div className="max-w-xs">
@@ -65,7 +65,7 @@ export default function WriterDashboard() {
                         <Button 
                             variant="outline" 
                             onClick={() => setViewMode('setup')}
-                            className="rounded-xl border-slate-200"
+                            className="rounded-md border-slate-200"
                         >
                             Empezar ahora
                         </Button>
@@ -79,7 +79,7 @@ export default function WriterDashboard() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.05 }}
                                 onClick={() => loadContentById(content.id)}
-                                className="group relative bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 cursor-pointer transition-all duration-300"
+                                className="group relative bg-white border border-slate-100 rounded-lg p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 cursor-pointer transition-all duration-300"
                             >
                                 <div className="flex items-start justify-between mb-4">
                                     <div className={cn(

@@ -9,7 +9,7 @@ export const SlideLayouts = {
             <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-50/30 rounded-tr-full opacity-40 -ml-32 -mb-24"></div>
             
             <div class="relative z-10 max-w-4xl">
-                <div class="inline-block px-5 py-2 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] mb-8 shadow-xl shadow-slate-900/10">
+                <div class="inline-block px-5 py-2 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] mb-8 shadow-xl shadow-slate-900/10">
                     Estrategia SEO Global
                 </div>
                 <h1 class="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter leading-[0.9] mb-8 italic uppercase">
@@ -41,7 +41,7 @@ export const SlideLayouts = {
         <section class="report-slide bg-white h-full relative overflow-hidden p-12 flex flex-col">
             <div class="flex items-center justify-between mb-10 shrink-0">
                <div class="flex items-center gap-4">
-                  <div class="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg">
+                  <div class="w-12 h-12 bg-slate-900 text-white rounded-lg flex items-center justify-center shadow-lg">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
                   </div>
                   <h2 class="text-3xl font-black text-slate-900 tracking-tighter uppercase italic gradient-text">${title}</h2>
@@ -101,7 +101,7 @@ export const SlideLayouts = {
         <section class="report-slide bg-white h-full relative overflow-hidden p-12 flex flex-col">
             <div class="flex items-center justify-between mb-10 shrink-0">
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
+                    <div class="w-12 h-12 bg-indigo-600 text-white rounded-lg flex items-center justify-center shadow-lg shadow-indigo-100">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/></svg>
                     </div>
                     <div>
@@ -109,7 +109,7 @@ export const SlideLayouts = {
                         <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Evidence Cluster v2.0</p>
                     </div>
                 </div>
-                <div class="px-6 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Dataset Completo</div>
+                <div class="px-6 py-2 bg-slate-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest">Dataset Completo</div>
             </div>
 
             <div class="flex-1 overflow-hidden rounded-[32px] border border-slate-100 shadow-2xl shadow-slate-200/50 flex flex-col bg-white">

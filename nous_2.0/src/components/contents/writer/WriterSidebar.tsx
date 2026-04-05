@@ -88,7 +88,7 @@ export default function WriterSidebar() {
             {/* Header */}
             <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 shrink-0 bg-white">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-200">
+                    <div className="w-8 h-8 rounded-md bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-200">
                         <MonitorSmartphone size={16} className="text-white" />
                     </div>
                     <span className="font-black text-slate-800 tracking-tight">AI Writer</span>

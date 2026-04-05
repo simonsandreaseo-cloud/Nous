@@ -125,7 +125,7 @@ export default function HeliosConsole() {
 
             {/* CONFIGURATION PANEL */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                <div className="p-6 bg-white/60 backdrop-blur-md rounded-3xl border border-slate-100 shadow-sm">
+                <div className="p-6 bg-white/60 backdrop-blur-md rounded-lg border border-slate-100 shadow-sm">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Neural Configuration</h3>
                         <div className={cn(
@@ -142,7 +142,7 @@ export default function HeliosConsole() {
                         <select
                             value={model}
                             onChange={(e) => setModel(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500/20"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-md px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500/20"
                         >
                             <option value="gemini-3-flash-preview">Gemini 3 Flash (Next Gen)</option>
                             <option value="gemini-2.5-flash">Gemini 2.5 Flash (Stable)</option>
@@ -152,7 +152,7 @@ export default function HeliosConsole() {
 
                     <div className="grid grid-cols-2 gap-2">
                         {Object.entries(config).map(([key, value]) => (
-                            <label key={key} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/40 cursor-pointer transition-colors group">
+                            <label key={key} className="flex items-center gap-3 p-3 rounded-md hover:bg-white/40 cursor-pointer transition-colors group">
                                 <div className={cn(
                                     "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
                                     value ? "bg-purple-500 border-purple-500 shadow-lg shadow-purple-500/20" : "border-slate-300 group-hover:border-purple-300"
@@ -177,7 +177,7 @@ export default function HeliosConsole() {
                     <button
                         onClick={runAnalysis}
                         disabled={loading || !activeProject}
-                        className="w-full py-6 bg-slate-900 hover:bg-slate-800 text-white rounded-3xl font-black text-xl uppercase tracking-widest transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 group"
+                        className="w-full py-6 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-black text-xl uppercase tracking-widest transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-4 group"
                     >
                         {loading ? (
                             <>
@@ -230,7 +230,7 @@ export default function HeliosConsole() {
                                 {/* Charts/Tables */}
                                 <div className="space-y-8">
                                     {section.charts?.map((chart: any) => (
-                                        <div key={chart.id} className="p-6 bg-slate-50 rounded-3xl">
+                                        <div key={chart.id} className="p-6 bg-slate-50 rounded-lg">
                                             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{chart.title}</h4>
 
                                             {/* Dynamic Renderer based on type */}
@@ -294,7 +294,7 @@ export default function HeliosConsole() {
                                     <button
                                         onClick={handleSyncTasks}
                                         disabled={selectedTasks.length === 0 || isSavingTasks}
-                                        className="px-8 py-3 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-500/20 flex items-center gap-2 group"
+                                        className="px-8 py-3 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white rounded-lg font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-purple-500/20 flex items-center gap-2 group"
                                     >
                                         {isSavingTasks ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} className="group-hover:scale-110 transition-transform" />}
                                         Sincronizar {selectedTasks.length} Tareas
@@ -313,7 +313,7 @@ export default function HeliosConsole() {
                                                 }
                                             }}
                                             className={cn(
-                                                "p-5 rounded-3xl border transition-all cursor-pointer group",
+                                                "p-5 rounded-lg border transition-all cursor-pointer group",
                                                 selectedTasks.includes(idx)
                                                     ? "bg-white/10 border-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.1)]"
                                                     : "bg-white/5 border-white/10 hover:border-white/20"
