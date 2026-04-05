@@ -5,16 +5,38 @@ import { useEditor, EditorContent, BubbleMenu, FloatingMenu } from '@tiptap/reac
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
+import Link from '@tiptap/extension-link';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useEffect, useState } from 'react';
 import {
     Bold, Italic, Strikethrough, Code, Quote, List, ListOrdered,
-    Heading1, Heading2, Heading3, Sparkles
+    Heading1, Heading2, Heading3, Sparkles,
+    CheckCircle2, Search, Layout, FileText, Zap, Loader2
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { StrategyOutlineItem } from '@/store/useWriterStore';
 import SlashMenu from './SlashMenu';
 import { useWriterActions } from './useWriterActions';
+
+const StepIcon = ({ active, done, icon: Icon, label }: any) => (
+    <div className="flex flex-col items-center gap-1 group/step relative">
+        <div className={cn(
+            "flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-500 border",
+            active ? "bg-indigo-50 border-indigo-200 text-indigo-600 scale-110 shadow-sm shadow-indigo-100" : 
+            done ? "bg-emerald-50 border-emerald-100 text-emerald-500" : 
+            "bg-slate-50 border-slate-100 text-slate-300"
+        )}>
+            {done ? <CheckCircle2 size={13} className="text-emerald-500" /> : <Icon size={13} className={cn(active && "animate-pulse")} />}
+        </div>
+        {/* Tooltip-like label */}
+        <span className={cn(
+            "absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover/step:opacity-100 transition-opacity pointer-events-none",
+            active ? "bg-indigo-600 text-white" : done ? "bg-emerald-600 text-white" : "bg-slate-800 text-white"
+        )}>
+            {label}
+        </span>
+    </div>
+);
 
 export default function WriterEditor() {
     const { 
@@ -23,9 +45,20 @@ export default function WriterEditor() {
         strategyDensity, setStrategyDensity, creativityLevel, setCreativityLevel,
         setSidebarTab, isPlanningStructure, isAnalyzingSEO,
         isHumanizing, humanizerConfig, updateHumanizerConfig, humanizerStatus,
-        hasGenerated, hasHumanized, researchMode, setResearchMode
+        hasGenerated, hasHumanized, researchMode, setResearchMode,
+        statusMessage, rawSeoData
     } = useWriterStore();
     const { handlePlanStructure, handleGenerate, handleHumanize } = useWriterActions();
+
+    // Specific Status Logic
+    const isPostProd = isGenerating && (
+        statusMessage.toLowerCase().includes('vínculos') || 
+        statusMessage.toLowerCase().includes('optimizando') || 
+        statusMessage.toLowerCase().includes('interlinking') ||
+        statusMessage.toLowerCase().includes('estilos')
+    );
+    const isDrafting = isGenerating && !isPostProd;
+
     const [slashMenuPos, setSlashMenuPos] = useState<{ x: number, y: number } | null>(null);
     const [isOrbOpen, setIsOrbOpen] = useState(false);
     const { isConsoleOpen, setIsConsoleOpen, addDebugPrompt, clearDebugPrompts } = useWriterStore();
@@ -37,6 +70,16 @@ export default function WriterEditor() {
             Typography,
             Placeholder.configure({
                 placeholder: 'Escribe algo increíble... (Teclea "/nous" para llamar a la IA o "/" para comandos)',
+            }),
+            Link.configure({
+                openOnClick: true,
+                autolink: true,
+                defaultProtocol: 'https',
+                HTMLAttributes: {
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    class: 'cursor-pointer'
+                },
             }),
         ],
         content: content,
@@ -189,8 +232,65 @@ export default function WriterEditor() {
 
     return (
         <div className="relative w-full h-full flex flex-col">
-            {/* VIEW MODE SWITCHER - ALWAYS VISIBLE */}
-            <div className="flex justify-end p-4 border-b border-slate-100/50 bg-white/40 mb-4 rounded-2xl">
+            {/* VIEW MODE SWITCHER & NOUS STATUS - ALWAYS VISIBLE */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-100/50 bg-white/40 mb-4 rounded-2xl">
+                {/* NOUS ASSISTANT PROCESS INDICATOR */}
+                <div className="flex-1 flex items-center justify-start">
+                    <AnimatePresence>
+                        {(isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing) && (
+                            <motion.div 
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="flex items-center gap-3 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/50 shadow-sm"
+                            >
+                                {/* Small Orb */}
+                                <div className="relative w-6 h-6 flex items-center justify-center">
+                                    <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping" />
+                                    <div className="relative w-4 h-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                                        <div className="w-full h-full absolute inset-0 bg-white/20 animate-[spin_2s_linear_infinite] rounded-full" />
+                                        <span className="text-[7px] text-white font-black">N</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col min-w-[120px]">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-600 leading-none">Agente Nous</span>
+                                    <span className="text-[9px] text-slate-500 font-bold mt-1 truncate max-w-[220px]">
+                                        {isHumanizing ? humanizerStatus : statusMessage || "Procesando..."}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 border-l border-slate-200 pl-4 ml-1">
+                                    <StepIcon 
+                                        active={isAnalyzingSEO} 
+                                        done={!!rawSeoData && !isAnalyzingSEO} 
+                                        icon={Search} 
+                                        label="Investigación SEO" 
+                                    />
+                                    <StepIcon 
+                                        active={isPlanningStructure} 
+                                        done={strategyOutline.length > 0 && !isPlanningStructure} 
+                                        icon={Layout} 
+                                        label="Estructura Outline" 
+                                    />
+                                    <StepIcon 
+                                        active={isDrafting} 
+                                        done={(hasGenerated || isPostProd) && !isDrafting} 
+                                        icon={FileText} 
+                                        label="Redacción IA" 
+                                    />
+                                    <StepIcon 
+                                        active={isPostProd} 
+                                        done={hasGenerated && !isPostProd} 
+                                        icon={Zap} 
+                                        label="Post-Producción" 
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
                 <div className="flex items-center gap-1 p-0.5 bg-slate-100/50 border border-slate-200/40 rounded-lg shadow-sm">
                     <button 
                         onClick={() => useWriterStore.getState().setEditorTab('visual')}
@@ -308,6 +408,19 @@ export default function WriterEditor() {
                     .ProseMirror li { margin-bottom: 0.75rem !important; line-height: 1.7 !important; color: #475569; }
                     .ProseMirror li strong { color: #0f172a; font-weight: 800; }
                     .ProseMirror strong { font-weight: 900 !important; color: #0f172a; }
+                    .ProseMirror a { 
+                        color: #2563eb !important; 
+                        text-decoration: underline !important; 
+                        text-underline-offset: 4px !important;
+                        text-decoration-thickness: 2px !important;
+                        font-weight: 700 !important;
+                        transition: all 0.2s ease;
+                    }
+                    .ProseMirror a:hover { 
+                        color: #1d4ed8 !important; 
+                        background-color: #eff6ff;
+                        text-decoration-thickness: 3px !important;
+                    }
                 `}</style>
                 <EditorContent editor={editor} />
             </div>

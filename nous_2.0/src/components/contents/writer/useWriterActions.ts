@@ -108,6 +108,7 @@ export function useWriterActions() {
                 refUrls: store.strategyCompetitors,
                 refContent: store.strategyNotes, 
                 approvedLinks: store.strategyLinks,
+                csvData: store.csvData,
             };
             const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-3-27b-it';
             const res = await generateOutlineStrategy(config, store.keyword, store.rawSeoData as any, modelToUse);
@@ -316,12 +317,6 @@ export function useWriterActions() {
             const refined = refineStyling(result.html);
             store.setContent(refined);
             
-            if (result.metadata) {
-                if (result.metadata.metaTitle) store.setStrategyTitle(result.metadata.metaTitle);
-                if (result.metadata.metaDescription) store.setStrategyDesc(result.metadata.metaDescription);
-                if (result.metadata.slug) store.setStrategySlug(result.metadata.slug);
-                if (result.metadata.extracto) store.setStrategyExcerpt(result.metadata.extracto);
-            }
 
             store.setHasHumanized(true);
             store.setHumanizerStatus('✅ ¡Humanización completada!');

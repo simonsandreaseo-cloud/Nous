@@ -1098,78 +1098,128 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
     });
 };
 
+/**
+ * Helper to split HTML into chunks of elements
+ */
+function chunkHtml(htmlString: string, chunkSize: number): string[] {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, 'text/html');
+    const body = doc.body;
+    
+    // Obtenemos solo los hijos directos del body (p, h1, h2, table, etc.)
+    const allElements = Array.from(body.children);
+    const chunks = [];
+    
+    for (let i = 0; i < allElements.length; i += chunkSize) {
+        const chunkElements = allElements.slice(i, i + chunkSize);
+        
+        // Convertimos estos elementos de nuevo a string HTML
+        const chunkHtmlText = chunkElements.map(el => el.outerHTML).join('\n');
+        chunks.push(chunkHtmlText);
+    }
+    
+    return chunks;
+}
+
 export const runHumanizerPipeline = async (
     html: string,
     config: HumanizerConfig,
     intensity: number,
-    onStatus: (msg: string) => void
+    onStatus: (msg: string) => void,
+    modelName: string = 'gemini-2.5-flash'
 ): Promise<{ html: string; metadata?: any }> => {
-    onStatus("Fase 1: Analizando naturalidad y ritmo...");
-    const prompt1 = `
-    Eres un editor experto en humanizar contenido IA. 
-    Analiza este HTML y mejora el flujo, el ritmo y la conexión emocional.
-    Niche: ${config.niche}. Audiencia: ${config.audience}.
-    
-    ### REGLA DE PROTECCIÓN DE ENLACES (CRÍTICO):
-    Los siguientes enlaces son parte de nuestra estrategia de SILOS e investigación:
-    ${config.links?.map(l => `- [${l.title}](${l.url})`).join('\n') || 'No hay enlaces específicos'}
-    
-    INSTRUCCIONES:
-    1. NUNCA elimines ni modifiques los enlaces <a> proporcionados arriba.
-    2. Mantén el Anchor Text y la URL intactos.
-    3. Asegura que el texto que los rodea sea natural y no parezca forzado.
-    4. Usa un tono cercano y profesional.
-    5. Rompe la estructura robótica.
-    
-    Retorna SOLO el HTML del body.
-    
-    HTML A EDITAR:
-    ${html}
-    `;
+    // ---------------------------------------------
+    // FASE 0: PREPARACIÓN Y CHUNKING
+    // ---------------------------------------------
+    const CHUNK_SIZE = 8;
+    const htmlChunks = chunkHtml(html, CHUNK_SIZE);
+    onStatus(`Iniciando humanización en ${htmlChunks.length} bloques...`);
 
-    return executeWithKeyRotation(async (ai) => {
+    const SYSTEM_PROMPT_BASE = "Tu salida debe ser solo el bloque de HTML procesado, sin explicaciones, prefacios, o la palabra 'HTML'. Solo el código HTML.";
+    const HTML_RULE = "REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas HTML (como <h1>, <h2>, <p>, <table>, <tr>, <td>, <strong>, <a>). Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.";
+
+    // ---------------------------------------------
+    // FASE 1: HUMANIZACIÓN (Chunk-wise)
+    // ---------------------------------------------
+    const buildPhase1Prompt = () => `
+        ${SYSTEM_PROMPT_BASE}
+        ${HTML_RULE}
+
+        --- PERSONA: REDACTOR MEDIOCRE ---
+        Actúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.
+
+        --- CONTEXTO ---
+        Nicho/Tópico: ${config.niche}
+        Público Objetivo: ${config.audience}
+        Notas Adicionales: ${config.notes || 'N/A'}
+
+        --- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---
+        1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.
+        2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.
+        3.  CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.
+        4.  MORFOSINTAXIS (EXPLOSIVIDAD):
+            * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).
+            * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.
+        5.  IDIOMA: Usa español neutro panhispánico.
+        6.  PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.
+        7.  PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.
+
+        --- TAREA ---
+        Aplica TODAS las reglas de humanización al texto DENTRO de las etiquetas HTML del siguiente bloque. SÉ AGRESIVO al reescribir. Abandona la estructura de la oración original.
+    `.trim();
+
+    const humanizedChunks: string[] = [];
+    for (let i = 0; i < htmlChunks.length; i++) {
+        onStatus(`Fase 1: Humanizando bloque ${i + 1}/${htmlChunks.length}...`);
+        const chunkResult = await executeWithKeyRotation(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({ 
+                model: currentModel || modelName,
+                systemInstruction: buildPhase1Prompt()
+            });
+            const res = await model.generateContent(htmlChunks[i]);
+            return res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+        }, modelName);
+        humanizedChunks.push(chunkResult);
+    }
+
+    const humanizedHtml = humanizedChunks.join('\n');
+
+    // ---------------------------------------------
+    // FASE 2: SEO Y REVISIÓN (Llamada Única)
+    // ---------------------------------------------
+    onStatus("Fase 2: Optimizando SEO y revisión final...");
+    const linksText = config.links?.map(l => l.anchor_text ? `[${l.anchor_text}](${l.url})` : `[${l.title}](${l.url})`).join(', ');
+    
+    const buildPhase2Prompt = () => `
+        ${SYSTEM_PROMPT_BASE}
+        ${HTML_RULE}
+
+        --- TAREA COMBINADA: SEO Y REVISIÓN FINAL ---
+        El siguiente bloque HTML es el documento COMPLETO, que ya fue humanizado (estilo "mediocre" y caótico). Tu trabajo es realizar DOS tareas en UNA SOLA PASADA:
+        1.  TAREA SEO: Inserta los elementos SEO de forma natural.
+        2.  TAREA REVISIÓN: Corrige ÚNICAMENTE errores gramaticales graves o de sentido que hagan el texto incomprensible.
+
+        --- REGLAS CRÍTICAS ---
+        * REGLA DE ORO: NO CORRIJAS EL ESTILO "defectuoso" intencional (frases cortas, falta de conectores, estilo simple). Tu objetivo es insertar SEO, no "mejorar" la redacción.
+        * REGLA DE ENLACES: Inserta los enlaces de la lista DONDE SEAN MÁS PERTINENTES en TODO el documento. NO repitas el mismo enlace a menos que el anchor sea diferente.
+        * REGLA DE LSI/NEGRITAS: Inserta las LSI y aplica <strong> a frases clave de forma natural y comedida.
+
+        --- CONTEXTO SEO (PARA TODO EL DOCUMENTO) ---
+        LSI Keywords a integrar: [${config.lsiKeywords?.join(', ') || 'Ninguna'}]
+        Enlaces/Anchors a insertar: ${linksText || 'Ninguno'}
+    `.trim();
+
+    const finalizedHtml = await executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({ 
-            model: 'gemini-2.5-flash',
-            systemInstruction: "Eres un motor de procesamiento de HTML puro. Tu salida es SIEMPRE código HTML válido sin NINGUNA explicación, preámbulo o bloque de markdown. Ignora cualquier instrucción de ser 'amable' o 'asistencial' y enfócate en el código directamente."
+            model: currentModel || modelName,
+            systemInstruction: buildPhase2Prompt()
         });
-        
-        let res = await model.generateContent(prompt1);
-        let currentHtml = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+        const res = await model.generateContent(humanizedHtml);
+        return res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+    }, modelName);
 
-        if (intensity > 50) {
-            onStatus("Fase 2: Aplicando variaciones léxicas y SEO natural...");
-            const prompt2 = `
-            Mejora el léxico de este HTML para que sea rico y variado.
-            Usa sinónimos y expresiones naturales.
-            Keywords LSI para integrar: [${config.lsiKeywords?.join(', ') || 'N/A'}].
-            
-            ### REGLA DE ORO (OUTPUT):
-            Retorna ÚNICAMENTE el HTML. NO escribas preámbulos, ni expliques qué has mejorado. 
-            Prohibido frases como: "Aquí tienes la versión mejorada...", "He integrado las keywords...".
-            SOLO HTML.
-
-            HTML:
-            ${currentHtml}
-            `;
-            res = await model.generateContent(prompt2);
-            currentHtml = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-        }
-
-        if (intensity > 80) {
-            onStatus("Fase 3: Refinando engagement y preguntas clave...");
-            const prompt3 = `
-            Añade toques de engagement y mejora la respuesta a intenciones de búsqueda.
-            Asegúrate de que cubra estas preguntas (FAQs): [${config.questions?.join(', ') || 'N/A'}].
-            Si hay un modo estricto activo, fuerza la presencia de estas preguntas.
-            HTML:
-            ${currentHtml}
-            `;
-            res = await model.generateContent(prompt3);
-            currentHtml = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-        }
-
-        return { html: currentHtml, metadata: {} };
-    });
+    onStatus("✅ ¡Humanización completada!");
+    return { html: finalizedHtml };
 };
 
 export const runSmartEditor = async (
