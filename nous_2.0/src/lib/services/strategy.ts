@@ -1,32 +1,23 @@
 import { supabase } from '@/lib/supabase';
-import { LocalNodeBridge } from '@/lib/local-node/bridge';
 import { getGeminiKey } from '@/lib/ai/config';
+import { runDeepSEOAnalysis as runRealDeepAnalysis } from './writer/seo-analyzer';
+import { useProjectStore } from '@/store/useProjectStore';
 
 async function queryAI(prompt: string, modelId: string = 'gemini-1.5-flash', jsonResponse: boolean = true): Promise<string> {
-    // Read ai mode from cookie (compatible with Client Components and SSR)
-    let aiMode = 'cloud';
-    if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(^| )nous_ai_mode=([^;]+)/);
-        if (match && match[2]) aiMode = match[2];
-    }
-
-    if (aiMode === 'local') {
-        return (LocalNodeBridge as any).promptAI(prompt);
-    } else {
-        const apiKey = getGeminiKey();
-        if (!apiKey) throw new Error("Gemini API Key missing");
-        const { GoogleGenerativeAI } = await import("@google/generative-ai");
-        const ai = new GoogleGenerativeAI(apiKey);
-        const model = ai.getGenerativeModel({ model: modelId });
-        const config: any = {};
-        if (jsonResponse) config.responseMimeType = 'application/json';
-        const res = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: config
-        });
-        return res.response.text();
-    }
+    const apiKey = getGeminiKey();
+    if (!apiKey) throw new Error("Gemini API Key missing");
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const ai = new GoogleGenerativeAI(apiKey);
+    const model = ai.getGenerativeModel({ model: modelId });
+    const config: any = {};
+    if (jsonResponse) config.responseMimeType = 'application/json';
+    const res = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: config
+    });
+    return res.response.text();
 }
+
 import { Task } from '@/types/project';
 
 // Basic interfaces ported from legacy metadataService
@@ -102,5 +93,50 @@ Keyword: ${keyword || 'N/A'}`;
                 target_keyword: q.term,
                 priority: 'high'
             }));
+    }
+
+    /**
+     * Runs a deep SEO research for a topic/idea.
+     * Analyzes SERP, extracts LSI keywords, and builds a research dossier.
+     */
+    static async runDeepSEOAnalysis(
+        projectId: string, 
+        idea: string, 
+        onProgress?: (phaseId: string) => void,
+        onLog?: (phaseId: string, prompt: string) => void,
+        modelName: string = 'gemini-2.5-flash'
+    ): Promise<any> {
+        try {
+            // Fetch project inventory for semantic links
+            const { data: projectData } = await supabase.from('projects').select('name, domain').eq('id', projectId).single();
+            const { data: inventory } = await supabase.from('project_urls').select('url, title').eq('project_id', projectId).limit(10000);
+            
+            const results = await runRealDeepAnalysis(
+                idea, 
+                inventory || [], 
+                projectData?.name || "", 
+                false, 
+                projectId,
+                onProgress,
+                onLog,
+                modelName
+            );
+
+            return results;
+        } catch (e) {
+            console.error("Deep SEO Analysis Error:", e);
+            // Fallback object safely as "Idea"
+            return {
+                title: idea,
+                target_keyword: idea,
+                volume: 0,
+                word_count: 1000,
+                brief: "La investigación profunda falló. Se usará la idea base.",
+                research_dossier: {
+                    lsiKeywords: [],
+                    top10Urls: []
+                }
+            };
+        }
     }
 }

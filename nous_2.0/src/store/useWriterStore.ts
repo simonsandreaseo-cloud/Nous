@@ -8,7 +8,8 @@ export type SidebarTab = 'assistant' | 'generate' | 'seo' | 'research' | 'humani
 export interface StrategyOutlineItem {
     type: string;
     text: string;
-    wordCount: string;
+    wordCount: string;      // Target
+    currentWordCount?: number; // Actual real-time count
     notes?: string;
 }
 
@@ -20,6 +21,7 @@ interface WriterState {
     draftId: string | null;
     linkedTaskId: string | null;
     linkedTaskTitle: string | null;
+    projectId: string | null;
 
     // ── View Flow ─────────────────────────────────────────
     viewMode: WriterViewMode;
@@ -33,9 +35,18 @@ interface WriterState {
     isHumanizing: boolean;
     isExporting: boolean;
     isRefining: boolean;
+    hasGenerated: boolean;
+    hasHumanized: boolean;
     lastSaved: Date | null;
     statusMessage: string;
     downloadProgress: number | null;
+    
+    // ── Global Research Tracker ───────────────────────────
+    isResearching: boolean;
+    researchProgress: number;
+    researchPhaseId: string;
+    researchTopic: string;
+    researchMode: 'rapid' | 'quality';
 
     model: string;
 
@@ -55,6 +66,7 @@ interface WriterState {
     strategyH1: string;
     strategySlug: string;
     strategyDesc: string;
+    strategyExcerpt: string;
     strategyWordCount: string;
     strategyTone: string;
     strategyOutline: StrategyOutlineItem[];
@@ -65,10 +77,11 @@ interface WriterState {
     strategyVolume: string;
     strategyDifficulty: string;
     competitorDetails: any[];
+    geoCompetitorDetails: any[];
     strategyLSI: { keyword: string; count: string }[];
     strategyKeywords: { keyword: string; volume: string }[];
-    strategyInternalLinks: { url: string; title: string }[];
-    strategyExternalLinks: { url: string; title: string }[];
+    strategyInternalLinks: ContentItem[];
+    strategyExternalLinks: ContentItem[];
     strategyMinWords: string;
     strategyMaxWords: string;
     strategyLongTail: string[];
@@ -79,12 +92,13 @@ interface WriterState {
     isStrictMode: boolean;
     strictFrequency: number;
     metadata: any;
+    activeUsers: Record<string, { name: string; photo: string; color: string }>;
+    isRemoteUpdate: boolean;
 
     // ── Humanizer ─────────────────────────────────────────
     humanizerConfig: {
         niche: string;
         audience: string;
-        intensity: number;
         sentiment: string;
         notes?: string;
     };
@@ -117,10 +131,15 @@ interface WriterState {
     setHumanizing: (v: boolean) => void;
     setExporting: (v: boolean) => void;
     setRefining: (v: boolean) => void;
+    setHasGenerated: (v: boolean) => void;
+    setHasHumanized: (v: boolean) => void;
+    setModel: (model: string) => void;
     setStatus: (msg: string) => void;
     setDownloadProgress: (progress: number | null) => void;
 
-    setModel: (model: string) => void;
+    // ── Research Actions ──────────────────────────────────
+    setResearching: (isResearching: boolean, topic?: string) => void;
+    updateResearchProgress: (progress: number, phaseId: string) => void;
 
     setCsvData: (data: ContentItem[], fileName?: string) => void;
     setProjectName: (name: string) => void;
@@ -134,6 +153,7 @@ interface WriterState {
     setStrategyH1: (v: string) => void;
     setStrategySlug: (v: string) => void;
     setStrategyDesc: (v: string) => void;
+    setStrategyExcerpt: (v: string) => void;
     setStrategyWordCount: (v: string) => void;
     setStrategyTone: (v: string) => void;
     setStrategyOutline: (outline: StrategyOutlineItem[]) => void;
@@ -144,20 +164,29 @@ interface WriterState {
     setStrategyVolume: (v: string) => void;
     setStrategyDifficulty: (v: string) => void;
     setCompetitorDetails: (v: any[]) => void;
+    setGeoCompetitorDetails: (v: any[]) => void;
     setStrategyLSI: (lsi: { keyword: string; count: string }[]) => void;
     setStrategyKeywords: (k: { keyword: string; volume: string }[]) => void;
-    setStrategyInternalLinks: (links: { url: string; title: string }[]) => void;
-    setStrategyExternalLinks: (links: { url: string; title: string }[]) => void;
+    setStrategyInternalLinks: (links: ContentItem[]) => void;
+    setStrategyExternalLinks: (links: ContentItem[]) => void;
+    updateSectionProgress: (sectionIndex: number, count: number) => void;
+    strategyDensity: number;
+    setStrategyDensity: (v: number) => void;
     setStrategyMinWords: (v: string) => void;
     setStrategyMaxWords: (v: string) => void;
     setStrategyLongTail: (lt: string[]) => void;
     setStrategyQuestions: (q: string[]) => void;
+    removeStrategyLSI: (index: number) => void;
+    removeStrategyQuestion: (index: number) => void;
     setDetectedNiche: (niche: string) => void;
     setCreativityLevel: (level: 'low' | 'medium' | 'high') => void;
+    setActiveUsers: (users: Record<string, { name: string; photo: string; color: string }>) => void;
     setContextInstructions: (v: string) => void;
     setIsStrictMode: (v: boolean) => void;
     setStrictFrequency: (v: number) => void;
     setMetadata: (meta: any) => void;
+    setIsRemoteUpdate: (v: boolean) => void;
+    setResearchMode: (mode: 'rapid' | 'quality') => void;
 
     updateHumanizerConfig: (config: Partial<WriterState['humanizerConfig']>) => void;
     setHumanizerStatus: (msg: string) => void;
@@ -165,17 +194,29 @@ interface WriterState {
 
     updateStrategyFromSeo: (seoData: SEOAnalysisResult) => void;
     loadProjectInventory: (projectId: string) => Promise<void>;
+    syncProjectInventory: (projectId: string, siteUrl: string) => Promise<void>;
     saveResearchData: (contentId: string, keyword: string, serp: any, competitors: any) => Promise<void>;
     loadResearchData: (contentId: string) => Promise<void>;
 
     toggleSidebar: () => void;
     setSidebarTab: (tab: SidebarTab) => void;
+    editorTab: 'visual' | 'code';
+    setEditorTab: (tab: 'visual' | 'code') => void;
 
     initializeFromTask: (task: Task, project: Project | null) => void;
     resetStrategy: () => void;
     reset: () => void;
     loadContentById: (contentId: string) => Promise<void>;
     deleteContent: (contentId: string) => Promise<boolean>;
+    editor: any;
+    setEditor: (editor: any) => void;
+    
+    // ── Debug / Console ───────────────────────────────────
+    isConsoleOpen: boolean;
+    setIsConsoleOpen: (isConsoleOpen: boolean) => void;
+    debugPrompts: { phase: string, prompt: string, response?: string, timestamp: string }[];
+    addDebugPrompt: (phase: string, prompt: string, response?: string) => void;
+    clearDebugPrompts: () => void;
 }
 
 const defaultState = {
@@ -185,6 +226,7 @@ const defaultState = {
     draftId: null,
     linkedTaskId: null,
     linkedTaskTitle: null,
+    projectId: null,
     viewMode: 'dashboard' as WriterViewMode,
     projectContents: [],
 
@@ -196,9 +238,18 @@ const defaultState = {
     isHumanizing: false,
     isExporting: false,
     isRefining: false,
+    hasGenerated: false,
+    hasHumanized: false,
     lastSaved: null,
     statusMessage: '',
     downloadProgress: null,
+    isRemoteUpdate: false,
+    
+    isResearching: false,
+    researchProgress: 0,
+    researchPhaseId: '',
+    researchTopic: '',
+    researchMode: 'rapid' as const,
 
     model: 'gemini-2.5-flash',
 
@@ -215,6 +266,7 @@ const defaultState = {
     strategyH1: '',
     strategySlug: '',
     strategyDesc: '',
+    strategyExcerpt: '',
     strategyWordCount: '1500',
     strategyTone: 'Profesional y cercano',
     strategyOutline: [],
@@ -225,6 +277,7 @@ const defaultState = {
     strategyVolume: '0',
     strategyDifficulty: '0',
     competitorDetails: [],
+    geoCompetitorDetails: [],
     strategyLSI: [],
     strategyKeywords: [],
     strategyInternalLinks: [],
@@ -239,25 +292,28 @@ const defaultState = {
     isStrictMode: false,
     strictFrequency: 30,
     metadata: null,
+    activeUsers: {},
 
     humanizerConfig: {
         niche: 'General',
         audience: 'General',
-        intensity: 50,
         sentiment: 'Neutral',
         notes: '',
     },
     humanizerStatus: '',
     refinementInstructions: '',
-
+    debugPrompts: [],
+    isConsoleOpen: false,
     isSidebarOpen: true,
     activeSidebarTab: 'generate' as SidebarTab,
+    editorTab: 'visual' as const,
+    strategyDensity: 1.0,
 };
 
 export const useWriterStore = create<WriterState>((set) => ({
     ...defaultState,
 
-    setContent: (content) => set({ content, isSaving: true, isCheckSaving: true }),
+    setContent: (content) => set({ content }),
     setTitle: (title) => set({ title }),
     setKeyword: (keyword) => set({ keyword }),
     setDraftId: (draftId) => set({ draftId }),
@@ -271,8 +327,23 @@ export const useWriterStore = create<WriterState>((set) => ({
     setHumanizing: (isHumanizing) => set({ isHumanizing }),
     setExporting: (isExporting) => set({ isExporting }),
     setRefining: (v) => set({ isRefining: v }),
+    setHasGenerated: (v) => set({ hasGenerated: v }),
+    setHasHumanized: (v) => set({ hasHumanized: v }),
     setStatus: (statusMessage) => set({ statusMessage }),
     setDownloadProgress: (progress) => set({ downloadProgress: progress }),
+    setIsRemoteUpdate: (isRemoteUpdate) => set({ isRemoteUpdate }),
+
+    setResearching: (isResearching, topic) => set((state) => ({ 
+        isResearching, 
+        researchTopic: topic ?? state.researchTopic,
+        // Reset progress when starting new
+        researchProgress: isResearching ? 0 : state.researchProgress,
+        researchPhaseId: isResearching ? 'starting' : state.researchPhaseId
+    })),
+    updateResearchProgress: (researchProgress, researchPhaseId) => set({ 
+        researchProgress, 
+        researchPhaseId 
+    }),
 
     setModel: (model) => set({ model }),
 
@@ -288,30 +359,55 @@ export const useWriterStore = create<WriterState>((set) => ({
     setStrategyH1: (strategyH1) => set({ strategyH1, title: strategyH1 }),
     setStrategySlug: (strategySlug) => set({ strategySlug }),
     setStrategyDesc: (strategyDesc) => set({ strategyDesc }),
+    setStrategyExcerpt: (strategyExcerpt) => set({ strategyExcerpt }),
     setStrategyWordCount: (strategyWordCount) => set({ strategyWordCount }),
     setStrategyTone: (strategyTone) => set({ strategyTone }),
+    setResearchMode: (researchMode) => set({ researchMode }),
     setStrategyOutline: (strategyOutline) => set({ strategyOutline }),
     setStrategyCompetitors: (strategyCompetitors) => set({ strategyCompetitors }),
     setStrategyNotes: (strategyNotes) => set({ strategyNotes }),
-    setStrategyLinks: (strategyLinks) => set({ strategyLinks }),
     setStrategyCannibalization: (strategyCannibalization) => set({ strategyCannibalization }),
+    setStrategyLSI: (strategyLSI) => set({ strategyLSI }),
+    setStrategyQuestions: (strategyQuestions) => set({ strategyQuestions }),
+    setStrategyLinks: (strategyLinks) => set({ strategyLinks }),
+    setDetectedNiche: (detectedNiche) => set({ detectedNiche }),
+    setSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),
     setStrategyVolume: (strategyVolume) => set({ strategyVolume }),
     setStrategyDifficulty: (strategyDifficulty) => set({ strategyDifficulty }),
     setCompetitorDetails: (competitorDetails) => set({ competitorDetails }),
-    setStrategyLSI: (strategyLSI) => set({ strategyLSI }),
+    setGeoCompetitorDetails: (geoCompetitorDetails) => set({ geoCompetitorDetails }),
     setStrategyKeywords: (strategyKeywords) => set({ strategyKeywords }),
     setStrategyInternalLinks: (strategyInternalLinks) => set({ strategyInternalLinks }),
-    setStrategyExternalLinks: (strategyExternalLinks) => set({ strategyExternalLinks }),
+    setStrategyExternalLinks: (links) => set({ strategyExternalLinks: links }),
+    updateSectionProgress: (idx, count) => set((state) => ({
+        strategyOutline: state.strategyOutline.map((item, i) =>
+            i === idx ? { ...item, currentWordCount: count } : item
+        )
+    })),
+    setStrategyDensity: (strategyDensity) => set({ strategyDensity }),
     setStrategyMinWords: (strategyMinWords) => set({ strategyMinWords }),
     setStrategyMaxWords: (strategyMaxWords) => set({ strategyMaxWords }),
     setStrategyLongTail: (strategyLongTail) => set({ strategyLongTail }),
-    setStrategyQuestions: (strategyQuestions) => set({ strategyQuestions }),
-    setDetectedNiche: (detectedNiche) => set({ detectedNiche }),
     setCreativityLevel: (creativityLevel) => set({ creativityLevel }),
+    setActiveUsers: (activeUsers) => set({ activeUsers }),
     setContextInstructions: (contextInstructions) => set({ contextInstructions }),
     setIsStrictMode: (isStrictMode) => set({ isStrictMode }),
     setStrictFrequency: (strictFrequency) => set({ strictFrequency }),
     setMetadata: (metadata) => set({ metadata }),
+    setIsConsoleOpen: (isConsoleOpen) => set({ isConsoleOpen }),
+    clearDebugPrompts: () => set({ debugPrompts: [] }),
+    addDebugPrompt: (phase, prompt, response) => set((state: any) => ({
+        debugPrompts: [
+            { phase, prompt, response, timestamp: new Date().toLocaleTimeString() },
+            ...(state.debugPrompts || [])
+        ].slice(0, 50)
+    })),
+    removeStrategyLSI: (index) => set((state) => ({
+        strategyLSI: state.strategyLSI.filter((_, i) => i !== index)
+    })),
+    removeStrategyQuestion: (index) => set((state) => ({
+        strategyQuestions: state.strategyQuestions.filter((_, i) => i !== index)
+    })),
 
     updateHumanizerConfig: (config) => set((state) => ({
         humanizerConfig: { ...state.humanizerConfig, ...config }
@@ -333,7 +429,8 @@ export const useWriterStore = create<WriterState>((set) => ({
             strategyCannibalization: seoData.cannibalizationUrls || [],
             strategyVolume: seoData.searchVolume || '0',
             strategyDifficulty: seoData.keywordDifficulty || '0',
-            competitorDetails: seoData.competitors || seoData.top10Urls || [],
+            competitorDetails: seoData.competitors || (seoData as any).top10Urls || [],
+            geoCompetitorDetails: (seoData as any).geoCompetitors || (seoData as any).geoUrls || [],
             strategyLinks: seoData.suggestedInternalLinks || [],
         });
     },
@@ -390,37 +487,72 @@ export const useWriterStore = create<WriterState>((set) => ({
             .eq('content_id', contentId)
             .maybeSingle();
         if (!error && data) {
-            set({
-                rawSeoData: data.serp_data,
-                competitorDetails: data.competitors_data || [],
-                strategyLinks: data.serp_data?.suggestedInternalLinks || []
+            set((state) => {
+                const serp = data.serp_data || {};
+                const sLinks = serp.suggestedInternalLinks || serp.suggested_links || serp.suggestedLinks || [];
+                
+                return {
+                    rawSeoData: serp || state.rawSeoData,
+                    competitorDetails: data.competitors_data || state.competitorDetails,
+                    strategyLinks: (sLinks && sLinks.length > 0) ? sLinks : state.strategyLinks
+                };
             });
         }
     },
 
     toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-    setSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),
+    editorTab: 'visual' as const,
+    setEditorTab: (editorTab) => set({ editorTab }),
 
-    initializeFromTask: (task, project) => set((state) => ({
-        title: task.title,
-        keyword: task.target_keyword || '',
-        strategyH1: task.title || '',
-        activeSidebarTab: 'generate',
-        researchDossier: (task as any).research_dossier,
-        outlineStructure: (task as any).outline_structure,
-        humanizerConfig: {
-            ...state.humanizerConfig,
-            niche: project?.settings?.niche || project?.description || 'General',
-            audience: project?.settings?.audience || 'General',
-        },
-        strategyLinks: (task as any).suggested_links || [],
-        viewMode: 'workspace'
-    })),
+    initializeFromTask: (task, project) => set((state) => {
+        const dossier = (task as any).research_dossier || (task as any).seo_data || null;
+        
+        // Extract common fields for easier access and consistency
+        const seoTitle = task.seo_title || dossier?.seo_title || dossier?.strategyTitle || task.title || '';
+        const h1 = task.h1 || dossier?.h1 || dossier?.title || task.title || '';
+        const slug = task.target_url_slug || dossier?.slug || dossier?.target_url_slug || '';
+        const desc = task.meta_description || dossier?.meta_description || '';
+        const excerpt = (task as any).excerpt || dossier?.excerpt || '';
+        const lsi = dossier?.lsiKeywords || state.strategyLSI;
+        const competitors = dossier?.competitors || dossier?.top10Urls || state.competitorDetails;
+        const geoCompetitors = dossier?.geoCompetitors || dossier?.geoUrls || state.geoCompetitorDetails;
+
+        return {
+            title: task.title,
+            keyword: task.target_keyword || dossier?.target_keyword || '',
+            strategyH1: h1,
+            strategyTitle: seoTitle,
+            strategySlug: slug,
+            strategyDesc: desc,
+            strategyExcerpt: excerpt,
+            activeSidebarTab: 'generate',
+            researchDossier: dossier,
+            rawSeoData: dossier,
+            seoResults: dossier,
+            strategyWordCount: dossier?.recommendedWordCount || dossier?.word_count?.toString() || task.target_word_count?.toString() || state.strategyWordCount,
+            strategyLSI: lsi,
+            strategyQuestions: dossier?.frequentQuestions || state.strategyQuestions,
+            competitorDetails: competitors,
+            geoCompetitorDetails: geoCompetitors,
+            strategyVolume: dossier?.searchVolume || dossier?.volume?.toString() || state.strategyVolume,
+            strategyDifficulty: dossier?.keywordDifficulty || state.strategyDifficulty,
+            strategyOutline: (task as any).outline_structure?.headers || (task as any).outline_structure || [],
+            outlineStructure: (task as any).outline_structure,
+            humanizerConfig: {
+                ...state.humanizerConfig,
+                niche: project?.settings?.niche || project?.description || 'General',
+                audience: project?.settings?.audience || 'General',
+            },
+            strategyLinks: dossier?.suggestedInternalLinks || dossier?.suggested_links || dossier?.suggestedLinks || (task as any).suggested_links || [],
+            projectId: project?.id || task.project_id || null,
+            viewMode: 'workspace'
+        };
+    }),
 
     setProjectContents: (projectContents) => set({ projectContents }),
     loadProjectContents: async (projectId) => {
         const { supabase } = require('@/lib/supabase');
-        let query = supabase.from('contents').select('*');
+        let query = supabase.from('tasks').select('*'); // Unified table
 
         if (Array.isArray(projectId)) {
             query = query.in('project_id', projectId);
@@ -435,20 +567,44 @@ export const useWriterStore = create<WriterState>((set) => ({
     loadContentById: async (contentId) => {
         const { supabase } = require('@/lib/supabase');
         const { data, error } = await supabase
-            .from('contents')
+            .from('tasks') // Unified table
             .select('*')
             .eq('id', contentId)
             .maybeSingle();
 
         if (!error && data) {
+            const dossier = (data as any).research_dossier || (data as any).seo_data || null;
+
             set((state) => ({
                 draftId: data.id,
                 title: data.title,
                 content: data.content_body || '',
                 statusMessage: `Cargado: ${data.title}`,
                 viewMode: 'workspace',
-                keyword: data.target_keyword || state.keyword
+                keyword: data.target_keyword || dossier?.target_keyword || state.keyword,
+                rawSeoData: dossier || {},
+                seoResults: dossier || {},
+                researchDossier: dossier || {},
+                
+                // Populate strategy fields from dossier or top-level task
+                strategyH1: data.h1 || dossier?.h1 || dossier?.title || data.title || '',
+                strategyTitle: data.seo_title || dossier?.seo_title || dossier?.strategyTitle || data.title || '',
+                strategySlug: data.target_url_slug || dossier?.slug || dossier?.target_url_slug || '',
+                strategyDesc: data.meta_description || dossier?.meta_description || '',
+                strategyExcerpt: (data as any).excerpt || dossier?.excerpt || '',
+                strategyWordCount: dossier?.recommendedWordCount || dossier?.word_count?.toString() || data.target_word_count?.toString() || state.strategyWordCount,
+                strategyLSI: dossier?.lsiKeywords || state.strategyLSI,
+                strategyQuestions: dossier?.frequentQuestions || state.strategyQuestions,
+                competitorDetails: dossier?.competitors || dossier?.top10Urls || state.competitorDetails,
+                geoCompetitorDetails: dossier?.geoCompetitors || dossier?.geoUrls || state.geoCompetitorDetails,
+                strategyVolume: dossier?.searchVolume || dossier?.volume?.toString() || state.strategyVolume,
+                strategyDifficulty: dossier?.keywordDifficulty || state.strategyDifficulty,
+                strategyOutline: (data as any).outline_structure?.headers || (data as any).outline_structure || state.strategyOutline,
+                outlineStructure: (data as any).outline_structure,
+                strategyLinks: dossier?.suggestedInternalLinks || dossier?.suggested_links || dossier?.suggestedLinks || (data as any).suggested_links || state.strategyLinks,
+                projectId: data.project_id || null,
             }));
+
             const { loadResearchData, loadProjectInventory } = useWriterStore.getState();
             await loadResearchData(contentId);
             if (data.project_id) {
@@ -460,7 +616,7 @@ export const useWriterStore = create<WriterState>((set) => ({
     deleteContent: async (contentId) => {
         const { supabase } = require('@/lib/supabase');
         const { error } = await supabase
-            .from('contents')
+            .from('tasks') // Unified table
             .delete()
             .eq('id', contentId);
         
@@ -477,12 +633,16 @@ export const useWriterStore = create<WriterState>((set) => ({
         return true;
     },
 
+    editor: null,
+    setEditor: (editor) => set({ editor }),
+
     resetStrategy: () => set({
         keyword: '',
         strategyTitle: '',
         strategyH1: '',
         strategySlug: '',
         strategyDesc: '',
+        strategyExcerpt: '',
         strategyOutline: [],
         strategyLinks: [],
         strategyCompetitors: '',
@@ -497,6 +657,6 @@ export const useWriterStore = create<WriterState>((set) => ({
         statusMessage: '',
         viewMode: 'setup',
     }),
-
+    
     reset: () => set({ ...defaultState }),
 }));

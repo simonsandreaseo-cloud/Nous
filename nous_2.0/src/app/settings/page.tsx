@@ -13,14 +13,21 @@ import {
     Trash2,
     Loader2,
     BarChart3,
-    RefreshCw
+    RefreshCw,
+    Search,
+    Zap,
+    Code,
+    ListFilter,
+    Terminal,
+    Database
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
 import { TeamSettings } from "./TeamSettings";
 import { NOUS_PALETTE } from "@/constants/colors";
-import { getProjectNameFromDomain, getFaviconUrl } from "@/utils/domain";
+import { getProjectNameFromDomain, getFaviconUrl, sanitizeUrl } from "@/utils/domain";
+import { analyzeManualUrlsAction } from "@/app/node-tasks/report-actions";
 
 export default function SettingsPage() {
     const { 
@@ -58,11 +65,146 @@ export default function SettingsPage() {
     const [lastCreatedProjectId, setLastCreatedProjectId] = useState("");
     const [newTeamId, setNewTeamId] = useState("");
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    
+    // Architecture & Internal Linking State
+    const [editArchitectureRules, setEditArchitectureRules] = useState<{ name: string; regex: string }[]>([]);
+    const [editArchitectureInstructions, setEditArchitectureInstructions] = useState("");
+    const [newRuleName, setNewRuleName] = useState("");
+    const [newRuleRegex, setNewRuleRegex] = useState("");
 
     const [gscSites, setGscSites] = useState<{ url: string; permission: string; accountEmail?: string }[]>([]);
     const [ga4Properties, setGa4Properties] = useState<{ id: string; name: string; accountEmail?: string }[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [isSyncingGsc, setIsSyncingGsc] = useState(false);
+
+    // NEW: Smart Architecture Sampling Info
+    const [samplingStats, setSamplingStats] = useState<{
+        totalUrls: number;
+        totalSample: number;
+        categoriesCount: number;
+        urlsPerCategory: Record<string, number>;
+        timestamp: string;
+    } | null>(null);
+
+    const handleRegenerateRegex = async () => {
+        if (!activeProject) return;
+        setIsSaving(true);
+        try {
+            // 1. Get real total count (exact head-only)
+            const { count: realCount, error: countError } = await supabase
+                .from('project_urls')
+                .select('*', { count: 'exact', head: true })
+                .eq('project_id', activeProject.id);
+
+            if (countError) throw countError;
+
+            // 2. Get distinct categories and filter NULLs early
+            const { data: catData, error: catError } = await supabase
+                .from('project_urls')
+                .select('category')
+                .eq('project_id', activeProject.id)
+                .not('category', 'is', null)
+                .limit(5000); // 5k fetch is fast and likely covers all categories
+            
+            if (catError) throw catError;
+            let categories = Array.from(new Set(catData.map(r => r.category).filter(Boolean))) as string[];
+
+            let dbUrls: { url: string, category: string }[] = [];
+
+            if (categories.length > 0) {
+                // 3. Fetch representative URLs from EACH category (handling large DBs)
+                const fetchBatches = categories.map(cat => 
+                    supabase
+                        .from('project_urls')
+                        .select('url, category')
+                        .eq('project_id', activeProject.id)
+                        .eq('category', cat)
+                        .limit(200) 
+                );
+
+                const results = await Promise.all(fetchBatches);
+                results.forEach(res => {
+                    if (res.data) dbUrls = [...dbUrls, ...res.data];
+                });
+            } else {
+                // Fallback: If no categories detected after 5k fetch, pull first 1k URLs for raw sampling
+                const { data: fallbackUrls } = await supabase
+                    .from('project_urls')
+                    .select('url, category')
+                    .eq('project_id', activeProject.id)
+                    .limit(1000);
+                
+                if (fallbackUrls && fallbackUrls.length > 0) {
+                    dbUrls = fallbackUrls.map(r => ({ 
+                        url: r.url, 
+                        category: r.category || "Uncategorized" 
+                    }));
+                    categories = Array.from(new Set(dbUrls.map(r => r.category)));
+                }
+            }
+
+            if (dbUrls.length === 0) {
+                alert("No hay URLs en el inventario para analizar. Sube un CSV primero.");
+                return;
+            }
+
+            // --- REPLICATE DIVERSITY SAMPLER ---
+            let sampleEntries: { url: string, category: string }[] = [];
+            let urlsPerCategoryStats: Record<string, number> = {};
+            
+            categories.forEach(cat => {
+                const catRows = dbUrls.filter(r => r.category === cat);
+                urlsPerCategoryStats[cat] = 0;
+                const groups = new Map<string, typeof catRows>();
+                
+                catRows.forEach(row => {
+                    try {
+                        const parsed = new URL(row.url);
+                        const segments = parsed.pathname.split('/').filter(Boolean);
+                        const hasDigits = /\d/.test(parsed.pathname) ? 'num' : 'alpha';
+                        const dashCount = (parsed.pathname.match(/-/g) || []).length;
+                        const dashBucket = Math.min(Math.floor(dashCount / 2), 3);
+                        const totalCharCount = segments.join('').length;
+                        const lengthBucket = Math.floor(totalCharCount / 10);
+                        const fingerprint = `${segments.length}:${segments.slice(0, 1).join('/')}:${hasDigits}:${dashBucket}:${lengthBucket}`;
+                        if (!groups.has(fingerprint)) groups.set(fingerprint, []);
+                        groups.get(fingerprint)!.push(row);
+                    } catch (e) {
+                        if (!groups.has('root')) groups.set('root', []);
+                        groups.get('root')!.push(row);
+                    }
+                });
+
+                groups.forEach(groupRows => {
+                    const picked = groupRows.slice(0, 5).map(r => ({ url: r.url, category: cat }));
+                    sampleEntries = [...sampleEntries, ...picked];
+                    urlsPerCategoryStats[cat] += picked.length;
+                });
+            });
+
+            sampleEntries = sampleEntries.slice(0, 1000);
+
+            const result = await analyzeManualUrlsAction(sampleEntries);
+            if (result.success && result.proposedRules) {
+                setEditArchitectureRules(result.proposedRules);
+                await updateProject(activeProject.id, { architecture_rules: result.proposedRules });
+                
+                setSamplingStats({
+                    totalUrls: realCount || dbUrls.length,
+                    totalSample: sampleEntries.length,
+                    categoriesCount: categories.length,
+                    urlsPerCategory: urlsPerCategoryStats,
+                    timestamp: new Date().toLocaleTimeString()
+                });
+            } else {
+                throw new Error(result.error || "Error en el análisis de IA");
+            }
+        } catch (err: any) {
+            alert("Error al regenerar: " + err.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
     const [syncProgress, setSyncProgress] = useState("");
     const [isLoadingSites, setIsLoadingSites] = useState(false);
     const [isLoadingGa4, setIsLoadingGa4] = useState(false);
@@ -121,7 +263,6 @@ export default function SettingsPage() {
         checkUserGsc();
     }, [activeProject?.id]);
 
-    // Sync edit fields with active project
     useEffect(() => {
         if (activeProject) {
             setEditName(activeProject.name);
@@ -132,6 +273,27 @@ export default function SettingsPage() {
             setEditTargetCountry(activeProject.target_country || "ES");
             setEditLogoUrl(activeProject.logo_url || "");
             setEditColor(activeProject.color || "#06b6d4");
+            setEditArchitectureRules(activeProject.architecture_rules || []);
+            setEditArchitectureInstructions(activeProject.architecture_instructions || "");
+
+            // Initial Inventory Count for Console
+            const fetchInventoryCount = async () => {
+                const { count, error } = await supabase
+                    .from('project_urls')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('project_id', activeProject.id);
+
+                if (!error && count !== null) {
+                    setSamplingStats(prev => ({
+                        totalUrls: count,
+                        totalSample: prev?.totalSample || 0,
+                        categoriesCount: prev?.categoriesCount || 0,
+                        urlsPerCategory: prev?.urlsPerCategory || {},
+                        timestamp: prev?.timestamp || new Date().toLocaleTimeString()
+                    }));
+                }
+            };
+            fetchInventoryCount();
         }
     }, [activeProject?.id]);
 
@@ -161,7 +323,9 @@ export default function SettingsPage() {
                 target_country: editTargetCountry,
                 logo_url: editLogoUrl,
                 color: editColor,
-                team_id: newTeamId || activeProject.team_id
+                team_id: newTeamId || activeProject.team_id,
+                architecture_rules: editArchitectureRules,
+                architecture_instructions: editArchitectureInstructions
             });
             alert("Cambios guardados correctamente.");
         } catch (e: any) {
@@ -333,6 +497,178 @@ export default function SettingsPage() {
             alert("Error al subir el logo: " + error.message);
         } finally {
             setIsUploadingLogo(false);
+        }
+    };
+
+    const handleCsvInventoryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !activeProject) return;
+
+        setIsSaving(true);
+        try {
+            const text = await file.text();
+            
+            // Basic CSV parsing with header support
+            const lines = text.split(/\r\n|\n/).filter(l => l.trim());
+            if (lines.length < 2) throw new Error("El archivo CSV debe tener al menos una cabecera y una fila de datos.");
+
+            const headers = lines[0].split(/[;,]/).map(h => h.trim().toLowerCase());
+            const urlIdx = headers.indexOf('url');
+            const catIdx = headers.indexOf('categoria') !== -1 ? headers.indexOf('categoria') : headers.indexOf('category');
+
+            let rows: any[] = [];
+
+            if (urlIdx !== -1) {
+                // Format A: Standard Columnar (url, category)
+                rows = lines.slice(1).map(line => {
+                    const parts = line.split(/[;,]/);
+                    const rawUrl = parts[urlIdx]?.trim();
+                    if (!rawUrl) return null;
+                    
+                    let url = rawUrl;
+                    if (!url.startsWith('http') && !url.startsWith('/')) url = 'https://' + url;
+                    url = sanitizeUrl(url);
+
+                    const category = catIdx !== -1 ? parts[catIdx]?.trim() : null;
+                    
+                    return {
+                        project_id: activeProject.id,
+                        url,
+                        category,
+                        status: 'indexed',
+                        updated_at: new Date().toISOString()
+                    };
+                }).filter(Boolean);
+            } else {
+                // Format B: Matrix (Headers = Categories, Cells = URLs)
+                // Use Regex to find URLs in cells as per user's request
+                const urlRegex = /(https?:\/\/[^\s,;"]+)/g;
+                const matrixHeaders = lines[0].split(/[;,]/).map(h => h.trim());
+                
+                lines.slice(1).forEach(line => {
+                    const parts = line.split(/[;,]/);
+                    parts.forEach((cell, idx) => {
+                        const matches = cell.match(urlRegex);
+                        if (matches) {
+                            matches.forEach(urlStr => {
+                                rows.push({
+                                    project_id: activeProject.id,
+                                    url: sanitizeUrl(urlStr),
+                                    category: matrixHeaders[idx] || "Otras",
+                                    status: 'indexed',
+                                    updated_at: new Date().toISOString()
+                                });
+                            });
+                        }
+                    });
+                });
+            }
+
+            if (rows.length === 0) throw new Error("No se encontraron URLs válidas en el archivo.");
+
+            // Deduplicate by URL to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time" error
+            const uniqueRowsMap = new Map();
+            rows.forEach(row => {
+                uniqueRowsMap.set(row.url, row);
+            });
+            const uniqueRows = Array.from(uniqueRowsMap.values());
+
+            // Chunking for performance (Supabase limit safety)
+            const chunkSize = 1000;
+            let totalProcessed = 0;
+            for (let i = 0; i < uniqueRows.length; i += chunkSize) {
+                const chunk = uniqueRows.slice(i, i + chunkSize);
+                const { error, count } = await supabase
+                    .from('project_urls')
+                    .upsert(chunk, { onConflict: 'project_id,url' });
+                if (error) throw error;
+                totalProcessed += (count || chunk.length);
+            }
+
+            // AUTO-DETECT ARCHITECTURE RULES WITH IA (DIVERSITY-AWARE)
+            const categories = Array.from(new Set(uniqueRows.map(r => r.category).filter(Boolean)));
+            let sampleEntries: { url: string, category: string }[] = [];
+            
+            categories.forEach(cat => {
+                const catRows = uniqueRows.filter(r => r.category === cat);
+                // Group by structural "fingerprint" (depth and first segments) to ensure diversity
+                const groups = new Map<string, typeof catRows>();
+                
+                catRows.forEach(row => {
+                    try {
+                        const parsed = new URL(row.url);
+                        const segments = parsed.pathname.split('/').filter(Boolean);
+                        // Fingerprint includes depth, first segments, presence of numbers, dash count, and rough length
+                        const hasDigits = /\d/.test(parsed.pathname) ? 'num' : 'alpha';
+                        const dashCount = (parsed.pathname.match(/-/g) || []).length;
+                        const dashBucket = Math.min(Math.floor(dashCount / 2), 3); // Bucket by pairs, max 3
+                        const totalCharCount = segments.join('').length;
+                        const lengthBucket = Math.floor(totalCharCount / 10); // Bucket by 10 chars
+                        
+                        const fingerprint = `${segments.length}:${segments.slice(0, 1).join('/')}:${hasDigits}:${dashBucket}:${lengthBucket}`;
+                        
+                        if (!groups.has(fingerprint)) groups.set(fingerprint, []);
+                        // @ts-ignore
+                        groups.get(fingerprint).push(row);
+                    } catch (e) {
+                        if (!groups.has('root')) groups.set('root', []);
+                        // @ts-ignore
+                        groups.get('root').push(row);
+                    }
+                });
+
+                // Pick samples from each structural group
+                groups.forEach(groupRows => {
+                    // Take 5 from each group for higher sample density
+                    sampleEntries = [...sampleEntries, ...groupRows.slice(0, 5).map(r => ({ url: r.url, category: cat }))];
+                });
+            });
+
+            // Limit total sample to ensure AI performance
+            sampleEntries = sampleEntries.slice(0, 1000);
+
+            if (sampleEntries.length > 0) {
+                // Show a non-blocking toast or just let the user know we're analyzing
+                const result = await analyzeManualUrlsAction(sampleEntries);
+                if (result.success && result.proposedRules) {
+                    const currentRules = [...(activeProject.architecture_rules || [])];
+                    const existingNames = new Set(currentRules.map(r => r.name.toLowerCase()));
+                    
+                    let addedAny = false;
+                    result.proposedRules.forEach((suggested: any) => {
+                        if (!existingNames.has(suggested.name.toLowerCase())) {
+                            currentRules.push(suggested);
+                            addedAny = true;
+                        }
+                    });
+
+                    if (addedAny) {
+                        setEditArchitectureRules(currentRules);
+                        await updateProject(activeProject.id, { architecture_rules: currentRules });
+                    }
+
+                    // Update Stats for Console
+                    let urlsPerCategoryStats: Record<string, number> = {};
+                    categories.forEach(cat => {
+                        urlsPerCategoryStats[cat] = sampleEntries.filter(e => e.category === cat).length;
+                    });
+
+                    setSamplingStats({
+                        totalUrls: uniqueRows.length,
+                        totalSample: sampleEntries.length,
+                        categoriesCount: categories.length,
+                        urlsPerCategory: urlsPerCategoryStats,
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                }
+            }
+
+            alert(`Se han cargado/actualizado ${uniqueRows.length} URLs únicas en el inventario.`);
+        } catch (error: any) {
+            alert("Error al procesar el CSV: " + error.message);
+        } finally {
+            setIsSaving(false);
+            if (e.target) e.target.value = "";
         }
     };
 
@@ -869,6 +1205,178 @@ export default function SettingsPage() {
                                             <p className="text-[9px] text-slate-400 bg-white/50 p-3 rounded-xl border border-dashed border-slate-200">
                                                 Tip: Instala el plugin <strong>Nous Bridge</strong> en tu WordPress y copia el token configurado allí para permitir la publicación automática.
                                             </p>
+                                        </div>
+
+                                        {/* Smart Architecture & Internal Linking Section */}
+                                        <div className="p-8 rounded-[40px] border border-slate-100 bg-white shadow-sm space-y-8">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-2xl bg-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                                                        <Search size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Smart Architecture & Internal Linking</h3>
+                                                        <p className="text-[10px] text-slate-500 font-medium tracking-tight">Define la estructura estratégica de tu sitio para el enlazado automático.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-6">
+                                                <div className="space-y-4">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instrucciones de Enlazado (IA)</label>
+                                                    <textarea
+                                                        placeholder="Ej: Prioriza siempre productos de temporada sobre el blog. No enlaces a páginas de agradecimiento..."
+                                                        className="w-full p-4 rounded-2xl border border-slate-100 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:bg-white focus:ring-4 ring-cyan-500/10 transition-all min-h-[100px]"
+                                                        value={editArchitectureInstructions}
+                                                        onChange={(e) => setEditArchitectureInstructions(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Reglas de Arquitectura (Regex)</label>
+                                                        <button 
+                                                            onClick={handleRegenerateRegex}
+                                                            disabled={isSaving}
+                                                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50"
+                                                        >
+                                                            {isSaving ? <Loader2 className="animate-spin" size={10} /> : <RefreshCw size={10} />}
+                                                            Detectar con IA
+                                                        </button>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        <table className="w-full text-left text-xs">
+                                                            <thead className="bg-slate-50 text-slate-400 font-black uppercase tracking-tighter">
+                                                                <tr>
+                                                                    <th className="px-4 py-3 rounded-l-xl">Categoría / Silo</th>
+                                                                    <th className="px-4 py-3">Regex Match</th>
+                                                                    <th className="px-4 py-3 rounded-r-xl"></th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-slate-50">
+                                                                {editArchitectureRules.map((rule, idx) => (
+                                                                    <tr key={idx} className="group">
+                                                                        <td className="px-4 py-3 font-bold text-slate-700">{rule.name}</td>
+                                                                        <td className="px-4 py-3 font-mono text-slate-400">{rule.regex}</td>
+                                                                        <td className="px-4 py-3 text-right">
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    const newRules = [...editArchitectureRules];
+                                                                                    newRules.splice(idx, 1);
+                                                                                    setEditArchitectureRules(newRules);
+                                                                                }}
+                                                                                className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                                                            >
+                                                                                <Trash2 size={14} />
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                                <tr className="bg-cyan-50/30">
+                                                                    <td className="px-2 py-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="Ej: Productos Lujo"
+                                                                            className="w-full p-2 bg-white border border-slate-100 rounded-lg text-[10px] font-bold outline-none"
+                                                                            value={newRuleName}
+                                                                            onChange={(e) => setNewRuleName(e.target.value)}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="Ej: /productos/marcas/.*"
+                                                                            className="w-full p-2 bg-white border border-slate-100 rounded-lg text-[10px] font-mono outline-none"
+                                                                            value={newRuleRegex}
+                                                                            onChange={(e) => setNewRuleRegex(e.target.value)}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right">
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                if (!newRuleName || !newRuleRegex) return;
+                                                                                setEditArchitectureRules([...editArchitectureRules, { name: newRuleName, regex: newRuleRegex }]);
+                                                                                setNewRuleName("");
+                                                                                setNewRuleRegex("");
+                                                                            }}
+                                                                            className="p-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-all"
+                                                                        >
+                                                                            <Plus size={14} />
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+
+                                                        {/* Mini Consola de Estado */}
+                                                        {samplingStats && (
+                                                            <div className="mt-4 p-4 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden animate-in zoom-in duration-300">
+                                                                <div className="flex items-center gap-2 mb-3 border-b border-slate-800 pb-2">
+                                                                    <Terminal size={14} className="text-emerald-400" />
+                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Análisis de Estructura (Nodos IA)</span>
+                                                                    <div className="ml-auto text-[8px] font-mono text-emerald-500/50">Last Update: {samplingStats.timestamp}</div>
+                                                                </div>
+                                                                <div className="grid grid-cols-3 gap-4 mb-4">
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-[8px] text-slate-500 uppercase font-bold">Inventario</div>
+                                                                        <div className="text-xs font-mono text-white flex items-center gap-2">
+                                                                            <Database size={10} className="text-cyan-400" /> {samplingStats.totalUrls.toLocaleString()} <span className="text-[9px] text-slate-500">URLs</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-[8px] text-slate-500 uppercase font-bold">Muestra IA</div>
+                                                                        <div className="text-xs font-mono text-white flex items-center gap-2">
+                                                                            <Zap size={10} className="text-amber-400" /> {samplingStats.totalSample} <span className="text-[9px] text-slate-500">Nodos</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-[8px] text-slate-500 uppercase font-bold">Arquitectura</div>
+                                                                        <div className="text-xs font-mono text-white flex items-center gap-2">
+                                                                            <ListFilter size={10} className="text-indigo-400" /> {samplingStats.categoriesCount} <span className="text-[9px] text-slate-500">Silos</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="space-y-2 max-h-[100px] overflow-y-auto pr-2 custom-scrollbar">
+                                                                    {Object.entries(samplingStats.urlsPerCategory).map(([cat, count]) => (
+                                                                        <div key={cat} className="flex items-center justify-between text-[9px] font-mono group">
+                                                                            <span className="text-slate-400 group-hover:text-cyan-300 transition-colors">[{cat}] tokens_analyzed...</span>
+                                                                            <span className="text-emerald-400">{count} urls</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-6 border-t border-slate-50">
+                                                <div className="flex items-center justify-between bg-slate-50 p-6 rounded-[32px] border border-dashed border-slate-200">
+                                                    <div>
+                                                        <h4 className="text-xs font-black text-slate-900 uppercase italic tracking-tight mb-1">Carga de Inventario (CSV)</h4>
+                                                        <p className="text-[9px] text-slate-500 font-medium">Sube un CSV con columnas 'url' y 'categoria' para poblar el mapa de enlazado.</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="file"
+                                                            id="csv-inventory-upload"
+                                                            className="hidden"
+                                                            accept=".csv"
+                                                            onChange={handleCsvInventoryUpload}
+                                                        />
+                                                        <label
+                                                            htmlFor="csv-inventory-upload"
+                                                            className={cn(
+                                                                "px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-cyan-500 hover:text-white transition-all shadow-sm",
+                                                                isSaving && "opacity-50 pointer-events-none"
+                                                            )}
+                                                        >
+                                                            {isSaving ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} className="inline mr-2" />}
+                                                            Subir CSV Inventario
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="flex items-center justify-between border-t border-slate-50 pt-8">

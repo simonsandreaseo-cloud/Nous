@@ -82,7 +82,7 @@ export default function ProjectUrlManager() {
                 title: `Optimizar: ${url.top_query || url.url}`,
                 brief: `Optimización basada en GSC. URL actual: ${url.url}.\nKeyword principal: ${url.top_query}.\nMétricas: ${url.clicks_30d} clics, ${url.position_30d.toFixed(1)} pos media.`,
                 scheduled_date: new Date().toISOString(),
-                status: 'todo',
+                status: 'idea',
                 priority: url.strategic_score >= 80 ? 'high' : 'medium',
                 target_keyword: url.top_query,
                 url: url.url,

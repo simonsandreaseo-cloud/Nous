@@ -45,7 +45,7 @@ export class IntelligenceService {
 
         try {
             const response = await aiRouter.generate({
-                model: 'gemini-1.5-flash',
+                model: 'gemini-2.5-flash',
                 prompt,
                 systemPrompt: "Eres un experto en SEO Estratégico y Arquitectura de Información.",
                 jsonMode: true
@@ -89,7 +89,7 @@ export class IntelligenceService {
 
         try {
             const response = await aiRouter.generate({
-                model: 'gemini-1.5-flash',
+                model: 'gemini-2.5-flash',
                 prompt,
                 systemPrompt: "Eres un estratega de contenidos senior.",
                 jsonMode: true
@@ -169,7 +169,7 @@ export class IntelligenceService {
 
         try {
             const response = await aiRouter.generate({
-                model: 'gemini-1.5-flash',
+                model: 'gemini-2.5-flash',
                 prompt,
                 systemPrompt: "Eres un estratega de contenido especializado en Search Engine Relevance.",
                 jsonMode: true

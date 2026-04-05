@@ -1,14 +1,10 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { ContentsLayout } from "@/components/contents/ContentsLayout";
 import { Suspense } from "react";
 
 function ContentPageContent() {
-    const searchParams = useSearchParams();
-    const tool = searchParams?.get("tool") || "dashboard";
-
-    return <ContentsLayout initialTool={tool} />;
+    return <ContentsLayout initialTool="dashboard" />;
 }
 
 export default function ContentDashboard() {

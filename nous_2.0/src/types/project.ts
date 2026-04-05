@@ -27,6 +27,8 @@ export interface Project {
     target_country?: string; // ISO 3166-1 alpha-2 or similar
     logo_url?: string;
     color?: string; // Hex color for the project badge
+    architecture_rules?: { name: string; regex: string }[];
+    architecture_instructions?: string;
     created_at?: string;
     team_id?: string; // NEW: Project belongs to a team
 }
@@ -50,7 +52,23 @@ export interface TeamMember {
     last_seen_at?: string;
     current_task_id?: string;
     created_at: string;
+    profile?: {
+        id: string;
+        full_name: string;
+        avatar_url: string;
+    };
 }
+
+export type TaskStatus = 
+    | 'idea' 
+    | 'en_investigacion' 
+    | 'por_redactar' 
+    | 'en_redaccion' 
+    | 'por_corregir' 
+    | 'por_maquetar' 
+    | 'publicado'
+    | 'investigacion_proceso' // Legacy
+    | 'done';                // Legacy
 
 
 export interface Task {
@@ -59,7 +77,7 @@ export interface Task {
     title: string;
     brief?: string;
     scheduled_date: string;
-    status: 'todo' | 'in_progress' | 'review' | 'done';
+    status: TaskStatus;
     content_type?: string;
     priority?: 'low' | 'medium' | 'high' | 'critical';
     target_keyword?: string;
@@ -79,12 +97,25 @@ export interface Task {
     url?: string;
     associated_url?: string; // Interlinking target URL
     secondary_url?: string;  // Additional interlinking URL
-    locked_by?: string;      // User ID who locked the task
-    locked_until?: string;   // Timestamp until lock holds
-    assigned_to?: string;    // NEW: User ID assigned to this task
-    assigned_at?: string;    // NEW: Timestamp when task was assigned
-    completed_at?: string;   // NEW: Timestamp when task was completed
+    creator_id?: string;     // NEW: User ID who created the task
+    researcher_id?: string;  // NEW: User ID who performed SEO research
+    writer_id?: string;      // NEW: User ID who wrote the content
+    corrector_id?: string;   // NEW: User ID who corrected/approved
+    assigned_to?: string;    // User ID assigned to this task
+    assigned_at?: string;    // Timestamp when task was assigned
+    completed_at?: string;   // Timestamp when task was completed
     created_at?: string;
+    content_body?: string;   // FOR CONSOLIDATION
+    metrics?: any;           // FOR CONSOLIDATION
+    seo_data?: any;          // FOR CONSOLIDATION
+    target_word_count?: number; // Target word count for the piece
+    lsi_keywords?: string[];   // List of LSI keywords to track
+    attachments?: any[];       // Attached images/files
+    seo_title?: string;        // Optimized for SERP
+    meta_description?: string; // Optimized for SERP
+    h1?: string;               // Article Main Heading
+    excerpt?: string;          // Short summary/intro for the article
+    schemas?: any;             // JSON-LD or AI suggested schemas
 }
 
 

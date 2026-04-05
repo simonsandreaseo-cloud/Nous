@@ -60,7 +60,7 @@ export function NousText3D() {
                         transparent
                         opacity={0.4}
                     >
-                        Tu ecosistema SEO inteligente
+                        Tu mente en la estrategia. Nous hace lo demás.
                     </AnimatedText>
                 </animated.group>
             </Center>

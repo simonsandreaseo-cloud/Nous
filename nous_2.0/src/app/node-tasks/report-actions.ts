@@ -633,3 +633,25 @@ export async function fetchGscSitesAction(userId: string) {
         return { success: false, error: e.message, sites: [] };
     }
 }
+
+export async function analyzeManualUrlsAction(entries: { url: string, category?: string }[]) {
+    try {
+        const { getGeminiKey } = await import('@/lib/ai/config');
+        const { SegmentationService } = await import('@/lib/services/report/segmentationService');
+        
+        const apiKey = getGeminiKey();
+        if (!apiKey) throw new Error("API Key de IA no configurada");
+
+        if (!entries || entries.length === 0) return { success: true, proposedRules: [] };
+
+        // We use a subset if there are too many (e.g. 1000 max for structure analysis)
+        const sampleEntries = entries.slice(0, 1000);
+        
+        const proposedRules = await SegmentationService.generateSegmentRules(sampleEntries, apiKey);
+        
+        return { success: true, proposedRules };
+    } catch (e: any) {
+        console.error("Manual URL Analysis Error:", e);
+        return { success: false, error: e.message };
+    }
+}

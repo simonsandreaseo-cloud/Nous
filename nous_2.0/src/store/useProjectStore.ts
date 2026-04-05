@@ -2,14 +2,32 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { getRandomNousColor } from '@/constants/colors';
 import { GscService } from '@/lib/services/gsc';
+import { NotificationService } from '@/lib/services/notifications';
 export type { Project, Task, Team, TeamMember } from '@/types/project';
-import { Project, Task, Team, TeamMember } from '@/types/project';
+import type { Project, Task, Team, TeamMember } from '@/types/project';
+
+export const STATUS_LABELS: Record<string, string> = {
+    'idea': 'Idea',
+    'en_investigacion': 'En Investigación',
+    'investigacion_proceso': 'En Investigación',
+    'in_progress': 'En Investigación',
+    'por_redactar': 'Por Redactar',
+    'en_redaccion': 'Por Redactar',
+    'doing': 'Por Redactar',
+    'por_corregir': 'Por Corregir',
+    'por_maquetar': 'Por Maquetar',
+    'publicado': 'Publicado',
+    'done': 'Publicado'
+};
+
+export type TaskStatus = keyof typeof STATUS_LABELS;
 
 interface ProjectState {
     projects: Project[];
     activeProjectIds: string[]; // Array of active project IDs
     activeProject: Project | null; // Primary project for creations
     teams: Team[];
+    teamMembers: TeamMember[]; // NEW: Members of the active team
     activeTeam: Team | null;
     tasks: Task[];
     isLoading: boolean;
@@ -30,9 +48,11 @@ interface ProjectState {
     deleteTask: (taskId: string) => Promise<void>;
     fetchPersonalTasks: () => Promise<void>;
     assignTask: (taskId: string, userId: string | null) => Promise<void>;
+    claimTask: (taskId: string) => Promise<void>;
+    validateStatusTransition: (task: Task, nextStatus: string) => { valid: boolean; error?: string };
     syncGscData: (siteUrl: string, startDate: string, endDate: string) => Promise<void>;
     syncProjectInventory: (projectId: string, siteUrl: string) => Promise<void>;
-    fetchProjectInventory: (projectId: string) => Promise<{url: string, title?: string, type?: string}[]>;
+    fetchProjectInventory: (projectId: string) => Promise<{url: string, title?: string, type?: string, category?: string}[]>;
 }
 
 
@@ -41,6 +61,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     activeProjectIds: [],
     activeProject: null,
     teams: [],
+    teamMembers: [],
     activeTeam: null,
     tasks: [],
     isLoading: false,
@@ -114,6 +135,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         
         if (team) {
             get().fetchProjects(teamId);
+            get().fetchTeamMembers(teamId);
             
             // Persist preference in Profile
             const { data: { session } } = await supabase.auth.getSession();
@@ -124,6 +146,23 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
                     .eq('id', session.user.id);
             }
         }
+    },
+
+    fetchTeamMembers: async (teamId) => {
+        const targetId = teamId || get().activeTeam?.id;
+        if (!targetId) return;
+
+        const { data, error } = await supabase
+            .from('team_members')
+            .select('*, profile:profiles(id, full_name, avatar_url)')
+            .eq('team_id', targetId);
+
+        if (error) {
+            console.error('[fetchTeamMembers] Error:', error);
+            return;
+        }
+
+        set({ teamMembers: data as any[] });
     },
 
     fetchTeams: async () => {
@@ -271,8 +310,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             return;
         }
 
-        // If a specific projectId is requested we can still filter, but usually we want all active
-        // Let's modify the query to use `.in` if we want to fetch all active projects' tasks
         const { data, error } = await supabase
             .from('tasks')
             .select('*')
@@ -287,16 +324,60 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         set({ tasks: data as Task[] });
     },
 
+    /**
+     * Valida si una tarea puede pasar de su estado actual al siguiente.
+     * Implementa las reglas del Ciclo de Vida de Nous:
+     * Idea -> En Investigación -> Por Redactar -> Por Corregir -> Por Maquetar
+     */
+    validateStatusTransition: (task: Task, nextStatus: string): { valid: boolean; error?: string } => {
+        const statusOrder = ['idea', 'en_investigacion', 'por_redactar', 'por_corregir', 'por_maquetar', 'publicado'];
+        const currentIndex = statusOrder.indexOf(task.status as any);
+        const nextIndex = statusOrder.indexOf(nextStatus as any);
+
+        // Allow backward moves without restriction (UI will handle warning)
+        if (nextIndex <= currentIndex) return { valid: true };
+
+        // Logic for Forward Moves
+        if (nextStatus === 'en_investigacion') {
+            if (!task.title && !task.target_keyword) return { valid: false, error: "Debes tener al menos una idea o keyword para iniciar la investigación." };
+        }
+        
+        if (nextStatus === 'por_redactar') {
+            const hasResearch = task.research_dossier && Object.keys(task.research_dossier).length > 0;
+            if (!hasResearch) return { valid: false, error: "La investigación SEO debe estar completa para pasar a 'Por Redactar'." };
+        }
+
+        // Special Bypass: Por Redactar -> Por Corregir (Manual approval)
+        if (task.status === 'por_redactar' && nextStatus === 'por_corregir') {
+            return { valid: true }; // Permitted bypass
+        }
+
+        // General rule: Cannot skip steps unless explicitly allowed
+        if (nextIndex > currentIndex + 1 && !(task.status === 'por_redactar' && nextStatus === 'por_corregir')) {
+            return { valid: false, error: `No puedes saltar a '${nextStatus}' desde '${task.status}'. Sigue el flujo editorial.` };
+        }
+
+        return { valid: true };
+    },
+
     addTask: async (newTask) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
+
         const { data, error } = await supabase
             .from('tasks')
-            .insert([newTask])
+            .insert([{
+                ...newTask,
+                creator_id: user?.id,
+                assigned_to: newTask.assigned_to || user?.id, // Auto-assign to creator if free
+                assigned_at: (newTask.assigned_to || user?.id) ? new Date().toISOString() : null
+            }])
             .select()
             .single();
 
         if (error) {
             console.error('Error adding task:', error);
-            alert(`Error al crear tarea: ${error.message}`);
+            alert(`Error al crear contenido: ${error.message}`);
             return;
         }
 
@@ -304,9 +385,58 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     updateTask: async (taskId, updates) => {
+        const currentTask = get().tasks.find(t => t.id === taskId);
+        
+        if (currentTask && updates.status && updates.status !== currentTask.status) {
+            const validation = get().validateStatusTransition(currentTask, updates.status);
+            if (!validation.valid) {
+                alert(validation.error);
+                return;
+            }
+
+            // Optional: Log backward moves
+            const statusOrder = ['idea', 'en_investigacion', 'por_redactar', 'por_corregir', 'por_maquetar', 'publicado'];
+            const currentIndex = statusOrder.indexOf(currentTask.status as any);
+            const nextIndex = statusOrder.indexOf(updates.status as any);
+            if (nextIndex < currentIndex) {
+                console.log(`[Store] Backward move detected: ${currentTask.status} -> ${updates.status}`);
+            }
+        }
+
+        // --- AUTOMATIC TRACKING LOGIC ---
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        const finalUpdates: any = { ...updates };
+
+        if (userId) {
+            // 1. Researcher Tracking
+            if (updates.research_dossier && !currentTask?.researcher_id) {
+                finalUpdates.researcher_id = userId;
+                if (!currentTask?.assigned_to) {
+                    finalUpdates.assigned_to = userId;
+                    finalUpdates.assigned_at = new Date().toISOString();
+                }
+            }
+
+            // 2. Writer Tracking
+            if (updates.content_body && !currentTask?.writer_id) {
+                finalUpdates.writer_id = userId;
+                if (!currentTask?.assigned_to) {
+                    finalUpdates.assigned_to = userId;
+                    finalUpdates.assigned_at = new Date().toISOString();
+                }
+            }
+
+            // 3. Corrector Tracking
+            const approvalStatuses = ['por_maquetar', 'publicado'];
+            if (updates.status && approvalStatuses.includes(updates.status) && !currentTask?.corrector_id) {
+                finalUpdates.corrector_id = userId;
+            }
+        }
+
         const { data, error } = await supabase
             .from('tasks')
-            .update(updates)
+            .update(finalUpdates)
             .eq('id', taskId)
             .select()
             .single();
@@ -322,20 +452,40 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     deleteTask: async (taskId) => {
-        const { error } = await supabase
-            .from('tasks')
-            .delete()
-            .eq('id', taskId);
-
-        if (error) {
-            console.error('Error deleting task:', error);
-            alert(`Error al eliminar tarea: ${error.message}`);
+        if (!taskId) {
+            console.error("[DEBUG] deleteTask called without taskId");
             return;
         }
+        console.log("[DEBUG] Starting deleteTask for:", taskId);
+        
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .delete()
+                .eq('id', taskId);
 
-        set(state => ({
-            tasks: state.tasks.filter(t => t.id !== taskId)
-        }));
+            if (error) {
+                console.error('[DEBUG] Supabase Delete Error:', error);
+                
+                // Construct a helpful message for the "rare and deep error"
+                const technicalDetail = error.details || error.hint || 'Sin detalles técnicos adicionales.';
+                alert(`Error al eliminar contenido:\n\n${error.message}\n\nDetalles: ${technicalDetail}\n\nEsto suele suceder si el contenido tiene imágenes o datos vinculados en otras tablas.`);
+                return;
+            }
+
+            console.log("[DEBUG] Task deleted from Supabase, updating local state...");
+            
+            set(state => {
+                const filtered = state.tasks.filter(t => t.id !== taskId);
+                console.log(`[DEBUG] Task count before: ${state.tasks.length}, after: ${filtered.length}`);
+                return { tasks: filtered };
+            });
+            
+            NotificationService.notify('Contenido eliminado correctamente');
+        } catch (e: any) {
+            console.error('[DEBUG] Unexpected Error in deleteTask:', e);
+            alert(`Error inesperado al eliminar: ${e.message}`);
+        }
     },
 
     createProject: async (newProject) => {
@@ -497,12 +647,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
         if (error) {
             console.error('Error assigning task:', error);
-            alert(`Error al asignar tarea: ${error.message}`);
+            alert(`Error al asignar contenido: ${error.message}`);
             return;
         }
         set(state => ({
             tasks: state.tasks.map(t => t.id === taskId ? (data as Task) : t)
         }));
+    },
+
+    claimTask: async (taskId) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+        
+        await get().assignTask(taskId, session.user.id);
     },
 
     syncProjectInventory: async (projectId, siteUrl) => {
@@ -542,7 +699,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     fetchProjectInventory: async (projectId) => {
         const { data, error } = await supabase
             .from('project_urls')
-            .select('url, title')
+            .select('url, title, category')
             .eq('project_id', projectId);
 
         if (error) {

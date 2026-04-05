@@ -1,5 +1,6 @@
 import { ContentItem } from "./types";
 import mammoth from 'mammoth';
+import { sanitizeUrl } from "@/utils/domain";
 
 export const categorizeUrl = (url: string): string => {
     if (!url) return 'other';
@@ -85,6 +86,9 @@ export const parseCSV = (text: string) => {
                 if (!cleanUrl.startsWith('http') && !cleanUrl.startsWith('/')) {
                     cleanUrl = 'https://' + cleanUrl;
                 }
+                
+                // Final sanitize to fix duplicated domains
+                cleanUrl = sanitizeUrl(cleanUrl);
                 if (!seenUrls.has(cleanUrl)) {
                     seenUrls.add(cleanUrl);
                     const title = extractTitleFromUrl(cleanUrl);

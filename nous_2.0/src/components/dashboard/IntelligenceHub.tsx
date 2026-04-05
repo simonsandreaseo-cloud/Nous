@@ -38,16 +38,18 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
         try {
             let manualSerp: any = null;
 
-            // 1. If in Desktop app and no URL, scrape SERP locally to save money
+            // 1. Desktop optimization disabled to focus on web version
+            /*
             if (isTauri && !url && targetKeyword) {
                 console.log(`[IntelligenceHub] Desktop Mode: Scraping Google SERP for "${targetKeyword}"...`);
                 try {
                     manualSerp = await invoke('scrape_google_serp', { keyword: targetKeyword });
-                    console.log(`[IntelligenceHub] Desktop Scrape Success: Found ${manualSerp?.length} results.`);
                 } catch (err) {
                     console.error('[IntelligenceHub] Desktop Scrape Failed, falling back to API:', err);
                 }
             }
+            */
+
 
             // 2. Prepare API call
             const endpoint = url ? '/api/content/analyze-url' : '/api/content/analyze-keyword';
@@ -76,7 +78,7 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
                 .from('tasks')
                 .update({
                     research_dossier: normalizedData,
-                    status: 'todo' // Stay in todo but with data
+                    status: "por_redactar" // After deep research it's ready for writing
                 })
                 .eq('id', taskId);
 
@@ -98,7 +100,8 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
         try {
             const competitorStructures = [];
 
-            // 1. Scrape top competitors' structures (only in Desktop Mode)
+            // 1. Local scraping disabled for now
+            /*
             if (isTauri) {
                 console.log("[IntelligenceHub] Scraping competitor structures locally...");
                 for (const comp of results.competitors.slice(0, 3)) {
@@ -113,6 +116,8 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
                     }
                 }
             }
+            */
+
 
             // 2. Generate the Master Outline via AI
             const res = await fetch('/api/content/generate-outline', {

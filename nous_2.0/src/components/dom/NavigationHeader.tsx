@@ -3,6 +3,7 @@
 import { cn } from "@/utils/cn";
 import { useAuthStore } from "@/store/useAuthStore";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { User, LogOut, Wrench, ChevronDown, ChevronRight, FileText, Bot, LayoutTemplate, Calendar, Search, Activity, Building2, Settings, Wand2, Monitor, Cpu } from "lucide-react";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
 import { NeuralLinkStatus } from "@/components/dashboard/NeuralLinkStatus";
@@ -10,6 +11,15 @@ import { NousLogo } from "@/components/dom/NousLogo";
 
 export function NavigationHeader() {
     const { user, signOut } = useAuthStore();
+    const pathname = usePathname();
+
+    const getSectionLabel = () => {
+        if (pathname?.includes('/seo')) return "SEO On Page";
+        if (pathname?.includes('/monitor')) return "Monitor";
+        if (pathname?.includes('/estrategia')) return "Estrategia";
+        if (pathname?.includes('/office')) return "Oficina";
+        return "Contenidos";
+    };
 
     return (
         <div className="absolute top-0 left-0 w-full flex justify-between items-center px-8 md:px-12 py-6 pointer-events-none z-40 transition-all duration-300">
@@ -17,7 +27,7 @@ export function NavigationHeader() {
             <div className="pointer-events-auto flex items-center gap-6">
                 <Link href="/" className="cursor-pointer flex items-center gap-3">
                     <NousLogo />
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 mt-1">Contenidos</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 mt-1">{getSectionLabel()}</span>
                 </Link>
                 <div className="h-4 w-px bg-slate-200" />
                 {/* Project Selector embedded in header */}
@@ -52,14 +62,14 @@ export function NavigationHeader() {
                             {/* Second Level Menu */}
                             <div className="absolute left-full top-0 ml-3 w-60 glass-panel rounded-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
                                 <div className="space-y-1">
-                                    <Link href="/contents?tool=dashboard" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <FileText size={16} className="text-blue-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Dashboard</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Vista general</p>
                                     </Link>
-                                    <Link href="/contents?tool=writer" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents/writer" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Bot size={16} className="text-purple-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Redactor IA</span>
@@ -73,21 +83,14 @@ export function NavigationHeader() {
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Nous Bridge WP</p>
                                     </Link>
-                                    <Link href="/contents?tool=refinery" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents/refinery" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Wand2 size={16} className="text-pink-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Refinería</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Humanizador 0%</p>
                                     </Link>
-                                    <Link href="/contents?tool=strategy" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
-                                        <div className="flex items-center gap-3 mb-0.5">
-                                            <Calendar size={16} className="text-cyan-500" />
-                                            <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Estrategia</span>
-                                        </div>
-                                        <p className="text-[10px] text-slate-500 font-medium pl-7">Calendario y Planificación</p>
-                                    </Link>
-                                    <Link href="/contents?tool=images" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents/images" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Wand2 size={16} className="text-emerald-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Imagenes</span>
@@ -98,20 +101,22 @@ export function NavigationHeader() {
                             </div>
                         </div>
 
-                        <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                        <Link href="/estrategia" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
+                            <Calendar size={16} className="text-cyan-500" />
+                            <span>Estrategia</span>
+                        </Link>
 
-                        {/* Other Menu Items */}
-                        <Link href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
+                        <Link href="/seo" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
                             <Search size={16} className="text-green-500" />
                             <span>SEO On Page</span>
                         </Link>
 
-                        {/* Monitoreo - Nested Submenu Trigger */}
+                        {/* Monitor - Nested Submenu Trigger */}
                         <div className="relative group/nested">
                             <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
                                 <div className="flex items-center gap-3">
                                     <Activity size={16} className="text-orange-500" />
-                                    <span>Monitoreo</span>
+                                    <span>Monitor</span>
                                 </div>
                                 <ChevronRight size={14} className="text-slate-400 group-hover/nested:text-slate-600 group-hover/nested:translate-x-0.5 transition-all" />
                             </button>
@@ -119,7 +124,7 @@ export function NavigationHeader() {
                             {/* Second Level Menu */}
                             <div className="absolute left-full top-0 ml-3 w-60 glass-panel rounded-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
                                 <div className="space-y-1">
-                                    <Link href="/studio/monitor" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/monitor" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Cpu size={16} className="text-purple-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Helios IA</span>

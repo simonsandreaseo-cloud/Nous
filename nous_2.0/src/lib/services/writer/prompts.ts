@@ -5,21 +5,26 @@ export const buildPrompt = (config: ArticleConfig): string => {
         topic, metaTitle, keywords, tone, wordCount, refUrls, refContent, 
         csvData, outlineStructure, approvedLinks, projectName, niche, 
         questions, lsiKeywords, creativityLevel, contextInstructions, 
-        isStrictMode, strictFrequency 
+        isStrictMode, strictFrequency, architectureInstructions 
     } = config;
 
     let linkingInstructions = "";
     if (approvedLinks && approvedLinks.length > 0) {
+        const formatList = (items: ContentItem[]) => items.map(i => `- URL: ${i.url} | Anchor ideal: ${i.title}${i.category ? ` [Categoría: ${i.category}]` : ''}`).join('\n');
+        
         const products = approvedLinks.filter(l => l.type === 'product');
         const collections = approvedLinks.filter(l => l.type === 'collection');
-        const formatList = (items: ContentItem[]) => items.map(i => `- URL: ${i.url} | Anchor ideal: ${i.title}`).join('\n');
+        const others = approvedLinks.filter(l => l.type !== 'product' && l.type !== 'collection');
+        
         linkingInstructions = `
-### ESTRATEGIA DE ENLAZADO INTERNO (STRICT MODE)
-**PROHIBIDO INVENTAR URLs.** Solo usa estas URLs aprobadas.
-COLECCIONES:
-${formatList(collections)}
-PRODUCTOS:
-${formatList(products)}
+### ESTRATEGIA DE ENLAZADO INTERNO (OBLIGATORIO)
+**INSTRUCCIÓN CRÍTICA DE SEO:** Debes integrar tantos enlaces de esta lista como sea posible de forma NATURAL dentro del cuerpo del texto. 
+**PROHIBIDO INVENTAR URLs.** Solo usa estas URLs y sus respectivos Anchor Text. 
+**REGLA DE SEGURIDAD:** No uses enlaces que empiecen por "#". Si no encuentras un enlace en la lista, NO crees el enlace.
+
+${collections.length > 0 ? `COLECCIONES RELEVANTES (Prioridad Alta):\n${formatList(collections)}\n` : ''}
+${products.length > 0 ? `PRODUCTOS RELEVANTES:\n${formatList(products)}\n` : ''}
+${others.length > 0 ? `OTROS ENLACES DE CALIDAD (BLOG/ESTRATEGIA):\n${formatList(others)}\n` : ''}
 `;
     }
 
@@ -47,7 +52,6 @@ ${outlineStructure.map(h => `${h.type}: ${h.text} (Objetivo: ${h.wordCount}) [In
         NIVEL DE CREATIVIDAD: MEDIO (Equilibrado).
         - Incluye al menos 1 Tabla Comparativa útil.
         - Usa Bullet Points para listar características.
-        - Incluye 1 Cita (<blockquote>) de un experto o de la marca.
         `;
     } else if (creativityLevel === 'high') {
         formatRules = `
@@ -55,7 +59,6 @@ ${outlineStructure.map(h => `${h.type}: ${h.text} (Objetivo: ${h.wordCount}) [In
         - Sorprende visualmente con HTML semántico.
         - Usa Tablas de Pros/Contras.
         - Cajas de resumen (párrafos destacados).
-        - Múltiples Citas (<blockquote>).
         - Listas numéricas y desordenadas frecuentes.
         `;
     }
@@ -103,6 +106,8 @@ DATOS TÉCNICOS:
 
 ${contextInstructions ? `### INSTRUCCIONES DE CONTEXTO GLOBAL (MUY IMPORTANTE):\n${contextInstructions}\n` : ''}
 
+${linkingInstructions}
+
 ${strictModeInstruction}
 
 ### REQUISITOS DE CONTENIDO ESTRICTOS:
@@ -119,27 +124,33 @@ ${strictModeInstruction}
 
 ESTILO Y FORMATO HTML (CRÍTICO):
 1. **RETORNA SOLO EL CONTENIDO DENTRO DEL BODY.** No incluyas <head>, <html>, ni markdown (\`\`\`).
-2. **NEGRILLAS:** NO PONGAS NEGRILLAS (<strong>). El sistema las pondrá automáticamente después.
+2. **NEGRILLAS:** Usa negrillas de forma natural para resaltar términos clave. (Serán optimizadas después).
 3. **LISTAS/TABLAS:** Usa etiquetas HTML estándar.
-4. **ENLACES:** <a href="..." target="_blank">Anchor</a>.
-    - **REGLA CRÍTICA DE ENLAZADO:** Si cualquier término de la lista de "ESTRATEGIA DE ENLAZADO INTERNO" aparece en tu texto, DEBES convertirlo en un enlace HTML usando exactamente la URL y el Anchor proporcionado. No inventes otros.
-    - Si no puedes encajar un enlace de forma natural, intenta añadir una frase al final de la sección que lo incluya (ej: "Para más información, consulta nuestra sección de [Título del Enlace](URL)").
+4. **ENLACES HTML:** Usa <a href="..." target="_blank">Anchor</a>.
+    - **REGLA DE VIDA O MUERTE:** La lista de "ESTRATEGIA DE ENLAZADO INTERNO" contiene los enlaces que DEBEN aparecer en el artículo. 
+    - Siempre que el "Anchor ideal" o un concepto muy similar aparezca en el texto, conviértelo en el enlace correspondiente.
+    - Si un enlace es muy importante pero no encaja, fuerza una mención natural al final de un párrafo (ej: "Puedes ver más en nuestra colección de [Título](URL)").
+    - NO uses Markdown para enlaces, usa solo HTML.
 
 ${refUrls ? `### COMPETENCIA DIRECTA (REFERENCIAS RAÍZ):\n${refUrls}` : ''}
 ${refContent ? `### INTELIGENCIA COMPETITIVA (SNIPPETS DE CONTENIDO):\n${refContent}` : ''}
 
-${outlineInstruction}
+    ${outlineInstruction}
+    
+    ${architectureInstructions ? `### REGLAS DE ARQUITECTURA Y ESTILO DEL PROYECTO:\n${architectureInstructions}\n` : ''}
 
-${linkingInstructions}
+    RECUERDA: Inserta los enlaces internos de la estrategia de forma prioritaria.
+    
+    COMIENZA LA REDACCIÓN AHORA:
 
-METADATOS JSON (FINAL):
-Al terminar el artículo, añade EXACTAMENTE esta cadena separatoria: "<!-- METADATA_START -->"
-Seguido inmediatamente de un objeto JSON válido con este formato:
-{
-  "title": "${metaTitle || topic}",
-  "description": "Meta Description Generada",
-  "slug": "slug-generado",
-  "excerpt": "Breve extracto del artículo para blog (2 frases)"
-}
-`;
+    METADATOS JSON (FINAL):
+    Al terminar el artículo, añade EXACTAMENTE esta cadena separatoria: "<!-- METADATA_START -->"
+    Seguido inmediatamente de un objeto JSON válido con este formato:
+    {
+      "title": "${metaTitle || topic}",
+      "description": "Meta Description Generada",
+      "slug": "slug-generado",
+      "excerpt": "Breve extracto del artículo para blog (2 frases)"
+    }
+    `;
 };

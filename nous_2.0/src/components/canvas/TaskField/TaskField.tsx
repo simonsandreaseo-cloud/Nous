@@ -11,32 +11,42 @@ export function TaskField() {
     const { tasks } = useProjectStore();
     const [hovered, setHover] = useState<number | null>(null);
 
-    // Status Colors
+    // Status Colors mapped to current Nous editorial pipeline
     const statusColors = useMemo(() => ({
-        todo: new THREE.Color('#06b6d4'), // Cyan
-        in_progress: new THREE.Color('#f59e0b'), // Amber
-        review: new THREE.Color('#8b5cf6'), // Violet
-        done: new THREE.Color('#10b981') // Emerald
+        idea: new THREE.Color('#06b6d4'),                 // Cyan
+        en_investigacion: new THREE.Color('#6366f1'),     // Indigo
+        investigacion_proceso: new THREE.Color('#6366f1'),// Indigo (legacy alias)
+        por_redactar: new THREE.Color('#f59e0b'),         // Amber
+        en_redaccion: new THREE.Color('#f59e0b'),         // Amber (legacy alias)
+        por_corregir: new THREE.Color('#8b5cf6'),         // Violet
+        por_maquetar: new THREE.Color('#14b8a6'),         // Teal
+        publicado: new THREE.Color('#10b981'),            // Emerald
+        done: new THREE.Color('#10b981'),                 // Emerald (legacy alias)
     }), []);
 
     // Update Mesh when tasks change
     useEffect(() => {
         if (!meshRef.current || tasks.length === 0) return;
 
-        const todoOffset = -8;
-        const progressOffset = -2;
-        const reviewOffset = 2;
+        const ideaOffset = -8;
+        const investigationOffset = -4;
+        const writingOffset = 0;
+        const correctionOffset = 4;
         const doneOffset = 8;
 
         tasks.forEach((task, i) => {
-            // Simple positioning logic
             let x = 0;
             switch (task.status) {
-                case 'todo': x = todoOffset + (Math.random() * 3 - 1.5); break;
-                case 'in_progress': x = progressOffset + (Math.random() * 3 - 1.5); break;
-                case 'review': x = reviewOffset + (Math.random() * 3 - 1.5); break;
+                case 'idea': x = ideaOffset + (Math.random() * 3 - 1.5); break;
+                case 'en_investigacion':
+                case 'investigacion_proceso': x = investigationOffset + (Math.random() * 3 - 1.5); break;
+                case 'por_redactar':
+                case 'en_redaccion': x = writingOffset + (Math.random() * 3 - 1.5); break;
+                case 'por_corregir': x = correctionOffset + (Math.random() * 3 - 1.5); break;
+                case 'por_maquetar':
+                case 'publicado':
                 case 'done': x = doneOffset + (Math.random() * 3 - 1.5); break;
-                default: x = todoOffset;
+                default: x = ideaOffset;
             }
 
             const z = (Math.random() * 10 - 5);
@@ -50,7 +60,7 @@ export function TaskField() {
             }
 
             // Initial Color
-            const baseColor = statusColors[task.status as keyof typeof statusColors] || statusColors.todo;
+            const baseColor = statusColors[task.status as keyof typeof statusColors] || statusColors.idea;
             if (meshRef.current) {
                 meshRef.current.setColorAt(i, baseColor);
             }

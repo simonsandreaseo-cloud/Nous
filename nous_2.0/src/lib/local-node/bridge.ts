@@ -298,13 +298,22 @@ class LocalBridge {
                 }
             });
 
-            // Timeout tras 5 minutos (la IA podría tardar)
-            setTimeout(() => {
+            // Timeout tras 10 minutos (la IA podría tardar en generar respuestas largas localmente)
+            const timeoutId = setTimeout(() => {
                 unsubscribeChunk();
                 unsubscribeComplete();
                 unsubscribeError();
-                reject(new Error('AI prompt timeout'));
-            }, 300000);
+                reject(new Error('AI prompt timeout: Local node did not respond within 10 minutes. Check if local AI service is running and model is loaded.'));
+            }, 600000);
+
+            if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                clearTimeout(timeoutId);
+                unsubscribeChunk();
+                unsubscribeComplete();
+                unsubscribeError();
+                reject(new Error('AI prompt failed: Local node is disconnected. Please start the local service.'));
+                return;
+            }
 
             this.send('AI_PROMPT', { id: promptId, text });
         });

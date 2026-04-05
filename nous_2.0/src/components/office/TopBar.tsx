@@ -107,7 +107,7 @@ export function TopBar() {
         const { data } = await supabase
             .from('tasks')
             .select('*')
-            .in('status', ['todo', 'in_progress']) // Only active tasks
+            .in('status', ['idea', 'en_investigacion', 'por_redactar']) // Only active tasks
             .order('created_at', { ascending: false })
             .limit(10);
 

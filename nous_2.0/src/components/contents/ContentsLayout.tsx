@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ContentsSidebar } from "./ContentsSidebar";
@@ -9,36 +9,45 @@ import { ArticleCardGrid } from "./ArticleCardGrid";
 import { ArticleKanbanBoard } from "./ArticleKanbanBoard";
 import { ArticleCalendar } from "./ArticleCalendar";
 import { ArticleTable } from "./ArticleTable";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/utils/cn";
-
 import dynamic from "next/dynamic";
 
 const WriterStudio = dynamic(
-    () => import("@/app/studio/writer/WriterStudio"),
-    { loading: () => <ToolPlaceholder name="Redactor" />, ssr: false }
-);
-const DataRefinery = dynamic(
-    () => import("@/components/dashboard/DataRefinery"),
-    { loading: () => <ToolPlaceholder name="Refinería" />, ssr: false }
+    () => import("@/components/contents/writer/WriterStudio"),
+    { loading: () => <ToolLoading name="Redactor" />, ssr: false }
 );
 const EditorialCalendar = dynamic(
     () => import("@/components/dashboard/EditorialCalendar").then(mod => mod.EditorialCalendar),
-    { loading: () => <ToolPlaceholder name="Planificador" />, ssr: false }
+    { loading: () => <ToolLoading name="Planificador" />, ssr: false }
 );
-const StrategyGrid = dynamic(
-    () => import("@/components/dashboard/StrategyGrid"),
-    { loading: () => <ToolPlaceholder name="Briefings" />, ssr: false }
+const MonitorView = dynamic(
+    () => import("@/components/contents/MonitorView"),
+    { loading: () => <ToolLoading name="Monitor" />, ssr: false }
+);
+const StrategyView = dynamic(
+    () => import("@/components/contents/StrategyView"),
+    { loading: () => <ToolLoading name="Estrategia" />, ssr: false }
+);
+const SEOView = dynamic(
+    () => import("@/components/contents/SEOView"),
+    { loading: () => <ToolLoading name="SEO On Page" />, ssr: false }
+);
+const TestsView = dynamic(
+    () => import("@/components/contents/TestsView"),
+    { loading: () => <ToolLoading name="Pruebas" />, ssr: false }
 );
 
-function ToolPlaceholder({ name }: { name: string }) {
+function ToolLoading({ name }: { name: string }) {
     return (
         <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-                <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl font-black text-slate-300">{name[0]}</span>
+                <div className="relative w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-[32px] bg-indigo-50 animate-pulse border border-indigo-100/50 shadow-inner"></div>
+                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin stroke-[2.5px] relative z-10" />
                 </div>
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{name}</p>
-                <p className="text-[10px] text-slate-300 mt-1">Próximamente disponible</p>
+                <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] mb-1">{name}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse opacity-60">Preparando Entorno...</p>
             </div>
         </div>
     );
@@ -49,10 +58,18 @@ type ViewMode = "cards" | "kanban" | "calendar" | "table";
 function ToolView({ toolId }: { toolId: string }) {
     switch (toolId) {
         case "writer": return <WriterStudio />;
-        case "refinery": return <DataRefinery />;
         case "planner": return <EditorialCalendar />;
-        case "briefings": return <StrategyGrid />;
-        default: return <ToolPlaceholder name={toolId} />;
+        case "monitor": return <MonitorView />;
+        case "strategy": return <StrategyView />;
+        case "seo": return <SEOView />;
+        case "publisher": return <div className="p-20 text-center font-black opacity-20 uppercase tracking-[0.3em]">Módulo de Distribución (En Construcción)</div>;
+        case "tests": return <TestsView />;
+        default: return (
+            <div className="flex flex-col items-center justify-center p-20 opacity-40">
+                <Loader2 size={32} className="animate-spin mb-4" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Cargando {toolId}...</p>
+            </div>
+        );
     }
 }
 
@@ -65,10 +82,17 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
     const [activeTool, setActiveTool] = useState(initialTool);
     const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
+    // Sync active tool with URL parameter changes
+    useEffect(() => {
+        if (initialTool) {
+            setActiveTool(initialTool);
+        }
+    }, [initialTool]);
+
     const handleToolSelect = useCallback((toolId: string) => {
         setActiveTool(toolId);
-        const params = toolId === "dashboard" ? "" : `?tool=${toolId}`;
-        router.push(`/contents${params}`, { scroll: false });
+        const path = toolId === "dashboard" ? "/contents" : `/contents/${toolId}`;
+        router.push(path, { scroll: false });
     }, [router]);
 
     return (
@@ -76,7 +100,7 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
             <ContentsSidebar activeTool={activeTool} onToolSelect={handleToolSelect} />
 
             <div className="flex-1 flex flex-col min-w-0 glass-panel border-hairline rounded-[28px] overflow-hidden shadow-sm">
-                {activeTool !== "writer" && (
+                {activeTool !== "writer" && activeTool !== "planner" && (
                     <ContentsHeader
                         activeTool={activeTool}
                         onToolSelect={handleToolSelect}
@@ -100,7 +124,7 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
                             ) : (
                                 <div className={cn(
                                     "flex-1 flex flex-col",
-                                    activeTool === "writer" ? "overflow-hidden" : "overflow-y-auto custom-scrollbar p-6"
+                                    activeTool === "writer" || activeTool === "planner" ? "overflow-hidden" : "overflow-y-auto custom-scrollbar p-6"
                                 )}>
                                     <ToolView toolId={activeTool} />
                                 </div>

@@ -1,28 +1,25 @@
-import { LocalNodeBridge } from "@/lib/local-node/bridge";
-import { ReportPayload } from "@/types/report";
+import { useWriterStore } from '@/store/useWriterStore';
 
-async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-1.5-flash', jsonResponse: boolean = false): Promise<string> {
-    let aiMode = 'cloud';
-    if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(^| )nous_ai_mode=([^;]+)/);
-        if (match && match[2]) aiMode = match[2];
-    }
+async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-2.5-flash', jsonResponse: boolean = false): Promise<string> {
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const ai = new GoogleGenerativeAI(apiKey);
+    const model = ai.getGenerativeModel({ model: modelId });
+    const config: any = {};
+    if (jsonResponse) config.responseMimeType = 'application/json';
 
-    if (aiMode === 'local') {
-        return (LocalNodeBridge as any).promptAI(prompt);
-    } else {
-        const { GoogleGenerativeAI } = await import("@google/generative-ai");
-        const ai = new GoogleGenerativeAI(apiKey);
-        const model = ai.getGenerativeModel({ model: modelId });
-        const config: any = {};
-        if (jsonResponse) config.responseMimeType = 'application/json';
-        const res = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: config
-        });
-        return res.response.text();
-    }
+    const res = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: config
+    });
+
+    const responseText = res.response.text();
+
+    // Log to the debug store: phase, prompt, response
+    useWriterStore.getState().addDebugPrompt(`AI Query: ${modelId}`, prompt, responseText);
+
+    return responseText;
 }
+
 
 // Helper to reduce payload size intelligently without breaking JSON structure
 function simplifyPayload(payload: ReportPayload): any {
@@ -138,9 +135,8 @@ async function generateSection(
     apiKey: string,
     modelId: string
 ): Promise<any[]> {
-    const bridge = LocalNodeBridge as any;
-
     const simplifiedPayload = simplifyPayload(payload);
+
     const safePayload = JSON.stringify(simplifiedPayload);
 
     const prompt = `[System]: ${SYSTEM_PROMPT_WRITER}
@@ -181,9 +177,7 @@ async function generateSection(
 
 export const generateJSONReportState = async (payload: ReportPayload, sections: string[], apiKey: string): Promise<any[]> => {
     const models = [
-        'gemini-3-flash-preview',
-        'gemini-2.5-flash',
-        'gemini-1.5-flash'
+        'gemini-2.5-flash'
     ];
 
     let allSlides: any[] = [];
@@ -253,7 +247,7 @@ Examples to ignore: "google", "bing", "facebook", "twitter", "direct", "(not set
 [Data]: ${JSON.stringify(sources)}`;
 
     try {
-        const text = await queryAI(promptText, apiKey, 'gemini-1.5-flash', true);
+        const text = await queryAI(promptText, apiKey, 'gemini-2.5-flash', true);
         if (!text) return candidates;
 
         const aiSources = JSON.parse(text);

@@ -4,172 +4,38 @@ import { createClient } from "@supabase/supabase-js";
 
 export { Type };
 
-// --- Types ---
-export interface ContentItem {
-    url: string;
-    title: string;
-    type: 'product' | 'collection' | 'blog' | 'static' | 'other';
-    search_index: string;
-    score?: number;
-}
+import { 
+    ArticleConfig, 
+    SEOAnalysisResult, 
+    DeepSEOAnalysisResult, 
+    CompetitorDetail, 
+    ContentItem,
+    HumanizerConfig,
+    VisualResource,
+    ImageGenConfig,
+    AIImageRequest
+} from "@/lib/services/writer/types";
 
-export interface ArticleConfig {
-    projectName: string;
-    niche: string;
-    topic: string; // This is the H1
-    metaTitle: string; // This is the SEO Title
-    keywords: string;
-    tone: string;
-    wordCount: string;
-    refUrls: string;
-    refContent: string;
-    csvData: any[]; // Full dataset
-    outlineStructure?: any[]; // Passed from Strategy phase
-    approvedLinks?: ContentItem[]; // New: List of approved links
-    questions?: string[]; // New: Value SERP FAQs
-    lsiKeywords?: string[]; // New: LSI and Autocomplete terms
-    creativityLevel?: 'low' | 'medium' | 'high'; // New: Creativity level
-    contextInstructions?: string; // New: Global Context Instructions
-    isStrictMode?: boolean;
-    strictFrequency?: number;
-}
+import { runDeepSEOAnalysis as libRunDeepSEOAnalysis } from "@/lib/services/writer/seo-analyzer";
+import { buildPrompt as libBuildPrompt } from "@/lib/services/writer/prompts";
 
-export interface VisualResource {
-    brand: string;
-    description: string;
-    url: string;
-    isImage: boolean;
-}
+export const runDeepSEOAnalysis = libRunDeepSEOAnalysis;
+export const buildPrompt = libBuildPrompt;
 
-export interface ImageGenConfig {
-    style: string;
-    colors: string[];
-    customDimensions: { w: string, h: string }; // For featured only
-    count: string; // 'auto' or '3', '5', etc.
-    userPrompt: string;
-}
+export { type ArticleConfig, type SEOAnalysisResult, type DeepSEOAnalysisResult, type CompetitorDetail, type ContentItem, type HumanizerConfig, type VisualResource, type ImageGenConfig, type AIImageRequest };
 
-export interface AIImageRequest {
-    id: string;
-    type: 'featured' | 'body';
-    context: string; // Why this image exists
-    prompt: string;
-    alt: string;
-    title: string;
-    filename: string;
-    placement: string; // e.g. "After H2 Intro"
-    status: 'pending' | 'generating' | 'done' | 'error';
-    imageUrl?: string;
-    url?: string; // Add this line
-    userNotes?: string;
-    aspectRatio?: string; // Only for featured
-}
-
-export interface SEOAnalysisResult {
-    nicheDetected: string;
-    keywordIdeas: {
-        shortTail: string[];
-        midTail: string[];
-    };
-    autocompleteLongTail: string[];
-    frequentQuestions: string[];
-    top10Urls: { title: string; url: string; }[];
-    lsiKeywords: { keyword: string; count: string; }[];
-    recommendedWords: string[];
-    recommendedWordCount: string;
-    recommendedSchemas: string[];
-    suggestedInternalLinks?: ContentItem[];
-    searchIntent?: string;
-    keywordDifficulty?: string;
-    searchVolume?: string;
-    cannibalizationUrls?: string[];
-    competitors?: CompetitorDetail[];
-}
-
-export interface CompetitorDetail {
-    url: string;
-    title: string;
-    content?: string;
-    extractedContent?: string;
-    rankingKeywords?: {
-        keyword: string;
-        pos: number;
-        vol: number;
-    }[];
-}
-
-export interface DeepSEOAnalysisResult extends SEOAnalysisResult {
-    competitors: CompetitorDetail[];
-    longTailKeywords?: string[];
-}
-
-export interface HumanizerConfig {
-    niche: string;
-    audience: string;
-    keywords: string;
-    notes?: string;
-    lsiKeywords?: string[];
-    links?: ContentItem[];
-    isStrictMode?: boolean;
-    strictFrequency?: number;
-    questions?: string[];
-}
 
 // --- CENTRALIZED API CLIENT & ROTATION LOGIC ---
+import { executeWithKeyRotation as libExecuteWithKeyRotation } from "@/lib/services/writer/ai-core";
 
-// Helper to check if a key is roughly valid
-const isValidKey = (k: string) => k && k.trim().length > 10;
-
-// Executor that handles rotation across multiple keys
 export const executeWithKeyRotation = async <T>(
-    operation: (client: GoogleGenAI) => Promise<T>,
+    operation: (client: GoogleGenAI, currentModel: string) => Promise<T>,
     modelName: string = 'gemini-2.5-flash',
     keys?: string[] | string
 ): Promise<T> => {
-    // 1. Cloud Execution (Rotating Keys)
-    let validKeys: string[] = [];
-    
-    if (keys) {
-        validKeys = (Array.isArray(keys) ? keys : [keys]).filter(isValidKey);
-    }
-
-    if (validKeys.length === 0) {
-        const envKeys = process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-        if (envKeys) {
-            validKeys = envKeys.split(',').map(k => k.trim()).filter(isValidKey);
-        }
-    }
-
-    if (validKeys.length === 0) {
-        throw new Error("API Keys faltantes o inválidas en el entorno.");
-    }
-
-    let lastError: any = null;
-
-    for (let i = 0; i < validKeys.length; i++) {
-        const currentKey = validKeys[i];
-        try {
-            const client = new GoogleGenAI(currentKey);
-            return await operation(client);
-        } catch (e: any) {
-            lastError = e;
-            const isQuotaError = e.status === 429 || e.code === 429 || (e.message && e.message.includes('quota'));
-            const isServerIssue = e.status === 503 || e.status === 500;
-
-            if (isQuotaError || isServerIssue) {
-                console.warn(`⚠️ Key failed. Rotating...`);
-                if (i === validKeys.length - 1) throw e;
-                continue;
-            }
-            if (e.status === 400 || e.status === 403) {
-                console.warn(`⚠️ Key invalid. Rotating...`);
-                if (i === validKeys.length - 1) throw e;
-                continue;
-            }
-            throw e;
-        }
-    }
-    throw lastError;
+    return libExecuteWithKeyRotation(async (client, m) => {
+        return operation(client, m);
+    }, modelName, keys);
 };
 
 // --- Data Parsing Helpers ---
@@ -355,9 +221,9 @@ const retrieveContext = (allData: ContentItem[], topic: string, keywords: string
 export const searchMoreLinks = async (keyword: string, csvData: ContentItem[]): Promise<ContentItem[]> => {
     const prompt = `Give me 5 search terms to find relevant products in a database for the topic "${keyword}". Return CSV.`;
 
-    return executeWithKeyRotation(async (ai) => {
+    return executeWithKeyRotation(async (ai, currentModel) => {
         try {
-            const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = ai.getGenerativeModel({ model: currentModel || 'gemini-2.5-flash' });
             const response = await model.generateContent(prompt);
             const terms = (response.response.text() || '').split(',').map(t => t.trim());
             const extraString = terms.join(' ');
@@ -385,7 +251,7 @@ export const searchMoreLinks = async (keyword: string, csvData: ContentItem[]): 
 // --- Post-Generation Auto Interlinking (Optimized - Async Chunking) ---
 
 export const autoInterlinkAsync = async (html: string, csvData: ContentItem[]): Promise<string> => {
-    const candidates = csvData.filter(i => i.type === 'product' || i.type === 'collection' || i.type === 'static' || i.type === 'blog');
+    const candidates = csvData.filter(i => i.title && i.url);
     candidates.sort((a, b) => b.title.length - a.title.length);
 
     let linkedHtml = html;
@@ -525,153 +391,15 @@ export const refineStyling = (html: string): string => {
 
 // --- Prompt Construction ---
 
-export const buildPrompt = (config: ArticleConfig): string => {
-    const { topic, metaTitle, keywords, tone, wordCount, refUrls, refContent, csvData, outlineStructure, approvedLinks, projectName, niche, questions, lsiKeywords, creativityLevel, contextInstructions, isStrictMode, strictFrequency } = config;
-
-    let linkingInstructions = "";
-    if (approvedLinks && approvedLinks.length > 0) {
-        const products = approvedLinks.filter(l => l.type === 'product');
-        const collections = approvedLinks.filter(l => l.type === 'collection');
-        const others = approvedLinks.filter(l => l.type !== 'product' && l.type !== 'collection');
-        const formatList = (items: ContentItem[]) => items.map(i => `- URL: ${i.url} | Anchor ideal: ${i.title}`).join('\n');
-        linkingInstructions = `
-### ESTRATEGIA DE ENLAZADO INTERNO (STRICT MODE)
-**PROHIBIDO INVENTAR URLs.** Solo usa estas URLs aprobadas.
-COLECCIONES:
-${formatList(collections)}
-PRODUCTOS:
-${formatList(products)}
-`;
-    }
-
-    let outlineInstruction = "";
-    if (outlineStructure && outlineStructure.length > 0) {
-        outlineInstruction = `
-### ESTRUCTURA OBLIGATORIA (Sigue este orden)
-El H1 del artículo es: "${topic}" (Debe ser el título visible).
-Luego sigue este esquema:
-${outlineStructure.map(h => `${h.type}: ${h.text} (Objetivo: ${h.wordCount}) [Instrucción: ${h.notes || 'Normal'}]`).join('\n')}
-`;
-    }
-
-    // Creativity Levels
-    let formatRules = "";
-    if (creativityLevel === 'low') {
-        formatRules = `
-        NIVEL DE CREATIVIDAD: BAJO (Conservador).
-        - Usa mayormente párrafos de texto plano.
-        - Usa Bullet Points solo si es imprescindible.
-        - NO uses tablas ni citas. Mantén el diseño limpio y simple.
-        `;
-    } else if (creativityLevel === 'medium') {
-        formatRules = `
-        NIVEL DE CREATIVIDAD: MEDIO (Equilibrado).
-        - Incluye al menos 1 Tabla Comparativa útil.
-        - Usa Bullet Points para listar características.
-        - Incluye 1 Cita (<blockquote>) de un experto o de la marca.
-        `;
-    } else {
-        formatRules = `
-        NIVEL DE CREATIVIDAD: ALTO (Rich Content).
-        - Sorprende visualmente con HTML semántico.
-        - Usa Tablas de Pros/Contras.
-        - Cajas de resumen (párrafos destacados).
-        - Múltiples Citas (<blockquote>).
-        - Listas numéricas y desordenadas frecuentes.
-        `;
-    }
-
-    // Strict Mode Instruction Block
-    let strictModeInstruction = "";
-    if (isStrictMode) {
-        const freq = strictFrequency || 30;
-        const faqInstruction = freq > 80 ? "YOU MUST ANSWER ALL FAQs provided." : freq < 30 ? "Answer FAQs only if very relevant." : "Answer most FAQs.";
-
-        let keywordInstruction = "";
-        if (freq <= 30) {
-            keywordInstruction = "Ensure keywords appear naturally (1-2% density). Do not force if it hurts readability.";
-        } else if (freq <= 60) {
-            keywordInstruction = "Increase keyword density (3-4%). Repeat keywords in headings and first paragraphs.";
-        } else {
-            keywordInstruction = "MAXIMUM DENSITY. Force keywords into the text repeatedly (Keyword Stuffing). Ignore flow if necessary.";
-        }
-
-        strictModeInstruction = `
-### MODO ESTRICTO DE REDACCIÓN (ACTIVADO)
-Frecuencia/Intensidad: ${freq}%
-
-REGLAS OBLIGATORIAS:
-1. **KEYWORDS:** Debes incluir OBLIGATORIAMENTE todas las siguientes LSI y Long Tail Keywords dentro del texto:
-   [${lsiKeywords?.join(', ') || 'N/A'}]
-   ${keywordInstruction}
-   
-2. **FAQs:** ${faqInstruction}
-   Lista de Preguntas: [${questions?.join(', ') || 'N/A'}]
-`;
-    }
-
-    return `
-Rol: Redactor SEO Senior para el proyecto "${projectName}" (Nicho: ${niche}).
-Objetivo: Crear un artículo que domine la SERP.
-
-DATOS TÉCNICOS:
-- Meta Title (HTML Head): ${metaTitle}
-- H1 (Header Principal): ${topic}
-- Keywords Short Tail: ${keywords}
-- Tono: ${tone}
-- Extensión Objetivo: ${wordCount}
-- Idioma: Español de España (Neutro, profesional).
-
-${contextInstructions ? `### INSTRUCCIONES DE CONTEXTO GLOBAL (MUY IMPORTANTE):\n${contextInstructions}\n` : ''}
-
-${strictModeInstruction}
-
-### REQUISITOS DE CONTENIDO ESTRICTOS:
-
-1. **RESPUESTA DIRECTA (ZERO CLICK):**
-   - Justo debajo del H1, escribe un párrafo de **MÁXIMO 50 PALABRAS** que responda la intención de búsqueda principal.
-   - NO escribas introducciones genéricas ("En este artículo...").
-
-2. **FORMATO Y ESTRUCTURA:**
-   ${formatRules}
-
-3. **INTEGRACIÓN DE PREGUNTAS (FAQs):**
-   - Responde: [${questions?.join(', ') || 'N/A'}]
-
-ESTILO Y FORMATO HTML (CRÍTICO):
-1. **RETORNA SOLO EL CONTENIDO DENTRO DEL BODY.** No incluyas <head>, <html>, ni markdown (\`\`\`).
-2. **NEGRILLAS:** NO PONGAS NEGRILLAS (<strong>). El sistema las pondrá automáticamente después.
-3. **LISTAS/TABLAS:** Usa etiquetas HTML estándar.
-4. **ENLACES:** <a href="..." target="_blank">Anchor</a>.
-   - **REGLA CRÍTICA DE ENLAZADO:** Si cualquier término de la lista de "ESTRATEGIA DE ENLAZADO INTERNO" aparece en tu texto, DEBES convertirlo en un enlace HTML usando exactamente la URL y el Anchor proporcionado. No inventes otros.
-   - Si no puedes encajar un enlace de forma natural, intenta añadir una frase al final de la sección que lo incluya (ej: "Para más información, consulta nuestra sección de [Título del Enlace](URL)").
-
-${refUrls ? `### COMPETENCIA DIRECTA (REFERENCIAS RAÍZ):\n${refUrls}` : ''}
-${refContent ? `### INTELIGENCIA COMPETITIVA (SNIPPETS DE CONTENIDO):\n${refContent}` : ''}
-
-${outlineInstruction}
-
-${linkingInstructions}
-
-METADATOS JSON (FINAL):
-Al terminar el artículo, añade EXACTAMENTE esta cadena separatoria: "<!-- METADATA_START -->"
-Seguido inmediatamente de un objeto JSON válido con este formato:
-{
-  "title": "${metaTitle}",
-  "description": "Meta Description Generada",
-  "slug": "slug-generado",
-  "excerpt": "Breve extracto del artículo para blog (2 frases)"
-}
-`;
-};
+// buildPrompt body removed
 
 // --- API Calls (Resilient) ---
 
 export const generateArticleStream = async (model: string, prompt: string) => {
 
-    return executeWithKeyRotation(async (ai) => {
+    return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
-            model: model || 'gemini-2.5-flash',
+            model: currentModel || 'gemini-2.5-flash',
             systemInstruction: "Eres un redactor HTML experto. Generas HTML limpio.",
             generationConfig: {
                 temperature: 0.7,
@@ -724,8 +452,8 @@ export const refineArticleContent = async (
     4. Return the result WITHOUT any markdown blocks (like \`\`\`html).
     `;
 
-    return executeWithKeyRotation(async (ai) => {
-        const modelObj = ai.getGenerativeModel({ model: modelName || 'gemini-2.5-flash' });
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const modelObj = ai.getGenerativeModel({ model: currentModel || 'gemini-2.5-flash' });
         const response = await modelObj.generateContent(prompt);
         const resText = response.response.text() || (isSelection ? selectedText : currentHtml);
         return resText.replace(/```html/g, '').replace(/```/g, '').trim();
@@ -744,10 +472,9 @@ export const findCampaignAssets = async (query: string, projectName: string, csv
     Only return valid, reachable URLs.
     `;
 
-    return executeWithKeyRotation(async (ai) => {
+    return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
-            model: modelName || 'gemini-2.5-flash',
-            tools: [{ googleSearchRetrieval: {} } as any]
+            model: currentModel || 'gemini-2.5-flash',
         });
         const response = await modelObj.generateContent(prompt);
         let text = response.response.text() || "[]";
@@ -773,9 +500,9 @@ const _suggestImagePlacements = async (articleHtml: string, count: string): Prom
     [{"id": "body_1", "type": "body", "placement": "...", "context": "...", "prompt": "...", "alt": "...", "title": "...", "filename": "..."}]
     `;
 
-    return executeWithKeyRotation(async (ai) => {
+    return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: currentModel || 'gemini-2.5-flash',
             generationConfig: { responseMimeType: "application/json" }
         });
         const response = await modelObj.generateContent(truncated + "\n\n" + prompt);
@@ -791,9 +518,9 @@ export const generateRealImage = async (basePrompt: string, config: ImageGenConf
 
     const finalPrompt = `${basePrompt}. ${styleString} ${colorString} ${userInstruction} Minimalist composition, clean, high quality for web.`;
 
-    return executeWithKeyRotation(async (ai) => {
+    return executeWithKeyRotation(async (ai, currentModel) => {
         try {
-            const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = ai.getGenerativeModel({ model: currentModel || 'gemini-2.5-flash' });
             const response = await model.generateContent(finalPrompt);
 
             const result = await response.response;
@@ -850,9 +577,9 @@ export const compositeWatermark = (base64Image: string, base64Watermark: string)
 export const generateSchemaMarkup = async (metadata: any, articleHtml: string, type: 'Article' | 'Product' = 'Article'): Promise<string> => {
     const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0, 500)}. Include 'image' placeholder. Return JSON only.`;
 
-    return executeWithKeyRotation(async (ai) => {
+    return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: currentModel || 'gemini-2.5-flash',
             generationConfig: { responseMimeType: "application/json" }
         });
         const response = await model.generateContent(prompt);
@@ -1290,26 +1017,24 @@ export const runSEOAnalysis = async (
 
 export const generateOutlineStrategy = async (config: ArticleConfig, keyword: string, rawSeoData: SEOAnalysisResult, modelName?: string) => {
     const prompt = `
-    Act as an SEO Strategist.
+    Act as a Master SEO Content Strategist.
     Project: ${config.projectName}. Niche: ${config.niche}.
     Topic/Keyword: "${keyword}".
-    Competitors/References: ${config.refUrls.substring(0, 1000)}.
     
-    Internal Context (Existing Content to Link to):
-    ${config.approvedLinks?.map(l => `- [${l.title}](${l.url})`).join('\n') || 'N/A'}
-
-    Target Word Count: ${config.wordCount}.
-    Tone: ${config.tone}.
+    ### ESTRATEGIA DE ENLAZADO INTERNO (15 Enlaces Sugeridos):
+    Estos son los enlaces que HEMOS INVESTIGADO y que deben ser el eje del artículo:
+    ${config.approvedLinks?.map(l => `- [${l.title}](${l.url})${l.category ? ` (Categoría: ${l.category})` : ''}`).join('\n') || 'N/A'}
     
-    Task: Create a winning content structure (Outline) and Meta Data.
-    The outline must consider the "Internal Context" provided above to plan headers (H2/H3) and introductory sections that naturally allow for internal linking to these specific pages.
+    INSTRUCCIÓN DE DISEÑO:
+    Crea un Outline (Estructura de Encabezados) que esté optimizado para que estos enlaces encajen de forma orgánica y lógica. 
+    Distribuye los 15 enlaces a lo largo de los H2 y H3.
     
     Requirements:
     1. Meta Title: Click-worthy, includes keyword, < 60 chars.
     2. H1: Powerful, clear, includes keyword.
     3. Slug: Short, URL-friendly.
     4. Meta Description: Compelling, < 160 chars.
-    5. Outline: Array of headers (H2, H3). For each, give estimated word count and a brief note on what to cover.
+    5. Outline: Array of headers (H2, H3).
     
     Output JSON format only.
     `;
@@ -1330,7 +1055,7 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
             outline: {
                 type: Type.OBJECT,
                 properties: {
-                    introNote: { type: Type.STRING, description: "Instructions for the introduction" },
+                    introNote: { type: Type.STRING },
                     headers: {
                         type: Type.ARRAY,
                         items: {
@@ -1353,7 +1078,7 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
 
     return executeWithKeyRotation(async (ai) => {
         const modelObj = ai.getGenerativeModel({
-            model: modelName || 'gemini-2.5-flash',
+            model: 'gemini-2.5-flash',
             generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: schema as any
@@ -1363,7 +1088,6 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
         const response = await modelObj.generateContent(prompt);
         let rawText = response.response.text() || "{}";
         
-        // Extract innermost JSON object if conversational wrapper exists
         const start = rawText.indexOf('{');
         const end = rawText.lastIndexOf('}');
         if (start !== -1 && end !== -1 && end >= start) {
@@ -1379,22 +1103,27 @@ export const runHumanizerPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus: (msg: string) => void
-): Promise<{ html: string }> => {
+): Promise<{ html: string; metadata?: any }> => {
     onStatus("Fase 1: Analizando naturalidad y ritmo...");
     const prompt1 = `
     Eres un editor experto en humanizar contenido IA. 
     Analiza este HTML y mejora el flujo, el ritmo y la conexión emocional.
     Niche: ${config.niche}. Audiencia: ${config.audience}.
-    Keywords a respetar: ${config.keywords}.
-    Instrucciones extra: ${config.notes || 'No hay notas adicionales'}.
     
-    REGLAS:
-    1. No inventes datos ni cambies el sentido técnico. 
-    2. Usa un tono cercano y profesional.
-    3. Rompe la estructura robótica (evita enumeraciones excesivas parecidas entre sí).
-    4. Retorna SOLO el HTML del body.
+    ### REGLA DE PROTECCIÓN DE ENLACES (CRÍTICO):
+    Los siguientes enlaces son parte de nuestra estrategia de SILOS e investigación:
+    ${config.links?.map(l => `- [${l.title}](${l.url})`).join('\n') || 'No hay enlaces específicos'}
     
-    HTML:
+    INSTRUCCIONES:
+    1. NUNCA elimines ni modifiques los enlaces <a> proporcionados arriba.
+    2. Mantén el Anchor Text y la URL intactos.
+    3. Asegura que el texto que los rodea sea natural y no parezca forzado.
+    4. Usa un tono cercano y profesional.
+    5. Rompe la estructura robótica.
+    
+    Retorna SOLO el HTML del body.
+    
+    HTML A EDITAR:
     ${html}
     `;
 
@@ -1439,7 +1168,7 @@ export const runHumanizerPipeline = async (
             currentHtml = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
         }
 
-        return { html: currentHtml };
+        return { html: currentHtml, metadata: {} };
     });
 };
 
@@ -1483,6 +1212,77 @@ export const runSmartEditor = async (
         return response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
     });
 };
+
+/**
+ * PHASE: SEO & STYLE POST-PROCESSING
+ * Refines bolds, LSI density, and link integration.
+ */
+export const runSEOPostProcessor = async (
+    html: string,
+    config: ArticleConfig,
+    onStatus: (msg: string) => void
+): Promise<string> => {
+    onStatus("Optimizando densidad SEO y estilos de negritas...");
+    
+    const approvedLinks = config.approvedLinks || [];
+    const linkList = approvedLinks.map(l => `- URL: ${l.url} | Anchor ideal: ${l.title}`).join('\n');
+    
+    const prompt = `
+    TASK: As a Senior SEO Editor, perform a final polish on this article HTML.
+    
+    CRITICAL RULES PARA NEGRILLAS (<strong>):
+    1. Las negritas deben resaltar frases clave de entre 4 y 8 palabras.
+    2. Máximo 1 bloque de negritas por párrafo de 40-60 palabras.
+    3. Nunca pongas negritas en la primera ni última palabra de un párrafo.
+    4. NO pongas negritas en encabezados (H2, H3), blockquotes ni listas.
+    5. Prioriza resaltar conceptos con las palabras clave objetivo.
+
+    CRITICAL RULES PARA SEO & LSI:
+    1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer y último párrafo si no está ya.
+    2. Inserta o refuerza las siguientes palabras clave LSI y semánticas si es posible sin forzar: [${config.lsiKeywords?.join(', ') || 'N/A'}]
+    3. Mantén la densidad alta pero legible.
+
+    INTEGRIDAD ESTRUCTURAL Y ENLACES (VITAL):
+    1. MANTÉN INTACTOS TODOS LOS ENLACES <a> PRESENTES. No cambies sus URLs ni los elimines.
+    2. PROHIBIDO: NO inventes nuevos enlaces. NO uses enlaces que empiecen por "#".
+    3. Si ves un enlace que NO estaba en la versión original o que usa "#", ELIMÍNALO y deja solo el texto plano. 
+    4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia, no añadas nuevos si no están fuera del HTML ya):
+       ${linkList}
+    5. Mantén todas las imágenes e IDs de elementos.
+    6. Retorna ÚNICAMENTE código HTML puro (body content). Sin explicaciones.
+
+    HTML A PULIR:
+    ${html}
+    `;
+
+    return executeWithKeyRotation(async (ai) => {
+        const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const response = await model.generateContent(prompt);
+        return response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+    });
+};
+
+/**
+ * UTILITY: Selects the top N most relevant links from a large inventory.
+ */
+export function selectTopRelevantLinks(topic: string, csvData: ContentItem[], count: number = 20): ContentItem[] {
+    if (!csvData || csvData.length === 0) return [];
+    const terms = topic.toLowerCase().split(/\s+/).filter(t => t.length > 3);
+    
+    return csvData
+        .map(item => {
+            let score = 0;
+            const fullText = (item.title + ' ' + (item.url || '')).toLowerCase();
+            terms.forEach(term => { if (fullText.includes(term)) score += 1; });
+            // Small bonus for collection types
+            if (item.type === 'collection') score += 0.5;
+            return { ...item, _score: score };
+        })
+        .filter(item => item._score > 0 || (item.type === 'collection'))
+        .sort((a, b) => (b._score || 0) - (a._score || 0))
+        .slice(0, count)
+        .map(({ _score, ...rest }: any) => rest as ContentItem);
+}
 
 // --- Export to Google Docs ---
 export async function exportToGoogleDoc(title: string, htmlContent: string, sessionToken: string): Promise<string> {
@@ -1650,191 +1450,7 @@ async function selectSemanticInternalLinks(keyword: string, pool: any[]): Promis
 /**
  * runDeepSEOAnalysis: The mega-orchestrator
  */
-export const runDeepSEOAnalysis = async (
-    keyword: string,
-    csvData: any[],
-    projectName?: string,
-    isIdea: boolean = false,
-    projectId?: string
-): Promise<DeepSEOAnalysisResult> => {
-    // Phase 1: Conventional Analysis (SERP + Gemini)
-    const baseResult = await runSEOAnalysis(keyword, csvData, projectName);
-    
-    // Detect Internal Domain to Avoid Self-Analysis
-    let internalDomain = "";
-    if (csvData && csvData.length > 0) {
-        // Find the first valid URL to define the internal domain
-        const firstUrl = csvData.find(item => item.url)?.url;
-        if (firstUrl) internalDomain = extractDomain(firstUrl);
-    }
-
-    // Phase 2: Competitor Filtering (Exclude internal domain from deep analysis)
-    // Filter out internal URLs and keep the top competitors
-    const externalCompetitors = baseResult.top10Urls.filter(u => {
-        if (!u.url) return false;
-        if (!internalDomain) return true;
-        const compDomain = extractDomain(u.url);
-        return compDomain !== internalDomain;
-    });
-
-    console.log(`[Deep-SEO] Found ${externalCompetitors.length} external competitors after filtering internal project domain: ${internalDomain}`);
-
-    const top10 = externalCompetitors.slice(0, 10);
-    
-    // Phase 2.5: Cannibalization Detection
-    const internalUrlsPositions = baseResult.top10Urls
-        .filter(u => u.url && internalDomain && extractDomain(u.url) === internalDomain)
-        .map(u => u.url);
-    baseResult.cannibalizationUrls = internalUrlsPositions;
-
-    if (internalUrlsPositions.length > 0) {
-        console.warn(`[Deep-SEO] Cannibalization detected! Internal URLs found in Top 10:`, internalUrlsPositions);
-    }
-
-    // Phase 3: Scrape Content (All 10 competitors)
-    console.log(`[Deep-SEO] Phase 3: Scraping content for ${top10.length} competitors...`);
-    const scrapedCompetitors: CompetitorDetail[] = await Promise.all(top10.map(async (comp) => {
-        const content = await fetchUnstructuredContent(comp.url);
-        return {
-            url: comp.url,
-            title: comp.title,
-            content
-        };
-    }));
-
-    // Phase 4: AI Filtering (Select the Golden 5)
-    console.log(`[Deep-SEO] Phase 4: AI filtering to select top 5 most pertinent competitors...`);
-    const selectedUrls = await selectTopCompetitorsViaAI(keyword, scrapedCompetitors);
-    console.log(`[Deep-SEO] AI Selected URLs:`, selectedUrls);
-
-    // Phase 5: Deep Keyword Research (Only for the selected 5)
-    console.log(`[Deep-SEO] Phase 5: Fetching keyword metrics for selected 5 competitors...`);
-    const competitorsWithKeywords = await Promise.all(scrapedCompetitors.map(async (comp) => {
-        // If not selected by AI, return without deep keywords
-        if (!selectedUrls.includes(comp.url)) {
-            return { ...comp, rankingKeywords: [] };
-        }
-
-        const keywords = await fetchDataForSEOKeywords(comp.url);
-        return {
-            ...comp,
-            rankingKeywords: (keywords as any[])?.map((k: any) => ({
-                keyword: k.keyword_data?.keyword,
-                pos: k.rank_group?.rank_absolute,
-                vol: k.keyword_data?.keyword_info?.search_volume
-            })).filter((k: any) => k.keyword).slice(0, 10) || []
-        };
-    }));
-
-    const competitors = competitorsWithKeywords;
-    const globalMetrics = await fetchGlobalMetrics(keyword);
-
-    // Phase 6: Real organic keyword aggregation & TF-IDF Semantic Extraction
-    console.log(`[Deep-SEO] Phase 6: Running TF-IDF on scraped content...`);
-    const validScrapedTexts = competitors
-        .filter(c => selectedUrls.includes(c.url) && c.content)
-        .map(c => c.content!);
-    
-    const tfidfRaw = validScrapedTexts.length > 0 ? calculateTFIDF(validScrapedTexts) : [];
-    const tfidfKeywords = tfidfRaw.map(t => ({ 
-        keyword: t.keyword.charAt(0).toUpperCase() + t.keyword.slice(1), 
-        count: Math.round(t.score * 100).toString() 
-    }));
-    
-    const allRankingKeywords: { [key: string]: number } = {};
-    
-    competitors.forEach(c => {
-        if (c.rankingKeywords && c.rankingKeywords.length > 0) {
-            c.rankingKeywords.forEach(rk => {
-                const kw = rk.keyword?.toLowerCase()?.trim();
-                if (!kw) return;
-                
-                // Keep the highest volume for any duplicated keyword
-                const currentVol = rk.vol || 0;
-                if (!allRankingKeywords[kw] || currentVol > allRankingKeywords[kw]) {
-                    allRankingKeywords[kw] = currentVol;
-                }
-            });
-        }
-    });
-
-    const finalKeywords = Object.entries(allRankingKeywords)
-        .map(([keyword, volume]) => ({
-            keyword: keyword.charAt(0).toUpperCase() + keyword.slice(1),
-            count: volume.toString()
-        }))
-        .sort((a, b) => parseInt(b.count) - parseInt(a.count))
-        .slice(0, 40); // Top 40 relevant keywords
-
-    // Merge DataForSEO keywords with TF-IDF keywords
-    const mergedLsi = [...finalKeywords];
-    tfidfKeywords.forEach(tk => {
-        if (!mergedLsi.find(m => m.keyword.toLowerCase() === tk.keyword.toLowerCase())) {
-            mergedLsi.push(tk);
-        }
-    });
-
-    if (mergedLsi.length > 0) {
-        console.log(`[Deep-SEO] Populated ${mergedLsi.length} real organic/LSI keywords.`);
-        baseResult.lsiKeywords = mergedLsi.sort((a, b) => parseInt(b.count) - parseInt(a.count)).slice(0, 50);
-    } else {
-        console.warn(`[Deep-SEO] NO KEYWORDS FOUND. Setting empty.`);
-        baseResult.lsiKeywords = [];
-    }
-
-    // Phase 7: Semantic Internal Linking (Prioritize Supabase project_urls index with Gemini Reranking)
-    let suggestedLinks: any[] = [];
-    
-    if (projectId) {
-        console.log(`[Deep-SEO] Querying Supabase project_urls for internal linking (Pool of 50 candidates) for Project ID: ${projectId}`);
-        // Fetch best URLs for this project by GSC impressions to ensure we link to authority pages
-        let { data: dbLinks, error: dbError } = await supabase
-            .from('project_urls')
-            .select('url, title, impressions_gsc')
-            .eq('project_id', projectId)
-            .order('impressions_gsc', { ascending: false })
-            .limit(100); 
-        
-        if (dbError) {
-             console.error("[Deep-SEO] Supabase project_urls Query Error:", dbError.message, dbError.details);
-        }
-        
-        if (dbLinks && dbLinks.length > 0) {
-            console.log(`[Deep-SEO] Found ${dbLinks.length} GSC candidates. Invoking Gemini for semantic reranking...`);
-            const suggestedRaw = await selectSemanticInternalLinks(keyword, dbLinks);
-            
-            // --- STRICT VERIFICATION LAYER ---
-            // Only keep URLs that actually exist in the database list
-            suggestedLinks = suggestedRaw.filter((suggestion: any) => 
-                dbLinks.some((dbLink: any) => dbLink.url === suggestion.url)
-            );
-            console.log(`[Deep-SEO] After Strict Integrity Check: ${suggestedLinks.length} URLs kept.`);
-        }
-    }
-
-    // Fallback to CSV if Supabase/Gemini returned nothing or projectId is missing
-    if (suggestedLinks.length === 0) {
-        console.log(`[Deep-SEO] Fallback to CSV for internal linking...`);
-        const contextStr = keyword + " " + (finalKeywords || []).map(k => k.keyword).join(" ");
-        const internalLinksContext = Array.isArray(csvData) && csvData.length > 0 
-            ? retrieveContext(csvData, keyword, contextStr)
-            : { products: [], collections: [], others: [] };
-        
-        suggestedLinks = [
-            ...internalLinksContext.products.slice(0, 2),
-            ...internalLinksContext.collections.slice(0, 2),
-            ...internalLinksContext.others.slice(0, 2)
-        ].slice(0, 5);
-    }
-
-    return {
-        ...baseResult,
-        searchVolume: globalMetrics.volume,
-        keywordDifficulty: globalMetrics.difficulty,
-        competitors,
-        suggestedInternalLinks: suggestedLinks
-    };
-};
+// runDeepSEOAnalysis body removed
 
 // --- Briefing Generation Helper ---
 export function generateBriefingText(seoData: SEOAnalysisResult): string {

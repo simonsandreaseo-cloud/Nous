@@ -42,10 +42,11 @@ export const AI_CONFIG = {
     gemini: {
         apiKeys: geminiKeys,
         models: {
-            pro: 'gemini-3-flash-preview', // Newest Frontier
-            flash: 'gemini-2.5-flash', // Stable Workhorse
-            lite: 'gemini-2.5-flash-lite', // Cost Efficient
-            fallback: 'gemini-1.5-flash' // Legacy Safety
+            pro: 'gemini-3-flash-preview',
+            flash: 'gemini-3.1-flash-lite-preview',
+            lite: 'gemini-2.5-flash-lite',
+            current: 'gemini-2.5-flash',
+            fallback: 'gemini-1.5-flash'
         }
     },
     openai: {

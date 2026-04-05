@@ -16,7 +16,6 @@ export const findCampaignAssets = async (query: string, projectName: string, csv
     return executeWithKeyRotation(async (ai) => {
         const modelObj = ai.getGenerativeModel({
             model: modelName || 'gemini-2.5-flash',
-            tools: [{ googleSearchRetrieval: {} } as any]
         });
         const response = await modelObj.generateContent(prompt);
         let text = response.response.text() || "[]";

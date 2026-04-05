@@ -14,7 +14,16 @@ import { useProjectStore } from "@/store/useProjectStore";
 
 
 
-export type ArticleStatus = "drafting" | "ready" | "published" | "archived";
+export type ArticleStatus = 
+    | 'idea' 
+    | 'en_investigacion' 
+    | 'por_redactar' 
+    | 'en_redaccion' 
+    | 'por_corregir' 
+    | 'por_maquetar' 
+    | 'investigacion_proceso' 
+    | 'publicado' 
+    | 'done';
 
 export interface Article {
     id: string;
@@ -29,10 +38,20 @@ export interface Article {
 
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
-    drafting: { label: "En proceso", color: "bg-amber-50 text-amber-600 border-amber-100", dot: "bg-amber-400" },
-    ready: { label: "Listo", color: "bg-emerald-50 text-emerald-600 border-emerald-100", dot: "bg-emerald-400" },
-    published: { label: "Publicado", color: "bg-slate-100 text-slate-500 border-slate-200", dot: "bg-slate-400" },
-    archived: { label: "Archivado", color: "bg-rose-50 text-rose-400 border-rose-100", dot: "bg-rose-400" },
+    idea: { label: "Idea", color: "bg-slate-50 text-slate-400 border-slate-100", dot: "bg-slate-300" },
+    en_investigacion: { label: "En Investigación", color: "bg-indigo-50 text-indigo-600 border-indigo-100", dot: "bg-indigo-400" },
+    por_redactar: { label: "Por Redactar", color: "bg-amber-50 text-amber-600 border-amber-100", dot: "bg-amber-400" },
+    en_redaccion: { label: "En Redacción", color: "bg-purple-50 text-purple-600 border-purple-100", dot: "bg-purple-400" },
+    por_corregir: { label: "Por Corregir", color: "bg-blue-50 text-blue-600 border-blue-100", dot: "bg-blue-400" },
+    por_maquetar: { label: "Por Maquetar", color: "bg-cyan-50 text-cyan-600 border-cyan-100", dot: "bg-cyan-400" },
+    publicado: { label: "Publicado", color: "bg-emerald-50 text-emerald-600 border-emerald-100", dot: "bg-emerald-500" },
+
+    // Legacy mapping
+    investigacion_proceso: { label: "En Investigación", color: "bg-indigo-50 text-indigo-600 border-indigo-100", dot: "bg-indigo-400" },
+    ready: { label: "Por Corregir", color: "bg-blue-50 text-blue-600 border-blue-100", dot: "bg-blue-400" },
+    done: { label: "Publicado", color: "bg-emerald-50 text-emerald-600 border-emerald-100", dot: "bg-emerald-500" },
+    drafting: { label: "En Redacción", color: "bg-purple-50 text-purple-600 border-purple-100", dot: "bg-purple-400" },
+    todo: { label: "Idea", color: "bg-slate-50 text-slate-400 border-slate-100", dot: "bg-slate-300" },
 };
 
 // ── Tool badge initials ────────────────────────────────────────────────────
@@ -43,7 +62,7 @@ const TOOL_INITIALS: Record<string, string> = {
 
 // ── Article Card ──────────────────────────────────────────────────────────
 function ArticleCard({ article, onOpen }: { article: Article; onOpen: (a: Article) => void }) {
-    const status = STATUS_CONFIG[article.status] || STATUS_CONFIG.drafting;
+    const status = STATUS_CONFIG[article.status] || STATUS_CONFIG.idea;
 
     const date = new Date(article.scheduledDate || Date.now());
     const day = date.getDate();
@@ -140,7 +159,7 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
     onUpdateStatus?: (articleId: string, newStatus: string) => Promise<void>;
 }) {
     if (!article) return null;
-    const status = STATUS_CONFIG[article.status] || STATUS_CONFIG.drafting;
+    const status = STATUS_CONFIG[article.status] || STATUS_CONFIG.idea;
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDelete = async () => {
@@ -187,7 +206,7 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
                         <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-200 mb-4">
                             {article.keyword || "Sin Keyword"}
                         </span>
-                        <h3 className="text-xl font-black text-slate-800 tracking-tight leading-snug">{article.title || "Artículo sin título"}</h3>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight leading-snug">{article.title || "Contenido sin título"}</h3>
                     </div>
 
                     {/* Semáforo de Completitud */}
@@ -196,8 +215,8 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
                         <div className="flex justify-between items-center">
                             <TrafficLightItem active={hasBriefing} icon={<FileText size={14} />} label="Briefing" />
                             <div className={`flex-1 h-[2px] mx-2 rounded-full ${hasBriefing ? 'bg-emerald-200' : 'bg-slate-200'}`} />
-                            <TrafficLightItem active={article.status === 'ready' || article.status === 'published'} icon={<PenLine size={14} />} label="Texto" />
-                            <div className={`flex-1 h-[2px] mx-2 rounded-full ${article.status === 'ready' || article.status === 'published' ? 'bg-emerald-200' : 'bg-slate-200'}`} />
+                            <TrafficLightItem active={article.status === 'por_corregir' || article.status === 'publicado'} icon={<PenLine size={14} />} label="Texto" />
+                            <div className={`flex-1 h-[2px] mx-2 rounded-full ${article.status === 'por_corregir' || article.status === 'publicado' ? 'bg-emerald-200' : 'bg-slate-200'}`} />
                             <TrafficLightItem active={false} icon={<Image size={14} />} label="Imágenes" />
                         </div>
                     </div>
@@ -208,7 +227,7 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
 
                         {!hasBriefing ? (
                             <button
-                                onClick={() => onUpdateStatus?.(article.id, 'drafting')} // Simulate briefing gen
+                                onClick={() => onUpdateStatus?.(article.id, 'en_investigacion')} // Simulate briefing gen
                                 className="w-full bg-indigo-600 text-white rounded-xl py-4 font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition flex items-center justify-center gap-2"
                             >
                                 <Sparkles size={16} />
@@ -301,7 +320,7 @@ export function ArticleCardGrid({ onToolSelect }: { onToolSelect: (toolId: strin
         keyword: c.target_keyword || "",
         status: (c.status || "drafting") as ArticleStatus,
         scheduledDate: c.created_at,
-        appliedTools: c.seo_data ? ["planner", "briefings", "writer"] : [],
+        appliedTools: c.applied_tools || (c.seo_data ? ["planner", "writer"] : ["planner"]),
     }));
 
     return (

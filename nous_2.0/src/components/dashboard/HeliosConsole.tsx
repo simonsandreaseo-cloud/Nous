@@ -26,7 +26,7 @@ export default function HeliosConsole() {
     const { neuralLinkStatus } = useAppStore();
     const [loading, setLoading] = useState(false);
     const [report, setReport] = useState<any>(null);
-    const [model, setModel] = useState('gemini-2.0-pro-exp-02-05');
+    const [model, setModel] = useState('gemini-2.5-flash');
     const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
     const [isSavingTasks, setIsSavingTasks] = useState(false);
     const [config, setConfig] = useState<any>({
@@ -96,7 +96,7 @@ export default function HeliosConsole() {
                     title: task.title,
                     target_keyword: task.target_keyword,
                     brief: task.brief,
-                    status: 'todo',
+                    status: 'idea',
                     scheduled_date: new Date().toISOString().split('T')[0]
                 });
             }
@@ -144,9 +144,8 @@ export default function HeliosConsole() {
                             onChange={(e) => setModel(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500/20"
                         >
-                            <option value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro Exp (Expert)</option>
-                            <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Fast)</option>
-                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                            <option value="gemini-3-flash-preview">Gemini 3 Flash (Next Gen)</option>
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Stable)</option>
                             <option value="gpt-4o">GPT-4o (Architect)</option>
                         </select>
                     </div>

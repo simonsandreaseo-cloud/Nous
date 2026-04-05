@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
     format,
     startOfMonth,
@@ -39,7 +39,11 @@ import {
     Upload,
     Database,
     Wand2,
-    Lock
+    Lock,
+    Terminal,
+    FileDown,
+    Share,
+    Hash
 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
 import { supabase } from "@/lib/supabase";
@@ -56,10 +60,17 @@ import IntelligenceHub from "./IntelligenceHub";
 
 import { StrategyService } from "@/lib/services/strategy";
 import { ProjectBadge } from "@/components/ui/ProjectBadge";
+import AIConsole from "./AIConsole";
+import StrategyGallery from "./StrategyGallery";
+import NewContentModal from "./NewContentModal";
+import ContentDetailView from "./ContentDetailView";
+import { useSearchParams } from "next/navigation";
 
 export function EditorialCalendar() {
-    const { tasks, activeProject, updateTask, addTask } = useProjectStore();
-    const { initializeFromTask } = useWriterStore();
+    const { tasks, activeProject, activeProjectIds, updateTask, addTask, fetchProjectTasks } = useProjectStore();
+    const isConsoleOpen = useWriterStore(state => state.isConsoleOpen);
+    const setIsConsoleOpen = useWriterStore(state => state.setIsConsoleOpen);
+    const initializeFromTask = useWriterStore(state => state.initializeFromTask);
     const router = useRouter();
     const [viewDate, setViewDate] = useState(new Date());
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -72,10 +83,71 @@ export function EditorialCalendar() {
     const [isLoadingStrategy, setIsLoadingStrategy] = useState(false);
     const [newTaskTitle, setNewTaskTitle] = useState("");
     const [newTaskDate, setNewTaskDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-    const [currentView, setCurrentView] = useState<'calendar' | 'grid'>('calendar');
+    const [currentView, setCurrentView] = useState<'calendar' | 'grid' | 'gallery'>('grid');
     const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
+    const [isNewContentModalOpen, setIsNewContentModalOpen] = useState(false);
+    const [researchTaskId, setResearchTaskId] = useState<string | undefined>(undefined);
+    const searchParams = useSearchParams();
+
+    // Column Visibility State
+    const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('ns_grid_columns');
+            if (saved) return JSON.parse(saved);
+        }
+        return [
+            { id: 'project', label: 'Proy.', defaultVisible: true },
+            { id: 'status', label: 'Estado', defaultVisible: true },
+            { id: 'date', label: 'Publicación', defaultVisible: true },
+            { id: 'title', label: 'Título', defaultVisible: true },
+            { id: 'seo_title', label: 'SEO Title', defaultVisible: false },
+            { id: 'slug', label: 'Slug / URL', defaultVisible: false },
+            { id: 'meta_description', label: 'Meta Desc.', defaultVisible: false },
+            { id: 'keywords', label: 'Keywords', defaultVisible: true },
+            { id: 'strategy', label: 'Estrategia', defaultVisible: true },
+            { id: 'assigned', label: 'Responsable', defaultVisible: true },
+            { id: 'total_volume', label: 'Vol.', defaultVisible: true },
+            { id: 'word_count', label: 'Palabras', defaultVisible: true },
+            { id: 'lsi', label: 'LSI', defaultVisible: true },
+            { id: 'competitors', label: 'Fuentes', defaultVisible: true },
+            { id: 'actions', label: 'Acciones', defaultVisible: true }
+        ].reduce((acc, col) => ({ ...acc, [col.id]: col.defaultVisible }), {});
+    });
+
+    const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false);
+    const [isImportMenuOpen, setIsImportMenuOpen] = useState(false);
+
+    const toggleColumn = (colId: string) => {
+        const newVisibility = { ...columnVisibility, [colId]: !columnVisibility[colId] };
+        setColumnVisibility(newVisibility);
+        localStorage.setItem('ns_grid_columns', JSON.stringify(newVisibility));
+    };
+
+    // Fetch tasks on mount or when active projects change
+    useEffect(() => {
+        if (activeProjectIds.length > 0) {
+            fetchProjectTasks(activeProjectIds[0]);
+        }
+    }, [activeProjectIds, fetchProjectTasks]);
+
+    // Check for research trigger
+    useEffect(() => {
+        if (searchParams.get('action') === 'new-research') {
+            setIsNewContentModalOpen(true);
+        }
+    }, [searchParams]);
+
+    const handleCloseSEOModal = () => {
+        setIsNewContentModalOpen(false);
+        setResearchTaskId(undefined);
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('action');
+        const newSearch = params.toString();
+        router.replace(window.location.pathname + (newSearch ? '?' + newSearch : ''), { scroll: false });
+    };
 
     const handleGenerateStrategy = async () => {
+
         if (!activeProject) return;
         setIsLoadingStrategy(true);
         try {
@@ -96,7 +168,7 @@ export function EditorialCalendar() {
             project_id: activeProject.id,
             title: suggestion.title,
             scheduled_date: format(new Date(), 'yyyy-MM-dd'),
-            status: 'todo',
+            status: 'idea',
             target_keyword: suggestion.target_keyword,
             priority: suggestion.priority
         });
@@ -109,7 +181,7 @@ export function EditorialCalendar() {
             project_id: activeProject.id,
             title: newTaskTitle,
             scheduled_date: newTaskDate,
-            status: 'todo',
+            status: 'idea',
             brief: ''
         });
         setIsNewTaskModalOpen(false);
@@ -200,7 +272,7 @@ export function EditorialCalendar() {
                         project_id: activeProject.id,
                         title,
                         scheduled_date: dateStr,
-                        status: 'todo',
+                        status: 'idea',
                         target_keyword: getVal('keyword') || getVal('kw') || '',
                         volume: parseInt(getVal('volumen') || '0'),
                         viability: getVal('viabilidad') || '',
@@ -284,522 +356,388 @@ export function EditorialCalendar() {
     }, [tasks]);
 
     return (
-        <div className="flex flex-col h-full bg-white rounded-[24px] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
-            {/* Header */}
-            <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white/50 backdrop-blur-xl sticky top-0 z-20">
-                <div className="flex items-center gap-6">
-                    <div>
-                        <h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono leading-none mb-1.5">Editorial</h3>
-                        <p className="text-xl font-black text-slate-900 tracking-tight uppercase italic leading-none">Calendario</p>
-                    </div>
-
-                    <div className="h-8 w-px bg-slate-100 mx-1" />
-
-                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
-                        <button onClick={prevMonth} className="p-2 hover:bg-white rounded-lg transition-all text-slate-400 hover:text-slate-900">
-                            <ChevronLeft size={16} />
-                        </button>
-                        <span className="text-[11px] font-bold uppercase tracking-widest min-w-[120px] text-center text-slate-600">
-                            {format(viewDate, 'MMMM yyyy', { locale: es })}
-                        </span>
-                        <button onClick={nextMonth} className="p-2 hover:bg-white rounded-lg transition-all text-slate-400 hover:text-slate-900">
-                            <ChevronRight size={16} />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    {/* View Switcher */}
-                    <div className="flex items-center bg-slate-50 p-1 rounded-xl mr-2 border border-slate-100">
-                        <button
-                            onClick={() => setCurrentView('calendar')}
-                            className={cn(
-                                "p-1.5 px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2",
-                                currentView === 'calendar' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
-                            )}
-                        >
-                            <CalendarIcon size={12} /> Calendario
-                        </button>
-                        <button
-                            onClick={() => setCurrentView('grid')}
-                            className={cn(
-                                "p-1.5 px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2",
-                                currentView === 'grid' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
-                            )}
-                        >
-                            <TableProperties size={12} /> Grilla
-                        </button>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        {/* Secondary Actions (Grouped) */}
-                        <div className="flex items-center bg-slate-50 rounded-xl px-1 border border-slate-100">
-                            <button
-                                onClick={() => setIsSchedulingModalOpen(true)}
-                                className="p-2.5 text-slate-400 hover:text-slate-600 transition-all rounded-lg"
-                                title="Importar Planificación"
-                            >
-                                <LayoutList size={16} />
-                            </button>
-                            <button
-                                onClick={() => {
-                                    const url = prompt("Ingresa la URL de tu Google Sheet para IMPORTAR tareas:");
-                                    if (url) handleSyncWithSheet(url);
-                                }}
-                                className="p-2.5 text-slate-400 hover:text-green-600 transition-all rounded-lg"
-                                title="Importar Google Sheet"
-                            >
-                                <Database size={16} />
-                            </button>
-                            <button
-                                onClick={handleExportToSheet}
-                                disabled={tasks.length === 0}
-                                className="p-2.5 text-slate-400 hover:text-green-600 transition-all rounded-lg"
-                                title="Exportar a Sheet"
-                            >
-                                <FileUp size={16} />
-                            </button>
-                            <button
-                                onClick={() => setIsBulkModalOpen(true)}
-                                className="p-2.5 text-slate-400 hover:text-slate-600 transition-all rounded-lg"
-                                title="Importar CSV"
-                            >
-                                <Upload size={16} />
-                            </button>
-                        </div>
-
-                        <div className="w-px h-6 bg-slate-100 mx-1" />
-
-                        <button
-                            onClick={handleGenerateStrategy}
-                            disabled={isLoadingStrategy}
-                            className={cn(
-                                "px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/20 transition-all flex items-center gap-2",
-                                isLoadingStrategy && "opacity-70 cursor-wait"
-                            )}
-                        >
-                            {isLoadingStrategy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                            {isLoadingStrategy ? "..." : "Sugerir Estrategia"}
-                        </button>
-
-                        <button
-                            onClick={() => setIsNewTaskModalOpen(true)}
-                            className="px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md flex items-center gap-2"
-                        >
-                            <Plus size={14} /> Nuevo
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Content View */}
-            <div className="flex-1 overflow-hidden flex flex-col">
-                {currentView === 'calendar' ? (
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <div className="grid grid-cols-7 border-b border-slate-50">
-                            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => (
-                                <div key={day} className="py-4 text-center border-r border-slate-50 last:border-none">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{day}</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-7 auto-rows-[130px]">
-                            {days.map((day, i) => {
-                                const dateStr = format(day, 'yyyy-MM-dd');
-                                const dayTasks = tasksByDay[dateStr] || [];
-                                const isToday = isSameDay(day, new Date());
-                                const isCurrentMonth = isSameMonth(day, monthStart);
-
-                                return (
-                                    <div
-                                        key={i}
-                                        className={cn(
-                                            "border-r border-b border-slate-50 p-2 flex flex-col gap-1 transition-colors relative group",
-                                            !isCurrentMonth && "bg-slate-50/30 opacity-40",
-                                            isToday && "bg-cyan-50/10"
-                                        )}
-                                    >
-                                        <div className="flex justify-between items-start mb-0.5">
-                                            <span className={cn(
-                                                "text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full transition-all",
-                                                isToday ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-300 group-hover:text-slate-600"
-                                            )}>
-                                                {format(day, 'd')}
-                                            </span>
-                                            <button className="p-1 opacity-0 group-hover:opacity-100 hover:bg-slate-100 rounded-lg transition-all" onClick={() => {
-                                                setNewTaskDate(dateStr);
-                                                setIsNewTaskModalOpen(true);
-                                            }}>
-                                                <Plus size={12} className="text-slate-400" />
-                                            </button>
-                                        </div>
-
-                                        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1">
-                                            {dayTasks.map(task => (
-                                                <motion.div
-                                                    key={task.id}
-                                                    layoutId={task.id}
-                                                    onClick={() => setSelectedTask(task)}
-                                                    className={cn(
-                                                        "p-1.5 rounded-lg border text-[10px] font-bold leading-tight cursor-pointer transition-all hover:border-slate-300",
-                                                        task.status === 'done'
-                                                            ? "bg-emerald-50/50 border-emerald-100 text-emerald-700"
-                                                            : task.status === 'in_progress'
-                                                                ? "bg-purple-50/50 border-purple-100 text-purple-700"
-                                                                : "bg-white border-slate-100 text-slate-500"
-                                                    )}
-                                                >
-                                                    <div className="flex items-center justify-between mb-1 gap-1">
-                                                        <ProjectBadge projectId={task.project_id} className="scale-75 origin-top-left" />
-                                                        {task.locked_by && task.locked_until && new Date(task.locked_until) > new Date() && (
-                                                            <span title="Siendo editada"><Lock size={10} className="text-red-400" /></span>
-                                                        )}
-                                                    </div>
-                                                    <p className="line-clamp-1">{task.title}</p>
-                                                </motion.div>
-                                            ))}
-                                        </div>
+        <>
+            <div className="flex h-full bg-slate-50/50 overflow-hidden">
+                <div className="flex-1 flex flex-col h-full overflow-hidden">
+                    {/* Header Rediseñado en Dos Filas */}
+                    <div className="px-6 py-4 border-b border-slate-100/60 flex flex-col gap-4 bg-white/95 backdrop-blur-md sticky top-0 z-40 shrink-0">
+                        {/* Fila Superior: Título y Fecha */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100/50">
+                                        <CalendarIcon size={16} />
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ) : (
-                    <StrategyGrid onSelectTask={setSelectedTask} />
-                )}
-            </div>
-
-            {/* STRATEGY MODAL */}
-            <AnimatePresence>
-                {isStrategyModalOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-24 bg-slate-900/60 backdrop-blur-md"
-                        onClick={() => setIsStrategyModalOpen(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
-                            exit={{ scale: 0.95, y: 20 }}
-                            className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-violet-50">
-                                <div>
-                                    <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic flex items-center gap-2">
-                                        <Sparkles className="text-indigo-600" /> Estrategia IA
-                                    </h2>
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
-                                        Basado en datos de Search Console
-                                    </p>
+                                    <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em]">Planificador</h3>
                                 </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 bg-slate-50/80 p-1 rounded-xl border border-slate-100 shrink-0">
+                                <button onClick={prevMonth} className="p-1 hover:bg-white rounded-lg transition-all text-slate-400 hover:text-slate-900">
+                                    <ChevronLeft size={14} />
+                                </button>
+                                <span className="text-[10px] font-bold uppercase tracking-widest min-w-[120px] text-center text-slate-600">
+                                    {format(viewDate, 'MMMM yyyy', { locale: es })}
+                                </span>
+                                <button onClick={nextMonth} className="p-1 hover:bg-white rounded-lg transition-all text-slate-400 hover:text-slate-900">
+                                    <ChevronRight size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Fila Inferior: Vistas y Acciones */}
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center bg-slate-50/80 p-1 rounded-xl border border-slate-100">
                                 <button
-                                    onClick={() => setIsStrategyModalOpen(false)}
-                                    className="p-3 bg-white hover:bg-slate-50 rounded-2xl transition-all shadow-sm"
+                                    onClick={() => setCurrentView('calendar')}
+                                    className={cn(
+                                        "p-1.5 px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2",
+                                        currentView === 'calendar' ? "bg-white text-slate-950 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                                    )}
                                 >
-                                    <X size={20} className="text-slate-400" />
+                                    <CalendarIcon size={14} /> <span>Calendario</span>
+                                </button>
+                                <button
+                                    onClick={() => setCurrentView('grid')}
+                                    className={cn(
+                                        "p-1.5 px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2",
+                                        currentView === 'grid' ? "bg-white text-slate-950 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                                    )}
+                                >
+                                    <TableProperties size={14} /> <span>Grilla</span>
+                                </button>
+                                <button
+                                    onClick={() => setCurrentView('gallery')}
+                                    className={cn(
+                                        "p-1.5 px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2",
+                                        currentView === 'gallery' ? "bg-white text-slate-950 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                                    )}
+                                >
+                                    <LayoutDashboard size={14} /> <span>Tarjetas</span>
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                                {suggestedTasks.length === 0 ? (
-                                    <div className="text-center py-10 opacity-50">
-                                        <Ghost size={48} className="mx-auto mb-4 text-slate-300" />
-                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay sugerencias nuevas por ahora</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {suggestedTasks.map((task, i) => (
-                                            <div key={i} className="p-4 bg-white border border-slate-100 rounded-2xl hover:shadow-md transition-all group">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                                                        Oportunidad
-                                                    </span>
-                                                    <button
-                                                        onClick={() => handleAcceptSuggestion(task)}
-                                                        className="p-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"
+                            <div className="flex items-center gap-2">
+                                {currentView === 'grid' && (
+                                    <div className="relative">
+                                        <button 
+                                            onClick={() => setIsColumnSelectorOpen(!isColumnSelectorOpen)}
+                                            className={cn(
+                                                "p-2 rounded-xl transition-all border shrink-0",
+                                                isColumnSelectorOpen ? "bg-indigo-50 border-indigo-100 text-indigo-600" : "bg-white border-slate-200 text-slate-400 hover:text-slate-600"
+                                            )}
+                                            title="Configurar Columnas"
+                                        >
+                                            <Hash size={18} />
+                                        </button>
+                                        <AnimatePresence>
+                                            {isColumnSelectorOpen && (
+                                                <>
+                                                    <div className="fixed inset-0 z-30" onClick={() => setIsColumnSelectorOpen(false)} />
+                                                    <motion.div 
+                                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                        className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-4 space-y-2"
                                                     >
-                                                        <Plus size={12} /> Agregar
+                                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-2 px-1">Mostrar/Ocultar</span>
+                                                        <div className="max-h-[300px] overflow-y-auto custom-scrollbar px-1">
+                                                            {[
+                                                                { id: 'project', label: 'Proy.' },
+                                                                { id: 'status', label: 'Estado' },
+                                                                { id: 'date', label: 'Publicación' },
+                                                                { id: 'title', label: 'Título' },
+                                                                { id: 'seo_title', label: 'SEO Title' },
+                                                                { id: 'slug', label: 'Slug / URL' },
+                                                                { id: 'meta_description', label: 'Meta Desc.' },
+                                                                { id: 'keywords', label: 'Keywords' },
+                                                                { id: 'strategy', label: 'Estrategia' },
+                                                                { id: 'assigned', label: 'Responsable' },
+                                                                { id: 'total_volume', label: 'Vol.' },
+                                                                { id: 'word_count', label: 'Palabras' },
+                                                                { id: 'lsi', label: 'LSI' },
+                                                                { id: 'competitors', label: 'Fuentes' },
+                                                                { id: 'actions', label: 'Acciones' }
+                                                            ].map(col => (
+                                                                <label key={col.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-all">
+                                                                    <input 
+                                                                        type="checkbox" 
+                                                                        checked={columnVisibility[col.id] || false} 
+                                                                        onChange={() => toggleColumn(col.id)}
+                                                                        className="w-4 h-4 rounded-md border-slate-200 text-indigo-600 focus:ring-indigo-500"
+                                                                    />
+                                                                    <span className="text-[11px] font-bold text-slate-600">{col.label}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                        <div className="mt-4 pt-4 border-t border-slate-50 px-1">
+                                                            <button 
+                                                                onClick={() => {
+                                                                    localStorage.removeItem('ns_grid_columns');
+                                                                    window.location.reload();
+                                                                }}
+                                                                className="w-full py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-sm"
+                                                            >
+                                                                Restablecer Predeterminados
+                                                            </button>
+                                                        </div>
+                                                    </motion.div>
+                                                </>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                )}
+
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsImportMenuOpen(!isImportMenuOpen)}
+                                        className={cn(
+                                            "p-2 rounded-xl transition-all border",
+                                            isImportMenuOpen ? "bg-indigo-50 border-indigo-100 text-indigo-600" : "bg-white border-slate-200 text-slate-400 hover:text-slate-600"
+                                        )}
+                                        title="Importar Datos"
+                                    >
+                                        <FileDown size={18} />
+                                    </button>
+                                    <AnimatePresence>
+                                        {isImportMenuOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-30" onClick={() => setIsImportMenuOpen(false)} />
+                                                <motion.div 
+                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                    className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-2 overflow-hidden"
+                                                >
+                                                    <div className="px-3 py-2 border-b border-slate-50 mb-1">
+                                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block">Opciones de Importación</span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => { setIsSchedulingModalOpen(true); setIsImportMenuOpen(false); }}
+                                                        className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-all text-left"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><LayoutList size={14} /></div>
+                                                        <div>
+                                                            <p className="text-[11px] font-bold text-slate-700">Planificación Masiva</p>
+                                                            <p className="text-[9px] text-slate-400">Pegar desde Excel o Docs</p>
+                                                        </div>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const url = prompt("Ingresa la URL de tu Google Sheet para IMPORTAR tareas:");
+                                                            if (url) { /* sync logic handled elsewhere or via store */ }
+                                                            setIsImportMenuOpen(false);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-all text-left"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><Database size={14} /></div>
+                                                        <div>
+                                                            <p className="text-[11px] font-bold text-slate-700">Google Sheet Sync</p>
+                                                            <p className="text-[9px] text-slate-400">Sincronización directa bi-direccional</p>
+                                                        </div>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setIsBulkModalOpen(true); setIsImportMenuOpen(false); }}
+                                                        className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-all text-left"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><Upload size={14} /></div>
+                                                        <div>
+                                                            <p className="text-[11px] font-bold text-slate-700">Archivo CSV / Excel</p>
+                                                            <p className="text-[9px] text-slate-400">Cargar archivo local</p>
+                                                        </div>
+                                                    </button>
+                                                </motion.div>
+                                            </>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                                <button
+                                    onClick={() => { /* export logic */ }}
+                                    disabled={tasks.length === 0}
+                                    className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50 transition-all rounded-xl disabled:opacity-30 shrink-0"
+                                    title="Exportar a Google Sheet"
+                                >
+                                    <Share size={18} />
+                                </button>
+
+                                <div className="w-px h-6 bg-slate-100 mx-1" />
+
+                                <button
+                                    onClick={handleGenerateStrategy}
+                                    disabled={isLoadingStrategy}
+                                    className={cn(
+                                        "px-4 py-2 bg-slate-900 border border-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-slate-900/10",
+                                        isLoadingStrategy && "opacity-70 cursor-wait"
+                                    )}
+                                >
+                                    {isLoadingStrategy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-amber-400" />}
+                                    <span>{isLoadingStrategy ? "Generando..." : "IA Estrategia"}</span>
+                                </button>
+
+                                <button
+                                    onClick={() => setIsNewContentModalOpen(true)}
+                                    className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20"
+                                    title="Programar Nuevo Contenido"
+                                >
+                                    <Plus size={20} />
+                                </button>
+
+                                <div className="w-px h-6 bg-slate-100 mx-1" />
+
+                                <button
+                                    onClick={() => setIsConsoleOpen(!isConsoleOpen)}
+                                    className={cn(
+                                        "p-2 rounded-xl transition-all border z-[1000]",
+                                        isConsoleOpen ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-600/20" : "bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600"
+                                    )}
+                                    title="Monitor AI"
+                                >
+                                    <Terminal size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* VISTA PRINCIPAL */}
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                        {currentView === 'calendar' && (
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                <div className="grid grid-cols-7 border-b border-slate-50">
+                                    {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => (
+                                        <div key={day} className="py-4 text-center border-r border-slate-50 last:border-none">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{day}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-7 auto-rows-[130px]">
+                                    {days.map((day, i) => {
+                                        const dateStr = format(day, 'yyyy-MM-dd');
+                                        const dayTasks = tasksByDay[dateStr] || [];
+                                        const isToday = isSameDay(day, new Date());
+                                        const isCurrentMonth = isSameMonth(day, monthStart);
+                                        return (
+                                            <div key={i} className={cn("border-r border-b border-slate-50 p-2 flex flex-col gap-1 transition-colors relative group", !isCurrentMonth && "bg-slate-50/30 opacity-40", isToday && "bg-cyan-50/10")}>
+                                                <div className="flex justify-between items-start mb-0.5">
+                                                    <span className={cn("text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full transition-all", isToday ? "bg-cyan-500 text-white shadow-md shadow-cyan-500/20" : "text-slate-300 group-hover:text-slate-600")}>
+                                                        {format(day, 'd')}
+                                                    </span>
+                                                    <button className="p-1 opacity-0 group-hover:opacity-100 hover:bg-slate-100 rounded-lg transition-all" onClick={() => { setNewTaskDate(dateStr); setIsNewTaskModalOpen(true); }}>
+                                                        <Plus size={12} className="text-slate-400" />
                                                     </button>
                                                 </div>
-                                                <h3 className="font-bold text-slate-800 mb-1">{task.title}</h3>
-                                                <div className="flex items-center gap-4 text-[10px] text-slate-400 font-mono">
-                                                    <span>KW: {task.target_keyword}</span>
-                                                    <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                                    <span>Prioridad: {task.priority}</span>
+                                                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1">
+                                                    {dayTasks.map(task => (
+                                                        <motion.div key={task.id} layoutId={task.id} onClick={() => setSelectedTask(task)} className={cn("p-1.5 rounded-lg border text-[10px] font-bold leading-tight cursor-pointer transition-all hover:border-slate-300", (task.status === 'publicado') ? "bg-emerald-50/50 border-emerald-100 text-emerald-700" : (task.status === 'investigacion_proceso') ? "bg-indigo-50/50 border-indigo-100 text-indigo-700" : "bg-white border-slate-100 text-slate-500")}>
+                                                            <ProjectBadge projectId={task.project_id} className="scale-75 origin-top-left mb-1" />
+                                                            <p className="line-clamp-1">{task.title}</p>
+                                                        </motion.div>
+                                                    ))}
                                                 </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                        {currentView === 'grid' && (
+                            <StrategyGrid 
+                                onSelectTask={setSelectedTask} 
+                                onRunResearch={(taskId) => { setResearchTaskId(taskId); setIsNewContentModalOpen(true); }}
+                                columnVisibility={columnVisibility}
+                            />
+                        )}
+                        {currentView === 'gallery' && (
+                            <StrategyGallery 
+                                onSelectTask={setSelectedTask}
+                                onRunResearch={(taskId) => { setResearchTaskId(taskId); setIsNewContentModalOpen(true); }}
+                            />
+                        )}
+                    </div>
+            </div>
+
+            <div className="fixed inset-0 pointer-events-none z-[100]">
+                <AnimatePresence>
+                        {isConsoleOpen && (
+                            <div className="fixed inset-y-0 right-0 w-[450px] z-[200] shadow-2xl pointer-events-auto">
+                                <AIConsole key="ai-console-sidebar-fixed" />
+                            </div>
+                        )}
+                    </AnimatePresence>
+                    <AnimatePresence>
+                        {/* STRATEGY IA MODAL */}
+                        {isStrategyModalOpen && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md pointer-events-auto" onClick={() => setIsStrategyModalOpen(false)}>
+                                <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
+                                    <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-violet-50">
+                                        <h2 className="text-2xl font-black text-slate-900 uppercase italic flex items-center gap-2"><Sparkles className="text-indigo-600" /> Estrategia IA</h2>
+                                        <button onClick={() => setIsStrategyModalOpen(false)} className="p-3 bg-white hover:bg-slate-50 rounded-2xl shadow-sm border border-slate-100"><X size={20} className="text-slate-400" /></button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                                        {suggestedTasks.map((task, i) => (
+                                            <div key={i} className="p-4 bg-white border border-slate-100 rounded-2xl mb-3 flex justify-between items-center hover:shadow-md transition-all">
+                                                <div>
+                                                    <h3 className="font-bold text-slate-800">{task.title}</h3>
+                                                    <p className="text-[10px] text-slate-400 font-mono">KW: {task.target_keyword} | Vol: {task.volume}</p>
+                                                </div>
+                                                <button onClick={() => handleAcceptSuggestion(task)} className="p-2 px-4 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase hover:bg-slate-800 transition-all">Aceptar</button>
                                             </div>
                                         ))}
                                     </div>
-                                )}
+                                </motion.div>
+                            </motion.div>
+                        )}
+                        
+                        {/* TASK DETAILS & REDACTION */}
+                        {selectedTask && (
+                            <div className="pointer-events-auto">
+                                <ContentDetailView task={selectedTask} onClose={() => setSelectedTask(null)} />
                             </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                        )}
 
-            {/* TASK DETAILS MODAL */}
-            <AnimatePresence>
-                {selectedTask && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-24 bg-slate-900/40 backdrop-blur-md"
-                        onClick={() => setSelectedTask(null)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
-                            exit={{ scale: 0.95, y: 20 }}
-                            className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="p-10">
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex items-center gap-3">
-                                            <span className={cn(
-                                                "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                                                selectedTask.status === 'done' ? "bg-emerald-100 text-emerald-600" : "bg-purple-100 text-purple-600"
-                                            )}>
-                                                {selectedTask.status}
-                                            </span>
-                                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                                <CalendarIcon size={12} /> {format(new Date(selectedTask.scheduled_date), "d 'de' MMMM", { locale: es })}
-                                            </span>
-                                        </div>
-                                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">{selectedTask.title}</h2>
+                        {/* SEO RESEARCH WORKFLOW */}
+                        {isNewContentModalOpen && (
+                            <div className="pointer-events-auto">
+                                <NewContentModal 
+                                    isOpen={isNewContentModalOpen}
+                                    onClose={handleCloseSEOModal}
+                                />
+                            </div>
+                        )}
+
+                        {/* LEGACY MODALS -> REFACTORED */}
+                        {isBulkModalOpen && (
+                            <div className="pointer-events-auto">
+                                <MassUploadModal onClose={() => setIsBulkModalOpen(false)} />
+                            </div>
+                        )}
+                        
+                        {isNewTaskModalOpen && (
+                            <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md pointer-events-auto">
+                                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-md rounded-[40px] p-10 shadow-2xl">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Planificar</h2>
+                                        <button onClick={() => setIsNewTaskModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl transition-all"><X size={20} /></button>
                                     </div>
-                                    <button
-                                        onClick={() => setSelectedTask(null)}
-                                        className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all"
-                                    >
-                                        <X size={20} className="text-slate-400" />
-                                    </button>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-8 mb-10">
                                     <div className="space-y-6">
                                         <div>
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Original Brief / Keywords</label>
-                                            <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
-                                                {selectedTask.brief || "Sin instrucciones adicionales."}
-                                            </p>
-
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Keywords</span>
-                                                    <p className="text-xs font-bold text-slate-700 truncate" title={selectedTask.target_keyword}>{selectedTask.target_keyword || "--"}</p>
-                                                </div>
-                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Volumen</span>
-                                                    <p className="text-xs font-bold text-slate-700">{selectedTask.volume || "--"}</p>
-                                                </div>
-                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Viabilidad</span>
-                                                    <p className="text-xs font-bold text-slate-700 truncate" title={selectedTask.viability}>{selectedTask.viability || "--"}</p>
-                                                </div>
-                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Ref URLs</span>
-                                                    <p className="text-xs font-bold text-slate-700">{selectedTask.refs?.length || 0} Links</p>
-                                                </div>
-                                            </div>
-                                            <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 mt-6">
-                                                <IntelligenceHub
-                                                    taskId={selectedTask.id}
-                                                    targetKeyword={selectedTask.target_keyword}
-                                                />
-                                            </div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Título del Contenido</label>
+                                            <input type="text" className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-slate-300 transition-all font-bold text-slate-900" placeholder="Ej: Maximizando Conversiones..." value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
                                         </div>
-
-                                        <div className="flex flex-col gap-3">
-                                            <button
-                                                onClick={() => {
-                                                    initializeFromTask(selectedTask, activeProject);
-                                                    router.push('/studio/writer');
-                                                }}
-                                                className="w-full py-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-[24px] text-[11px] font-black uppercase tracking-[0.2em] hover:scale-[1.02] transition-all shadow-xl shadow-slate-900/20 flex items-center justify-center gap-3"
-                                            >
-                                                <Sparkles size={16} className="text-cyan-400" /> Redactar con IA Nous
-                                            </button>
-
-                                            <button
-                                                onClick={() => setIsUploadModalOpen(true)}
-                                                className="w-full py-5 bg-white border-2 border-slate-100 text-slate-600 rounded-[24px] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all flex items-center justify-center gap-3"
-                                            >
-                                                <Paperclip size={16} /> Adjuntar Contenido Externo
-                                            </button>
-
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fecha de Publicación</label>
+                                            <input type="date" className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-slate-300 transition-all font-bold text-slate-900" value={newTaskDate} onChange={(e) => setNewTaskDate(e.target.value)} />
                                         </div>
+                                        <button onClick={handleCreateQuickTask} className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/20">Agendar Contenido</button>
                                     </div>
-
-                                    <div className="space-y-6">
-                                        <div className="p-6 bg-cyan-50/30 rounded-[32px] border border-cyan-100/50">
-                                            <div className="flex items-center gap-2 mb-4">
-                                                <div className="w-8 h-8 rounded-full bg-cyan-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                                                    <Ghost size={16} />
-                                                </div>
-                                                <span className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">Humanización Directa</span>
-                                            </div>
-                                            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                                                ¿Ya tienes el texto? Súbelo y la IA lo procesará para eliminar patrones robóticos manteniendo tus enlaces.
-                                            </p>
-                                            <button
-                                                onClick={() => router.push(`/writer?mode=humanize&activeTaskId=${selectedTask.id}`)}
-                                                className="w-full py-3 bg-white text-cyan-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-cyan-200 hover:bg-cyan-50 transition-all"
-                                            >
-                                                Subir y Humanizar Ahora
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                </motion.div>
                             </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                        )}
 
-            {/* UPLOAD MODAL */}
-            <AnimatePresence>
-                {isUploadModalOpen && selectedTask && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="bg-white w-full max-w-xl rounded-[40px] p-10 shadow-2xl"
-                        >
-                            <div className="flex justify-between items-center mb-8">
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Adjuntar Contenido</h2>
-                                <button onClick={() => setIsUploadModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl transition-all"><X size={20} /></button>
-                            </div>
-
-                            <div className="space-y-6">
-                                <input
-                                    type="file"
-                                    id="single-upload"
-                                    className="hidden"
-                                    onChange={async (e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            const content = file.name.endsWith('.docx') ? await parseDocx(file) : await parseHtml(file);
-                                            handleDirectUpload(selectedTask.id, content, false);
-                                        }
-                                    }}
-                                />
-                                <label htmlFor="single-upload" className="block border-2 border-dashed border-slate-100 rounded-[32px] p-12 text-center hover:bg-slate-50 transition-all cursor-pointer group">
-                                    <div className="w-16 h-16 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                                        <FileUp size={32} />
-                                    </div>
-                                    <p className="text-sm font-bold text-slate-600 mb-1">Cargar archivo HTML o DOCX</p>
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">Haz clic para explorar</p>
-                                </label>
-
-                                <div className="relative">
-                                    <div className="absolute inset-x-0 top-1/2 h-px bg-slate-100" />
-                                    <span className="relative z-10 mx-auto w-12 h-6 bg-white flex items-center justify-center text-[10px] font-black text-slate-300">O</span>
-                                </div>
-
-                                <div>
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 leading-none">Pega el texto enriquecido (HTML)</label>
-                                    <div className="relative">
-                                        <textarea
-                                            id="pasted-html"
-                                            className="w-full min-h-[200px] bg-slate-50 border border-slate-100 rounded-[24px] p-6 text-sm text-slate-600 outline-none focus:border-slate-300 transition-all font-mono"
-                                            placeholder="Pega tu HTML aquí..."
-                                        />
-                                        <div className="absolute top-4 right-4">
-                                            <Clipboard size={16} className="text-slate-300" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-4">
-                                    <button
-                                        onClick={() => {
-                                            const val = (document.getElementById('pasted-html') as HTMLTextAreaElement)?.value;
-                                            if (val) handleDirectUpload(selectedTask.id, val, false);
-                                        }}
-                                        className="flex-1 py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/20"
-                                    >
-                                        Guardar Adjunto
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            const val = (document.getElementById('pasted-html') as HTMLTextAreaElement)?.value;
-                                            if (val) handleDirectUpload(selectedTask.id, val, true);
-                                        }}
-                                        className="flex-1 py-4 bg-cyan-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2"
-                                    >
-                                        <Sparkles size={14} /> Guardar y Humanizar
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* BULK UPLOAD MODAL */}
-            <AnimatePresence>
-                {isBulkModalOpen && (
-                    <MassUploadModal onClose={() => setIsBulkModalOpen(false)} />
-                )}
-            </AnimatePresence>
-
-            {/* NEW TASK MODAL */}
-            <AnimatePresence>
-                {isNewTaskModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="bg-white w-full max-w-md rounded-[40px] p-10 shadow-2xl"
-                        >
-                            <div className="flex justify-between items-center mb-8">
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Planificar</h2>
-                                <button onClick={() => setIsNewTaskModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl transition-all"><X size={20} /></button>
-                            </div>
-
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Título del Contenido</label>
-                                    <input
-                                        type="text"
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-slate-300 transition-all font-bold text-slate-900"
-                                        placeholder="Ej: Maximizando Conversiones..."
-                                        value={newTaskTitle}
-                                        onChange={(e) => setNewTaskTitle(e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fecha de Publicación</label>
-                                    <input
-                                        type="date"
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-slate-300 transition-all font-bold text-slate-900"
-                                        value={newTaskDate}
-                                        onChange={(e) => setNewTaskDate(e.target.value)}
-                                    />
-                                </div>
-                                <button
-                                    onClick={handleCreateQuickTask}
-                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/20"
-                                >
-                                    Agendar Contenido
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-                {isSchedulingModalOpen && (
-                    <MassSchedulingModal onClose={() => setIsSchedulingModalOpen(false)} />
-                )}
-
-            </AnimatePresence>
-        </div>
+                        {isSchedulingModalOpen && <MassSchedulingModal onClose={() => setIsSchedulingModalOpen(false)} />}
+                    </AnimatePresence>
+                </div>
+            </div>
+        </>
     );
 }
 
@@ -932,7 +870,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                     project_id: activeProject.id,
                     title: task.title,
                     scheduled_date: task.scheduled_date,
-                    status: "todo",
+                    status: "idea",
                     brief: task.brief || "",
                     target_keyword: task.target_keyword,
                     volume: task.volume,

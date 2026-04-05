@@ -7,8 +7,10 @@ export interface ContentItem {
     url: string;
     title: string;
     type: 'product' | 'collection' | 'blog' | 'static' | 'other';
+    category?: string | null;
     search_index: string;
     score?: number;
+    anchor_text?: string;
 }
 
 export interface ArticleConfig {
@@ -28,6 +30,8 @@ export interface ArticleConfig {
     lsiKeywords?: string[]; // New: LSI and Autocomplete terms
     creativityLevel?: 'low' | 'medium' | 'high'; // New: Creativity level
     contextInstructions?: string; // New: Global Context Instructions
+    architectureInstructions?: string; // New: Smart Architecture instructions
+    architectureRules?: any[]; // New: Regex-based architecture rules
     isStrictMode?: boolean;
     strictFrequency?: number;
 }
@@ -73,6 +77,7 @@ export interface SEOAnalysisResult {
     autocompleteLongTail: string[];
     frequentQuestions: string[];
     top10Urls: { title: string; url: string; }[];
+    top20Urls: { title: string; url: string; }[];
     lsiKeywords: { keyword: string; count: string; }[];
     recommendedWords: string[];
     recommendedWordCount: string;
@@ -82,6 +87,7 @@ export interface SEOAnalysisResult {
     keywordDifficulty?: string;
     searchVolume?: string;
     cannibalizationUrls?: string[];
+    peopleAlsoAsk?: { question: string; snippet?: string; title?: string; link?: string; }[];
     competitors?: CompetitorDetail[];
 }
 
@@ -95,11 +101,29 @@ export interface CompetitorDetail {
         pos: number;
         vol: number;
     }[];
+    keywords?: string[]; // Simplified list for UI
+    word_count?: number;
+    h2_count?: number;
+    domain_authority?: number;
+    summary?: string;
+    headers?: { tag: string; text: string; }[];
+    isInvalid?: boolean;
 }
 
 export interface DeepSEOAnalysisResult extends SEOAnalysisResult {
     competitors: CompetitorDetail[];
     longTailKeywords?: string[];
+    title: string;           // Article H1
+    seo_title: string;       // SERP Title
+    slug: string;            // URL Slug
+    meta_description: string; // SERP Meta Description
+    target_keyword: string;
+    volume?: number;
+    word_count?: number;
+    research_dossier?: any;
+    brief?: string;
+    excerpt?: string;
+    schemas?: any;
 }
 
 // --- Humanizer ---

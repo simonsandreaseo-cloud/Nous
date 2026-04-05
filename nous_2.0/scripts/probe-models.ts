@@ -16,7 +16,7 @@ async function listModels() {
     try {
         // There is no direct "listModels" in the standard web-oriented SDK easily accessible 
         // without the admin/rest client, but we can try to "probe" a few.
-        const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-exp'];
+        const models = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-exp'];
 
         for (const modelId of models) {
             try {

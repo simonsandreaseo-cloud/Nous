@@ -98,7 +98,7 @@ export function LoadingScreen() {
                             animate={{ opacity: 0.3 }}
                             className="text-[12px] tracking-[0.2em] mt-2 uppercase"
                         >
-                            Tu ecosistema SEO inteligente
+                            Tu mente en la estrategia. Nous hace lo demás.
                         </motion.p>
                     </div>
 

@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LocalNodeBridge } from '@/lib/local-node/bridge';
-import { Search, Globe, Loader2, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
+import { Search, Globe, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationService } from '@/lib/services/notifications';
@@ -20,21 +19,15 @@ export default function CrawlerConsole() {
         setResults([]);
 
         try {
-            const response = await LocalNodeBridge.crawl({ keyword, mode: 'search' });
-            if (response.success) {
-                // Determine if we have SERP results or regular data
-                const items = response.data.serpResults || [response.data];
-                setResults(items);
-                NotificationService.notify("Rastreo Completado", `Se han encontrado ${items.length} resultados para "${keyword}".`);
-            } else {
-                setError(response.error || 'Unknown crawler error');
-            }
+            // Local node crawler disabled in favor of Jina/Serper architecture
+            setError("Esta herramienta de rastreo en tiempo real ha sido migrada a la fase de investigación profunda de contenidos.");
         } catch (e: any) {
             setError(e.message);
         } finally {
             setLoading(false);
         }
     };
+
 
     return (
         <div className="bg-white rounded-[40px] h-full flex flex-col relative overflow-hidden group/console border border-slate-100 shadow-sm">
@@ -102,7 +95,7 @@ export default function CrawlerConsole() {
                         </div>
                         <div className="flex-1">
                             <p className="text-[10px] font-black uppercase tracking-widest mb-0.5">Fallo de Motor</p>
-                            <p className="text-xs font-bold leading-none">{error === 'Crawler timeout' ? 'El motor local no respondió a tiempo. Asegúrate de que el Motor Helios esté encendido.' : error}</p>
+                            <p className="text-xs font-bold leading-none">{error}</p>
                         </div>
                         <button onClick={() => setError(null)} className="text-[10px] font-black uppercase tracking-widest hover:text-rose-900 p-2">Ignorar</button>
                     </motion.div>

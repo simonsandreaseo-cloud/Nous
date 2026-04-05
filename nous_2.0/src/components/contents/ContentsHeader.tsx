@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
+import { useRouter } from "next/navigation";
 import {
     LayoutGrid,
     Columns,
@@ -16,6 +17,7 @@ import {
     SlidersHorizontal,
 } from "lucide-react";
 import { CONTENT_TOOLS } from "./ContentsSidebar";
+import { useWriterStore } from "@/store/useWriterStore";
 
 type ViewMode = "cards" | "kanban" | "calendar" | "table";
 
@@ -27,9 +29,16 @@ interface ContentsHeaderProps {
 }
 
 export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeChange }: ContentsHeaderProps) {
+    const router = useRouter();
     const [programarOpen, setProgramarOpen] = useState(false);
+    const { setViewMode, resetStrategy } = useWriterStore();
     const isOnDashboard = activeTool === "dashboard";
     const activeName = CONTENT_TOOLS.find(t => t.id === activeTool)?.label ?? "Dashboard";
+
+    const handleNewContent = () => {
+        router.push("/contents/planner?action=new-research");
+        setProgramarOpen(false);
+    };
 
     return (
         <header className="shrink-0 flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-100/80">
@@ -126,19 +135,14 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
                     <SlidersHorizontal size={15} />
                 </button>
 
-                {/* Distribuir button */}
-                <button
-                    onClick={() => onToolSelect("publisher")}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase text-slate-600 border border-slate-200 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all"
-                >
-                    <Send size={12} />
-                    <span className="hidden sm:inline">Distribuir</span>
-                </button>
 
                 {/* Programar split button */}
                 <div className="relative">
                     <div className="flex items-center rounded-xl overflow-hidden border border-slate-900 bg-slate-900">
-                        <button className="flex items-center gap-1.5 pl-4 pr-3 py-2 text-[10px] font-black tracking-widest uppercase text-white hover:bg-slate-800 transition-colors">
+                        <button 
+                            onClick={handleNewContent}
+                            className="flex items-center gap-1.5 pl-4 pr-3 py-2 text-[10px] font-black tracking-widest uppercase text-white hover:bg-slate-800 transition-colors"
+                        >
                             <Plus size={12} />
                             <span className="hidden sm:inline">Programar</span>
                         </button>
@@ -166,7 +170,7 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
                                 ].map((item) => (
                                     <button
                                         key={item.label}
-                                        onClick={() => setProgramarOpen(false)}
+                                        onClick={handleNewContent}
                                         className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0"
                                     >
                                         <p className="text-[11px] font-bold text-slate-700">{item.label}</p>

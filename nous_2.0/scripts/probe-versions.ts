@@ -13,7 +13,7 @@ async function listModels() {
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-1.0-pro'];
+    const models = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash'];
     const versions = ['v1', 'v1beta'];
 
     for (const ver of versions) {

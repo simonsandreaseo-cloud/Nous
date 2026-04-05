@@ -2,6 +2,7 @@ import { ContentItem, SEOAnalysisResult, DeepSEOAnalysisResult, CompetitorDetail
 import { executeWithKeyRotation } from "./ai-core";
 import { SchemaType as Type } from "@google/generative-ai";
 import { supabase } from "@/lib/supabase";
+import { useWriterStore } from "@/store/useWriterStore";
 
 // --- SERP & Content Fetching ---
 
@@ -13,7 +14,7 @@ export const fetchSerperSearch = async (query: string, apiKey: string): Promise<
                 "X-API-KEY": apiKey,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ q: query, gl: "es", hl: "es" })
+            body: JSON.stringify({ q: query, gl: "es", hl: "es", num: 50, page: 1 })
         });
         if (!res.ok) throw new Error("Serper API Error");
         return await res.json();
@@ -55,16 +56,18 @@ export const fetchGlobalMetrics = async (keyword: string): Promise<{ volume: str
     }
 };
 
-export const fetchUnstructuredContent = async (url: string): Promise<string> => {
+export const fetchJinaExtraction = async (url: string): Promise<string> => {
     try {
-        const response = await fetch('/api/unstructured', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
+        const apiKey = process.env.NEXT_PUBLIC_JINA_API_KEY || '';
+        const res = await fetch(`https://r.jina.ai/${encodeURIComponent(url)}`, {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'X-Retain-Images': 'none',
+                'X-No-Cache': 'true'
+            }
         });
-        if (!response.ok) return "";
-        const data = await response.json();
-        return data.text || "";
+        if (!res.ok) return "";
+        return await res.text();
     } catch (e) {
         return "";
     }
@@ -104,8 +107,34 @@ export const fetchJinaSearch = async (query: string): Promise<any> => {
 
 export const filterQualityResults = async (results: any[], keyword: string): Promise<any[]> => {
     if (!results || results.length === 0) return [];
-    const candidates = results.map((r, i) => ({ id: i, title: r.title, snippet: r.snippet, link: r.link })).slice(0, 15);
-    const prompt = `Filter out "Junk" URLs for a blog about "${keyword}". KEEP: Blogs, News, Guides. DISCARD: Product/Login pages. Return JSON Array of IDs. Candidates: ${JSON.stringify(candidates)}`;
+    
+    const SOCIAL_DOMAINS = [
+        'tiktok.com', 'instagram.com', 'facebook.com', 'pinterest.com', 'twitter.com', 'x.com', 
+        'youtube.com', 'linkedin.com', 'reddit.com', 'quora.com', 'etsy.com', 'ebay.com', 'amazon.com',
+        'mercadolibre.com', 'shopee.com', 'alibaba.com'
+    ];
+
+    const preFiltered = results.filter(r => {
+        try {
+            const host = new URL(r.link).hostname.toLowerCase();
+            return !SOCIAL_DOMAINS.some(d => host.includes(d));
+        } catch (e) {
+            return true;
+        }
+    });
+
+    const candidates = preFiltered.map((r, i) => ({ id: i, title: r.title, snippet: r.snippet, link: r.link })).slice(0, 30);
+    const prompt = `Actúa como un experto en SEO. Analiza los siguientes candidatos de búsqueda para el keyword "${keyword}". 
+    Identifica los resultados que son artículos de blog, guías informativas, noticias o contenido educativo de ALTA CALIDAD. 
+    ESTRICTAMENTE DESCARTA: 
+    - Páginas de redes sociales (TikTok, Instagram, etc)
+    - Sitios de comercio electrónico (Amazon, eBay)
+    - Pantallas de login o paywalls
+    - Directorios de empresas o cupones
+    - Contenido muy breve o sin valor editorial
+    
+    Retorna ÚNICAMENTE un array JSON con los IDs de los mejores candidatos (máximo 25). 
+    Candidatos: ${JSON.stringify(candidates)}`;
 
     return executeWithKeyRotation(async (ai) => {
         try {
@@ -119,10 +148,10 @@ export const filterQualityResults = async (results: any[], keyword: string): Pro
             const end = rawText.lastIndexOf(']');
             if (start !== -1 && end !== -1) rawText = rawText.substring(start, end + 1);
             const goodIds = JSON.parse(rawText);
-            const filtered = results.filter((_, index) => goodIds.includes(index));
-            return filtered.length > 0 ? filtered.slice(0, 8) : results.slice(0, 3);
+            const filtered = preFiltered.filter((_, index) => goodIds.includes(index));
+            return filtered.length > 0 ? filtered.slice(0, 20) : preFiltered.slice(0, 10);
         } catch (e) {
-            return results.slice(0, 3);
+            return preFiltered.slice(0, 10);
         }
     });
 }
@@ -184,8 +213,9 @@ export const runSEOAnalysis = async (
     csvData: any[],
     projectName?: string,
     serperKeyOverride?: string,
-    modelName?: string,
-    isIdea: boolean = false
+    modelName: string = 'gemini-2.5-flash',
+    isIdea: boolean = false,
+    onLog?: (phaseId: string, prompt: string) => void
 ): Promise<SEOAnalysisResult> => {
     const serperKey = serperKeyOverride || process.env.NEXT_PUBLIC_SERPER_API_KEY || '';
     const context = retrieveContext(csvData, keyword, "");
@@ -193,24 +223,39 @@ export const runSEOAnalysis = async (
     const collectionContext = context.collections.slice(0, 15).map(c => `- ${c.title} (${c.url})`).join('\n');
 
     let serpContext = "";
+    let realSerpData: any = null;
+
     if (serperKey) {
         try {
-            const intentPrompt = `Google Search query for Articles/Blogs about "${keyword}". Exclude ${projectName || ''}. Return ONLY query string.`;
-            let smartQuery = await executeWithKeyRotation(async (ai) => {
-                const modelObj = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            // PHASE 1: Traditional SERP Query
+            const intentPrompt = `
+            Eres un experto en investigación de keywords y estrategia de contenidos SEO.
+            Tu objetivo es generar un QUERY DE BÚSQUEDA en Google que encuentre los mejores artículos, guías y blogs informativos para el keyword: "${keyword}".
+            Reglas: - Evita páginas puramente transaccionales - No uses comandos complejos - Optimiza para encontrar competidores informativos.
+            Retorna ÚNICAMENTE la cadena de búsqueda (query string). No incluyas explicaciones.
+            `;
+            if (onLog) onLog("Investigación: Generación de Query Inteligente", intentPrompt);
+            let smartQuery = await executeWithKeyRotation(async (ai, currentModel) => {
+                const modelObj = ai.getGenerativeModel({ model: currentModel });
                 const queryResponse = await modelObj.generateContent(intentPrompt);
-                return queryResponse.response.text()?.trim().replace(/^"|"$/g, '') || keyword;
+                const respText = queryResponse.response.text()?.trim().replace(/^"|"$/g, '') || keyword;
+                useWriterStore.getState().addDebugPrompt("Investigación: Query Inteligente", intentPrompt, respText);
+                return respText;
             });
-            smartQuery += " -site:amazon.* -site:ebay.* -inurl:cart";
+            smartQuery += " -site:tiktok.com -site:instagram.com -site:pinterest.com -site:facebook.com -site:amazon.* -site:ebay.* -site:mercadolibre.* -inurl:product -inurl:cart";
 
-            let realSerpData = await fetchSerperSearch(smartQuery, serperKey);
+            realSerpData = await fetchSerperSearch(smartQuery, serperKey);
             if (!realSerpData?.organic?.length) realSerpData = await fetchSerperSearch(keyword, serperKey);
 
             if (realSerpData?.organic) {
+                const totalResults = realSerpData.organic.length;
                 const filtered = await filterQualityResults(realSerpData.organic, keyword);
                 const compCtx = filtered.map((r: any) => ({ title: r.title, url: r.link, snippet: r.snippet }));
                 serpContext = `REAL SERP DATA: ${JSON.stringify(compCtx)}`;
             }
+
+            // GEO Discovery (Grounding) removal per user request
+
         } catch (e) { serpContext = "External tools failed."; }
     }
 
@@ -222,22 +267,45 @@ export const runSEOAnalysis = async (
             autocompleteLongTail: { type: Type.ARRAY, items: { type: Type.STRING } },
             frequentQuestions: { type: Type.ARRAY, items: { type: Type.STRING } },
             top10Urls: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, url: { type: Type.STRING } } } },
+            top20Urls: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, url: { type: Type.STRING } } } },
             lsiKeywords: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { keyword: { type: Type.STRING }, count: { type: Type.STRING } } } },
             recommendedWords: { type: Type.ARRAY, items: { type: Type.STRING } },
             recommendedWordCount: { type: Type.STRING },
             recommendedSchemas: { type: Type.ARRAY, items: { type: Type.STRING } }
         },
-        required: ["nicheDetected", "keywordIdeas", "frequentQuestions", "top10Urls", "recommendedWordCount"]
+        required: ["nicheDetected", "keywordIdeas", "frequentQuestions", "top10Urls", "top20Urls", "recommendedWordCount"]
     };
 
-    return executeWithKeyRotation(async (ai) => {
+    return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({
-            model: modelName || 'gemini-2.5-flash',
+            model: currentModel,
             generationConfig: { responseMimeType: "application/json", responseSchema: schema as any }
         });
-        const prompt = `Analiza SEO para "${keyword}". SERP External: ${serpContext}. Database Internal: ${productContext} ${collectionContext}. Retorna JSON.`;
-        const response = await model.generateContent(prompt);
-        let json = JSON.parse(response.response.text());
+        const seoPrompt = `Analiza profundamente el panorama SEO para el keyword: "${keyword}". 
+        
+        Contexto SERP Real: ${serpContext}
+        Contexto Base de Datos Interna: 
+        ${productContext} 
+        ${collectionContext}
+        
+        Tu tarea es:
+        1. Evaluar el nicho y la intención de búsqueda.
+        2. Proporcionar ideas de keywords (short y mid tail).
+        3. Identificar las preguntas más frecuentes.
+        4. Listar los TOP 10 competidores directos.
+        5. Listar los TOP 20 competidores.
+        
+        Retorna los resultados en el esquema JSON solicitado.`;
+
+        if (onLog) onLog("Investigación: Análisis SERP & Intención (Final)", seoPrompt);
+        const response = await model.generateContent(seoPrompt);
+        const respText = response.response.text();
+        useWriterStore.getState().addDebugPrompt("Investigación: Análisis SERP Final", seoPrompt, respText);
+        let json = JSON.parse(respText);
+        if (realSerpData) {
+            json.peopleAlsoAsk = (realSerpData as any).peopleAlsoAsk || [];
+            json.frequentQuestions = json.peopleAlsoAsk.map((q: any) => q.question);
+        }
         return json as SEOAnalysisResult;
     }, modelName);
 };
@@ -247,79 +315,214 @@ export const runDeepSEOAnalysis = async (
     csvData: any[],
     projectName?: string,
     isIdea: boolean = false,
-    projectId?: string
+    projectId?: string,
+    onProgress?: (phaseId: string) => void,
+    onLog?: (phaseId: string, prompt: string) => void,
+    modelName: string = 'gemini-2.5-flash'
 ): Promise<DeepSEOAnalysisResult> => {
-    const baseResult = await runSEOAnalysis(keyword, csvData, projectName);
-    let internalDomain = csvData.length > 0 ? new URL(csvData[0].url).hostname.replace(/^www\./, '') : "";
-
-    const top10 = baseResult.top10Urls.filter(u => !internalDomain || !u.url.includes(internalDomain)).slice(0, 10);
-    const scrapedCompetitors = await Promise.all(top10.map(async (comp) => ({ url: comp.url, title: comp.title, content: await fetchUnstructuredContent(comp.url) })));
-    const selectedUrls = await selectTopCompetitorsViaAI(keyword, scrapedCompetitors);
+    // Stage 1: SERP Discovery
+    if (onProgress) onProgress("serp");
+    const baseResult = await runSEOAnalysis(keyword, csvData, projectName, undefined, modelName, false, onLog);
     
-    const competitors = await Promise.all(scrapedCompetitors.map(async (comp) => {
-        if (!selectedUrls.includes(comp.url)) return { ...comp, rankingKeywords: [] };
-        const kws = await fetchDataForSEOKeywords(comp.url);
-        return { ...comp, rankingKeywords: kws?.map((k: any) => ({ keyword: k.keyword_data?.keyword, pos: k.rank_group?.rank_absolute, vol: k.keyword_data?.keyword_info?.search_volume })).slice(0, 10) || [] };
-    }));
-
-    const globalMetrics = await fetchGlobalMetrics(keyword);
-    const validTexts = competitors.filter(c => selectedUrls.includes(c.url) && c.content).map(c => c.content!);
-    const tfidf = validTexts.length > 0 ? calculateTFIDF(validTexts).map(t => ({ keyword: t.keyword, count: Math.round(t.score * 100).toString() })) : [];
-    
-    baseResult.lsiKeywords = tfidf.slice(0, 50);
-
-    let suggestedLinks: any[] = [];
-    if (projectId) {
-        const { data: dbLinks } = await supabase.from('project_urls').select('url, title').eq('project_id', projectId).limit(50);
-        if (dbLinks) suggestedLinks = (await selectSemanticInternalLinks(keyword, dbLinks)).filter(s => dbLinks.some(d => d.url === s.url));
+    let internalDomain = "";
+    try {
+        if (csvData.length > 0 && csvData[0].url) {
+            internalDomain = new URL(csvData[0].url).hostname.replace(/^www\./, '');
+        }
+    } catch (e) {
+        console.warn("[Deep-SEO] Invalid URL in CSV data for internal domain detection");
     }
 
-    return { ...baseResult, searchVolume: globalMetrics.volume, keywordDifficulty: globalMetrics.difficulty, competitors, suggestedInternalLinks: suggestedLinks };
-};
+    // Phase 2: Filter Candidates
+    const topUrls = (baseResult as any).top20Urls || baseResult.top10Urls || [];
+    const cannibalizedUrls: string[] = [];
+    
+    const candidates = topUrls.filter((u: any) => {
+        try {
+            if (!u.url) return false;
+            const host = new URL(u.url).hostname.toLowerCase().replace(/^www\./, '');
+            const SOCIAL_DOMAINS = ['tiktok.com', 'instagram.com', 'facebook.com', 'pinterest.com', 'twitter.com', 'x.com', 'amazon.', 'ebay.', 'mercadolibre.', 'youtube.com'];
+            const isSocial = SOCIAL_DOMAINS.some(d => host.includes(d));
+            
+            if (internalDomain && host.includes(internalDomain)) {
+                cannibalizedUrls.push(u.url);
+                return true; 
+            }
+            return !isSocial;
+        } catch (e) {
+            return false;
+        }
+    }).slice(0, 10);
 
-// --- Specialized AI Helpers ---
+    if (cannibalizedUrls.length > 0 && onLog) {
+        onLog("Alerta Canibalización", `Se han detectado ${cannibalizedUrls.length} URLs de tu propio dominio en el SERP:\n${cannibalizedUrls.join('\n')}`);
+    }
+
+    // Phase 3: Scrape & AI Analysis (SEO)
+    if (onProgress) onProgress("extraction");
+    
+    // 3.1: Profile SEO Competitors
+    if (onLog) onLog("Sistema", `Analizando ${candidates.length} competidores SEO (tradicionales)...`);
+    const scrapedSEO: CompetitorDetail[] = [];
+    for (const comp of candidates) {
+        if (onLog) onLog("Sistema", `Extrayendo SEO: ${new URL(comp.url).hostname}`);
+        const content = await fetchJinaExtraction(comp.url);
+        if (!content) {
+            scrapedSEO.push({ url: comp.url, title: comp.title, isInvalid: true } as any);
+            continue;
+        }
+        let profilingRes: any = { summary: "", headers: [], isInvalid: false };
+        try {
+            await new Promise(res => setTimeout(res, 2000));
+            profilingRes = await executeWithKeyRotation(async (ai, currentModel) => {
+                const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
+                const prompt = `Analiza este competidor SEO para "${keyword}": ${comp.url}\nContenido: ${content.substring(0, 10000)}
+                Retorna JSON: {"summary": "breve resumen", "headers": [{"tag": "h2", "text": "..."}], "isInvalid": boolean}`;
+                const r = await model.generateContent(prompt);
+                return JSON.parse(r.response.text());
+            }, modelName);
+        } catch (e) {}
+        scrapedSEO.push({ 
+            ...comp, 
+            content: content, 
+            summary: profilingRes.summary, 
+            headers: profilingRes.headers, 
+            isInvalid: profilingRes.isInvalid || content.length < 300 
+        } as any);
+    }
+
+    // GEO Competitors removed per user request
+
+    const validSEO = scrapedSEO.filter(c => !c.isInvalid);
+    if (onLog) onLog("Sistema", `Extracción completada. SEO Actualizado: ${validSEO.length}`);
+
+    // Phase 4: TF-IDF & AI Semantic Cleaning
+    if (onProgress) onProgress("keywords");
+    const allValidTexts = validSEO.map(c => c.content || "");
+    const rawTfidf = calculateTFIDF(allValidTexts);
+    
+    const cleanedLSI = await executeWithKeyRotation(async (ai, currentModel) => {
+        const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
+        const cleanPrompt = `Limpia y categoriza términos semánticos para "${keyword}": ${JSON.stringify(rawTfidf.map(t => t.keyword))}
+        Retorna JSON array: [{"keyword": "...", "count": "Alto/Medio/Bajo"}]`;
+        const res = await model.generateContent(cleanPrompt);
+        return JSON.parse(res.response.text());
+    }, modelName);
+    baseResult.lsiKeywords = cleanedLSI;
+
+    // Phase 5: Selection & Metadata
+    if (onProgress) onProgress("competitors");
+    const selectedUrls = await selectTopCompetitorsViaAI(keyword, validSEO);
+    const finalSEOCompetitors = validSEO.map(c => ({
+        ...c,
+        isSelected: selectedUrls.includes(c.url)
+    }));
+
+    if (onProgress) onProgress("metadata");
+    const synthesisPrompt = `Genera la estrategia SEO definitiva para "${keyword}". 
+    Contexto Competidores: ${validSEO.slice(0, 3).map(c => c.summary).join(". ")}
+    LSI: ${JSON.stringify(cleanedLSI)}
+    Retorna JSON: {"h1": "...", "seo_title": "...", "slug": "...", "meta_description": "...", "extracto": "...", "schemas": []}`;
+    
+    const seoMetadata = await executeWithKeyRotation(async (ai, currentModel) => {
+        const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
+        const res = await model.generateContent(synthesisPrompt);
+        return JSON.parse(res.response.text());
+    }, modelName);
+
+    // Stage 7: Internal Linking
+    if (onProgress) onProgress("links");
+    let suggestedLinks: any[] = [];
+    if (projectId) {
+        if (onLog) onLog("Sistema", `Analizando oportunidades de enlazado interno...`);
+        const { data: project } = await supabase.from('projects').select('domain, architecture_rules').eq('id', projectId).single();
+        const { data: poolLow } = await supabase.from('project_urls').select('url, title, impressions_gsc').eq('project_id', projectId).order('impressions_gsc', { ascending: false }).limit(300);
+        
+        if (poolLow && poolLow.length > 0) {
+            suggestedLinks = await selectSemanticInternalLinks(keyword, poolLow, 15, onLog, JSON.stringify({ metadata: seoMetadata, lsi: cleanedLSI }), modelName);
+        }
+    }
+
+    const globalMetrics = await fetchGlobalMetrics(keyword);
+
+    return {
+        ...baseResult,
+        ...seoMetadata,
+        cannibalizationUrls: cannibalizedUrls,
+        competitors: finalSEOCompetitors,
+        suggestedInternalLinks: suggestedLinks,
+        target_keyword: keyword,
+        searchVolume: globalMetrics.volume,
+        keywordDifficulty: globalMetrics.difficulty,
+        word_count: parseInt(baseResult.recommendedWordCount) || 1500,
+        research_dossier: { ...baseResult, cannibalizedUrls, lsiKeywords: cleanedLSI, suggestedInternalLinks: suggestedLinks, seoMetadata },
+        brief: generateBriefingText({ ...baseResult, ...seoMetadata, lsiKeywords: cleanedLSI } as any),
+        excerpt: seoMetadata.extracto || seoMetadata.excerpt,
+        schemas: seoMetadata.schemas
+    };
+};
 
 export const selectTopCompetitorsViaAI = async (keyword: string, competitors: CompetitorDetail[]): Promise<string[]> => {
-    const list = competitors.map((c, i) => ({ index: i, url: c.url, title: c.title, snippet: c.content?.substring(0, 1000) }));
-    const prompt = `Select top 5 quality blog competitors for "${keyword}" from: ${JSON.stringify(list)}. Return JSON string array of URLs.`;
-    return executeWithKeyRotation(async (ai) => {
-        const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: "application/json" } });
-        const res = await model.generateContent(prompt);
-        return JSON.parse(res.response.text()).slice(0, 5);
-    });
-};
-
-export const selectSemanticInternalLinks = async (keyword: string, pool: any[]): Promise<any[]> => {
-    const prompt = `Select 5 relevant internal links for "${keyword}" from: ${pool.map(p => p.url).join(', ')}. Return JSON [{"url": "...", "title": "..."}].`;
-    return executeWithKeyRotation(async (ai) => {
-        const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: "application/json" } });
+    const list = competitors.filter(c => c.content && c.content.length > 100).map((c, i) => ({ index: i, url: c.url, title: c.title }));
+    if (list.length === 0) return [];
+    const prompt = `Selecciona los TOP 10 competidores para "${keyword}": ${JSON.stringify(list)}. Retorna JSON array de URLs.`;
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
         const res = await model.generateContent(prompt);
         return JSON.parse(res.response.text());
     });
 };
+
+export const selectSemanticInternalLinks = async (keyword: string, pool: any[], maxLinks: number = 10, onLog?: (p: string, pr: string) => void, context?: string, modelName: string = 'gemini-2.5-flash'): Promise<any[]> => {
+    const list = pool.map((p, i) => `[ID:${i}] ${p.url} - ${p.title}`).join('\n');
+    const prompt = `Actúa como estratega experto de enlazado interno SEO.
+    A partir de la siguiente lista de páginas de nuestro inventario, selecciona las más RELEVANTES (Mín 3, Máx ${maxLinks}) 
+    para el nuevo artículo de "${keyword}".
+    
+    Contexto SEO del artículo:
+    ${context}
+
+    Candidatos (Top por impresiones):
+    ${list}
+    
+    Retorna ÚNICAMENTE un array JSON [{"url", "title", "anchor_text"}]`;
+    
+    if (onLog) onLog("Investigación: Selección Semántica de Enlaces (Fase 3)", prompt);
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
+        const res = await model.generateContent(prompt);
+        const raw = res.response.text();
+        if (onStatus) onStatus("IA: Selección completada."); // Not used here but keep logic consistent
+        if (onLog) onLog("Respuesta Selección Enlaces", raw);
+        return JSON.parse(raw);
+    }, modelName);
+};
+
+// Placeholder as selectSemanticInternalLinks was using it incorrectly via copy-paste
+const onStatus = (msg: string) => {}; 
 
 export const generateOutlineStrategy = async (config: ArticleConfig, keyword: string, rawSeoData: SEOAnalysisResult, modelName?: string) => {
-    const prompt = `Create content outline for "${keyword}". Tone: ${config.tone}. Target: ${config.wordCount} words. Return JSON {snippet, outline}.`;
-    return executeWithKeyRotation(async (ai) => {
-        const model = ai.getGenerativeModel({ model: modelName || 'gemini-2.5-flash', generationConfig: { responseMimeType: "application/json" } });
+    const prompt = `Create outline for "${keyword}". JSON {snippet, outline}.`;
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
         const res = await model.generateContent(prompt);
         return JSON.parse(res.response.text());
-    });
+    }, modelName || 'gemini-2.5-flash');
 };
 
 export const runHumanizerPipeline = async (html: string, config: HumanizerConfig, intensity: number, onStatus: (msg: string) => void): Promise<{ html: string }> => {
-    onStatus("Humanizando contenido...");
-    const prompt = `Humanize this HTML. Niche: ${config.niche}. Keywords: ${config.keywords}. Return ONLY HTML. HTML: ${html}`;
-    return executeWithKeyRotation(async (ai) => {
-        const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const prompt = `Humanize HTML: ${html}`;
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const model = ai.getGenerativeModel({ model: currentModel });
         const res = await model.generateContent(prompt);
-        return { html: res.response.text().replace(/```html/g, '').replace(/```/g, '').trim() };
-    });
+        return { html: res.response.text() };
+    }, 'gemini-2.5-flash');
 };
 
 export const generateBriefingText = (seoData: SEOAnalysisResult): string => {
     let brief = `# Investigación SEO: ${seoData.nicheDetected}\n\n`;
-    if (seoData.top10Urls) brief += `## Competidores\n` + seoData.top10Urls.map((u, i) => `${i+1}. [${u.title}](${u.url})`).join('\n') + '\n\n';
-    if (seoData.lsiKeywords) brief += `## Semántica\n` + seoData.lsiKeywords.map(k => `- ${k.keyword}`).join('\n') + '\n\n';
-    return brief.trim();
+    brief += `## Metadatos\n- H1: ${(seoData as any).h1}\n- Slug: ${(seoData as any).slug}\n\n`;
+    const comps = (seoData as any).top20Urls || seoData.top10Urls || [];
+    brief += `## Competidores\n` + comps.map((u: any) => `- [${u.title}](${u.url})`).join('\n') + '\n\n';
+    return brief;
 };

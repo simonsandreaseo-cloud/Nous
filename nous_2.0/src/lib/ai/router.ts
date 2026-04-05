@@ -1,12 +1,8 @@
 import { AI_CONFIG, getGeminiKey } from './config';
 import { AIRequest, AIResponse } from './types';
-import { LocalNodeBridge } from '../local-node/bridge';
-import { OllamaProvider } from './providers/ollama';
-
 class AIRouter {
     private groq?: any;
     private openai?: any;
-    private ollama = new OllamaProvider();
     private initialized = false;
 
     private async init() {
@@ -27,40 +23,11 @@ class AIRouter {
         await this.init();
         let { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode } = request;
 
-        // ... existing logic for aiMode ...
-        let aiMode = 'cloud';
-        if (typeof document !== 'undefined') {
-            const match = document.cookie.match(/(^| )nous_ai_mode=([^;]+)/);
-            if (match && match[2] === 'local') {
-                aiMode = 'local';
-            }
+        // Force cloud mode
+        if (model.includes('local') || model === 'ollama') {
+            model = 'gemini-2.5-flash';
         }
 
-        if (aiMode === 'local') {
-            model = 'gemma3-local';
-            console.log("[AIRouter] Using Local AI Mode (Ollama)");
-        }
-
-        if (model === 'gemma3-local' || model === 'ollama') {
-            return this.ollama.generate({
-                ...request,
-                model: AI_CONFIG.ollama.models.gemma3
-            });
-        }
-
-        if (model === 'gemma-local') {
-            const bridge = LocalNodeBridge as any;
-            let finalPrompt = prompt;
-            if (systemPrompt) {
-                finalPrompt = `[System]: ${systemPrompt}\n\n[User]: ${prompt}`;
-            }
-
-            const responseText = await bridge.promptAI(finalPrompt);
-            return {
-                text: responseText,
-                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
-            };
-        }
 
         // 1. Route to Groq
         if (model.includes('llama') || model.includes('mixtral')) {
@@ -139,7 +106,7 @@ class AIRouter {
         // 3. Route to OpenAI
         if (model.includes('gpt') || model.includes('o1')) {
             if (!this.openai) {
-                return this.generate({ ...request, model: 'gemini-1.5-pro' });
+                return this.generate({ ...request, model: 'gemini-2.5-flash' });
             }
 
             const messages: any[] = [];

@@ -30,16 +30,18 @@ import {
     CheckSquare,
     Square,
     Loader2,
-    RefreshCw
+    RefreshCw,
+    Menu,
+    Grid
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 
 // ── Global areas (navigate to other sections of Nous) ──────────────────────
 const GLOBAL_AREAS = [
     { id: "contenidos", label: "Contenidos", icon: Home, href: "/contents" },
-    { id: "seo", label: "SEO On Page", icon: Search, href: "/studio/seo" },
-    { id: "estrategia", label: "Estrategia", icon: BarChart2, href: "/estrategia" },
-    { id: "monitor", label: "Monitor", icon: Monitor, href: "/studio/monitor" },
+    { id: "estrategia", label: "Estrategia", icon: CalendarDays, href: "/estrategia" },
+    { id: "seo", label: "SEO On Page", icon: Search, href: "/seo" },
+    { id: "monitor", label: "Monitor", icon: Monitor, href: "/monitor" },
     { id: "oficina", label: "Oficina", icon: Building2, href: "/office" },
 ];
 
@@ -47,12 +49,9 @@ const GLOBAL_AREAS = [
 export const CONTENT_TOOLS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, color: "text-[var(--color-nous-mint)]" },
     { id: "planner", label: "Planificador", icon: CalendarDays, color: "text-[var(--color-nous-mist)]" },
-    { id: "refinery", label: "Refinería", icon: FlaskConical, color: "text-amber-400" },
-    { id: "briefings", label: "Briefings", icon: FileText, color: "text-[var(--color-nous-mist)]" },
     { id: "writer", label: "Redactor", icon: PenLine, color: "text-[var(--color-nous-lavender)]" },
-    { id: "humanizer", label: "Humanizador", icon: Sparkles, color: "text-pink-400" },
-    { id: "interlinking", label: "Interlinking", icon: Link2, color: "text-[var(--color-nous-mist)]" },
-    { id: "publisher", label: "Maquetador", icon: LayoutTemplate, color: "text-indigo-400" },
+    { id: "publisher", label: "Distribución", icon: LayoutTemplate, color: "text-indigo-400" },
+    { id: "tests", label: "Pruebas", icon: FlaskConical, color: "text-amber-500" },
 ];
 
 interface ContentsSidebarProps {
@@ -66,6 +65,10 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
     const { teams, fetchTeams, isLoading: isStoreLoading } = useProjectStore();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [sectionMenuOpen, setSectionMenuOpen] = useState(false);
+
+    // Identify current core section
+    const currentGlobalArea = GLOBAL_AREAS.find(a => a.id === activeTool) || GLOBAL_AREAS[0];
 
     useEffect(() => {
         const cleanup = initialize();
@@ -85,94 +88,66 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
             transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
             className="shrink-0 h-full flex flex-col glass-panel border-hairline rounded-[28px] overflow-hidden shadow-sm relative z-50 bg-white/60 backdrop-blur-xl"
         >
-            {/* Header: User Profile / Logo */}
-            <div className="h-16 shrink-0 flex items-center px-3 gap-3 border-b border-slate-100/60 overflow-hidden bg-white/40">
-                <div className="relative group/profile shrink-0">
-                    <button 
-                        onClick={() => user ? setShowProfileMenu(!showProfileMenu) : signInWithGoogle()}
-                        className="w-11 h-11 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 hover:shadow-indigo-500/10 transition-all cursor-pointer bg-gradient-to-br from-indigo-50 to-white"
-                    >
-                        {user?.user_metadata?.avatar_url ? (
-                            <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                        ) : (
-                            <User size={18} className="text-slate-400 group-hover/profile:text-indigo-500 transition-colors" />
-                        )}
-                    </button>
+            {/* Section Switcher (Canva Style) */}
+            <div className="h-16 shrink-0 flex items-center px-3 border-b border-slate-100/60 relative bg-white/40">
+                <button 
+                    onClick={() => setSectionMenuOpen(!sectionMenuOpen)}
+                    className={cn(
+                        "w-full h-11 flex items-center px-3 rounded-2xl transition-all group relative overflow-hidden",
+                        sectionMenuOpen ? "bg-slate-900 text-white" : "hover:bg-slate-50 text-slate-700"
+                    )}
+                >
+                    <div className="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                        <Grid size={16} className={cn(sectionMenuOpen ? "text-white" : "text-indigo-600")} />
+                    </div>
                     
-                    {/* Tiny dropdown if user is logged in */}
-                    {user && showProfileMenu && (
-                        <div className="absolute left-full top-0 ml-3 w-48 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-xl p-2 z-[100] animate-in slide-in-from-left-4 fade-in duration-200">
-                            <div className="px-3 py-2 mb-1">
-                                <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Usuario</p>
-                                <p className="text-xs font-bold text-slate-800 truncate">{user.email}</p>
-                            </div>
-                            <button 
-                                onClick={signOut}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                            >
-                                <LogOut size={14} />
-                                Cerrar Sesión
-                            </button>
+                    {!isCollapsed && (
+                        <div className="ml-3 flex-1 flex items-center justify-between overflow-hidden">
+                            <span className="text-xs font-black uppercase tracking-widest truncate">{currentGlobalArea.label}</span>
+                            <ChevronDown size={14} className={cn("transition-transform ml-2", sectionMenuOpen && "rotate-180")} />
                         </div>
                     )}
-                </div>
+                </button>
 
-                {!isCollapsed && (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="min-w-0"
-                    >
-                        <p className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase leading-none mb-1">Nous</p>
-                        <h2 className="text-xs font-bold text-slate-800 truncate">{user ? user.user_metadata.full_name || "Mi Cuenta" : "Invitado"}</h2>
-                    </motion.div>
-                )}
+                {/* Dropdown Menu for Global Areas */}
+                <AnimatePresence>
+                    {sectionMenuOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                            className="absolute top-full left-3 right-3 mt-1 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl p-2 z-[100] animate-in slide-in-from-top-4"
+                        >
+                            <p className="px-3 py-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Cambiar Sección</p>
+                            {GLOBAL_AREAS.filter(area => area.id !== currentGlobalArea.id).map((area) => (
+                                <Link
+                                    key={area.id}
+                                    href={area.href}
+                                    onClick={() => setSectionMenuOpen(false)}
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-900 hover:text-white transition-all group"
+                                >
+                                    <area.icon size={16} className="text-slate-400 group-hover:text-white/70" />
+                                    {area.label}
+                                </Link>
+                            ))}
+                            <div className="h-px bg-slate-100 my-1 mx-2" />
+                            <Link
+                                href="/office"
+                                onClick={() => setSectionMenuOpen(false)}
+                                className="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
+                            >
+                                <Settings size={14} />
+                                Configuración
+                            </Link>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Project Selector Mini-Module */}
             <ProjectSelector isCollapsed={isCollapsed} />
 
-            {/* Global Areas */}
-            <nav className="flex flex-col items-center gap-1 py-3 border-b border-slate-100/60 px-2 overflow-hidden">
-                {GLOBAL_AREAS.map((area) => {
-                    const isActive = area.id === "contenidos"
-                        ? pathname?.startsWith("/contents")
-                        : pathname?.startsWith(area.href);
-                    return (
-                        <Link
-                            key={area.id}
-                            href={area.href}
-                            title={isCollapsed ? area.label : undefined}
-                            className={cn(
-                                "w-full h-11 flex items-center px-3 rounded-2xl transition-all group relative overflow-hidden shrink-0",
-                                isActive
-                                    ? "bg-slate-900 text-white shadow-sm"
-                                    : "text-slate-400 hover:text-slate-700 hover:bg-white/60"
-                            )}
-                        >
-                            <div className="w-5 h-5 flex items-center justify-center shrink-0 mx-auto lg:mx-0">
-                                <area.icon size={18} />
-                            </div>
-                            
-                            {!isCollapsed && (
-                                <motion.span 
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className="ml-3 text-xs font-bold whitespace-nowrap"
-                                >
-                                    {area.label}
-                                </motion.span>
-                            )}
 
-                            {isCollapsed && (
-                                <span className="absolute left-full ml-3 px-2 py-1 text-[10px] font-bold tracking-widest uppercase bg-slate-900 text-white rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-50">
-                                    {area.label}
-                                </span>
-                            )}
-                        </Link>
-                    );
-                })}
-            </nav>
 
             {/* Content Tools (Toolkit) */}
             <div className="flex-1 overflow-y-auto custom-scrollbar py-3 px-2 flex flex-col gap-1 overflow-x-hidden">
@@ -235,19 +210,60 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                 })}
             </div>
 
-            {/* Footer: Collapse Toggle */}
-            <div className="p-3 border-t border-slate-100/60 h-16 shrink-0 flex items-center justify-center">
-                <button 
-                    onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="w-full h-10 flex items-center justify-center gap-2 rounded-xl bg-slate-50 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 hover:border-indigo-100 border border-transparent transition-all overflow-hidden"
-                >
-                    {isCollapsed ? <ChevronRight size={18} /> : (
-                        <div className="flex items-center gap-2 px-2 w-full">
-                            <ChevronLeft size={18} />
-                            <span className="text-[10px] font-black uppercase tracking-widest truncate">Contraer</span>
-                        </div>
-                    )}
-                </button>
+            {/* Footer: User Profile + Collapse Toggle */}
+            <div className="p-3 border-t border-slate-100/60 shrink-0 bg-white/40">
+                <div className="flex items-center gap-2">
+                    {/* User Profile Hook */}
+                    <div className="relative group/profile shrink-0">
+                        <button 
+                            onClick={() => user ? setShowProfileMenu(!showProfileMenu) : signInWithGoogle()}
+                            className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 transition-all cursor-pointer"
+                        >
+                            {user?.user_metadata?.avatar_url ? (
+                                <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                                <User size={16} className="text-slate-400" />
+                            )}
+                        </button>
+                        
+                        {/* Dropdown if user is logged in (Bottom-up menu) */}
+                        <AnimatePresence>
+                            {user && showProfileMenu && (
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                    className="absolute bottom-full left-0 mb-3 w-48 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl p-2 z-[110]"
+                                >
+                                    <div className="px-3 py-2 mb-1">
+                                        <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Perfil</p>
+                                        <p className="text-xs font-bold text-slate-800 truncate">{user.email}</p>
+                                    </div>
+                                    <button 
+                                        onClick={signOut}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                    >
+                                        <LogOut size={14} />
+                                        Cerrar Sesión
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Collapse Button */}
+                    <button 
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="flex-1 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 border border-transparent transition-all overflow-hidden"
+                    >
+                        {isCollapsed ? <ChevronRight size={18} /> : (
+                            <div className="flex items-center gap-2 px-2 w-full">
+                                <ChevronLeft size={18} />
+                                <span className="text-[9px] font-black uppercase tracking-widest truncate">Fijar Panel</span>
+                            </div>
+                        )}
+                    </button>
+                </div>
             </div>
         </motion.aside>
     );

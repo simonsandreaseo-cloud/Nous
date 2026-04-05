@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { subDays, format } from 'date-fns';
 import { SegmentationService } from '@/lib/services/report/segmentationService';
+import { sanitizeUrl } from '@/utils/domain';
 
 // Helper to format rows
 const formatRow = (row: any, dimensions: string[]) => {
@@ -248,7 +249,7 @@ export const GscService = {
                 if (!resPage.data.rows || resPage.data.rows.length === 0) break;
 
                 for (const row of resPage.data.rows) {
-                    const pageUrl = row.keys![0];
+                    const pageUrl = sanitizeUrl(row.keys![0]);
                     const normUrl = normalizeUrl(pageUrl);
                     let derivedTitle = pageUrl.replace(/\/$/, '').split('/').pop()?.replace(/-/g, ' ') || 'Página Indexada';
                     if (derivedTitle.length < 3) derivedTitle = "Página Principal / Home";

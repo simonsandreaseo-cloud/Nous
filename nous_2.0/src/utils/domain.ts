@@ -30,3 +30,35 @@ export function getFaviconUrl(domain: string): string {
     const cleanDomain = domain.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split('/')[0];
     return `https://www.google.com/s2/favicons?sz=128&domain=${cleanDomain}`;
 }
+
+/**
+ * Normalizes and fixes common URL malformations, such as duplicated domains.
+ * e.g., "https://domain.comdomain.com/path" -> "https://domain.com/path"
+ */
+export function sanitizeUrl(url: string): string {
+    if (!url) return "";
+    try {
+        let clean = url.trim();
+        // Handle cases where protocol is missing or malformed
+        if (!clean.startsWith('http')) {
+            clean = 'https://' + clean.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "www.");
+        }
+        
+        const u = new URL(clean);
+        let hostname = u.hostname;
+        
+        // Fix double domain in hostname
+        // This commonly happens when concatenating domain + relative path where the path was already absolute or included the domain
+        const mid = Math.floor(hostname.length / 2);
+        const firstHalf = hostname.substring(0, mid);
+        const secondHalf = hostname.substring(mid);
+        
+        if (firstHalf === secondHalf && hostname.length > 0) {
+            hostname = firstHalf;
+        }
+        
+        return `https://${hostname}${u.pathname}${u.search}${u.hash}`;
+    } catch (e) {
+        return url;
+    }
+}

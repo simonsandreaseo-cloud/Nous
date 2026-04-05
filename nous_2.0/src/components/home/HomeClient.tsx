@@ -82,19 +82,29 @@ export default function HomeClient() {
                                 transition={{ duration: 1.2, delay: 0.6 }}
                                 className="pointer-events-auto flex flex-col items-start max-w-2xl mt-12"
                             >
-                                <h1 className="text-5xl md:text-7xl lg:text-[5.5rem] leading-[1.05] font-medium text-[#111] tracking-tight mb-12">
-                                    Ecosistema<br />
-                                    SEO Inteligente
+                                <h1 className="text-5xl md:text-7xl lg:text-[5rem] xl:text-[5.5rem] leading-[1.1] font-medium text-[#111] tracking-tight mb-6">
+                                    Tu mente en la estrategia.<br />
+                                    Nous ejecuta el <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#3b82f6] to-[#62cff4]">SEO técnico.</span>
                                 </h1>
+
+                                <p className="text-xl md:text-2xl text-gray-600 max-w-xl mb-12 leading-relaxed font-light">
+                                    Inteligencia SEO avanzada, investigación profunda y redacción E-E-A-T en un espacio de trabajo minimalista.
+                                </p>
                                 
-                                <Link
-                                    href="/auth"
-                                    className="relative overflow-hidden group px-10 py-4 rounded-full bg-gradient-to-r from-[#62cff4] to-[#3b82f6] text-white text-lg font-bold tracking-wide shadow-[0_8px_25px_-8px_rgba(59,130,246,0.5)] hover:shadow-[0_8px_30px_-5px_rgba(59,130,246,0.6)] hover:-translate-y-0.5 transition-all duration-300"
-                                >
-                                    <span className="relative z-10">EMPEZAR</span>
-                                    {/* Hover shine effect */}
-                                    <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:animate-[shimmer_1.5s_infinite]" />
-                                </Link>
+                                <div className="flex flex-col items-start gap-4">
+                                    <Link
+                                        href="/auth"
+                                        className="relative overflow-hidden group px-10 py-4 rounded-full bg-gradient-to-r from-[#62cff4] to-[#3b82f6] text-white text-lg font-bold tracking-wide shadow-[0_8px_25px_-8px_rgba(59,130,246,0.5)] hover:shadow-[0_8px_30px_-5px_rgba(59,130,246,0.6)] hover:-translate-y-0.5 transition-all duration-300 pointer-events-auto"
+                                    >
+                                        <span className="relative z-10 uppercase">Iniciar proyecto</span>
+                                        {/* Hover shine effect */}
+                                        <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:animate-[shimmer_1.5s_infinite]" />
+                                    </Link>
+
+                                    <p className="text-sm font-medium text-gray-400 pl-4">
+                                        Diseñado para escalar agencias, equipos y consultores independientes.
+                                    </p>
+                                </div>
 
                             </motion.div>
 

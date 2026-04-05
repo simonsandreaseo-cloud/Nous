@@ -1,44 +1,119 @@
 import { ContentItem } from "./types";
+import { sanitizeUrl } from "@/utils/domain";
 
-export const autoInterlinkAsync = async (html: string, csvData: ContentItem[]): Promise<string> => {
-    const candidates = csvData.filter(i => i.type === 'product' || i.type === 'collection' || i.type === 'static' || i.type === 'blog');
-    candidates.sort((a, b) => b.title.length - a.title.length);
+/**
+ * SMART AUTO-INTERLINKING PIPELINE
+ * Phase 1: Categorization (Rules) -> Phase 2: Filtering (Intent) -> Phase 3: Reranking
+ */
+export const autoInterlinkAsync = async (
+    html: string, 
+    inventory: ContentItem[], 
+    architectureRules?: { name: string, regex: string }[],
+    architectureInstructions?: string
+): Promise<string> => {
+    if (!inventory || inventory.length === 0) return html;
+
+    // 1. Enrich inventory with categories if missing using rules
+    const enrichedInventory = inventory.map(item => {
+        if (item.category) return item;
+        if (architectureRules) {
+            for (const rule of architectureRules) {
+                try {
+                    const reg = new RegExp(rule.regex, 'i');
+                    if (reg.test(item.url)) return { ...item, category: rule.name };
+                } catch (_) { /* ignore invalid regex */ }
+            }
+        }
+        return item;
+    });
+
+    // 2. Simple Intent Detection: Extract headers from HTML to find current topics
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const headers = Array.from(doc.querySelectorAll('h1, h2, h3'))
+        .map(h => h.textContent?.toLowerCase() || '')
+        .filter(t => t.length > 5);
+    
+    // 3. Scoring & Sorting Pipeline
+    const candidates = enrichedInventory
+        .filter(i => i.type === 'product' || i.type === 'collection' || i.type === 'static' || i.type === 'blog')
+        .map(item => {
+            let score = 0;
+            // Type Boost (Transactional first)
+            if (item.type === 'product') score += 500;
+            if (item.type === 'collection') score += 300;
+            
+            // Category Context Boost
+            if (item.category) {
+                const catLower = item.category.toLowerCase();
+                if (headers.some(h => h.includes(catLower) || catLower.includes(h))) score += 400;
+            }
+
+            // Title Length Tie-breaker (more specific is usually better)
+            score += item.title.length;
+
+            return { ...item, _score: score };
+        });
+
+    candidates.sort((a, b) => b._score - a._score);
 
     let linkedHtml = html;
     const alreadyLinked = new Set<string>();
     let linkCount = 0;
+    const MAX_LINKS = 15;
 
-    const topCandidates = candidates.slice(0, 300);
+    // Use only top candidates to keep regex processing fast
+    const topCandidates = candidates.slice(0, 400);
 
     for (let i = 0; i < topCandidates.length; i++) {
-        // Yield to main thread every 20 iterations to prevent UI freeze
+        // Yield to prevent UI freeze
         if (i > 0 && i % 20 === 0) {
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         const item = topCandidates[i];
-        if (linkCount >= 15) break;
-        if (item.title.length < 4) continue;
+        if (linkCount >= MAX_LINKS) break;
+        if (item.title.length < 3) continue; // Allow slightly shorter titles (e.g. "BMW")
         if (alreadyLinked.has(item.url)) continue;
 
-        const safeTitle = escapeRegExp(item.title);
-        const titleRegex = new RegExp(`(?<!<[^>]*)\\b${safeTitle}\\b`, 'i');
+        // Create variations of the title to improve matching
+        const variations = [
+            item.title,
+            item.title.replace(/\s+/g, ' '), // normalized spaces
+            item.title.split(' - ')[0],      // Before dash (often brand/model)
+            item.title.split(' | ')[0]       // Before pipe
+        ].filter((v, i, self) => v && v.length >= 4 && self.indexOf(v) === i);
 
-        if (titleRegex.test(linkedHtml)) {
-            if (linkedHtml.includes(item.url)) {
-                alreadyLinked.add(item.url);
-                continue;
+        let replacedThisRound = false;
+
+        for (const variation of variations) {
+            if (replacedThisRound || linkCount >= MAX_LINKS) break;
+
+            const safeTitle = escapeRegExp(variation);
+            // Ensure we don't link inside existing tags, attributes, or already linked text
+            // Negative lookahead/lookbehind for HTML tags and existing anchors
+            const titleRegex = new RegExp(`(?<!<[^>]*)(?<!<a[^>]*>)\\b${safeTitle}\\b(?![^<]*</a>)`, 'i');
+
+            if (titleRegex.test(linkedHtml)) {
+                // Avoid duplicate links to same URL
+                if (linkedHtml.includes(`href="${item.url}"`) || linkedHtml.includes(`href='${item.url}'`)) {
+                    alreadyLinked.add(item.url);
+                    replacedThisRound = true;
+                    continue;
+                }
+
+                linkedHtml = linkedHtml.replace(titleRegex, (match) => {
+                    if (replacedThisRound) return match;
+                    replacedThisRound = true;
+                    alreadyLinked.add(item.url);
+                    linkCount++;
+                    const finalUrl = sanitizeUrl(item.url);
+                    return `<a href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="Ver ${match}">${match}</a>`;
+                });
             }
-            let replaced = false;
-            linkedHtml = linkedHtml.replace(titleRegex, (match) => {
-                if (replaced) return match;
-                replaced = true;
-                alreadyLinked.add(item.url);
-                linkCount++;
-                return `<a href="${item.url}" target="_blank" rel="noopener noreferrer" title="Ver ${match}">${match}</a>`;
-            });
         }
     }
+
     return linkedHtml;
 };
 
