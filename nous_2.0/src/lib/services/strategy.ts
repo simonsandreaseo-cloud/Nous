@@ -3,7 +3,7 @@ import { getGeminiKey } from '@/lib/ai/config';
 import { runDeepSEOAnalysis as runRealDeepAnalysis } from './writer/seo-analyzer';
 import { useProjectStore } from '@/store/useProjectStore';
 
-async function queryAI(prompt: string, modelId: string = 'gemini-1.5-flash', jsonResponse: boolean = true): Promise<string> {
+async function queryAI(prompt: string, modelId: string = 'gemini-2.5-flash', jsonResponse: boolean = true): Promise<string> {
     const apiKey = getGeminiKey();
     if (!apiKey) throw new Error("Gemini API Key missing");
     const { GoogleGenerativeAI } = await import("@google/generative-ai");

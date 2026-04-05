@@ -23,8 +23,8 @@ export const executeWithKeyRotation = async <T>(
     // 1. Determine Model Fallback Order
     const primary = modelName;
     const secondary = primary === 'gemini-3.1-flash-lite-preview' ? 'gemma-3-27b-it' : 'gemini-3.1-flash-lite-preview';
-    const parachute1 = 'gemini-2.5-flash-lite';
-    const baseline = 'gemini-2.5-flash';
+    const parachute1 = 'gemini-2.5-flash';
+    const baseline = 'gemini-2.5-flash-lite';
     
     // If strict, only use the requested model
     const modelsToTry = isStrictModel 

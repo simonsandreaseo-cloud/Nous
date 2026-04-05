@@ -36,9 +36,17 @@ interface StrategyGridProps {
     onSelectTask?: (task: Task) => void;
     onRunResearch?: (taskId: string) => void;
     columnVisibility?: Record<string, boolean>;
+    selectedTaskIds?: string[];
+    onSelectionChange?: (ids: string[]) => void;
 }
 
-export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibility: externalVisibility }: StrategyGridProps) {
+export default function StrategyGrid({ 
+    onSelectTask, 
+    onRunResearch, 
+    columnVisibility: externalVisibility,
+    selectedTaskIds = [],
+    onSelectionChange
+}: StrategyGridProps) {
     const { tasks, activeProject, addTask, updateTask, deleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
     const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
@@ -70,6 +78,25 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
     const { canCreateOrDelete, canEditAny, canTakeTasks } = usePermissions();
 
     const visibleColumns = ALL_COLUMNS.filter(c => columnVisibility[c.id]);
+
+    const toggleAll = () => {
+        if (!onSelectionChange) return;
+        if (selectedTaskIds.length === sortedTasks.length) {
+            onSelectionChange([]);
+        } else {
+            onSelectionChange(sortedTasks.map(t => t.id));
+        }
+    };
+
+    const toggleOne = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!onSelectionChange) return;
+        if (selectedTaskIds.includes(id)) {
+            onSelectionChange(selectedTaskIds.filter(tid => tid !== id));
+        } else {
+            onSelectionChange([...selectedTaskIds, id]);
+        }
+    };
 
     const handleCellClick = (task: Task, field: any, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -228,6 +255,24 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                 <table className="min-w-full text-left border-collapse table-auto">
                     <thead>
                         <tr className="bg-white border-b border-slate-200/80 sticky top-0 z-[5] backdrop-blur-sm">
+                            <th className="px-3 py-3 w-[40px]">
+                                <div 
+                                    className={cn(
+                                        "w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer transition-all",
+                                        selectedTaskIds.length > 0 && selectedTaskIds.length === sortedTasks.length 
+                                            ? "bg-slate-900 border-slate-900" 
+                                            : "border-slate-200 hover:border-slate-400"
+                                    )}
+                                    onClick={toggleAll}
+                                >
+                                    {selectedTaskIds.length > 0 && (
+                                        <div className={cn(
+                                            "w-2 h-0.5 bg-white rounded-full",
+                                            selectedTaskIds.length === sortedTasks.length ? "rotate-45 relative top-[1px] left-[1px] w-[6px] h-[2px]" : ""
+                                        )} />
+                                    )}
+                                </div>
+                            </th>
                             {visibleColumns.map((header) => (
                                 <th 
                                     key={header.id} 
@@ -253,8 +298,26 @@ export default function StrategyGrid({ onSelectTask, onRunResearch, columnVisibi
                             sortedTasks.map((task) => (
                                 <tr
                                     key={task.id}
-                                    className="group hover:bg-slate-50/30 even:bg-slate-50/10 transition-all cursor-pointer select-none border-b border-slate-50 last:border-none"
+                                    className={cn(
+                                        "group hover:bg-slate-50/30 even:bg-slate-50/10 transition-all cursor-pointer select-none border-b border-slate-50 last:border-none",
+                                        selectedTaskIds.includes(task.id) && "bg-indigo-50/40 hover:bg-indigo-50/60"
+                                    )}
+                                    onClick={() => onSelectTask?.(task)}
                                 >
+                                    <td className="px-3 py-2" onClick={(e) => toggleOne(task.id, e)}>
+                                        <div 
+                                            className={cn(
+                                                "w-4 h-4 rounded border-2 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
+                                                selectedTaskIds.includes(task.id) 
+                                                    ? "bg-indigo-600 border-indigo-600 opacity-100" 
+                                                    : "border-slate-200 bg-white"
+                                            )}
+                                        >
+                                            {selectedTaskIds.includes(task.id) && (
+                                                <div className="w-1.5 h-1.5 bg-white rounded-sm" />
+                                            )}
+                                        </div>
+                                    </td>
                                     {columnVisibility['project'] && (
                                         <td className="px-3 py-2">
                                             <ProjectBadge projectId={task.project_id} />

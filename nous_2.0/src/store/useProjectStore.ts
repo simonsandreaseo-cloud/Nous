@@ -46,6 +46,8 @@ interface ProjectState {
     addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<void>;
     updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
     deleteTask: (taskId: string) => Promise<void>;
+    deleteTasks: (taskIds: string[]) => Promise<void>;
+    updateTasks: (taskIds: string[], updates: Partial<Task>) => Promise<void>;
     fetchPersonalTasks: () => Promise<void>;
     assignTask: (taskId: string, userId: string | null) => Promise<void>;
     claimTask: (taskId: string) => Promise<void>;
@@ -486,6 +488,45 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             console.error('[DEBUG] Unexpected Error in deleteTask:', e);
             alert(`Error inesperado al eliminar: ${e.message}`);
         }
+    },
+
+    deleteTasks: async (taskIds) => {
+        if (!taskIds || taskIds.length === 0) return;
+        
+        const { error } = await supabase
+            .from('tasks')
+            .delete()
+            .in('id', taskIds);
+
+        if (error) {
+            console.error('Error deleting tasks:', error);
+            alert(`Error al eliminar contenidos: ${error.message}`);
+            return;
+        }
+
+        set(state => ({
+            tasks: state.tasks.filter(t => !taskIds.includes(t.id))
+        }));
+        NotificationService.notify(`${taskIds.length} contenidos eliminados correctamente`);
+    },
+
+    updateTasks: async (taskIds, updates) => {
+        if (!taskIds || taskIds.length === 0) return;
+
+        const { error } = await supabase
+            .from('tasks')
+            .update(updates)
+            .in('id', taskIds);
+
+        if (error) {
+            console.error('Error updating tasks:', error);
+            alert(`Error al actualizar contenidos: ${error.message}`);
+            return;
+        }
+
+        set(state => ({
+            tasks: state.tasks.map(t => taskIds.includes(t.id) ? { ...t, ...updates } : t)
+        }));
     },
 
     createProject: async (newProject) => {

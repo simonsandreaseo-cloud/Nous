@@ -1,5 +1,6 @@
 import { ContentItem, SEOAnalysisResult, DeepSEOAnalysisResult, CompetitorDetail, ArticleConfig, HumanizerConfig } from "./types";
 import { executeWithKeyRotation } from "./ai-core";
+import { fetchJinaExtraction } from "@/lib/services/jina";
 import { SchemaType as Type } from "@google/generative-ai";
 import { supabase } from "@/lib/supabase";
 import { useWriterStore } from "@/store/useWriterStore";
@@ -56,22 +57,7 @@ export const fetchGlobalMetrics = async (keyword: string): Promise<{ volume: str
     }
 };
 
-export const fetchJinaExtraction = async (url: string): Promise<string> => {
-    try {
-        const apiKey = process.env.NEXT_PUBLIC_JINA_API_KEY || '';
-        const res = await fetch(`https://r.jina.ai/${encodeURIComponent(url)}`, {
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'X-Retain-Images': 'none',
-                'X-No-Cache': 'true'
-            }
-        });
-        if (!res.ok) return "";
-        return await res.text();
-    } catch (e) {
-        return "";
-    }
-};
+// Removed local fetchJinaExtraction to use unified service from @/lib/services/jina
 
 export const fetchRealSERP = async (query: string): Promise<any> => {
     try {
@@ -366,7 +352,7 @@ export const runDeepSEOAnalysis = async (
     const scrapedSEO: CompetitorDetail[] = [];
     for (const comp of candidates) {
         if (onLog) onLog("Sistema", `Extrayendo SEO: ${new URL(comp.url).hostname}`);
-        const content = await fetchJinaExtraction(comp.url);
+        const { content } = await fetchJinaExtraction(comp.url, process.env.NEXT_PUBLIC_JINA_API_KEY || "");
         if (!content) {
             scrapedSEO.push({ url: comp.url, title: comp.title, isInvalid: true } as any);
             continue;

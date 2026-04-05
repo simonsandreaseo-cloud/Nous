@@ -43,9 +43,14 @@ import {
     Terminal,
     FileDown,
     Share,
-    Hash
+    Hash,
+    Activity,
+    Trash2
 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
+import { usePermissions } from '@/hooks/usePermissions';
+import { runDeepSEOAnalysis } from '@/lib/services/writer/seo-analyzer';
+import { StrategyService } from "@/lib/services/strategy";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,8 +62,9 @@ import { parseDocx, parseHtml } from "@/lib/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
 import IntelligenceHub from "./IntelligenceHub";
+import NousOrb from "./NousOrb";
+import { BatchProcessor } from '@/lib/services/writer/batch-actions';
 
-import { StrategyService } from "@/lib/services/strategy";
 import { ProjectBadge } from "@/components/ui/ProjectBadge";
 import AIConsole from "./AIConsole";
 import StrategyGallery from "./StrategyGallery";
@@ -67,7 +73,7 @@ import ContentDetailView from "./ContentDetailView";
 import { useSearchParams } from "next/navigation";
 
 export function EditorialCalendar() {
-    const { tasks, activeProject, activeProjectIds, updateTask, addTask, fetchProjectTasks } = useProjectStore();
+    const { tasks, activeProject, activeProjectIds, updateTask, addTask, fetchProjectTasks, deleteTasks } = useProjectStore();
     const isConsoleOpen = useWriterStore(state => state.isConsoleOpen);
     const setIsConsoleOpen = useWriterStore(state => state.setIsConsoleOpen);
     const initializeFromTask = useWriterStore(state => state.initializeFromTask);
@@ -87,6 +93,9 @@ export function EditorialCalendar() {
     const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
     const [isNewContentModalOpen, setIsNewContentModalOpen] = useState(false);
     const [researchTaskId, setResearchTaskId] = useState<string | undefined>(undefined);
+    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+    const [isResearching, setIsResearching] = useState(false);
+    const [researchProgress, setResearchProgress] = useState(0);
     const searchParams = useSearchParams();
 
     // Column Visibility State
@@ -146,6 +155,120 @@ export function EditorialCalendar() {
         router.replace(window.location.pathname + (newSearch ? '?' + newSearch : ''), { scroll: false });
     };
 
+    const handleRunResearch = (taskId: string) => {
+        setResearchTaskId(taskId);
+        setIsNewContentModalOpen(true);
+    };
+
+    const handleBatchResearch = async () => {
+        if (selectedTaskIds.length === 0) return;
+        setIsResearching(true);
+        setResearchProgress(0);
+        
+        if (!isConsoleOpen) setIsConsoleOpen(true);
+        
+        try {
+            let count = 0;
+            for (const id of selectedTaskIds) {
+                const task = tasks.find(t => t.id === id);
+                if (!task || !task.target_keyword) continue;
+                
+                NotificationService.notify('Investigación en Lote', `Procesando: ${task.target_keyword}`);
+                
+                await runDeepSEOAnalysis(
+                    task.target_keyword,
+                    async (updates) => {
+                        await updateTask(id, { research_dossier: updates });
+                    },
+                    (stage, msg) => {
+                        StrategyService.addLog(id, stage, msg);
+                    }
+                );
+                await updateTask(id, { status: 'por_redactar' });
+                
+                count++;
+                setResearchProgress((count / selectedTaskIds.length) * 100);
+            }
+            NotificationService.success('Proceso por lote completado', `Se han investigado ${count} contenidos.`);
+            setSelectedTaskIds([]);
+        } catch (error) {
+            console.error('Batch research error:', error);
+            NotificationService.error('Error en la investigación masiva');
+        } finally {
+            setIsResearching(false);
+        }
+    };
+
+    const handleBatchDelete = async () => {
+        if (selectedTaskIds.length === 0) return;
+        if (confirm(`¿Estás seguro de eliminar ${selectedTaskIds.length} tareas?`)) {
+            await deleteTasks(selectedTaskIds);
+            setSelectedTaskIds([]);
+            NotificationService.notify("Tareas Eliminadas", "La selección ha sido eliminada.");
+        }
+    };
+
+    const handleOrbAction = async (action: string) => {
+        if (!activeProject) return;
+
+        if (action === 'sugerir_estrategia') {
+            await handleGenerateStrategy();
+            return;
+        }
+
+        setIsResearching(true);
+        setResearchProgress(0);
+        if (!isConsoleOpen) setIsConsoleOpen(true);
+
+        try {
+            const onLog = (tid: string, stage: string, msg: string) => StrategyService.addLog(tid, stage, msg);
+            const onProgress = (p: number) => setResearchProgress(p);
+
+            if (action === 'investigar_ideas') {
+                const ideas = tasks.filter(t => t.status === 'idea' && t.target_keyword);
+                // We reuse existing handleRunResearch logic or BatchProcessor if I had one for research
+                // For now, let's process ideas
+                let c = 0;
+                for (const t of ideas) {
+                    NotificationService.notify('Investigando', t.title);
+                    await runDeepSEOAnalysis(
+                        t.target_keyword || t.title,
+                        (updates) => updateTask(t.id, { research_dossier: updates }),
+                        (s, m) => onLog(t.id, s, m)
+                    );
+                    await updateTask(t.id, { status: 'por_redactar' });
+                    c++;
+                    setResearchProgress((c / ideas.length) * 100);
+                }
+            } else if (action === 'generar_outlines') {
+                const filtered = tasks.filter(t => 
+                    (t.status === 'por_redactar' || t.status === 'en_investigacion' || t.status === 'investigacion_proceso') && 
+                    t.research_dossier && !t.outline_structure
+                );
+                await BatchProcessor.processOutlines(filtered, activeProject.id, onProgress, onLog);
+            } else if (action === 'redaccion_masiva') {
+                const filtered = tasks.filter(t => 
+                    (t.status === 'por_redactar' || t.outline_structure) && 
+                    t.outline_structure && !t.content_body
+                );
+                await BatchProcessor.processDrafts(filtered, onProgress, onLog);
+            } else if (action === 'humanizacion_masiva') {
+                const filtered = tasks.filter(t => 
+                    t.content_body && (!t.metadata?.is_humanized && !t.metadata?.humanized_at)
+                );
+                await BatchProcessor.processHumanization(filtered, onProgress, onLog);
+            }
+
+            NotificationService.success('Proceso completado', `Nous ha terminado las tareas de ${action}.`);
+        } catch (e: any) {
+            console.error(e);
+            NotificationService.error('Error procesando lote', e.message);
+        } finally {
+            setIsResearching(false);
+            setResearchProgress(0);
+        }
+    };
+
     const handleGenerateStrategy = async () => {
 
         if (!activeProject) return;
@@ -188,22 +311,6 @@ export function EditorialCalendar() {
         setNewTaskTitle("");
     };
 
-    const handleDirectUpload = async (taskId: string, content: string, shouldHumanize: boolean) => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const draftId = await saveContentAndLink(taskId, content, session?.user?.id);
-
-            if (shouldHumanize) {
-                router.push(`/writer?mode=humanize&draftId=${draftId}&activeTaskId=${taskId}`);
-            } else {
-                setIsUploadModalOpen(false);
-                setSelectedTask(null);
-            }
-        } catch (err) {
-            console.error("Upload error:", err);
-        }
-    };
-
     // Calendar Generation
     const monthStart = startOfMonth(viewDate);
     const monthEnd = endOfMonth(monthStart);
@@ -214,133 +321,6 @@ export function EditorialCalendar() {
         start: calendarStart,
         end: calendarEnd,
     });
-
-    // --- Google Sheets Sync Logic ---
-    const handleSyncWithSheet = async (url: string) => {
-        setIsLoadingStrategy(true);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (!token) throw new Error("No hay sesión activa. Conecta tu cuenta de Google.");
-
-            // 1. Fetch Sheet Data
-            const response = await fetch('/api/google/fetch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ url, type: 'sheet' })
-            });
-
-            if (!response.ok) throw new Error("Error fetching sheet. Verifica permisos.");
-
-            const { content } = await response.json();
-
-            if (!content || !Array.isArray(content) || content.length < 2) {
-                alert("Hoja vacía o sin encabezados válidos.");
-                return;
-            }
-
-            // 2. Parse Headers (Assume Row 1)
-            const headers = content[0].map((h: string) => h.toLowerCase().trim());
-            const rows = content.slice(1);
-
-            let count = 0;
-
-            // 3. Map to Tasks
-            for (const row of rows) {
-                const getVal = (key: string) => {
-                    const idx = headers.findIndex((h: string) => h.includes(key));
-                    return idx !== -1 ? row[idx] : '';
-                };
-
-                const title = getVal('título') || getVal('title') || getVal('tema');
-                if (!title) continue;
-
-                // Date logic
-                let dateStr = getVal('fecha') || getVal('date') || getVal('publicación');
-                if (!dateStr || isNaN(new Date(dateStr).getTime())) {
-                    dateStr = format(new Date(), 'yyyy-MM-dd'); // Default to today if missing
-                } else {
-                    dateStr = format(new Date(dateStr), 'yyyy-MM-dd');
-                }
-
-                // Call addTask from store
-                if (activeProject) {
-                    await addTask({
-                        project_id: activeProject.id,
-                        title,
-                        scheduled_date: dateStr,
-                        status: 'idea',
-                        target_keyword: getVal('keyword') || getVal('kw') || '',
-                        volume: parseInt(getVal('volumen') || '0'),
-                        viability: getVal('viabilidad') || '',
-                        brief: getVal('brief') || getVal('notas') || '',
-                    });
-                    count++;
-                }
-            }
-
-            NotificationService.notify("Sincronización Completa", `Se han importado ${count} tareas desde la hoja.`);
-
-        } catch (e: any) {
-            console.error(e);
-            alert("Error de Sincronización: " + e.message);
-        } finally {
-            setIsLoadingStrategy(false);
-        }
-    };
-
-    const handleExportToSheet = async () => {
-        setIsLoadingStrategy(true);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (!token) throw new Error("No hay sesión activa.");
-
-            // 1. Prepare Data
-            const headers = ["Título", "Fecha", "Estado", "Keyword", "Volumen", "Brief", "Notas"];
-            const rows = tasks.map(t => [
-                t.title,
-                t.scheduled_date,
-                t.status,
-                t.target_keyword || "",
-                t.volume?.toString() || "",
-                t.brief || "",
-                "" // Extra column
-            ]);
-
-            const sheetData = [headers, ...rows];
-            const title = `Planificación - ${activeProject?.name || 'Nous'} - ${format(new Date(), 'yyyy-MM-dd')}`;
-
-            // 2. Call Export API
-            const response = await fetch('/api/google/export', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    action: 'create_sheet',
-                    title: title,
-                    data: sheetData
-                })
-            });
-
-            if (!response.ok) throw new Error("Failed to export sheet");
-
-            const { url } = await response.json();
-            window.open(url, '_blank');
-            NotificationService.notify("Exportación Exitosa", "Hoja de cálculo creada.");
-
-        } catch (e: any) {
-            console.error(e);
-            alert("Error al exportar: " + e.message);
-        } finally {
-            setIsLoadingStrategy(false);
-        }
-    };
 
     const nextMonth = () => setViewDate(addMonths(viewDate, 1));
     const prevMonth = () => setViewDate(subMonths(viewDate, 1));
@@ -562,17 +542,7 @@ export function EditorialCalendar() {
 
                                 <div className="w-px h-6 bg-slate-100 mx-1" />
 
-                                <button
-                                    onClick={handleGenerateStrategy}
-                                    disabled={isLoadingStrategy}
-                                    className={cn(
-                                        "px-4 py-2 bg-slate-900 border border-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-slate-900/10",
-                                        isLoadingStrategy && "opacity-70 cursor-wait"
-                                    )}
-                                >
-                                    {isLoadingStrategy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-amber-400" />}
-                                    <span>{isLoadingStrategy ? "Generando..." : "IA Estrategia"}</span>
-                                </button>
+                                <div className="w-px h-6 bg-slate-100 mx-1" />
 
                                 <button
                                     onClick={() => setIsNewContentModalOpen(true)}
@@ -640,18 +610,32 @@ export function EditorialCalendar() {
                             </div>
                         )}
                         {currentView === 'grid' && (
-                            <StrategyGrid 
-                                onSelectTask={setSelectedTask} 
-                                onRunResearch={(taskId) => { setResearchTaskId(taskId); setIsNewContentModalOpen(true); }}
-                                columnVisibility={columnVisibility}
-                            />
+                            <div className="flex-1 overflow-hidden flex flex-col bg-white/50 backdrop-blur-xl border border-white/20 shadow-[-20px_0_50px_rgba(0,0,0,0.02)]">
+                                <StrategyGrid 
+                                    onSelectTask={setSelectedTask} 
+                                    onRunResearch={handleRunResearch}
+                                    columnVisibility={columnVisibility}
+                                    selectedTaskIds={selectedTaskIds}
+                                    onSelectionChange={setSelectedTaskIds}
+                                />
+                            </div>
                         )}
                         {currentView === 'gallery' && (
                             <StrategyGallery 
                                 onSelectTask={setSelectedTask}
-                                onRunResearch={(taskId) => { setResearchTaskId(taskId); setIsNewContentModalOpen(true); }}
+                                onRunResearch={handleRunResearch}
                             />
                         )}
+                    </div>
+            </div>
+
+                        <NousOrb 
+                            tasks={tasks}
+                            onAction={handleOrbAction}
+                            isProcessing={isResearching}
+                            processingProgress={researchProgress}
+                            activeProjectName={activeProject?.name}
+                        />
                     </div>
             </div>
 
