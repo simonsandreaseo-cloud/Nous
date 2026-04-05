@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { MetricCard } from './MetricCard';
 import Chart from 'chart.js/auto';
+import ReactMarkdown from 'react-markdown';
 
 interface SplitAnalysisProps {
     title: string;
@@ -19,16 +20,6 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const chartInstance = useRef<Chart | null>(null);
-
-    // Render markdown to simple HTML or just display text
-    // For a robust app, we'd use react-markdown here, 
-    // but for now we'll naively render the markdown string HTML
-    const createMarkup = (markdown: string) => {
-        if (!markdown || typeof markdown !== 'string') return { __html: '' };
-        // Very basic bold replacement, etc. (Or we inject a pre-parsed HTML string)
-        let html = markdown.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        return { __html: html };
-    };
 
     useEffect(() => {
         if (!canvasRef.current || !chartConfig) return;
@@ -124,10 +115,9 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
                     <div className="report-card h-full flex flex-col p-8 glass-panel bg-white/40 border-hairline rounded-3xl">
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 italic">Visualización y Estrategia</h3>
                         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                            <div
-                                className="prose prose-slate prose-sm text-slate-600 leading-relaxed font-medium"
-                                dangerouslySetInnerHTML={createMarkup(analysis)}
-                            />
+                            <ReactMarkdown className="prose prose-slate prose-sm text-slate-600 leading-relaxed font-medium">
+                                {analysis}
+                            </ReactMarkdown>
                         </div>
                         <div className="mt-6 pt-6 border-t border-hairline flex justify-between items-center">
                             <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Powered by Gemini AI</span>

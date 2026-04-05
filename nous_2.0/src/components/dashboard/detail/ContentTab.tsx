@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 import {
     FileText,
     CheckCircle2,
@@ -77,7 +78,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                         <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
                             <div
                                 className="prose prose-slate max-w-none text-slate-600 leading-relaxed text-base"
-                                dangerouslySetInnerHTML={{ __html: task.content_body }}
+                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(task.content_body) }}
                             />
                         </div>
                     ) : (
