@@ -235,7 +235,10 @@ export function useWriterActions() {
                 }
             }
 
-            let cleanHtml = buffer;
+            const finalBuffer = cleanAndFormatHtml(buffer);
+            store.setContent(finalBuffer);
+
+            let cleanHtml = finalBuffer;
             if (cleanHtml.includes('<!-- METADATA_START -->')) {
                 const parts = cleanHtml.split('<!-- METADATA_START -->');
                 cleanHtml = parts[0];

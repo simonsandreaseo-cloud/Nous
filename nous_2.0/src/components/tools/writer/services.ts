@@ -301,31 +301,20 @@ function escapeRegExp(string: string) {
 // =================================================================
 
 export const cleanAndFormatHtml = (html: string): string => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
+    if (!html) return '';
+    let cleanString = html;
+    
     // 1. CLEAN MARKDOWN & ARTIFACTS
-    let cleanString = doc.body.innerHTML;
+    // Bold: handle **bold** and __bold__
     cleanString = cleanString.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+    cleanString = cleanString.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
+    
+    // Headers (sometimes they slip as markdown)
     cleanString = cleanString.replace(/^### (.*$)/gm, '<h3>$1</h3>');
     cleanString = cleanString.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+    cleanString = cleanString.replace(/^# (.*$)/gm, '<h2>$1</h2>'); // No H1 in body
 
-    doc.body.innerHTML = cleanString;
-
-    // 2. LIST FORMATTING
-    const listItems = doc.querySelectorAll('li');
-    listItems.forEach(li => {
-        if (li.textContent?.includes(':') && !li.querySelector('strong')) {
-            const parts = li.innerHTML.split(':');
-            if (parts.length > 1) {
-                const label = parts[0];
-                const rest = parts.slice(1).join(':');
-                li.innerHTML = `<strong>${label}</strong>:${rest}`;
-            }
-        }
-    });
-
-    return doc.body.innerHTML;
+    return cleanString;
 };
 
 // --- Strict Style Refinement (The "Phase") ---
@@ -400,7 +389,7 @@ export const generateArticleStream = async (model: string, prompt: string) => {
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
             model: currentModel || 'gemini-2.5-flash',
-            systemInstruction: "Eres un redactor HTML experto. Generas HTML limpio.",
+            systemInstruction: "Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]). Generas HTML impecable.",
             generationConfig: {
                 temperature: 0.7,
             }
@@ -1131,12 +1120,12 @@ export const runHumanizerPipeline = async (
     // ---------------------------------------------
     // FASE 0: PREPARACIÓN Y CHUNKING
     // ---------------------------------------------
-    const CHUNK_SIZE = 8;
+    const CHUNK_SIZE = 5; // Bloques pequeños para evitar resúmenes
     const htmlChunks = chunkHtml(html, CHUNK_SIZE);
     onStatus(`Iniciando humanización en ${htmlChunks.length} bloques...`);
 
-    const SYSTEM_PROMPT_BASE = "Tu salida debe ser solo el bloque de HTML procesado, sin explicaciones, prefacios, o la palabra 'HTML'. Solo el código HTML.";
-    const HTML_RULE = "REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas HTML (como <h1>, <h2>, <p>, <table>, <tr>, <td>, <strong>, <a>). Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.";
+    const SYSTEM_PROMPT_BASE = "Tu salida debe ser solo el bloque de HTML procesado, sin explicaciones ni prefacios. Solo el código HTML.";
+    const HTML_RULE = "ERES UN REDACTOR HUMANO. REGLA CRÍTICA: NO RESUMAS. NO OMITAS NADA. El bloque de salida debe tener el mismo número de elementos que la entrada.";
 
     // ---------------------------------------------
     // FASE 1: HUMANIZACIÓN (Chunk-wise)
@@ -1145,8 +1134,8 @@ export const runHumanizerPipeline = async (
         ${SYSTEM_PROMPT_BASE}
         ${HTML_RULE}
 
-        --- PERSONA: REDACTOR MEDIOCRE ---
-        Actúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.
+        --- PERSONA: REDACTOR HUMANO AUTÉNTICO ---
+        Escribe de forma natural. IMPORTANTE: El texto humanizado DEBE tener la misma longitud que el original. PROHIBIDO ACORTAR.
 
         --- CONTEXTO ---
         Nicho/Tópico: ${config.niche}
@@ -1177,7 +1166,8 @@ export const runHumanizerPipeline = async (
                 systemInstruction: buildPhase1Prompt()
             });
             const res = await model.generateContent(htmlChunks[i]);
-            return res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            const raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            return cleanAndFormatHtml(raw);
         }, modelName);
         humanizedChunks.push(chunkResult);
     }
@@ -1212,10 +1202,15 @@ export const runHumanizerPipeline = async (
     const finalizedHtml = await executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({ 
             model: currentModel || modelName,
-            systemInstruction: buildPhase2Prompt()
+            systemInstruction: buildPhase2Prompt(),
+            generationConfig: {
+                maxOutputTokens: 8192,
+                temperature: 0.4
+            }
         });
         const res = await model.generateContent(humanizedHtml);
-        return res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+        const raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+        return cleanAndFormatHtml(raw);
     }, modelName);
 
     onStatus("✅ ¡Humanización completada!");
