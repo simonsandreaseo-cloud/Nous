@@ -233,7 +233,7 @@ export default function WriterEditor() {
     return (
         <div className="relative w-full h-full flex flex-col">
             {/* VIEW MODE SWITCHER & NOUS STATUS - ALWAYS VISIBLE */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-100/50 bg-white/40 mb-4 rounded-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100/50 bg-white/40 mb-4 rounded-lg">
                 {/* NOUS ASSISTANT PROCESS INDICATOR */}
                 <div className="flex-1 flex items-center justify-start">
                     <AnimatePresence>
@@ -242,7 +242,7 @@ export default function WriterEditor() {
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
-                                className="flex items-center gap-3 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/50 shadow-sm"
+                                className="flex items-center gap-3 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-lg border border-slate-200/50 shadow-sm"
                             >
                                 {/* Small Orb */}
                                 <div className="relative w-6 h-6 flex items-center justify-center">
@@ -429,7 +429,7 @@ export default function WriterEditor() {
                 <textarea 
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    className="w-full min-h-[600px] p-6 bg-slate-900 text-emerald-400 font-mono text-sm rounded-2xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 selection:bg-indigo-500/30 custom-scrollbar resize-none"
+                    className="w-full min-h-[600px] p-6 bg-slate-900 text-emerald-400 font-mono text-sm rounded-lg border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 selection:bg-indigo-500/30 custom-scrollbar resize-none"
                     spellCheck={false}
                 />
             </div>
@@ -443,7 +443,7 @@ export default function WriterEditor() {
                             initial={{ opacity: 0, y: 20, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                            className="absolute bottom-20 right-0 w-[500px] max-h-[600px] bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+                            className="absolute bottom-20 right-0 w-[500px] max-h-[600px] bg-slate-900 border border-slate-700 rounded-lg shadow-2xl overflow-hidden flex flex-col"
                         >
                             <div className="p-4 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -475,7 +475,7 @@ export default function WriterEditor() {
                                                 <span className="text-[8px] font-mono text-slate-600">{log.timestamp}</span>
                                             </div>
                                             <div className="relative">
-                                                <pre className="p-3 bg-slate-950 rounded-xl text-[11px] text-slate-300 font-mono whitespace-pre-wrap leading-relaxed border border-slate-800 group-hover:border-slate-700 transition-colors max-h-[300px] overflow-y-auto">
+                                                <pre className="p-3 bg-slate-950 rounded-md text-[11px] text-slate-300 font-mono whitespace-pre-wrap leading-relaxed border border-slate-800 group-hover:border-slate-700 transition-colors max-h-[300px] overflow-y-auto">
                                                     {log.prompt}
                                                 </pre>
                                                 <button 
@@ -501,7 +501,7 @@ export default function WriterEditor() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 20, scale: 0.95 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute bottom-20 right-0 w-[320px] bg-white/95 backdrop-blur-xl border border-slate-200 rounded-[28px] shadow-2xl overflow-hidden"
+                            className="absolute bottom-20 right-0 w-[320px] bg-white/95 backdrop-blur-xl border border-slate-200 rounded-lg shadow-2xl overflow-hidden"
                         >
                             <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                                 <div>
@@ -525,7 +525,7 @@ export default function WriterEditor() {
                                             {researchMode === 'rapid' ? '⚡ Rápido' : '💎 Alta Calidad'}
                                         </span>
                                     </label>
-                                    <div className="flex p-1 bg-slate-100 rounded-xl relative overflow-hidden ring-1 ring-slate-200/50">
+                                    <div className="flex p-1 bg-slate-100 rounded-md relative overflow-hidden ring-1 ring-slate-200/50">
                                         <button 
                                             onClick={() => setResearchMode('rapid')}
                                             className={cn(
@@ -595,7 +595,7 @@ export default function WriterEditor() {
                                                 setIsOrbOpen(false);
                                             }}
                                             disabled={isGenerating}
-                                            className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl py-3.5 font-black text-[11px] uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                                            className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-md py-3.5 font-black text-[11px] uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
                                         >
                                             {isGenerating ? 'Redactando...' : hasGenerated ? 'Volver a Redactar' : 'Redactar con Nous'}
                                         </button>
@@ -609,7 +609,7 @@ export default function WriterEditor() {
                                         }}
                                         disabled={isPlanningStructure}
                                         className={cn(
-                                            "w-full rounded-xl py-3.5 font-black text-[11px] uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50",
+                                            "w-full rounded-md py-3.5 font-black text-[11px] uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50",
                                             strategyOutline.length > 0 
                                                 ? "bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100" 
                                                 : "bg-white border-2 border-indigo-500 text-indigo-600 hover:bg-indigo-50"
@@ -638,7 +638,7 @@ export default function WriterEditor() {
                                                 setIsOrbOpen(false);
                                             }}
                                             disabled={isHumanizing}
-                                            className="w-full bg-slate-900 group/hbtn text-white rounded-xl py-3.5 font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2.5 shadow-xl shadow-slate-900/10 active:scale-95 disabled:opacity-50"
+                                            className="w-full bg-slate-900 group/hbtn text-white rounded-md py-3.5 font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2.5 shadow-xl shadow-slate-900/10 active:scale-95 disabled:opacity-50"
                                         >
                                             <Sparkles size={14} className={cn("text-yellow-400 transition-transform group-hover/hbtn:rotate-12", isHumanizing && "animate-spin")} />
                                             {isHumanizing ? 'Procesando...' : hasHumanized ? 'Rehumanizar Contenido' : 'Humanizar con Nous'}
@@ -705,7 +705,7 @@ export default function WriterEditor() {
                             </div>
                         </button>
                         {!isOrbOpen && (
-                            <div className="absolute -top-12 right-0 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                            <div className="absolute -top-12 right-0 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
                                 Agente Nous
                             </div>
                         )}

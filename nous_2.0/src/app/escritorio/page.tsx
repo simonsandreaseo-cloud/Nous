@@ -189,7 +189,7 @@ function NavButton({ active, onClick, icon, label, count }: any) {
     return (
         <button 
             onClick={onClick}
-            className={`flex items-center justify-between px-4 py-3 rounded-2xl transition-all ${
+            className={`flex items-center justify-between px-4 py-3 rounded-lg transition-all ${
                 active ? 'bg-[var(--color-nous-mist)] text-white shadow-lg' : 'hover:bg-white text-slate-500 hover:shadow-sm'
             }`}
         >
@@ -216,7 +216,7 @@ function TaskRow({ task, type, onTake, onUpdate }: any) {
     };
 
     return (
-        <div className="group flex items-center justify-between p-4 bg-white/60 hover:bg-white border border-hairline rounded-2xl transition-all hover:shadow-md glass-panel-hover">
+        <div className="group flex items-center justify-between p-4 bg-white/60 hover:bg-white border border-hairline rounded-lg transition-all hover:shadow-md glass-panel-hover">
             <div className="flex items-center gap-4 flex-1">
                 <div className={`w-1 h-8 rounded-full ${getPriorityColor()}`}></div>
                 <div>
@@ -238,7 +238,7 @@ function TaskRow({ task, type, onTake, onUpdate }: any) {
                 {type === 'available' && (
                     <button 
                         onClick={onTake}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--color-nous-mint)] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:shadow-lg transition-all"
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--color-nous-mint)] text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:shadow-lg transition-all"
                     >
                         Tomar Tarea
                         <ArrowRight size={12} />

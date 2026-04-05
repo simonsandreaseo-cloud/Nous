@@ -14,7 +14,7 @@ export function ResearchTab({ onPlanStructure, isPlanning }: { onPlanStructure: 
     return (
         <div className="space-y-6 pt-2 h-full overflow-y-auto pr-2 custom-scrollbar pb-32">
             {/* Outline Card */}
-            <div className="p-5 bg-white border border-slate-100 rounded-3xl shadow-xl shadow-slate-100 space-y-4">
+            <div className="p-5 bg-white border border-slate-100 rounded-lg shadow-xl shadow-slate-100 space-y-4">
                 <div className="flex items-center justify-between">
                     <SectionLabel>Estructura de Encabezados</SectionLabel>
                     <Info size={12} className="text-slate-400" />
@@ -47,7 +47,7 @@ export function ResearchTab({ onPlanStructure, isPlanning }: { onPlanStructure: 
                         ))}
                     </div>
                 ) : (
-                    <div className="py-8 text-center space-y-3 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100">
+                    <div className="py-8 text-center space-y-3 bg-slate-50/50 rounded-lg border-2 border-dashed border-slate-100">
                         <LayoutTemplate size={24} className="mx-auto text-slate-300" />
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 leading-relaxed">Genera un análisis SEO primero para proponer una estrategia</p>
                     </div>
@@ -56,7 +56,7 @@ export function ResearchTab({ onPlanStructure, isPlanning }: { onPlanStructure: 
                 <button
                     disabled={isPlanning || !store.rawSeoData}
                     onClick={onPlanStructure}
-                    className="group relative w-full h-11 bg-white border-2 border-black text-black hover:bg-black hover:text-white text-[11px] font-black uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 overflow-hidden active:scale-95 disabled:opacity-50"
+                    className="group relative w-full h-11 bg-white border-2 border-black text-black hover:bg-black hover:text-white text-[11px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 overflow-hidden active:scale-95 disabled:opacity-50"
                 >
                     {isPlanning ? (
                         <>
@@ -81,7 +81,7 @@ export function ResearchTab({ onPlanStructure, isPlanning }: { onPlanStructure: 
                             const url = typeof link === 'string' ? link : link.url;
                             const title = link.title || url;
                             return (
-                                <div key={i} className="p-3 bg-white border border-slate-100 rounded-2xl flex items-start justify-between group hover:border-indigo-200 transition-all shadow-sm">
+                                <div key={i} className="p-3 bg-white border border-slate-100 rounded-lg flex items-start justify-between group hover:border-indigo-200 transition-all shadow-sm">
                                     <div className="flex-1 min-w-0 pr-3">
                                         <p className="text-[10px] font-black text-slate-800 truncate">{title}</p>
                                         <p className="text-[8px] font-medium text-slate-400 truncate mt-0.5">{url}</p>
@@ -98,7 +98,7 @@ export function ResearchTab({ onPlanStructure, isPlanning }: { onPlanStructure: 
                             );
                         })
                     ) : (
-                        <div className="py-4 text-center border border-dashed border-slate-100 rounded-2xl">
+                        <div className="py-4 text-center border border-dashed border-slate-100 rounded-lg">
                             <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Sin links estratégicos</p>
                         </div>
                     )}
@@ -110,7 +110,7 @@ export function ResearchTab({ onPlanStructure, isPlanning }: { onPlanStructure: 
                 <SectionLabel>Notas de Contexto SERP</SectionLabel>
                 <div className="relative">
                     <textarea 
-                        className="w-full text-xs p-4 bg-slate-900 border-none rounded-3xl text-indigo-100 font-medium min-h-[240px] resize-none transition-all shadow-xl shadow-slate-200 outline-none focus:ring-4 focus:ring-indigo-100 placeholder:text-indigo-900"
+                        className="w-full text-xs p-4 bg-slate-900 border-none rounded-lg text-indigo-100 font-medium min-h-[240px] resize-none transition-all shadow-xl shadow-slate-200 outline-none focus:ring-4 focus:ring-indigo-100 placeholder:text-indigo-900"
                         placeholder="Insights extraídos de competidores y briefing automático..."
                         value={store.strategyNotes}
                         onChange={(e) => store.setStrategyNotes(e.target.value)}

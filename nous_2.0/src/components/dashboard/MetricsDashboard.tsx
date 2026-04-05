@@ -146,7 +146,7 @@ export default function MetricsDashboard() {
                         <motion.div
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="max-w-md p-4 bg-white/40 backdrop-blur-xl border border-cyan-100 rounded-2xl shadow-xl shadow-cyan-500/5 relative overflow-hidden group"
+                            className="max-w-md p-4 bg-white/40 backdrop-blur-xl border border-cyan-100 rounded-lg shadow-xl shadow-cyan-500/5 relative overflow-hidden group"
                         >
                             <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" />
                             <div className="flex items-center gap-2 mb-1">
@@ -166,7 +166,7 @@ export default function MetricsDashboard() {
 
             {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-pulse">
-                    {[1, 2, 3, 4].map(i => <div key={i} className="h-40 bg-slate-100 rounded-3xl" />)}
+                    {[1, 2, 3, 4].map(i => <div key={i} className="h-40 bg-slate-100 rounded-lg" />)}
                 </div>
             ) : (
                 <>
@@ -238,7 +238,7 @@ export default function MetricsDashboard() {
                             </div>
 
                             <div className="flex gap-4">
-                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg">
                                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Gap de Captura</p>
                                     <p className="text-xl font-black text-slate-900">
                                         {potentialData.length > 0 ? (
@@ -246,7 +246,7 @@ export default function MetricsDashboard() {
                                         ) : '0'}%
                                     </p>
                                 </div>
-                                <div className="p-4 bg-cyan-50 border border-cyan-100 rounded-2xl">
+                                <div className="p-4 bg-cyan-50 border border-cyan-100 rounded-lg">
                                     <p className="text-[8px] font-black text-cyan-500 uppercase tracking-[0.2em] mb-1">Estado Neural</p>
                                     <p className="text-xl font-black text-cyan-600 uppercase italic">
                                         {neuralLinkStatus === 'connected' ? 'Optimizado' : 'Analizando'}

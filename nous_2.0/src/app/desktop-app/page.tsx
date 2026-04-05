@@ -63,7 +63,7 @@ export default function DesktopAppPage() {
                         <div className="flex flex-col h-full gap-5 animate-in fade-in duration-300">
                             {/* Status Cards */}
                             <div className="grid grid-cols-2 gap-4 flex-shrink-0">
-                                <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 flex flex-col justify-between h-24">
+                                <div className="bg-gray-50/50 rounded-lg p-4 border border-gray-100 flex flex-col justify-between h-24">
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-2 text-gray-400">
                                             <Cpu size={14} />
@@ -73,7 +73,7 @@ export default function DesktopAppPage() {
                                     <span className="text-2xl font-semibold text-gray-900">{cpuUsage}%</span>
                                 </div>
 
-                                <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 flex flex-col justify-between h-24">
+                                <div className="bg-gray-50/50 rounded-lg p-4 border border-gray-100 flex flex-col justify-between h-24">
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-2 text-gray-400">
                                             <HardDrive size={14} />
@@ -96,7 +96,7 @@ export default function DesktopAppPage() {
                                         <div className="w-1 h-1 rounded-full bg-emerald-400/50" />
                                     </div>
                                 </div>
-                                <div className="flex-1 bg-gray-50/30 rounded-2xl border border-gray-100/50 p-4 overflow-hidden backdrop-blur-sm">
+                                <div className="flex-1 bg-gray-50/30 rounded-lg border border-gray-100/50 p-4 overflow-hidden backdrop-blur-sm">
                                     <LogTerminal logs={logs} theme="light" />
                                 </div>
                             </div>

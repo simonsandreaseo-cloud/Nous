@@ -55,7 +55,7 @@ export default function StrategyTab({ task }: StrategyTabProps) {
                                                 {item.text || item.title}
                                             </h4>
                                             {item.instructions && (
-                                                <p className="text-[11px] text-slate-500 font-medium leading-relaxed bg-slate-50/50 p-3 rounded-xl border border-slate-100/50 italic">
+                                                <p className="text-[11px] text-slate-500 font-medium leading-relaxed bg-slate-50/50 p-3 rounded-md border border-slate-100/50 italic">
                                                     {item.instructions}
                                                 </p>
                                             )}
@@ -118,7 +118,7 @@ export default function StrategyTab({ task }: StrategyTabProps) {
                     <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4">Meta para IA</h4>
                     <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center">
                                 <Hash size={14} className="text-indigo-400" />
                             </div>
                             <div>

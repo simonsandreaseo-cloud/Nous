@@ -365,14 +365,14 @@ export function EditorialCalendar() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-6">
                                 <div className="flex items-center gap-3 shrink-0">
-                                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100/50">
+                                    <div className="w-8 h-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100/50">
                                         <CalendarIcon size={16} />
                                     </div>
                                     <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em]">Planificador</h3>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-1.5 bg-slate-50/80 p-1 rounded-xl border border-slate-100 shrink-0">
+                            <div className="flex items-center gap-1.5 bg-slate-50/80 p-1 rounded-md border border-slate-100 shrink-0">
                                 <button onClick={prevMonth} className="p-1 hover:bg-white rounded-lg transition-all text-slate-400 hover:text-slate-900">
                                     <ChevronLeft size={14} />
                                 </button>
@@ -387,7 +387,7 @@ export function EditorialCalendar() {
 
                         {/* Fila Inferior: Vistas y Acciones */}
                         <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center bg-slate-50/80 p-1 rounded-xl border border-slate-100">
+                            <div className="flex items-center bg-slate-50/80 p-1 rounded-md border border-slate-100">
                                 <button
                                     onClick={() => setCurrentView('calendar')}
                                     className={cn(
@@ -423,7 +423,7 @@ export function EditorialCalendar() {
                                         <button 
                                             onClick={() => setIsColumnSelectorOpen(!isColumnSelectorOpen)}
                                             className={cn(
-                                                "p-2 rounded-xl transition-all border shrink-0",
+                                                "p-2 rounded-md transition-all border shrink-0",
                                                 isColumnSelectorOpen ? "bg-indigo-50 border-indigo-100 text-indigo-600" : "bg-white border-slate-200 text-slate-400 hover:text-slate-600"
                                             )}
                                             title="Configurar Columnas"
@@ -438,7 +438,7 @@ export function EditorialCalendar() {
                                                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                        className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-4 space-y-2"
+                                                        className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-lg shadow-xl z-40 p-4 space-y-2"
                                                     >
                                                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-2 px-1">Mostrar/Ocultar</span>
                                                         <div className="max-h-[300px] overflow-y-auto custom-scrollbar px-1">
@@ -459,7 +459,7 @@ export function EditorialCalendar() {
                                                                 { id: 'competitors', label: 'Fuentes' },
                                                                 { id: 'actions', label: 'Acciones' }
                                                             ].map(col => (
-                                                                <label key={col.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-all">
+                                                                <label key={col.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-md cursor-pointer transition-all">
                                                                     <input 
                                                                         type="checkbox" 
                                                                         checked={columnVisibility[col.id] || false} 
@@ -476,7 +476,7 @@ export function EditorialCalendar() {
                                                                     localStorage.removeItem('ns_grid_columns');
                                                                     window.location.reload();
                                                                 }}
-                                                                className="w-full py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-sm"
+                                                                className="w-full py-2 bg-slate-900 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-sm"
                                                             >
                                                                 Restablecer Predeterminados
                                                             </button>
@@ -492,7 +492,7 @@ export function EditorialCalendar() {
                                     <button
                                         onClick={() => setIsImportMenuOpen(!isImportMenuOpen)}
                                         className={cn(
-                                            "p-2 rounded-xl transition-all border",
+                                            "p-2 rounded-md transition-all border",
                                             isImportMenuOpen ? "bg-indigo-50 border-indigo-100 text-indigo-600" : "bg-white border-slate-200 text-slate-400 hover:text-slate-600"
                                         )}
                                         title="Importar Datos"
@@ -507,14 +507,14 @@ export function EditorialCalendar() {
                                                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                    className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-2 overflow-hidden"
+                                                    className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-40 p-2 overflow-hidden"
                                                 >
                                                     <div className="px-3 py-2 border-b border-slate-50 mb-1">
                                                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block">Opciones de Importación</span>
                                                     </div>
                                                     <button
                                                         onClick={() => { setIsSchedulingModalOpen(true); setIsImportMenuOpen(false); }}
-                                                        className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-all text-left"
+                                                        className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-md transition-all text-left"
                                                     >
                                                         <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><LayoutList size={14} /></div>
                                                         <div>
@@ -528,7 +528,7 @@ export function EditorialCalendar() {
                                                             if (url) { /* sync logic handled elsewhere or via store */ }
                                                             setIsImportMenuOpen(false);
                                                         }}
-                                                        className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-all text-left"
+                                                        className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-md transition-all text-left"
                                                     >
                                                         <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><Database size={14} /></div>
                                                         <div>
@@ -538,7 +538,7 @@ export function EditorialCalendar() {
                                                     </button>
                                                     <button
                                                         onClick={() => { setIsBulkModalOpen(true); setIsImportMenuOpen(false); }}
-                                                        className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-all text-left"
+                                                        className="w-full flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-md transition-all text-left"
                                                     >
                                                         <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center"><Upload size={14} /></div>
                                                         <div>
@@ -554,7 +554,7 @@ export function EditorialCalendar() {
                                 <button
                                     onClick={() => { /* export logic */ }}
                                     disabled={tasks.length === 0}
-                                    className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50 transition-all rounded-xl disabled:opacity-30 shrink-0"
+                                    className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50 transition-all rounded-md disabled:opacity-30 shrink-0"
                                     title="Exportar a Google Sheet"
                                 >
                                     <Share size={18} />
@@ -566,7 +566,7 @@ export function EditorialCalendar() {
                                     onClick={handleGenerateStrategy}
                                     disabled={isLoadingStrategy}
                                     className={cn(
-                                        "px-4 py-2 bg-slate-900 border border-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-slate-900/10",
+                                        "px-4 py-2 bg-slate-900 border border-slate-800 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-slate-900/10",
                                         isLoadingStrategy && "opacity-70 cursor-wait"
                                     )}
                                 >
@@ -576,7 +576,7 @@ export function EditorialCalendar() {
 
                                 <button
                                     onClick={() => setIsNewContentModalOpen(true)}
-                                    className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20"
+                                    className="p-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20"
                                     title="Programar Nuevo Contenido"
                                 >
                                     <Plus size={20} />
@@ -587,7 +587,7 @@ export function EditorialCalendar() {
                                 <button
                                     onClick={() => setIsConsoleOpen(!isConsoleOpen)}
                                     className={cn(
-                                        "p-2 rounded-xl transition-all border z-[1000]",
+                                        "p-2 rounded-md transition-all border z-[1000]",
                                         isConsoleOpen ? "bg-red-600 border-red-600 text-white shadow-lg shadow-red-600/20" : "bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600"
                                     )}
                                     title="Monitor AI"
@@ -670,16 +670,16 @@ export function EditorialCalendar() {
                                 <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
                                     <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-violet-50">
                                         <h2 className="text-2xl font-black text-slate-900 uppercase italic flex items-center gap-2"><Sparkles className="text-indigo-600" /> Estrategia IA</h2>
-                                        <button onClick={() => setIsStrategyModalOpen(false)} className="p-3 bg-white hover:bg-slate-50 rounded-2xl shadow-sm border border-slate-100"><X size={20} className="text-slate-400" /></button>
+                                        <button onClick={() => setIsStrategyModalOpen(false)} className="p-3 bg-white hover:bg-slate-50 rounded-lg shadow-sm border border-slate-100"><X size={20} className="text-slate-400" /></button>
                                     </div>
                                     <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                                         {suggestedTasks.map((task, i) => (
-                                            <div key={i} className="p-4 bg-white border border-slate-100 rounded-2xl mb-3 flex justify-between items-center hover:shadow-md transition-all">
+                                            <div key={i} className="p-4 bg-white border border-slate-100 rounded-lg mb-3 flex justify-between items-center hover:shadow-md transition-all">
                                                 <div>
                                                     <h3 className="font-bold text-slate-800">{task.title}</h3>
                                                     <p className="text-[10px] text-slate-400 font-mono">KW: {task.target_keyword} | Vol: {task.volume}</p>
                                                 </div>
-                                                <button onClick={() => handleAcceptSuggestion(task)} className="p-2 px-4 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase hover:bg-slate-800 transition-all">Aceptar</button>
+                                                <button onClick={() => handleAcceptSuggestion(task)} className="p-2 px-4 bg-slate-900 text-white rounded-md text-[10px] font-bold uppercase hover:bg-slate-800 transition-all">Aceptar</button>
                                             </div>
                                         ))}
                                     </div>
@@ -716,18 +716,18 @@ export function EditorialCalendar() {
                                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-md rounded-[40px] p-10 shadow-2xl">
                                     <div className="flex justify-between items-center mb-8">
                                         <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Planificar</h2>
-                                        <button onClick={() => setIsNewTaskModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl transition-all"><X size={20} /></button>
+                                        <button onClick={() => setIsNewTaskModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-md transition-all"><X size={20} /></button>
                                     </div>
                                     <div className="space-y-6">
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Título del Contenido</label>
-                                            <input type="text" className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-slate-300 transition-all font-bold text-slate-900" placeholder="Ej: Maximizando Conversiones..." value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
+                                            <input type="text" className="w-full bg-slate-50 border border-slate-100 rounded-lg p-4 text-sm outline-none focus:border-slate-300 transition-all font-bold text-slate-900" placeholder="Ej: Maximizando Conversiones..." value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} />
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Fecha de Publicación</label>
-                                            <input type="date" className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-slate-300 transition-all font-bold text-slate-900" value={newTaskDate} onChange={(e) => setNewTaskDate(e.target.value)} />
+                                            <input type="date" className="w-full bg-slate-50 border border-slate-100 rounded-lg p-4 text-sm outline-none focus:border-slate-300 transition-all font-bold text-slate-900" value={newTaskDate} onChange={(e) => setNewTaskDate(e.target.value)} />
                                         </div>
-                                        <button onClick={handleCreateQuickTask} className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/20">Agendar Contenido</button>
+                                        <button onClick={handleCreateQuickTask} className="w-full py-4 bg-slate-900 text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg shadow-slate-900/20">Agendar Contenido</button>
                                     </div>
                                 </motion.div>
                             </div>
@@ -904,21 +904,21 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                         <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Importar Planificación</h3>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Soporta CSV de Planificación Editorial</p>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-white hover:bg-slate-50 rounded-2xl transition-all text-slate-400 shadow-sm border border-slate-100"><X size={20} /></button>
+                    <button onClick={onClose} className="p-3 bg-white hover:bg-slate-50 rounded-lg transition-all text-slate-400 shadow-sm border border-slate-100"><X size={20} /></button>
                 </div>
 
                 <div className="p-8 flex-1 overflow-y-auto space-y-8 custom-scrollbar">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-4">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">1. Configuración Inicial</label>
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4">
+                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-4">
                                 <div>
                                     <span className="text-xs font-bold text-slate-700 block mb-2">Fecha de Inicio (para tareas sin fecha)</span>
                                     <input
                                         type="date"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 transition-all font-bold text-slate-900"
+                                        className="w-full bg-white border border-slate-200 rounded-md p-3 text-sm outline-none focus:border-indigo-500 transition-all font-bold text-slate-900"
                                     />
                                     <p className="text-[10px] text-slate-400 mt-2">Las tareas sin fecha en el CSV se programarán consecutivamente a partir de este día.</p>
                                 </div>
@@ -960,7 +960,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                                 />
                                 <label
                                     htmlFor="csv-file-input"
-                                    className="w-full py-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-2 border-dashed border-indigo-200 rounded-2xl text-xs font-bold text-indigo-600 hover:border-indigo-400 transition-all cursor-pointer flex items-center justify-center gap-2"
+                                    className="w-full py-4 bg-gradient-to-r from-indigo-50 to-violet-50 border-2 border-dashed border-indigo-200 rounded-lg text-xs font-bold text-indigo-600 hover:border-indigo-400 transition-all cursor-pointer flex items-center justify-center gap-2"
                                 >
                                     <Upload size={16} /> Seleccionar Archivo CSV
                                 </label>
@@ -973,7 +973,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                             </div>
 
                             <textarea
-                                className="w-full h-32 bg-slate-50 border border-slate-100 rounded-3xl p-6 text-xs font-mono outline-none focus:border-indigo-500 transition-all resize-none"
+                                className="w-full h-32 bg-slate-50 border border-slate-100 rounded-lg p-6 text-xs font-mono outline-none focus:border-indigo-500 transition-all resize-none"
                                 placeholder={`Título Propuesto,Keywords (5),Volumen,...\nMi Articulo,"key1, key2",100,...`}
                                 value={pastedData}
                                 onChange={(e) => setPastedData(e.target.value)}
@@ -982,7 +982,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                                 <button
                                     onClick={handleParse}
                                     disabled={!pastedData.trim()}
-                                    className="px-6 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 disabled:opacity-50"
+                                    className="px-6 py-2 bg-slate-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 disabled:opacity-50"
                                 >
                                     Procesar Datos
                                 </button>
@@ -996,7 +996,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Vista Previa ({parsedTasks.length} items)</label>
                                 <button onClick={() => setParsedTasks([])} className="text-[10px] font-bold text-red-400 hover:text-red-500 uppercase tracking-widest">Limpiar</button>
                             </div>
-                            <div className="max-h-60 overflow-y-auto border border-slate-100 rounded-2xl bg-white shadow-sm custom-scrollbar">
+                            <div className="max-h-60 overflow-y-auto border border-slate-100 rounded-lg bg-white shadow-sm custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
                                     <thead className="bg-slate-50 sticky top-0 z-10">
                                         <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -1123,7 +1123,7 @@ function MassUploadModal({ onClose }: { onClose: () => void }) {
                         <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Carga Masiva</h3>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Sincroniza múltiples archivos</p>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-slate-400 group">
+                    <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all text-slate-400 group">
                         <X size={20} className="group-active:scale-95 transition-transform" />
                     </button>
                 </div>
@@ -1136,7 +1136,7 @@ function MassUploadModal({ onClose }: { onClose: () => void }) {
                         </div>
                         <h4 className="text-lg font-black text-slate-700 uppercase tracking-tighter italic mb-2">Selecciona múltiples archivos</h4>
                         <p className="text-sm text-slate-400 mb-6 px-12">Detectamos automáticamente a qué contenido programado pertenece cada archivo.</p>
-                        <span className="px-10 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all">
+                        <span className="px-10 py-4 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all">
                             Seleccionar Archivos
                         </span>
                     </div>
@@ -1151,7 +1151,7 @@ function MassUploadModal({ onClose }: { onClose: () => void }) {
                                 {filesWithData.map((item, idx) => (
                                     <div key={idx} className="p-4 bg-slate-50 border border-slate-100 rounded-[20px] flex items-center justify-between group animate-in slide-in-from-bottom-2">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-slate-300"><FileText size={20} /></div>
+                                            <div className="w-10 h-10 rounded-md bg-white shadow-sm flex items-center justify-center text-slate-300"><FileText size={20} /></div>
                                             <div>
                                                 <p className="text-sm font-bold text-slate-700 tracking-tight">{item.file.name}</p>
                                                 <div className="flex items-center gap-2 mt-1">
@@ -1165,7 +1165,7 @@ function MassUploadModal({ onClose }: { onClose: () => void }) {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <select
-                                                className="bg-white border-none rounded-xl text-[10px] font-bold text-slate-500 py-2 px-4 shadow-sm outline-none"
+                                                className="bg-white border-none rounded-md text-[10px] font-bold text-slate-500 py-2 px-4 shadow-sm outline-none"
                                                 value={item.matchedTaskId || ""}
                                                 onChange={(e) => {
                                                     const newArr = [...filesWithData];

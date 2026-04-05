@@ -328,13 +328,13 @@ export default function ReportGeneratorPage() {
                     <div className="flex justify-center gap-4 mb-8">
                         <button
                             onClick={() => setMainTab('generator')}
-                            className={cn("flex items-center gap-2 px-6 py-3 rounded-xl font-medium tracking-elegant uppercase text-[10px] transition-all", mainTab === 'generator' ? "bg-[var(--color-nous-mist)]/20 text-slate-800 shadow-sm border border-[var(--color-nous-mist)]/30" : "bg-white text-slate-500 hover:bg-slate-50")}
+                            className={cn("flex items-center gap-2 px-6 py-3 rounded-md font-medium tracking-elegant uppercase text-[10px] transition-all", mainTab === 'generator' ? "bg-[var(--color-nous-mist)]/20 text-slate-800 shadow-sm border border-[var(--color-nous-mist)]/30" : "bg-white text-slate-500 hover:bg-slate-50")}
                         >
                             <LayoutGrid size={18} /> Generador
                         </button>
                         <button
                             onClick={() => setMainTab('history')}
-                            className={cn("flex items-center gap-2 px-6 py-3 rounded-xl font-medium tracking-elegant uppercase text-[10px] transition-all", mainTab === 'history' ? "bg-[var(--color-nous-mist)]/20 text-slate-800 shadow-sm border border-[var(--color-nous-mist)]/30" : "bg-white text-slate-500 hover:bg-slate-50")}
+                            className={cn("flex items-center gap-2 px-6 py-3 rounded-md font-medium tracking-elegant uppercase text-[10px] transition-all", mainTab === 'history' ? "bg-[var(--color-nous-mist)]/20 text-slate-800 shadow-sm border border-[var(--color-nous-mist)]/30" : "bg-white text-slate-500 hover:bg-slate-50")}
                         >
                             <History size={18} /> Mis Informes
                         </button>
@@ -346,9 +346,9 @@ export default function ReportGeneratorPage() {
                         {/* LEFT PANEL */}
                         {step !== 'complete' && (
                             <div className="md:col-span-1 space-y-6">
-                                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-100">
                                     {/* Mode Toggle */}
-                                    <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                                    <div className="flex bg-slate-100 p-1 rounded-md mb-6">
                                         <button onClick={() => { setMode('api'); setStep('settings'); }} className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", mode === 'api' ? "bg-white shadow text-purple-600" : "text-slate-400")}>API GSC</button>
                                         <button onClick={() => { setMode('csv'); setStep('settings'); }} className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", mode === 'csv' ? "bg-white shadow text-purple-600" : "text-slate-400")}>CSV</button>
                                     </div>
@@ -359,7 +359,7 @@ export default function ReportGeneratorPage() {
                                             <select
                                                 value={activeProject?.id || ''}
                                                 onChange={(e) => setActiveProject(e.target.value)}
-                                                className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 outline-none focus:ring-2 ring-purple-200 transition-all"
+                                                className="w-full p-3 rounded-md bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 outline-none focus:ring-2 ring-purple-200 transition-all"
                                                 disabled={step !== 'settings'}
                                             >
                                                 <option value="" disabled>Seleccionar Proyecto</option>
@@ -389,11 +389,11 @@ export default function ReportGeneratorPage() {
 
                                     <div className="mt-4">
                                         <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">Contexto</label>
-                                        <textarea rows={3} value={userContext} onChange={(e) => setUserContext(e.target.value)} placeholder="Ej: Ignora marca..." className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm outline-none resize-none" />
+                                        <textarea rows={3} value={userContext} onChange={(e) => setUserContext(e.target.value)} placeholder="Ej: Ignora marca..." className="w-full p-3 rounded-md bg-slate-50 border border-slate-200 text-sm outline-none resize-none" />
                                     </div>
 
                                     <div className="mt-4 grid grid-cols-2 gap-4">
-                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
+                                        <div className="bg-slate-50 p-3 rounded-md border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
                                             <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center gap-1">
                                                 <Calendar size={12} className="text-purple-500" /> Desde
                                             </label>
@@ -404,7 +404,7 @@ export default function ReportGeneratorPage() {
                                                 className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none"
                                             />
                                         </div>
-                                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
+                                        <div className="bg-slate-50 p-3 rounded-md border border-slate-200 focus-within:ring-2 ring-purple-200 transition-all">
                                             <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center gap-1">
                                                 <Calendar size={12} className="text-purple-500" /> Hasta
                                             </label>
@@ -419,19 +419,19 @@ export default function ReportGeneratorPage() {
 
                                     <div className="mt-6">
                                         {step === 'settings' && (
-                                            <button onClick={handleAnalyze} disabled={!!loadingState} className="w-full py-4 bg-[var(--color-nous-lavender)]/20 text-slate-800 border border-[var(--color-nous-lavender)]/30 rounded-xl font-medium uppercase tracking-elegant text-[10px] hover:bg-[var(--color-nous-lavender)]/30 transition-all shadow-sm flex items-center justify-center gap-2">
+                                            <button onClick={handleAnalyze} disabled={!!loadingState} className="w-full py-4 bg-[var(--color-nous-lavender)]/20 text-slate-800 border border-[var(--color-nous-lavender)]/30 rounded-md font-medium uppercase tracking-elegant text-[10px] hover:bg-[var(--color-nous-lavender)]/30 transition-all shadow-sm flex items-center justify-center gap-2">
                                                 {loadingState ? <Loader2 className="animate-spin" /> : <ListFilter size={16} />}
                                                 {mode === 'api' ? "Analizar Estructura" : "Generar"}
                                             </button>
                                         )}
                                         {step === 'validation' && (
-                                            <button onClick={handleGenerateFinal} disabled={!!loadingState} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg flex items-center justify-center gap-2 animate-pulse">
+                                            <button onClick={handleGenerateFinal} disabled={!!loadingState} className="w-full py-4 bg-emerald-600 text-white rounded-md font-bold uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg flex items-center justify-center gap-2 animate-pulse">
                                                 {loadingState ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={16} />}
                                                 Confirmar y Generar
                                             </button>
                                         )}
                                     </div>
-                                    {error && <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-600 font-bold">{error}</div>}
+                                    {error && <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-md text-xs text-rose-600 font-bold">{error}</div>}
                                 </div>
                             </div>
                         )}
@@ -479,7 +479,7 @@ export default function ReportGeneratorPage() {
                                         </tbody>
                                     </table>
                                     {/* Sample */}
-                                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto bg-amber-50 p-4 rounded-xl">
+                                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto bg-amber-50 p-4 rounded-md">
                                         {uncategorizedSample.map((u, i) => <span key={i} className="text-[10px] bg-white px-2 rounded border border-amber-100">{u}</span>)}
                                     </div>
                                 </div>
@@ -545,9 +545,9 @@ export default function ReportGeneratorPage() {
                             <div className="col-span-full text-center py-20 text-slate-400">No tienes informes guardados.</div>
                         )}
                         {savedReports.map(report => (
-                            <div key={report.id} onClick={() => handleViewSavedReport(report)} className="glass-panel bg-white/40 p-6 rounded-3xl border-hairline hover:shadow-sm transition-all cursor-pointer group">
+                            <div key={report.id} onClick={() => handleViewSavedReport(report)} className="glass-panel bg-white/40 p-6 rounded-lg border-hairline hover:shadow-sm transition-all cursor-pointer group">
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="p-3 bg-[var(--color-nous-lavender)]/20 text-[var(--color-nous-lavender)] rounded-xl group-hover:bg-[var(--color-nous-lavender)] group-hover:text-white transition-colors">
+                                    <div className="p-3 bg-[var(--color-nous-lavender)]/20 text-[var(--color-nous-lavender)] rounded-md group-hover:bg-[var(--color-nous-lavender)] group-hover:text-white transition-colors">
                                         <FileText size={24} />
                                     </div>
                                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{new Date(report.created_at).toLocaleDateString()}</span>
@@ -571,12 +571,12 @@ export default function ReportGeneratorPage() {
                                 value={saveTitle}
                                 onChange={e => setSaveTitle(e.target.value)}
                                 placeholder="Título del Informe (ej: SEO Enero 2025)"
-                                className="w-full p-4 bg-white/50 border border-slate-100 rounded-2xl mb-6 text-sm font-light focus:outline-none focus:ring-4 ring-[var(--color-nous-mist)]/10 transition-all"
+                                className="w-full p-4 bg-white/50 border border-slate-100 rounded-lg mb-6 text-sm font-light focus:outline-none focus:ring-4 ring-[var(--color-nous-mist)]/10 transition-all"
                                 autoFocus
                             />
                             <div className="flex justify-end gap-3">
                                 <button onClick={() => setShowSaveModal(false)} className="px-6 py-2 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
-                                <button onClick={handleSaveReport} disabled={!saveTitle} className="px-8 py-3 bg-[var(--color-nous-mist)] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:opacity-90 transition-all disabled:opacity-30">Guardar</button>
+                                <button onClick={handleSaveReport} disabled={!saveTitle} className="px-8 py-3 bg-[var(--color-nous-mist)] text-white rounded-md text-[10px] font-black uppercase tracking-widest shadow-sm hover:opacity-90 transition-all disabled:opacity-30">Guardar</button>
                             </div>
                         </div>
                     </div>

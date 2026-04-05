@@ -153,8 +153,8 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
     return (
         <div className="flex flex-col gap-6">
             {!results ? (
-                <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-3xl p-8 text-center">
-                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 rounded-lg p-8 text-center">
+                    <div className="w-16 h-16 bg-white rounded-lg shadow-sm flex items-center justify-center mx-auto mb-4">
                         <Sparkles className="text-indigo-600" size={32} />
                     </div>
                     <h3 className="text-lg font-black text-slate-900 uppercase italic mb-2">Neural Investigation Hub</h3>
@@ -166,7 +166,7 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
                     <button
                         onClick={handleRunAnalysis}
                         disabled={loading}
-                        className="bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl shadow-slate-900/20 flex items-center gap-3 mx-auto"
+                        className="bg-slate-900 text-white px-8 py-4 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl shadow-slate-900/20 flex items-center gap-3 mx-auto"
                     >
                         {loading ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
                         {loading ? "Procesando..." : "Iniciar Investigación"}
@@ -176,7 +176,7 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                            <span className="p-2 bg-emerald-50 text-emerald-600 rounded-md">
                                 <CheckCircle2 size={18} />
                             </span>
                             <div>
@@ -196,7 +196,7 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
 
                     <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                         {results.keywords.map((kw: any, i: number) => (
-                            <div key={i} className="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between group hover:border-indigo-200 transition-all">
+                            <div key={i} className="p-4 bg-white border border-slate-100 rounded-lg flex items-center justify-between group hover:border-indigo-200 transition-all">
                                 <div className="flex flex-col gap-1">
                                     <span className="text-sm font-bold text-slate-700">{kw.keyword}</span>
                                     <div className="flex items-center gap-3">
@@ -218,7 +218,7 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
                                             {kw.relevance_score}%
                                         </span>
                                     </div>
-                                    <button className="p-2 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-slate-900 group-hover:text-white transition-all">
+                                    <button className="p-2 bg-slate-50 text-slate-400 rounded-md group-hover:bg-slate-900 group-hover:text-white transition-all">
                                         <Plus size={14} />
                                     </button>
                                 </div>
@@ -230,7 +230,7 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
                         <button
                             onClick={handleGenerateOutline}
                             disabled={generatingOutline}
-                            className="w-full bg-indigo-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+                            className="w-full bg-indigo-600 text-white py-4 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
                         >
                             {generatingOutline ? <Loader2 className="animate-spin" size={16} /> : <BarChart3 size={16} />}
                             {generatingOutline ? "Analizando Estructuras..." : "Generar Neural Outline"}
@@ -238,14 +238,14 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
                     ) : (
                         <div className="p-6 bg-slate-900 text-white rounded-[32px] border border-slate-800 shadow-2xl">
                             <div className="flex items-center gap-3 mb-6">
-                                <div className="p-2 bg-indigo-500 rounded-xl">
+                                <div className="p-2 bg-indigo-500 rounded-md">
                                     <FileText size={18} />
                                 </div>
                                 <h4 className="text-sm font-black uppercase italic">Neural Outline Generado</h4>
                             </div>
 
                             <div className="space-y-4">
-                                <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                                <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                                     <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-1">Título H1 Sugerido</span>
                                     <p className="text-sm font-bold">{outline.title_h1}</p>
                                 </div>
@@ -253,7 +253,7 @@ export default function IntelligenceHub({ taskId, targetKeyword, url, onComplete
                                 <div className="space-y-2">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-2">Estructura de Secciones</span>
                                     {outline.sections.map((s: any, i: number) => (
-                                        <div key={i} className="p-3 bg-white/5 rounded-xl border border-white/10 ml-2">
+                                        <div key={i} className="p-3 bg-white/5 rounded-md border border-white/10 ml-2">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="text-[8px] font-black bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded-md">{s.tag}</span>
                                                 <span className="text-xs font-bold text-slate-200">{s.text}</span>

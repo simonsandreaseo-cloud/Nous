@@ -46,7 +46,7 @@ export function BulkUploadModal({ isOpen, onClose }: BulkUploadModalProps) {
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="fixed inset-0 m-auto max-w-md h-fit bg-white rounded-3xl shadow-2xl z-50 overflow-hidden"
+                        className="fixed inset-0 m-auto max-w-md h-fit bg-white rounded-lg shadow-2xl z-50 overflow-hidden"
                     >
                         <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                             <div>
@@ -62,7 +62,7 @@ export function BulkUploadModal({ isOpen, onClose }: BulkUploadModalProps) {
                             {!file ? (
                                 <div
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="border-2 border-dashed border-slate-200 rounded-2xl p-10 flex flex-col items-center justify-center cursor-pointer hover:border-cyan-400 hover:bg-cyan-50/10 transition-all group"
+                                    className="border-2 border-dashed border-slate-200 rounded-lg p-10 flex flex-col items-center justify-center cursor-pointer hover:border-cyan-400 hover:bg-cyan-50/10 transition-all group"
                                 >
                                     <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform text-slate-400 group-hover:text-cyan-500">
                                         <Upload size={24} />
@@ -71,8 +71,8 @@ export function BulkUploadModal({ isOpen, onClose }: BulkUploadModalProps) {
                                     <p className="text-[10px] text-slate-400 font-mono">.csv, .xlsx, .json</p>
                                 </div>
                             ) : (
-                                <div className="bg-slate-50 rounded-2xl p-4 flex items-center gap-4 border border-slate-100">
-                                    <div className="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center">
+                                <div className="bg-slate-50 rounded-lg p-4 flex items-center gap-4 border border-slate-100">
+                                    <div className="w-10 h-10 rounded-md bg-green-100 text-green-600 flex items-center justify-center">
                                         <FileSpreadsheet size={20} />
                                     </div>
                                     <div className="flex-1 overflow-hidden">
@@ -97,21 +97,21 @@ export function BulkUploadModal({ isOpen, onClose }: BulkUploadModalProps) {
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="mt-4 p-3 bg-emerald-50 text-emerald-600 rounded-xl flex items-center gap-2 text-xs font-bold"
+                                    className="mt-4 p-3 bg-emerald-50 text-emerald-600 rounded-md flex items-center gap-2 text-xs font-bold"
                                 >
                                     <Check size={14} /> Importación exitosa
                                 </motion.div>
                             )}
 
                             <div className="mt-8 flex gap-3">
-                                <button onClick={onClose} className="flex-1 py-3 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors uppercase tracking-widest">
+                                <button onClick={onClose} className="flex-1 py-3 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-md transition-colors uppercase tracking-widest">
                                     Cancelar
                                 </button>
                                 <button
                                     onClick={handleUpload}
                                     disabled={!file || isUploading}
                                     className={cn(
-                                        "flex-1 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2",
+                                        "flex-1 py-3 bg-slate-900 text-white rounded-md text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2",
                                         (!file || isUploading) && "opacity-50 cursor-not-allowed",
                                         uploadStatus === 'success' && "bg-emerald-500 shadow-emerald-500/20"
                                     )}

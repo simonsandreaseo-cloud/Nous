@@ -91,7 +91,7 @@ export function ArticleTable({ onToolSelect }: { onToolSelect: (toolId: string) 
         <div className="flex flex-col gap-3">
             {/* Bulk action bar */}
             {selected.size > 0 && (
-                <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-900 text-white rounded-2xl">
+                <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-900 text-white rounded-lg">
                     <span className="text-[11px] font-black tracking-widest">{selected.size} seleccionado{selected.size > 1 ? "s" : ""}</span>
                     <div className="flex-1" />
                     <button 
@@ -110,7 +110,7 @@ export function ArticleTable({ onToolSelect }: { onToolSelect: (toolId: string) 
             )}
 
             {/* Table */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white/50 min-h-[400px]">
+            <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white/50 min-h-[400px]">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="border-b border-slate-100">

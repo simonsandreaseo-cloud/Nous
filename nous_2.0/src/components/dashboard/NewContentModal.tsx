@@ -196,7 +196,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                         {flow === "selection" ? "Define el tema y deja que la IA trabaje" : flow === "completed" ? "Contenido agendado" : "Analizando Ecosistema"}
                                     </span>
                                 </div>
-                                <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600">
+                                <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-md transition-all text-slate-400 hover:text-slate-600">
                                     <X size={18} />
                                 </button>
                             </div>
@@ -209,7 +209,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                             <input
                                                 autoFocus
                                                 type="text"
-                                                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl p-4 pl-12 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                                                className="w-full bg-slate-50 border-2 border-slate-50 rounded-lg p-4 pl-12 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition-all"
                                                 placeholder={isCustomTitle ? "Escribe el título exacto..." : "Ej: Como hacer SEO en 2026..."}
                                                 value={idea}
                                                 onChange={(e) => setIdea(e.target.value)}
@@ -237,7 +237,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                         </button>
                                     </div>
 
-                                    <div className="flex items-center justify-between px-1 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                                    <div className="flex items-center justify-between px-1 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
                                         <div className="flex flex-col gap-1">
                                             <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">Modo de Investigación</span>
                                             <div className="flex items-center gap-2">
@@ -269,9 +269,9 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                         <button
                                             disabled={!idea.trim() || isStarting}
                                             onClick={handleStartInvestigation}
-                                            className="group relative h-32 bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-4 text-left flex flex-col justify-between overflow-hidden shadow-lg shadow-indigo-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
+                                            className="group relative h-32 bg-gradient-to-br from-indigo-600 to-violet-700 rounded-lg p-4 text-left flex flex-col justify-between overflow-hidden shadow-lg shadow-indigo-500/20 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
                                         >
-                                            <div className="bg-white/20 w-10 h-10 rounded-xl flex items-center justify-center text-white backdrop-blur-md">
+                                            <div className="bg-white/20 w-10 h-10 rounded-md flex items-center justify-center text-white backdrop-blur-md">
                                                 {isStarting ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
                                             </div>
                                             <div>
@@ -283,9 +283,9 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                         <button
                                             disabled={!idea.trim()}
                                             onClick={handleManualConfig}
-                                            className="group h-32 bg-slate-50 border border-slate-100 rounded-3xl p-4 text-left flex flex-col justify-between transition-all hover:border-slate-300 hover:bg-slate-100/50 disabled:opacity-50 active:scale-95"
+                                            className="group h-32 bg-slate-50 border border-slate-100 rounded-lg p-4 text-left flex flex-col justify-between transition-all hover:border-slate-300 hover:bg-slate-100/50 disabled:opacity-50 active:scale-95"
                                         >
-                                            <div className="bg-white w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 transition-transform">
+                                            <div className="bg-white w-10 h-10 rounded-md flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 transition-transform">
                                                 <Edit3 size={20} />
                                             </div>
                                             <div>
@@ -320,7 +320,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                     </div>
 
                                     {/* Compact Sliding Progress List */}
-                                    <div className="relative h-48 overflow-hidden bg-slate-50/50 rounded-3xl border border-slate-100/50 p-4">
+                                    <div className="relative h-48 overflow-hidden bg-slate-50/50 rounded-lg border border-slate-100/50 p-4">
                                         <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-slate-50/80 to-transparent z-10" />
                                         <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-slate-50/80 to-transparent z-10" />
                                         
@@ -333,7 +333,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                                 <div 
                                                     key={phase.id} 
                                                     className={cn(
-                                                        "flex items-center gap-3 transition-all duration-500 px-4 py-2 rounded-2xl",
+                                                        "flex items-center gap-3 transition-all duration-500 px-4 py-2 rounded-lg",
                                                         i === activePhase ? "bg-white shadow-sm scale-100 opacity-100" : "scale-95 opacity-40 blur-[0.5px]"
                                                     )}
                                                 >
@@ -384,7 +384,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1 }}
                                             transition={{ delay: 0.3 }}
-                                            className="absolute -right-1 -bottom-1 w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-md text-emerald-500"
+                                            className="absolute -right-1 -bottom-1 w-8 h-8 bg-white rounded-md flex items-center justify-center shadow-md text-emerald-500"
                                         >
                                             <Sparkles size={16} />
                                         </motion.div>
@@ -395,7 +395,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                             Contenido optimizado y agendado correctamente.
                                         </p>
                                     </div>
-                                    <div className="pt-4 flex items-center gap-2 text-emerald-500 font-bold text-[9px] uppercase tracking-widest bg-emerald-50/50 px-4 py-2 rounded-xl">
+                                    <div className="pt-4 flex items-center gap-2 text-emerald-500 font-bold text-[9px] uppercase tracking-widest bg-emerald-50/50 px-4 py-2 rounded-md">
                                         <ArrowRight size={12} className="animate-pulse" /> Volviendo al Planificador
                                     </div>
                                 </motion.div>

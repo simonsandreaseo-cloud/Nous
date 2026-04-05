@@ -87,7 +87,7 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="flex items-center bg-slate-100/80 rounded-xl p-1 gap-0.5"
+                        className="flex items-center bg-slate-100/80 rounded-md p-1 gap-0.5"
                     >
                         {[
                             { id: "cards" as ViewMode, icon: LayoutGrid, label: "Tarjetas" },
@@ -123,14 +123,14 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
                     <input
                         type="text"
                         placeholder="Buscar artículo…"
-                        className="pl-8 pr-4 py-2 text-[11px] bg-slate-50 border border-slate-100 rounded-xl text-slate-600 placeholder:text-slate-300 focus:outline-none focus:border-slate-200 w-48 transition-all focus:w-56"
+                        className="pl-8 pr-4 py-2 text-[11px] bg-slate-50 border border-slate-100 rounded-md text-slate-600 placeholder:text-slate-300 focus:outline-none focus:border-slate-200 w-48 transition-all focus:w-56"
                     />
                 </div>
 
                 {/* Filters */}
                 <button
                     title="Filtros"
-                    className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+                    className="w-8 h-8 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
                 >
                     <SlidersHorizontal size={15} />
                 </button>
@@ -138,7 +138,7 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
 
                 {/* Programar split button */}
                 <div className="relative">
-                    <div className="flex items-center rounded-xl overflow-hidden border border-slate-900 bg-slate-900">
+                    <div className="flex items-center rounded-md overflow-hidden border border-slate-900 bg-slate-900">
                         <button 
                             onClick={handleNewContent}
                             className="flex items-center gap-1.5 pl-4 pr-3 py-2 text-[10px] font-black tracking-widest uppercase text-white hover:bg-slate-800 transition-colors"
@@ -161,7 +161,7 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
                                 initial={{ opacity: 0, y: -4, scale: 0.97 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                                className="absolute right-0 top-full mt-2 w-52 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-2xl shadow-lg overflow-hidden z-20"
+                                className="absolute right-0 top-full mt-2 w-52 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-lg shadow-lg overflow-hidden z-20"
                             >
                                 {[
                                     { label: "Programar un Contenido", desc: "Crear pieza individual" },

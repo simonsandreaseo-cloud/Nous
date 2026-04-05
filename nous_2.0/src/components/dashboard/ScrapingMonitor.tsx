@@ -70,11 +70,11 @@ export default function ScrapingMonitor() {
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
-                                className="p-3 bg-white/5 rounded-2xl border border-white/5 group hover:border-white/10 transition-all"
+                                className="p-3 bg-white/5 rounded-lg border border-white/5 group hover:border-white/10 transition-all"
                             >
                                 <div className="flex items-start gap-3">
                                     <div className={cn(
-                                        "p-2 rounded-xl flex-shrink-0",
+                                        "p-2 rounded-md flex-shrink-0",
                                         scrape.status === 'navigating' ? "bg-cyan-500/20 text-cyan-400" :
                                             scrape.status === 'searching' ? "bg-amber-500/20 text-amber-400" :
                                                 scrape.status === 'done' ? "bg-emerald-500/20 text-emerald-400" :

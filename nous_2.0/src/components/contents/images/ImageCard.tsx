@@ -52,7 +52,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
     };
 
     return (
-        <div className={`group relative rounded-2xl overflow-hidden shadow-xl border border-slate-200/60 bg-white transition-all hover:shadow-2xl hover:border-emerald-500/30 ${className}`}>
+        <div className={`group relative rounded-lg overflow-hidden shadow-xl border border-slate-200/60 bg-white transition-all hover:shadow-2xl hover:border-emerald-500/30 ${className}`}>
             <div className="relative aspect-video lg:aspect-auto overflow-hidden bg-slate-100">
                 <img
                     src={image.url}
@@ -72,7 +72,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
                             value={refinement}
                             onChange={(e) => setRefinement(e.target.value)}
                             placeholder={labels.refinePlaceholder}
-                            className="w-full text-xs font-medium border border-slate-200 rounded-xl p-3 h-24 resize-none focus:ring-2 focus:ring-emerald-500 outline-none mb-4 text-slate-700 bg-slate-50/50"
+                            className="w-full text-xs font-medium border border-slate-200 rounded-md p-3 h-24 resize-none focus:ring-2 focus:ring-emerald-500 outline-none mb-4 text-slate-700 bg-slate-50/50"
                             autoFocus
                         />
                         <div className="flex gap-2 justify-end">
@@ -104,7 +104,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
                                 <button
                                     onClick={handleRegenerateClick}
                                     disabled={isRegenerating}
-                                    className="p-2.5 bg-white/90 text-emerald-600 rounded-xl hover:bg-white transition-all shadow-xl disabled:opacity-50 active:scale-95"
+                                    className="p-2.5 bg-white/90 text-emerald-600 rounded-md hover:bg-white transition-all shadow-xl disabled:opacity-50 active:scale-95"
                                     title={labels.regenerate}
                                 >
                                     <RefreshCw size={18} className={isRegenerating ? "animate-spin" : ""} />
@@ -118,7 +118,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({
                             </p>
                             <button
                                 onClick={handleDownload}
-                                className="p-2.5 bg-white text-emerald-600 rounded-xl hover:bg-emerald-50 transition-all shadow-xl active:scale-95 text-xs font-bold"
+                                className="p-2.5 bg-white text-emerald-600 rounded-md hover:bg-emerald-50 transition-all shadow-xl active:scale-95 text-xs font-bold"
                                 title={labels.download}
                             >
                                 <Download size={18} />

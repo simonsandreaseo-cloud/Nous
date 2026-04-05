@@ -62,7 +62,7 @@ export function ChartBuilder({ onInsert, onClose, projectId, dateRange }: ChartB
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
                     <h3 className="font-bold text-slate-700 flex items-center gap-2">
                         <BarChart3 size={18} className="text-purple-600" />
@@ -99,7 +99,7 @@ export function ChartBuilder({ onInsert, onClose, projectId, dateRange }: ChartB
                         <div className="grid grid-cols-2 gap-4">
                             <button
                                 onClick={() => onInsert('trend')}
-                                className="p-4 border border-slate-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-all text-left group"
+                                className="p-4 border border-slate-200 rounded-md hover:border-purple-300 hover:bg-purple-50 transition-all text-left group"
                             >
                                 <div className="bg-purple-100 w-10 h-10 rounded-lg flex items-center justify-center mb-3 text-purple-600 group-hover:scale-110 transition-transform">
                                     <TrendingUp size={20} />
@@ -110,7 +110,7 @@ export function ChartBuilder({ onInsert, onClose, projectId, dateRange }: ChartB
 
                             <button
                                 onClick={() => onInsert('clicks')}
-                                className="p-4 border border-slate-200 rounded-xl hover:border-green-300 hover:bg-green-50 transition-all text-left group"
+                                className="p-4 border border-slate-200 rounded-md hover:border-green-300 hover:bg-green-50 transition-all text-left group"
                             >
                                 <div className="bg-green-100 w-10 h-10 rounded-lg flex items-center justify-center mb-3 text-green-600 group-hover:scale-110 transition-transform">
                                     <BarChart3 size={20} />
@@ -121,7 +121,7 @@ export function ChartBuilder({ onInsert, onClose, projectId, dateRange }: ChartB
 
                             <button
                                 onClick={() => onInsert('losers')}
-                                className="p-4 border border-slate-200 rounded-xl hover:border-red-300 hover:bg-red-50 transition-all text-left group"
+                                className="p-4 border border-slate-200 rounded-md hover:border-red-300 hover:bg-red-50 transition-all text-left group"
                             >
                                 <div className="bg-red-100 w-10 h-10 rounded-lg flex items-center justify-center mb-3 text-red-600 group-hover:scale-110 transition-transform">
                                     <BarChart3 size={20} />
@@ -155,7 +155,7 @@ export function ChartBuilder({ onInsert, onClose, projectId, dateRange }: ChartB
                                         <textarea
                                             value={dynamicItems}
                                             onChange={e => setDynamicItems(e.target.value)}
-                                            className="w-full h-32 p-3 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none resize-none font-mono"
+                                            className="w-full h-32 p-3 text-xs border border-slate-300 rounded-md focus:ring-2 focus:ring-purple-200 outline-none resize-none font-mono"
                                             placeholder={dynamicType === 'page' ? "https://site.com/blog/post-1\nhttps://site.com/products/item-2" : "comprar zapatos\nzapatos baratos\nmejores zapatos 2024"}
                                         />
                                     </div>
@@ -163,7 +163,7 @@ export function ChartBuilder({ onInsert, onClose, projectId, dateRange }: ChartB
                                     <button
                                         onClick={handleGenerateDynamic}
                                         disabled={isLoadingDynamic || !dynamicItems}
-                                        className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2"
+                                        className="w-full py-3 bg-slate-900 text-white rounded-md font-bold text-sm hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
                                         {isLoadingDynamic ? <Loader2 size={16} className="animate-spin" /> : <><Search size={16} /> Generar Gráfico</>}
                                     </button>

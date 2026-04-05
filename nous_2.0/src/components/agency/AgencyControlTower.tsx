@@ -57,9 +57,9 @@ export function AgencyControlTower() {
     if (loading) return (
         <div className="flex flex-col gap-6 animate-pulse">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-white/40 rounded-3xl border border-hairline"></div>)}
+                {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-white/40 rounded-lg border border-hairline"></div>)}
             </div>
-            <div className="h-64 bg-white/40 rounded-3xl border border-hairline"></div>
+            <div className="h-64 bg-white/40 rounded-lg border border-hairline"></div>
         </div>
     );
 
@@ -108,16 +108,16 @@ export function AgencyControlTower() {
             {/* Main Insights Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Recent Global Projects */}
-                <div className="lg:col-span-2 glass-panel border border-hairline rounded-3xl p-6 bg-white/40">
+                <div className="lg:col-span-2 glass-panel border border-hairline rounded-lg p-6 bg-white/40">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Últimos Proyectos Lanzados</h3>
                         <button className="text-[10px] font-bold text-[var(--color-nous-mist)] uppercase hover:underline">Ver Todos</button>
                     </div>
                     <div className="space-y-4">
                         {recentProjects.map((proj) => (
-                            <div key={proj.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-white/60 transition-colors border border-transparent hover:border-hairline">
+                            <div key={proj.id} className="flex items-center justify-between p-4 rounded-lg hover:bg-white/60 transition-colors border border-transparent hover:border-hairline">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                                    <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center text-slate-400">
                                         <Briefcase size={20} />
                                     </div>
                                     <div>
@@ -137,7 +137,7 @@ export function AgencyControlTower() {
                 </div>
 
                 {/* Efficiency Widget */}
-                <div className="glass-panel border border-hairline rounded-3xl p-6 bg-white/40 flex flex-col justify-between">
+                <div className="glass-panel border border-hairline rounded-lg p-6 bg-white/40 flex flex-col justify-between">
                     <div>
                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Eficiencia de Agencia</h3>
                         <div className="flex flex-col items-center py-8">
@@ -171,9 +171,9 @@ export function AgencyControlTower() {
 
 function StatCard({ title, value, icon, trend }: { title: string, value: string | number, icon: any, trend: string }) {
     return (
-        <div className="glass-panel border border-hairline rounded-3xl p-6 bg-white/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+        <div className="glass-panel border border-hairline rounded-lg p-6 bg-white/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
             <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-white rounded-xl shadow-sm">
+                <div className="p-2 bg-white rounded-md shadow-sm">
                     {icon}
                 </div>
                 <TrendingUp size={14} className="text-[var(--color-nous-mint)]" />

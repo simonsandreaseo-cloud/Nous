@@ -22,7 +22,7 @@ export function BudgetStatus() {
         <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm flex items-center justify-between gap-6 relative overflow-hidden group h-full">
             <div className="flex items-center gap-4 z-10">
                 <div className={cn(
-                    "p-3 rounded-2xl border transition-colors",
+                    "p-3 rounded-lg border transition-colors",
                     budgetMode === 'target' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-purple-50 text-purple-600 border-purple-100"
                 )}>
                     {budgetMode === 'target' ? <Wallet size={20} /> : <Target size={20} />}

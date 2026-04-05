@@ -30,7 +30,7 @@ export default function DownloadButton({ variant = "primary" }: DownloadButtonPr
             <button
                 onClick={handleDownload}
                 disabled={isDownloading}
-                className="group px-8 py-4 rounded-2xl bg-[var(--color-nous-mint)]/10 text-slate-800 border border-[var(--color-nous-mint)]/20 font-medium uppercase tracking-elegant text-[10px] flex items-center justify-center gap-3 hover:bg-[var(--color-nous-mint)]/20 transition-all duration-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group px-8 py-4 rounded-lg bg-[var(--color-nous-mint)]/10 text-slate-800 border border-[var(--color-nous-mint)]/20 font-medium uppercase tracking-elegant text-[10px] flex items-center justify-center gap-3 hover:bg-[var(--color-nous-mint)]/20 transition-all duration-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 transition-transform group-hover:-translate-y-1" />}
                 Descargar Plugin
@@ -42,7 +42,7 @@ export default function DownloadButton({ variant = "primary" }: DownloadButtonPr
         <button
             onClick={handleDownload}
             disabled={isDownloading}
-            className="group px-8 py-4 rounded-2xl bg-[var(--color-nous-mist)]/20 text-slate-800 border border-[var(--color-nous-mist)]/30 font-medium uppercase tracking-elegant text-[10px] flex items-center justify-center gap-3 hover:bg-[var(--color-nous-mist)]/30 transition-all duration-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group px-8 py-4 rounded-lg bg-[var(--color-nous-mist)]/20 text-slate-800 border border-[var(--color-nous-mist)]/30 font-medium uppercase tracking-elegant text-[10px] flex items-center justify-center gap-3 hover:bg-[var(--color-nous-mist)]/30 transition-all duration-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
             {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 transition-transform group-hover:-translate-y-1" />}
             Descargar Plugin

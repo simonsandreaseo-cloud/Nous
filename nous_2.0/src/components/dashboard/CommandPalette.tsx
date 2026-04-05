@@ -131,13 +131,13 @@ export function CommandPalette() {
                                                         onClick={() => handleSelect(action)}
                                                         onMouseEnter={() => setSelectedIndex(globalIdx)}
                                                         className={cn(
-                                                            "flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all",
+                                                            "flex items-center justify-between p-4 rounded-lg cursor-pointer transition-all",
                                                             selectedIndex === globalIdx ? "bg-slate-50 border-l-4 border-indigo-500" : "bg-transparent border-l-4 border-transparent"
                                                         )}
                                                     >
                                                         <div className="flex items-center gap-4">
                                                             <div className={cn(
-                                                                "p-2 rounded-xl transition-colors",
+                                                                "p-2 rounded-md transition-colors",
                                                                 selectedIndex === globalIdx ? "bg-indigo-50 text-indigo-600" : "bg-slate-50 text-slate-400"
                                                             )}>
                                                                 <action.icon size={18} />
@@ -168,13 +168,13 @@ export function CommandPalette() {
                                                         onClick={() => handleSelect({ ...project, type: 'project', href: '/dashboard' })}
                                                         onMouseEnter={() => setSelectedIndex(globalIdx)}
                                                         className={cn(
-                                                            "flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all",
+                                                            "flex items-center justify-between p-4 rounded-lg cursor-pointer transition-all",
                                                             selectedIndex === globalIdx ? "bg-slate-50 border-l-4 border-emerald-500" : "bg-transparent border-l-4 border-transparent"
                                                         )}
                                                     >
                                                         <div className="flex items-center gap-4">
                                                             <div className={cn(
-                                                                "p-2 rounded-xl transition-colors",
+                                                                "p-2 rounded-md transition-colors",
                                                                 selectedIndex === globalIdx ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400"
                                                             )}>
                                                                 <SearchIcon size={18} />

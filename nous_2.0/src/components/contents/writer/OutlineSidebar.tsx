@@ -96,7 +96,7 @@ export default function OutlineSidebar() {
                     <button
                         disabled={isPlanningStructure || !rawSeoData}
                         onClick={handlePlanStructure}
-                        className="group relative w-full h-11 bg-indigo-600 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none overflow-hidden shadow-lg shadow-indigo-200 hover:shadow-black/20 active:scale-95"
+                        className="group relative w-full h-11 bg-indigo-600 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-md transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none overflow-hidden shadow-lg shadow-indigo-200 hover:shadow-black/20 active:scale-95"
                     >
                         <div className="absolute inset-0 flex items-center justify-center gap-2 group-hover:-translate-y-full transition-transform duration-500">
                             {isPlanningStructure ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} className="animate-pulse" />}
@@ -112,7 +112,7 @@ export default function OutlineSidebar() {
                 {/* Añadir sección manualmente incluso sin outline */}
                 <button
                     onClick={addSection}
-                    className="w-full h-10 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2"
+                    className="w-full h-10 border-2 border-dashed border-slate-200 rounded-lg text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2"
                 >
                     <Plus size={14} /> Añadir Sección Manualmente
                 </button>
@@ -148,7 +148,7 @@ export default function OutlineSidebar() {
             </div>
 
             {/* Meta Palabras Total */}
-            <div className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-100 shadow-sm">
                 <div className="flex-1 space-y-0.5">
                     <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">
                         Meta Total de Palabras
@@ -273,7 +273,7 @@ export default function OutlineSidebar() {
                                 {/* Row 3: Notes (¡Siempre visibles en preview!) */}
                                 <div className="pl-[52px]">
                                     {hasNotes ? (
-                                        <div className="rounded-xl bg-amber-50 border border-amber-100 overflow-hidden">
+                                        <div className="rounded-md bg-amber-50 border border-amber-100 overflow-hidden">
                                             <div
                                                 className={cn(
                                                     "px-3 py-2 text-[10px] font-medium text-amber-800 leading-relaxed",
@@ -302,7 +302,7 @@ export default function OutlineSidebar() {
                                                         onChange={e => updateItem(idx, 'notes', e.target.value)}
                                                         placeholder="Instrucciones editoriales para esta sección..."
                                                         rows={4}
-                                                        className="w-full p-2 bg-white/70 border border-amber-200 rounded-xl text-[10px] font-medium text-slate-600 outline-none resize-none focus:bg-white focus:border-amber-300 transition-all placeholder:text-slate-300"
+                                                        className="w-full p-2 bg-white/70 border border-amber-200 rounded-md text-[10px] font-medium text-slate-600 outline-none resize-none focus:bg-white focus:border-amber-300 transition-all placeholder:text-slate-300"
                                                     />
                                                 </div>
                                             )}
@@ -311,7 +311,7 @@ export default function OutlineSidebar() {
                                         <button
                                             onClick={() => toggleNote(idx)}
                                             className={cn(
-                                                "w-full py-1.5 px-3 rounded-xl border-2 border-dashed text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5",
+                                                "w-full py-1.5 px-3 rounded-md border-2 border-dashed text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5",
                                                 isExpanded
                                                     ? "border-indigo-300 text-indigo-500 bg-indigo-50/50"
                                                     : "border-slate-200 text-slate-300 hover:border-indigo-300 hover:text-indigo-400"
@@ -329,7 +329,7 @@ export default function OutlineSidebar() {
                                                 placeholder="Instrucciones editoriales para esta sección (tono, puntos a cubrir, keywords a usar...)..."
                                                 rows={3}
                                                 autoFocus
-                                                className="w-full p-3 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-medium text-slate-600 outline-none resize-none focus:bg-white focus:border-indigo-200 transition-all placeholder:text-slate-300"
+                                                className="w-full p-3 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-medium text-slate-600 outline-none resize-none focus:bg-white focus:border-indigo-200 transition-all placeholder:text-slate-300"
                                             />
                                         </div>
                                     )}
@@ -343,13 +343,13 @@ export default function OutlineSidebar() {
             {/* Add Section Button */}
             <button
                 onClick={addSection}
-                className="w-full h-10 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2"
+                className="w-full h-10 border-2 border-dashed border-slate-200 rounded-lg text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2"
             >
                 <Plus size={14} /> Añadir Sección
             </button>
 
             {/* Total Footer */}
-            <div className="p-5 bg-slate-900 rounded-[28px] text-white shadow-xl shadow-slate-200 space-y-3">
+            <div className="p-5 bg-slate-900 rounded-lg text-white shadow-xl shadow-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Progreso Global</span>
                     <span className="text-xs font-black text-indigo-300">{totalWritten.toLocaleString()} / {totalPlanned.toLocaleString()} palabras</span>

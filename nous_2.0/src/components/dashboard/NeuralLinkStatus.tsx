@@ -95,7 +95,7 @@ export function NeuralLinkStatus() {
                 </div>
 
                 {/* Tooltip on hover */}
-                <div className="absolute top-full right-0 mt-2 p-3 glass-panel text-slate-900 rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-56 z-[100]">
+                <div className="absolute top-full right-0 mt-2 p-3 glass-panel text-slate-900 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-56 z-[100]">
                     <p className="text-[10px] font-medium uppercase tracking-elegant mb-1 text-slate-800">
                         Estado del Nodo: {isConnected ? nodeStatus : 'DESCONECTADO'}
                     </p>

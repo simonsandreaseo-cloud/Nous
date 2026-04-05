@@ -335,7 +335,7 @@ export function TopBar() {
                         </button>
 
                         {teamDropdownOpen && (
-                            <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-[60] animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-slate-200 rounded-md shadow-xl overflow-hidden z-[60] animate-in fade-in slide-in-from-top-1 duration-200">
                                 <div className="p-3 bg-slate-50 border-b border-slate-100">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tus Equipos</p>
                                 </div>
@@ -383,7 +383,7 @@ export function TopBar() {
                     </button>
                     
                     {showNotifications && (
-                        <div className="absolute top-12 right-0 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="absolute top-12 right-0 w-80 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Notificaciones</h3>
                                 <span className="bg-cyan-100 text-cyan-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{notifications.length} nuevas</span>
@@ -450,7 +450,7 @@ export function TopBar() {
             {/* Create Team Modal */}
             {isCreateTeamModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl border border-hairline animate-in zoom-in-95 duration-300">
+                    <div className="bg-white rounded-lg p-8 w-full max-w-md shadow-2xl border border-hairline animate-in zoom-in-95 duration-300">
                         <h2 className="text-xl font-light text-slate-800 mb-6">Crear Nuevo Equipo</h2>
                         <div className="space-y-4">
                             <div>
@@ -460,19 +460,19 @@ export function TopBar() {
                                     value={newTeamName}
                                     onChange={(e) => setNewTeamName(e.target.value)}
                                     placeholder="Ej. SEO Elite, Content Team A..."
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)] transition-all"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-md px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)] transition-all"
                                 />
                             </div>
                             <div className="flex gap-3 pt-4">
                                 <button 
                                     onClick={() => setIsCreateTeamModalOpen(false)}
-                                    className="flex-1 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-colors"
+                                    className="flex-1 px-4 py-3 rounded-md text-xs font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-colors"
                                 >
                                     Cancelar
                                 </button>
                                 <button 
                                     onClick={handleCreateTeamSubmit}
-                                    className="flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-[var(--color-nous-mist)] text-white shadow-lg shadow-[var(--color-nous-mist)]/20 transition-all hover:-translate-y-1"
+                                    className="flex-1 px-4 py-3 rounded-md text-xs font-black uppercase tracking-widest bg-[var(--color-nous-mist)] text-white shadow-lg shadow-[var(--color-nous-mist)]/20 transition-all hover:-translate-y-1"
                                 >
                                     Confirmar
                                 </button>

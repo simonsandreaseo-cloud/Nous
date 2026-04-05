@@ -33,7 +33,7 @@ export function TimelineScheduler() {
                     <p className="text-xl font-black text-slate-900 tracking-tighter uppercase italic">Semana</p>
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl">
+                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-md">
                     <button onClick={prevWeek} className="p-2 hover:bg-white rounded-lg shadow-sm transition-all text-slate-400 hover:text-slate-900">
                         <ChevronLeft size={16} />
                     </button>
@@ -61,7 +61,7 @@ export function TimelineScheduler() {
                     return (
                         <div key={i} className={cn(
                             "flex flex-col border-r border-slate-50 last:border-none min-h-[300px] relative group px-1",
-                            isToday ? "bg-cyan-50/20 rounded-xl" : ""
+                            isToday ? "bg-cyan-50/20 rounded-md" : ""
                         )}>
                             <div className="text-center mb-4 py-2 border-b border-slate-50">
                                 <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
@@ -86,7 +86,7 @@ export function TimelineScheduler() {
                                 {dayItems.map(item => (
                                     <div
                                         key={item.id}
-                                        className="relative z-10 p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group/item flex flex-col"
+                                        className="relative z-10 p-3 bg-white border border-slate-100 rounded-md shadow-sm hover:shadow-md transition-all cursor-pointer group/item flex flex-col"
                                     >
                                         <div className="flex items-center justify-between mb-2">
                                             <ProjectBadge projectId={item.project_id} />

@@ -46,7 +46,7 @@ export default function AIConsole() {
             {/* Header */}
             <div className="p-4 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                    <div className="w-8 h-8 rounded-md bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
                         <Terminal size={16} className="text-emerald-400" />
                     </div>
                     <div>
@@ -65,7 +65,7 @@ export default function AIConsole() {
                     </button>
                     <button 
                         onClick={() => setIsConsoleOpen(false)}
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-all shadow-sm"
+                        className="p-2 bg-white/5 hover:bg-white/10 rounded-md text-slate-400 hover:text-white transition-all shadow-sm"
                     >
                         <X size={18} />
                     </button>
@@ -98,7 +98,7 @@ export default function AIConsole() {
                             </motion.div>
                         </div>
                         
-                        <div className="flex items-center gap-2 mt-3 p-2 bg-black/40 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-2 mt-3 p-2 bg-black/40 rounded-md border border-white/5">
                             <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                             <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Fase Actual: {researchPhaseId}</span>
                         </div>
@@ -116,7 +116,7 @@ export default function AIConsole() {
                         </div>
                         
                         <div className="flex items-center gap-3 mb-3 relative">
-                            <div className="w-8 h-8 rounded-xl bg-rose-500/20 flex items-center justify-center border border-rose-500/30">
+                            <div className="w-8 h-8 rounded-md bg-rose-500/20 flex items-center justify-center border border-rose-500/30">
                                 <AlertTriangle className="text-rose-500" size={16} />
                             </div>
                             <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-rose-500">Canibalización Detectada</h4>
@@ -129,7 +129,7 @@ export default function AIConsole() {
 
                         <div className="space-y-2 mb-6 max-h-32 overflow-y-auto custom-scrollbar-dark pr-2">
                             {strategyCannibalization.map((url, idx) => (
-                                <div key={idx} className="p-2 bg-black/40 rounded-xl border border-white/5 text-[9px] font-mono text-slate-500 truncate hover:text-rose-300 transition-colors cursor-help" title={url}>
+                                <div key={idx} className="p-2 bg-black/40 rounded-md border border-white/5 text-[9px] font-mono text-slate-500 truncate hover:text-rose-300 transition-colors cursor-help" title={url}>
                                     {url}
                                 </div>
                             ))}
@@ -137,13 +137,13 @@ export default function AIConsole() {
 
                         <div className="grid grid-cols-2 gap-3 relative">
                             <button 
-                                className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border border-white/5"
+                                className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-[9px] font-black uppercase tracking-widest transition-all border border-white/5"
                                 onClick={() => useWriterStore.setState({ strategyCannibalization: [] })}
                             >
                                 Conservar
                             </button>
                             <button 
-                                className="py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-900/20 border border-rose-400/20"
+                                className="py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-md text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-900/20 border border-rose-400/20"
                                 onClick={() => {
                                     // logic to cancel/delete would go here
                                     useWriterStore.setState({ strategyCannibalization: [] });
@@ -168,7 +168,7 @@ export default function AIConsole() {
                         <div 
                             key={i} 
                             className={cn(
-                                "group border rounded-3xl transition-all overflow-hidden",
+                                "group border rounded-lg transition-all overflow-hidden",
                                 expandedIndex === i 
                                     ? "bg-slate-900/80 border-emerald-500/30 shadow-lg shadow-emerald-500/5" 
                                     : "bg-white/5 border-white/5 hover:border-white/10"
@@ -215,7 +215,7 @@ export default function AIConsole() {
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); setViewMode('prompt'); }}
                                                 className={cn(
-                                                    "flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                                                    "flex-1 py-2 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
                                                     viewMode === 'prompt' ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"
                                                 )}
                                             >
@@ -224,7 +224,7 @@ export default function AIConsole() {
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); setViewMode('response'); }}
                                                 className={cn(
-                                                    "flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                                                    "flex-1 py-2 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
                                                     viewMode === 'response' ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300",
                                                     !log.response && "opacity-30 cursor-not-allowed"
                                                 )}
@@ -240,7 +240,7 @@ export default function AIConsole() {
                                             </pre>
                                             <button 
                                                 onClick={() => navigator.clipboard.writeText(viewMode === 'prompt' ? log.prompt : (log.response || ""))}
-                                                className="absolute top-4 right-4 p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-all shadow-lg shadow-black/20"
+                                                className="absolute top-4 right-4 p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-md transition-all shadow-lg shadow-black/20"
                                                 title="Copiar al portapapeles"
                                             >
                                                 <Copy size={14} />

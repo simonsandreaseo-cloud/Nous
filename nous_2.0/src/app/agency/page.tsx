@@ -47,7 +47,7 @@ export default function AgencyPage() {
 
                         <button 
                             onClick={() => setActiveTab('dashboard')}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'dashboard' ? 'bg-[var(--color-nous-mist)] text-white shadow-lg' : 'hover:bg-white/60 text-slate-500'}`}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-md transition-all ${activeTab === 'dashboard' ? 'bg-[var(--color-nous-mist)] text-white shadow-lg' : 'hover:bg-white/60 text-slate-500'}`}
                         >
                             <LayoutDashboard size={18} />
                             <span className="text-xs font-bold uppercase tracking-widest">Dashboard Global</span>
@@ -55,7 +55,7 @@ export default function AgencyPage() {
 
                         <button 
                             onClick={() => setActiveTab('teams')}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'teams' ? 'bg-[var(--color-nous-mist)] text-white shadow-lg' : 'hover:bg-white/60 text-slate-500'}`}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-md transition-all ${activeTab === 'teams' ? 'bg-[var(--color-nous-mist)] text-white shadow-lg' : 'hover:bg-white/60 text-slate-500'}`}
                         >
                             <Users size={18} />
                             <span className="text-xs font-bold uppercase tracking-widest">Gestión de Equipos</span>
@@ -63,7 +63,7 @@ export default function AgencyPage() {
 
                         <button 
                             onClick={() => setActiveTab('settings')}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'settings' ? 'bg-[var(--color-nous-mist)] text-white shadow-lg' : 'hover:bg-white/60 text-slate-500'}`}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-md transition-all ${activeTab === 'settings' ? 'bg-[var(--color-nous-mist)] text-white shadow-lg' : 'hover:bg-white/60 text-slate-500'}`}
                         >
                             <Settings size={18} />
                             <span className="text-xs font-bold uppercase tracking-widest">Ajustes Agencia</span>

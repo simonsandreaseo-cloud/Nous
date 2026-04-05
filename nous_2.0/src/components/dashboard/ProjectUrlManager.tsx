@@ -144,15 +144,15 @@ export default function ProjectUrlManager() {
                             placeholder="Buscar URL o Keyword..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-2xl py-3 pl-12 pr-6 text-sm w-[300px] focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm"
+                            className="bg-white border border-slate-200 rounded-lg py-3 pl-12 pr-6 text-sm w-[300px] focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm"
                         />
                     </div>
 
-                    <div className="flex p-1 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                    <div className="flex p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
                         <button
                             onClick={() => setFilter('all')}
                             className={cn(
-                                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                "px-4 py-2 rounded-md text-[10px] font-black uppercase tracking-widest transition-all",
                                 filter === 'all' ? "bg-slate-900 text-white" : "text-slate-400 hover:text-slate-600"
                             )}
                         >
@@ -161,7 +161,7 @@ export default function ProjectUrlManager() {
                         <button
                             onClick={() => setFilter('striking_distance')}
                             className={cn(
-                                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                "px-4 py-2 rounded-md text-[10px] font-black uppercase tracking-widest transition-all",
                                 filter === 'striking_distance' ? "bg-amber-500 text-white" : "text-slate-400 hover:text-slate-600"
                             )}
                         >
@@ -170,7 +170,7 @@ export default function ProjectUrlManager() {
                         <button
                             onClick={() => setFilter('high_potential')}
                             className={cn(
-                                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                "px-4 py-2 rounded-md text-[10px] font-black uppercase tracking-widest transition-all",
                                 filter === 'high_potential' ? "bg-cyan-500 text-white" : "text-slate-400 hover:text-slate-600"
                             )}
                         >
@@ -183,7 +183,7 @@ export default function ProjectUrlManager() {
                     onClick={handleRunAudit}
                     disabled={isAuditing}
                     className={cn(
-                        "px-6 py-4 bg-slate-900 text-white rounded-3xl text-sm font-black uppercase tracking-[0.1em] shadow-xl shadow-slate-900/20 flex items-center gap-3 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:scale-100",
+                        "px-6 py-4 bg-slate-900 text-white rounded-lg text-sm font-black uppercase tracking-[0.1em] shadow-xl shadow-slate-900/20 flex items-center gap-3 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:scale-100",
                         isAuditing && "animate-pulse"
                     )}
                 >
@@ -294,14 +294,14 @@ export default function ProjectUrlManager() {
                                     </td>
                                     <td className="px-8 py-6 text-right">
                                         {url.is_task ? (
-                                            <div className="flex items-center gap-2 justify-end text-emerald-500 font-bold text-[9px] uppercase tracking-widest px-4 py-3 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                            <div className="flex items-center gap-2 justify-end text-emerald-500 font-bold text-[9px] uppercase tracking-widest px-4 py-3 bg-emerald-50 rounded-lg border border-emerald-100">
                                                 <CheckCircle2 size={14} /> En Calendario
                                             </div>
                                         ) : (
                                             <button
                                                 onClick={() => handleCreateTask(url)}
                                                 disabled={creatingTaskId === url.id}
-                                                className="px-4 py-3 bg-white hover:bg-slate-900 hover:text-white border border-slate-100 rounded-2xl shadow-sm transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-2 group/btn whitespace-nowrap"
+                                                className="px-4 py-3 bg-white hover:bg-slate-900 hover:text-white border border-slate-100 rounded-lg shadow-sm transition-all text-[9px] font-black uppercase tracking-widest flex items-center gap-2 group/btn whitespace-nowrap"
                                             >
                                                 {creatingTaskId === url.id ? (
                                                     <Loader2 size={14} className="animate-spin" />

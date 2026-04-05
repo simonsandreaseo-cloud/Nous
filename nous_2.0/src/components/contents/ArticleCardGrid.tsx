@@ -122,7 +122,7 @@ function ArticleCard({ article, onOpen }: { article: Article; onOpen: (a: Articl
                         <span className="text-[8px] text-slate-300 uppercase tracking-widest font-black">Sin procesar</span>
                     )}
                 </div>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all border border-transparent group-hover:border-indigo-100">
+                <div className="w-8 h-8 rounded-md flex items-center justify-center text-slate-300 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all border border-transparent group-hover:border-indigo-100">
                     <ChevronRight size={16} />
                 </div>
             </div>
@@ -195,7 +195,7 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
                         <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Panel de Control</p>
                         <h2 className="text-sm font-bold text-slate-800 mt-0.5">Estado del Contenido</h2>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors">
+                    <button onClick={onClose} className="p-2 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors">
                         <X size={16} />
                     </button>
                 </div>
@@ -210,7 +210,7 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
                     </div>
 
                     {/* Semáforo de Completitud */}
-                    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-8">
+                    <div className="bg-slate-50 rounded-lg p-6 border border-slate-100 mb-8">
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Semáforo de Completitud</h4>
                         <div className="flex justify-between items-center">
                             <TrafficLightItem active={hasBriefing} icon={<FileText size={14} />} label="Briefing" />
@@ -228,7 +228,7 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
                         {!hasBriefing ? (
                             <button
                                 onClick={() => onUpdateStatus?.(article.id, 'en_investigacion')} // Simulate briefing gen
-                                className="w-full bg-indigo-600 text-white rounded-xl py-4 font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+                                className="w-full bg-indigo-600 text-white rounded-md py-4 font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition flex items-center justify-center gap-2"
                             >
                                 <Sparkles size={16} />
                                 Generar Briefing con Nous
@@ -236,7 +236,7 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
                         ) : (
                             <button
                                 onClick={() => onOpenTool(article.id, 'writer')}
-                                className="w-full bg-slate-900 text-white rounded-xl py-4 font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition flex items-center justify-center gap-2"
+                                className="w-full bg-slate-900 text-white rounded-md py-4 font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition flex items-center justify-center gap-2"
                             >
                                 <PenLine size={16} />
                                 Entrar al Redactor Zen
@@ -247,13 +247,13 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
                             <div className="flex gap-3 mt-4">
                                 <button
                                     onClick={() => onOpenTool(article.id, 'refinery')}
-                                    className="flex-1 bg-white border border-slate-200 text-slate-600 rounded-xl py-3 font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 transition flex items-center justify-center gap-2"
+                                    className="flex-1 bg-white border border-slate-200 text-slate-600 rounded-md py-3 font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 transition flex items-center justify-center gap-2"
                                 >
                                     <Image size={14} /> Refinar Arte
                                 </button>
                                 <button
                                     onClick={() => onOpenTool(article.id, 'writer')} // Interlinking is part of Redactor now
-                                    className="flex-1 bg-white border border-slate-200 text-slate-600 rounded-xl py-3 font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 transition flex items-center justify-center gap-2"
+                                    className="flex-1 bg-white border border-slate-200 text-slate-600 rounded-md py-3 font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 transition flex items-center justify-center gap-2"
                                 >
                                     <LinkIcon size={14} /> Interlinking
                                 </button>
@@ -267,7 +267,7 @@ export function ArticleDetailDrawer({ article, onClose, onOpenTool, onDelete, on
                     <button
                         onClick={handleDelete}
                         disabled={isDeleting}
-                        className="w-full h-12 rounded-xl border border-rose-100 bg-rose-50/30 text-rose-500 flex items-center justify-center gap-2 hover:bg-rose-50 transition-colors disabled:opacity-50"
+                        className="w-full h-12 rounded-md border border-rose-100 bg-rose-50/30 text-rose-500 flex items-center justify-center gap-2 hover:bg-rose-50 transition-colors disabled:opacity-50"
                     >
                         {isDeleting ? <RefreshCw className="animate-spin" size={16} /> : <Trash2 size={16} />}
                         <span className="text-[11px] font-black uppercase tracking-widest">Eliminar permanentemente</span>

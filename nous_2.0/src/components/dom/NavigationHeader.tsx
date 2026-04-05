@@ -47,11 +47,11 @@ export function NavigationHeader() {
                     </button>
 
                     {/* First Level Menu */}
-                    <div className="absolute top-full left-0 mt-2 w-64 glass-panel rounded-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-out p-2 origin-top-left z-50">
+                    <div className="absolute top-full left-0 mt-2 w-64 glass-panel rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible translate-y-2 group-hover:translate-y-0 transition-all duration-300 ease-out p-2 origin-top-left z-50">
 
                         {/* Contenidos - Nested Submenu Trigger */}
                         <div className="relative group/nested">
-                            <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
+                            <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
                                 <div className="flex items-center gap-3">
                                     <FileText size={16} className="text-blue-500" />
                                     <span>Contenidos</span>
@@ -60,37 +60,37 @@ export function NavigationHeader() {
                             </button>
 
                             {/* Second Level Menu */}
-                            <div className="absolute left-full top-0 ml-3 w-60 glass-panel rounded-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
+                            <div className="absolute left-full top-0 ml-3 w-60 glass-panel rounded-lg opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
                                 <div className="space-y-1">
-                                    <Link href="/contents" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents" className="block px-3 py-2.5 rounded-md hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <FileText size={16} className="text-blue-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Dashboard</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Vista general</p>
                                     </Link>
-                                    <Link href="/contents/writer" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents/writer" className="block px-3 py-2.5 rounded-md hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Bot size={16} className="text-purple-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Redactor IA</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Generación de contenido</p>
                                     </Link>
-                                    <Link href="/studio/distribution" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/studio/distribution" className="block px-3 py-2.5 rounded-md hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <LayoutTemplate size={16} className="text-indigo-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Distribución</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Nous Bridge WP</p>
                                     </Link>
-                                    <Link href="/contents/refinery" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents/refinery" className="block px-3 py-2.5 rounded-md hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Wand2 size={16} className="text-pink-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Refinería</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Humanizador 0%</p>
                                     </Link>
-                                    <Link href="/contents/images" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/contents/images" className="block px-3 py-2.5 rounded-md hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Wand2 size={16} className="text-emerald-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Imagenes</span>
@@ -101,19 +101,19 @@ export function NavigationHeader() {
                             </div>
                         </div>
 
-                        <Link href="/estrategia" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
+                        <Link href="/estrategia" className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
                             <Calendar size={16} className="text-cyan-500" />
                             <span>Estrategia</span>
                         </Link>
 
-                        <Link href="/seo" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
+                        <Link href="/seo" className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
                             <Search size={16} className="text-green-500" />
                             <span>SEO On Page</span>
                         </Link>
 
                         {/* Monitor - Nested Submenu Trigger */}
                         <div className="relative group/nested">
-                            <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
+                            <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
                                 <div className="flex items-center gap-3">
                                     <Activity size={16} className="text-orange-500" />
                                     <span>Monitor</span>
@@ -122,16 +122,16 @@ export function NavigationHeader() {
                             </button>
 
                             {/* Second Level Menu */}
-                            <div className="absolute left-full top-0 ml-3 w-60 glass-panel rounded-2xl opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
+                            <div className="absolute left-full top-0 ml-3 w-60 glass-panel rounded-lg opacity-0 invisible group-hover/nested:opacity-100 group-hover/nested:visible translate-x-[-10px] group-hover/nested:translate-x-0 transition-all duration-300 ease-out p-2 origin-top-left">
                                 <div className="space-y-1">
-                                    <Link href="/monitor" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/monitor" className="block px-3 py-2.5 rounded-md hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <Cpu size={16} className="text-purple-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Helios IA</span>
                                         </div>
                                         <p className="text-[10px] text-slate-500 font-medium pl-7">Auditoría Neural & Errores</p>
                                     </Link>
-                                    <Link href="/herramientas/generador-informes" className="block px-3 py-2.5 rounded-xl hover:bg-slate-100/80 transition-all group/item">
+                                    <Link href="/herramientas/generador-informes" className="block px-3 py-2.5 rounded-md hover:bg-slate-100/80 transition-all group/item">
                                         <div className="flex items-center gap-3 mb-0.5">
                                             <FileText size={16} className="text-purple-500" />
                                             <span className="text-sm font-medium text-slate-700 group-hover/item:text-slate-900">Informes IA</span>
@@ -144,7 +144,7 @@ export function NavigationHeader() {
 
                         <div className="h-px bg-slate-100 my-1 mx-2"></div>
 
-                        <Link href="/office" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
+                        <Link href="/office" className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all">
                             <Building2 size={16} className="text-slate-500" />
                             <span>Oficina</span>
                         </Link>

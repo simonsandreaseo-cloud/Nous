@@ -86,14 +86,14 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
         <motion.aside 
             animate={{ width: isCollapsed ? 72 : 240 }}
             transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-            className="shrink-0 h-full flex flex-col glass-panel border-hairline rounded-[28px] overflow-hidden shadow-sm relative z-50 bg-white/60 backdrop-blur-xl"
+            className="shrink-0 h-full flex flex-col bg-[#0A0D14] border-hairline rounded-lg overflow-hidden shadow-sm relative z-50 bg-white/60 backdrop-blur-xl"
         >
             {/* Section Switcher (Canva Style) */}
-            <div className="h-16 shrink-0 flex items-center px-3 border-b border-slate-100/60 relative bg-white/40">
+            <div className="h-16 shrink-0 flex items-center px-3 border-b border-slate-100/60 relative ">
                 <button 
                     onClick={() => setSectionMenuOpen(!sectionMenuOpen)}
                     className={cn(
-                        "w-full h-11 flex items-center px-3 rounded-2xl transition-all group relative overflow-hidden",
+                        "w-full h-11 flex items-center px-3 rounded-lg transition-all group relative overflow-hidden",
                         sectionMenuOpen ? "bg-slate-900 text-white" : "hover:bg-slate-50 text-slate-700"
                     )}
                 >
@@ -116,7 +116,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                             initial={{ opacity: 0, scale: 0.95, y: -10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                            className="absolute top-full left-3 right-3 mt-1 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl p-2 z-[100] animate-in slide-in-from-top-4"
+                            className="absolute top-full left-3 right-3 mt-1 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-lg shadow-xl p-2 z-[100] animate-in slide-in-from-top-4"
                         >
                             <p className="px-3 py-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Cambiar Sección</p>
                             {GLOBAL_AREAS.filter(area => area.id !== currentGlobalArea.id).map((area) => (
@@ -124,7 +124,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                                     key={area.id}
                                     href={area.href}
                                     onClick={() => setSectionMenuOpen(false)}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-900 hover:text-white transition-all group"
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-xs font-bold text-slate-600 hover:bg-slate-900 hover:text-white transition-all group"
                                 >
                                     <area.icon size={16} className="text-slate-400 group-hover:text-white/70" />
                                     {area.label}
@@ -134,7 +134,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                             <Link
                                 href="/office"
                                 onClick={() => setSectionMenuOpen(false)}
-                                className="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
+                                className="w-full flex items-center gap-3 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
                             >
                                 <Settings size={14} />
                                 Configuración
@@ -165,7 +165,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                             title={isCollapsed ? tool.label : undefined}
                             onClick={() => onToolSelect(tool.id)}
                             className={cn(
-                                "w-full h-11 flex items-center px-3 rounded-2xl transition-all group relative overflow-hidden shrink-0",
+                                "w-full h-11 flex items-center px-3 rounded-lg transition-all group relative overflow-hidden shrink-0",
                                 isActive
                                     ? "bg-white shadow-sm border border-slate-200"
                                     : "text-slate-400 hover:text-slate-700 hover:bg-white/60 mx-auto"
@@ -211,13 +211,13 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
             </div>
 
             {/* Footer: User Profile + Collapse Toggle */}
-            <div className="p-3 border-t border-slate-100/60 shrink-0 bg-white/40">
+            <div className="p-3 border-t border-slate-100/60 shrink-0 ">
                 <div className="flex items-center gap-2">
                     {/* User Profile Hook */}
                     <div className="relative group/profile shrink-0">
                         <button 
                             onClick={() => user ? setShowProfileMenu(!showProfileMenu) : signInWithGoogle()}
-                            className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 transition-all cursor-pointer"
+                            className="w-10 h-10 rounded-md bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 transition-all cursor-pointer"
                         >
                             {user?.user_metadata?.avatar_url ? (
                                 <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
@@ -233,7 +233,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                                     initial={{ opacity: 0, scale: 0.9, y: 10 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                    className="absolute bottom-full left-0 mb-3 w-48 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl p-2 z-[110]"
+                                    className="absolute bottom-full left-0 mb-3 w-48 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-lg shadow-xl p-2 z-[110]"
                                 >
                                     <div className="px-3 py-2 mb-1">
                                         <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Perfil</p>
@@ -241,7 +241,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                                     </div>
                                     <button 
                                         onClick={signOut}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-md transition-all"
                                     >
                                         <LogOut size={14} />
                                         Cerrar Sesión
@@ -254,7 +254,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                     {/* Collapse Button */}
                     <button 
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="flex-1 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 border border-transparent transition-all overflow-hidden"
+                        className="flex-1 h-10 flex items-center justify-center rounded-md bg-slate-50 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 border border-transparent transition-all overflow-hidden"
                     >
                         {isCollapsed ? <ChevronRight size={18} /> : (
                             <div className="flex items-center gap-2 px-2 w-full">
@@ -278,11 +278,11 @@ function ProjectSelector({ isCollapsed }: { isCollapsed: boolean }) {
             <div className="py-4 border-b border-slate-100/60 flex justify-center">
                 <div className="relative">
                     {isLoading ? (
-                        <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center">
                             <Loader2 size={14} className="text-indigo-400 animate-spin" />
                         </div>
                     ) : (
-                        <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[10px] font-black text-indigo-600">
+                        <div className="w-8 h-8 rounded-md bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[10px] font-black text-indigo-600">
                             {activeProjectIds.length}
                         </div>
                     )}
@@ -292,7 +292,7 @@ function ProjectSelector({ isCollapsed }: { isCollapsed: boolean }) {
     }
 
     return (
-        <div className="px-3 py-4 border-b border-slate-100/60 bg-white/30 backdrop-blur-sm">
+        <div className="px-3 py-4 border-b border-slate-100/60  backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                     <button 
@@ -326,7 +326,7 @@ function ProjectSelector({ isCollapsed }: { isCollapsed: boolean }) {
                         className="overflow-hidden"
                     >
                         <div className="pt-2 space-y-1">
-                            <div className="flex items-center justify-between px-2 py-1 mb-2 bg-slate-50 rounded-xl">
+                            <div className="flex items-center justify-between px-2 py-1 mb-2 bg-slate-50 rounded-md">
                                 <button 
                                     onClick={() => setAllProjectsActive(true)}
                                     className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-500"
@@ -349,10 +349,10 @@ function ProjectSelector({ isCollapsed }: { isCollapsed: boolean }) {
                                             key={p.id}
                                             onClick={() => toggleProjectActive(p.id)}
                                             className={cn(
-                                                "w-full flex items-center gap-2 p-2 rounded-xl transition-all border group",
+                                                "w-full flex items-center gap-2 p-2 rounded-md transition-all border group",
                                                 isActive 
                                                     ? "bg-white border-slate-100 shadow-sm" 
-                                                    : "bg-transparent border-transparent hover:bg-white/40"
+                                                    : "bg-transparent border-transparent hover:"
                                             )}
                                         >
                                             <div className="shrink-0 transition-colors">

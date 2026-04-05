@@ -90,7 +90,7 @@ export function InsightBuilder({ onInsert, onClose, projectId, dateRange }: Insi
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
                     <h3 className="font-bold text-slate-700 flex items-center gap-2">
@@ -120,7 +120,7 @@ export function InsightBuilder({ onInsert, onClose, projectId, dateRange }: Insi
                             <textarea
                                 value={itemsText}
                                 onChange={e => setItemsText(e.target.value)}
-                                className="w-full h-24 p-3 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-200 outline-none resize-none font-mono"
+                                className="w-full h-24 p-3 text-xs border border-slate-300 rounded-md focus:ring-2 focus:ring-purple-200 outline-none resize-none font-mono"
                                 placeholder={inputType === 'page' ? "https://site.com/A\nhttps://site.com/B" : "keyword 1\nkeyword 2"}
                             />
                         </div>
@@ -222,7 +222,7 @@ export function InsightBuilder({ onInsert, onClose, projectId, dateRange }: Insi
                     <button
                         onClick={handleGenerate}
                         disabled={isLoading || (!itemsText && !regexFilter)}
-                        className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2"
+                        className="px-6 py-2 bg-slate-900 text-white rounded-md font-bold text-sm hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2"
                     >
                         {isLoading ? <Loader2 size={16} className="animate-spin" /> : <><Plus size={16} /> Generar</>}
                     </button>

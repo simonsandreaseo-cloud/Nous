@@ -29,7 +29,7 @@ export const TableDatasetSlide: React.FC<TableDatasetProps> = ({
             <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between mb-10 shrink-0">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-[var(--color-nous-mint)]/30 text-slate-800 rounded-2xl flex items-center justify-center shadow-sm">
+                        <div className="w-12 h-12 bg-[var(--color-nous-mint)]/30 text-slate-800 rounded-lg flex items-center justify-center shadow-sm">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M4 12h16" /><path d="M4 6h16" /><path d="M4 18h16" /></svg>
                         </div>
                         <div>
@@ -37,7 +37,7 @@ export const TableDatasetSlide: React.FC<TableDatasetProps> = ({
                             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">{subtitle}</p>
                         </div>
                     </div>
-                    <div className="px-6 py-2 glass-panel bg-[var(--color-nous-mist)]/20 text-[var(--color-nous-mist)] rounded-xl text-[10px] font-black uppercase tracking-widest border-hairline">Dataset Completo</div>
+                    <div className="px-6 py-2 glass-panel bg-[var(--color-nous-mist)]/20 text-[var(--color-nous-mist)] rounded-md text-[10px] font-black uppercase tracking-widest border-hairline">Dataset Completo</div>
                 </div>
 
                 <div className="flex-1 overflow-hidden rounded-[32px] glass-panel border-hairline shadow-sm flex flex-col bg-white/60">

@@ -127,7 +127,7 @@ export default function AuthPage() {
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs font-semibold flex items-center gap-3"
+                            className="mb-6 p-4 rounded-md bg-red-50 border border-red-100 text-red-600 text-xs font-semibold flex items-center gap-3"
                         >
                             <X size={16} />
                             {error}
@@ -138,7 +138,7 @@ export default function AuthPage() {
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-semibold flex items-center gap-3"
+                            className="mb-6 p-4 rounded-md bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-semibold flex items-center gap-3"
                         >
                             <Check size={16} />
                             {success}
@@ -158,7 +158,7 @@ export default function AuthPage() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="ejemplo@nous.tech"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-sm font-light focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)]/30 focus:border-[var(--color-nous-mist)] transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg py-4 pl-12 pr-4 text-sm font-light focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)]/30 focus:border-[var(--color-nous-mist)] transition-all"
                                 />
                             </div>
                         </div>
@@ -175,7 +175,7 @@ export default function AuthPage() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-12 text-sm font-light focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)]/30 focus:border-[var(--color-nous-mist)] transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg py-4 pl-12 pr-12 text-sm font-light focus:outline-none focus:ring-2 focus:ring-[var(--color-nous-mist)]/30 focus:border-[var(--color-nous-mist)] transition-all"
                                 />
                                 <button
                                     type="button"
@@ -239,7 +239,7 @@ export default function AuthPage() {
                         <button
                             type="submit"
                             disabled={loading || (mode === "register" && strength < 3)}
-                            className="group relative w-full py-4 bg-[var(--color-nous-mist)]/20 text-slate-800 border border-[var(--color-nous-mist)]/30 rounded-2xl font-medium tracking-elegant text-[10px] uppercase overflow-hidden hover:bg-[var(--color-nous-mist)]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="group relative w-full py-4 bg-[var(--color-nous-mist)]/20 text-slate-800 border border-[var(--color-nous-mist)]/30 rounded-lg font-medium tracking-elegant text-[10px] uppercase overflow-hidden hover:bg-[var(--color-nous-mist)]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
                                 <Loader2 className="w-5 h-5 animate-spin mx-auto" />
@@ -259,7 +259,7 @@ export default function AuthPage() {
 
                     <button
                         onClick={handleGoogleLogin}
-                        className="w-full flex items-center justify-center gap-3 py-4 border border-hairline rounded-2xl bg-white hover:bg-slate-50 transition-all font-light tracking-widest uppercase text-[10px] text-slate-700 glass-panel-hover"
+                        className="w-full flex items-center justify-center gap-3 py-4 border border-hairline rounded-lg bg-white hover:bg-slate-50 transition-all font-light tracking-widest uppercase text-[10px] text-slate-700 glass-panel-hover"
                     >
                         <Chrome size={20} className="text-blue-500" />
                         Google

@@ -130,14 +130,14 @@ export default function DataRefinery() {
                         </>
                     ) : (
                         <>
-                            <div className="w-20 h-20 rounded-3xl bg-slate-50 flex items-center justify-center text-slate-400 mb-6 group-hover:scale-110 group-hover:text-cyan-500 transition-all shadow-sm">
+                            <div className="w-20 h-20 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 mb-6 group-hover:scale-110 group-hover:text-cyan-500 transition-all shadow-sm">
                                 <FileUp size={40} />
                             </div>
                             <h3 className="text-xl font-black text-slate-900 uppercase tracking-widest mb-2">Inject CSV Repository</h3>
                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Deep context extraction via Cloud Engine</p>
 
                             {error && (
-                                <div className="mt-8 flex items-center gap-2 text-rose-500 font-bold text-xs uppercase tracking-widest bg-rose-50 px-4 py-2 rounded-xl border border-rose-100">
+                                <div className="mt-8 flex items-center gap-2 text-rose-500 font-bold text-xs uppercase tracking-widest bg-rose-50 px-4 py-2 rounded-md border border-rose-100">
                                     <AlertTriangle size={14} /> {error}
                                 </div>
                             )}

@@ -1,0 +1,5 @@
+import { readFileSync, writeFileSync } from 'fs';
+let content = readFileSync('/app/nous_2.0/src/components/contents/ArticleKanbanBoard.tsx', 'utf-8');
+content = content.replace(/rounded-\[40px\]/g, 'rounded-lg');
+content = content.replace(/rounded-\[32px\]/g, 'rounded-lg');
+writeFileSync('/app/nous_2.0/src/components/contents/ArticleKanbanBoard.tsx', content);

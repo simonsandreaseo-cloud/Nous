@@ -138,7 +138,7 @@ function GscCompleteContent() {
                     <p className="text-red-500 text-sm font-bold uppercase tracking-tight">{errorMsg}</p>
                     <button
                         onClick={() => router.push("/settings")}
-                        className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all"
+                        className="w-full py-3 bg-slate-900 text-white rounded-md font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all"
                     >
                         Volver a Ajustes
                     </button>

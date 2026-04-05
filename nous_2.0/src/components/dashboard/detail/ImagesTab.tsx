@@ -128,7 +128,7 @@ export default function ImagesTab({ task }: ImagesTabProps) {
     return (
         <div className="space-y-8">
             {/* Info Bar about storage */}
-            <div className="flex items-center gap-3 px-6 py-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+            <div className="flex items-center gap-3 px-6 py-4 bg-indigo-50 border border-indigo-100 rounded-lg">
                 <Info size={16} className="text-indigo-500 shrink-0" />
                 <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-widest">
                     Las imágenes se almacenan en Supabase Storage (bucket: <span className="font-black">task-assets</span>). Límite por archivo: <span className="font-black">{MAX_FILE_SIZE_MB}MB</span>. Formatos: JPG, PNG, WebP, GIF.
@@ -160,7 +160,7 @@ export default function ImagesTab({ task }: ImagesTabProps) {
                 />
 
                 <div className={cn(
-                    'w-20 h-20 rounded-[28px] flex items-center justify-center mx-auto mb-6 transition-all',
+                    'w-20 h-20 rounded-lg flex items-center justify-center mx-auto mb-6 transition-all',
                     isDragging ? 'bg-indigo-500 scale-110' : 'bg-slate-100'
                 )}>
                     {uploading
@@ -189,7 +189,7 @@ export default function ImagesTab({ task }: ImagesTabProps) {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
-                        className="flex items-center gap-3 px-6 py-4 bg-red-50 border border-red-100 rounded-2xl"
+                        className="flex items-center gap-3 px-6 py-4 bg-red-50 border border-red-100 rounded-lg"
                     >
                         <AlertCircle size={16} className="text-red-500 shrink-0" />
                         <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest flex-1">{uploadError}</p>
@@ -215,7 +215,7 @@ export default function ImagesTab({ task }: ImagesTabProps) {
                                 key={img.id}
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="group relative bg-white rounded-[28px] border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all"
+                                className="group relative bg-white rounded-lg border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all"
                             >
                                 {/* Image */}
                                 <div
@@ -243,13 +243,13 @@ export default function ImagesTab({ task }: ImagesTabProps) {
                                 {/* Actions overlay */}
                                 <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <a href={img.url} download target="_blank"
-                                        className="p-2 bg-white/90 backdrop-blur-sm rounded-xl hover:bg-white transition-all shadow-sm"
+                                        className="p-2 bg-white/90 backdrop-blur-sm rounded-md hover:bg-white transition-all shadow-sm"
                                     >
                                         <Download size={12} className="text-slate-600" />
                                     </a>
                                     <button
                                         onClick={() => handleDelete(img)}
-                                        className="p-2 bg-white/90 backdrop-blur-sm rounded-xl hover:bg-red-50 transition-all shadow-sm"
+                                        className="p-2 bg-white/90 backdrop-blur-sm rounded-md hover:bg-red-50 transition-all shadow-sm"
                                     >
                                         <X size={12} className="text-red-400" />
                                     </button>
@@ -278,7 +278,7 @@ export default function ImagesTab({ task }: ImagesTabProps) {
                         onClick={() => setLightboxImage(null)}
                     >
                         <button
-                            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-2xl text-white transition-all"
+                            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all"
                             onClick={() => setLightboxImage(null)}
                         >
                             <X size={20} />
@@ -291,7 +291,7 @@ export default function ImagesTab({ task }: ImagesTabProps) {
                             className="max-w-full max-h-full rounded-[32px] shadow-2xl object-contain"
                             onClick={(e) => e.stopPropagation()}
                         />
-                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-2xl">
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-lg">
                             <p className="text-white text-[10px] font-bold uppercase tracking-widest">{lightboxImage.name}</p>
                         </div>
                     </motion.div>

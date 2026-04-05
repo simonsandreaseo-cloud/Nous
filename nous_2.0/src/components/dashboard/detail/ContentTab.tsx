@@ -83,7 +83,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-center">
-                            <div className="w-20 h-20 rounded-3xl bg-indigo-50 flex items-center justify-center mb-6">
+                            <div className="w-20 h-20 rounded-lg bg-indigo-50 flex items-center justify-center mb-6">
                                 <Zap size={36} className="text-indigo-400" />
                             </div>
                             <p className="text-sm font-black uppercase tracking-widest text-slate-400">Sin contenido redactado</p>
@@ -100,7 +100,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                         <Sparkles className="text-indigo-400" size={18} />
                         <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Studio Nous</span>
                     </div>
-                    <div className="flex items-center gap-2 p-1 bg-white/5 rounded-2xl">
+                    <div className="flex items-center gap-2 p-1 bg-white/5 rounded-lg">
                         {[
                             { label: 'Redactor Pro', icon: Zap, onClick: () => { initializeFromTask(task, activeProject); router.push('/contents/writer'); } },
                             { label: 'Humanizador', icon: Sparkles, onClick: () => router.push(`/writer?mode=humanize&activeTaskId=${task.id}`) },
@@ -109,7 +109,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                             <button
                                 key={btn.label}
                                 onClick={btn.onClick}
-                                className="px-5 py-3 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 flex items-center gap-2"
+                                className="px-5 py-3 hover:bg-white/10 text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 flex items-center gap-2"
                             >
                                 <btn.icon size={12} className="text-white/40" />
                                 {btn.label}
@@ -132,7 +132,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                             </h3>
                         </div>
                         <div className={cn(
-                            'text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border transition-colors',
+                            'text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-md border transition-colors',
                             progress >= 100 ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-indigo-600 text-white border-indigo-500'
                         )}>
                             {progress >= 100 ? 'Meta ✓' : `${Math.round(progress)}%`}
@@ -159,7 +159,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Interlinking Checker</span>
                         </div>
                         <span className={cn(
-                            'text-[10px] font-black px-3 py-1.5 rounded-xl border',
+                            'text-[10px] font-black px-3 py-1.5 rounded-md border',
                             foundInternalLinks.length > 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 'bg-slate-50 border-slate-100 text-slate-400'
                         )}>
                             {foundInternalLinks.length}/{suggestedInternalLinks.length}
@@ -176,7 +176,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                                     target="_blank" 
                                     rel="noreferrer"
                                     className={cn(
-                                        'flex items-center justify-between px-4 py-3 rounded-2xl border text-[10px] font-bold transition-all group',
+                                        'flex items-center justify-between px-4 py-3 rounded-lg border text-[10px] font-bold transition-all group',
                                         isPresent
                                             ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
                                             : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
@@ -197,7 +197,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                                 </a>
                             );
                         }) : (
-                            <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-3xl">
+                            <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-lg">
                                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-relaxed px-6">
                                     No hay sugerencias de interlinking para esta pieza
                                 </p>
@@ -214,7 +214,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Semántica LSI</span>
                         </div>
                         <span className={cn(
-                            'text-[10px] font-black px-3 py-1.5 rounded-xl border',
+                            'text-[10px] font-black px-3 py-1.5 rounded-md border',
                             foundLsi.length === lsiKeywords.length && lsiKeywords.length > 0
                                 ? 'bg-emerald-500 text-white border-emerald-400'
                                 : 'bg-slate-50 text-slate-400 border-slate-100'
@@ -228,7 +228,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                             const isPresent = task.content_body?.toLowerCase().includes(kw.toLowerCase());
                             return (
                                 <div key={i} className={cn(
-                                    'px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all shadow-sm',
+                                    'px-4 py-2 rounded-md border text-[10px] font-black uppercase tracking-widest transition-all shadow-sm',
                                     isPresent
                                         ? 'bg-emerald-500 text-white border-emerald-400'
                                         : 'bg-white border-slate-100 text-slate-300'
@@ -237,7 +237,7 @@ export default function ContentTab({ task }: ContentTabProps) {
                                 </div>
                             );
                         }) : (
-                            <div className="w-full text-center py-6 border-2 border-dashed border-slate-100 rounded-3xl">
+                            <div className="w-full text-center py-6 border-2 border-dashed border-slate-100 rounded-lg">
                                 <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Sin data semántica</p>
                             </div>
                         )}
@@ -266,11 +266,11 @@ export default function ContentTab({ task }: ContentTabProps) {
 
                 {/* Quick Actions */}
                 <div className="grid grid-cols-2 gap-4">
-                    <button className="flex items-center justify-center gap-3 p-5 bg-white border border-slate-100 rounded-[28px] hover:bg-slate-50 transition-all group shadow-sm">
+                    <button className="flex items-center justify-center gap-3 p-5 bg-white border border-slate-100 rounded-lg hover:bg-slate-50 transition-all group shadow-sm">
                         <History size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Historial</span>
                     </button>
-                    <button className="flex items-center justify-center gap-3 p-5 bg-white border border-slate-100 rounded-[28px] hover:bg-slate-50 transition-all group shadow-sm">
+                    <button className="flex items-center justify-center gap-3 p-5 bg-white border border-slate-100 rounded-lg hover:bg-slate-50 transition-all group shadow-sm">
                         <MessageSquare size={16} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Feedback</span>
                     </button>

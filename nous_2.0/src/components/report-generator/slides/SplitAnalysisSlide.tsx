@@ -82,7 +82,7 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
         <section className="report-slide bg-white h-full relative overflow-hidden p-12 flex flex-col min-h-[600px]">
             <div className="flex items-center justify-between mb-10 shrink-0">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-[var(--color-nous-mist)]/30 text-[var(--color-nous-mist)] rounded-2xl flex items-center justify-center shadow-sm">
+                    <div className="w-12 h-12 bg-[var(--color-nous-mist)]/30 text-[var(--color-nous-mist)] rounded-lg flex items-center justify-center shadow-sm">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
                     </div>
                     <h2 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic">{title}</h2>
@@ -112,7 +112,7 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
 
                 {/* Right: Analysis */}
                 <div className="col-span-5 flex flex-col h-full overflow-hidden">
-                    <div className="report-card h-full flex flex-col p-8 glass-panel bg-white/40 border-hairline rounded-3xl">
+                    <div className="report-card h-full flex flex-col p-8 glass-panel bg-white/40 border-hairline rounded-lg">
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 italic">Visualización y Estrategia</h3>
                         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             <ReactMarkdown className="prose prose-slate prose-sm text-slate-600 leading-relaxed font-medium">

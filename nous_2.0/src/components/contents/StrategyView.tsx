@@ -17,11 +17,11 @@ export default function StrategyView() {
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex p-1 bg-slate-100/50 rounded-2xl w-fit mb-8 border border-slate-200/50 max-w-full overflow-x-auto no-scrollbar">
+            <div className="flex p-1 bg-slate-100/50 rounded-lg w-fit mb-8 border border-slate-200/50 max-w-full overflow-x-auto no-scrollbar">
                 <button
                     onClick={() => setView('planner')}
                     className={cn(
-                        "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                        "px-6 py-2.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
                         view === 'planner' ? "bg-white text-slate-900 shadow-sm shadow-slate-200" : "text-slate-400 hover:text-slate-600"
                     )}
                 >
@@ -30,7 +30,7 @@ export default function StrategyView() {
                 <button
                     onClick={() => setView('metrics')}
                     className={cn(
-                        "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                        "px-6 py-2.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
                         view === 'metrics' ? "bg-white text-slate-900 shadow-sm shadow-slate-200" : "text-slate-400 hover:text-slate-600"
                     )}
                 >
@@ -39,7 +39,7 @@ export default function StrategyView() {
                 <button
                     onClick={() => setView('crawler')}
                     className={cn(
-                        "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                        "px-6 py-2.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
                         view === 'crawler' ? "bg-white text-slate-900 shadow-sm shadow-slate-200" : "text-slate-400 hover:text-slate-600"
                     )}
                 >
@@ -48,7 +48,7 @@ export default function StrategyView() {
                 <button
                     onClick={() => setView('refinery')}
                     className={cn(
-                        "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+                        "px-6 py-2.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
                         view === 'refinery' ? "bg-white text-slate-900 shadow-sm shadow-slate-200" : "text-slate-400 hover:text-slate-600"
                     )}
                 >

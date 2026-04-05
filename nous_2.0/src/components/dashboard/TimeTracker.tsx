@@ -87,7 +87,7 @@ export default function TimeTracker({ taskId, taskTitle, projectId }: TimeTracke
 
     return (
         <div className={cn(
-            "flex items-center gap-4 px-6 py-3 rounded-2xl border transition-all duration-700 backdrop-blur-md",
+            "flex items-center gap-4 px-6 py-3 rounded-lg border transition-all duration-700 backdrop-blur-md",
             isRecording
                 ? "bg-rose-500/5 border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.1)]"
                 : "bg-white/50 border-slate-200/50"

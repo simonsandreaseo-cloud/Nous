@@ -26,7 +26,7 @@ export function KanbanCard({ article, onOpen, isDragging = false }: { article: A
             ref={setNodeRef}
             style={style}
             className={cn(
-                "group relative bg-white border border-slate-200 rounded-xl p-4 cursor-pointer hover:border-indigo-200 hover:shadow-md transition-all",
+                "group relative bg-white border border-slate-200 rounded-md p-4 cursor-pointer hover:border-indigo-200 hover:shadow-md transition-all",
                 draggingClass
             )}
             onClick={(e) => {

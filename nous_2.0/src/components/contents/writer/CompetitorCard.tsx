@@ -40,7 +40,7 @@ export default function CompetitorCard({ url, content: initialContent, onSave }:
                 onClick={() => !isEditing && setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-indigo-500 group-hover:bg-indigo-50 transition-colors shrink-0">
+                    <div className="w-10 h-10 rounded-md bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-indigo-500 group-hover:bg-indigo-50 transition-colors shrink-0">
                         <img 
                             src={`https://www.google.com/s2/favicons?domain=${url}&sz=64`} 
                             alt="" 
@@ -79,7 +79,7 @@ export default function CompetitorCard({ url, content: initialContent, onSave }:
                             <textarea 
                                 value={editValue}
                                 onChange={(e) => setEditValue(e.target.value)}
-                                className="w-full h-80 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-[13px] focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                                className="w-full h-80 p-4 bg-slate-50 border border-slate-200 rounded-lg text-[13px] focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                             />
                             <div className="flex items-center gap-2 justify-end">
                                 <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)} className="text-slate-500">
@@ -120,7 +120,7 @@ function HeaderAccordion({ content }: { content: string }) {
     const headerTitle = headerLine.replace(/^#+\s+/, '');
     
     return (
-        <div className="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/30">
+        <div className="border border-slate-100 rounded-lg overflow-hidden bg-slate-50/30">
             <div 
                 onClick={() => setIsOpen(!isOpen)}
                 className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"

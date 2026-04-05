@@ -107,7 +107,7 @@ export function SEOView({ isConnected }: { isConnected: boolean }) {
     return (
         <div className="h-full w-full flex flex-col p-8 overflow-hidden bg-[url('/Fondo_Nous.webp')] bg-cover bg-center">
             {/* Glassmorphism Header */}
-            <div className="flex items-center justify-between mb-8 shrink-0 bg-white/40 backdrop-blur-2xl p-6 rounded-3xl border border-white/40 shadow-xl">
+            <div className="flex items-center justify-between mb-8 shrink-0 bg-white/40 backdrop-blur-2xl p-6 rounded-lg border border-white/40 shadow-xl">
                 <div>
                     <h2 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-3">
                         <div className="w-2.5 h-10 bg-indigo-600 rounded-full" />
@@ -117,7 +117,7 @@ export function SEOView({ isConnected }: { isConnected: boolean }) {
                 </div>
                 <button
                     onClick={toggleServer}
-                    className={`flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-bold transition-all shadow-xl ${
+                    className={`flex items-center gap-3 px-8 py-4 rounded-lg text-sm font-bold transition-all shadow-xl ${
                         isRunning 
                             ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-200' 
                             : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200'
@@ -157,7 +157,7 @@ export function SEOView({ isConnected }: { isConnected: boolean }) {
                     {/* Model Manager Card */}
                     <div className="w-1/2 bg-white/60 backdrop-blur-2xl rounded-[2.5rem] border border-white/40 p-8 flex flex-col overflow-hidden shadow-2xl">
                         <div className="flex items-center gap-3 mb-6 text-slate-800">
-                            <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+                            <div className="p-2 bg-indigo-100 rounded-md text-indigo-600">
                                 <Server size={20} />
                             </div>
                             <h3 className="font-black text-xl tracking-tight">Accelerators</h3>
@@ -165,10 +165,10 @@ export function SEOView({ isConnected }: { isConnected: boolean }) {
                         
                         <div className="flex flex-col gap-5 overflow-y-auto pr-3 custom-scrollbar">
                             {models.map(model => (
-                                <div key={model.id} className="p-5 bg-white/40 rounded-3xl border border-white/60 shadow-sm transition-all hover:bg-white/60">
+                                <div key={model.id} className="p-5 bg-white/40 rounded-lg border border-white/60 shadow-sm transition-all hover:bg-white/60">
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-xl transition-colors ${model.status === 'complete' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                            <div className={`p-2 rounded-md transition-colors ${model.status === 'complete' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
                                                 <Cpu size={18} />
                                             </div>
                                             <div>

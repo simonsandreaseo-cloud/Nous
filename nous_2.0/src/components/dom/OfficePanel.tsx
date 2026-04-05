@@ -53,13 +53,13 @@ export function OfficePanel() {
                         </h2>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1">Ecosistema de Productividad</p>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg shadow-slate-900/20">
+                    <div className="w-12 h-12 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-lg shadow-slate-900/20">
                         <Briefcase size={20} strokeWidth={1.5} />
                     </div>
                 </div>
 
                 {/* Chronos Engine (Timer Section) */}
-                <div className="mb-8 p-6 rounded-2xl bg-slate-900 text-white relative overflow-hidden group">
+                <div className="mb-8 p-6 rounded-lg bg-slate-900 text-white relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <Clock size={80} />
                     </div>
@@ -83,14 +83,14 @@ export function OfficePanel() {
                             {flux.activeTimer ? (
                                 <button
                                     onClick={() => stopTimer()}
-                                    className="p-4 bg-red-500 hover:bg-red-600 rounded-xl transition-all shadow-lg shadow-red-500/20 group/btn"
+                                    className="p-4 bg-red-500 hover:bg-red-600 rounded-md transition-all shadow-lg shadow-red-500/20 group/btn"
                                 >
                                     <Square size={20} fill="white" className="group-hover/btn:scale-110 transition-transform" />
                                 </button>
                             ) : (
                                 <button
                                     disabled
-                                    className="p-4 bg-slate-800 text-slate-500 rounded-xl cursor-not-allowed"
+                                    className="p-4 bg-slate-800 text-slate-500 rounded-md cursor-not-allowed"
                                 >
                                     <Play size={20} />
                                 </button>
@@ -131,7 +131,7 @@ export function OfficePanel() {
                                     placeholder="Nombre de la nueva tarea..."
                                     value={newTaskTitle}
                                     onChange={(e) => setNewTaskTitle(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-cyan-500/50 transition-all text-slate-700"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-3 text-sm outline-none focus:border-cyan-500/50 transition-all text-slate-700"
                                 />
                             </motion.form>
                         )}
@@ -158,7 +158,7 @@ export function OfficePanel() {
 
                 {/* Stats Footer */}
                 <div className="mt-8 grid grid-cols-2 gap-4 border-t border-slate-100 pt-6">
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100/50">
+                    <div className="bg-slate-50 rounded-lg p-4 border border-slate-100/50">
                         <div className="flex items-center gap-2 mb-1">
                             <Activity size={12} className="text-purple-500" />
                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Productividad</span>
@@ -167,7 +167,7 @@ export function OfficePanel() {
                             {flux.stats?.formattedTime || "0h 0m"}
                         </div>
                     </div>
-                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100/50">
+                    <div className="bg-slate-50 rounded-lg p-4 border border-slate-100/50">
                         <div className="flex items-center gap-2 mb-1">
                             <CheckCircle size={12} className="text-emerald-500" />
                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Completado</span>
@@ -187,7 +187,7 @@ function TaskItem({ task, onPlay, isActive }: { task: any, onPlay: () => void, i
         <motion.div
             layout
             className={cn(
-                "group p-4 rounded-2xl border transition-all flex items-center justify-between",
+                "group p-4 rounded-lg border transition-all flex items-center justify-between",
                 isActive
                     ? "bg-cyan-50 border-cyan-100 shadow-sm"
                     : "bg-white border-slate-100 hover:border-slate-200"

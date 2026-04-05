@@ -128,7 +128,7 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
                                 key={idx}
                                 onClick={() => setCurrentSlideIndex(idx)}
                                 className={cn(
-                                    "p-3 rounded-xl border cursor-pointer transition-all relative group touch-none",
+                                    "p-3 rounded-md border cursor-pointer transition-all relative group touch-none",
                                     currentSlideIndex === idx
                                         ? "glass-panel bg-white/80 border-[var(--color-nous-mint)] shadow-sm ring-2 ring-[var(--color-nous-mint)]/20"
                                         : "bg-white/50 border-transparent hover:border-slate-300"
@@ -161,7 +161,7 @@ export const ReportView = forwardRef<ReportViewRef, ReportViewProps>(({ jsonStat
                         <div className="p-4 border-t border-hairline bg-white/30 hidden">
                             <button
                                 onClick={addSlide}
-                                className="w-full py-3 bg-white border-hairline text-slate-600 rounded-xl text-[10px] font-black uppercase hover:bg-[var(--color-nous-mist)]/20 hover:text-slate-800 transition-all flex items-center justify-center gap-2"
+                                className="w-full py-3 bg-white border-hairline text-slate-600 rounded-md text-[10px] font-black uppercase hover:bg-[var(--color-nous-mist)]/20 hover:text-slate-800 transition-all flex items-center justify-center gap-2"
                             >
                                 <Plus size={14} /> Nueva Slide
                             </button>

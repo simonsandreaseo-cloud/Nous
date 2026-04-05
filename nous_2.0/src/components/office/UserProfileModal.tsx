@@ -151,7 +151,7 @@ export function UserProfileModal({ isOpen, onClose, userId }: UserProfileModalPr
                             <input
                                 type="text"
                                 placeholder="Tu nombre..."
-                                className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-bold focus:bg-white focus:ring-4 ring-cyan-500/10 outline-none transition-all"
+                                className="w-full p-4 rounded-lg border border-slate-200 bg-slate-50 text-sm font-bold focus:bg-white focus:ring-4 ring-cyan-500/10 outline-none transition-all"
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
                             />
@@ -163,7 +163,7 @@ export function UserProfileModal({ isOpen, onClose, userId }: UserProfileModalPr
                     <button onClick={onClose} className="px-6 py-3 font-black text-slate-400 uppercase text-[10px] tracking-widest hover:text-slate-800">
                         Cancelar
                     </button>
-                    <button onClick={handleSave} disabled={isSaving || isUploading} className="px-8 py-3 bg-cyan-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 disabled:opacity-50 flex items-center gap-2">
+                    <button onClick={handleSave} disabled={isSaving || isUploading} className="px-8 py-3 bg-cyan-500 text-white rounded-md font-black text-[10px] uppercase tracking-widest hover:bg-cyan-600 shadow-xl shadow-cyan-500/20 disabled:opacity-50 flex items-center gap-2">
                         {isSaving ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
                         Guardar Perfil
                     </button>

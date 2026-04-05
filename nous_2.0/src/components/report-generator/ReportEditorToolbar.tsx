@@ -53,7 +53,7 @@ export function ReportEditorToolbar({ editor, onOpenSectionBuilder }: ToolbarPro
     );
 
     return (
-        <div className="flex items-center gap-1 p-2 bg-white border border-slate-200 rounded-xl shadow-sm mb-4 sticky top-4 z-50 overflow-visible">
+        <div className="flex items-center gap-1 p-2 bg-white border border-slate-200 rounded-md shadow-sm mb-4 sticky top-4 z-50 overflow-visible">
             <div className="flex items-center gap-1 pr-2 border-r border-slate-200">
                 <ToolbarButton
                     onClick={() => editor.chain().focus().toggleBold().run()}
@@ -141,7 +141,7 @@ export function ReportEditorToolbar({ editor, onOpenSectionBuilder }: ToolbarPro
                     <Sparkles size={18} />
                 </button>
                 {showAiMenu && (
-                    <div className="absolute left-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 p-4 z-50 animate-in fade-in zoom-in-95">
+                    <div className="absolute left-0 top-full mt-2 w-72 bg-white rounded-md shadow-xl border border-slate-100 p-4 z-50 animate-in fade-in zoom-in-95">
                         <div className="flex justify-between items-center mb-3">
                             <h4 className="text-xs font-black uppercase text-purple-600 flex items-center gap-2"><Sparkles size={12} /> Generar con IA</h4>
                             <button onClick={() => setShowAiMenu(false)}><X size={14} className="text-slate-400 hover:text-slate-600" /></button>
@@ -151,7 +151,7 @@ export function ReportEditorToolbar({ editor, onOpenSectionBuilder }: ToolbarPro
                             <button
                                 disabled={isGenerating}
                                 onClick={() => handleAiGenerate("Mejora la redacción de este texto para que sea más profesional y persuasivo.")}
-                                className="w-full text-left text-[11px] p-2.5 bg-slate-50 border border-slate-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm rounded-xl text-slate-700 font-bold transition-all flex items-center gap-2 group"
+                                className="w-full text-left text-[11px] p-2.5 bg-slate-50 border border-slate-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm rounded-md text-slate-700 font-bold transition-all flex items-center gap-2 group"
                             >
                                 <span className="p-1 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">✨</span>
                                 Mejorar redacción
@@ -159,7 +159,7 @@ export function ReportEditorToolbar({ editor, onOpenSectionBuilder }: ToolbarPro
                             <button
                                 disabled={isGenerating}
                                 onClick={() => handleAiGenerate("Expande este punto con más detalles y ejemplos relevantes.")}
-                                className="w-full text-left text-[11px] p-2.5 bg-slate-50 border border-slate-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm rounded-xl text-slate-700 font-bold transition-all flex items-center gap-2 group"
+                                className="w-full text-left text-[11px] p-2.5 bg-slate-50 border border-slate-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm rounded-md text-slate-700 font-bold transition-all flex items-center gap-2 group"
                             >
                                 <span className="p-1 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">📈</span>
                                 Expandir explicación
@@ -167,7 +167,7 @@ export function ReportEditorToolbar({ editor, onOpenSectionBuilder }: ToolbarPro
                             <button
                                 disabled={isGenerating}
                                 onClick={() => handleAiGenerate("Genera una tabla comparativa basada en estos datos.")}
-                                className="w-full text-left text-[11px] p-2.5 bg-slate-50 border border-slate-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm rounded-xl text-slate-700 font-bold transition-all flex items-center gap-2 group"
+                                className="w-full text-left text-[11px] p-2.5 bg-slate-50 border border-slate-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm rounded-md text-slate-700 font-bold transition-all flex items-center gap-2 group"
                             >
                                 <span className="p-1 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">📊</span>
                                 Crear Tabla

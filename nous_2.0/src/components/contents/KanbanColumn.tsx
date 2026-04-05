@@ -28,7 +28,7 @@ export function KanbanColumn({ id, title, icon, articles, onOpen }: KanbanColumn
             <div
                 ref={setNodeRef}
                 className={cn(
-                    "flex-1 bg-slate-100/50 rounded-2xl p-3 flex flex-col gap-3 overflow-y-auto custom-scrollbar border border-transparent transition-colors",
+                    "flex-1 bg-slate-100/50 rounded-lg p-3 flex flex-col gap-3 overflow-y-auto custom-scrollbar border border-transparent transition-colors",
                     isOver && "bg-indigo-50/50 border-indigo-100"
                 )}
             >

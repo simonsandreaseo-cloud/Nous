@@ -84,7 +84,7 @@ export default function ContentDetailView({ task, onClose }: ContentDetailViewPr
                                 <button
                                     onClick={() => handleUpdateStatus(state.id)}
                                     className={cn(
-                                        'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2',
+                                        'px-4 py-2 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2',
                                         index < currentIndex
                                             ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                                             : index === currentIndex
@@ -121,7 +121,7 @@ export default function ContentDetailView({ task, onClose }: ContentDetailViewPr
                         
                         <button
                             onClick={onClose}
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-slate-200"
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-slate-200"
                         >
                             <X size={14} /> Cerrar
                         </button>
@@ -276,10 +276,10 @@ export default function ContentDetailView({ task, onClose }: ContentDetailViewPr
                     </button>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all">
+                    <button className="px-5 py-2.5 bg-slate-900 text-white rounded-md text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all">
                         <ExternalLink size={12} /> Vista Previa
                     </button>
-                    <button className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">
+                    <button className="px-5 py-2.5 bg-indigo-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">
                         <Save size={12} /> Guardar Todo
                     </button>
                 </div>
