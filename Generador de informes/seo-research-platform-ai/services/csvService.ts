@@ -95,18 +95,48 @@ function parseNumber(val: any, isInteger: boolean): number {
     
     if (isInteger) {
         // CRITICAL FIX: For Clicks/Impressions, GSC exports are ALWAYS integers.
-        // We remove ALL non-digit characters.
-        // "1.200" (EU) -> "1200"
-        // "1,200" (US) -> "1200"
-        // "1 200" -> "1200"
+        // We handle potential decimals added by Excel (e.g., "1200.00") before removing non-digits.
+
+        // Remove spaces
+        s = s.replace(/\s/g, '');
+
+        // If it has both . and , assume the last one is the decimal separator and remove it and what follows
+        if (s.includes('.') && s.includes(',')) {
+            const lastIdx = Math.max(s.lastIndexOf('.'), s.lastIndexOf(','));
+            s = s.substring(0, lastIdx);
+        } else {
+            // If it has only one separator and it looks like a decimal (1-2 digits at the end),
+            // but NOT a thousands separator (exactly 3 digits at the end)
+            const match = s.match(/[.,](\d+)$/);
+            if (match && match[1].length <= 2) {
+                s = s.substring(0, s.length - match[0].length);
+            }
+        }
+
+        // Remove ALL remaining non-digit characters (thousands separators)
         s = s.replace(/\D/g, '');
         return parseInt(s, 10) || 0;
     } else {
         // For Position (Float), handle both dot and comma
-        // "1,5" -> "1.5"
-        // "1.5" -> "1.5"
-        s = s.replace(/['"]/g, '');
-        s = s.replace(',', '.');
+        s = s.replace(/['"%\s]/g, '');
+        if (s.includes('.') && s.includes(',')) {
+            const lastDot = s.lastIndexOf('.');
+            const lastComma = s.lastIndexOf(',');
+            if (lastComma > lastDot) {
+                // EU format: 1.234,56
+                s = s.replace(/\./g, '').replace(',', '.');
+            } else {
+                // US format: 1,234.56
+                s = s.replace(/,/g, '');
+            }
+        } else if (s.includes(',')) {
+            // Heuristic: "1,234" is likely 1234, "1,5" is likely 1.5
+            if (s.match(/\d,\d{3}$/)) {
+                s = s.replace(',', '');
+            } else {
+                s = s.replace(',', '.');
+            }
+        }
         return parseFloat(s) || 0;
     }
 }
