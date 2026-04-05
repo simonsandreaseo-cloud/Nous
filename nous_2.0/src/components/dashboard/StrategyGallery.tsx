@@ -193,11 +193,10 @@ export default function StrategyGallery({ onSelectTask, onRunResearch }: Strateg
                                                 onClick={async (e) => {
                                                     e.stopPropagation();
                                                     try {
-                                                        console.log("[DEBUG] Gallery confirm delete for task:", task.id);
                                                         await deleteTask?.(task.id);
                                                         setDeletingTaskId(null);
                                                     } catch (err: any) {
-                                                        console.error("[DEBUG] Delete fail:", err);
+                                                        console.error("Delete fail:", err);
                                                         setDeletingTaskId(null);
                                                     }
                                                 }}
@@ -214,7 +213,6 @@ export default function StrategyGallery({ onSelectTask, onRunResearch }: Strateg
                                                 exit={{ opacity: 0 }}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    console.log("[DEBUG] Gallery trash icon clicked for task:", task.id);
                                                     setDeletingTaskId(task.id);
                                                 }}
                                                 className="p-2.5 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-2xl transition-all text-slate-300 hover:text-rose-500 relative z-10"
