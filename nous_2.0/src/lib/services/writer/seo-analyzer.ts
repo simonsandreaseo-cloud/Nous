@@ -301,7 +301,7 @@ export const runSEOAnalysis = async (
         const response = await model.generateContent(seoPrompt);
         const respText = response.response.text();
         useWriterStore.getState().addDebugPrompt("Investigación: Análisis SERP Final", seoPrompt, respText);
-        let json = JSON.parse(respText);
+        const json = JSON.parse(respText);
         if (realSerpData) {
             json.peopleAlsoAsk = (realSerpData as any).peopleAlsoAsk || [];
             json.frequentQuestions = json.peopleAlsoAsk.map((q: any) => q.question);
@@ -435,11 +435,50 @@ export const runDeepSEOAnalysis = async (
     let suggestedLinks: any[] = [];
     if (projectId) {
         if (onLog) onLog("Sistema", `Analizando oportunidades de enlazado interno...`);
-        const { data: project } = await supabase.from('projects').select('domain, architecture_rules').eq('id', projectId).single();
-        const { data: poolLow } = await supabase.from('project_urls').select('url, title, impressions_gsc').eq('project_id', projectId).order('impressions_gsc', { ascending: false }).limit(300);
-        
-        if (poolLow && poolLow.length > 0) {
-            suggestedLinks = await selectSemanticInternalLinks(keyword, poolLow, 15, onLog, JSON.stringify({ metadata: seoMetadata, lsi: cleanedLSI }), modelName);
+        try {
+            let candidatesPool: any[] = [];
+
+            // Priority 1: User's provided CSV Data
+            if (csvData && csvData.length > 0) {
+                if (onLog) onLog("Sistema", `Utilizando URLs del CSV proporcionado por el usuario...`);
+                candidatesPool = csvData.filter(item => item.url && item.title).map(item => ({ url: item.url, title: item.title }));
+            }
+
+            // Priority 2: GSC (project_urls)
+            if (candidatesPool.length === 0) {
+                const { data: poolLow } = await supabase.from('project_urls')
+                    .select('url, title, impressions_gsc')
+                    .eq('project_id', projectId)
+                    .order('impressions_gsc', { ascending: false, nullsFirst: false })
+                    .limit(300);
+
+                if (poolLow && poolLow.length > 0) {
+                    if (onLog) onLog("Sistema", `Utilizando URLs de Google Search Console (project_urls)...`);
+                    candidatesPool = poolLow;
+                }
+            }
+
+            // Priority 3: Fallback to existing contents table
+            if (candidatesPool.length === 0) {
+                if (onLog) onLog("Sistema", `No se encontraron URLs en el CSV ni en GSC, intentando con contenidos existentes (contents)...`);
+                const { data: contentsPool } = await supabase.from('contents')
+                    .select('id, title, slug')
+                    .eq('project_id', projectId)
+                    .limit(300);
+
+                if (contentsPool && contentsPool.length > 0) {
+                    candidatesPool = contentsPool.map(c => ({ url: `/${c.slug}`, title: c.title }));
+                }
+            }
+
+            if (candidatesPool.length > 0) {
+                suggestedLinks = await selectSemanticInternalLinks(keyword, candidatesPool, 15, onLog, JSON.stringify({ metadata: seoMetadata, lsi: cleanedLSI }), modelName);
+            } else {
+                if (onLog) onLog("Sistema", `No hay suficientes URLs candidatas para enlazado interno.`);
+            }
+        } catch (linkErr) {
+            console.error("Error fetching internal links:", linkErr);
+            if (onLog) onLog("Sistema", `Fallo al recuperar enlaces internos: ${linkErr}`);
         }
     }
 
@@ -492,14 +531,10 @@ export const selectSemanticInternalLinks = async (keyword: string, pool: any[], 
         const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
         const res = await model.generateContent(prompt);
         const raw = res.response.text();
-        if (onStatus) onStatus("IA: Selección completada."); // Not used here but keep logic consistent
         if (onLog) onLog("Respuesta Selección Enlaces", raw);
         return JSON.parse(raw);
     }, modelName);
 };
-
-// Placeholder as selectSemanticInternalLinks was using it incorrectly via copy-paste
-const onStatus = (msg: string) => {}; 
 
 export const generateOutlineStrategy = async (config: ArticleConfig, keyword: string, rawSeoData: SEOAnalysisResult, modelName?: string) => {
     const prompt = `Create outline for "${keyword}". JSON {snippet, outline}.`;
