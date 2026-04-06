@@ -1,0 +1,13 @@
+{
+  "name": "simon-sandrea-seo-web",
+  "private": true,
+  "workspaces": [
+    "nous_2.0"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=nous_2.0",
+    "build": "npm run build --workspace=nous_2.0",
+    "start": "npm run start --workspace=nous_2.0",
+    "lint": "npm run lint --workspace=nous_2.0"
+  }
+}

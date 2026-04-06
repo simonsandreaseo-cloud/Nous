@@ -37,7 +37,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
     const [isCustomTitle, setIsCustomTitle] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
     const [phases, setPhases] = useState(PROGRESS_PHASES);
-    const [researchMode, setResearchMode] = useState<"rapid" | "balanced" | "quality">("balanced");
+    const [researchMode, setResearchMode] = useState<any>("balanced");
     const { activeProject, addTask, updateTask } = useProjectStore();
     const { 
         isResearching, 
