@@ -1,0 +1,16 @@
+=========================================
+  NOUS LOCAL ENGINE - UNIFIED AI CORE
+=========================================
+[*] Starting local WebSocket server on ws://0.0.0.0:8181
+[+] Client connected: ('127.0.0.1', 58465)
+[*] Client authenticated.
+[*] Initializing Unified Engine on: cpu
+[*] Checking/Downloading Gemma-3-4B from https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/google_gemma-3-4b-it-Q4_K_M.gguf...
+[*] Gemma-3-4B already exists at C:\Users\Simon Sandrea\AppData\Roaming\com.nous.clinical\models\google_gemma-3-4b-it-Q4_K_M.gguf
+[*] Loading Llama.cpp for Gemma 3...
+[+] Client connected: ('127.0.0.1', 58489)
+[*] Client authenticated.
+[*] Initializing Unified Engine on: cpu
+[*] Checking/Downloading Gemma-3-4B from https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/google_gemma-3-4b-it-Q4_K_M.gguf...
+[*] Gemma-3-4B already exists at C:\Users\Simon Sandrea\AppData\Roaming\com.nous.clinical\models\google_gemma-3-4b-it-Q4_K_M.gguf
+[*] Loading Llama.cpp for Gemma 3...

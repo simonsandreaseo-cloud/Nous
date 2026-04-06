@@ -1,0 +1,27 @@
+export async function fetchSerperSearch(query: string, gl = "es", hl = "es", num = 20): Promise<any[]> {
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || '');
+    const proxyUrl = `${origin}/api/tools/serper`;
+    
+    console.log(`[Serper Service] Buscando: ${query}`);
+
+    const response = await fetch(proxyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, gl, hl, num }),
+      signal: AbortSignal.timeout(15000)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`[Serper Service] Proxy Error (${response.status}):`, errorData.error || response.statusText);
+        throw new Error(`Serper Proxy error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.organic || [];
+  } catch (error: any) {
+    console.error("[Serper Service] Error:", error.message);
+    return [];
+  }
+}
