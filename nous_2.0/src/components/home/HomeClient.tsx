@@ -18,21 +18,9 @@ const SceneLayout = dynamic(
 export default function HomeClient() {
     const isLoaded = useAppStore((state) => state.isLoaded);
     const setMode = useAppStore((state) => state.setMode);
-    const [isRedirecting, setIsRedirecting] = useState(false);
-
-    // Desktop App Redirect
-    useLayoutEffect(() => {
-        if (typeof window !== 'undefined' && ((window as any).__TAURI__ || (window as any).__TAURI_INTERNALS__)) {
-            setIsRedirecting(true);
-            window.location.replace('/desktop-app');
-        }
-    }, []);
-
     useEffect(() => {
         setMode('home');
     }, [setMode]);
-
-    if (isRedirecting) return null;
 
     return (
         <main

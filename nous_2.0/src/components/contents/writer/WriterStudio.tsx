@@ -1,6 +1,6 @@
 
 'use client';
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useCallback, useEffect } from 'react';
 
 import { useWriterStore } from '@/store/useWriterStore';
 import WriterEditor from '@/components/contents/writer/WriterEditor';
@@ -18,7 +18,8 @@ import CompetitorPanel from './CompetitorPanel';
 import PresenceAvatars from './PresenceAvatars';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useEffect, useCallback } from 'react';
+import NousOrb from '@/components/dashboard/NousOrb';
+import { useWriterActions } from './useWriterActions';
 
 export default function WriterStudio() {
     const {
@@ -26,8 +27,20 @@ export default function WriterStudio() {
         keyword, strategyH1, draftId, viewMode, setViewMode, rawSeoData,
         editorTab, setEditorTab, content, activeUsers, setActiveUsers,
         strategyOutline, strategyTitle, strategySlug, strategyDesc, strategyExcerpt, strategyLinks,
-        strategyNotes, setIsRemoteUpdate, setStatus, setSaving, isGenerating
+        strategyNotes, setIsRemoteUpdate, setStatus, setSaving, isGenerating,
+        isAnalyzingSEO, isPlanningStructure, isHumanizing, isRefining
     } = useWriterStore();
+    
+    const { 
+        handleSEO, 
+        handlePlanStructure, 
+        handleGenerate, 
+        handleHumanize, 
+        handleRefine 
+    } = useWriterActions();
+
+    const isProcessingAny = isGenerating || isAnalyzingSEO || isPlanningStructure || isHumanizing || isRefining;
+
     const hasAccess = true; // Simplified access check for now or import it
     const { user: localUser } = useAuthStore();
 
@@ -322,8 +335,8 @@ export default function WriterStudio() {
 
     // ── ROOT RENDER (Unified Header for Presence) ──────────────────────────────────────
     return (
-        <div className="flex w-full h-full bg-transparent overflow-hidden">
-            <main className="flex-1 flex flex-col min-w-0 glass-panel border-r-0 rounded-tl-3xl relative shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
+        <div className="flex w-full h-full bg-white overflow-hidden">
+            <main className="flex-1 flex flex-col min-w-0 bg-white relative">
                 {/* Unified Header / Toolkit */}
                 <header className="h-auto md:h-20 py-4 md:py-0 flex flex-wrap md:flex-nowrap items-center justify-between px-6 md:px-10 bg-white/10 backdrop-blur-xl z-50 sticky top-0 shrink-0 select-none border-b border-slate-200/20 gap-4">
                     <div className="flex items-center gap-4 md:gap-6 min-w-0">
@@ -334,7 +347,7 @@ export default function WriterStudio() {
                                 if (viewMode === 'workspace' || viewMode === 'setup') setViewMode('dashboard');
                                 else setViewMode('dashboard'); 
                             }}
-                            className="h-9 px-3 md:px-4 rounded-xl text-[11px] uppercase font-black tracking-tighter text-slate-500 hover:bg-slate-100/50 transition-all border-none shrink-0"
+                            className="h-9 px-3 md:px-4 rounded-lg text-[11px] uppercase font-black tracking-tighter text-slate-500 hover:bg-slate-100/50 transition-all border-none shrink-0"
                         >
                             {viewMode === 'dashboard' ? 'Salir' : <div className="flex items-center gap-2"><ChevronLeft size={14} /> Volver</div>}
                         </Button>
@@ -377,7 +390,7 @@ export default function WriterStudio() {
                                 <button
                                     onClick={toggleSidebar}
                                     className={cn(
-                                        "p-2.5 rounded-xl transition-all duration-300 border border-transparent hover:bg-slate-100/50",
+                                        "p-2.5 rounded-lg transition-all duration-300 border border-transparent hover:bg-slate-100/50",
                                         isSidebarOpen ? "text-indigo-600 bg-indigo-50/50 border-indigo-100" : "text-slate-400"
                                     )}
                                     title={isSidebarOpen ? "Modo Zen" : "Modo 50/50"}
@@ -393,6 +406,17 @@ export default function WriterStudio() {
                     {renderContent()}
                 </div>
             </main>
+            <NousOrb 
+                viewMode="writer" 
+                isProcessing={isProcessingAny}
+                onWriterAction={(type) => {
+                    if (type === 'seo') handleSEO();
+                    if (type === 'outline') handlePlanStructure();
+                    if (type === 'generate') handleGenerate();
+                    if (type === 'humanize') handleHumanize();
+                    if (type === 'refine') handleRefine();
+                }}
+            />
         </div>
     );
 }

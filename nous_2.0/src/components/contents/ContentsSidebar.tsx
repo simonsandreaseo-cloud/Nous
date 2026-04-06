@@ -1,57 +1,47 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/utils/cn";
 import { useAuthStore } from "@/store/useAuthStore";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-    Home,
-    Search,
-    BarChart2,
-    Monitor,
-    Building2,
-    LayoutDashboard,
-    CalendarDays,
-    FlaskConical,
-    FileText,
-    PenLine,
-    Sparkles,
-    ImageIcon,
-    Link2,
-    LayoutTemplate,
-    User,
-    ChevronLeft,
-    ChevronRight,
-    LogOut,
-    ChevronDown,
+import { 
+    Home, 
+    Search, 
+    Monitor, 
+    Building2, 
+    CalendarDays, 
+    User, 
+    ChevronLeft, 
+    ChevronRight, 
+    LogOut, 
+    ChevronDown, 
     Settings,
-    CheckSquare,
-    Square,
     Loader2,
-    RefreshCw,
-    Menu,
-    Grid
+    Grid,
+    BarChart3,
+    Compass,
+    FileBarChart2,
+    PenLine,
+    CheckSquare,
+    Square
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 
-// ── Global areas (navigate to other sections of Nous) ──────────────────────
+
+
 const GLOBAL_AREAS = [
     { id: "contenidos", label: "Contenidos", icon: Home, href: "/contents" },
-    { id: "estrategia", label: "Estrategia", icon: CalendarDays, href: "/estrategia" },
-    { id: "seo", label: "SEO On Page", icon: Search, href: "/seo" },
-    { id: "monitor", label: "Monitor", icon: Monitor, href: "/monitor" },
-    { id: "oficina", label: "Oficina", icon: Building2, href: "/office" },
+    { id: "informes", label: "Informes", icon: FileBarChart2, href: "/informes" },
+    { id: "estrategia", label: "Estrategia", icon: CalendarDays, mockup: true },
+    { id: "seo", label: "SEO On Page", icon: Search, mockup: true },
+    { id: "monitor", label: "Monitor", icon: Monitor, mockup: true },
+    { id: "oficina", label: "Oficina", icon: Building2, mockup: true },
 ];
 
-// ── Content tools (render inside contents without full page reload) ─────────
 export const CONTENT_TOOLS = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, color: "text-[var(--color-nous-mint)]" },
-    { id: "planner", label: "Planificador", icon: CalendarDays, color: "text-[var(--color-nous-mist)]" },
-    { id: "writer", label: "Redactor", icon: PenLine, color: "text-[var(--color-nous-lavender)]" },
-    { id: "publisher", label: "Distribución", icon: LayoutTemplate, color: "text-indigo-400" },
-    { id: "tests", label: "Pruebas", icon: FlaskConical, color: "text-amber-500" },
+    { id: "planner", label: "Planificador", icon: CalendarDays, color: "text-indigo-500" },
+    { id: "writer", label: "Redactor", icon: PenLine, color: "text-amber-500" },
 ];
 
 interface ContentsSidebarProps {
@@ -67,37 +57,36 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [sectionMenuOpen, setSectionMenuOpen] = useState(false);
 
-    // Identify current core section
-    const currentGlobalArea = GLOBAL_AREAS.find(a => a.id === activeTool) || GLOBAL_AREAS[0];
+    // Identify current core section based on pathname
+    const currentGlobalArea = GLOBAL_AREAS.find(a => a.href && pathname.startsWith(a.href)) || GLOBAL_AREAS[0];
 
     useEffect(() => {
         const cleanup = initialize();
         
-        // Auto-fetch projects if empty
-        if (user && teams.length === 0 && !isStoreLoading) {
-            console.log("[ContentsSidebar] Triggering auto-fetch for teams/projects...");
+        // Auto-fetch if user just logged in
+        if (user && !isStoreLoading) {
             fetchTeams();
         }
 
         return cleanup;
-    }, [initialize, user, teams.length, fetchTeams, isStoreLoading]);
+    }, [initialize, user, fetchTeams, isStoreLoading]);
 
     return (
         <motion.aside 
             animate={{ width: isCollapsed ? 72 : 240 }}
             transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-            className="shrink-0 h-full flex flex-col glass-panel border-hairline rounded-[28px] overflow-hidden shadow-sm relative z-50 bg-white/60 backdrop-blur-xl"
+            className="shrink-0 h-full flex flex-col bg-white border-r border-slate-100/80 shadow-[4px_0_24px_rgba(0,0,0,0.02)] relative z-50 overflow-hidden"
         >
             {/* Section Switcher (Canva Style) */}
             <div className="h-16 shrink-0 flex items-center px-3 border-b border-slate-100/60 relative bg-white/40">
                 <button 
                     onClick={() => setSectionMenuOpen(!sectionMenuOpen)}
                     className={cn(
-                        "w-full h-11 flex items-center px-3 rounded-2xl transition-all group relative overflow-hidden",
+                        "w-full h-11 flex items-center px-3 rounded-lg transition-all group relative overflow-hidden",
                         sectionMenuOpen ? "bg-slate-900 text-white" : "hover:bg-slate-50 text-slate-700"
                     )}
                 >
-                    <div className="w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-md bg-indigo-500/10 flex items-center justify-center shrink-0">
                         <Grid size={16} className={cn(sectionMenuOpen ? "text-white" : "text-indigo-600")} />
                     </div>
                     
@@ -116,29 +105,38 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                             initial={{ opacity: 0, scale: 0.95, y: -10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                            className="absolute top-full left-3 right-3 mt-1 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl p-2 z-[100] animate-in slide-in-from-top-4"
+                            className="absolute top-full left-3 right-3 mt-1 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-lg shadow-xl p-2 z-[100] animate-in slide-in-from-top-4"
                         >
                             <p className="px-3 py-1.5 text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Cambiar Sección</p>
-                            {GLOBAL_AREAS.filter(area => area.id !== currentGlobalArea.id).map((area) => (
-                                <Link
-                                    key={area.id}
-                                    href={area.href}
-                                    onClick={() => setSectionMenuOpen(false)}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-900 hover:text-white transition-all group"
-                                >
-                                    <area.icon size={16} className="text-slate-400 group-hover:text-white/70" />
-                                    {area.label}
-                                </Link>
-                            ))}
-                            <div className="h-px bg-slate-100 my-1 mx-2" />
-                            <Link
-                                href="/office"
-                                onClick={() => setSectionMenuOpen(false)}
-                                className="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors"
-                            >
-                                <Settings size={14} />
-                                Configuración
-                            </Link>
+                            {GLOBAL_AREAS.filter(area => area.id !== currentGlobalArea.id).map((area) => {
+                                const isMockup = area.mockup || !area.href;
+                                const content = (
+                                    <div className={cn(
+                                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold transition-all group",
+                                        isMockup ? "opacity-40 cursor-not-allowed select-none" : "text-slate-600 hover:bg-slate-900 hover:text-white"
+                                    )}>
+                                        <div className="flex items-center gap-3">
+                                            <area.icon size={16} className="text-slate-400 group-hover:text-white/70" />
+                                            {area.label}
+                                        </div>
+                                        {isMockup && (
+                                            <span className="text-[7px] font-black uppercase tracking-widest bg-slate-50 text-slate-400 px-1.5 py-0.5 rounded-md">V2.0</span>
+                                        )}
+                                    </div>
+                                );
+
+                                if (isMockup) return <div key={area.id}>{content}</div>;
+
+                                return (
+                                    <Link
+                                        key={area.id}
+                                        href={area.href!}
+                                        onClick={() => setSectionMenuOpen(false)}
+                                    >
+                                        {content}
+                                    </Link>
+                                );
+                            })}
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -147,67 +145,54 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
             {/* Project Selector Mini-Module */}
             <ProjectSelector isCollapsed={isCollapsed} />
 
+            <div className="flex-1 overflow-y-auto custom-scrollbar pt-6 flex flex-col gap-8 overflow-x-hidden">
+                {/* Content Tools (Toolkit) */}
+                <div className="flex flex-col gap-1 px-2">
+                    {!isCollapsed && (
+                        <span className="text-[8px] font-black tracking-[0.2em] text-slate-300 uppercase pl-3 mb-2 block animate-in fade-in slide-in-from-left-2 duration-300">
+                            KIT DE HERRAMIENTAS
+                        </span>
+                    )}
+                    
+                    {CONTENT_TOOLS.map((tool) => {
+                        const isActive = activeTool === tool.id;
+                        return (
+                            <button
+                                key={tool.id}
+                                title={isCollapsed ? tool.label : undefined}
+                                onClick={() => onToolSelect(tool.id)}
+                                className={cn(
+                                    "mx-3 h-10 flex items-center px-4 rounded-lg transition-all group relative overflow-hidden shrink-0",
+                                    isActive
+                                        ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
+                                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                                )}
+                            >
+                                <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                                    <tool.icon
+                                        size={16}
+                                        className={cn(
+                                            "transition-colors",
+                                            isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"
+                                        )}
+                                    />
+                                </div>
 
-
-            {/* Content Tools (Toolkit) */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar py-3 px-2 flex flex-col gap-1 overflow-x-hidden">
-                {!isCollapsed && (
-                    <span className="text-[8px] font-black tracking-[0.2em] text-slate-300 uppercase pl-3 mb-2 block animate-in fade-in slide-in-from-left-2 duration-300">
-                        KIT DE HERRAMIENTAS
-                    </span>
-                )}
-                
-                {CONTENT_TOOLS.map((tool) => {
-                    const isActive = activeTool === tool.id;
-                    return (
-                        <button
-                            key={tool.id}
-                            title={isCollapsed ? tool.label : undefined}
-                            onClick={() => onToolSelect(tool.id)}
-                            className={cn(
-                                "w-full h-11 flex items-center px-3 rounded-2xl transition-all group relative overflow-hidden shrink-0",
-                                isActive
-                                    ? "bg-white shadow-sm border border-slate-200"
-                                    : "text-slate-400 hover:text-slate-700 hover:bg-white/60 mx-auto"
-                            )}
-                        >
-                            <div className="w-5 h-5 flex items-center justify-center shrink-0 mx-auto lg:mx-0">
-                                <tool.icon
-                                    size={16}
-                                    className={cn(
-                                        "transition-colors",
-                                        isActive ? tool.color : "text-slate-400 group-hover:text-slate-600"
-                                    )}
-                                />
-                            </div>
-
-                            {!isCollapsed && (
-                                <motion.span 
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    className={cn(
-                                        "ml-3 text-xs font-bold whitespace-nowrap transition-colors",
-                                        isActive ? "text-slate-800" : "text-slate-500"
-                                    )}
-                                >
-                                    {tool.label}
-                                </motion.span>
-                            )}
-
-                            {/* Active indicator dot only in collapsed */}
-                            {isActive && isCollapsed && (
-                                <span className="absolute right-1.5 top-1.5 w-1 h-1 rounded-full bg-[var(--color-nous-mint)]" />
-                            )}
-                            
-                            {/* Tooltip only in collapsed */}
-                            {isCollapsed && (
-                                <span className="absolute left-full ml-3 px-2 py-1 text-[10px] font-bold tracking-widest uppercase bg-slate-900 text-white rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-50">
-                                    {tool.label}
-                                </span>
-                            )}
-                        </button>
-                    );
-                })}
+                                {!isCollapsed && (
+                                    <motion.span 
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        className={cn(
+                                            "ml-3 text-[11px] font-bold whitespace-nowrap transition-colors uppercase tracking-tight",
+                                        )}
+                                    >
+                                        {tool.label}
+                                    </motion.span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Footer: User Profile + Collapse Toggle */}
@@ -217,7 +202,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                     <div className="relative group/profile shrink-0">
                         <button 
                             onClick={() => user ? setShowProfileMenu(!showProfileMenu) : signInWithGoogle()}
-                            className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 transition-all cursor-pointer"
+                            className="w-10 h-10 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 transition-all cursor-pointer"
                         >
                             {user?.user_metadata?.avatar_url ? (
                                 <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
@@ -241,7 +226,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                                     </div>
                                     <button 
                                         onClick={signOut}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                     >
                                         <LogOut size={14} />
                                         Cerrar Sesión
@@ -254,7 +239,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                     {/* Collapse Button */}
                     <button 
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="flex-1 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 border border-transparent transition-all overflow-hidden"
+                        className="flex-1 h-10 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 border border-transparent transition-all overflow-hidden"
                     >
                         {isCollapsed ? <ChevronRight size={18} /> : (
                             <div className="flex items-center gap-2 px-2 w-full">

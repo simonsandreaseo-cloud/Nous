@@ -25,6 +25,10 @@ interface AppState {
 
     neuralTrend: 'up' | 'down' | 'neutral';
     setNeuralTrend: (trend: 'up' | 'down' | 'neutral') => void;
+
+    // AI Model Selection
+    nousMode: 'alta_calidad' | 'equilibrado' | 'rapido';
+    setNousMode: (mode: 'alta_calidad' | 'equilibrado' | 'rapido') => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -48,4 +52,7 @@ export const useAppStore = create<AppState>((set) => ({
 
     neuralTrend: 'neutral',
     setNeuralTrend: (trend) => set({ neuralTrend: trend }),
+
+    nousMode: 'equilibrado',
+    setNousMode: (mode) => set({ nousMode: mode }),
 }));

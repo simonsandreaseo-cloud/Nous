@@ -31,9 +31,10 @@ interface SEODataTabProps {
 
 const SEO_FIELDS = [
     { key: 'keyword', label: 'Keyword Principal', weight: 20 },
-    { key: 'strategyVolume', label: 'Volumen', weight: 15 },
-    { key: 'strategyH1', label: 'H1 / Título SEO', weight: 25 },
-    { key: 'strategyLSI', label: 'LSI Keywords', weight: 15 },
+    { key: 'strategyVolume', label: 'Volumen', weight: 10 },
+    { key: 'strategyH1', label: 'H1 / Título SEO', weight: 20 },
+    { key: 'strategyExcerpt', label: 'Extracto / Resumen', weight: 15 },
+    { key: 'strategyLSI', label: 'LSI Keywords', weight: 10 },
     { key: 'uniqueLinks', label: 'Internal Links', weight: 15 },
     { key: 'strategySlug', label: 'Slug / URL', weight: 10 },
 ];
@@ -113,6 +114,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
         if (field.key === 'strategyLSI') has = lsiKeywords.length > 0;
         if (field.key === 'uniqueLinks') has = uniqueLinks.length > 0;
         if (field.key === 'strategySlug') has = !!strategySlug;
+        if (field.key === 'strategyExcerpt') has = !!strategyExcerpt;
         return acc + (has ? field.weight : 0);
     }, 0);
 
@@ -170,7 +172,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
     const checkedQuestions = frequentQuestions.filter((q: string, idx: number) => checkedItems.includes(`q-${idx}`));
 
     // Meta metadata completion
-    const metaFields = [strategyH1, strategyTitle, strategySlug, strategyDesc];
+    const metaFields = [strategyH1, strategyTitle, strategySlug, strategyDesc, strategyExcerpt];
     const filledMetaFields = metaFields.filter(f => !!f).length;
 
 
@@ -392,8 +394,8 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                 <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-700">Metadatos</h4>
                             </div>
                             <div className="flex items-center gap-4">
-                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", filledMetaFields === 4 ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600")}>
-                                    {filledMetaFields}/4 Completos
+                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", filledMetaFields === 5 ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600")}>
+                                    {filledMetaFields}/5 Completos
                                 </span>
                                 <ChevronDown size={16} className={cn("text-slate-400 transition-transform duration-300", openAccordions.metadata && "rotate-180")} />
                             </div>
@@ -476,6 +478,20 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                                     value={strategyDesc || ''}
                                                     onChange={(e) => setStrategyDesc(e.target.value)}
                                                     placeholder="Descripción persuasiva para Google..."
+                                                />
+                                            </div>
+
+                                            <div className="bg-white p-4 rounded-xl border border-slate-200 relative">
+                                                <div className="absolute right-4 top-4">
+                                                    {strategyExcerpt ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-slate-200" />}
+                                                </div>
+                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Extracto / Resumen</label>
+                                                <textarea
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all resize-none"
+                                                    rows={3}
+                                                    value={strategyExcerpt || ''}
+                                                    onChange={(e) => setStrategyExcerpt(e.target.value)}
+                                                    placeholder="Resumen del artículo para listados o redes..."
                                                 />
                                             </div>
                                         </div>

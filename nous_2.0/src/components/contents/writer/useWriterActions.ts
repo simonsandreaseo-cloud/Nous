@@ -40,22 +40,19 @@ export function useWriterActions() {
         store.setStatus('Realizando análisis profundo de SEO...');
         try {
             const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-3-27b-it';
-            const res = await runDeepSEOAnalysis(
-                store.keyword,
-                store.csvData,
-                store.projectName,
-                false,
-                activeProject?.id,
-                (phase) => store.setStatus(phase),
-                undefined,
-                modelToUse
-            );
+            const res = await runDeepSEOAnalysis({
+                keyword: store.keyword,
+                csvData: store.csvData,
+                projectId: activeProject?.id,
+                onProgress: (phase) => store.setStatus(phase),
+                modelName: modelToUse
+            });
             store.setRawSeoData(res);
             store.setDetectedNiche(res.nicheDetected);
             store.setStrategyLSI(res.lsiKeywords || []);
             store.setStrategyQuestions(res.frequentQuestions || []);
             store.setStrategyLinks(res.suggestedInternalLinks || []);
-            store.setStrategyCompetitors(res.top10Urls?.slice(0, 5).map(u => u.url).join(', ') || "");
+            store.setStrategyCompetitors(res.top10Urls?.slice(0, 5).map((u: { url: string }) => u.url).join(', ') || "");
             
             // New: Cannibalization handling
             const cannibalUrls = (res as any).cannibalizationUrls || [];
@@ -112,6 +109,7 @@ export function useWriterActions() {
             };
             const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-3-27b-it';
             const res = await generateOutlineStrategy(config, store.keyword, store.rawSeoData as any, modelToUse);
+            store.addDebugPrompt('Estructura Estratégica', `Outline generado para: ${store.keyword}`, JSON.stringify(res));
             
             if (res.snippet) {
                 store.setStrategyTitle(res.snippet.metaTitle);
@@ -121,6 +119,14 @@ export function useWriterActions() {
             }
             if (res.outline) {
                 store.setStrategyOutline(res.outline.headers || []);
+            }
+            if (res.suggestedInternalLinks) {
+                store.setStrategyInternalLinks(res.suggestedInternalLinks.map((u: { url: string; title?: string }) => ({ 
+                    url: u.url, 
+                    title: u.title || '',
+                    type: 'other' as const,
+                    search_index: "0"
+                })));
             }
             
             store.setStatus('✅ Outline generado con éxito. Persistiendo...');
@@ -262,6 +268,7 @@ export function useWriterActions() {
             
             const formatted = cleanAndFormatHtml(refinedSEO);
             store.setContent(formatted);
+            store.addDebugPrompt('Refinamiento Finalizado', `Limpieza y SEO post-procesamiento completados`, formatted.substring(0, 1000));
             store.setHasGenerated(true);
             store.setStatus('✅ Artículo generado con éxito.');
             store.setSidebarTab('assistant');
@@ -319,6 +326,7 @@ export function useWriterActions() {
             // result now contains { html, metadata }
             const refined = refineStyling(result.html);
             store.setContent(refined);
+            store.addDebugPrompt('Humanización Finalizada', `Contenido humanizado con éxito`, refined.substring(0, 1000));
             
 
             store.setHasHumanized(true);
@@ -343,6 +351,7 @@ export function useWriterActions() {
             const refined = await refineArticleContent(store.content, store.refinementInstructions, modelToUse);
             const styled = refineStyling(refined);
             store.setContent(styled);
+            store.addDebugPrompt('Refinamiento Completado', `Instrucciones aplicadas: ${store.refinementInstructions}`, styled.substring(0, 1000));
             store.setRefinementInstructions('');
             store.setStatus('✅ Refinamiento completado.');
         } catch (e: any) {

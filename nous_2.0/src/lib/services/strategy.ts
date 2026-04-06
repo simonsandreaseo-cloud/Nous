@@ -1,7 +1,9 @@
 import { supabase } from '@/lib/supabase';
 import { getGeminiKey } from '@/lib/ai/config';
-import { runDeepSEOAnalysis as runRealDeepAnalysis } from './writer/seo-analyzer';
+import { runDeepSEOAnalysis as runRealDeepAnalysis, type DeepSEOConfig } from '@/lib/services/writer/seo-analyzer';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useWriterStore } from '@/store/useWriterStore';
+import type { DeepSEOAnalysisResult } from '@/lib/services/writer/types';
 
 async function queryAI(prompt: string, modelId: string = 'gemini-2.5-flash', jsonResponse: boolean = true): Promise<string> {
     const apiKey = getGeminiKey();
@@ -99,36 +101,34 @@ Keyword: ${keyword || 'N/A'}`;
      * Runs a deep SEO research for a topic/idea.
      * Analyzes SERP, extracts LSI keywords, and builds a research dossier.
      */
-    static async runDeepSEOAnalysis(
-        projectId: string, 
-        idea: string, 
-        onProgress?: (phaseId: string) => void,
-        onLog?: (phaseId: string, prompt: string) => void,
-        modelName: string = 'gemini-2.5-flash'
-    ): Promise<any> {
+    static async runDeepSEOAnalysis(config: DeepSEOConfig & { projectId: string }): Promise<any> {
+        const { projectId, keyword, onProgress, onLog, modelName, taskId } = config;
         try {
             // Fetch project inventory for semantic links
             const { data: projectData } = await supabase.from('projects').select('name, domain').eq('id', projectId).single();
             const { data: inventory } = await supabase.from('project_urls').select('url, title').eq('project_id', projectId).limit(10000);
             
-            const results = await runRealDeepAnalysis(
-                idea, 
-                inventory || [], 
-                projectData?.name || "", 
-                false, 
+            // Attempt to get keys from environment
+            const serperKey = process.env.NEXT_PUBLIC_SERPER_API_KEY || "";
+            const jinaKey = process.env.NEXT_PUBLIC_JINA_API_KEY || "";
+
+            return await runRealDeepAnalysis({
+                keyword: keyword || config.keyword,
+                serperKey,
+                jinaKey,
                 projectId,
+                csvData: inventory || [],
+                taskId,
                 onProgress,
                 onLog,
-                modelName
-            );
-
-            return results;
+                modelName: modelName || 'gemini-3.1-flash-lite-preview'
+            });
         } catch (e) {
             console.error("Deep SEO Analysis Error:", e);
             // Fallback object safely as "Idea"
             return {
-                title: idea,
-                target_keyword: idea,
+                title: keyword,
+                target_keyword: keyword,
                 volume: 0,
                 word_count: 1000,
                 brief: "La investigación profunda falló. Se usará la idea base.",
@@ -139,4 +139,18 @@ Keyword: ${keyword || 'N/A'}`;
             };
         }
     }
+
+    /**
+     * Helper to route logs to the global AI Console
+     */
+    static addLog(taskId: string, phase: string, message: string) {
+        addStrategyLog(taskId, phase, message);
+    }
+}
+
+/**
+ * Standalone log helper to ensure reliable imports and execution.
+ */
+export function addStrategyLog(taskId: string, phase: string, message: string, response?: string) {
+    useWriterStore.getState().addDebugPrompt(phase, message, response);
 }

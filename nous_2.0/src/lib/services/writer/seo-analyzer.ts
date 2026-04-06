@@ -1,28 +1,64 @@
-import { ContentItem, SEOAnalysisResult, DeepSEOAnalysisResult, CompetitorDetail, ArticleConfig, HumanizerConfig } from "./types";
-import { executeWithKeyRotation } from "./ai-core";
+import { calculateTFIDF } from "@/lib/services/tfidf";
+import { fetchSerperSearch } from "@/lib/services/serper";
 import { fetchJinaExtraction } from "@/lib/services/jina";
+import { executeWithKeyRotation } from "./ai-core";
 import { SchemaType as Type } from "@google/generative-ai";
 import { supabase } from "@/lib/supabase";
 import { useWriterStore } from "@/store/useWriterStore";
+import { safeJsonExtract } from "@/utils/json";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// --- SERP & Content Fetching ---
-
-export const fetchSerperSearch = async (query: string, apiKey: string): Promise<any> => {
-    try {
-        const res = await fetch("https://google.serper.dev/search", {
-            method: "POST",
-            headers: {
-                "X-API-KEY": apiKey,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ q: query, gl: "es", hl: "es", num: 50, page: 1 })
-        });
-        if (!res.ok) throw new Error("Serper API Error");
-        return await res.json();
-    } catch (e) {
-        return null;
-    }
+export interface CompetitorDetail {
+    url: string;
+    title: string;
+    content?: string;
+    summary?: string;
+    isInvalid?: boolean;
+    headers?: { tag: string; text: string; }[];
 }
+
+export interface SEOMetadata {
+    h1: string;
+    seo_title: string;
+    slug: string;
+    meta_description: string;
+    extracto?: string;
+    schemas?: any[];
+}
+
+export interface SEOAnalysisResult {
+    nicheDetected: string;
+    keywordIdeas: {
+        shortTail: string[];
+        midTail: string[];
+    };
+    frequentQuestions: string[];
+    top10Urls: { title: string; url: string; snippet?: string }[];
+    top20Urls: { title: string; url: string; snippet?: string }[];
+    recommendedWordCount: string;
+    lsiKeywords?: any[];
+    suggestedInternalLinks?: any[];
+    searchIntent?: string;
+}
+
+export interface ArticleConfig {
+    target_keyword: string;
+    word_count?: number;
+}
+
+export interface DeepSEOConfig {
+    keyword: string;
+    serperKey?: string;
+    jinaKey?: string;
+    projectId?: string;
+    csvData?: any[];
+    taskId?: string;
+    onProgress?: (p: string) => void;
+    onLog?: (phase: string, message: string, response?: string) => void;
+    modelName?: string;
+}
+
+const stopwords = new Set(['para', 'como', 'con', 'desde', 'hasta', 'sobre', 'bajo', 'entre', 'ante', 'cabe', 'tras', 'mediante', 'durante', 'según', 'hacia', 'vía', 'plus', 'minus', 'per', 'pro', 're', 'sans', 'sub', 'super', 'trans', 'ultra', 'vice']);
 
 export const fetchDataForSEOKeywords = async (url: string): Promise<any> => {
     try {
@@ -52,12 +88,10 @@ export const fetchGlobalMetrics = async (keyword: string): Promise<{ volume: str
             volume: metrics?.search_volume?.toString() || "0",
             difficulty: metrics?.keyword_difficulty?.toString() || "N/A"
         };
-    } catch (e) {
+    } catch (e: any) {
         return { volume: "0", difficulty: "N/A" };
     }
 };
-
-// Removed local fetchJinaExtraction to use unified service from @/lib/services/jina
 
 export const fetchRealSERP = async (query: string): Promise<any> => {
     try {
@@ -69,481 +103,280 @@ export const fetchRealSERP = async (query: string): Promise<any> => {
     } catch (e) {
         return null;
     }
-}
+};
 
-export const fetchJinaSearch = async (query: string): Promise<any> => {
-    try {
-        const apiKey = process.env.NEXT_PUBLIC_JINA_API_KEY || '';
-        const url = `https://s.jina.ai/${encodeURIComponent(query)}`;
-        const res = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'X-Retain-Images': 'none'
-            }
-        });
-        if (!res.ok) throw new Error("Jina AI Error");
-        const text = await res.text();
-        return { organic_results: [], raw_text: text, source: 'jina' };
-    } catch (e) {
-        return null;
-    }
-}
-
-// --- Quality & Semantic Helpers ---
-
-export const filterQualityResults = async (results: any[], keyword: string): Promise<any[]> => {
-    if (!results || results.length === 0) return [];
+export const filterQualityResults = async (preFiltered: any[], keyword: string, onLog?: (p: string, pr: string, res?: string) => void): Promise<any[]> => {
+    // Normalization has already happened in the caller (runSEOAnalysis), so every result has .url
+    const list = preFiltered.slice(0, 15).map((r, i) => `[${i}] ${r.title} - ${r.url}`).join('\n');
+    const prompt = `Filtra los resultados más RELEVANTES e INFORMATIVOS para "${keyword}". Evita Amazon o puras tiendas. Retorna array JSON de indices [0, 2, 5...]:\n${list}`;
     
-    const SOCIAL_DOMAINS = [
-        'tiktok.com', 'instagram.com', 'facebook.com', 'pinterest.com', 'twitter.com', 'x.com', 
-        'youtube.com', 'linkedin.com', 'reddit.com', 'quora.com', 'etsy.com', 'ebay.com', 'amazon.com',
-        'mercadolibre.com', 'shopee.com', 'alibaba.com'
-    ];
-
-    const preFiltered = results.filter(r => {
-        try {
-            const host = new URL(r.link).hostname.toLowerCase();
-            return !SOCIAL_DOMAINS.some(d => host.includes(d));
-        } catch (e) {
-            return true;
-        }
-    });
-
-    const candidates = preFiltered.map((r, i) => ({ id: i, title: r.title, snippet: r.snippet, link: r.link })).slice(0, 30);
-    const prompt = `Actúa como un experto en SEO. Analiza los siguientes candidatos de búsqueda para el keyword "${keyword}". 
-    Identifica los resultados que son artículos de blog, guías informativas, noticias o contenido educativo de ALTA CALIDAD. 
-    ESTRICTAMENTE DESCARTA: 
-    - Páginas de redes sociales (TikTok, Instagram, etc)
-    - Sitios de comercio electrónico (Amazon, eBay)
-    - Pantallas de login o paywalls
-    - Directorios de empresas o cupones
-    - Contenido muy breve o sin valor editorial
-    
-    Retorna ÚNICAMENTE un array JSON con los IDs de los mejores candidatos (máximo 25). 
-    Candidatos: ${JSON.stringify(candidates)}`;
-
     return executeWithKeyRotation(async (ai) => {
+        const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview', generationConfig: { responseMimeType: "application/json" } });
         try {
-            const modelObj = ai.getGenerativeModel({
-                model: 'gemini-2.5-flash',
-                generationConfig: { responseMimeType: "application/json" }
-            });
-            const response = await modelObj.generateContent(prompt);
-            let rawText = response.response.text() || "[]";
-            const start = rawText.indexOf('[');
-            const end = rawText.lastIndexOf(']');
-            if (start !== -1 && end !== -1) rawText = rawText.substring(start, end + 1);
-            const goodIds = JSON.parse(rawText);
-            const filtered = preFiltered.filter((_, index) => goodIds.includes(index));
-            return filtered.length > 0 ? filtered.slice(0, 20) : preFiltered.slice(0, 10);
-        } catch (e) {
-            return preFiltered.slice(0, 10);
-        }
-    });
-}
-
-export const retrieveContext = (allData: ContentItem[], topic: string, keywords: string) => {
-    if (!allData || allData.length === 0) return { products: [], collections: [], others: [] };
-    const cleanText = (topic + " " + keywords).toLowerCase();
-    const terms = cleanText.replace(/[^\p{L}\p{N}\s]/gu, '').split(/\s+/).filter(w => w.length >= 3);
-
-    const scoreItem = (item: ContentItem) => {
-        let score = 0;
-        const title = item.title || item.url || "";
-        const idx = (item.search_index || `${title} ${item.type || 'page'} ${item.url}`).toLowerCase();
-        if (idx.includes(topic.toLowerCase())) score += 50;
-        terms.forEach(term => { if (idx.includes(term.toLowerCase())) score += 20; });
-        if (item.url.length > 150) score -= 5;
-        if (item.type === 'collection') score += 5;
-        if (item.type === 'product') score += 2;
-        return score;
-    };
-
-    const scored = allData.map(item => ({ item, score: scoreItem(item) }));
-    scored.sort((a, b) => b.score - a.score);
-    const relevant = scored.filter(s => s.score > 10);
-    const resultPool = relevant.length < 5 ? scored.slice(0, 50) : relevant;
-
-    return {
-        products: resultPool.filter(x => x.item.type === 'product').slice(0, 50).map(x => x.item),
-        collections: resultPool.filter(x => x.item.type === 'collection').slice(0, 20).map(x => x.item),
-        others: resultPool.filter(x => x.item.type !== 'product' && x.item.type !== 'collection').slice(0, 20).map(x => x.item)
-    };
-};
-
-export const calculateTFIDF = (documents: string[]): { keyword: string; score: number }[] => {
-    const stopwords = new Set(['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'en', 'a', 'y', 'o', 'que', 'con', 'por', 'sobre', 'para', 'este', 'esta', 'estos', 'estas', 'ese', 'esa', 'esos', 'esas', 'aquel', 'aquella', 'aquellos', 'aquellas', 'mi', 'tu', 'su', 'nuestro', 'vuestro', 'sus', 'como', 'más', 'pero', 'cuando', 'si', 'sin', 'todo', 'cada', 'bien', 'muy', 'tan', 'así', 'donde', 'ser', 'estar', 'hacer', 'tener', 'poder', 'decir', 'ver', 'ir', 'dar', 'saber', 'querer', 'venir', 'deber', 'entre', 'dentro', 'fuera', 'después', 'antes', 'entonces', 'ahora', 'aquí', 'allí', 'siempre', 'nunca', 'también', 'tampoco', 'solo', 'ya', 'hasta', 'desde', 'durante', 'mientras', 'contra', 'según', 'bajo', 'ante', 'cabe', 'so', 'tras', 'vía', 'versus', 'mediante', 'durante', 'dondequiera', 'además', 'asimismo', 'entretanto', 'ojalá', 'incluso', 'inclusive', 'quizás', 'acaso', 'tal', 'vez', 'posiblemente', 'probablemente', 'seguramente', 'verdaderamente', 'completamente', 'totalmente', 'parcialmente', 'casualmente', 'finalmente', 'actualmente', 'recientemente', 'últimamente', 'próximamente', 'inmediatamente', 'ahora', 'luego', 'después', 'anteayer', 'ayer', 'hoy', 'mañana', 'pasado', 'mañana', 'siempre', 'nunca', 'jamás', 'temprano', 'tarde', 'pronto', 'siempre', 'todavía', 'aún', 'ya', 'despacio', 'deprisa', 'así', 'bien', 'mal', 'apenas', 'casi', 'solo', 'solamente', 'tanto', 'tan', 'mucho', 'poco', 'muy', 'más', 'menos', 'bastante', 'demasiado', 'nada', 'algo', 'así', 'bastante', 'medio', 'extremadamente', 'sumamente']);
-    const tokenize = (text: string) => text.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopwords.has(w));
-    const docTokens = documents.map(tokenize);
-    const allTokens = Array.from(new Set(docTokens.flat()));
-    const idf: Record<string, number> = {};
-    allTokens.forEach(token => {
-        const count = docTokens.filter(doc => doc.includes(token)).length;
-        idf[token] = Math.log(documents.length / (1 + count));
-    });
-    const scores: Record<string, number> = {};
-    docTokens.forEach(tokens => {
-        const tf: Record<string, number> = {};
-        tokens.forEach(token => tf[token] = (tf[token] || 0) + 1);
-        Object.keys(tf).forEach(token => {
-            scores[token] = (scores[token] || 0) + (tf[token] / tokens.length) * idf[token];
-        });
-    });
-    return Object.entries(scores).map(([keyword, score]) => ({ keyword, score })).sort((a, b) => b.score - a.score).slice(0, 30);
-};
-
-// --- Analysis Orchestration ---
-
-export const runSEOAnalysis = async (
-    keyword: string,
-    csvData: any[],
-    projectName?: string,
-    serperKeyOverride?: string,
-    modelName: string = 'gemini-2.5-flash',
-    isIdea: boolean = false,
-    onLog?: (phaseId: string, prompt: string) => void
-): Promise<SEOAnalysisResult> => {
-    const serperKey = serperKeyOverride || process.env.NEXT_PUBLIC_SERPER_API_KEY || '';
-    const context = retrieveContext(csvData, keyword, "");
-    const productContext = context.products.slice(0, 30).map(p => `- ${p.title} (${p.url})`).join('\n');
-    const collectionContext = context.collections.slice(0, 15).map(c => `- ${c.title} (${c.url})`).join('\n');
-
-    let serpContext = "";
-    let realSerpData: any = null;
-
-    if (serperKey) {
-        try {
-            // PHASE 1: Traditional SERP Query
-            const intentPrompt = `
-            Eres un experto en investigación de keywords y estrategia de contenidos SEO.
-            Tu objetivo es generar un QUERY DE BÚSQUEDA en Google que encuentre los mejores artículos, guías y blogs informativos para el keyword: "${keyword}".
-            Reglas: - Evita páginas puramente transaccionales - No uses comandos complejos - Optimiza para encontrar competidores informativos.
-            Retorna ÚNICAMENTE la cadena de búsqueda (query string). No incluyas explicaciones.
-            `;
-            if (onLog) onLog("Investigación: Generación de Query Inteligente", intentPrompt);
-            let smartQuery = await executeWithKeyRotation(async (ai, currentModel) => {
-                const modelObj = ai.getGenerativeModel({ model: currentModel });
-                const queryResponse = await modelObj.generateContent(intentPrompt);
-                const respText = queryResponse.response.text()?.trim().replace(/^"|"$/g, '') || keyword;
-                useWriterStore.getState().addDebugPrompt("Investigación: Query Inteligente", intentPrompt, respText);
-                return respText;
-            });
-            smartQuery += " -site:tiktok.com -site:instagram.com -site:pinterest.com -site:facebook.com -site:amazon.* -site:ebay.* -site:mercadolibre.* -inurl:product -inurl:cart";
-
-            realSerpData = await fetchSerperSearch(smartQuery, serperKey);
-            if (!realSerpData?.organic?.length) realSerpData = await fetchSerperSearch(keyword, serperKey);
-
-            if (realSerpData?.organic) {
-                const totalResults = realSerpData.organic.length;
-                const filtered = await filterQualityResults(realSerpData.organic, keyword);
-                const compCtx = filtered.map((r: any) => ({ title: r.title, url: r.link, snippet: r.snippet }));
-                serpContext = `REAL SERP DATA: ${JSON.stringify(compCtx)}`;
-            }
-
-            // GEO Discovery (Grounding) removal per user request
-
-        } catch (e) { serpContext = "External tools failed."; }
-    }
-
-    const schema = {
-        type: Type.OBJECT,
-        properties: {
-            nicheDetected: { type: Type.STRING },
-            keywordIdeas: { type: Type.OBJECT, properties: { shortTail: { type: Type.ARRAY, items: { type: Type.STRING } }, midTail: { type: Type.ARRAY, items: { type: Type.STRING } } } },
-            autocompleteLongTail: { type: Type.ARRAY, items: { type: Type.STRING } },
-            frequentQuestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            top10Urls: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, url: { type: Type.STRING } } } },
-            top20Urls: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, url: { type: Type.STRING } } } },
-            lsiKeywords: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { keyword: { type: Type.STRING }, count: { type: Type.STRING } } } },
-            recommendedWords: { type: Type.ARRAY, items: { type: Type.STRING } },
-            recommendedWordCount: { type: Type.STRING },
-            recommendedSchemas: { type: Type.ARRAY, items: { type: Type.STRING } }
-        },
-        required: ["nicheDetected", "keywordIdeas", "frequentQuestions", "top10Urls", "top20Urls", "recommendedWordCount"]
-    };
-
-    return executeWithKeyRotation(async (ai, currentModel) => {
-        const model = ai.getGenerativeModel({
-            model: currentModel,
-            generationConfig: { responseMimeType: "application/json", responseSchema: schema as any }
-        });
-        const seoPrompt = `Analiza profundamente el panorama SEO para el keyword: "${keyword}". 
-        
-        Contexto SERP Real: ${serpContext}
-        Contexto Base de Datos Interna: 
-        ${productContext} 
-        ${collectionContext}
-        
-        Tu tarea es:
-        1. Evaluar el nicho y la intención de búsqueda.
-        2. Proporcionar ideas de keywords (short y mid tail).
-        3. Identificar las preguntas más frecuentes.
-        4. Listar los TOP 10 competidores directos.
-        5. Listar los TOP 20 competidores.
-        
-        Retorna los resultados en el esquema JSON solicitado.`;
-
-        if (onLog) onLog("Investigación: Análisis SERP & Intención (Final)", seoPrompt);
-        const response = await model.generateContent(seoPrompt);
-        const respText = response.response.text();
-        useWriterStore.getState().addDebugPrompt("Investigación: Análisis SERP Final", seoPrompt, respText);
-        const json = JSON.parse(respText);
-        if (realSerpData) {
-            json.peopleAlsoAsk = (realSerpData as any).peopleAlsoAsk || [];
-            json.frequentQuestions = json.peopleAlsoAsk.map((q: any) => q.question);
-        }
-        return json as SEOAnalysisResult;
-    }, modelName);
-};
-
-export const runDeepSEOAnalysis = async (
-    keyword: string,
-    csvData: any[],
-    projectName?: string,
-    isIdea: boolean = false,
-    projectId?: string,
-    onProgress?: (phaseId: string) => void,
-    onLog?: (phaseId: string, prompt: string) => void,
-    modelName: string = 'gemini-2.5-flash'
-): Promise<DeepSEOAnalysisResult> => {
-    // Stage 1: SERP Discovery
-    if (onProgress) onProgress("serp");
-    const baseResult = await runSEOAnalysis(keyword, csvData, projectName, undefined, modelName, false, onLog);
-    
-    let internalDomain = "";
-    try {
-        if (csvData.length > 0 && csvData[0].url) {
-            internalDomain = new URL(csvData[0].url).hostname.replace(/^www\./, '');
-        }
-    } catch (e) {
-        console.warn("[Deep-SEO] Invalid URL in CSV data for internal domain detection");
-    }
-
-    // Phase 2: Filter Candidates
-    const topUrls = (baseResult as any).top20Urls || baseResult.top10Urls || [];
-    const cannibalizedUrls: string[] = [];
-    
-    const candidates = topUrls.filter((u: any) => {
-        try {
-            if (!u.url) return false;
-            const host = new URL(u.url).hostname.toLowerCase().replace(/^www\./, '');
-            const SOCIAL_DOMAINS = ['tiktok.com', 'instagram.com', 'facebook.com', 'pinterest.com', 'twitter.com', 'x.com', 'amazon.', 'ebay.', 'mercadolibre.', 'youtube.com'];
-            const isSocial = SOCIAL_DOMAINS.some(d => host.includes(d));
+            const res = await model.generateContent(prompt);
+            const rawResponse = res.response.text();
+            const rawIds = safeJsonExtract<any[]>(rawResponse, []);
             
-            if (internalDomain && host.includes(internalDomain)) {
-                cannibalizedUrls.push(u.url);
-                return true; 
+            // SANITIZATION: Convert indices to numbers (handles ["0", "1"] and [0, 1])
+            const ids = rawIds.map(id => Number(id)).filter(id => !isNaN(id));
+            
+            if (onLog) onLog("Filtro Calidad (Respuesta)", JSON.stringify(ids), rawResponse);
+            
+            const filtered = preFiltered.filter((_, i) => ids.includes(i)).slice(0, 8);
+            
+            // FALLBACK: If AI filtering returned nothing, don't break the process, use top organic results
+            if (filtered.length === 0) {
+                if (onLog) onLog("Sistema", "Filtro de calidad vacío. Usando top 8 resultados orgánicos como fallback.");
+                return preFiltered.slice(0, 8);
             }
-            return !isSocial;
-        } catch (e) {
-            return false;
+            
+            return filtered;
+        } catch (e: any) {
+            if (onLog) onLog("Error Filtro", `No se pudieron filtrar resultados: ${e.message}. Usando fallback.`);
+            return preFiltered.slice(0, 8);
         }
-    }).slice(0, 10);
+    }, 'gemini-3.1-flash-lite-preview', undefined, undefined, false, 'Filtro Calidad', 60000);
+};
 
-    if (cannibalizedUrls.length > 0 && onLog) {
-        onLog("Alerta Canibalización", `Se han detectado ${cannibalizedUrls.length} URLs de tu propio dominio en el SERP:\n${cannibalizedUrls.join('\n')}`);
-    }
-
-    // Phase 3: Scrape & AI Analysis (SEO)
-    if (onProgress) onProgress("extraction");
+export const runSEOAnalysis = async (keyword: string, onLog?: (p: string, pr: string, res?: string) => void): Promise<SEOAnalysisResult> => {
+    const intentPrompt = `Eres un experto en investigación de keywords. Genera un QUERY DE BÚSQUEDA en Google que encuentre los mejores artículos informativos para el keyword: "${keyword}". Retorna ÚNICAMENTE el query.`;
     
-    // 3.1: Profile SEO Competitors
-    if (onLog) onLog("Sistema", `Analizando ${candidates.length} competidores SEO (tradicionales)...`);
-    const scrapedSEO: CompetitorDetail[] = [];
-    for (const comp of candidates) {
-        if (onLog) onLog("Sistema", `Extrayendo SEO: ${new URL(comp.url).hostname}`);
-        const { content } = await fetchJinaExtraction(comp.url, process.env.NEXT_PUBLIC_JINA_API_KEY || "");
-        if (!content) {
-            scrapedSEO.push({ url: comp.url, title: comp.title, isInvalid: true } as any);
-            continue;
+    const smartQuery = await executeWithKeyRotation(async (ai) => {
+        const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+        const res = await model.generateContent(intentPrompt);
+        return res.response.text().trim();
+    }, 'gemini-3.1-flash-lite-preview', undefined, undefined, false, 'Intento de Búsqueda', 75000);
+
+    if (onLog) onLog("Query Google", smartQuery, "N/A"); // smartQuery is the data here, might map differently in logs
+
+    // PHASE 1: Búsqueda con query inteligente
+    let rawResults = (await fetchSerperSearch(smartQuery)).map(r => ({
+        ...r,
+        url: r.link || r.url // Normalizar propiedad link de Serper a url
+    }));
+    
+    // FALLBACK REFORZADO: Si la IA genera un query demasiado restrictivo (< 5 resultados), usar el keyword original
+    if (!rawResults || rawResults.length < 5) {
+        if (onLog) onLog("Sistema", `Resultados insuficientes (${rawResults.length}). Reintentando con keyword original...`);
+        const fallbackResults = (await fetchSerperSearch(keyword)).map(r => ({
+            ...r,
+            url: r.link || r.url // Normalizar fallback también
+        }));
+        if (fallbackResults.length > rawResults.length) {
+            rawResults = fallbackResults;
         }
-        let profilingRes: any = { summary: "", headers: [], isInvalid: false };
-        try {
-            await new Promise(res => setTimeout(res, 2000));
-            profilingRes = await executeWithKeyRotation(async (ai, currentModel) => {
-                const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
-                const prompt = `Analiza este competidor SEO para "${keyword}": ${comp.url}\nContenido: ${content.substring(0, 10000)}
-                Retorna JSON: {"summary": "breve resumen", "headers": [{"tag": "h2", "text": "..."}], "isInvalid": boolean}`;
-                const r = await model.generateContent(prompt);
-                return JSON.parse(r.response.text());
-            }, modelName);
-        } catch (e) {}
-        scrapedSEO.push({ 
-            ...comp, 
-            content: content, 
-            summary: profilingRes.summary, 
-            headers: profilingRes.headers, 
-            isInvalid: profilingRes.isInvalid || content.length < 300 
-        } as any);
+    }
+    
+    // SAFETY: Si AMBOS fallaron completamente, handle it
+    if (!rawResults || rawResults.length === 0) {
+        if (onLog) onLog("Error SERP", "No se encontraron resultados en Google ni con query inteligente ni con fallback.");
+        throw new Error("No organic search results found.");
     }
 
-    // GEO Competitors removed per user request
+    const filtered = await filterQualityResults(rawResults, keyword, onLog);
+
+    const analysisPrompt = `Analiza el panorama SEO para "${keyword}" basándote en estos resultados: ${JSON.stringify(filtered)}. Retorna JSON con: nicheDetected, keywordIdeas, frequentQuestions, recommendedWordCount.`;
+
+    const aiAnalysis = await executeWithKeyRotation(async (ai, currentModel) => {
+        const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
+        const res = await model.generateContent(analysisPrompt);
+        const rawRes = res.response.text();
+        const parsed = safeJsonExtract<SEOAnalysisResult>(rawRes, {} as SEOAnalysisResult);
+        if (onLog) onLog("Análisis SEO (Resultados)", `Detección completada`, rawRes);
+        return parsed;
+    }, 'gemini-3.1-flash-lite-preview', undefined, undefined, false, 'Análisis SEO', 90000);
+
+    // FIX: NEVER rely on AI to re-list URLs. Always attach the filtered ones.
+    return {
+        ...aiAnalysis,
+        top10Urls: filtered.slice(0, 8), // Ensure these are the ones we scrape
+        top20Urls: filtered
+    };
+};
+
+export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
+    const { 
+        keyword, 
+        serperKey, 
+        jinaKey, 
+        projectId, 
+        csvData = [], 
+        taskId, 
+        onProgress, 
+        onLog, 
+        modelName = 'gemini-2.5-flash' 
+    } = config;
+
+    const jKey = jinaKey || process.env.NEXT_PUBLIC_JINA_API_KEY || "";
+
+    const globalStartTime = Date.now();
+    if (onLog) onLog("Investigación", `Iniciando Deep SEO para: "${keyword}"`, "PROCESO ACTIVADO");
+
+    // Phase 1-2: SERP & Intent
+    const stage1Start = Date.now();
+    if (onProgress) onProgress("serp");
+    const baseResult = await runSEOAnalysis(keyword, onLog);
+    if (onLog) onLog("Fase 1 (SERP)", `Completada en ${((Date.now() - stage1Start) / 1000).toFixed(1)}s`, JSON.stringify(baseResult.top10Urls));
+
+    // Phase 3: Scraping & Content
+    const stage3Start = Date.now();
+    if (onProgress) onProgress("scraping");
+    
+    // REDUNDANCY: Always use the URLs from baseResult
+    const competitors = baseResult.top10Urls || [];
+    if (onLog) onLog("Sistema", `Analizando ${competitors.length} competidores SEO en paralelo.`, JSON.stringify(competitors.map(c => c.url)));
+    
+    const scrapedSEO: CompetitorDetail[] = [];
+    if (competitors.length > 0) {
+        // We use a small stagger delay (300ms) to avoid "Burst" rate limits from Jina/Proxy
+        const scrapeResults = await Promise.allSettled(competitors.slice(0, 8).map(async (comp, idx) => {
+            if (!comp.url || !comp.url.startsWith('http')) {
+                return { url: comp.url, title: comp.title, isInvalid: true } as any;
+            }
+
+            try {
+                // Stagger delay
+                // Aumento de Stagger a 1000ms para respetar límites de Jina proxy
+                await new Promise(resolve => setTimeout(resolve, idx * 1000));
+                
+                const scrapingPhase = `Scraping ${idx + 1}/${competitors.slice(0,8).length}`;
+                
+                // FILTRO DE SEGURIDAD: Descartar URLs de Grounding/Redirecciones de Google si llegaran a colarse
+                if (comp.url.includes('google.com/url') || comp.url.includes('grounding-api-redirect')) {
+                    if (onLog) onLog(scrapingPhase, `URL Descartada`, comp.url);
+                    return { url: comp.url, title: comp.title, isInvalid: true, reason: 'Google Redirect Link' } as any;
+                }
+
+                if (onLog) onLog(scrapingPhase, `Iniciando extracción`, comp.url);
+                
+                const data = await fetchJinaExtraction(comp.url, jKey);
+                
+                if (onLog) onLog(`Éxito ${idx + 1}`, `${comp.title.substring(0, 30)}...`, data.content?.substring(0, 500));
+                return { 
+                    url: comp.url, 
+                    title: comp.title, 
+                    content: data.content,
+                    summary: data.title + ": " + data.content?.substring(0, 300)
+                };
+            } catch (innerE: any) {
+                if (onLog) onLog(`Descarte ${idx + 1}`, `${comp.url.substring(0, 30)}`, innerE.message);
+                // LOGICA DE FALLBACK: Si falla Jina, usamos el snippet como contenido mínimo
+                return { 
+                    url: comp.url, 
+                    title: comp.title, 
+                    content: comp.snippet || "", 
+                    summary: `(Fallback Snippet) ${comp.snippet}`,
+                    isPartial: true 
+                } as any;
+            }
+        }));
+        scrapeResults.forEach(res => {
+            if (res.status === 'fulfilled') scrapedSEO.push(res.value);
+        });
+    }
 
     const validSEO = scrapedSEO.filter(c => !c.isInvalid);
-    if (onLog) onLog("Sistema", `Extracción completada. SEO Actualizado: ${validSEO.length}`);
+    if (onLog) onLog("Fase 3 (Extracción)", `Completada en ${((Date.now() - stage3Start) / 1000).toFixed(1)}s`, `Éxito en ${validSEO.length} fuentes.`);
 
-    // Phase 4: TF-IDF & AI Semantic Cleaning
+    // Phase 4: LSI Cleaning
+    const stage4Start = Date.now();
     if (onProgress) onProgress("keywords");
+    let cleanedLSI: any[] = [];
     const allValidTexts = validSEO.map(c => c.content || "");
-    const rawTfidf = calculateTFIDF(allValidTexts);
-    
-    const cleanedLSI = await executeWithKeyRotation(async (ai, currentModel) => {
-        const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
-        const cleanPrompt = `Limpia y categoriza términos semánticos para "${keyword}": ${JSON.stringify(rawTfidf.map(t => t.keyword))}
-        Retorna JSON array: [{"keyword": "...", "count": "Alto/Medio/Bajo"}]`;
-        const res = await model.generateContent(cleanPrompt);
-        return JSON.parse(res.response.text());
-    }, modelName);
-    baseResult.lsiKeywords = cleanedLSI;
+    if (allValidTexts.length > 0) {
+        const rawTfidf = calculateTFIDF(allValidTexts);
+        if (onLog) onLog("Sistema", `Términos TF-IDF calculados`, JSON.stringify(rawTfidf.slice(0, 10)));
+        
+        cleanedLSI = await executeWithKeyRotation(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
+            const cleanPrompt = `Limpia y categoriza términos semánticos para "${keyword}": ${JSON.stringify(rawTfidf.map((t: any) => t.keyword))}\nRetorna JSON array: [{"keyword": "...", "count": "Alto/Medio/Bajo"}]`;
+            const res = await model.generateContent(cleanPrompt);
+            const rawRes = res.response.text();
+            const results = safeJsonExtract<any[]>(rawRes, []);
+            if (onLog) onLog("LSI Detectado", `LSI Refinado por AI`, rawRes);
+            return results;
+        }, modelName, undefined, undefined, false, 'Limpieza LSI', 90000);
+    }
+    if (onLog) onLog("Fase 4 (LSI)", `Completada en ${((Date.now() - stage4Start) / 1000).toFixed(1)}s`, JSON.stringify(cleanedLSI.slice(0, 10)));
 
-    // Phase 5: Selection & Metadata
-    if (onProgress) onProgress("competitors");
-    const selectedUrls = await selectTopCompetitorsViaAI(keyword, validSEO);
-    const finalSEOCompetitors = validSEO.map(c => ({
-        ...c,
-        isSelected: selectedUrls.includes(c.url)
-    }));
-
+    // Phase 5-6: Metadata
+    const stage5Start = Date.now();
     if (onProgress) onProgress("metadata");
-    const synthesisPrompt = `Genera la estrategia SEO definitiva para "${keyword}". 
-    Contexto Competidores: ${validSEO.slice(0, 3).map(c => c.summary).join(". ")}
-    LSI: ${JSON.stringify(cleanedLSI)}
-    Retorna JSON: {"h1": "...", "seo_title": "...", "slug": "...", "meta_description": "...", "extracto": "...", "schemas": []}`;
+    const synthesisPrompt = `Genera la estrategia SEO definitiva para "${keyword}".\nContexto: ${validSEO.slice(0, 3).map(c => c.summary).join(". ")}\nLSI: ${JSON.stringify(cleanedLSI)}\nRetorna JSON: {"h1": "...", "seo_title": "...", "slug": "...", "meta_description": "...", "extracto": "...", "schemas": []}`;
     
     const seoMetadata = await executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
         const res = await model.generateContent(synthesisPrompt);
-        return JSON.parse(res.response.text());
-    }, modelName);
+        const rawRes = res.response.text();
+        const data = safeJsonExtract<SEOMetadata>(rawRes, {} as SEOMetadata);
+        if (onLog) onLog("Metadatos Generados", `Síntesis finalizada`, rawRes);
+        return data;
+    }, modelName, undefined, undefined, false, 'Síntesis SEO', 120000);
+    if (onLog) onLog("Fase 5-6 (Metadatos)", `Completada en ${((Date.now() - stage5Start) / 1000).toFixed(1)}s`, JSON.stringify(seoMetadata));
 
-    // Stage 7: Internal Linking
-    if (onProgress) onProgress("links");
+    // Phase 7: Internal Links
+    const stage7Start = Date.now();
     let suggestedLinks: any[] = [];
     if (projectId) {
-        if (onLog) onLog("Sistema", `Analizando oportunidades de enlazado interno...`);
         try {
-            let candidatesPool: any[] = [];
-
-            // Priority 1: User's provided CSV Data
-            if (csvData && csvData.length > 0) {
-                if (onLog) onLog("Sistema", `Utilizando URLs del CSV proporcionado por el usuario...`);
-                candidatesPool = csvData.filter(item => item.url && item.title).map(item => ({ url: item.url, title: item.title }));
+            const lsiTerms = cleanedLSI?.map((l: any) => l.keyword) || [];
+            const atomicTerms = Array.from(new Set([keyword, ...lsiTerms])).flatMap((t: any) => (t as string).toLowerCase().split(/\s+/).filter((w: any) => (w as string).length > 3 && !stopwords.has(w as string)));
+            const postgresRegex = atomicTerms.join('|');
+            
+            const { data: rpcPool } = await supabase.rpc('get_semantic_inventory_matches', { p_project_id: projectId, p_regex: postgresRegex, p_limit: 150 });
+            let combinedPool = rpcPool || [];
+            if (onLog) onLog("Sistema", `Enlaces internos: ${combinedPool.length} candidatos encontrados.`, JSON.stringify(combinedPool.slice(0, 50)));
+            if (combinedPool.length > 0) {
+                suggestedLinks = await selectSemanticInternalLinks(keyword, combinedPool, 15, onLog, JSON.stringify({ metadata: seoMetadata, lsi: cleanedLSI }), modelName);
             }
+        } catch (e) {}
+    }
+    if (onLog) onLog("Fase 7 (Internado)", `Completada con éxito.`, JSON.stringify(suggestedLinks));
 
-            // Priority 2: GSC (project_urls)
-            if (candidatesPool.length === 0) {
-                const { data: poolLow } = await supabase.from('project_urls')
-                    .select('url, title, impressions_gsc')
-                    .eq('project_id', projectId)
-                    .order('impressions_gsc', { ascending: false, nullsFirst: false })
-                    .limit(300);
+    if (onLog) onLog("✅ Investigación Finalizada", `Total: ${((Date.now() - globalStartTime) / 1000).toFixed(1)}s`, "Dossier Listo");
 
-                if (poolLow && poolLow.length > 0) {
-                    if (onLog) onLog("Sistema", `Utilizando URLs de Google Search Console (project_urls)...`);
-                    candidatesPool = poolLow;
-                }
-            }
+    const finalResult = {
+        ...baseResult, ...seoMetadata, 
+        lsiKeywords: cleanedLSI, 
+        suggestedInternalLinks: suggestedLinks,
+        research_dossier: { ...baseResult, lsiKeywords: cleanedLSI, suggestedInternalLinks: suggestedLinks, seoMetadata },
+        status: "por_redactar"
+    };
 
-            // Priority 3: Fallback to existing contents table
-            if (candidatesPool.length === 0) {
-                if (onLog) onLog("Sistema", `No se encontraron URLs en el CSV ni en GSC, intentando con contenidos existentes (contents)...`);
-                const { data: contentsPool } = await supabase.from('contents')
-                    .select('id, title, slug')
-                    .eq('project_id', projectId)
-                    .limit(300);
-
-                if (contentsPool && contentsPool.length > 0) {
-                    candidatesPool = contentsPool.map(c => ({ url: `/${c.slug}`, title: c.title }));
-                }
-            }
-
-            if (candidatesPool.length > 0) {
-                suggestedLinks = await selectSemanticInternalLinks(keyword, candidatesPool, 15, onLog, JSON.stringify({ metadata: seoMetadata, lsi: cleanedLSI }), modelName);
-            } else {
-                if (onLog) onLog("Sistema", `No hay suficientes URLs candidatas para enlazado interno.`);
-            }
-        } catch (linkErr) {
-            console.error("Error fetching internal links:", linkErr);
-            if (onLog) onLog("Sistema", `Fallo al recuperar enlaces internos: ${linkErr}`);
-        }
+    if (taskId) {
+        await supabase.from('tasks').update({
+            h1: finalResult.h1,
+            seo_title: finalResult.seo_title,
+            meta_description: finalResult.meta_description,
+            excerpt: finalResult.extracto,
+            target_url_slug: finalResult.slug,
+            target_keyword: keyword,
+            research_dossier: finalResult.research_dossier,
+            target_word_count: parseInt(String(finalResult.recommendedWordCount)) || 1500,
+            status: "por_redactar"
+        }).eq('id', taskId);
     }
 
-    const globalMetrics = await fetchGlobalMetrics(keyword);
-
-    return {
-        ...baseResult,
-        ...seoMetadata,
-        cannibalizationUrls: cannibalizedUrls,
-        competitors: finalSEOCompetitors,
-        suggestedInternalLinks: suggestedLinks,
-        target_keyword: keyword,
-        searchVolume: globalMetrics.volume,
-        keywordDifficulty: globalMetrics.difficulty,
-        word_count: parseInt(baseResult.recommendedWordCount) || 1500,
-        research_dossier: { ...baseResult, cannibalizedUrls, lsiKeywords: cleanedLSI, suggestedInternalLinks: suggestedLinks, seoMetadata },
-        brief: generateBriefingText({ ...baseResult, ...seoMetadata, lsiKeywords: cleanedLSI } as any),
-        excerpt: seoMetadata.extracto || seoMetadata.excerpt,
-        schemas: seoMetadata.schemas
-    };
+    return finalResult;
 };
 
 export const selectTopCompetitorsViaAI = async (keyword: string, competitors: CompetitorDetail[]): Promise<string[]> => {
-    const list = competitors.filter(c => c.content && c.content.length > 100).map((c, i) => ({ index: i, url: c.url, title: c.title }));
-    if (list.length === 0) return [];
+    const list = competitors.map((c, i) => ({ index: i, url: c.url, title: c.title }));
     const prompt = `Selecciona los TOP 10 competidores para "${keyword}": ${JSON.stringify(list)}. Retorna JSON array de URLs.`;
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
         const res = await model.generateContent(prompt);
-        return JSON.parse(res.response.text());
-    });
+        return safeJsonExtract<string[]>(res.response.text(), []);
+    }, 'gemini-3.1-flash-lite-preview', undefined, undefined, false, 'Selección Competidores', 60000);
 };
 
-export const selectSemanticInternalLinks = async (keyword: string, pool: any[], maxLinks: number = 10, onLog?: (p: string, pr: string) => void, context?: string, modelName: string = 'gemini-2.5-flash'): Promise<any[]> => {
+export const selectSemanticInternalLinks = async (keyword: string, pool: any[], maxLinks: number = 10, onLog?: (p: string, pr: string) => void, context?: string, modelName: string = 'gemini-3.1-flash-lite-preview'): Promise<any[]> => {
     const list = pool.map((p, i) => `[ID:${i}] ${p.url} - ${p.title}`).join('\n');
-    const prompt = `Actúa como estratega experto de enlazado interno SEO.
-    A partir de la siguiente lista de páginas de nuestro inventario, selecciona las más RELEVANTES (Mín 3, Máx ${maxLinks}) 
-    para el nuevo artículo de "${keyword}".
+    const prompt = `Selecciona páginas RELEVANTES para "${keyword}".\nContexto: ${context}\nCandidatos:\n${list}\nRetorna array JSON [{"url", "title", "anchor_text"}]`;
     
-    Contexto SEO del artículo:
-    ${context}
-
-    Candidatos (Top por impresiones):
-    ${list}
-    
-    Retorna ÚNICAMENTE un array JSON [{"url", "title", "anchor_text"}]`;
-    
-    if (onLog) onLog("Investigación: Selección Semántica de Enlaces (Fase 3)", prompt);
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
         const res = await model.generateContent(prompt);
-        const raw = res.response.text();
-        if (onLog) onLog("Respuesta Selección Enlaces", raw);
-        return JSON.parse(raw);
-    }, modelName);
-};
-
-export const generateOutlineStrategy = async (config: ArticleConfig, keyword: string, rawSeoData: SEOAnalysisResult, modelName?: string) => {
-    const prompt = `Create outline for "${keyword}". JSON {snippet, outline}.`;
-    return executeWithKeyRotation(async (ai, currentModel) => {
-        const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
-        const res = await model.generateContent(prompt);
-        return JSON.parse(res.response.text());
-    }, modelName || 'gemini-2.5-flash');
-};
-
-export const runHumanizerPipeline = async (html: string, config: HumanizerConfig, intensity: number, onStatus: (msg: string) => void): Promise<{ html: string }> => {
-    const prompt = `Humanize HTML: ${html}`;
-    return executeWithKeyRotation(async (ai, currentModel) => {
-        const model = ai.getGenerativeModel({ model: currentModel });
-        const res = await model.generateContent(prompt);
-        return { html: res.response.text() };
-    }, 'gemini-2.5-flash');
-};
-
-export const generateBriefingText = (seoData: SEOAnalysisResult): string => {
-    let brief = `# Investigación SEO: ${seoData.nicheDetected}\n\n`;
-    brief += `## Metadatos\n- H1: ${(seoData as any).h1}\n- Slug: ${(seoData as any).slug}\n\n`;
-    const comps = (seoData as any).top20Urls || seoData.top10Urls || [];
-    brief += `## Competidores\n` + comps.map((u: any) => `- [${u.title}](${u.url})`).join('\n') + '\n\n';
-    return brief;
+        return safeJsonExtract<any[]>(res.response.text(), []);
+    }, modelName, undefined, undefined, false, 'Links Semánticos', 90000);
 };

@@ -1,5 +1,5 @@
-import { VisualResource, ImageGenConfig, AIImageRequest, ContentItem } from "./types";
-import { executeWithKeyRotation } from "./ai-core";
+import type { VisualResource, ImageGenConfig, AIImageRequest, ContentItem } from "./types";
+import { executeWithKeyRotation } from "@/lib/services/writer/ai-core";
 
 export const findCampaignAssets = async (query: string, projectName: string, csvData?: ContentItem[], modelName?: string): Promise<VisualResource[]> => {
     const safeProjectName = projectName || "mysite";

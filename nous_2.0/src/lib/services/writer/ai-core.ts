@@ -15,10 +15,12 @@ const isValidKey = (k: string) => k && k.trim().length > 10;
  */
 export const executeWithKeyRotation = async <T>(
     operation: (client: GoogleGenerativeAI, currentModel: string) => Promise<T>,
-    modelName: string = 'gemini-2.5-flash',
+    modelName: string = 'gemini-3.1-flash-lite-preview',
     keys?: string[] | string,
     onRotation?: (failedKey: string, reason: string, attempt: number, max: number) => void,
-    isStrictModel: boolean = false
+    isStrictModel: boolean = false,
+    label: string = 'Operación AI',
+    timeoutMs: number = 90000
 ): Promise<T> => {
     // 1. Determine Model Fallback Order
     const primary = modelName;
@@ -54,40 +56,73 @@ export const executeWithKeyRotation = async <T>(
     }
 
     let lastError: any = null;
+    let totalAttempts = 0;
+    const GLOBAL_MAX_ATTEMPTS = 10; // Prevent infinite loops in batch mode
 
     // Loop through fallback models
     for (const targetModel of modelsToTry) {
         let attempts = 0;
         const maxAttempts = sessionKeys.length;
         
+        if (totalAttempts >= GLOBAL_MAX_ATTEMPTS) break;
+
         console.log(`[AI-CORE] Probando Modelo: ${targetModel} (Pool: ${maxAttempts} keys)`);
 
-        while (attempts < maxAttempts) {
+        while (attempts < maxAttempts && totalAttempts < GLOBAL_MAX_ATTEMPTS) {
             const currentKey = sessionKeys[0];
-            
+            totalAttempts++;
+
             try {
                 const client = new GoogleGenerativeAI(currentKey);
-                // PASS the current model to the operation
-                const result = await operation(client, targetModel);
+                
+                // Add a local timeout for the AI operation itself
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs)
+                );
+
+                const result = await Promise.race([
+                    operation(client, targetModel),
+                    timeoutPromise
+                ]) as T;
+
                 return result;
             } catch (e: any) {
                 attempts++;
                 lastError = e;
 
-                const isQuotaError = e.status === 429 || e.code === 429 || (e.message && e.message.toLowerCase().includes('quota'));
-                const isServerIssue = e.status === 503 || e.status === 500;
-                const isInvalidKey = e.status === 400 || e.status === 403 || e.status === 401;
-                const isModelError = e.status === 404 || (e.message && e.message.toLowerCase().includes('not found'));
+                // LOG CRÍTICO PARA EL USUARIO
+                console.error(`[AI-CORE] Fallo en [${label}] usando ${targetModel}. Llave: ${currentKey.substring(0, 5)}... Motivo: ${e.message}`);
 
-                if (isQuotaError || isServerIssue || isInvalidKey) {
-                    const reason = isQuotaError ? "Quota exhausted" : isInvalidKey ? "Invalid/Unauthorized key" : "Server issue";
+                const isQuotaError = e.status === 429 || e.code === 429 || 
+                    (e.message && (e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('limit') || e.message.includes('429')));
+                const isServerIssue = e.status === 503 || e.status === 500 || 
+                    (e.message && (e.message.includes('503') || e.message.includes('500') || e.message.toLowerCase().includes('high demand') || e.message.toLowerCase().includes('overloaded') || e.message.toLowerCase().includes('temporary issue')));
+                const isInvalidKey = e.status === 400 || e.status === 403 || e.status === 401 ||
+                    (e.message && (e.message.includes('400') || e.message.includes('401') || e.message.includes('403') || e.message.toLowerCase().includes('unauthorized') || e.message.toLowerCase().includes('invalid api key')));
+                const isModelError = e.status === 404 || (e.message && (e.message.toLowerCase().includes('not found') || e.message.includes('404')));
+                const isTimeout = e.message && e.message.includes('AI_TIMEOUT');
+                
+                // NEW: Handle safety block without infinite retry
+                const isSafetyBlock = e.message && (e.message.toLowerCase().includes('safety') || e.message.toLowerCase().includes('blocked'));
+
+                if (isSafetyBlock) {
+                    console.error(`[AI-CORE] Bloqueo de seguridad detectado con llave ${currentKey.substring(0, 5)}...`);
+                    // Rotate and continue to next key or model, but don't treat as fatal yet if we have more keys
+                    sessionKeys.shift();
+                    sessionKeys.push(currentKey);
+                    continue;
+                }
+
+                if (isQuotaError || isServerIssue || isInvalidKey || isTimeout) {
+                    const reason = isTimeout ? "Timeout" : isQuotaError ? "Quota exhausted" : isInvalidKey ? "Invalid/Unauthorized key" : "Server issue";
                     if (onRotation) onRotation(currentKey, reason, attempts, maxAttempts);
 
                     sessionKeys.shift();
                     sessionKeys.push(currentKey);
                     
-                    if (isQuotaError && attempts < maxAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, 800));
+                    if ((isQuotaError || isServerIssue) && attempts < maxAttempts) {
+                        // Backoff for quota or server issue
+                        await new Promise(resolve => setTimeout(resolve, isQuotaError ? 800 : 1500));
                     }
                     continue;
                 }
@@ -116,7 +151,8 @@ export const executeWithImagenRotation = async <T>(
     operation: (client: GoogleGenAI, currentModel: string) => Promise<T>,
     modelName: string = 'imagen-4.0-generate-001',
     keys?: string[] | string,
-    onRotation?: (failedKey: string, reason: string, attempt: number, max: number) => void
+    onRotation?: (failedKey: string, reason: string, attempt: number, max: number) => void,
+    timeoutMs: number = 90000
 ): Promise<T> => {
     // 1. Initialize sessionKeys if needed
     let currentPool: string[] = [];
@@ -148,9 +184,14 @@ export const executeWithImagenRotation = async <T>(
         const currentKey = sessionKeys[0];
         
         try {
-            console.log(`[AI-CORE-IMAGEN] Intento ${attempts + 1}/${maxAttempts} con key ${currentKey.substring(0, 8)}...`);
             const client = new GoogleGenAI({ apiKey: currentKey, apiVersion: 'v1beta' });
-            const result = await operation(client, modelName);
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs)
+            );
+            const result = await Promise.race([
+                operation(client, modelName),
+                timeoutPromise
+            ]) as T;
             return result;
         } catch (e: any) {
             attempts++;

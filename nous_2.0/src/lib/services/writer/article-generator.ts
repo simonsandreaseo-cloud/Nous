@@ -1,4 +1,4 @@
-import { executeWithKeyRotation } from "./ai-core";
+import { executeWithKeyRotation } from "@/lib/services/writer/ai-core";
 
 export const generateArticleStream = async (model: string, prompt: string) => {
     return executeWithKeyRotation(async (ai) => {

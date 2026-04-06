@@ -4,12 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ContentsSidebar } from "./ContentsSidebar";
-import { ContentsHeader } from "./ContentsHeader";
-import { ArticleCardGrid } from "./ArticleCardGrid";
-import { ArticleKanbanBoard } from "./ArticleKanbanBoard";
-import { ArticleCalendar } from "./ArticleCalendar";
-import { ArticleTable } from "./ArticleTable";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles, Construction } from "lucide-react";
 import { cn } from "@/utils/cn";
 import dynamic from "next/dynamic";
 
@@ -21,22 +16,34 @@ const EditorialCalendar = dynamic(
     () => import("@/components/dashboard/EditorialCalendar").then(mod => mod.EditorialCalendar),
     { loading: () => <ToolLoading name="Planificador" />, ssr: false }
 );
-const MonitorView = dynamic(
-    () => import("@/components/contents/MonitorView"),
-    { loading: () => <ToolLoading name="Monitor" />, ssr: false }
-);
-const StrategyView = dynamic(
-    () => import("@/components/contents/StrategyView"),
-    { loading: () => <ToolLoading name="Estrategia" />, ssr: false }
-);
-const SEOView = dynamic(
-    () => import("@/components/contents/SEOView"),
-    { loading: () => <ToolLoading name="SEO On Page" />, ssr: false }
-);
-const TestsView = dynamic(
-    () => import("@/components/contents/TestsView"),
-    { loading: () => <ToolLoading name="Pruebas" />, ssr: false }
-);
+
+// --- Mockup View Component ---
+function MockupView({ toolId }: { toolId: string }) {
+    const labels: Record<string, string> = {
+        monitor: "Monitor de Tráfico",
+        oficina: "Oficina Virtual",
+        seo: "SEO On-Page & Auditoría",
+        estrategia: "Estrategia Global",
+    };
+
+    return (
+        <div className="flex-1 flex flex-col items-center justify-center bg-white p-12 text-center">
+            <div className="w-24 h-24 rounded-[40px] bg-slate-50 flex items-center justify-center mb-8 border border-slate-100 shadow-sm">
+                <Construction className="text-slate-300" size={40} />
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 mb-4 uppercase italic tracking-tight">
+                {labels[toolId] || "Próximamente"}
+            </h2>
+            <p className="max-w-md text-slate-400 text-sm font-medium leading-relaxed uppercase tracking-widest">
+                Estamos trabajando en la integración de esta herramienta para ofrecerte una experiencia SEO integral de última generación.
+            </p>
+            <div className="mt-10 inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-full border border-indigo-100">
+                <Sparkles size={14} className="text-indigo-600" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Nous Intelligence v2.0</span>
+            </div>
+        </div>
+    );
+}
 
 function ToolLoading({ name }: { name: string }) {
     return (
@@ -59,17 +66,16 @@ function ToolView({ toolId }: { toolId: string }) {
     switch (toolId) {
         case "writer": return <WriterStudio />;
         case "planner": return <EditorialCalendar />;
-        case "monitor": return <MonitorView />;
-        case "strategy": return <StrategyView />;
-        case "seo": return <SEOView />;
-        case "publisher": return <div className="p-20 text-center font-black opacity-20 uppercase tracking-[0.3em]">Módulo de Distribución (En Construcción)</div>;
-        case "tests": return <TestsView />;
-        default: return (
-            <div className="flex flex-col items-center justify-center p-20 opacity-40">
-                <Loader2 size={32} className="animate-spin mb-4" />
-                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Cargando {toolId}...</p>
-            </div>
-        );
+        default: 
+            if (["monitor", "oficina", "seo", "estrategia"].includes(toolId)) {
+                return <MockupView toolId={toolId} />;
+            }
+            return (
+                <div className="flex flex-col items-center justify-center p-20 opacity-40">
+                    <Loader2 size={32} className="animate-spin mb-4" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">Cargando {toolId}...</p>
+                </div>
+            );
     }
 }
 
@@ -77,7 +83,7 @@ interface ContentsLayoutProps {
     initialTool?: string;
 }
 
-export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProps) {
+export function ContentsLayout({ initialTool = "planner" }: ContentsLayoutProps) {
     const router = useRouter();
     const [activeTool, setActiveTool] = useState(initialTool);
     const [viewMode, setViewMode] = useState<ViewMode>("cards");
@@ -91,24 +97,15 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
 
     const handleToolSelect = useCallback((toolId: string) => {
         setActiveTool(toolId);
-        const path = toolId === "dashboard" ? "/contents" : `/contents/${toolId}`;
+        const path = `/contents/${toolId}`;
         router.push(path, { scroll: false });
     }, [router]);
 
     return (
-        <div className="flex h-screen overflow-hidden bg-[#f5f5f0] p-4 gap-4">
+        <div className="flex h-screen overflow-hidden bg-white">
             <ContentsSidebar activeTool={activeTool} onToolSelect={handleToolSelect} />
 
-            <div className="flex-1 flex flex-col min-w-0 glass-panel border-hairline rounded-[28px] overflow-hidden shadow-sm">
-                {activeTool !== "writer" && activeTool !== "planner" && (
-                    <ContentsHeader
-                        activeTool={activeTool}
-                        onToolSelect={handleToolSelect}
-                        viewMode={viewMode}
-                        onViewModeChange={setViewMode}
-                    />
-                )}
-
+            <div className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden relative">
                 <div className="flex-1 overflow-hidden flex flex-col">
                     <AnimatePresence mode="wait">
                         <motion.div
@@ -119,16 +116,7 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
                             transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
                             className="flex-1 overflow-hidden flex flex-col"
                         >
-                            {activeTool === "dashboard" ? (
-                                <DashboardViewWithViewMode viewMode={viewMode} onToolSelect={handleToolSelect} />
-                            ) : (
-                                <div className={cn(
-                                    "flex-1 flex flex-col",
-                                    activeTool === "writer" || activeTool === "planner" ? "overflow-hidden" : "overflow-y-auto custom-scrollbar p-6"
-                                )}>
-                                    <ToolView toolId={activeTool} />
-                                </div>
-                            )}
+                            <ToolView toolId={activeTool} />
                         </motion.div>
                     </AnimatePresence>
                 </div>
@@ -137,28 +125,3 @@ export function ContentsLayout({ initialTool = "dashboard" }: ContentsLayoutProp
     );
 }
 
-function DashboardViewWithViewMode({
-    viewMode,
-    onToolSelect
-}: {
-    viewMode: ViewMode;
-    onToolSelect: (id: string) => void;
-}) {
-    return (
-        <AnimatePresence mode="wait">
-            <motion.div
-                key={viewMode}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="flex-1 overflow-y-auto custom-scrollbar p-6 h-full"
-            >
-                                {viewMode === "cards" && <ArticleCardGrid onToolSelect={onToolSelect} />}
-                {viewMode === "kanban" && <ArticleKanbanBoard onToolSelect={onToolSelect} />}
-                {viewMode === "calendar" && <ArticleCalendar onToolSelect={onToolSelect} />}
-                {viewMode === "table" && <ArticleTable onToolSelect={onToolSelect} />}
-            </motion.div>
-        </AnimatePresence>
-    );
-}

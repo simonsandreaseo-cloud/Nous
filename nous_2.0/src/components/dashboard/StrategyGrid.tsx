@@ -38,6 +38,7 @@ interface StrategyGridProps {
     columnVisibility?: Record<string, boolean>;
     selectedTaskIds?: string[];
     onSelectionChange?: (ids: string[]) => void;
+    batchProgress?: Record<string, number>;
 }
 
 export default function StrategyGrid({ 
@@ -45,7 +46,8 @@ export default function StrategyGrid({
     onRunResearch, 
     columnVisibility: externalVisibility,
     selectedTaskIds = [],
-    onSelectionChange
+    onSelectionChange,
+    batchProgress = {}
 }: StrategyGridProps) {
     const { tasks, activeProject, addTask, updateTask, deleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
@@ -251,11 +253,11 @@ export default function StrategyGrid({
             className="flex-1 flex flex-col overflow-hidden"
             onPaste={handlePaste}
         >
-            <div className="flex-1 overflow-auto custom-scrollbar px-8">
+            <div className="flex-1 overflow-auto custom-scrollbar">
                 <table className="min-w-full text-left border-collapse table-auto">
                     <thead>
-                        <tr className="bg-white border-b border-slate-200/80 sticky top-0 z-[5] backdrop-blur-sm">
-                            <th className="px-3 py-3 w-[40px]">
+                        <tr className="bg-white border-b border-slate-100 sticky top-0 z-[5]">
+                            <th className="px-6 py-3 w-[60px]">
                                 <div 
                                     className={cn(
                                         "w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer transition-all",
@@ -299,12 +301,21 @@ export default function StrategyGrid({
                                 <tr
                                     key={task.id}
                                     className={cn(
-                                        "group hover:bg-slate-50/30 even:bg-slate-50/10 transition-all cursor-pointer select-none border-b border-slate-50 last:border-none",
-                                        selectedTaskIds.includes(task.id) && "bg-indigo-50/40 hover:bg-indigo-50/60"
+                                        "group hover:bg-slate-50/30 even:bg-slate-50/10 transition-all cursor-pointer select-none border-b border-slate-50 last:border-none relative overflow-hidden",
+                                        selectedTaskIds.includes(task.id) && "bg-indigo-50/40 hover:bg-indigo-50/60",
+                                        batchProgress[task.id] && batchProgress[task.id] < 100 && "bg-indigo-50/20"
                                     )}
                                     onClick={() => onSelectTask?.(task)}
                                 >
                                     <td className="px-3 py-2" onClick={(e) => toggleOne(task.id, e)}>
+                                        {batchProgress[task.id] && batchProgress[task.id] < 100 && (
+                                            <motion.div 
+                                                initial={{ x: "-100%" }}
+                                                animate={{ x: "100%" }}
+                                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                                className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/5 to-transparent pointer-events-none z-0"
+                                            />
+                                        )}
                                         <div 
                                             className={cn(
                                                 "w-4 h-4 rounded border-2 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
@@ -326,24 +337,61 @@ export default function StrategyGrid({
 
                                     {columnVisibility['status'] && (
                                         <td className="px-3 py-2">
-                                            <div className={cn(
-                                                "px-1.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border",
-                                                (task.status === "por_maquetar" || task.status === "publicado" || task.status === "done")
-                                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                                    : (task.status === "en_investigacion" || task.status === "investigacion_proceso")
-                                                        ? "bg-indigo-50 text-indigo-600 border-indigo-100"
-                                                        : (task.status === "por_redactar" || task.status === "por_corregir" || task.status === "en_redaccion")
-                                                            ? "bg-purple-50 text-purple-600 border-purple-100"
-                                                            : "bg-slate-50 text-slate-600 border-slate-100"
-                                            )}>
+                                            {batchProgress[task.id] && batchProgress[task.id] < 100 ? (
+                                                <div className="flex items-center gap-2.5 py-1">
+                                                    <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
+                                                        <svg className="w-full h-full -rotate-90">
+                                                            <circle
+                                                                cx="14"
+                                                                cy="14"
+                                                                r="11"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                strokeWidth="3"
+                                                                className="text-slate-100"
+                                                            />
+                                                            <motion.circle
+                                                                cx="14"
+                                                                cy="14"
+                                                                r="11"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                strokeWidth="3"
+                                                                strokeDasharray="69.1"
+                                                                initial={{ strokeDashoffset: 69.1 }}
+                                                                animate={{ strokeDashoffset: 69.1 - (69.1 * batchProgress[task.id] / 100) }}
+                                                                transition={{ duration: 0.5, ease: "easeOut" }}
+                                                                className="text-indigo-600"
+                                                                strokeLinecap="round"
+                                                            />
+                                                        </svg>
+                                                        <span className="absolute text-[8px] font-black tabular-nums text-slate-900">{Math.round(batchProgress[task.id])}%</span>
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[8px] font-black uppercase text-indigo-600 tracking-tighter leading-none animate-pulse">Investigando</span>
+                                                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Nous en proceso</span>
+                                                    </div>
+                                                </div>
+                                            ) : (
                                                 <div className={cn(
-                                                    "w-1 h-1 rounded-full",
-                                                    (task.status === "por_maquetar" || task.status === "publicado" || task.status === "done") ? "bg-emerald-500" :
-                                                    (task.status === "en_investigacion" || task.status === "investigacion_proceso") ? "bg-indigo-500" :
-                                                    (task.status === "por_redactar" || task.status === "por_corregir" || task.status === "en_redaccion") ? "bg-purple-500" : "bg-slate-400"
-                                                )} />
-                                                {STATUS_LABELS[task.status] || task.status.replace(/_/g, ' ')}
-                                            </div>
+                                                    "px-1.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border",
+                                                    (task.status === "por_maquetar" || task.status === "publicado" || task.status === "done")
+                                                        ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                                        : (task.status === "en_investigacion" || task.status === "investigacion_proceso")
+                                                            ? "bg-indigo-50 text-indigo-600 border-indigo-100"
+                                                            : (task.status === "por_redactar" || task.status === "por_corregir" || task.status === "en_redaccion")
+                                                                ? "bg-purple-50 text-purple-600 border-purple-100"
+                                                                : "bg-slate-50 text-slate-600 border-slate-100"
+                                                )}>
+                                                    <div className={cn(
+                                                        "w-1 h-1 rounded-full",
+                                                        (task.status === "por_maquetar" || task.status === "publicado" || task.status === "done") ? "bg-emerald-500" :
+                                                        (task.status === "en_investigacion" || task.status === "investigacion_proceso") ? "bg-indigo-500" :
+                                                        (task.status === "por_redactar" || task.status === "por_corregir" || task.status === "en_redaccion") ? "bg-purple-500" : "bg-slate-400"
+                                                    )} />
+                                                    {STATUS_LABELS[task.status] || task.status.replace(/_/g, ' ')}
+                                                </div>
+                                            )}
                                         </td>
                                     )}
 
@@ -480,7 +528,7 @@ export default function StrategyGrid({
                                                             initial={{ opacity: 0, y: 5, scale: 0.95 }}
                                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                                             exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                            className="absolute left-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-20 p-4 space-y-3"
+                                                            className="absolute left-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-2xl z-20 p-4 space-y-3"
                                                         >
                                                             <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1">Agregar Keyword Principal</span>
                                                             <div className="space-y-3">
@@ -531,7 +579,7 @@ export default function StrategyGrid({
                                     {columnVisibility['strategy'] && (
                                         <td className="px-3 py-2">
                                             <div className="flex items-center gap-1.5 justify-center">
-                                                {task.outline_structure && task.outline_structure.length > 0 ? (
+                                                {task.outline_structure?.headers?.length > 0 ? (
                                                     <div className="flex items-center gap-1 text-violet-500 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-100" title="Outline Completo">
                                                         <Sparkles size={11} />
                                                         <span className="text-[8px] font-black uppercase tracking-tighter">Plan</span>
@@ -589,7 +637,7 @@ export default function StrategyGrid({
                                                             initial={{ opacity: 0, y: 5, scale: 0.95 }}
                                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                                             exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                            className="absolute left-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-2xl shadow-2xl z-30 overflow-hidden"
+                                                            className="absolute left-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-2xl z-30 overflow-hidden"
                                                         >
                                                             <div className="p-2 bg-slate-50 border-b border-slate-100">
                                                                 <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Asignar a...</span>
@@ -667,7 +715,7 @@ export default function StrategyGrid({
                                                             initial={{ opacity: 0, y: 5, scale: 0.95 }}
                                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                                             exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                            className="absolute left-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-30 p-4 space-y-4"
+                                                            className="absolute left-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-2xl z-30 p-4 space-y-4"
                                                         >
                                                             <div>
                                                                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-2">Keywords LSI</span>

@@ -23,39 +23,52 @@ export const BatchProcessor = {
     async processOutlines(
         tasks: Task[], 
         projectId: string,
+        csvData: any[],
         onProgress: (percent: number) => void,
-        onLog: (taskId: string, stage: string, msg: string) => void
+        onLog: (taskId: string, stage: string, msg: string) => void,
+        onTaskUpdate?: (id: string, updates: Partial<Task>) => void,
+        onTaskProgress?: (id: string, percent: number) => void
     ) {
         let count = 0;
         for (const task of tasks) {
             try {
                 onLog(task.id, 'Outline', `Iniciando diseño de estructura para: ${task.title}`);
+                onTaskProgress?.(task.id, 10);
                 
                 const config: ArticleConfig = {
                     projectName: 'Nous Project',
                     niche: task.metadata?.niche || 'General',
-                    topic: task.target_keyword || task.title,
-                    metaTitle: task.title,
+                    topic: task.h1 || task.title,
+                    metaTitle: task.seo_title || task.title,
                     keywords: task.target_keyword || '',
                     tone: 'Profesional',
                     wordCount: '1500',
+                    refUrls: '',
                     refContent: task.research_dossier?.brief || '',
-                    approvedLinks: task.research_dossier?.suggestedInternalLinks || []
+                    approvedLinks: task.research_dossier?.suggestedInternalLinks || [],
+                    csvData: csvData || []
                 };
 
                 const res = await generateOutlineStrategy(config, task.target_keyword || task.title, task.research_dossier);
-                
-                await supabase.from('tasks').update({
+                onTaskProgress?.(task.id, 90);
+
+                const updates: Partial<Task> = {
                     outline_structure: { headers: res.outline?.headers || [] },
                     h1: res.snippet?.h1 || task.title,
                     seo_title: res.snippet?.metaTitle || task.title,
                     target_url_slug: res.snippet?.slug || '',
-                    meta_description: res.snippet?.metaDescription || ''
-                }).eq('id', task.id);
+                    meta_description: res.snippet?.metaDescription || '',
+                    status: 'por_redactar'
+                };
+
+                await supabase.from('tasks').update(updates).eq('id', task.id);
+                onTaskUpdate?.(task.id, updates);
 
                 onLog(task.id, 'Outline', `✅ Estructura generada con éxito.`);
+                onTaskProgress?.(task.id, 100);
             } catch (error: any) {
                 onLog(task.id, 'Error', `❌ Error en Outline: ${error.message}`);
+                onTaskProgress?.(task.id, 0);
             }
             count++;
             onProgress((count / tasks.length) * 100);
@@ -68,39 +81,53 @@ export const BatchProcessor = {
     async processDrafts(
         tasks: Task[],
         onProgress: (percent: number) => void,
-        onLog: (taskId: string, stage: string, msg: string) => void
+        onLog: (taskId: string, stage: string, msg: string) => void,
+        onTaskUpdate?: (id: string, updates: Partial<Task>) => void,
+        onTaskProgress?: (id: string, percent: number) => void
     ) {
         let count = 0;
         for (const task of tasks) {
             try {
                 onLog(task.id, 'Redacción', `Iniciando redacción masiva para: ${task.title}`);
+                onTaskProgress?.(task.id, 10);
                 
-                // Construcción de Prompt similar a WriterEditor
-                const prompt = buildPrompt({
+                const config: ArticleConfig = {
+                    projectName: 'Nous Project',
+                    niche: task.metadata?.niche || 'General',
                     topic: task.h1 || task.title,
+                    metaTitle: task.seo_title || task.title,
                     keywords: task.target_keyword || '',
-                    outline: task.outline_structure?.headers || [],
-                    links: task.research_dossier?.suggestedInternalLinks || [],
-                    notes: task.research_dossier?.brief || '',
                     tone: 'Profesional',
-                    wordCount: '1500'
-                });
+                    wordCount: '1500',
+                    refUrls: '',
+                    refContent: task.research_dossier?.brief || '',
+                    csvData: [],
+                    outlineStructure: task.outline_structure?.headers || [],
+                    approvedLinks: task.research_dossier?.suggestedInternalLinks || []
+                };
 
-                const stream = await generateArticleStream('gemini-2.5-flash', prompt);
+                const prompt = buildPrompt(config);
+                const stream = await generateArticleStream('gemma-3-27b-it', prompt);
                 let fullContent = '';
                 
-                for await (const chunk of stream) {
+                for await (const chunk of (stream as any)) {
                     fullContent += chunk.text;
+                    // Opcional: Podríamos emitir mini-progresos aquí pero recargaría mucho la UI
                 }
 
-                await supabase.from('tasks').update({
+                const updates: Partial<Task> = {
                     content_body: fullContent,
                     status: 'por_corregir'
-                }).eq('id', task.id);
+                };
+
+                await supabase.from('tasks').update(updates).eq('id', task.id);
+                onTaskUpdate?.(task.id, updates);
 
                 onLog(task.id, 'Redacción', `✅ Artículo redactado y guardado.`);
+                onTaskProgress?.(task.id, 100);
             } catch (error: any) {
                 onLog(task.id, 'Error', `❌ Error en Redacción: ${error.message}`);
+                onTaskProgress?.(task.id, 0);
             }
             count++;
             onProgress((count / tasks.length) * 100);
@@ -113,32 +140,49 @@ export const BatchProcessor = {
     async processHumanization(
         tasks: Task[],
         onProgress: (percent: number) => void,
-        onLog: (taskId: string, stage: string, msg: string) => void
+        onLog: (taskId: string, stage: string, msg: string) => void,
+        onTaskUpdate?: (id: string, updates: Partial<Task>) => void,
+        onTaskProgress?: (id: string, percent: number) => void
     ) {
         let count = 0;
         for (const task of tasks) {
             try {
                 if (!task.content_body) continue;
-                onLog(task.id, 'Humanización', `Iniciando humanización indetectable para: ${task.title}`);
+                onLog(task.id, 'Humanización', `Iniciando humanización de alta fidelidad para: ${task.title}`);
+                onTaskProgress?.(task.id, 10);
                 
                 const res = await runHumanizerPipeline(
                     task.content_body,
-                    { mode: 'balanced', tone: 'natural' },
-                    (status) => onLog(task.id, 'Progreso', status)
+                    { 
+                        niche: 'General', 
+                        audience: 'General', 
+                        keywords: task.target_keyword || '' 
+                    },
+                    0.7, // intensity
+                    (status: string) => {
+                        onLog(task.id, 'IA', status);
+                        // Podemos extrapolar algo de progreso del status si quisiéramos
+                    },
+                    'gemma-3-27b-it'
                 );
 
-                await supabase.from('tasks').update({
-                    content_body: res.content,
+                const updates: Partial<Task> = {
+                    content_body: res.html,
                     metadata: { 
                         ...task.metadata, 
                         is_humanized: true, 
                         humanized_at: new Date().toISOString() 
                     }
-                }).eq('id', task.id);
+                };
+
+                await supabase.from('tasks').update(updates).eq('id', task.id);
+                onTaskUpdate?.(task.id, updates);
 
                 onLog(task.id, 'Humanización', `✅ Contenido humanizado con éxito.`);
+                onTaskProgress?.(task.id, 100);
             } catch (error: any) {
                 onLog(task.id, 'Error', `❌ Error en Humanización: ${error.message}`);
+                onTaskProgress?.(task.id, 0);
             }
             count++;
             onProgress((count / tasks.length) * 100);

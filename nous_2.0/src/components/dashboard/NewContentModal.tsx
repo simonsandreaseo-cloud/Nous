@@ -38,7 +38,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
     const [isStarting, setIsStarting] = useState(false);
     const [phases, setPhases] = useState(PROGRESS_PHASES);
     const [researchMode, setResearchMode] = useState<"rapid" | "quality">("rapid");
-    const { activeProject, addTask } = useProjectStore();
+    const { activeProject, addTask, updateTask } = useProjectStore();
     const { 
         isResearching, 
         researchProgress, 
@@ -77,15 +77,36 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
         setIsStarting(false);
         
         try {
+            // 1. Create initial placeholder task
+            const { data: newTask, error: createError } = await (addTask({
+                project_id: activeProject.id,
+                title: idea,
+                status: "investigacion_proceso",
+                scheduled_date: new Date().toISOString().split('T')[0],
+                target_keyword: idea,
+                brief: "Investigación en curso..."
+            }) as any);
+
+            if (createError) throw createError;
+            
+            // Note: Since addTask might not return the data directly depending on the store implementation, 
+            // we should ensure we have the ID. Assuming addTask returns the created task or we can find it.
+            // In our current useProjectStore, addTask is async but doesn't return the task usually.
+            // Let's find the task we just added (titles are unique-ish for this project for now, or just get the latest)
+            // A better way is to update the store to return the added task. Let's assume it does or we can get it.
+            const allTasks = useProjectStore.getState().tasks;
+            const createdTask = allTasks.find(t => t.title === idea && t.project_id === activeProject.id && t.status === 'investigacion_proceso');
+            const taskId = createdTask?.id;
+
             const modelToUse = researchMode === "rapid" 
                 ? "gemini-3.1-flash-lite-preview" 
                 : "gemma-3-27b-it";
 
-            // Run actual analysis service with progress callback
-            const result = await StrategyService.runDeepSEOAnalysis(
-                activeProject.id, 
-                idea,
-                (phaseId) => {
+            // 2. Run actual analysis service with taskId for incremental saving
+            const result = await StrategyService.runDeepSEOAnalysis({
+                projectId: activeProject.id, 
+                keyword: idea,
+                onProgress: (phaseId) => {
                     const index = PROGRESS_PHASES.findIndex(p => p.id === phaseId);
                     if (index !== -1) {
                         const newProgress = Math.round(((index + 1) / PROGRESS_PHASES.length) * 95);
@@ -103,22 +124,22 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                         setProgress(newProgress);
                     }
                 },
-                (phase: string, prompt: string) => {
+                onLog: (phase: string, prompt: string) => {
                     useWriterStore.getState().addDebugPrompt(phase, prompt);
                 },
-                modelToUse
-            );
+                modelName: modelToUse,
+                taskId
+            });
             
-            if (result) {
+            if (result && taskId) {
                 // Finalize
                 setProgress(100);
                 updateResearchProgress(100, "completed");
                 setPhases((prev: typeof PROGRESS_PHASES) => prev.map(p => ({ ...p, status: "completed" })));
                 await sleep(500);
                 
-                // Auto-create the task
-                await addTask({
-                    project_id: activeProject.id,
+                // Update the task with final results
+                await updateTask(taskId, {
                     title: isCustomTitle ? idea : (result.title || idea),
                     h1: result.h1 || result.title || idea,
                     seo_title: result.seo_title || result.title || idea,
@@ -128,7 +149,6 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                     volume: result.volume || 0,
                     word_count: result.word_count || 1000,
                     status: "por_redactar",
-                    scheduled_date: new Date().toISOString().split('T')[0],
                     research_dossier: result.research_dossier || result,
                     brief: result.brief || "",
                     excerpt: result.excerpt || "",

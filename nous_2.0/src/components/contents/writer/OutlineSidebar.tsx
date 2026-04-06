@@ -26,8 +26,11 @@ export default function OutlineSidebar() {
 
     // Smart default: distribute word count evenly if a section has no wordCount
     const getSmartWordCount = (item: any, idx: number) => {
-        if (item.wordCount && parseInt(item.wordCount) > 0) return item.wordCount;
-        const total = parseInt(strategyWordCount) || 1500;
+        if (item.wordCount) {
+            const parsed = parseInt(String(item.wordCount));
+            if (!isNaN(parsed) && parsed > 0) return String(parsed);
+        }
+        const total = parseInt(String(strategyWordCount)) || 1500;
         const perSection = Math.round(total / Math.max(strategyOutline.length, 1) / 50) * 50;
         return String(Math.max(perSection, 100));
     };
@@ -157,7 +160,7 @@ export default function OutlineSidebar() {
                         type="number"
                         min="300"
                         step="100"
-                        value={strategyWordCount}
+                        value={parseInt(String(strategyWordCount)) || 1500}
                         onChange={e => setStrategyWordCount(e.target.value)}
                         className="w-full text-sm font-black text-indigo-600 bg-transparent outline-none"
                     />

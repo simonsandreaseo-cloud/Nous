@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Globe, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
 import { NotificationService } from "@/lib/services/notifications";
+import { fetchJinaExtraction } from "@/lib/services/jina";
 
 interface CompetitorModalProps {
     isOpen: boolean;
@@ -60,21 +61,13 @@ export default function CompetitorModal({ isOpen, onClose, taskId }: CompetitorM
         setIsExtracting(true);
         try {
             const results = [];
-            for (const comp of competitors) {
+        for (const comp of competitors) {
                 try {
                     const apiKey = process.env.NEXT_PUBLIC_JINA_API_KEY || '';
-                    const response = await fetch(`https://r.jina.ai/${comp.url}`, {
-                        headers: {
-                            'Authorization': `Bearer ${apiKey}`,
-                            'X-Retain-Images': 'none'
-                        }
-                    });
+                    const data = await fetchJinaExtraction(comp.url, apiKey);
                     
-                    if (!response.ok) throw new Error(`Error fetching ${comp.url}`);
-                    
-                    const text = await response.text(); 
-                    if (text) {
-                        results.push({ url: comp.url, content: text });
+                    if (data && data.content) {
+                        results.push({ url: comp.url, content: data.content });
                     }
                 } catch (e) {
                     console.error(`Error scraping ${comp.url}:`, e);

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/utils/cn";
+import { NotificationService } from "@/lib/services/notifications";
 
 export default function AIConsole() {
     const { 
@@ -56,6 +57,17 @@ export default function AIConsole() {
                 </div>
                 
                 <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => {
+                            const allText = debugPrompts.map(p => `--- PHASE: ${p.phase} ---\nPROMPT:\n${p.prompt}\n\nRESPONSE:\n${p.response || 'No response'}\n`).join('\n\n');
+                            navigator.clipboard.writeText(allText);
+                            NotificationService.notify("Copiado", "Todos los logs han sido copiados al portapapeles.");
+                        }}
+                        className="p-2 text-slate-500 hover:text-white transition-colors"
+                        title="Copiar Todo"
+                    >
+                        <Copy size={16} />
+                    </button>
                     <button 
                         onClick={clearDebugPrompts}
                         className="p-2 text-slate-500 hover:text-white transition-colors"

@@ -43,12 +43,13 @@ interface ProjectState {
     createProject: (project: Omit<Project, 'id' | 'created_at' | 'user_id'>) => Promise<Project | null>;
     updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
     deleteProject: (projectId: string) => Promise<void>;
-    addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<void>;
+    addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<{ data: Task | null, error: any }>;
     updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
     deleteTask: (taskId: string) => Promise<void>;
     deleteTasks: (taskIds: string[]) => Promise<void>;
     updateTasks: (taskIds: string[], updates: Partial<Task>) => Promise<void>;
     fetchPersonalTasks: () => Promise<void>;
+    fetchTeamMembers: (teamId?: string) => Promise<void>;
     assignTask: (taskId: string, userId: string | null) => Promise<void>;
     claimTask: (taskId: string) => Promise<void>;
     validateStatusTransition: (task: Task, nextStatus: string) => { valid: boolean; error?: string };
@@ -150,7 +151,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         }
     },
 
-    fetchTeamMembers: async (teamId) => {
+    fetchTeamMembers: async (teamId?: string) => {
         const targetId = teamId || get().activeTeam?.id;
         if (!targetId) return;
 
@@ -380,10 +381,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         if (error) {
             console.error('Error adding task:', error);
             alert(`Error al crear contenido: ${error.message}`);
-            return;
+            return { data: null, error };
         }
 
         set(state => ({ tasks: [...state.tasks, data as Task] }));
+        return { data: data as Task, error: null };
     },
 
     updateTask: async (taskId, updates) => {

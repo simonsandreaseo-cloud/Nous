@@ -123,7 +123,7 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
                     <input
                         type="text"
                         placeholder="Buscar artículo…"
-                        className="pl-8 pr-4 py-2 text-[11px] bg-slate-50 border border-slate-100 rounded-xl text-slate-600 placeholder:text-slate-300 focus:outline-none focus:border-slate-200 w-48 transition-all focus:w-56"
+                        className="pl-8 pr-4 py-2 text-[11px] bg-slate-50 border border-slate-100 rounded-lg text-slate-600 placeholder:text-slate-300 focus:outline-none focus:border-slate-200 w-48 transition-all focus:w-56"
                     />
                 </div>
 
@@ -138,7 +138,7 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
 
                 {/* Programar split button */}
                 <div className="relative">
-                    <div className="flex items-center rounded-xl overflow-hidden border border-slate-900 bg-slate-900">
+                    <div className="flex items-center rounded-lg overflow-hidden border border-slate-900 bg-slate-900">
                         <button 
                             onClick={handleNewContent}
                             className="flex items-center gap-1.5 pl-4 pr-3 py-2 text-[10px] font-black tracking-widest uppercase text-white hover:bg-slate-800 transition-colors"
@@ -161,7 +161,7 @@ export function ContentsHeader({ activeTool, onToolSelect, viewMode, onViewModeC
                                 initial={{ opacity: 0, y: -4, scale: 0.97 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                                className="absolute right-0 top-full mt-2 w-52 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-2xl shadow-lg overflow-hidden z-20"
+                                className="absolute right-0 top-full mt-2 w-52 bg-white/90 backdrop-blur-xl border border-slate-100 rounded-lg shadow-lg overflow-hidden z-20"
                             >
                                 {[
                                     { label: "Programar un Contenido", desc: "Crear pieza individual" },

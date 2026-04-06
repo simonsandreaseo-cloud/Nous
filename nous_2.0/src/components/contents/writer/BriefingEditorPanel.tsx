@@ -62,8 +62,11 @@ export default function BriefingEditorPanel({
     }, [strategyOutline, activeIdx, setStrategyOutline]);
 
     const smartWordCount = useCallback((item: StrategyOutlineItem) => {
-        if (item.wordCount && parseInt(item.wordCount) > 0) return item.wordCount;
-        const total = parseInt(strategyWordCount) || 1500;
+        if (item.wordCount) {
+            const parsed = parseInt(String(item.wordCount));
+            if (!isNaN(parsed) && parsed > 0) return String(parsed);
+        }
+        const total = parseInt(String(strategyWordCount)) || 1500;
         const perSection = Math.round(total / Math.max(strategyOutline.length, 1) / 50) * 50;
         return String(Math.max(perSection, 100));
     }, [strategyWordCount, strategyOutline.length]);

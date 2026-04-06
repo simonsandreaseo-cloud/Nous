@@ -54,13 +54,11 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
 
         try {
             // Mocking progress based on phases usually reported by runDeepSEOAnalysis
-            const data = await runDeepSEOAnalysis(
-                idea,
-                [], // csvData empty for now if not provided
-                activeProject.name,
-                true,
-                activeProject.id,
-                (phase) => {
+            const data = await runDeepSEOAnalysis({
+                keyword: idea,
+                csvData: [], // csvData empty for now if not provided
+                projectId: activeProject.id,
+                onProgress: (phase) => {
                     setCurrentPhase(phase);
                     // Approximate progress based on phase names
                     if (phase.includes('Fase 1')) setProgress(20);
@@ -70,7 +68,7 @@ export function NewContentModal({ isOpen, onClose, initialDate }: NewContentModa
                     if (phase.includes('Fase 5')) setProgress(90);
                     if (phase.includes('Fase 6')) setProgress(95);
                 }
-            );
+            });
 
             setProgress(100);
             setCurrentPhase('Investigación Completada');

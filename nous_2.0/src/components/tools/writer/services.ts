@@ -16,10 +16,16 @@ import {
     AIImageRequest
 } from "@/lib/services/writer/types";
 
-import { runDeepSEOAnalysis as libRunDeepSEOAnalysis } from "@/lib/services/writer/seo-analyzer";
+import { runDeepSEOAnalysis as libRunDeepSEOAnalysis, type DeepSEOConfig } from "@/lib/services/writer/seo-analyzer";
 import { buildPrompt as libBuildPrompt } from "@/lib/services/writer/prompts";
 
-export const runDeepSEOAnalysis = libRunDeepSEOAnalysis;
+export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
+    return libRunDeepSEOAnalysis({
+        ...config,
+        serperKey: config.serperKey || process.env.NEXT_PUBLIC_SERPER_API_KEY || "",
+        jinaKey: config.jinaKey || process.env.NEXT_PUBLIC_JINA_API_KEY || "",
+    });
+};
 export const buildPrompt = libBuildPrompt;
 
 export { type ArticleConfig, type SEOAnalysisResult, type DeepSEOAnalysisResult, type CompetitorDetail, type ContentItem, type HumanizerConfig, type VisualResource, type ImageGenConfig, type AIImageRequest };
@@ -388,7 +394,7 @@ export const generateArticleStream = async (model: string, prompt: string) => {
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
-            model: currentModel || 'gemini-2.5-flash',
+            model: currentModel || 'gemma-3-27b-it',
             systemInstruction: "Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]). Generas HTML impecable.",
             generationConfig: {
                 temperature: 0.7,
@@ -629,7 +635,6 @@ export const fetchDataForSEOKeywords = async (url: string): Promise<any> => {
  * - [x] Fase 2: Mejora de Lógica en `services.ts`
     - [x] Implementar `fetchGlobalMetrics` para volumen/dificultad principal
     - [x][services.ts] Integrar métricas globales en `runDeepSEOAnalysis`
-    - [x][services.ts] Validar flujo de extracción de Unstructured.io
 - [/] Fase 3: Interfaz de Usuario (UI)
  */
 export const fetchGlobalMetrics = async (keyword: string): Promise<{ volume: string; difficulty: string }> => {
@@ -653,28 +658,6 @@ export const fetchGlobalMetrics = async (keyword: string): Promise<{ volume: str
     }
 };
 
-/**
- * Unstructured.io: Extract clean text from a URL.
- * Routes through /api/unstructured proxy to avoid CORS restrictions.
- */
-export const fetchUnstructuredContent = async (url: string): Promise<string> => {
-    try {
-        // Use server-side proxy to avoid CORS — the browser cannot call Unstructured.io directly
-        const response = await fetch('/api/unstructured', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
-        });
-
-        if (!response.ok) return "";
-
-        const data = await response.json();
-        return data.text || "";
-    } catch (e) {
-        console.error("Unstructured Error:", e);
-        return "";
-    }
-};
 
 export const searchOfficialAssets = async (query: string): Promise<VisualResource[]> => {
     try {
@@ -1115,7 +1098,7 @@ export const runHumanizerPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus: (msg: string) => void,
-    modelName: string = 'gemini-2.5-flash'
+    modelName: string = 'gemma-3-27b-it'
 ): Promise<{ html: string; metadata?: any }> => {
     // ---------------------------------------------
     // FASE 0: PREPARACIÓN Y CHUNKING

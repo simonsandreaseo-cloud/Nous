@@ -31,12 +31,13 @@ interface SEOTabProps {
 // Fields to measure completeness
 const SEO_FIELDS = [
     { key: 'target_keyword', label: 'Keyword Principal', weight: 20 },
-    { key: 'volume', label: 'Volumen de Búsqueda', weight: 15 },
+    { key: 'volume', label: 'Volumen de Búsqueda', weight: 10 },
     { key: 'brief', label: 'Brief / Intención', weight: 10 },
-    { key: 'research_dossier', label: 'Dossier de Investigación', weight: 25 },
-    { key: 'lsi_keywords', label: 'Keywords LSI', weight: 15 },
+    { key: 'research_dossier', label: 'Dossier de Investigación', weight: 20 },
+    { key: 'lsi_keywords', label: 'Keywords LSI', weight: 10 },
+    { key: 'excerpt', label: 'Extracto / Resumen', weight: 10 },
     { key: 'refs', label: 'URLs de Referencia', weight: 10 },
-    { key: 'target_url_slug', label: 'Slug de la URL', weight: 5 },
+    { key: 'target_url_slug', label: 'Slug de la URL', weight: 10 },
 ];
 
 export default function SEOTab({ task }: SEOTabProps) {

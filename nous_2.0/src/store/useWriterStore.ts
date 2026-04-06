@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Task, Project } from '@/types/project';
-import { ContentItem, SEOAnalysisResult } from '@/components/tools/writer/services';
+import type { ContentItem, SEOAnalysisResult } from '@/lib/services/writer/types';
 
 export type WriterViewMode = 'dashboard' | 'setup' | 'workspace' | 'seo-review' | 'structure-review';
 export type SidebarTab = 'assistant' | 'generate' | 'seo' | 'research' | 'humanize' | 'media' | 'history' | 'export';
@@ -360,7 +360,10 @@ export const useWriterStore = create<WriterState>((set) => ({
     setStrategySlug: (strategySlug) => set({ strategySlug }),
     setStrategyDesc: (strategyDesc) => set({ strategyDesc }),
     setStrategyExcerpt: (strategyExcerpt) => set({ strategyExcerpt }),
-    setStrategyWordCount: (strategyWordCount) => set({ strategyWordCount }),
+    setStrategyWordCount: (val: string) => {
+        const parsed = parseInt(String(val)) || 1500;
+        set({ strategyWordCount: String(parsed) });
+    },
     setStrategyTone: (strategyTone) => set({ strategyTone }),
     setResearchMode: (researchMode) => set({ researchMode }),
     setStrategyOutline: (strategyOutline) => set({ strategyOutline }),
@@ -423,7 +426,7 @@ export const useWriterStore = create<WriterState>((set) => ({
             seoResults: seoData,
             strategyLSI: seoData.lsiKeywords || [],
             strategyQuestions: seoData.frequentQuestions || [],
-            strategyWordCount: seoData.recommendedWordCount || '1500',
+            strategyWordCount: String(parseInt(String(seoData.recommendedWordCount)) || '1500'),
             strategyNotes: brief,
             detectedNiche: seoData.nicheDetected || '',
             strategyCannibalization: seoData.cannibalizationUrls || [],
@@ -529,7 +532,13 @@ export const useWriterStore = create<WriterState>((set) => ({
             researchDossier: dossier,
             rawSeoData: dossier,
             seoResults: dossier,
-            strategyWordCount: dossier?.recommendedWordCount || dossier?.word_count?.toString() || task.target_word_count?.toString() || state.strategyWordCount,
+            strategyWordCount: String(
+                parseInt(String(dossier?.recommendedWordCount)) || 
+                parseInt(String(dossier?.word_count)) || 
+                parseInt(String(task.target_word_count)) || 
+                parseInt(String(state.strategyWordCount)) || 
+                1500
+            ),
             strategyLSI: lsi,
             strategyQuestions: dossier?.frequentQuestions || state.strategyQuestions,
             competitorDetails: competitors,

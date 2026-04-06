@@ -29,15 +29,13 @@ export default function WriterSetupBoard({ onFinished }: { onFinished?: () => vo
         
         try {
             if (activeProject?.id) await store.loadProjectInventory(activeProject.id);
-            const seoData = await runDeepSEOAnalysis(
-                store.keyword, 
-                store.csvData, 
-                store.projectName, 
-                false, 
-                activeProject?.id, 
-                (phase) => store.setStatus(phase),
-                (phase, prompt) => store.addDebugPrompt(phase, prompt)
-            );
+            const seoData = await runDeepSEOAnalysis({
+                keyword: store.keyword, 
+                csvData: store.csvData, 
+                projectId: activeProject?.id, 
+                onProgress: (phase) => store.setStatus(phase),
+                onLog: (phase, prompt) => store.addDebugPrompt(phase, prompt)
+            });
             
             store.setStatus("Procesando competidores...");
             store.setIsConsoleOpen(true); // Pop up console to show research audit
@@ -70,7 +68,12 @@ export default function WriterSetupBoard({ onFinished }: { onFinished?: () => vo
             store.setStrategyMaxWords((parseInt(seoData.recommendedWordCount || '1500') * 1.2).toString());
             
             if (seoData.suggestedInternalLinks) {
-                store.setStrategyInternalLinks(seoData.suggestedInternalLinks.map(l => ({ url: l.url, title: l.title || '' })));
+                store.setStrategyInternalLinks(seoData.suggestedInternalLinks.map((u: { url: string; title?: string }) => ({ 
+                    url: u.url, 
+                    title: u.title || '',
+                    type: 'other' as const,
+                    search_index: "0"
+                })));
             }
 
             store.setStatus("Investigación completada");
@@ -389,7 +392,12 @@ export default function WriterSetupBoard({ onFinished }: { onFinished?: () => vo
                                 <textarea 
                                     value={store.strategyInternalLinks.map(l => l.url).join('\n')}
                                     onChange={e => {
-                                        const links = e.target.value.split('\n').filter(Boolean).map(u => ({ url: u.trim(), title: '' }));
+                                        const links = e.target.value.split('\n').filter(Boolean).map((u: string) => ({ 
+                                            url: u.trim(), 
+                                            title: '',
+                                            type: 'other' as const,
+                                            search_index: "0"
+                                        }));
                                         store.setStrategyInternalLinks(links);
                                     }}
                                     placeholder="Extraidos del GSC..."

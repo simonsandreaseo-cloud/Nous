@@ -2,74 +2,103 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
     try {
-        const { url } = await req.json();
+        const { url, apiKey: clientKey } = await req.json();
 
         if (!url) {
             return NextResponse.json({ error: "URL is required" }, { status: 400 });
         }
 
-        let targetUrl = url;
+        let targetUrl = url.trim();
 
-        // Resolve Google Grounding Redirects
-        if (url.includes('grounding-api-redirect') || url.includes('vertexaisearch')) {
-            try {
-                console.log("[JINA-READER] Resolving redirect for:", url.substring(0, 50) + "...");
-                const resolveRes = await fetch(url, { 
-                    method: "GET", 
-                    redirect: "follow",
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
-                });
-                console.log(`[JINA-READER] Resolve Status: ${resolveRes.status}`);
-                if (resolveRes.ok) {
-                    targetUrl = resolveRes.url;
-                    console.log("[JINA-READER] Resolved to:", targetUrl);
-                }
-            } catch (e) {
-                console.warn("[JINA-READER] Failed to resolve redirect:", e);
-            }
-        }
+        const jinaBaseUrl = "https://r.jina.ai/";
+        const rawKey = clientKey || process.env.JINA_READER_KEY || process.env.NEXT_PUBLIC_JINA_API_KEY;
+        const apiKey = rawKey?.trim();
 
-        const jinaUrl = `https://r.jina.ai/${targetUrl}`;
-        const apiKey = process.env.JINA_READER_KEY;
-
-        const headers: Record<string, string> = {
+        const baseHeaders: Record<string, string> = {
             "Accept": "application/json",
-            "X-With-Generated-Alt": "true"
+            "Content-Type": "application/json",
+            "x-respond-with": "markdown",
+            "x-reader-lm-v2": "true",
+            "X-With-Generated-Alt": "true",
+            "X-With-Iframe": "true",
+            "X-With-Images-Summary": "true",
+            "X-Retain-Images": "none",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         };
 
         if (apiKey) {
-            headers["Authorization"] = `Bearer ${apiKey}`;
+            const token = apiKey.startsWith('Bearer ') ? apiKey.substring(7) : apiKey;
+            baseHeaders["Authorization"] = `Bearer ${token}`;
         }
 
-        let response = await fetch(jinaUrl, { method: "GET", headers });
-        console.log(`[JINA-READER] Jina JSON Status: ${response.status} for ${targetUrl.substring(0, 50)}...`);
-
-        if (!response.ok) {
-            console.warn(`[JINA-READER] Jina JSON failed, retrying plain text...`);
-            response = await fetch(jinaUrl, { 
-                method: "GET", 
-                headers: { "X-With-Generated-Alt": "true" }
+        console.log(`[JINA-READER] Extracting (POST): ${targetUrl.substring(0, 60)}...`);
+        let response;
+        try {
+            response = await fetch(jinaBaseUrl, { 
+                method: "POST", 
+                headers: baseHeaders,
+                body: JSON.stringify({ url: targetUrl }),
+                signal: AbortSignal.timeout(25000)
             });
-            console.log(`[JINA-READER] Jina Plain Status: ${response.status}`);
+        } catch (fetchError: any) {
+            if (fetchError.name === 'TimeoutError' || fetchError.message?.includes('aborted')) {
+                console.warn(`[JINA-READER] Timeout (POST) for URL: ${targetUrl}`);
+                return NextResponse.json({ error: "TIMEOUT_EXCEEDED", message: "La web del competidor tardó demasiado en responder." }, { status: 504 });
+            }
+            throw fetchError;
+        }
+        
+        if (!response.ok) {
+            const errBody = await response.text().catch(() => "N/A");
+            console.error(`[JINA-READER] API Rejected (${response.status}):`, errBody.substring(0, 500));
+            
+            // Return Jina's actual error message if possible
+            let errorMsg = "Jina AI rejected the request";
+            try {
+                const errJson = JSON.parse(errBody);
+                errorMsg = errJson.error || errJson.message || errorMsg;
+            } catch(e) {}
+
+            if (response.status === 429 && apiKey) {
+                await new Promise(r => setTimeout(r, 2000));
+                response = await fetch(jinaBaseUrl, { 
+                    method: "POST", 
+                    headers: baseHeaders,
+                    body: JSON.stringify({ url: targetUrl })
+                });
+            } else if (response.status >= 400) {
+                return NextResponse.json({ 
+                    error: "JINA_ERROR", 
+                    message: errorMsg,
+                    status: response.status 
+                }, { status: 500 });
+            }
         }
 
         if (response.ok) {
             const contentType = response.headers.get("content-type") || "";
             if (contentType.includes("application/json")) {
-                const data = await response.json();
-                const result = data.data || data;
+                try {
+                    const data = await response.json();
+                    const result = data.data || data;
+                    return NextResponse.json({
+                        ok: true,
+                        title: result.title || "Contenido Extraído",
+                        url: targetUrl,
+                        content: result.content || result.markdown || "",
+                        markdown: result.markdown || result.content || ""
+                    });
+                } catch (e) {
+                    console.warn("[JINA-READER] JSON parse failed, falling back to text...");
+                }
+            }
+            
+            // Fallback for non-JSON or parse failure
+            const text = await response.text();
+            if (text.length > 100) {
                 return NextResponse.json({
                     ok: true,
-                    title: result.title,
-                    url: targetUrl,
-                    content: result.content,
-                    markdown: result.markdown || result.content
-                });
-            } else {
-                const text = await response.text();
-                return NextResponse.json({
-                    ok: true,
-                    title: "Fuente extraída (Texto)",
+                    title: "Extracción Directa",
                     url: targetUrl,
                     content: text,
                     markdown: text
@@ -77,46 +106,24 @@ export async function POST(req: Request) {
             }
         }
 
-        // LAST FALLBACK: Self-Extraction (Bypass Jina)
-        console.warn(`[JINA-READER] Jina failed completely. Performing self-fetch fallback for: ${targetUrl}`);
+        // EXTREME FALLBACK: Bypass Jina entirely
+        console.warn(`[JINA-READER] Final fallback for ${targetUrl}`);
         try {
-            const selfRes = await fetch(targetUrl, { 
-                method: "GET", 
-                headers: { 'User-Agent': 'Mozilla/5.0' },
-                next: { revalidate: 3600 } 
+            const directRes = await fetch(targetUrl, { 
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+                signal: AbortSignal.timeout(10000)
             });
-            if (selfRes.ok) {
-                const html = await selfRes.text();
-                // Basic HTML cleaning to get readable text
-                const text = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, '')
-                                 .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gm, '')
-                                 .replace(/<[^>]+>/gm, ' ')
-                                 .replace(/\s+/gm, ' ')
-                                 .trim()
-                                 .substring(0, 5000);
-                
-                return NextResponse.json({
-                    ok: true,
-                    title: "Fuente extraída (Self-Fetch)",
-                    url: targetUrl,
-                    content: text,
-                    markdown: text
-                });
+            if (directRes.ok) {
+                const html = await directRes.text();
+                const clean = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, '').replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gm, '').replace(/<[^>]+>/gm, ' ').replace(/\s+/gm, ' ').trim();
+                return NextResponse.json({ ok: true, title: "Auto-Extracción", url: targetUrl, content: clean.substring(0, 15000), markdown: clean.substring(0, 15000) });
             }
-        } catch (e: any) {
-            console.error(`[JINA-READER] Self-fetch error: ${e.message}`);
-        }
+        } catch (e) {}
 
-        return NextResponse.json({ 
-            error: "No se pudo leer la fuente de ninguna forma.", 
-            url: targetUrl 
-        }, { status: 500 });
+        return NextResponse.json({ error: "Extracción fallida después de múltiples intentos.", status: response.status }, { status: 500 });
 
     } catch (error: any) {
-        console.error("Jina Reader catch error:", error);
-        return NextResponse.json({ 
-            error: "Internal Server Error", 
-            message: error.message 
-        }, { status: 500 });
+        console.error("[JINA-READER] Critical error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
