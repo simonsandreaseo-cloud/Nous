@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Deploy trigger: Finalizing Turbopack setup
 import path from "path";
 
 const nextConfig = {
