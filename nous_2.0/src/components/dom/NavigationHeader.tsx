@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { User, LogOut, Wrench, ChevronDown, ChevronRight, FileText, Bot, LayoutTemplate, Calendar, Search, Activity, Building2, Settings, Wand2, Monitor, Cpu } from "lucide-react";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
-import { NeuralLinkStatus } from "@/components/dashboard/NeuralLinkStatus";
 import { NousLogo } from "@/components/dom/NousLogo";
 
 export function NavigationHeader() {
@@ -32,8 +31,6 @@ export function NavigationHeader() {
                 <div className="h-4 w-px bg-slate-200" />
                 {/* Project Selector embedded in header */}
                 <ProjectSelector />
-                <div className="h-4 w-px bg-slate-200" />
-                <NeuralLinkStatus />
             </div>
 
             {/* Centered Navigation */}

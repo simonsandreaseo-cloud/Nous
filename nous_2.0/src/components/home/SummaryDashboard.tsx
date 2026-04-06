@@ -20,7 +20,7 @@ import { useNodeStore } from "@/store/useNodeStore";
 import { MetricsService } from "@/lib/services/metrics";
 import { GscDailyMetric, MetricSummary } from "@/types/metrics";
 import { cn } from "@/utils/cn";
-import { MetricsChart } from "@/components/dashboard/MetricsChart";
+// import { MetricsChart } from "@/components/dashboard/MetricsChart";
 import Link from "next/link";
 
 export function SummaryDashboard() {
@@ -132,8 +132,11 @@ export function SummaryDashboard() {
                                     <div className="text-2xl font-black text-slate-900 leading-none">
                                         {summary?.totalClicks.toLocaleString() || '0'}
                                     </div>
-                                    <div className="w-16 h-8 opacity-50 group-hover:opacity-100 transition-opacity">
-                                        <MetricsChart data={metrics.slice(-14)} dataKey="clicks" color="#22d3ee" height={32} />
+                                    <div className="w-16 h-8 opacity-20 flex items-end gap-0.5">
+                                        <div className="w-1.5 h-3 bg-cyan-400 rounded-full" />
+                                        <div className="w-1.5 h-6 bg-cyan-400 rounded-full" />
+                                        <div className="w-1.5 h-4 bg-cyan-400 rounded-full" />
+                                        <div className="w-1.5 h-8 bg-cyan-400 rounded-full" />
                                     </div>
                                 </div>
                             </div>
@@ -149,8 +152,11 @@ export function SummaryDashboard() {
                                     <div className="text-2xl font-black text-slate-900 leading-none">
                                         {summary?.avgCtr || 0}%
                                     </div>
-                                    <div className="w-16 h-8 opacity-50 group-hover:opacity-100 transition-opacity">
-                                        <MetricsChart data={metrics.slice(-14)} dataKey="ctr" color="#818cf8" height={32} />
+                                    <div className="w-16 h-8 opacity-20 flex items-end gap-0.5">
+                                        <div className="w-1.5 h-4 bg-indigo-400 rounded-full" />
+                                        <div className="w-1.5 h-3 bg-indigo-400 rounded-full" />
+                                        <div className="w-1.5 h-6 bg-indigo-400 rounded-full" />
+                                        <div className="w-1.5 h-5 bg-indigo-400 rounded-full" />
                                     </div>
                                 </div>
                             </div>
@@ -165,8 +171,8 @@ export function SummaryDashboard() {
                                 </div>
                                 <span className="text-sm font-black text-slate-700">{summary?.totalImpressions.toLocaleString() || '0'}</span>
                             </div>
-                            <div className="h-[60px]">
-                                <MetricsChart data={metrics} dataKey="impressions" color="#94a3b8" height={60} />
+                            <div className="h-[60px] flex items-center justify-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                                <Activity size={16} className="text-slate-300" />
                             </div>
                         </div>
 

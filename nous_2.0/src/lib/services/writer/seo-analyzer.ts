@@ -7,15 +7,11 @@ import { supabase } from "@/lib/supabase";
 import { useWriterStore } from "@/store/useWriterStore";
 import { safeJsonExtract } from "@/utils/json";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
-export interface CompetitorDetail {
-    url: string;
-    title: string;
-    content?: string;
-    summary?: string;
-    isInvalid?: boolean;
-    headers?: { tag: string; text: string; }[];
-}
+import { 
+    SEOAnalysisResult, 
+    CompetitorDetail, 
+    DeepSEOAnalysisResult 
+} from "./types";
 
 export interface SEOMetadata {
     h1: string;
@@ -24,21 +20,6 @@ export interface SEOMetadata {
     meta_description: string;
     extracto?: string;
     schemas?: any[];
-}
-
-export interface SEOAnalysisResult {
-    nicheDetected: string;
-    keywordIdeas: {
-        shortTail: string[];
-        midTail: string[];
-    };
-    frequentQuestions: string[];
-    top10Urls: { title: string; url: string; snippet?: string }[];
-    top20Urls: { title: string; url: string; snippet?: string }[];
-    recommendedWordCount: string;
-    lsiKeywords?: any[];
-    suggestedInternalLinks?: any[];
-    searchIntent?: string;
 }
 
 export interface ArticleConfig {
@@ -230,7 +211,7 @@ export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
         if (onProgress) onProgress("scraping");
         if (onLog) onLog("Modo Rápido", "Saltando scraping profundo. Usando snippets de Serper.", "GROQ ACTIVADO");
         
-        baseResult.top10Urls.forEach(comp => {
+        (baseResult.top10Urls || []).forEach(comp => {
             scrapedSEO.push({
                 url: comp.url,
                 title: comp.title,

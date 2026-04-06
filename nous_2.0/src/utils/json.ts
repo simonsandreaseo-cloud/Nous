@@ -48,7 +48,7 @@ export function safeJsonExtract<T>(text: string, defaultValue: T): T {
 
         console.error("safeJsonExtract: Failed to parse JSON from text. Returning default value.", {
             textPreview: text.substring(0, 200) + (text.length > 200 ? "..." : ""),
-            error: e.message
+            error: e instanceof Error ? e.message : String(e)
         });
         
         return defaultValue;

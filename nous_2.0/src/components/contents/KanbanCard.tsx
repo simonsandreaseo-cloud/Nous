@@ -1,10 +1,10 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Article } from "./ArticleCardGrid";
+import type { Task } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 import { FileText, MoreVertical, GripVertical } from "lucide-react";
 
-export function KanbanCard({ article, onOpen, isDragging = false }: { article: Article, onOpen: (article: Article) => void, isDragging?: boolean }) {
+export function KanbanCard({ article, onOpen, isDragging = false }: { article: Task, onOpen: (article: Task) => void, isDragging?: boolean }) {
     const {
         attributes,
         listeners,
@@ -48,7 +48,7 @@ export function KanbanCard({ article, onOpen, isDragging = false }: { article: A
             <div className="pl-6">
                 <div className="flex justify-between items-start mb-2">
                     <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-100">
-                        {article.keyword || "Sin Keyword"}
+                        {article.target_keyword || "Sin Keyword"}
                     </span>
                     <button className="text-slate-300 hover:text-slate-500 transition-colors">
                         <MoreVertical size={14} />

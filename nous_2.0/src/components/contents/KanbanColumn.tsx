@@ -1,15 +1,15 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { KanbanCard } from "./KanbanCard";
-import type { Article } from "./ArticleCardGrid";
+import type { Task } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 
 interface KanbanColumnProps {
     id: string;
     title: string;
     icon: string;
-    articles: Article[];
-    onOpen: (article: Article) => void;
+    articles: Task[];
+    onOpen: (article: Task) => void;
 }
 
 export function KanbanColumn({ id, title, icon, articles, onOpen }: KanbanColumnProps) {

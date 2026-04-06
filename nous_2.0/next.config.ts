@@ -29,9 +29,7 @@ const nextConfig = {
   // External packages
   serverExternalPackages: ['googleapis'],
 
-  webpack: (config: any) => {
-    return config;
-  }
+  turbopack: {},
 };
 
 export default nextConfig;

@@ -115,9 +115,11 @@ export const SplitAnalysisSlide: React.FC<SplitAnalysisProps> = ({
                     <div className="report-card h-full flex flex-col p-8 glass-panel bg-white/40 border-hairline rounded-3xl">
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-6 italic">Visualización y Estrategia</h3>
                         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                            <ReactMarkdown className="prose prose-slate prose-sm text-slate-600 leading-relaxed font-medium">
-                                {analysis}
-                            </ReactMarkdown>
+                            <div className="prose prose-slate prose-sm text-slate-600 leading-relaxed font-medium">
+                                <ReactMarkdown>
+                                    {analysis}
+                                </ReactMarkdown>
+                            </div>
                         </div>
                         <div className="mt-6 pt-6 border-t border-hairline flex justify-between items-center">
                             <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Powered by Gemini AI</span>
