@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://nous-clinical.tech/sitemap.xml
