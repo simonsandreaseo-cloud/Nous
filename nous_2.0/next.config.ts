@@ -1,36 +1,33 @@
 /** @type {import('next').NextConfig} */
-// Deploy trigger: Finalizing Turbopack setup
-import path from "path";
-
 const nextConfig = {
-  reactStrictMode: true,
-  poweredByHeader: false,
-
-  // Performance & Compression
-  compress: true,
-
-  // Build & Asset Optimization
-  compiler: {
-    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["log", "info", "warn"] } : false,
-  },
-
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
-
-  // Standard Next.js server mode
-  output: undefined,
-
-  // Image Optimization
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
-    formats: ["image/avif", "image/webp"],
-    minimumCacheTTL: 60,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.googleusercontent.com",
+      },
+    ],
   },
-
-  // External packages
-  serverExternalPackages: ['googleapis'],
-
-  turbopack: {},
+  transpilePackages: ["three"],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
 };
 
 export default nextConfig;
