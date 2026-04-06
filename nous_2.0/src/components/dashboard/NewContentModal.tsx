@@ -103,7 +103,6 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
             
             if (researchMode === "rapid") modelToUse = "llama-3.1-8b-instant";
             if (researchMode === "quality") modelToUse = "gemma-3-27b-it";
-
             // 2. Run actual analysis service with taskId for incremental saving
             const result = await StrategyService.runDeepSEOAnalysis({
                 projectId: activeProject.id, 

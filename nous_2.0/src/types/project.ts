@@ -4,13 +4,6 @@ export interface Project {
     name: string;
     domain: string;
     description?: string;
-    budget_settings: {
-        type: 'cost' | 'volume' | 'count';
-        target: number;
-        current: number;
-        currency?: string;
-        mode: 'target' | 'freestyle';
-    };
     scraper_settings: {
         paths: string[];
         lastScan?: string;

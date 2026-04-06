@@ -71,7 +71,7 @@ export function ProjectSelector() {
 
                             <div className="space-y-1 max-h-[300px] overflow-y-auto custom-scrollbar">
                                 {projects.map((project) => {
-                                    const progress = Math.min((project.budget_settings.current / project.budget_settings.target) * 100, 100);
+
 
                                     const isActive = activeProjectIds.includes(project.id);
                                     const dotColor = project.color || '#06b6d4';
@@ -108,19 +108,9 @@ export function ProjectSelector() {
                                                 </div>
                                             </div>
 
-                                            {/* Mini Progress Bar */}
-                                            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-2">
-                                                <div
-                                                    className={cn(
-                                                        "h-full rounded-full transition-all duration-500",
-                                                        isActive ? "bg-cyan-500" : "bg-slate-300"
-                                                    )}
-                                                    style={{ width: `${progress}%`, backgroundColor: isActive ? dotColor : undefined }}
-                                                />
-                                            </div>
                                             <div className="flex justify-between mt-1">
                                                 <span className="text-[9px] text-slate-400 font-mono">{project.domain}</span>
-                                                <span className="text-[9px] text-slate-400 font-bold">{project.budget_settings.current}/{project.budget_settings.target}</span>
+
                                             </div>
                                         </button>
                                     );

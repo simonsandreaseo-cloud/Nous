@@ -84,7 +84,6 @@ function GscCompleteContent() {
                             domain: "pendiente.com",
                             gsc_connected: true,
                             google_refresh_token: rt,
-                            budget_settings: { type: 'count', target: 10, current: 0, mode: 'target' },
                             scraper_settings: { paths: ["/"] }
                         });
 

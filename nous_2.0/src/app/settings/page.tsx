@@ -681,7 +681,7 @@ export default function SettingsPage() {
         const newProject = await createProject({
             name: derivedName,
             domain: newProjectDomain,
-            budget_settings: { type: 'count', target: 10, current: 0, mode: 'target' },
+
             scraper_settings: { paths: ["/"] },
             gsc_connected: false,
             ga4_connected: false,
