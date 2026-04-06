@@ -1,4 +1,5 @@
-/** @type {import('next').NextConfig} */
+/** @type {import('next').NextConfig} */ 
+// PROD TRIGGER: Node 20 switch
 const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
