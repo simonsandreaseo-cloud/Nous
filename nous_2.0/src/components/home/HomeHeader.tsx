@@ -7,11 +7,7 @@ export function HomeHeader() {
     return (
         <header className="absolute top-0 left-0 w-full flex justify-between items-center px-8 md:px-16 py-8 pointer-events-auto z-40">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-3">
-                 {/* Assuming NousLogo is the original svg logo. The reference uses bold text "NOUS". We'll use bold text to match the reference, but keep the link structural. */}
-                 {/* <NousLogo /> */}
-                 <span className="text-xl font-black tracking-widest text-[#1a1a1a]">NOUS</span>
-            </Link>
+                <NousLogo showText={true} />
 
             {/* Central Navigation */}
             <nav className="hidden md:flex items-center gap-12">

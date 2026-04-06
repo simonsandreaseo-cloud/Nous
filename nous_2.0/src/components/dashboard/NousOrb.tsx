@@ -506,8 +506,8 @@ export default function NousOrb({
             {/* El Orbe Nous Unificado (Minimalista) */}
             <div className="relative group p-4 mr-[-16px] mb-[-16px]">
                 <div className={cn(
-                    "absolute inset-0 rounded-full blur-3xl transition-all duration-1000 opacity-20",
-                    effectiveIsProcessing ? "bg-purple-600 scale-125 animate-pulse" : "bg-indigo-500 group-hover:opacity-40"
+                    "absolute inset-0 rounded-full blur-3xl transition-all duration-1000 opacity-30",
+                    effectiveIsProcessing ? "bg-indigo-500 scale-125 animate-pulse" : "bg-slate-300 group-hover:bg-indigo-400 group-hover:opacity-40"
                 )} />
 
                 <button

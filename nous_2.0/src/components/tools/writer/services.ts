@@ -1118,26 +1118,23 @@ export const runHumanizerPipeline = async (
         ${HTML_RULE}
 
         --- PERSONA: REDACTOR HUMANO AUTÉNTICO ---
-        Escribe de forma natural. IMPORTANTE: El texto humanizado DEBE tener la misma longitud que el original. PROHIBIDO ACORTAR.
+        Escribe de forma natural. IMPORTANTE: El texto humanizado DEBE tener la misma longitud que el original o similar. PROHIBIDO RESUMIR O ELIMINAR SECCIONES.
 
         --- CONTEXTO ---
         Nicho/Tópico: ${config.niche}
         Público Objetivo: ${config.audience}
         Notas Adicionales: ${config.notes || 'N/A'}
 
-        --- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---
-        1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.
-        2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.
-        3.  CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.
-        4.  MORFOSINTAXIS (EXPLOSIVIDAD):
-            * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).
-            * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.
-        5.  IDIOMA: Usa español neutro panhispánico.
-        6.  PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.
-        7.  PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.
+        --- REGLAS DE HUMANIZACIÓN (APLICAR CON CUIDADO) ---
+        1.  ESTILO "REDACTOR COTIDIANO": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria excesiva.
+        2.  COHERENCIA NATURAL: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo para que se sienta humano.
+        3.  CONECTORES ORGÁNICOS: Evita conectores robóticos como "En consecuencia", "Por añadidura". Usa "Entonces", "Así que", "Además".
+        4.  MORFOSINTAXIS: Mezcla oraciones cortas con algunas oraciones largas. La longitud de las frases debe ser variable.
+        5.  PROHIBICIÓN DE VOZ PASIVA: Prefiere la voz activa.
+        6.  PUNTUACIÓN HUMANA: No abuses del punto y seguido. Usa comas para dar fluidez cuando las ideas estén conectadas.
 
         --- TAREA ---
-        Aplica TODAS las reglas de humanización al texto DENTRO de las etiquetas HTML del siguiente bloque. SÉ AGRESIVO al reescribir. Abandona la estructura de la oración original.
+        Aplica estas reglas de humanización al texto DENTRO de las etiquetas HTML. Mantén intacta la estructura de etiquetas. No elimines información, solo cambia el estilo y la estructura de las frases.
     `.trim();
 
     const humanizedChunks: string[] = [];
@@ -1158,47 +1155,67 @@ export const runHumanizerPipeline = async (
     const humanizedHtml = humanizedChunks.join('\n');
 
     // ---------------------------------------------
-    // FASE 2: SEO Y REVISIÓN (Llamada Única)
+    // FASE 2: SEO Y REVISIÓN (Chunk-wise para evitar recortes)
     // ---------------------------------------------
-    onStatus("Fase 2: Optimizando SEO y revisión final...");
-    const linksText = config.links?.map(l => l.anchor_text ? `[${l.anchor_text}](${l.url})` : `[${l.title}](${l.url})`).join(', ');
-    
-    const buildPhase2Prompt = () => `
+    const PHASE2_CHUNK_SIZE = 7; // Bloques para SEO
+    const seoChunks = chunkHtml(humanizedHtml, PHASE2_CHUNK_SIZE);
+    onStatus(`Iniciando Fase 2 (SEO & Revisión) en ${seoChunks.length} bloques...`);
+
+    // Inventario de enlaces para evitar duplicidad entres bloques
+    let remainingLinks = [...(config.links || [])];
+    const finalizedChunks: string[] = [];
+
+    const buildPhase2Prompt = (iterationLinks: any[]) => {
+        const linksTextList = iterationLinks.map(l => l.anchor_text ? `[${l.anchor_text}](${l.url})` : `[${l.title}](${l.url})`).join(', ');
+        return `
         ${SYSTEM_PROMPT_BASE}
         ${HTML_RULE}
 
-        --- TAREA COMBINADA: SEO Y REVISIÓN FINAL ---
-        El siguiente bloque HTML es el documento COMPLETO, que ya fue humanizado (estilo "mediocre" y caótico). Tu trabajo es realizar DOS tareas en UNA SOLA PASADA:
-        1.  TAREA SEO: Inserta los elementos SEO de forma natural.
-        2.  TAREA REVISIÓN: Corrige ÚNICAMENTE errores gramaticales graves o de sentido que hagan el texto incomprensible.
+        --- TAREA: OPTIMIZACIÓN SEO Y REVISIÓN (POR BLOQUE) ---
+        Estás revisando un fragmento de un artículo ya humanizado. Tu trabajo es:
+        1.  TAREA SEO: Inserta los enlaces y keywords LSI de forma natural si el contexto lo permite.
+        2.  TAREA REVISIÓN: Corrige ÚNICAMENTE errores gramaticales graves.
 
         --- REGLAS CRÍTICAS ---
-        * REGLA DE ORO: NO CORRIJAS EL ESTILO "defectuoso" intencional (frases cortas, falta de conectores, estilo simple). Tu objetivo es insertar SEO, no "mejorar" la redacción.
-        * REGLA DE ENLACES: Inserta los enlaces de la lista DONDE SEAN MÁS PERTINENTES en TODO el documento. NO repitas el mismo enlace a menos que el anchor sea diferente.
-        * REGLA DE LSI/NEGRITAS: Inserta las LSI y aplica <strong> a frases clave de forma natural y comedida.
+        * NO RESUMAS. El texto de salida debe ser íntegro.
+        * NO "MEJORES" EL ESTILO HUMANO: Mantén el tono simple y cotidiano que ya tiene.
+        * ENLACES: Aquí tienes los enlaces que PUEDES usar en este bloque (si son pertinentes): ${linksTextList || 'Ninguno'}
+        * LSI: Keywords a integrar si es posible: [${config.lsiKeywords?.join(', ') || 'Ninguna'}]
+        `.trim();
+    };
 
-        --- CONTEXTO SEO (PARA TODO EL DOCUMENTO) ---
-        LSI Keywords a integrar: [${config.lsiKeywords?.join(', ') || 'Ninguna'}]
-        Enlaces/Anchors a insertar: ${linksText || 'Ninguno'}
-    `.trim();
+    for (let j = 0; j < seoChunks.length; j++) {
+        onStatus(`Fase 2: Procesando bloque ${j + 1}/${seoChunks.length}...`);
+        
+        // Seleccionamos un subconjunto de enlaces para este bloque (ej. 2 por bloque para distribuir)
+        const blockLinks = remainingLinks.slice(0, 2);
+        
+        const finalizedChunk = await executeWithKeyRotation(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({ 
+                model: currentModel || modelName,
+                systemInstruction: buildPhase2Prompt(blockLinks),
+                generationConfig: {
+                    temperature: 0.3
+                }
+            });
+            const res = await model.generateContent(seoChunks[j]);
+            const raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            return cleanAndFormatHtml(raw);
+        }, modelName);
 
-    const finalizedHtml = await executeWithKeyRotation(async (ai, currentModel) => {
-        const model = ai.getGenerativeModel({ 
-            model: currentModel || modelName,
-            systemInstruction: buildPhase2Prompt(),
-            generationConfig: {
-                maxOutputTokens: 8192,
-                temperature: 0.4
-            }
-        });
-        const res = await model.generateContent(humanizedHtml);
-        const raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-        return cleanAndFormatHtml(raw);
-    }, modelName);
+        finalizedChunks.push(finalizedChunk);
+
+        // Si el bloque de salida contiene enlaces que usamos del inventario, los marcamos como usados (o simplemente avanzamos el slice)
+        // En este caso, para simplificar, avanzamos el slice de los que se le ofrecieron.
+        remainingLinks = remainingLinks.slice(2);
+    }
+
+    const finalizedHtml = finalizedChunks.join('\n');
 
     onStatus("✅ ¡Humanización completada!");
     return { html: finalizedHtml };
 };
+
 
 export const runSmartEditor = async (
     html: string,

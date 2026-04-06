@@ -46,6 +46,8 @@ export interface ArticleConfig {
     word_count?: number;
 }
 
+import { executeWithGroq } from "@/lib/services/groq";
+
 export interface DeepSEOConfig {
     keyword: string;
     serperKey?: string;
@@ -56,6 +58,7 @@ export interface DeepSEOConfig {
     onProgress?: (p: string) => void;
     onLog?: (phase: string, message: string, response?: string) => void;
     modelName?: string;
+    isFastMode?: boolean; // New flag for ultra-rapid research
 }
 
 const stopwords = new Set(['para', 'como', 'con', 'desde', 'hasta', 'sobre', 'bajo', 'entre', 'ante', 'cabe', 'tras', 'mediante', 'durante', 'según', 'hacia', 'vía', 'plus', 'minus', 'per', 'pro', 're', 'sans', 'sub', 'super', 'trans', 'ultra', 'vice']);
@@ -204,7 +207,8 @@ export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
         taskId, 
         onProgress, 
         onLog, 
-        modelName = 'gemini-2.5-flash' 
+        modelName = 'gemini-2.5-flash',
+        isFastMode = false
     } = config;
 
     const jKey = jinaKey || process.env.NEXT_PUBLIC_JINA_API_KEY || "";
@@ -218,61 +222,76 @@ export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
     const baseResult = await runSEOAnalysis(keyword, onLog);
     if (onLog) onLog("Fase 1 (SERP)", `Completada en ${((Date.now() - stage1Start) / 1000).toFixed(1)}s`, JSON.stringify(baseResult.top10Urls));
 
-    // Phase 3: Scraping & Content
+    // Phase 3: Scraping & Content (Omitido en Modo Rápido)
     const stage3Start = Date.now();
-    if (onProgress) onProgress("scraping");
-    
-    // REDUNDANCY: Always use the URLs from baseResult
-    const competitors = baseResult.top10Urls || [];
-    if (onLog) onLog("Sistema", `Analizando ${competitors.length} competidores SEO en paralelo.`, JSON.stringify(competitors.map(c => c.url)));
-    
     const scrapedSEO: CompetitorDetail[] = [];
-    if (competitors.length > 0) {
-        // We use a small stagger delay (300ms) to avoid "Burst" rate limits from Jina/Proxy
-        const scrapeResults = await Promise.allSettled(competitors.slice(0, 8).map(async (comp, idx) => {
-            if (!comp.url || !comp.url.startsWith('http')) {
-                return { url: comp.url, title: comp.title, isInvalid: true } as any;
-            }
 
-            try {
-                // Stagger delay
-                // Aumento de Stagger a 1000ms para respetar límites de Jina proxy
-                await new Promise(resolve => setTimeout(resolve, idx * 1000));
-                
-                const scrapingPhase = `Scraping ${idx + 1}/${competitors.slice(0,8).length}`;
-                
-                // FILTRO DE SEGURIDAD: Descartar URLs de Grounding/Redirecciones de Google si llegaran a colarse
-                if (comp.url.includes('google.com/url') || comp.url.includes('grounding-api-redirect')) {
-                    if (onLog) onLog(scrapingPhase, `URL Descartada`, comp.url);
-                    return { url: comp.url, title: comp.title, isInvalid: true, reason: 'Google Redirect Link' } as any;
+    if (isFastMode) {
+        if (onProgress) onProgress("scraping");
+        if (onLog) onLog("Modo Rápido", "Saltando scraping profundo. Usando snippets de Serper.", "GROQ ACTIVADO");
+        
+        baseResult.top10Urls.forEach(comp => {
+            scrapedSEO.push({
+                url: comp.url,
+                title: comp.title,
+                content: comp.snippet || "",
+                summary: comp.snippet || ""
+            });
+        });
+    } else {
+        if (onProgress) onProgress("scraping");
+        
+        // REDUNDANCY: Always use the URLs from baseResult
+        const competitors = baseResult.top10Urls || [];
+        if (onLog) onLog("Sistema", `Analizando ${competitors.length} competidores SEO en paralelo.`, JSON.stringify(competitors.map(c => c.url)));
+        
+        if (competitors.length > 0) {
+            // We use a small stagger delay (300ms) to avoid "Burst" rate limits from Jina/Proxy
+            const scrapeResults = await Promise.allSettled(competitors.slice(0, 8).map(async (comp, idx) => {
+                if (!comp.url || !comp.url.startsWith('http')) {
+                    return { url: comp.url, title: comp.title, isInvalid: true } as any;
                 }
 
-                if (onLog) onLog(scrapingPhase, `Iniciando extracción`, comp.url);
-                
-                const data = await fetchJinaExtraction(comp.url, jKey);
-                
-                if (onLog) onLog(`Éxito ${idx + 1}`, `${comp.title.substring(0, 30)}...`, data.content?.substring(0, 500));
-                return { 
-                    url: comp.url, 
-                    title: comp.title, 
-                    content: data.content,
-                    summary: data.title + ": " + data.content?.substring(0, 300)
-                };
-            } catch (innerE: any) {
-                if (onLog) onLog(`Descarte ${idx + 1}`, `${comp.url.substring(0, 30)}`, innerE.message);
-                // LOGICA DE FALLBACK: Si falla Jina, usamos el snippet como contenido mínimo
-                return { 
-                    url: comp.url, 
-                    title: comp.title, 
-                    content: comp.snippet || "", 
-                    summary: `(Fallback Snippet) ${comp.snippet}`,
-                    isPartial: true 
-                } as any;
-            }
-        }));
-        scrapeResults.forEach(res => {
-            if (res.status === 'fulfilled') scrapedSEO.push(res.value);
-        });
+                try {
+                    // Stagger delay
+                    // Aumento de Stagger a 1000ms para respetar límites de Jina proxy
+                    await new Promise(resolve => setTimeout(resolve, idx * 1000));
+                    
+                    const scrapingPhase = `Scraping ${idx + 1}/${competitors.slice(0,8).length}`;
+                    
+                    // FILTRO DE SEGURIDAD: Descartar URLs de Grounding/Redirecciones de Google si llegaran a colarse
+                    if (comp.url.includes('google.com/url') || comp.url.includes('grounding-api-redirect')) {
+                        if (onLog) onLog(scrapingPhase, `URL Descartada`, comp.url);
+                        return { url: comp.url, title: comp.title, isInvalid: true, reason: 'Google Redirect Link' } as any;
+                    }
+
+                    if (onLog) onLog(scrapingPhase, `Iniciando extracción`, comp.url);
+                    
+                    const data = await fetchJinaExtraction(comp.url, jKey);
+                    
+                    if (onLog) onLog(`Éxito ${idx + 1}`, `${comp.title.substring(0, 30)}...`, data.content?.substring(0, 500));
+                    return { 
+                        url: comp.url, 
+                        title: comp.title, 
+                        content: data.content,
+                        summary: data.title + ": " + data.content?.substring(0, 300)
+                    };
+                } catch (innerE: any) {
+                    if (onLog) onLog(`Descarte ${idx + 1}`, `${comp.url.substring(0, 30)}`, innerE.message);
+                    // LOGICA DE FALLBACK: Si falla Jina, usamos el snippet como contenido mínimo
+                    return { 
+                        url: comp.url, 
+                        title: comp.title, 
+                        content: comp.snippet || "", 
+                        summary: `(Fallback Snippet) ${comp.snippet}`,
+                        isPartial: true 
+                    } as any;
+                }
+            }));
+            scrapeResults.forEach(res => {
+                if (res.status === 'fulfilled') scrapedSEO.push(res.value);
+            });
+        }
     }
 
     const validSEO = scrapedSEO.filter(c => !c.isInvalid);
@@ -287,15 +306,22 @@ export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
         const rawTfidf = calculateTFIDF(allValidTexts);
         if (onLog) onLog("Sistema", `Términos TF-IDF calculados`, JSON.stringify(rawTfidf.slice(0, 10)));
         
-        cleanedLSI = await executeWithKeyRotation(async (ai, currentModel) => {
-            const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
-            const cleanPrompt = `Limpia y categoriza términos semánticos para "${keyword}": ${JSON.stringify(rawTfidf.map((t: any) => t.keyword))}\nRetorna JSON array: [{"keyword": "...", "count": "Alto/Medio/Bajo"}]`;
-            const res = await model.generateContent(cleanPrompt);
-            const rawRes = res.response.text();
-            const results = safeJsonExtract<any[]>(rawRes, []);
-            if (onLog) onLog("LSI Detectado", `LSI Refinado por AI`, rawRes);
-            return results;
-        }, modelName, undefined, undefined, false, 'Limpieza LSI', 90000);
+        const cleanPrompt = `Limpia y categoriza términos semánticos para "${keyword}": ${JSON.stringify(rawTfidf.map((t: any) => t.keyword))}\nRetorna JSON array: [{"keyword": "...", "count": "Alto/Medio/Bajo"}]`;
+        
+        if (isFastMode) {
+            const rawRes = await executeWithGroq(cleanPrompt, "Eres un experto en análisis semántico. Retorna ÚNICAMENTE JSON.", "llama-3.1-8b-instant", true);
+            cleanedLSI = safeJsonExtract<any[]>(rawRes, []);
+            if (onLog) onLog("LSI (Groq)", `LSI Refinado por Groq`, rawRes);
+        } else {
+            cleanedLSI = await executeWithKeyRotation(async (ai, currentModel) => {
+                const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
+                const res = await model.generateContent(cleanPrompt);
+                const rawRes = res.response.text();
+                const results = safeJsonExtract<any[]>(rawRes, []);
+                if (onLog) onLog("LSI Detectado", `LSI Refinado por AI`, rawRes);
+                return results;
+            }, modelName, undefined, undefined, false, 'Limpieza LSI', 90000);
+        }
     }
     if (onLog) onLog("Fase 4 (LSI)", `Completada en ${((Date.now() - stage4Start) / 1000).toFixed(1)}s`, JSON.stringify(cleanedLSI.slice(0, 10)));
 
@@ -304,14 +330,22 @@ export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
     if (onProgress) onProgress("metadata");
     const synthesisPrompt = `Genera la estrategia SEO definitiva para "${keyword}".\nContexto: ${validSEO.slice(0, 3).map(c => c.summary).join(". ")}\nLSI: ${JSON.stringify(cleanedLSI)}\nRetorna JSON: {"h1": "...", "seo_title": "...", "slug": "...", "meta_description": "...", "extracto": "...", "schemas": []}`;
     
-    const seoMetadata = await executeWithKeyRotation(async (ai, currentModel) => {
-        const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
-        const res = await model.generateContent(synthesisPrompt);
-        const rawRes = res.response.text();
-        const data = safeJsonExtract<SEOMetadata>(rawRes, {} as SEOMetadata);
-        if (onLog) onLog("Metadatos Generados", `Síntesis finalizada`, rawRes);
-        return data;
-    }, modelName, undefined, undefined, false, 'Síntesis SEO', 120000);
+    let seoMetadata: SEOMetadata;
+
+    if (isFastMode) {
+        const rawRes = await executeWithGroq(synthesisPrompt, "Eres un estratega SEO experto. Retorna ÚNICAMENTE JSON.", "llama-3.1-8b-instant", true);
+        seoMetadata = safeJsonExtract<SEOMetadata>(rawRes, {} as SEOMetadata);
+        if (onLog) onLog("Metadatos (Groq)", `Síntesis ultrarápida finalizada`, rawRes);
+    } else {
+        seoMetadata = await executeWithKeyRotation(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({ model: currentModel, generationConfig: { responseMimeType: "application/json" } });
+            const res = await model.generateContent(synthesisPrompt);
+            const rawRes = res.response.text();
+            const data = safeJsonExtract<SEOMetadata>(rawRes, {} as SEOMetadata);
+            if (onLog) onLog("Metadatos Generados", `Síntesis finalizada`, rawRes);
+            return data;
+        }, modelName, undefined, undefined, false, 'Síntesis SEO', 120000);
+    }
     if (onLog) onLog("Fase 5-6 (Metadatos)", `Completada en ${((Date.now() - stage5Start) / 1000).toFixed(1)}s`, JSON.stringify(seoMetadata));
 
     // Phase 7: Internal Links

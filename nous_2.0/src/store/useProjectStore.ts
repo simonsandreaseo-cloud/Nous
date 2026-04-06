@@ -307,8 +307,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     fetchProjectTasks: async (projectId) => {
-        const activeIds = get().activeProjectIds;
+        // Validation: Prefer the passed ID, otherwise use active IDs
+        let activeIds = projectId ? [projectId] : get().activeProjectIds;
+        
+        // Final filter to ensure we only have valid UUID strings and no nulls/undefined
+        activeIds = activeIds.filter(id => id && typeof id === 'string' && id.length === 36);
+
         if (activeIds.length === 0) {
+            console.log('[fetchProjectTasks] No active projects selected, skipping fetch.');
             set({ tasks: [] });
             return;
         }
@@ -320,7 +326,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             .order('scheduled_date', { ascending: true });
 
         if (error) {
-            console.error('Error fetching tasks:', error);
+            console.error('[Supabase Error] Error fetching tasks:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint,
+                activeIds
+            });
             return;
         }
 

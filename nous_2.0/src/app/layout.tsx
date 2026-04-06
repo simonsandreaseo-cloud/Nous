@@ -58,6 +58,11 @@ export const metadata: Metadata = {
     description: "Next-generation clinical SEO analytics.",
     images: ["https://nous-clinical.tech/og-image.jpg"],
   },
+  icons: {
+    icon: "/LogoNous.png",
+    shortcut: "/LogoNous.png",
+    apple: "/LogoNous.png",
+  },
 };
 
 import { CommandPalette } from "@/components/dashboard/CommandPalette";

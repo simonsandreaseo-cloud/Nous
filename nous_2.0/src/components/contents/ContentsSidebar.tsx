@@ -24,7 +24,8 @@ import {
     FileBarChart2,
     PenLine,
     CheckSquare,
-    Square
+    Square,
+    Share2
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 
@@ -42,6 +43,7 @@ const GLOBAL_AREAS = [
 export const CONTENT_TOOLS = [
     { id: "planner", label: "Planificador", icon: CalendarDays, color: "text-indigo-500" },
     { id: "writer", label: "Redactor", icon: PenLine, color: "text-amber-500" },
+    { id: "distribution", label: "Distribución", icon: Share2, color: "text-emerald-500" },
 ];
 
 interface ContentsSidebarProps {

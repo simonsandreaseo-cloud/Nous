@@ -1,4 +1,5 @@
 import { useWriterStore } from '@/store/useWriterStore';
+import type { ReportPayload } from '@/types/report';
 
 async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-2.5-flash', jsonResponse: boolean = false): Promise<string> {
     const { GoogleGenerativeAI } = await import("@google/generative-ai");
@@ -224,10 +225,7 @@ export const generateJSONReportState = async (payload: ReportPayload, sections: 
     return allSlides;
 };
 
-// Legacy method for backward compatibility if needed, or to be deprecated
-export const generateHTMLReport = async (payload: ReportPayload, sections: string[], apiKey: string): Promise<string> => {
-    throw new Error("generateHTMLReport is deprecated. Use generateJSONReportState.");
-};
+
 
 export const identifyAiTrafficSources = async (sources: string[], apiKey: string): Promise<string[]> => {
     if (sources.length === 0) return [];

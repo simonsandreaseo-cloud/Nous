@@ -1,72 +1,42 @@
 export async function fetchJinaExtraction(url: string, apiKey: string): Promise<{ content: string; title: string }> {
   try {
-    // Robust origin detection for both client and potential server environments
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || '');
+    const cleanUrl = url.trim();
+    
+    // Obtenemos el origen de la ventana para construir la URL del proxy
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "";
     const proxyUrl = `${baseUrl}/api/tools/jina-reader`;
     
-    console.log(`[Jina Service] Extrayendo: ${url.substring(0, 55)}...`);
+    console.log(`[Jina Service] Extrayendo vía Proxy: ${cleanUrl.substring(0, 55)}...`);
 
-    // Use URL SearchParams or JSON body as it was, but ensure encoding
     const response = await fetch(proxyUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: url.trim(), apiKey })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            url: cleanUrl,
+            apiKey: apiKey // Pasamos la key si viene desde el cliente, si no el proxy usará la del server
+        }),
+        signal: AbortSignal.timeout(40000) // Timeout extendido a 40s para el proxy
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      let errorData: any = {};
-      try { errorData = JSON.parse(errorText); } catch(e) {}
-      
-      const msg = errorData.error || errorData.message || response.statusText || "Error desconocido";
-      
-      // LOG POLICY: Warning if fallback is available, Error if it's the end of the line
-      if (apiKey && response.status !== 401) {
-          console.warn(`[Jina Service] Proxy falló (${response.status}: ${msg}). Intentando fallback directo...`);
-          try {
-              const directRes = await fetch("https://r.jina.ai/", {
-                  method: "POST",
-                  headers: { 
-                      "Authorization": `Bearer ${apiKey}`,
-                      "Content-Type": "application/json",
-                      "Accept": "application/json",
-                      "x-respond-with": "markdown",
-                      "x-reader-lm-v2": "true"
-                  },
-                  body: JSON.stringify({ url: url.trim() }),
-                  signal: AbortSignal.timeout(20000) // Timeout protector de 20s
-              });
-              if (directRes.ok) {
-                  const data = await directRes.json();
-                  const result = data.data || data;
-                  if (result.content || result.markdown) {
-                      return { 
-                          content: result.content || result.markdown, 
-                          title: result.title || "Extraído (Directo)" 
-                      };
-                  }
-              }
-          } catch (fallbackE: any) {
-              console.warn(`[Jina Service] Fallback directo también falló: ${fallbackE.message}`);
-          }
-      } else {
-          console.error(`[Jina Service] Proxy falló definitivamente (${response.status}): ${msg}`);
-      }
-      throw new Error(`Jina Extraction Error: ${msg}`);
+      const errorData = await response.json().catch(() => ({}));
+      const msg = errorData.message || errorData.error || response.statusText || "Error en el proxy";
+      throw new Error(`Proxy Jina Error: ${msg}`);
     }
 
-    const data = await response.json();
+    const result = await response.json();
     
-    if (!data.ok || (!data.content && !data.markdown) || (data.content || data.markdown || "").length < 50) {
-      throw new Error(`Contenido pobre o bloqueado (${(data.content || data.markdown || "").length} chars)`);
+    if (!result.ok || !result.content || result.content.length < 50) {
+      throw new Error(`Contenido insuficiente o error en proxy: ${result.message || "Sin contenido"}`);
     }
     
     return {
-      content: data.content || data.markdown,
-      title: data.title || "Extraído vía Jina"
+      content: result.content,
+      title: result.title || "Extraído vía Jina"
     };
   } catch (e: any) {
-    console.error("[Jina Service] Error:", e.message);
+    console.warn(`[Jina Service] Fallo en la extracción para ${url.substring(0, 30)}:`, e.message);
     throw e;
   }
 }
+

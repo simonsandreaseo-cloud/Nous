@@ -18,6 +18,7 @@ import {
 import { cn } from "@/utils/cn";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
+import { NousLogo } from "@/components/dom/NousLogo";
 
 export default function AuthPage() {
     const [mode, setMode] = useState<"login" | "register">("login");
@@ -109,13 +110,16 @@ export default function AuthPage() {
             >
                 <div className="bg-white/70 backdrop-blur-2xl border border-white rounded-[32px] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
                     {/* Header */}
-                    <div className="text-center mb-10">
-                        <motion.h1
-                            layoutId="auth-title"
-                            className="text-4xl font-light text-slate-800 tracking-elegant"
-                        >
-                            {mode === "login" ? "Bienvenido" : "Únete a Nous"}
-                        </motion.h1>
+                    <div className="text-center mb-10 flex flex-col items-center gap-6">
+                        <NousLogo showText={false} className="scale-125" />
+                        <div className="space-y-1">
+                            <motion.h1
+                                layoutId="auth-title"
+                                className="text-4xl font-light text-slate-800 tracking-elegant"
+                            >
+                                {mode === "login" ? "Bienvenido" : "Únete a Nous"}
+                            </motion.h1>
+                        </div>
                         <p className="text-[var(--color-nous-mist)] text-[10px] uppercase tracking-widest mt-3 font-medium">
                             {mode === "login"
                                 ? "Ingresa a tu santuario SEO inteligente"

@@ -16,6 +16,10 @@ const EditorialCalendar = dynamic(
     () => import("@/components/dashboard/EditorialCalendar").then(mod => mod.EditorialCalendar),
     { loading: () => <ToolLoading name="Planificador" />, ssr: false }
 );
+const DistributionView = dynamic(
+    () => import("@/components/contents/DistributionView"),
+    { loading: () => <ToolLoading name="Distribución" />, ssr: false }
+);
 
 // --- Mockup View Component ---
 function MockupView({ toolId }: { toolId: string }) {
@@ -66,6 +70,7 @@ function ToolView({ toolId }: { toolId: string }) {
     switch (toolId) {
         case "writer": return <WriterStudio />;
         case "planner": return <EditorialCalendar />;
+        case "distribution": return <DistributionView />;
         default: 
             if (["monitor", "oficina", "seo", "estrategia"].includes(toolId)) {
                 return <MockupView toolId={toolId} />;

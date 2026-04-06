@@ -35,7 +35,7 @@ export const AI_CONFIG = {
     groq: {
         apiKey: process.env.GROQ_API_KEY,
         models: {
-            fast: 'llama-3.3-70b-versatile', // Valid & Faster
+            fast: 'llama-3.1-8b-instant', // Ultra-fast for SEO synthesis
             balanced: 'llama-3.1-70b-versatile'
         }
     },

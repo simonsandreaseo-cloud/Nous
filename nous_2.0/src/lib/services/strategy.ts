@@ -102,7 +102,7 @@ Keyword: ${keyword || 'N/A'}`;
      * Analyzes SERP, extracts LSI keywords, and builds a research dossier.
      */
     static async runDeepSEOAnalysis(config: DeepSEOConfig & { projectId: string }): Promise<any> {
-        const { projectId, keyword, onProgress, onLog, modelName, taskId } = config;
+        const { projectId, keyword, onProgress, onLog, modelName, taskId, isFastMode } = config;
         try {
             // Fetch project inventory for semantic links
             const { data: projectData } = await supabase.from('projects').select('name, domain').eq('id', projectId).single();
@@ -121,7 +121,8 @@ Keyword: ${keyword || 'N/A'}`;
                 taskId,
                 onProgress,
                 onLog,
-                modelName: modelName || 'gemini-3.1-flash-lite-preview'
+                modelName: modelName || 'gemini-3.1-flash-lite-preview',
+                isFastMode
             });
         } catch (e) {
             console.error("Deep SEO Analysis Error:", e);

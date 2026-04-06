@@ -37,7 +37,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
     const [isCustomTitle, setIsCustomTitle] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
     const [phases, setPhases] = useState(PROGRESS_PHASES);
-    const [researchMode, setResearchMode] = useState<"rapid" | "quality">("rapid");
+    const [researchMode, setResearchMode] = useState<"rapid" | "balanced" | "quality">("balanced");
     const { activeProject, addTask, updateTask } = useProjectStore();
     const { 
         isResearching, 
@@ -98,9 +98,11 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
             const createdTask = allTasks.find(t => t.title === idea && t.project_id === activeProject.id && t.status === 'investigacion_proceso');
             const taskId = createdTask?.id;
 
-            const modelToUse = researchMode === "rapid" 
-                ? "gemini-3.1-flash-lite-preview" 
-                : "gemma-3-27b-it";
+            const isFast = researchMode === "rapid";
+            let modelToUse = "gemini-3.1-flash-lite-preview";
+            
+            if (researchMode === "rapid") modelToUse = "llama-3.1-8b-instant";
+            if (researchMode === "quality") modelToUse = "gemma-3-27b-it";
 
             // 2. Run actual analysis service with taskId for incremental saving
             const result = await StrategyService.runDeepSEOAnalysis({
@@ -128,6 +130,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                     useWriterStore.getState().addDebugPrompt(phase, prompt);
                 },
                 modelName: modelToUse,
+                isFastMode: isFast,
                 taskId
             });
             
@@ -257,32 +260,40 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                         </button>
                                     </div>
 
-                                    <div className="flex items-center justify-between px-1 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">Modo de Investigación</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className={cn(
-                                                    "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border transition-all",
-                                                    researchMode === 'rapid' ? "bg-emerald-50 border-emerald-100 text-emerald-600 shadow-sm" : "bg-slate-100 border-transparent text-slate-400"
-                                                )}>Rápido</span>
-                                                <span className={cn(
-                                                    "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border transition-all",
-                                                    researchMode === 'quality' ? "bg-indigo-50 border-indigo-100 text-indigo-600 shadow-sm" : "bg-slate-100 border-transparent text-slate-400"
-                                                )}>Alta Calidad</span>
-                                            </div>
+                                    <div className="flex flex-col gap-3 px-1 bg-slate-50/50 p-4 rounded-3xl border border-slate-100">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">Nivel de Investigación</span>
+                                            <span className={cn(
+                                                "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border shadow-sm transition-all animate-in fade-in zoom-in duration-300",
+                                                researchMode === 'rapid' ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
+                                                researchMode === 'balanced' ? "bg-indigo-50 border-indigo-100 text-indigo-600" :
+                                                "bg-violet-50 border-violet-100 text-violet-600"
+                                            )}>
+                                                {researchMode === 'rapid' ? 'Ultra-Rápido (Groq)' : 
+                                                 researchMode === 'balanced' ? 'Equilibrado (Gemini)' : 'Alta Calidad (Gemma 3)'}
+                                            </span>
                                         </div>
-                                        <button 
-                                            onClick={() => setResearchMode(researchMode === 'rapid' ? 'quality' : 'rapid')}
-                                            className={cn(
-                                                "w-10 h-5 rounded-full transition-all duration-300 relative",
-                                                researchMode === 'quality' ? "bg-indigo-500" : "bg-emerald-500"
-                                            )}
-                                        >
-                                            <div className={cn(
-                                                "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm",
-                                                researchMode === 'quality' ? "left-5.5" : "left-0.5"
-                                            )} />
-                                        </button>
+                                        
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[
+                                                { id: 'rapid', label: 'Rápido', color: 'emerald', bg: 'bg-emerald-500' },
+                                                { id: 'balanced', label: 'Equilibrado', color: 'indigo', bg: 'bg-indigo-500' },
+                                                { id: 'quality', label: 'Pro', color: 'violet', bg: 'bg-violet-500' }
+                                            ].map(mode => (
+                                                <button
+                                                    key={mode.id}
+                                                    onClick={() => setResearchMode(mode.id as any)}
+                                                    className={cn(
+                                                        "py-2 rounded-xl text-[9px] font-bold uppercase transition-all border",
+                                                        researchMode === mode.id 
+                                                            ? `${mode.bg} text-white border-transparent shadow-md scale-[1.02]`
+                                                            : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
+                                                    )}
+                                                >
+                                                    {mode.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
