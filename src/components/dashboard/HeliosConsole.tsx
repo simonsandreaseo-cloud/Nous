@@ -9,7 +9,7 @@ import { Loader2, Sparkles, AlertTriangle, CheckCircle, FileText, TrendingUp } f
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationService } from '@/lib/services/notifications';
-import { LocalNodeBridge } from '@/lib/local-node/bridge';
+
 import { useAppStore } from '@/store/useAppStore';
 import { PlusCircle, Info, Zap } from 'lucide-react';
 
