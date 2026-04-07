@@ -9,11 +9,11 @@ async function checkTables() {
     .from('contents')
     .select('id, target_keyword, title, status')
     .limit(5);
-<<<<<<< Updated upstream
 
-=======
-
->>>>>>> Stashed changes
+  if (error) {
+    console.error('Error fetching contents:', error);
+    return;
+  }
   console.log('contents sample:', data);
 }
 
