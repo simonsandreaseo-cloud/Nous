@@ -11,8 +11,6 @@ interface UserPresence {
 export default function PresenceAvatars({ users }: { users: Record<string, UserPresence> }) {
     const userList = Object.entries(users);
 
-    if (userList.length === 0) return null;
-
     return (
         <div className="flex items-center -space-x-2">
             <AnimatePresence mode='popLayout'>
@@ -51,13 +49,11 @@ export default function PresenceAvatars({ users }: { users: Record<string, UserP
                 ))}
             </AnimatePresence>
 
-            {userList.length > 0 && (
-                <div className="ml-3 pl-3 border-l border-slate-200 h-4 flex items-center">
-                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest animate-pulse whitespace-nowrap">
-                        {userList.length === 1 ? 'Trabajando Solo' : `${userList.length} Colaboradores`}
-                    </span>
-                </div>
-            )}
+            <div className="ml-3 pl-3 border-l border-slate-200 h-4 flex items-center">
+                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest whitespace-nowrap">
+                    {userList.length <= 1 ? 'Trabajando Solo' : `${userList.length} Colaboradores`}
+                </span>
+            </div>
         </div>
     );
 }

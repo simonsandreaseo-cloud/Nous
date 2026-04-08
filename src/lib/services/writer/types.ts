@@ -28,7 +28,7 @@ export interface ArticleConfig {
     approvedLinks?: ContentItem[]; // New: List of approved links
     questions?: string[]; // New: Value SERP FAQs
     lsiKeywords?: string[]; // New: LSI and Autocomplete terms
-    creativityLevel?: 'low' | 'medium' | 'high'; // New: Creativity level
+
     contextInstructions?: string; // New: Global Context Instructions
     architectureInstructions?: string; // New: Smart Architecture instructions
     architectureRules?: any[]; // New: Regex-based architecture rules

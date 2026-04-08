@@ -8,16 +8,30 @@ import type { Project, Task, Team, TeamMember } from '@/types/project';
 
 export const STATUS_LABELS: Record<string, string> = {
     'idea': 'Idea',
-    'en_investigacion': 'En Investigación',
-    'investigacion_proceso': 'En Investigación',
-    'in_progress': 'En Investigación',
+    'en_investigacion': 'Investigando',
+    'investigacion_proceso': 'Investigando',
+    'in_progress': 'Investigando',
     'por_redactar': 'Por Redactar',
-    'en_redaccion': 'Por Redactar',
-    'doing': 'Por Redactar',
+    'en_redaccion': 'En Redacción',
+    'doing': 'En Redacción',
     'por_corregir': 'Por Corregir',
     'por_maquetar': 'Por Maquetar',
     'publicado': 'Publicado',
     'done': 'Publicado'
+};
+
+export const STATUS_COLORS: Record<string, { bg: string, text: string, border: string, dot: string }> = {
+    'idea': { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-100', dot: 'bg-slate-400' },
+    'en_investigacion': { bg: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-100', dot: 'bg-violet-500' },
+    'investigacion_proceso': { bg: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-100', dot: 'bg-violet-500' },
+    'in_progress': { bg: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-100', dot: 'bg-violet-500' },
+    'por_redactar': { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100', dot: 'bg-amber-500' },
+    'en_redaccion': { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', dot: 'bg-indigo-500' },
+    'doing': { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', dot: 'bg-indigo-500' },
+    'por_corregir': { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100', dot: 'bg-rose-500' },
+    'por_maquetar': { bg: 'bg-sky-50', text: 'text-sky-600', border: 'border-sky-100', dot: 'bg-sky-500' },
+    'publicado': { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', dot: 'bg-emerald-500' },
+    'done': { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', dot: 'bg-emerald-500' }
 };
 
 export type TaskStatus = keyof typeof STATUS_LABELS;
@@ -52,7 +66,8 @@ interface ProjectState {
     fetchTeamMembers: (teamId?: string) => Promise<void>;
     assignTask: (taskId: string, userId: string | null) => Promise<void>;
     claimTask: (taskId: string) => Promise<void>;
-    validateStatusTransition: (task: Task, nextStatus: string) => { valid: boolean; error?: string };
+    validateStatusTransition: (task: Task, nextStatus: string, updates?: Partial<Task>) => { valid: boolean; error?: string };
+    selectiveDeleteTask: (taskId: string, options: { research?: boolean, writing?: boolean, all?: boolean }) => Promise<void>;
     syncGscData: (siteUrl: string, startDate: string, endDate: string) => Promise<void>;
     syncProjectInventory: (projectId: string, siteUrl: string) => Promise<void>;
     fetchProjectInventory: (projectId: string) => Promise<{url: string, title?: string, type?: string, category?: string}[]>;
@@ -169,7 +184,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     },
 
     fetchTeams: async () => {
-        if (get().isLoading && get().teams.length > 0) return;
+        if (get().isLoading) return;
         set({ isLoading: true });
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
@@ -184,7 +199,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             .eq('user_id', session.user.id);
 
         if (memberError) {
-            console.error('[fetchTeams] Error fetching teams:', memberError);
+            console.error('[fetchTeams] Error fetching teams:', memberError.message || memberError, memberError.code, memberError.details);
             set({ isLoading: false });
             return;
         }
@@ -274,7 +289,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.error('Error fetching projects:', error);
+            console.error('Error fetching projects:', error.message || error, error.code, error.details);
             set({ isLoading: false });
             return;
         }
@@ -344,34 +359,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
      * Implementa las reglas del Ciclo de Vida de Nous:
      * Idea -> En Investigación -> Por Redactar -> Por Corregir -> Por Maquetar
      */
-    validateStatusTransition: (task: Task, nextStatus: string): { valid: boolean; error?: string } => {
-        const statusOrder = ['idea', 'en_investigacion', 'por_redactar', 'por_corregir', 'por_maquetar', 'publicado'];
-        const currentIndex = statusOrder.indexOf(task.status as any);
-        const nextIndex = statusOrder.indexOf(nextStatus as any);
-
-        // Allow backward moves without restriction (UI will handle warning)
-        if (nextIndex <= currentIndex) return { valid: true };
-
-        // Logic for Forward Moves
-        if (nextStatus === 'en_investigacion') {
-            if (!task.title && !task.target_keyword) return { valid: false, error: "Debes tener al menos una idea o keyword para iniciar la investigación." };
-        }
-        
-        if (nextStatus === 'por_redactar') {
-            const hasResearch = task.research_dossier && Object.keys(task.research_dossier).length > 0;
-            if (!hasResearch) return { valid: false, error: "La investigación SEO debe estar completa para pasar a 'Por Redactar'." };
-        }
-
-        // Special Bypass: Por Redactar -> Por Corregir (Manual approval)
-        if (task.status === 'por_redactar' && nextStatus === 'por_corregir') {
-            return { valid: true }; // Permitted bypass
-        }
-
-        // General rule: Cannot skip steps unless explicitly allowed
-        if (nextIndex > currentIndex + 1 && !(task.status === 'por_redactar' && nextStatus === 'por_corregir')) {
-            return { valid: false, error: `No puedes saltar a '${nextStatus}' desde '${task.status}'. Sigue el flujo editorial.` };
-        }
-
+    validateStatusTransition: (task: Task, nextStatus: string, updates?: Partial<Task>): { valid: boolean; error?: string } => {
+        // We've been requested to remove most restrictions to allow a more flexible workflow.
+        // Users can now move tasks between statuses more freely.
         return { valid: true };
     },
 
@@ -404,7 +394,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         const currentTask = get().tasks.find(t => t.id === taskId);
         
         if (currentTask && updates.status && updates.status !== currentTask.status) {
-            const validation = get().validateStatusTransition(currentTask, updates.status);
+            const validation = get().validateStatusTransition(currentTask, updates.status, updates);
             if (!validation.valid) {
                 alert(validation.error);
                 return;
@@ -434,12 +424,20 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
                 }
             }
 
-            // 2. Writer Tracking
-            if (updates.content_body && !currentTask?.writer_id) {
-                finalUpdates.writer_id = userId;
-                if (!currentTask?.assigned_to) {
-                    finalUpdates.assigned_to = userId;
-                    finalUpdates.assigned_at = new Date().toISOString();
+            // 2. Writer Tracking & Auto-Status
+            if (updates.content_body !== undefined && updates.content_body.trim() !== '') {
+                // Update writer if not set
+                if (!currentTask?.writer_id) {
+                    finalUpdates.writer_id = userId;
+                    if (!currentTask?.assigned_to) {
+                        finalUpdates.assigned_to = userId;
+                        finalUpdates.assigned_at = new Date().toISOString();
+                    }
+                }
+                
+                // Auto transition status if drafted
+                if (!updates.status && (!currentTask?.status || ['idea', 'por_redactar', 'en_investigacion', 'investigacion_proceso'].includes(currentTask.status))) {
+                    finalUpdates.status = 'por_corregir';
                 }
             }
 
@@ -502,6 +500,65 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             console.error('[DEBUG] Unexpected Error in deleteTask:', e);
             alert(`Error inesperado al eliminar: ${e.message}`);
         }
+    },
+
+    selectiveDeleteTask: async (taskId, options) => {
+        if (options.all) {
+            return get().deleteTask(taskId);
+        }
+
+        const currentTask = get().tasks.find(t => t.id === taskId);
+        if (!currentTask) return;
+
+        const updates: any = {};
+        
+        if (options.research) {
+            updates.research_dossier = {};
+            updates.seo_title = "";
+            updates.meta_description = "";
+            updates.target_keyword = "";
+            updates.volume = 0;
+            updates.lsi_keywords = [];
+            updates.status = 'idea';
+        }
+
+        if (options.writing) {
+            updates.content_body = "";
+            updates.outline_structure = {};
+            updates.word_count = 0;
+            updates.metadata = { 
+                ...(currentTask.metadata || {}), 
+                is_humanized: false, 
+                humanized_at: null 
+            };
+            // If we are NOT deleting research, but deleting writing, it stays in por_redactar
+            if (!options.research) {
+                updates.status = 'por_redactar';
+            }
+        }
+
+        if (options.research && options.writing) {
+            updates.status = 'idea';
+        }
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .update(updates)
+            .eq('id', taskId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error in selectiveDeleteTask:', error);
+            NotificationService.error("Error al limpiar contenido", error.message);
+            return;
+        }
+
+        set(state => ({
+            tasks: state.tasks.map(t => t.id === taskId ? (data as Task) : t)
+        }));
+        
+        NotificationService.success('Contenido actualizado correctamente');
     },
 
     deleteTasks: async (taskIds) => {

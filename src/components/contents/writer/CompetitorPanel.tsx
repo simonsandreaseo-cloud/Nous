@@ -10,15 +10,15 @@ import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CompetitorPanel() {
-    const { competitorDetails, geoCompetitorDetails, rawSeoData } = useWriterStore();
+    const { competitorDetails, rawSeoData, researchDossier } = useWriterStore();
     const [activeIdx, setActiveIdx] = useState(0);
     const [expandedHeaders, setExpandedHeaders] = useState<Record<string, boolean>>({});
-    const [mode, setMode] = useState<'seo' | 'geo'>('seo');
 
-    const seoComps = competitorDetails.length > 0 ? competitorDetails : (rawSeoData?.competitors || []);
-    const geoComps = geoCompetitorDetails.length > 0 ? geoCompetitorDetails : ((rawSeoData as any)?.geoCompetitors || []);
-
-    const competitors = mode === 'seo' ? seoComps : geoComps;
+    // Prioritize deep analysis from Jina/Dossier
+    const dossier = researchDossier || rawSeoData || {};
+    const competitors = competitorDetails.length > 0 
+        ? competitorDetails 
+        : (dossier.fullCompetitorAnalysis || dossier.competitors || []);
 
     const currentComp = competitors[activeIdx];
 
@@ -29,11 +29,7 @@ export default function CompetitorPanel() {
     const nextComp = () => setActiveIdx(prev => Math.min(competitors.length - 1, prev + 1));
     const prevComp = () => setActiveIdx(prev => Math.max(0, prev - 1));
 
-    if (competitors.length === 0 && mode === 'seo' && geoComps.length > 0) {
-        // Fallback to geo if seo empty and viceversa if user toggles?
-    }
-
-    if (seoComps.length === 0 && geoComps.length === 0) {
+    if (competitors.length === 0) {
         return (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
                 <Search size={48} className="mb-4 opacity-20" />
@@ -47,27 +43,7 @@ export default function CompetitorPanel() {
 
     return (
         <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
-            {/* Mode Switcher */}
-            <div className="px-6 py-3 bg-slate-100/50 border-b border-slate-200/60 flex items-center gap-2">
-                <button
-                    onClick={() => { setMode('seo'); setActiveIdx(0); }}
-                    className={cn(
-                        "flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                        mode === 'seo' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                    )}
-                >
-                    Competidores SEO ({seoComps.length})
-                </button>
-                <button
-                    onClick={() => { setMode('geo'); setActiveIdx(0); }}
-                    className={cn(
-                        "flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                        mode === 'geo' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                    )}
-                >
-                    Competidores GEO ({geoComps.length})
-                </button>
-            </div>
+
             {/* Header / Navigation Controls */}
             <div className="px-6 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-20 flex items-center justify-between shadow-sm">
                 <div className="flex flex-col">
@@ -131,31 +107,43 @@ export default function CompetitorPanel() {
                         transition={{ duration: 0.3, ease: "easeOut" }}
                         className="space-y-6"
                     >
-                        {/* URL Card */}
-                        <div className="bg-slate-900 rounded-[24px] p-5 shadow-xl shadow-slate-200">
+                        {/* URL Card - Lighter Design */}
+                        <div className="bg-white border border-slate-200 rounded-[24px] p-5 shadow-sm">
                             <div className="flex items-center gap-2 mb-3">
-                                <Globe size={14} className="text-indigo-400" />
-                                <span className="text-[10px] font-black uppercase text-indigo-400/60 tracking-widest leading-none">URL Competidor</span>
+                                <Globe size={14} className="text-indigo-500" />
+                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none">URL Competidor</span>
                             </div>
                             <div className="flex items-center gap-3">
                                 <a 
                                     href={currentComp.url} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="flex-1 text-[11px] font-bold text-white truncate hover:text-indigo-300 transition-colors"
+                                    className="flex-1 text-[11px] font-bold text-slate-700 truncate hover:text-indigo-600 transition-colors"
                                 >
                                     {currentComp.url}
                                 </a>
-                                <ExternalLink size={14} className="text-slate-500 shrink-0" />
+                                <ExternalLink size={14} className="text-slate-300 shrink-0" />
                             </div>
                         </div>
 
                         {/* Quick Metrics */}
                         <div className="grid grid-cols-3 gap-3">
-                             {[
-                                { label: 'Palabras', value: currentComp.word_count || currentComp.wordCount || '—' },
-                                { label: 'H2s', value: currentComp.h2_count || (currentComp.headers?.filter?.((h: any) => h.tag === 'h2').length) || '—' },
-                                { label: 'Dominio', value: currentComp.domain_authority ? `DA${currentComp.domain_authority}` : '—' },
+                            {[
+                                { 
+                                    label: 'Palabras', 
+                                    value: currentComp.word_count ?? currentComp.wordCount ?? 
+                                           (currentComp.summary ? currentComp.summary.split(/\s+/).length : '—') 
+                                },
+                                { 
+                                    label: 'H2s', 
+                                    value: currentComp.h2_count ?? currentComp.h2Count ?? 
+                                           (currentComp.headers?.filter?.((h: any) => h.tag === 'h2').length ?? '—')
+                                },
+                                { 
+                                    label: 'Dominio', 
+                                    value: currentComp.domain_authority ? `DA${currentComp.domain_authority}` : 
+                                           (currentComp.url ? new URL(currentComp.url).hostname.replace('www.', '') : '—')
+                                },
                             ].map(m => (
                                 <div key={m.label} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex flex-col items-center justify-center">
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{m.label}</span>
@@ -172,26 +160,42 @@ export default function CompetitorPanel() {
                             </div>
 
                             <div className="space-y-2">
-                                {currentComp.headers && currentComp.headers.length > 0 ? (
-                                    currentComp.headers.map((h: any, i: number) => {
-                                        const headerId = `comp-${activeIdx}-h-${i}`;
-                                        const isExpanded = expandedHeaders[headerId];
-                                        const indent = h.tag === 'h1' ? 'ml-0' : h.tag === 'h2' ? 'ml-6' : 'ml-12';
+                                {(() => {
+                                    // 1. Prioritize pre-structured headers from Research/Helios
+                                    let displayHeaders = currentComp.headers || [];
+                                    
+                                    // 2. Legacy Rescue logic: if no headers, try to parse them from the content
+                                    if (displayHeaders.length === 0 && currentComp.content) {
+                                        const parsed = currentComp.content.match(/#{1,4}\s+[^|#\n]+/g);
+                                        if (parsed) {
+                                            displayHeaders = parsed.map((h: string) => ({
+                                                tag: h.startsWith('###') ? 'h3' : h.startsWith('##') ? 'h2' : 'h1',
+                                                text: h.replace(/^#+\s+/, '').trim()
+                                            }));
+                                        }
+                                    }
+
+                                    return displayHeaders.length > 0 ? (
+                                        displayHeaders.map((h: any, i: number) => {
+                                            const headerId = `comp-${activeIdx}-h-${i}`;
+                                            const isExpanded = expandedHeaders[headerId];
+                                            const indent = h.tag === 'h1' || h.tag === 'H1' ? 'ml-0' : 
+                                                          h.tag === 'h2' || h.tag === 'H2' ? 'ml-6' : 'ml-12';
                                         
                                         return (
                                             <div key={headerId} className={cn("transition-all", indent)}>
-                                                <div 
-                                                    onClick={() => toggleHeader(headerId)}
-                                                    className={cn(
-                                                        "group flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer select-none",
-                                                        h.tag === 'h1' ? "bg-slate-900 border-slate-900 text-white" :
-                                                        h.tag === 'h2' ? "bg-white border-slate-200 text-slate-700 hover:border-indigo-200" :
-                                                        "bg-white border-slate-100 text-slate-500 hover:border-indigo-100"
-                                                    )}
-                                                >
+                                                 <div 
+                                                     onClick={() => toggleHeader(headerId)}
+                                                     className={cn(
+                                                         "group flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer select-none",
+                                                         (h.tag === 'h1' || h.tag === 'H1') ? "bg-indigo-50 border-indigo-100 text-indigo-900" :
+                                                         (h.tag === 'h2' || h.tag === 'H2') ? "bg-white border-slate-200 text-slate-700 hover:border-indigo-200" :
+                                                         "bg-white border-slate-100 text-slate-500 hover:border-indigo-100"
+                                                     )}
+                                                 >
                                                     <span className={cn(
                                                         "text-[9px] font-black uppercase w-6 shrink-0",
-                                                        h.tag === 'h1' ? "text-indigo-400" : "text-slate-300"
+                                                        (h.tag === 'h1' || h.tag === 'H1') ? "text-indigo-400" : "text-slate-300"
                                                     )}>
                                                         {h.tag}
                                                     </span>
@@ -213,8 +217,40 @@ export default function CompetitorPanel() {
                                                         >
                                                             <div className="pt-2 pb-1 pl-4">
                                                                 <div className="p-4 bg-slate-50 border border-slate-200 border-dashed rounded-2xl mb-2">
-                                                                    <p className="text-[10px] text-slate-400 font-medium italic leading-relaxed">
-                                                                        Contenido de la sección bajo el encabezado {h.tag}. Analizado semánticamente para detectar patrones.
+                                                                    <p className="text-[10px] text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                                                                        {(() => {
+                                                                            const content = currentComp.content || "";
+                                                                            if (!content) return "No hay contenido disponible para esta sección.";
+                                                                            
+                                                                            // Clean header text for matching
+                                                                            const cleanSearch = h.text.trim();
+                                                                            const escapedSearch = cleanSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                                                            
+                                                                            // More robust regex: handle markdown headers with potential extra spaces or newlines
+                                                                            const regex = new RegExp(`#{1,5}\\s+${escapedSearch}`, 'i');
+                                                                            const headerMatch = content.match(regex);
+                                                                            
+                                                                            if (!headerMatch) {
+                                                                                // Fallback: try to find the text directly if it's not a markdown header
+                                                                                const simpleIndex = content.toLowerCase().indexOf(cleanSearch.toLowerCase());
+                                                                                if (simpleIndex !== -1) {
+                                                                                    const startIdx = simpleIndex + cleanSearch.length;
+                                                                                    const rest = content.substring(startIdx);
+                                                                                    const nextHeaderMatch = rest.match(/\n#{1,5}\s+/);
+                                                                                    return nextHeaderMatch ? rest.substring(0, nextHeaderMatch.index).trim() : rest.trim();
+                                                                                }
+                                                                                return "Contenido no indexado para este encabezado específico.";
+                                                                            }
+                                                                            
+                                                                            const startIdx = headerMatch.index! + headerMatch[0].length;
+                                                                            const rest = content.substring(startIdx);
+                                                                            
+                                                                            // Find next header to stop
+                                                                            const nextHeaderMatch = rest.match(/\n#{1,5}\s+/);
+                                                                            const segment = nextHeaderMatch ? rest.substring(0, nextHeaderMatch.index) : rest;
+                                                                            
+                                                                            return segment.trim() || "Sección sin texto descriptivo inmediato.";
+                                                                        })()}
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -229,7 +265,8 @@ export default function CompetitorPanel() {
                                         <AlignLeft size={32} className="opacity-10 mb-2" />
                                         <p className="text-[10px] font-black uppercase tracking-widest">Sin estructura extraíble</p>
                                     </div>
-                                )}
+                                );
+                                })() }
                             </div>
                         </section>
 

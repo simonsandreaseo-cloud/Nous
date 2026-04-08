@@ -37,7 +37,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
     const [isCustomTitle, setIsCustomTitle] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
     const [phases, setPhases] = useState(PROGRESS_PHASES);
-    const [researchMode, setResearchMode] = useState<any>("balanced");
+
     const { activeProject, addTask, updateTask } = useProjectStore();
     const { 
         isResearching, 
@@ -98,11 +98,8 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
             const createdTask = allTasks.find(t => t.title === idea && t.project_id === activeProject.id && t.status === 'investigacion_proceso');
             const taskId = createdTask?.id;
 
-            const isFast = researchMode === "rapid";
-            let modelToUse = "gemini-3.1-flash-lite-preview";
-            
-            if (researchMode === "rapid") modelToUse = "llama-3.1-8b-instant";
-            if (researchMode === "quality") modelToUse = "gemma-3-27b-it";
+            const isFast = false;
+            let modelToUse = "default";
             // 2. Run actual analysis service with taskId for incremental saving
             const result = await StrategyService.runDeepSEOAnalysis({
                 projectId: activeProject.id, 
@@ -259,41 +256,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
                                         </button>
                                     </div>
 
-                                    <div className="flex flex-col gap-3 px-1 bg-slate-50/50 p-4 rounded-3xl border border-slate-100">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">Nivel de Investigación</span>
-                                            <span className={cn(
-                                                "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border shadow-sm transition-all animate-in fade-in zoom-in duration-300",
-                                                researchMode === 'rapid' ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
-                                                researchMode === 'balanced' ? "bg-indigo-50 border-indigo-100 text-indigo-600" :
-                                                "bg-violet-50 border-violet-100 text-violet-600"
-                                            )}>
-                                                {researchMode === 'rapid' ? 'Ultra-Rápido (Groq)' : 
-                                                 researchMode === 'balanced' ? 'Equilibrado (Gemini)' : 'Alta Calidad (Gemma 3)'}
-                                            </span>
-                                        </div>
-                                        
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {[
-                                                { id: 'rapid', label: 'Rápido', color: 'emerald', bg: 'bg-emerald-500' },
-                                                { id: 'balanced', label: 'Equilibrado', color: 'indigo', bg: 'bg-indigo-500' },
-                                                { id: 'quality', label: 'Pro', color: 'violet', bg: 'bg-violet-500' }
-                                            ].map(mode => (
-                                                <button
-                                                    key={mode.id}
-                                                    onClick={() => setResearchMode(mode.id as any)}
-                                                    className={cn(
-                                                        "py-2 rounded-xl text-[9px] font-bold uppercase transition-all border",
-                                                        researchMode === mode.id 
-                                                            ? `${mode.bg} text-white border-transparent shadow-md scale-[1.02]`
-                                                            : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
-                                                    )}
-                                                >
-                                                    {mode.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
+
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <button

@@ -27,9 +27,10 @@ export const autoInterlinkAsync = async (
         return item;
     });
 
-    // 2. Simple Intent Detection: Extract headers from HTML to find current topics
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
+
+    // 2. Simple Intent Detection: Extract headers from HTML to find current topics
     const headers = Array.from(doc.querySelectorAll('h1, h2, h3'))
         .map(h => h.textContent?.toLowerCase() || '')
         .filter(t => t.length > 5);
@@ -57,13 +58,29 @@ export const autoInterlinkAsync = async (
 
     candidates.sort((a, b) => b._score - a._score);
 
-    let linkedHtml = html;
     const alreadyLinked = new Set<string>();
     let linkCount = 0;
     const MAX_LINKS = 15;
 
     // Use only top candidates to keep regex processing fast
     const topCandidates = candidates.slice(0, 400);
+
+    // HELPER: Find all valid text nodes (not inside headers or links)
+    const getTextNodes = (node: Node): Text[] => {
+        const textNodes: Text[] = [];
+        const walk = (n: Node) => {
+            if (n.nodeType === Node.ELEMENT_NODE) {
+                const el = n as Element;
+                const tag = el.tagName.toLowerCase();
+                if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'button', 'script', 'style'].includes(tag)) return;
+                n.childNodes.forEach(walk);
+            } else if (n.nodeType === Node.TEXT_NODE) {
+                textNodes.push(n as Text);
+            }
+        };
+        walk(node);
+        return textNodes;
+    };
 
     for (let i = 0; i < topCandidates.length; i++) {
         // Yield to prevent UI freeze
@@ -73,53 +90,101 @@ export const autoInterlinkAsync = async (
 
         const item = topCandidates[i];
         if (linkCount >= MAX_LINKS) break;
-        if (item.title.length < 3) continue; // Allow slightly shorter titles (e.g. "BMW")
+        if (item.title.length < 3) continue;
         if (alreadyLinked.has(item.url)) continue;
 
-        // Create variations of the title to improve matching
         const variations = [
             item.title,
-            item.title.replace(/\s+/g, ' '), // normalized spaces
-            item.title.split(' - ')[0],      // Before dash (often brand/model)
-            item.title.split(' | ')[0]       // Before pipe
+            item.title.split(' - ')[0],
+            item.title.split(' | ')[0]
         ].filter((v, i, self) => v && v.length >= 4 && self.indexOf(v) === i);
 
-        let replacedThisRound = false;
-
         for (const variation of variations) {
-            if (replacedThisRound || linkCount >= MAX_LINKS) break;
+            if (linkCount >= MAX_LINKS) break;
 
             const safeTitle = escapeRegExp(variation);
-            // Ensure we don't link inside existing tags, attributes, or already linked text
-            // Negative lookahead/lookbehind for HTML tags and existing anchors
-            const titleRegex = new RegExp(`(?<!<[^>]*)(?<!<a[^>]*>)\\b${safeTitle}\\b(?![^<]*</a>)`, 'i');
+            const titleRegex = new RegExp(`\\b${safeTitle}\\b`, 'i');
 
-            if (titleRegex.test(linkedHtml)) {
-                // Avoid duplicate links to same URL
-                if (linkedHtml.includes(`href="${item.url}"`) || linkedHtml.includes(`href='${item.url}'`)) {
-                    alreadyLinked.add(item.url);
-                    replacedThisRound = true;
-                    continue;
+            // Find all valid text nodes and try to replace
+            const nodes = getTextNodes(doc.body);
+            let replacedInItem = false;
+
+            for (const node of nodes) {
+                if (linkCount >= MAX_LINKS || replacedInItem) break;
+
+                const text = node.textContent || '';
+                if (titleRegex.test(text)) {
+                    // Check if URL is already linked in the WHOLE document to avoid duplicates
+                    if (doc.querySelector(`a[href="${item.url}"], a[href='${item.url}']`)) {
+                        alreadyLinked.add(item.url);
+                        replacedInItem = true;
+                        continue;
+                    }
+
+                    const match = text.match(titleRegex);
+                    if (match) {
+                        const span = document.createElement('span');
+                        const finalUrl = sanitizeUrl(item.url);
+                        const parts = text.split(titleRegex);
+                        
+                        // Note: split can return multiple parts if there are multiple matches, 
+                        // but we only want to replace the FIRST one to avoid over-linking.
+                        const before = parts[0];
+                        const matchedText = match[0];
+                        const after = parts.slice(1).join(matchedText);
+
+                        const link = document.createElement('a');
+                        link.href = finalUrl;
+                        link.target = "_blank";
+                        link.rel = "noopener";
+                        link.tabIndex = 0;
+                        link.title = `Ver ${matchedText}`;
+                        link.textContent = matchedText;
+
+                        node.parentNode?.replaceChild(span, node);
+                        span.appendChild(document.createTextNode(before));
+                        span.appendChild(link);
+                        span.appendChild(document.createTextNode(after));
+                        
+                        // Unwrap the span
+                        const frag = document.createDocumentFragment();
+                        while (span.firstChild) frag.appendChild(span.firstChild);
+                        span.parentNode?.replaceChild(frag, span);
+
+                        alreadyLinked.add(item.url);
+                        replacedInItem = true;
+                        linkCount++;
+                    }
                 }
-
-                linkedHtml = linkedHtml.replace(titleRegex, (match) => {
-                    if (replacedThisRound) return match;
-                    replacedThisRound = true;
-                    alreadyLinked.add(item.url);
-                    linkCount++;
-                    const finalUrl = sanitizeUrl(item.url);
-                    return `<a href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="Ver ${match}">${match}</a>`;
-                });
             }
         }
     }
 
-    return linkedHtml;
+    return doc.body.innerHTML;
 };
 
 function escapeRegExp(string: string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/**
+ * Ensures all links in the HTML have the required attributes for security and accessibility.
+ */
+export const processHtmlLinks = (html: string): string => {
+    if (typeof window === 'undefined' || !html) return html;
+    
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    const links = doc.querySelectorAll('a');
+    links.forEach(link => {
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener');
+        link.setAttribute('tabindex', '0');
+    });
+    
+    return doc.body.innerHTML;
+};
 
 export const cleanAndFormatHtml = (html: string): string => {
     if (typeof window === 'undefined') return html; // Safety check for SSR
@@ -145,6 +210,10 @@ export const cleanAndFormatHtml = (html: string): string => {
             }
         }
     });
+
+    // 2. Process Links (Security & Accessibility)
+    const linked = processHtmlLinks(doc.body.innerHTML);
+    doc.body.innerHTML = linked;
 
     return doc.body.innerHTML;
 };
@@ -193,5 +262,5 @@ export const refineStyling = (html: string): string => {
         if (!h.textContent?.trim()) h.remove();
     });
 
-    return doc.body.innerHTML;
+    return processHtmlLinks(doc.body.innerHTML);
 };

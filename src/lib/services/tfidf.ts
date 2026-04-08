@@ -15,36 +15,48 @@ export function calculateTFIDF(corpus: string[]): { keyword: string; score: numb
   const docCount = corpus.length;
 
   const docTerms = corpus.map(text => {
-    // Normalización: Eliminar caracteres especiales y números aislados
+    // Normalización avanzada: Solo letras de cualquier idioma
     const tokens = text.toLowerCase()
-      .replace(/[^\p{L}\s]/gu, ' ') // Solo letras (ignoramos números para LSI)
+      .replace(/[^\p{L}\s]/gu, ' ')
       .split(/\s+/)
-      .filter(t => t.length > 3 && !stopwords.has(t));
+      .filter(t => t.length >= 3 && !stopwords.has(t));
     
-    const uniqueTokens = new Set(tokens);
-    uniqueTokens.forEach(token => {
+    // Generar Bi-gramas (frases de 2 palabras) para detectar entidades
+    const bigrams: string[] = [];
+    for (let i = 0; i < tokens.length - 1; i++) {
+        bigrams.push(`${tokens[i]} ${tokens[i+1]}`);
+    }
+
+    const allInDoc = [...tokens, ...bigrams];
+    const uniqueInDoc = new Set(allInDoc);
+    uniqueInDoc.forEach(token => {
       termDocs[token] = (termDocs[token] || 0) + 1;
     });
     
-    return tokens;
+    return allInDoc;
   });
 
   const allUniqueTerms = Object.keys(termDocs);
   const tfidfResults = allUniqueTerms.map(term => {
-    const idf = Math.log(docCount / (termDocs[term] || 1));
+    // IDF Suavizado: n + 1 / df + 1 (Asegura que las palabras presentes en todos no valgan 0)
+    const idf = Math.log((docCount + 1) / termDocs[term]) + 1;
+    
     let totalTf = 0;
     docTerms.forEach(tokens => {
-      // TF Score: Frecuencia del término en cada documento
       const count = tokens.filter(t => t === term).length;
-      totalTf += count / (tokens.length || 1);
+      totalTf += (count / (tokens.length || 1));
     });
+    
+    // Boost para bi-gramas (entidades suelen ser más valiosas que palabras sueltas)
+    const isBigram = term.includes(' ');
+    const finalScore = (totalTf / docCount) * idf * (isBigram ? 1.5 : 1.0);
     
     return {
       keyword: term,
-      score: (totalTf / docCount) * idf
+      score: finalScore
     };
   });
 
-  // Retornar top 50, ordenados por score de relevancia (TF-IDF)
+  // Retornar top 50, ordenados por score de relevancia técnica
   return tfidfResults.sort((a, b) => b.score - a.score).slice(0, 50);
 }

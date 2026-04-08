@@ -1,9 +1,9 @@
 'use client';
 
-import { useProjectStore, Task, STATUS_LABELS } from '@/store/useProjectStore';
+import { useProjectStore, Task, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MoreVertical, CheckCircle2, Clock, Calendar, Hash, Tag, Activity, Edit3, Trash2, Plus, Sparkles, X, Globe, FileText, User, UserPlus, ArrowRight } from 'lucide-react';
+import { MoreVertical, CheckCircle2, Clock, Calendar, Hash, Tag, Activity, Edit3, Trash2, Plus, Sparkles, X, Globe, FileText, User, UserPlus, ArrowRight, Check, Search, Layout, Zap, BrainCircuit, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,7 +15,7 @@ import { useWriterStore } from '@/store/useWriterStore';
 import CompetitorModal from './CompetitorModal';
 
 export const ALL_COLUMNS = [
-    { id: 'project', label: 'Proy.', width: 'min-w-[60px] w-[5%]', defaultVisible: true },
+    { id: 'project', label: 'Proy.', width: 'min-w-[50px] w-[5%]', defaultVisible: true },
     { id: 'status', label: 'Estado', width: 'min-w-[100px] w-[8%]', defaultVisible: true },
     { id: 'date', label: 'Publicación', width: 'min-w-[100px] w-[10%]', defaultVisible: true },
     { id: 'title', label: 'Título', width: 'min-w-[200px] w-[25%]', defaultVisible: true },
@@ -29,12 +29,12 @@ export const ALL_COLUMNS = [
     { id: 'word_count', label: 'Palabras', width: 'min-w-[70px] w-[7%]', defaultVisible: true },
     { id: 'lsi', label: 'LSI', width: 'min-w-[120px] w-[12%]', defaultVisible: true },
     { id: 'competitors', label: 'Fuentes', width: 'min-w-[100px] w-[8%]', defaultVisible: true },
-    { id: 'actions', label: 'Acciones', width: 'min-w-[140px] w-[7%]', defaultVisible: true },
+    { id: 'Acciones Nous', label: 'Acciones Nous', width: 'min-w-[140px] w-[9%]', defaultVisible: true },
 ];
 
 interface StrategyGridProps {
     onSelectTask?: (task: Task) => void;
-    onRunResearch?: (taskId: string) => void;
+    onRunAction?: (taskId: string, action: string) => void;
     columnVisibility?: Record<string, boolean>;
     selectedTaskIds?: string[];
     onSelectionChange?: (ids: string[]) => void;
@@ -43,14 +43,16 @@ interface StrategyGridProps {
 
 export default function StrategyGrid({ 
     onSelectTask, 
-    onRunResearch, 
+    onRunAction, 
     columnVisibility: externalVisibility,
     selectedTaskIds = [],
     onSelectionChange,
     batchProgress = {}
 }: StrategyGridProps) {
-    const { tasks, activeProject, addTask, updateTask, deleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
+    const { tasks, activeProject, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
+    const [deletePopupId, setDeletePopupId] = useState<string | null>(null);
+    const [deleteOptions, setDeleteOptions] = useState({ research: false, writing: false });
     const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
     const [tempValue, setTempValue] = useState("");
     
@@ -250,28 +252,28 @@ export default function StrategyGrid({
 
     return (
         <div
-            className="flex-1 flex flex-col overflow-hidden"
+            className="flex-1 flex flex-col min-h-0 overflow-hidden"
             onPaste={handlePaste}
         >
-            <div className="flex-1 overflow-auto custom-scrollbar">
+            <div className="flex-1 overflow-auto custom-scrollbar border border-slate-100 rounded-2xl bg-white shadow-sm">
                 <table className="min-w-full text-left border-collapse table-auto">
                     <thead>
-                        <tr className="bg-white border-b border-slate-100 sticky top-0 z-[5]">
-                            <th className="px-6 py-3 w-[60px]">
+                        <tr className="bg-white border-b border-slate-100 sticky top-0 z-[10] shadow-sm">
+                            <th className="px-3 py-3 w-[1%] whitespace-nowrap min-w-[40px]">
                                 <div 
                                     className={cn(
-                                        "w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer transition-all",
+                                        "w-4 h-4 rounded-[4px] border flex items-center justify-center cursor-pointer transition-all",
                                         selectedTaskIds.length > 0 && selectedTaskIds.length === sortedTasks.length 
-                                            ? "bg-slate-900 border-slate-900" 
-                                            : "border-slate-200 hover:border-slate-400"
+                                            ? "bg-indigo-500 border-indigo-500 text-white shadow-sm" 
+                                            : "border-slate-300 bg-white hover:border-indigo-400"
                                     )}
                                     onClick={toggleAll}
                                 >
-                                    {selectedTaskIds.length > 0 && (
-                                        <div className={cn(
-                                            "w-2 h-0.5 bg-white rounded-full",
-                                            selectedTaskIds.length === sortedTasks.length ? "rotate-45 relative top-[1px] left-[1px] w-[6px] h-[2px]" : ""
-                                        )} />
+                                    {selectedTaskIds.length > 0 && selectedTaskIds.length === sortedTasks.length && (
+                                        <Check size={12} strokeWidth={3} />
+                                    )}
+                                    {selectedTaskIds.length > 0 && selectedTaskIds.length !== sortedTasks.length && (
+                                        <div className="w-2 h-0.5 bg-indigo-500 rounded-full" />
                                     )}
                                 </div>
                             </th>
@@ -281,7 +283,7 @@ export default function StrategyGrid({
                                     className={cn(
                                         "px-3 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap", 
                                         header.width,
-                                        header.id === 'actions' && "text-center"
+                                        header.id === 'Acciones Nous' && "text-right"
                                     )}
                                 >
                                     {header.label}
@@ -307,7 +309,7 @@ export default function StrategyGrid({
                                     )}
                                     onClick={() => onSelectTask?.(task)}
                                 >
-                                    <td className="px-3 py-2" onClick={(e) => toggleOne(task.id, e)}>
+                                    <td className="px-3 py-2 w-[1%] whitespace-nowrap min-w-[40px]" onClick={(e) => toggleOne(task.id, e)}>
                                         {batchProgress[task.id] && batchProgress[task.id] < 100 && (
                                             <motion.div 
                                                 initial={{ x: "-100%" }}
@@ -318,14 +320,14 @@ export default function StrategyGrid({
                                         )}
                                         <div 
                                             className={cn(
-                                                "w-4 h-4 rounded border-2 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
+                                                "w-4 h-4 rounded-[4px] border flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
                                                 selectedTaskIds.includes(task.id) 
-                                                    ? "bg-indigo-600 border-indigo-600 opacity-100" 
-                                                    : "border-slate-200 bg-white"
+                                                    ? "bg-indigo-500 border-indigo-500 opacity-100 text-white shadow-sm" 
+                                                    : "border-slate-300 bg-white"
                                             )}
                                         >
                                             {selectedTaskIds.includes(task.id) && (
-                                                <div className="w-1.5 h-1.5 bg-white rounded-sm" />
+                                                <Check size={12} strokeWidth={3} />
                                             )}
                                         </div>
                                     </td>
@@ -368,26 +370,24 @@ export default function StrategyGrid({
                                                         <span className="absolute text-[8px] font-black tabular-nums text-slate-900">{Math.round(batchProgress[task.id])}%</span>
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[8px] font-black uppercase text-indigo-600 tracking-tighter leading-none animate-pulse">Investigando</span>
+                                                        <span className="text-[8px] font-black uppercase text-indigo-600 tracking-tighter leading-none animate-pulse">
+                                                            {!task.research_dossier || Object.keys(task.research_dossier).length === 0 ? "Investigando" :
+                                                             !task.outline_structure || !task.outline_structure.headers || task.outline_structure.headers.length === 0 ? "Planificando" :
+                                                             !task.content_body ? "Redactando" : "Humanizando"}
+                                                        </span>
                                                         <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Nous en proceso</span>
                                                     </div>
                                                 </div>
                                             ) : (
                                                 <div className={cn(
-                                                    "px-1.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border",
-                                                    (task.status === "por_maquetar" || task.status === "publicado" || task.status === "done")
-                                                        ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                                        : (task.status === "en_investigacion" || task.status === "investigacion_proceso")
-                                                            ? "bg-indigo-50 text-indigo-600 border-indigo-100"
-                                                            : (task.status === "por_redactar" || task.status === "por_corregir" || task.status === "en_redaccion")
-                                                                ? "bg-purple-50 text-purple-600 border-purple-100"
-                                                                : "bg-slate-50 text-slate-600 border-slate-100"
+                                                    "px-1.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border transition-colors",
+                                                    STATUS_COLORS[task.status]?.bg || 'bg-slate-50',
+                                                    STATUS_COLORS[task.status]?.text || 'text-slate-600',
+                                                    STATUS_COLORS[task.status]?.border || 'border-slate-100'
                                                 )}>
                                                     <div className={cn(
                                                         "w-1 h-1 rounded-full",
-                                                        (task.status === "por_maquetar" || task.status === "publicado" || task.status === "done") ? "bg-emerald-500" :
-                                                        (task.status === "en_investigacion" || task.status === "investigacion_proceso") ? "bg-indigo-500" :
-                                                        (task.status === "por_redactar" || task.status === "por_corregir" || task.status === "en_redaccion") ? "bg-purple-500" : "bg-slate-400"
+                                                        STATUS_COLORS[task.status]?.dot || 'bg-slate-400'
                                                     )} />
                                                     {STATUS_LABELS[task.status] || task.status.replace(/_/g, ' ')}
                                                 </div>
@@ -396,7 +396,7 @@ export default function StrategyGrid({
                                     )}
 
                                     {columnVisibility['date'] && (
-                                        <td className="px-3 py-2 relative" onClick={(e) => handleCellClick(task, 'date', e)}>
+                                        <td className="px-3 py-2 relative cursor-text" onClick={(e) => handleCellClick(task, 'date', e)}>
                                             {editingCell?.id === task.id && editingCell?.field === 'date' ? (
                                                 <input
                                                     autoFocus
@@ -417,7 +417,7 @@ export default function StrategyGrid({
                                     )}
 
                                     {columnVisibility['title'] && (
-                                        <td className="px-3 py-2 relative" onClick={(e) => handleCellClick(task, 'title', e)}>
+                                        <td className="px-3 py-2 relative cursor-text" onClick={(e) => handleCellClick(task, 'title', e)}>
                                             {editingCell?.id === task.id && editingCell?.field === 'title' ? (
                                                 <input
                                                     autoFocus
@@ -430,7 +430,7 @@ export default function StrategyGrid({
                                             ) : (
                                                 <div className="flex items-center gap-2">
                                                     <span className={cn(
-                                                        "text-[11px] font-bold text-slate-700 block truncate transition-all",
+                                                        "text-[11px] font-bold text-slate-700 block truncate transition-all leading-tight",
                                                         !task.title && "text-slate-300 italic font-medium"
                                                     )}>
                                                         {task.title || "Escribe un título..."}
@@ -441,7 +441,7 @@ export default function StrategyGrid({
                                     )}
 
                                     {columnVisibility['seo_title'] && (
-                                        <td className="px-3 py-2 relative" onClick={(e) => handleCellClick(task, 'seo_title', e)}>
+                                        <td className="px-3 py-2 relative cursor-text" onClick={(e) => handleCellClick(task, 'seo_title', e)}>
                                             {editingCell?.id === task.id && editingCell?.field === 'seo_title' ? (
                                                 <input
                                                     autoFocus
@@ -460,7 +460,7 @@ export default function StrategyGrid({
                                     )}
 
                                     {columnVisibility['slug'] && (
-                                        <td className="px-3 py-2 relative" onClick={(e) => handleCellClick(task, 'target_url_slug', e)}>
+                                        <td className="px-3 py-2 relative cursor-text" onClick={(e) => handleCellClick(task, 'target_url_slug', e)}>
                                             {editingCell?.id === task.id && editingCell?.field === 'target_url_slug' ? (
                                                 <input
                                                     autoFocus
@@ -479,7 +479,7 @@ export default function StrategyGrid({
                                     )}
 
                                     {columnVisibility['meta_description'] && (
-                                        <td className="px-3 py-2 relative" onClick={(e) => handleCellClick(task, 'meta_description', e)}>
+                                        <td className="px-3 py-2 relative cursor-text" onClick={(e) => handleCellClick(task, 'meta_description', e)}>
                                             {editingCell?.id === task.id && editingCell?.field === 'meta_description' ? (
                                                 <textarea
                                                     autoFocus
@@ -579,7 +579,7 @@ export default function StrategyGrid({
                                     {columnVisibility['strategy'] && (
                                         <td className="px-3 py-2">
                                             <div className="flex items-center gap-1.5 justify-center">
-                                                {task.outline_structure?.headers?.length > 0 ? (
+                                                {((Array.isArray(task.outline_structure) && task.outline_structure.length > 0) || (task.outline_structure?.headers?.length > 0)) ? (
                                                     <div className="flex items-center gap-1 text-violet-500 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-100" title="Outline Completo">
                                                         <Sparkles size={11} />
                                                         <span className="text-[8px] font-black uppercase tracking-tighter">Plan</span>
@@ -694,13 +694,13 @@ export default function StrategyGrid({
                                                 className="flex items-center gap-1 max-w-full overflow-hidden cursor-pointer relative pr-4 group/lsirow"
                                                 onClick={(e) => { e.stopPropagation(); setOpenLsiId(openLsiId === task.id ? null : task.id); }}
                                             >
-                                                {task.research_dossier?.lsiKeywords?.slice(0, 1).map((kw: any, i: number) => (
+                                                {(task.research_dossier?.lsiKeywords || task.research_dossier?.keywordIdeas)?.slice(0, 1).map((kw: any, i: number) => (
                                                     <div key={i} className="px-1.5 py-0.5 bg-indigo-50/30 text-indigo-500 border border-indigo-100/50 rounded-lg text-[8px] font-bold uppercase shrink-0">
                                                         {kw.keyword}
                                                     </div>
                                                 )) || <span className="text-[8px] text-slate-300 italic">--</span>}
-                                                {task.research_dossier?.lsiKeywords && task.research_dossier.lsiKeywords.length > 1 && (
-                                                    <span className="text-[8px] font-bold text-slate-400 shrink-0">+{task.research_dossier.lsiKeywords.length - 1}</span>
+                                                {(task.research_dossier?.lsiKeywords || task.research_dossier?.keywordIdeas) && (task.research_dossier?.lsiKeywords || task.research_dossier?.keywordIdeas).length > 1 && (
+                                                    <span className="text-[8px] font-bold text-slate-400 shrink-0">+{(task.research_dossier?.lsiKeywords || task.research_dossier?.keywordIdeas).length - 1}</span>
                                                 )}
                                                 <div className="absolute right-0 opacity-0 group-hover/lsirow:opacity-100 transition-all">
                                                     <Plus size={8} className="text-slate-300" />
@@ -720,9 +720,9 @@ export default function StrategyGrid({
                                                             <div>
                                                                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-2">Keywords LSI</span>
                                                                 <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scrollbar p-0.5">
-                                                                    {task.research_dossier?.lsiKeywords?.map((kw: any, i: number) => (
+                                                                    {(task.research_dossier?.lsiKeywords || task.research_dossier?.keywordIdeas)?.map((kw: any, i: number) => (
                                                                         <div key={i} className="px-2 py-1 bg-indigo-50/50 text-indigo-500 border border-indigo-100 rounded-lg text-[9px] font-bold uppercase flex items-center gap-1 group/lsi">
-                                                                            {kw.keyword} ({kw.volume || 0})
+                                                                            {kw.keyword} ({kw.volume || kw.score || 0})
                                                                             <button 
                                                                                 onClick={(e) => { e.stopPropagation(); handleRemoveKeyword(task, kw.keyword); }}
                                                                                 className="opacity-0 group-hover/lsi:opacity-100 hover:text-red-500 transition-all"
@@ -731,7 +731,7 @@ export default function StrategyGrid({
                                                                             </button>
                                                                         </div>
                                                                     ))}
-                                                                    {(!task.research_dossier?.lsiKeywords || task.research_dossier.lsiKeywords.length === 0) && (
+                                                                    {!task.research_dossier?.lsiKeywords && !task.research_dossier?.keywordIdeas && (
                                                                         <span className="text-[9px] text-slate-400 italic">No hay keywords LSI.</span>
                                                                     )}
                                                                 </div>
@@ -772,21 +772,27 @@ export default function StrategyGrid({
                                     {columnVisibility['competitors'] && (
                                         <td className="px-3 py-2">
                                             <div className="flex items-center gap-1.5 overflow-hidden group/comprow">
-                                                {task.research_dossier?.top10Urls?.slice(0, 3).map((comp: any, i: number) => (
-                                                    <button 
-                                                        key={i} 
-                                                        onClick={(e) => { 
-                                                            e.stopPropagation(); 
-                                                            setSelectedCompetitor({ task, comp, index: i }); 
-                                                            setCompContent(comp.content || "");
-                                                            setIsEditingComp(false);
-                                                        }}
-                                                        className="flex items-center gap-1 truncate text-slate-300 hover:text-indigo-400 transition-colors shrink-0" 
-                                                        title={comp.url}
-                                                    >
-                                                        <Globe size={11} />
-                                                    </button>
-                                                )) || <span className="text-[9px] text-slate-300 italic">--</span>}
+                                                {task.research_dossier?.top10Urls?.slice(0, 3).map((comp: any, i: number) => {
+                                                    const match = task.research_dossier?.competitors?.find((c: any) => c.url === comp.url);
+                                                    return (
+                                                        <button 
+                                                            key={i} 
+                                                            onClick={(e) => { 
+                                                                e.stopPropagation(); 
+                                                                setSelectedCompetitor({ task, comp: match || comp, index: i }); 
+                                                                setCompContent(match?.content || comp.content || "");
+                                                                setIsEditingComp(false);
+                                                            }}
+                                                            className={cn(
+                                                                "flex items-center gap-1 truncate transition-colors shrink-0",
+                                                                match ? "text-indigo-500 hover:text-indigo-700" : "text-slate-300 hover:text-indigo-400"
+                                                            )}
+                                                            title={comp.url}
+                                                        >
+                                                            <Globe size={11} className={match ? "animate-pulse" : ""} />
+                                                        </button>
+                                                    );
+                                                }) || <span className="text-[9px] text-slate-300 italic">--</span>}
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); setCompetitorModalTask(task.id); }}
                                                     className="p-1 hover:bg-slate-100 rounded-lg text-slate-300 hover:text-indigo-600 transition-all"
@@ -796,57 +802,118 @@ export default function StrategyGrid({
                                             </div>
                                         </td>
                                     )}
-
-
-                                    <td className="px-4 py-2">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {/* Action: Open Detail View */}
-                                            <button
-                                                onClick={(e) => { 
-                                                    e.stopPropagation(); 
-                                                    onSelectTask?.(task);
-                                                }}
-                                                className="px-3 py-1.5 bg-indigo-50/50 hover:bg-slate-900 text-indigo-600 hover:text-white border border-indigo-100/50 hover:border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap"
-                                                title="Abrir Detalles"
-                                            >
-                                                <span>Abrir Ficha</span>
-                                                <ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
-                                            </button>
-
-                                            {/* Action: Open in Writer Studio */}
-                                            {(canEditAny() || canTakeTasks()) && (
-                                                <button
-                                                    onClick={(e) => { 
-                                                        e.stopPropagation(); 
-                                                        initializeFromTask(task, activeProject);
-                                                        router.push('/contents/writer');
-                                                    }}
-                                                    className="px-3 py-1.5 bg-purple-50/50 hover:bg-purple-600 text-purple-600 hover:text-white border border-purple-100/50 hover:border-purple-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap"
-                                                    title="Editar en Redactor"
-                                                >
-                                                    <Edit3 size={10} />
-                                                    <span>Redactor</span>
-                                                </button>
-                                            )}
-
-                                            {/* Action: Delete Task */}
-                                            {canCreateOrDelete() && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (confirm('¿Estás seguro de que quieres eliminar este contenido?')) {
-                                                            deleteTask(task.id);
+                                     {columnVisibility['Acciones Nous'] && (
+                                        <td className="px-3 py-2 pr-6">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <IntelligentActionButton 
+                                                    task={task} 
+                                                    isProcessing={!!batchProgress[task.id] && batchProgress[task.id] < 100}
+                                                    onAction={async (action) => {
+                                                        if (action === 'writer') {
+                                                            initializeFromTask(task, activeProject);
+                                                            router.push('/contents/writer');
+                                                        } else {
+                                                            onRunAction?.(task.id, action);
                                                         }
                                                     }}
-                                                    className="px-3 py-1.5 bg-rose-50/50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-100/50 hover:border-rose-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap"
-                                                    title="Eliminar Contenido"
-                                                >
-                                                    <Trash2 size={10} />
-                                                    <span>Eliminar</span>
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
+                                                />
+
+                                                <div className="relative">
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setDeletePopupId(deletePopupId === task.id ? null : task.id);
+                                                            setDeleteOptions({ research: false, writing: false });
+                                                        }}
+                                                        className={cn(
+                                                            "p-2 rounded-xl transition-all border",
+                                                            deletePopupId === task.id
+                                                                ? "bg-rose-50 text-rose-600 border-rose-100 shadow-sm"
+                                                                : "text-slate-300 hover:text-rose-500 hover:bg-rose-50 border-transparent hover:border-rose-100"
+                                                        )}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+
+                                                    <AnimatePresence>
+                                                        {deletePopupId === task.id && (
+                                                            <>
+                                                                <div className="fixed inset-0 z-40" onClick={() => setDeletePopupId(null)} />
+                                                                <motion.div 
+                                                                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                                    className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                                                                >
+                                                                    <div className="p-3 bg-slate-50 border-b border-slate-100">
+                                                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">¿Qué deseas eliminar?</span>
+                                                                    </div>
+                                                                    <div className="p-2 space-y-1">
+                                                                        <button 
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setDeleteOptions(prev => ({ ...prev, research: !prev.research }));
+                                                                            }}
+                                                                            className={cn(
+                                                                                "w-full flex items-center justify-between px-3 py-2 rounded-lg text-[10px] font-bold transition-all",
+                                                                                deleteOptions.research ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50"
+                                                                            )}
+                                                                        >
+                                                                            <span>Investigación</span>
+                                                                            {deleteOptions.research && <Check size={12} />}
+                                                                        </button>
+                                                                        
+                                                                        <button 
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setDeleteOptions(prev => ({ ...prev, writing: !prev.writing }));
+                                                                            }}
+                                                                            className={cn(
+                                                                                "w-full flex items-center justify-between px-3 py-2 rounded-lg text-[10px] font-bold transition-all",
+                                                                                deleteOptions.writing ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50"
+                                                                            )}
+                                                                        >
+                                                                            <span>Redacción</span>
+                                                                            {deleteOptions.writing && <Check size={12} />}
+                                                                        </button>
+
+                                                                        {(deleteOptions.research || deleteOptions.writing) && (
+                                                                            <button 
+                                                                                onClick={async (e) => {
+                                                                                    e.stopPropagation();
+                                                                                    await selectiveDeleteTask(task.id, deleteOptions);
+                                                                                    setDeletePopupId(null);
+                                                                                }}
+                                                                                className="w-full mt-2 py-2 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
+                                                                            >
+                                                                                Confirmar Limpieza
+                                                                            </button>
+                                                                        )}
+
+                                                                        <div className="h-px bg-slate-100 my-1" />
+
+                                                                        <button 
+                                                                            onClick={async (e) => {
+                                                                                e.stopPropagation();
+                                                                                if (confirm('¿Eliminar todo este contenido?')) {
+                                                                                    await selectiveDeleteTask(task.id, { all: true });
+                                                                                    setDeletePopupId(null);
+                                                                                }
+                                                                            }}
+                                                                            className="w-full text-left px-3 py-2 text-[10px] font-bold text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center justify-between"
+                                                                        >
+                                                                            <span>ELIMINAR TODO</span>
+                                                                            <Trash2 size={12} />
+                                                                        </button>
+                                                                    </div>
+                                                                </motion.div>
+                                                            </>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    )}
                                 </tr>
                             ))
                         )}
@@ -980,5 +1047,74 @@ export default function StrategyGrid({
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+function IntelligentActionButton({ task, onAction, isProcessing }: { task: Task, onAction: (type: string) => void, isProcessing?: boolean }) {
+    const getActionState = () => {
+        if (isProcessing) {
+            return { label: 'Procesando', action: 'none', color: 'indigo', icon: Loader2, animate: true };
+        }
+        // 1. Necesita Investigación
+        if (!task.research_dossier || Object.keys(task.research_dossier).length === 0) {
+            return { label: 'Investigar', action: 'investigar', color: 'indigo', icon: Search };
+        }
+        // 2. Necesita Redacción (Si tiene dossier o está en estado por_redactar)
+        if (task.status === 'por_redactar' || (!task.content_body || task.content_body.trim() === '')) {
+            return { label: 'Redactar', action: 'draft', color: 'rose', icon: Sparkles };
+        }
+        // 3. Necesita Humanización
+        if (!task.metadata?.is_humanized) {
+            return { label: 'Humanizar', action: 'humanize', color: 'emerald', icon: Zap };
+        }
+        // Por defecto: Ver en editor
+        return { label: 'Ver Editor', action: 'writer', color: 'slate', icon: Edit3 };
+    };
+
+    const state = getActionState();
+    const Icon = state.icon;
+
+    const colors: any = {
+        indigo: "bg-indigo-50 text-indigo-600 hover:bg-indigo-600 border-indigo-100/50 hover:border-indigo-600",
+        purple: "bg-purple-50 text-purple-600 hover:bg-purple-600 border-purple-100/50 hover:border-purple-600",
+        rose: "bg-rose-50 text-rose-600 hover:bg-rose-600 border-rose-100/50 hover:border-rose-600",
+        emerald: "bg-emerald-50 text-emerald-600 hover:bg-emerald-600 border-emerald-100/50 hover:border-emerald-600",
+        slate: "bg-slate-50 text-slate-600 hover:bg-slate-800 border-slate-100/50 hover:border-slate-800"
+    };
+
+    return (
+        <button
+            disabled={isProcessing}
+            onClick={(e) => { e.stopPropagation(); if (!isProcessing) onAction(state.action); }}
+            className={cn(
+                "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap border min-w-[120px] justify-between",
+                colors[state.color as string],
+                !isProcessing && "hover:text-white",
+                isProcessing && "opacity-80 cursor-not-allowed"
+            )}
+        >
+            <div className="flex items-center gap-2">
+                <div className={cn(
+                    "w-4 h-4 rounded-full flex items-center justify-center shrink-0",
+                    isProcessing ? "bg-indigo-600 text-white" : "bg-white/20"
+                )}>
+                    {isProcessing ? (
+                        <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                        <img 
+                            src="/LogoNous.png" 
+                            alt="Nous" 
+                            className="w-3.5 h-3.5 object-contain" 
+                        />
+                    )}
+                </div>
+                <span>{state.label}</span>
+            </div>
+            <Icon size={10} className={cn(
+                "opacity-50 transition-opacity",
+                !isProcessing && "group-hover:opacity-100",
+                state.animate && "animate-spin"
+            )} />
+        </button>
     );
 }

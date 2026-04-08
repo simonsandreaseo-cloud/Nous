@@ -15,7 +15,7 @@ export interface ArticleConfig {
     approvedLinks?: ContentItem[];
     questions?: string[];
     lsiKeywords?: string[];
-    creativityLevel?: 'low' | 'medium' | 'high';
+
     contextInstructions?: string;
     isStrictMode?: boolean;
     strictFrequency?: number;

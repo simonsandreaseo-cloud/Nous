@@ -32,7 +32,7 @@ export const BatchProcessor = {
         let count = 0;
         for (const task of tasks) {
             try {
-                onLog(task.id, 'Outline', `Iniciando diseño de estructura para: ${task.title}`);
+                onLog(task.id, 'Outline', `Diseñando arquitectura para: ${task.title}`);
                 onTaskProgress?.(task.id, 10);
                 
                 const config: ArticleConfig = {
@@ -52,8 +52,10 @@ export const BatchProcessor = {
                 const res = await generateOutlineStrategy(config, task.target_keyword || task.title, task.research_dossier);
                 onTaskProgress?.(task.id, 90);
 
+                // Harmonize: use flat array (res.outline.headers) as standard
+                const headers = res.outline?.headers || [];
                 const updates: Partial<Task> = {
-                    outline_structure: { headers: res.outline?.headers || [] },
+                    outline_structure: headers,
                     h1: res.snippet?.h1 || task.title,
                     seo_title: res.snippet?.metaTitle || task.title,
                     target_url_slug: res.snippet?.slug || '',
@@ -64,9 +66,10 @@ export const BatchProcessor = {
                 await supabase.from('tasks').update(updates).eq('id', task.id);
                 onTaskUpdate?.(task.id, updates);
 
-                onLog(task.id, 'Outline', `✅ Estructura generada con éxito.`);
+                onLog(task.id, 'Outline', `✅ Estructura de ${headers.length} secciones generada.`);
                 onTaskProgress?.(task.id, 100);
             } catch (error: any) {
+                console.error("[BatchProcessor] Outline error:", error);
                 onLog(task.id, 'Error', `❌ Error en Outline: ${error.message}`);
                 onTaskProgress?.(task.id, 0);
             }
@@ -88,9 +91,19 @@ export const BatchProcessor = {
         let count = 0;
         for (const task of tasks) {
             try {
-                onLog(task.id, 'Redacción', `Iniciando redacción masiva para: ${task.title}`);
+                onLog(task.id, 'Redacción', `Redactando contenido para: ${task.title}`);
                 onTaskProgress?.(task.id, 10);
                 
+                // Robustness: handle both array (new standard) and object (old legacy) formats
+                const rawOutline = task.outline_structure;
+                const outlineArray = Array.isArray(rawOutline) 
+                    ? rawOutline 
+                    : (rawOutline?.headers || []);
+
+                if (outlineArray.length === 0) {
+                    onLog(task.id, 'Aviso', `⚠️ El contenido no tiene estructura definida. Usando modo genérico.`);
+                }
+
                 const config: ArticleConfig = {
                     projectName: 'Nous Project',
                     niche: task.metadata?.niche || 'General',
@@ -102,7 +115,7 @@ export const BatchProcessor = {
                     refUrls: '',
                     refContent: task.research_dossier?.brief || '',
                     csvData: [],
-                    outlineStructure: task.outline_structure?.headers || [],
+                    outlineStructure: outlineArray,
                     approvedLinks: task.research_dossier?.suggestedInternalLinks || []
                 };
 
@@ -111,8 +124,13 @@ export const BatchProcessor = {
                 let fullContent = '';
                 
                 for await (const chunk of (stream as any)) {
-                    fullContent += chunk.text;
-                    // Opcional: Podríamos emitir mini-progresos aquí pero recargaría mucho la UI
+                    if (chunk.text) {
+                        fullContent += chunk.text;
+                    }
+                }
+
+                if (!fullContent || fullContent.length < 100) {
+                    throw new Error("El contenido generado es demasiado corto o está vacío.");
                 }
 
                 const updates: Partial<Task> = {
@@ -123,9 +141,10 @@ export const BatchProcessor = {
                 await supabase.from('tasks').update(updates).eq('id', task.id);
                 onTaskUpdate?.(task.id, updates);
 
-                onLog(task.id, 'Redacción', `✅ Artículo redactado y guardado.`);
+                onLog(task.id, 'Redacción', `✅ Artículo de ${fullContent.length} bytes guardado.`);
                 onTaskProgress?.(task.id, 100);
             } catch (error: any) {
+                console.error("[BatchProcessor] Drafting error:", error);
                 onLog(task.id, 'Error', `❌ Error en Redacción: ${error.message}`);
                 onTaskProgress?.(task.id, 0);
             }

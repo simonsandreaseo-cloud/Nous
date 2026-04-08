@@ -4,7 +4,7 @@ export const buildPrompt = (config: ArticleConfig): string => {
     const { 
         topic, metaTitle, keywords, tone, wordCount, refUrls, refContent, 
         csvData, outlineStructure, approvedLinks, projectName, niche, 
-        questions, lsiKeywords, creativityLevel, contextInstructions, 
+        questions, lsiKeywords, contextInstructions, 
         isStrictMode, strictFrequency, architectureInstructions 
     } = config;
 
@@ -36,33 +36,10 @@ El H1 del artículo es: "${topic}" (Debe ser el título visible).
 Luego sigue este esquema:
 ${outlineStructure.map(h => `${h.type}: ${h.text} (Objetivo: ${h.wordCount}) [Instrucción: ${h.notes || 'Normal'}]`).join('\n')}
 `;
-    }
-
-    // Creativity Levels
-    let formatRules = "";
-    if (creativityLevel === 'low') {
-        formatRules = `
-        NIVEL DE CREATIVIDAD: BAJO (Conservador).
-        - Usa mayormente párrafos de texto plano.
-        - Usa Bullet Points solo si es imprescindible.
-        - NO uses tablas ni citas. Mantén el diseño limpio y simple.
-        `;
-    } else if (creativityLevel === 'medium') {
-        formatRules = `
-        NIVEL DE CREATIVIDAD: MEDIO (Equilibrado).
-        - Incluye al menos 1 Tabla Comparativa útil.
-        - Usa Bullet Points para listar características.
-        `;
-    } else if (creativityLevel === 'high') {
-        formatRules = `
-        NIVEL DE CREATIVIDAD: ALTO (Rich Content).
-        - Sorprende visualmente con HTML semántico.
-        - Usa Tablas de Pros/Contras.
-        - Cajas de resumen (párrafos destacados).
-        - Listas numéricas y desordenadas frecuentes.
-        `;
-    }
-
+    }    const formatRules = `
+        - Usa un formato HTML semántico enriquecido (tablas, listas, citas) cuando aporte valor.
+        - Prioriza la claridad y la profundidad del contenido.
+    `;
     // Strict Mode Instruction Block
     let strictModeInstruction = "";
     if (isStrictMode) {
@@ -131,6 +108,7 @@ ESTILO Y FORMATO HTML (CRÍTICO):
     - Siempre que el "Anchor ideal" o un concepto muy similar aparezca en el texto, conviértelo en el enlace correspondiente.
     - Si un enlace es muy importante pero no encaja, fuerza una mención natural al final de un párrafo (ej: "Puedes ver más en nuestra colección de [Título](URL)").
     - NO uses Markdown para enlaces, usa solo HTML.
+    - **PROHIBIDO colocar enlaces dentro de etiquetas de encabezado (H1-H6).** Los enlaces solo deben integrarse en el cuerpo de los párrafos o listas.
 
 ${refUrls ? `### COMPETENCIA DIRECTA (REFERENCIAS RAÍZ):\n${refUrls}` : ''}
 ${refContent ? `### INTELIGENCIA COMPETITIVA (SNIPPETS DE CONTENIDO):\n${refContent}` : ''}

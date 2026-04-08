@@ -17,13 +17,16 @@ import {
     ExternalLink,
     AlertTriangle,
     CheckCircle,
-    X
+    X,
+    ArrowRight,
+    Loader2
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
-import { Task } from "@/store/useProjectStore";
+import { Task, useProjectStore } from "@/store/useProjectStore";
 import { NotificationService } from "@/lib/services/notifications";
+import { generateArticleSchemas } from "@/lib/services/writer/seo-analyzer";
 
 interface PublicationToolsProps {
     task: Task;
@@ -35,6 +38,8 @@ export function PublicationTools({ task, onStatusToggle, onReportIssue }: Public
     const [copyingStatus, setCopyingStatus] = useState<Record<string, boolean>>({});
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportNote, setReportNote] = useState("");
+    const [isGeneratingSchemas, setIsGeneratingSchemas] = useState(false);
+    const { updateTask } = useProjectStore();
 
     const handleCopy = async (id: string, text: string, type: 'text' | 'html' | 'rich-text' = 'text') => {
         try {
@@ -64,8 +69,34 @@ Slug: ${task.target_url_slug || ''}
 Meta Description: ${task.meta_description || ''}
 Keyword: ${task.target_keyword || ''}
 Extracto: ${task.excerpt || ''}
+Schemas: ${JSON.stringify(task.research_dossier?.schemas || [], null, 2)}
 `.trim();
         await handleCopy('Todo', text);
+    };
+
+    const handleGenerateSchemas = async () => {
+        if (!task.content_body) {
+            NotificationService.error("Error", "El artículo no tiene contenido para analizar.");
+            return;
+        }
+
+        setIsGeneratingSchemas(true);
+        try {
+            const schemas = await generateArticleSchemas(task.title, task.content_body);
+            
+            // Actualizamos la tarea con los nuevos schemas
+            const updatedDossier = {
+                ...(task.research_dossier || {}),
+                schemas: schemas
+            };
+
+            await updateTask(task.id, { research_dossier: updatedDossier });
+            NotificationService.notify("Schemas Generados", "Se han añadido Article y FAQ Schemas correctamente.");
+        } catch (error) {
+            NotificationService.error("Error", "No se pudieron generar los schemas.");
+        } finally {
+            setIsGeneratingSchemas(false);
+        }
     };
 
     const metadataItems = [
@@ -74,6 +105,12 @@ Extracto: ${task.excerpt || ''}
         { id: "slug", label: "Slug / URL", value: task.target_url_slug, icon: Link },
         { id: "meta_desc", label: "Meta Description", value: task.meta_description, icon: MousePointer2 },
         { id: "excerpt", label: "Extracto / Resumen", value: task.excerpt, icon: ScrollText },
+        { 
+            id: "schemas", 
+            label: "Schemas (JSON-LD)", 
+            value: task.research_dossier?.schemas ? JSON.stringify(task.research_dossier.schemas, null, 2) : null, 
+            icon: FileCode 
+        },
     ];
 
     const isPublic = task.status === 'publicado' || task.status === 'done';
@@ -148,6 +185,24 @@ Extracto: ${task.excerpt || ''}
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Formato RTF</span>
                         <span className="text-[8px] font-bold text-slate-300 uppercase mt-1">Copiado Enriquecido</span>
                     </div>
+                </button>
+                <button 
+                    onClick={handleGenerateSchemas}
+                    disabled={isGeneratingSchemas}
+                    className="col-span-2 flex items-center justify-between p-7 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 rounded-[40px] border border-indigo-500 text-white transition-all group shadow-xl shadow-indigo-100 hover:shadow-indigo-200 active:scale-95"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white shadow-inner">
+                            {isGeneratingSchemas ? <Loader2 className="animate-spin" size={24} /> : <FileCode size={24} />}
+                        </div>
+                        <div className="text-left">
+                            <span className="text-[12px] font-black uppercase tracking-widest block">
+                                {isGeneratingSchemas ? 'Analizando Artículo...' : 'Generar Schemas SEO'}
+                            </span>
+                            <span className="text-[8px] font-bold text-indigo-100 uppercase mt-1">Detección Automática de FAQs & Article JSON-LD</span>
+                        </div>
+                    </div>
+                    <ArrowRight size={20} className="opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                 </button>
             </div>
 

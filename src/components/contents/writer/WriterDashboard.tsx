@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWriterStore } from '@/store/useWriterStore';
-import { useProjectStore } from '@/store/useProjectStore';
+import { useProjectStore, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
 import { Button } from '@/components/dom/Button';
 import { 
     Plus, FileText, Calendar, Clock, 
-    ChevronRight, Search, LayoutGrid, List
+    ChevronRight
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { motion } from 'framer-motion';
@@ -75,38 +75,52 @@ export default function WriterDashboard() {
                         {projectContents.map((content, idx) => (
                             <motion.div
                                 key={content.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: idx * 0.05 }}
                                 onClick={() => loadContentById(content.id)}
-                                className="group relative bg-white border border-slate-100 rounded-3xl p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 cursor-pointer transition-all duration-300"
+                                className="group relative bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1 cursor-pointer transition-all duration-500 overflow-hidden"
                             >
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className={cn(
-                                        "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                                        content.status === 'published' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                                        content.status === 'drafting' ? "bg-indigo-50 text-indigo-600 border-indigo-100" :
-                                        "bg-amber-50 text-amber-600 border-amber-100"
-                                    )}>
-                                        {content.status}
-                                    </div>
-                                    <div className="text-slate-300 group-hover:text-indigo-400 transition-colors">
-                                        <ChevronRight size={18} />
-                                    </div>
-                                </div>
+                                {/* Decorative Gradient Blobs */}
+                                <div className="absolute -top-10 -right-10 w-24 h-24 bg-indigo-50/50 rounded-full blur-3xl group-hover:bg-indigo-100/50 transition-colors" />
+                                <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-cyan-50/50 rounded-full blur-3xl group-hover:bg-cyan-100/50 transition-colors" />
 
-                                <h3 className="text-sm font-bold text-slate-800 line-clamp-2 mb-3 leading-snug group-hover:text-indigo-600 transition-colors">
-                                    {content.title}
-                                </h3>
-
-                                <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-[10px] font-bold text-slate-400">
-                                    <div className="flex items-center gap-1.5">
-                                        <Calendar size={12} />
-                                        <span>{new Date(content.created_at).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}</span>
+                                <div className="relative z-10">
+                                    <div className="flex items-start justify-between mb-6">
+                                        <div className={cn(
+                                            "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all flex items-center gap-2",
+                                            STATUS_COLORS[content.status]?.bg || 'bg-slate-50',
+                                            STATUS_COLORS[content.status]?.text || 'text-slate-600',
+                                            STATUS_COLORS[content.status]?.border || 'border-slate-100/50'
+                                        )}>
+                                            <motion.div 
+                                                animate={{ scale: [1, 1.2, 1] }}
+                                                transition={{ duration: 2, repeat: Infinity }}
+                                                className={cn(
+                                                    "w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]",
+                                                    STATUS_COLORS[content.status]?.dot || 'bg-slate-400'
+                                                )} 
+                                            />
+                                            {STATUS_LABELS[content.status] || content.status.replace(/_/g, ' ')}
+                                        </div>
+                                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-all">
+                                            <ChevronRight size={16} />
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Clock size={12} />
-                                        <span>Borrador</span>
+
+                                    <h3 className="text-base font-bold text-slate-800 line-clamp-3 mb-6 leading-tight group-hover:text-indigo-600 transition-colors min-h-[3rem]">
+                                        {content.title}
+                                    </h3>
+
+                                    <div className="pt-6 border-t border-slate-50 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar size={12} className="text-slate-300" />
+                                            <span>{new Date(content.created_at).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg group-hover:bg-indigo-50/50 group-hover:text-indigo-500 transition-colors">
+                                            <FileText size={12} />
+                                            <span>Editar</span>
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>

@@ -5,11 +5,11 @@ import StarterKit from '@tiptap/starter-kit';
 import Typography from '@tiptap/extension-typography';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useEffect } from 'react';
 import { 
     Bold, Italic, Strikethrough, Code, List, ListOrdered, 
-    Heading1, Heading2, Heading3, Quote 
+    Heading1, Heading2, Heading3, Quote, Link as LinkIcon, Unlink, ExternalLink, Trash2, FileText, Code2, Check
 } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 
 interface CorrectionEditorProps {
@@ -18,6 +18,10 @@ interface CorrectionEditorProps {
 }
 
 export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
+    const [viewMode, setViewMode] = useState<'visual' | 'code'>('visual');
+    const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+    const [tempLink, setTempLink] = useState("");
+
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -26,8 +30,13 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
                 placeholder: 'Edita el contenido aquí...',
             }),
             Link.configure({
-                openOnClick: true,
+                openOnClick: false, // Changed to false for better editing control
                 autolink: true,
+                HTMLAttributes: {
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    class: 'cursor-pointer'
+                }
             }),
         ],
         content: content,
@@ -55,6 +64,18 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
             }
         }
     }, [content, editor]);
+
+    const handleSetLink = useCallback(() => {
+        if (tempLink) {
+            editor?.chain().focus().setLink({ href: tempLink }).run();
+        } else {
+            editor?.chain().focus().unsetLink().run();
+        }
+    }, [editor, tempLink]);
+
+    const handleUnsetLink = useCallback(() => {
+        editor?.chain().focus().unsetLink().run();
+    }, [editor]);
 
     if (!editor) return null;
 
@@ -86,56 +107,156 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
             `}</style>
 
             {/* Toolbar */}
-            <div className="flex items-center gap-1 p-2 border-b border-slate-100 bg-slate-50/50">
-                <button
-                    onClick={() => editor.chain().focus().toggleBold().run()}
-                    className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('bold') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
-                >
-                    <Bold size={16} />
-                </button>
-                <button
-                    onClick={() => editor.chain().focus().toggleItalic().run()}
-                    className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('italic') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
-                >
-                    <Italic size={16} />
-                </button>
-                <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-                <button
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                    className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('heading', { level: 1 }) ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
-                >
-                    <Heading1 size={16} />
-                </button>
-                <button
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                    className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('heading', { level: 2 }) ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
-                >
-                    <Heading2 size={16} />
-                </button>
-                <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-                <button
-                    onClick={() => editor.chain().focus().toggleBulletList().run()}
-                    className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('bulletList') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
-                >
-                    <List size={16} />
-                </button>
-                <button
-                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                    className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('blockquote') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
-                >
-                    <Quote size={16} />
-                </button>
+            <div className="flex items-center justify-between p-2 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => editor.chain().focus().toggleBold().run()}
+                        className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('bold') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
+                    >
+                        <Bold size={16} />
+                    </button>
+                    <button
+                        onClick={() => editor.chain().focus().toggleItalic().run()}
+                        className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('italic') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
+                    >
+                        <Italic size={16} />
+                    </button>
+                    <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+                    <button
+                        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                        className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('heading', { level: 1 }) ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
+                    >
+                        <Heading1 size={16} />
+                    </button>
+                    <button
+                        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                        className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('heading', { level: 2 }) ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
+                    >
+                        <Heading2 size={16} />
+                    </button>
+                    <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+                    <button
+                        onClick={() => editor.chain().focus().toggleBulletList().run()}
+                        className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('bulletList') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
+                    >
+                        <List size={16} />
+                    </button>
+                    <button
+                        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                        className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('blockquote') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
+                    >
+                        <Quote size={16} />
+                    </button>
+                </div>
+
+                {/* View Mode Switcher */}
+                <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-lg border border-slate-200/50 shadow-sm transform scale-90 origin-right">
+                    <button 
+                        onClick={() => setViewMode('visual')}
+                        className={cn(
+                            "px-4 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                            viewMode === 'visual' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                        )}
+                    >
+                        <FileText size={12} />
+                        Visual
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('code')}
+                        className={cn(
+                            "px-4 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                            viewMode === 'code' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                        )}
+                    >
+                        <Code2 size={12} />
+                        Código
+                    </button>
+                </div>
             </div>
 
-            <BubbleMenu editor={editor}>
+            {/* Selection Bubble Menu */}
+            <BubbleMenu 
+                editor={editor} 
+                tippyOptions={{ duration: 100 }}
+                shouldShow={({ editor }) => !editor.isActive('link') && editor.state.selection.content().size > 0}
+            >
                 <div className="flex bg-slate-900 rounded-xl p-1 shadow-2xl gap-1">
                     <button onClick={() => editor.chain().focus().toggleBold().run()} className="p-2 text-white hover:bg-white/10 rounded-lg"><Bold size={14}/></button>
                     <button onClick={() => editor.chain().focus().toggleItalic().run()} className="p-2 text-white hover:bg-white/10 rounded-lg"><Italic size={14}/></button>
                 </div>
             </BubbleMenu>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
-                <EditorContent editor={editor} />
+            {/* Link Popover Menu */}
+            <BubbleMenu 
+                editor={editor} 
+                tippyOptions={{ 
+                    duration: 100, 
+                    placement: 'bottom',
+                    onShow: () => {
+                        const currentUrl = editor.getAttributes('link').href || "";
+                        setTempLink(currentUrl);
+                    }
+                }}
+                shouldShow={({ editor }) => editor.isActive('link')}
+            >
+                <div className="flex items-center bg-white shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-slate-200 rounded-2xl p-1.5 gap-1.5 min-w-[280px]">
+                    <div className="flex-1 flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-xl border border-slate-100">
+                        <LinkIcon size={12} className="text-slate-300" />
+                        <input 
+                            type="text" 
+                            className="bg-transparent text-[10px] font-bold text-slate-800 outline-none w-full placeholder:text-slate-300"
+                            placeholder="https://..."
+                            value={tempLink}
+                            onChange={(e) => setTempLink(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSetLink();
+                                if (e.key === 'Escape') editor.chain().focus().run();
+                            }}
+                        />
+                    </div>
+                    <button 
+                        onClick={handleSetLink}
+                        className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
+                        title="Guardar Enlace"
+                    >
+                        <Check size={14} />
+                    </button>
+                    <div className="w-[1px] h-4 bg-slate-100 mx-0.5" />
+                    <button 
+                        onClick={handleUnsetLink}
+                        className="p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all active:scale-90"
+                        title="Eliminar Enlace"
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                    <a 
+                        href={tempLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-2 text-slate-300 hover:bg-slate-50 hover:text-slate-600 rounded-xl transition-all active:scale-90"
+                        title="Abrir en pestaña nueva"
+                    >
+                        <ExternalLink size={14} />
+                    </a>
+                </div>
+            </BubbleMenu>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                {viewMode === 'visual' ? (
+                    <div className="p-8">
+                        <EditorContent editor={editor} />
+                    </div>
+                ) : (
+                    <div className="h-full flex flex-col p-4 bg-slate-900 border-t border-slate-800">
+                        <textarea 
+                            value={content}
+                            onChange={(e) => onChange(e.target.value)}
+                            className="flex-1 w-full p-8 bg-slate-900 text-emerald-400 font-mono text-[13px] leading-relaxed resize-none outline-none selection:bg-indigo-500/30 custom-scrollbar"
+                            placeholder="Escribe tu HTML aquí..."
+                            spellCheck={false}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

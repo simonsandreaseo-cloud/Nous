@@ -20,6 +20,10 @@ const DistributionView = dynamic(
     () => import("@/components/contents/DistributionView"),
     { loading: () => <ToolLoading name="Distribución" />, ssr: false }
 );
+const ImageGenerator = dynamic(
+    () => import("@/components/contents/images/ImageGenerator"),
+    { loading: () => <ToolLoading name="Imagenes" />, ssr: false }
+);
 
 // --- Mockup View Component ---
 function MockupView({ toolId }: { toolId: string }) {
@@ -64,13 +68,13 @@ function ToolLoading({ name }: { name: string }) {
     );
 }
 
-type ViewMode = "cards" | "kanban" | "calendar" | "table";
 
 function ToolView({ toolId }: { toolId: string }) {
     switch (toolId) {
         case "writer": return <WriterStudio />;
         case "planner": return <EditorialCalendar />;
         case "distribution": return <DistributionView />;
+        case "imagenes": return <ImageGenerator />;
         default: 
             if (["monitor", "oficina", "seo", "estrategia"].includes(toolId)) {
                 return <MockupView toolId={toolId} />;
@@ -91,7 +95,6 @@ interface ContentsLayoutProps {
 export function ContentsLayout({ initialTool = "planner" }: ContentsLayoutProps) {
     const router = useRouter();
     const [activeTool, setActiveTool] = useState(initialTool);
-    const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
     // Sync active tool with URL parameter changes
     useEffect(() => {

@@ -2,7 +2,7 @@ import { ArticleConfig } from '../../types/ai';
 import { ContentItem } from '../../types/content';
 
 export const buildPrompt = (config: ArticleConfig): string => {
-    const { topic, metaTitle, keywords, tone, wordCount, refUrls, refContent, outlineStructure, approvedLinks, projectName, niche, questions, lsiKeywords, creativityLevel, contextInstructions, isStrictMode, strictFrequency } = config;
+    const { topic, metaTitle, keywords, tone, wordCount, refUrls, refContent, outlineStructure, approvedLinks, projectName, niche, questions, lsiKeywords, contextInstructions, isStrictMode, strictFrequency } = config;
 
     let linkingInstructions = "";
     if (approvedLinks && approvedLinks.length > 0) {
@@ -29,32 +29,10 @@ ${outlineStructure.map(h => `${h.type}: ${h.text} (Objetivo: ${h.wordCount}) [In
 `;
     }
 
-    // Creativity Levels
-    let formatRules = "";
-    if (creativityLevel === 'low') {
-        formatRules = `
-        NIVEL DE CREATIVIDAD: BAJO (Conservador).
-        - Usa mayormente párrafos de texto plano.
-        - Usa Bullet Points solo si es imprescindible.
-        - NO uses tablas ni citas. Mantén el diseño limpio y simple.
-        `;
-    } else if (creativityLevel === 'medium') {
-        formatRules = `
-        NIVEL DE CREATIVIDAD: MEDIO (Equilibrado).
-        - Incluye al menos 1 Tabla Comparativa útil.
-        - Usa Bullet Points para listar características.
-        - Incluye 1 Cita (<blockquote>) de un experto o de la marca.
-        `;
-    } else {
-        formatRules = `
-        NIVEL DE CREATIVIDAD: ALTO (Rich Content).
-        - Sorprende visualmente con HTML semántico.
-        - Usa Tablas de Pros/Contras.
-        - Cajas de resumen (párrafos destacados).
-        - Múltiples Citas (<blockquote>).
-        - Listas numéricas y desordenadas frecuentes.
-        `;
-    }
+    const formatRules = `
+        - Usa un formato HTML semántico enriquecido (tablas, listas, citas) cuando aporte valor.
+        - Prioriza la claridad y la profundidad del contenido.
+    `;
 
     // Strict Mode Instruction Block
     let strictModeInstruction = "";

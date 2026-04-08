@@ -42,7 +42,7 @@ export function Toaster() {
     const { toasts, removeToast } = useToastStore();
 
     return (
-        <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 pointer-events-none">
             <AnimatePresence>
                 {toasts.map((toast) => {
                     const style = TOAST_STYLES[toast.type];
@@ -51,8 +51,8 @@ export function Toaster() {
                     return (
                         <motion.div
                             key={toast.id}
-                            initial={{ opacity: 0, x: 20, scale: 0.95 }}
-                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                             className={cn(
                                 "min-w-[320px] max-w-sm pointer-events-auto",

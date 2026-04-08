@@ -1,5 +1,6 @@
 'use client';
 import { useWriterStore, StrategyOutlineItem } from '@/store/useWriterStore';
+import { useWriterActions } from '@/components/contents/writer/useWriterActions';
 import { cn } from '@/utils/cn';
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -25,7 +26,8 @@ export default function OutlineEditorPanel({
     className,
     isSidebar = false
 }: OutlineEditorPanelProps) {
-    const { strategyOutline, setStrategyOutline, strategyWordCount } = useWriterStore();
+    const { strategyOutline, setStrategyOutline, strategyWordCount, isPlanningStructure, rawSeoData } = useWriterStore();
+    const { handleRegenerateOutline } = useWriterActions();
     const [isOpen, setIsOpen] = useState(true);
     const [activeIdx, setActiveIdx] = useState(0);
 
@@ -103,12 +105,22 @@ export default function OutlineEditorPanel({
                             Genera una estrategia con Nous o añade secciones manualmente para comenzar.
                         </p>
                     </div>
-                    <button
-                        onClick={addSection}
-                        className="h-10 px-6 border-2 border-dashed border-indigo-200 rounded-2xl text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:bg-indigo-50 transition-all flex items-center gap-2"
-                    >
-                        <Plus size={14} /> Añadir Primera Sección
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                            onClick={addSection}
+                            className="h-10 px-6 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2"
+                        >
+                            <Plus size={14} /> Añadir Manual
+                        </button>
+                        <button
+                            onClick={handleRegenerateOutline}
+                            disabled={isPlanningStructure || !rawSeoData}
+                            className="h-10 px-6 bg-indigo-500 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest hover:bg-indigo-600 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100 disabled:opacity-50"
+                        >
+                            <Sparkles size={14} className={cn(isPlanningStructure && "animate-spin")} />
+                            {isPlanningStructure ? 'Generando...' : 'Generar con IA'}
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -299,15 +311,25 @@ export default function OutlineEditorPanel({
 
                             {/* Actions bar */}
                             <div className="grid grid-cols-1 gap-2 pt-2">
-                                {onInsertSection && (
+                                <div className="flex gap-2">
+                                    {onInsertSection && (
+                                        <button
+                                            onClick={() => onInsertSection(activeItem)}
+                                            className="flex-1 h-11 bg-white border border-indigo-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                        >
+                                            <PlusCircle size={14} />
+                                            Insertar en el editor
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={() => onInsertSection(activeItem)}
-                                        className="w-full h-11 bg-white border border-indigo-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 transition-all flex items-center justify-center gap-2 shadow-sm"
+                                        onClick={handleRegenerateOutline}
+                                        disabled={isPlanningStructure || !rawSeoData}
+                                        className="flex-1 h-11 bg-indigo-50 border border-indigo-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                                     >
-                                        <PlusCircle size={14} />
-                                        Insertar en el editor
+                                        <Sparkles size={14} className={cn(isPlanningStructure && "animate-spin")} />
+                                        {isPlanningStructure ? 'Regenerando...' : 'Regenerar con IA'}
                                     </button>
-                                )}
+                                </div>
                                 <button
                                     onClick={addSection}
                                     className="w-full h-11 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:border-indigo-300 hover:text-indigo-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"

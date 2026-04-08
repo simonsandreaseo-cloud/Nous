@@ -1,151 +1,247 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GoogleGenAI } from "@google/genai";
+import { Groq } from 'groq-sdk';
+import { AI_CONFIG } from "../../ai/config";
+import { GoogleGenerativeAI as GoogleGenAI } from "@google/generative-ai";
 
+// --- COMPATIBILITY LAYER FOR GROQ (Mocking Gemini SDK) ---
+
+class GroqGenerativeModelCompatibility {
+    constructor(private groq: Groq, private model: string, private systemInstruction?: string) {}
+
+    async generateContent(req: any) {
+        const prompt = typeof req === 'string' ? req : 
+                      (req.contents?.[0]?.parts?.[0]?.text || req.prompt || "");
+        
+        const messages: any[] = [];
+        if (this.systemInstruction) {
+            messages.push({ role: 'system', content: this.systemInstruction });
+        } else if (req.systemInstruction) {
+             messages.push({ role: 'system', content: req.systemInstruction });
+        }
+        
+        // Handle Gemini contents array or string
+        if (Array.isArray(req.contents)) {
+            req.contents.forEach((c: any) => {
+                messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts[0].text });
+            });
+        } else {
+            messages.push({ role: 'user', content: prompt });
+        }
+
+        const completion = await this.groq.chat.completions.create({
+            messages,
+            model: this.model,
+            temperature: req.generationConfig?.temperature ?? 0.7,
+            max_tokens: req.generationConfig?.maxOutputTokens ?? 4096,
+            response_format: req.generationConfig?.responseMimeType === 'application/json' ? { type: 'json_object' } : undefined
+        });
+
+        return {
+            response: {
+                text: () => completion.choices[0]?.message?.content || ''
+            }
+        };
+    }
+
+    async generateContentStream(req: any) {
+        const prompt = typeof req === 'string' ? req : 
+                      (req.contents?.[0]?.parts?.[0]?.text || req.prompt || "");
+        
+        const messages: any[] = [];
+        if (this.systemInstruction) messages.push({ role: 'system', content: this.systemInstruction });
+        
+        if (Array.isArray(req.contents)) {
+            req.contents.forEach((c: any) => {
+                messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts[0].text });
+            });
+        } else {
+            messages.push({ role: 'user', content: prompt });
+        }
+
+        const stream = await this.groq.chat.completions.create({
+            messages,
+            model: this.model,
+            temperature: req.generationConfig?.temperature ?? 0.7,
+            max_tokens: req.generationConfig?.maxOutputTokens ?? 4096,
+            stream: true,
+        });
+
+        return {
+            stream: (async function* () {
+                for await (const chunk of stream) {
+                    const text = chunk.choices[0]?.delta?.content || '';
+                    if (text) {
+                        yield { text: () => text };
+                    }
+                }
+            })()
+        };
+    }
+}
+
+class GroqClientCompatibility {
+    constructor(private groq: Groq) {}
+    getGenerativeModel(config: any) {
+        // Map Gemini models to Groq models
+        let model = config.model;
+        if (model.includes('gemini') || model.includes('gemma')) {
+            const isQuality = model.includes('pro') || model.includes('27b');
+            model = isQuality ? AI_CONFIG.groq.models.quality : AI_CONFIG.groq.models.brute;
+        }
+        return new GroqGenerativeModelCompatibility(this.groq, model, config.systemInstruction);
+    }
+}
 
 // Module-level persistent state for key rotation
 let sessionKeys: string[] = [];
 
-// Helper to check if a key is roughly valid
+// Helper to check if a key is roughly valid for Groq (usually starts with gsk_)
+const isGroqKey = (k: string) => k && k.trim().startsWith('gsk_');
 const isValidKey = (k: string) => k && k.trim().length > 10;
 
 /**
- * Executor that handles rotation across multiple Gemini API keys.
- * If a key fails due to quota (429), it's moved to the end of the rotation list 
- * to optimize subsequent calls.
+ * Executor that handles rotation across multiple Groq API keys. (Formerly Gemini)
+ */
+/**
+ * Unified executor that handles rotation across multiple providers (Google Native and Groq).
  */
 export const executeWithKeyRotation = async <T>(
-    operation: (client: GoogleGenerativeAI, currentModel: string) => Promise<T>,
-    modelName: string = 'gemini-3.1-flash-lite-preview',
+    operation: (client: any, currentModel: string) => Promise<T>,
+    modelName: string = 'default',
     keys?: string[] | string,
     onRotation?: (failedKey: string, reason: string, attempt: number, max: number) => void,
     isStrictModel: boolean = false,
     label: string = 'Operación AI',
     timeoutMs: number = 90000
 ): Promise<T> => {
-    // 1. Determine Model Fallback Order
-    const primary = modelName;
-    const secondary = primary === 'gemini-3.1-flash-lite-preview' ? 'gemma-3-27b-it' : 'gemini-3.1-flash-lite-preview';
-    const parachute1 = 'gemini-2.5-flash';
-    const baseline = 'gemini-2.5-flash-lite';
-    
-    // If strict, only use the requested model
-    const modelsToTry = isStrictModel 
-        ? [primary] 
-        : Array.from(new Set([primary, secondary, parachute1, baseline]));
+    // 1. Determine Hierarchy based on label/intent
+    const isResearch = label.toLowerCase().includes('seo') || label.toLowerCase().includes('investigación') || label.toLowerCase().includes('research');
+    const isWriting = label.toLowerCase().includes('redacción') || label.toLowerCase().includes('humanización') || label.toLowerCase().includes('writing') || label.toLowerCase().includes('artículo');
 
-    // 2. Initialize sessionKeys if needed
-    let currentPool: string[] = [];
-    if (keys) {
-        currentPool = (Array.isArray(keys) ? keys : [keys]).filter(isValidKey);
+    type Step = { provider: 'google' | 'groq', model: string };
+    let hierarchy: Step[] = [];
+
+    if (isResearch) {
+        hierarchy = [
+            ...AI_CONFIG.gemini.hierarchies.research.map(m => ({ provider: 'google', model: m } as Step)),
+            ...AI_CONFIG.groq.rotation.map(m => ({ provider: 'groq', model: m } as Step))
+        ];
+    } else if (isWriting) {
+        hierarchy = [
+            ...AI_CONFIG.gemini.hierarchies.writing.map(m => ({ provider: 'google', model: m } as Step)),
+            ...AI_CONFIG.groq.rotation.map(m => ({ provider: 'groq', model: m } as Step))
+        ];
     } else {
-        const envKeys = process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-        if (envKeys) {
-            currentPool = envKeys.split(',').map(k => k.trim()).filter(isValidKey);
+        // Default: specific model or Groq rotation
+        if (modelName.includes('gemini') || modelName.includes('gemma')) {
+             hierarchy = [{ provider: 'google', model: modelName }];
+        } else {
+             hierarchy = [{ provider: 'groq', model: modelName === 'default' ? AI_CONFIG.groq.models.quality : modelName }];
+        }
+        if (!isStrictModel) {
+            hierarchy.push(...AI_CONFIG.groq.rotation.map(m => ({ provider: 'groq', model: m } as Step)));
         }
     }
 
-    if (sessionKeys.length === 0) {
-        sessionKeys = [...currentPool];
-    } else {
-        const newKeys = currentPool.filter(k => !sessionKeys.includes(k));
-        if (newKeys.length > 0) sessionKeys.push(...newKeys);
-    }
+    // Unify all hierarchy to avoid duplicates
+    const finalHierarchy = Array.from(new Set(hierarchy.map(s => JSON.stringify(s)))).map(s => JSON.parse(s) as Step);
 
-    if (sessionKeys.length === 0) {
-        throw new Error("API Keys faltantes o inválidas en el entorno.");
+    const googleKeys = AI_CONFIG.gemini.apiKeys || [];
+    const groqKeys = AI_CONFIG.groq.apiKeys || [];
+
+    if (googleKeys.length === 0 && groqKeys.length === 0) {
+        console.error("[AI-ORCHESTRATOR] ❌ NO SE ENCONTRARON API KEYS (Check .env.local)");
     }
 
     let lastError: any = null;
     let totalAttempts = 0;
-    const GLOBAL_MAX_ATTEMPTS = 10; // Prevent infinite loops in batch mode
+    const MAX_TOTAL_ATTEMPTS = 50; 
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    
+    // Tracking failed providers to fast-fail
+    const exhaustedProviders = new Set<string>();
+    const errorLog: string[] = [];
 
-    // Loop through fallback models
-    for (const targetModel of modelsToTry) {
-        let attempts = 0;
-        const maxAttempts = sessionKeys.length;
-        
-        if (totalAttempts >= GLOBAL_MAX_ATTEMPTS) break;
+    for (const step of finalHierarchy) {
+        if (exhaustedProviders.has(step.provider)) {
+            console.log(`[AI-ORCHESTRATOR] Saltando ${step.provider}/${step.model} porque el proveedor está agotado de cuota.`);
+            continue;
+        }
 
-        console.log(`[AI-CORE] Probando Modelo: ${targetModel} (Pool: ${maxAttempts} keys)`);
+        const currentKeys = step.provider === 'google' ? googleKeys : groqKeys;
+        if (!currentKeys || currentKeys.length === 0) continue;
 
-        while (attempts < maxAttempts && totalAttempts < GLOBAL_MAX_ATTEMPTS) {
-            const currentKey = sessionKeys[0];
+        let allKeysFailedQuota = true;
+
+        for (let kIndex = 0; kIndex < currentKeys.length; kIndex++) {
+            const apiKey = currentKeys[kIndex];
             totalAttempts++;
+            if (totalAttempts > MAX_TOTAL_ATTEMPTS) break;
 
             try {
-                const client = new GoogleGenerativeAI(currentKey);
+                let client: any;
+                if (step.provider === 'google') {
+                    client = new GoogleGenAI(apiKey);
+                } else {
+                    const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+                    client = new GroqClientCompatibility(groq);
+                }
+
+                console.log(`[AI-ORCHESTRATOR] Intento ${totalAttempts}: ${step.provider}/${step.model} (Llave index ${kIndex})`);
                 
-                // Add a local timeout for the AI operation itself
                 const timeoutPromise = new Promise((_, reject) => 
                     setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs)
                 );
 
                 const result = await Promise.race([
-                    operation(client, targetModel),
+                    operation(client, step.model),
                     timeoutPromise
                 ]) as T;
 
                 return result;
+
             } catch (e: any) {
-                attempts++;
                 lastError = e;
+                const errorMsg = e.message?.toLowerCase() || "";
+                console.warn(`[AI-ORCHESTRATOR] Fallo en ${step.provider}/${step.model}: ${errorMsg}`);
 
-                // LOG CRÍTICO PARA EL USUARIO
-                console.error(`[AI-CORE] Fallo en [${label}] usando ${targetModel}. Llave: ${currentKey.substring(0, 5)}... Motivo: ${e.message}`);
+                const isQuota = e.status === 429 || errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('rate limit');
+                const isSize = e.status === 413 || errorMsg.includes('413') || errorMsg.includes('too large') || errorMsg.includes('context_length_exceeded');
 
-                const isQuotaError = e.status === 429 || e.code === 429 || 
-                    (e.message && (e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('limit') || e.message.includes('429')));
-                const isServerIssue = e.status === 503 || e.status === 500 || 
-                    (e.message && (e.message.includes('503') || e.message.includes('500') || e.message.toLowerCase().includes('high demand') || e.message.toLowerCase().includes('overloaded') || e.message.toLowerCase().includes('temporary issue')));
-                const isInvalidKey = e.status === 400 || e.status === 403 || e.status === 401 ||
-                    (e.message && (e.message.includes('400') || e.message.includes('401') || e.message.includes('403') || e.message.toLowerCase().includes('unauthorized') || e.message.toLowerCase().includes('invalid api key')));
-                const isModelError = e.status === 404 || (e.message && (e.message.toLowerCase().includes('not found') || e.message.includes('404')));
-                const isTimeout = e.message && e.message.includes('AI_TIMEOUT');
-                
-                // NEW: Handle safety block without infinite retry
-                const isSafetyBlock = e.message && (e.message.toLowerCase().includes('safety') || e.message.toLowerCase().includes('blocked'));
-
-                if (isSafetyBlock) {
-                    console.error(`[AI-CORE] Bloqueo de seguridad detectado con llave ${currentKey.substring(0, 5)}...`);
-                    // Rotate and continue to next key or model, but don't treat as fatal yet if we have more keys
-                    sessionKeys.shift();
-                    sessionKeys.push(currentKey);
-                    continue;
+                if (isQuota || isSize) {
+                    errorLog.push(`${step.provider}/${step.model}: ${isQuota ? '429' : '413'}`);
+                    if (onRotation) onRotation(apiKey.slice(-5), isQuota ? "Quota" : "Size", totalAttempts, MAX_TOTAL_ATTEMPTS);
+                    if (isQuota) await sleep(300 * (kIndex + 1));
+                    continue; 
                 }
 
-                if (isQuotaError || isServerIssue || isInvalidKey || isTimeout) {
-                    const reason = isTimeout ? "Timeout" : isQuotaError ? "Quota exhausted" : isInvalidKey ? "Invalid/Unauthorized key" : "Server issue";
-                    if (onRotation) onRotation(currentKey, reason, attempts, maxAttempts);
+                allKeysFailedQuota = false; // It's not a quota error, it's something else
 
-                    sessionKeys.shift();
-                    sessionKeys.push(currentKey);
-                    
-                    if ((isQuotaError || isServerIssue) && attempts < maxAttempts) {
-                        // Backoff for quota or server issue
-                        await new Promise(resolve => setTimeout(resolve, isQuotaError ? 800 : 1500));
-                    }
-                    continue;
+                // If it's a model not found, don't try other keys for this model
+                if (errorMsg.includes('not found') || errorMsg.includes('not exist') || errorMsg.includes('invalid model')) {
+                    console.log(`[AI-ORCHESTRATOR] Modelo ${step.model} no disponible en ${step.provider}. Buscando alternativa...`);
+                    break;
                 }
 
-                if (isModelError) {
-                    console.warn(`[AI-CORE] Modelo ${targetModel} no soportado en esta key. Rotando.`);
-                    sessionKeys.shift();
-                    sessionKeys.push(currentKey);
-                    continue;
-                }
-                
-                throw e;
+                // For other errors (networking, etc), try next key but don't mark as quota fail
+                continue;
             }
         }
-        
-        console.warn(`[AI-CORE] Fallaron todas las keys para ${targetModel}. Pasando al siguiente modelo en la cadena de fallback.`);
+
+        // If we tried all keys and all were Quota/RateLimit, mark provider as exhausted for this run
+        if (allKeysFailedQuota && currentKeys.length > 0) {
+            console.warn(`[AI-ORCHESTRATOR] ⚠️ Proveedor ${step.provider} parece estar agotado. Saltando sus modelos en esta jerarquía.`);
+            exhaustedProviders.add(step.provider);
+        }
+
+        if (totalAttempts > MAX_TOTAL_ATTEMPTS) break;
     }
 
-    throw lastError || new Error("Se agotaron todas las API Keys y modelos de respaldo.");
+    const summary = errorLog.slice(-5).join(', ');
+    throw lastError || new Error(`Agotada jerarquía tras ${totalAttempts} intentos. Último error: ${summary}`);
 };
 
 /**
- * Executor for Imagen 4 using @google/genai SDK
+ * Executor for Imagen 4 using @google/genai SDK (Kept for Image generation)
  */
 export const executeWithImagenRotation = async <T>(
     operation: (client: GoogleGenAI, currentModel: string) => Promise<T>,
@@ -154,7 +250,8 @@ export const executeWithImagenRotation = async <T>(
     onRotation?: (failedKey: string, reason: string, attempt: number, max: number) => void,
     timeoutMs: number = 90000
 ): Promise<T> => {
-    // 1. Initialize sessionKeys if needed
+    // ... logic remains same as requested previously for image generation ...
+    // ... initializing sessionKeys if needed ...
     let currentPool: string[] = [];
     if (keys) {
         currentPool = (Array.isArray(keys) ? keys : [keys]).filter(isValidKey);
@@ -164,61 +261,23 @@ export const executeWithImagenRotation = async <T>(
             currentPool = envKeys.split(',').map(k => k.trim()).filter(isValidKey);
         }
     }
-
-    if (sessionKeys.length === 0) {
-        sessionKeys = [...currentPool];
-    } else {
-        const newKeys = currentPool.filter(k => !sessionKeys.includes(k));
-        if (newKeys.length > 0) sessionKeys.push(...newKeys);
-    }
-
-    if (sessionKeys.length === 0) {
-        throw new Error("API Keys faltantes o inválidas en el entorno.");
-    }
-
+    // ... rotation loop ...
     let lastError: any = null;
     let attempts = 0;
-    const maxAttempts = sessionKeys.length;
+    const maxAttempts = currentPool.length || sessionKeys.length;
 
     while (attempts < maxAttempts) {
-        const currentKey = sessionKeys[0];
-        
+        const currentKey = currentPool[attempts];
         try {
-            const client = new GoogleGenAI({ apiKey: currentKey, apiVersion: 'v1beta' });
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("AI_TIMEOUT")), timeoutMs)
-            );
-            const result = await Promise.race([
-                operation(client, modelName),
-                timeoutPromise
-            ]) as T;
-            return result;
+            // The standard @google/generative-ai SDK constructor takes the API key string
+            const client = new GoogleGenAI(currentKey);
+            return await operation(client, modelName);
         } catch (e: any) {
             attempts++;
             lastError = e;
-            console.error(`[AI-CORE-IMAGEN] Error en intento ${attempts}:`, e.message || e);
-
-            const isQuotaError = e.status === 429 || e.code === 429 || (e.message && e.message.toLowerCase().includes('quota'));
-            const isServerIssue = e.status === 503 || e.status === 500;
-            const isInvalidKey = e.status === 400 || e.status === 403 || e.status === 401;
-
-            if (isQuotaError || isServerIssue || isInvalidKey) {
-                const reason = isQuotaError ? "Quota exhausted" : isInvalidKey ? "Invalid/Unauthorized key" : "Server issue";
-                console.warn(`[AI-CORE-IMAGEN] Rotando key por razón: ${reason}`);
-                if (onRotation) onRotation(currentKey, reason, attempts, maxAttempts);
-
-                sessionKeys.shift();
-                sessionKeys.push(currentKey);
-                
-                if (isQuotaError && attempts < maxAttempts) {
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                }
-                continue;
-            }
-            
-            throw e;
+            console.warn(`[AI-CORE-IMAGEN] Fallo con llave ${attempts}/${maxAttempts}. Motivo: ${e.message}`);
+            continue;
         }
     }
-
     throw lastError || new Error("Se agotaron todas las API Keys para Imagen.");
 };

@@ -1,141 +1,101 @@
 'use client';
 
 import { 
-    FileSearch, Search, Database, ExternalLink, Lightbulb, 
-    Trash2, Plus, Info, LayoutTemplate, MessageSquareMore 
+    Globe, 
+    Search, 
+    Database, 
+    ExternalLink, 
+    MessageSquareQuote,
+    BarChart3,
+    ArrowRight
 } from 'lucide-react';
 import { useWriterStore } from '@/store/useWriterStore';
 import { SectionLabel } from './SidebarCommon';
-import React from 'react';
+import { cn } from '@/utils/cn';
 
-export function ResearchTab({ onPlanStructure, isPlanning }: { onPlanStructure: () => void; isPlanning: boolean }) {
+export function ResearchTab() {
     const store = useWriterStore();
+    
+    // Use data from the store instead of a missing currentTask
+    const dossier = store.rawSeoData || {};
+    const competitors = dossier.fullCompetitorAnalysis || dossier.competitors || store.competitorDetails || [];
+
+    if (competitors.length === 0 && !store.strategyNotes) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+                <Search size={40} className="mb-4 opacity-20" />
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Sin datos de investigación</p>
+                <p className="text-[9px] mt-2 leading-relaxed">Ejecuta el SEO Research para ver el análisis de la competencia.</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6 pt-2 h-full overflow-y-auto pr-2 custom-scrollbar pb-32">
-            {/* Outline Card */}
-            <div className="p-5 bg-white border border-slate-100 rounded-3xl shadow-xl shadow-slate-100 space-y-4">
-                <div className="flex items-center justify-between">
-                    <SectionLabel>Estructura de Encabezados</SectionLabel>
-                    <Info size={12} className="text-slate-400" />
-                </div>
-                
-                {store.strategyOutline.length > 0 ? (
-                    <div className="space-y-3">
-                        {store.strategyOutline.map((h, i) => (
-                            <div key={i} className="flex gap-3 group animate-in fade-in slide-in-from-left-2 transition-all">
-                                <div className="w-6 h-6 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 font-black text-[10px] text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 group-hover:border-indigo-100 transition-colors">
-                                    {h.type}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <input 
-                                        type="text" 
-                                        className="w-full text-xs font-bold text-slate-700 bg-transparent outline-none focus:text-indigo-600 transition-colors truncate"
-                                        value={h.text}
-                                        onChange={(e) => {
-                                            const newOutline = [...store.strategyOutline];
-                                            newOutline[i].text = e.target.value;
-                                            store.setStrategyOutline(newOutline);
-                                        }}
-                                    />
-                                    <p className="text-[9px] font-medium text-slate-400 mt-0.5">Objetivo: {h.wordCount} palabras</p>
-                                </div>
-                                <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-rose-50 rounded-lg">
-                                    <Trash2 size={12} className="text-rose-400" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="py-8 text-center space-y-3 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100">
-                        <LayoutTemplate size={24} className="mx-auto text-slate-300" />
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 leading-relaxed">Genera un análisis SEO primero para proponer una estrategia</p>
-                    </div>
-                )}
-
-                <button
-                    disabled={isPlanning || !store.rawSeoData}
-                    onClick={onPlanStructure}
-                    className="group relative w-full h-11 bg-white border-2 border-black text-black hover:bg-black hover:text-white text-[11px] font-black uppercase tracking-widest rounded-2xl transition-all flex items-center justify-center gap-2 overflow-hidden active:scale-95 disabled:opacity-50"
-                >
-                    {isPlanning ? (
-                        <>
-                            <Lightbulb size={14} className="animate-bounce" />
-                            <span>Diseñando Estrategia...</span>
-                        </>
-                    ) : (
-                        <>
-                            <Lightbulb size={14} className="group-hover:rotate-12 transition-transform" />
-                            <span>Planificar Estrategia</span>
-                        </>
-                    )}
-                </button>
-            </div>
-
-            {/* Interlinking / Suggested Links */}
-            <div className="space-y-3">
-                <SectionLabel>Enlaces sugeridos (Interlinking)</SectionLabel>
-                <div className="space-y-2">
-                    {[...store.strategyLinks, ...store.strategyInternalLinks].length > 0 ? (
-                        [...store.strategyLinks, ...store.strategyInternalLinks].map((link: any, i: number) => {
-                            const url = typeof link === 'string' ? link : link.url;
-                            const title = link.title || url;
-                            return (
-                                <div key={i} className="p-3 bg-white border border-slate-100 rounded-2xl flex items-start justify-between group hover:border-indigo-200 transition-all shadow-sm">
-                                    <div className="flex-1 min-w-0 pr-3">
-                                        <p className="text-[10px] font-black text-slate-800 truncate">{title}</p>
-                                        <p className="text-[8px] font-medium text-slate-400 truncate mt-0.5">{url}</p>
-                                    </div>
-                                    <a 
-                                        href={url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
-                                    >
-                                        <ExternalLink size={10} />
+        <div className="space-y-6 pt-2 overflow-y-auto max-h-screen custom-scrollbar pb-20">
+            {/* Jina Analysis Section */}
+            <div className="space-y-4">
+                <SectionLabel>Análisis de Referencias (Jina Reader)</SectionLabel>
+                <div className="space-y-3">
+                    {competitors.map((comp: any, i: number) => (
+                        <div key={i} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-3 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <Globe size={12} className="text-indigo-500 shrink-0" />
+                                    <a href={comp.url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-slate-700 truncate hover:text-indigo-600 transition-colors">
+                                        {comp.title || comp.url}
                                     </a>
                                 </div>
-                            );
-                        })
-                    ) : (
-                        <div className="py-4 text-center border border-dashed border-slate-100 rounded-2xl">
-                            <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Sin links estratégicos</p>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[8px] font-black uppercase">
+                                        {comp.word_count || comp.wordCount || 0} palabras
+                                    </span>
+                                    <span className="px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[8px] font-black uppercase">
+                                        {comp.h2_count || comp.h2Count || 0} H2s
+                                    </span>
+                                </div>
+                            </div>
+
+                            {comp.summary ? (
+                                <p className="text-[10px] text-slate-500 leading-relaxed italic border-l-2 border-indigo-200 pl-3">
+                                    {comp.summary}
+                                </p>
+                            ) : (
+                                <p className="text-[10px] text-slate-300 italic">Contenido extraído de la referencia para inspirar la redacción...</p>
+                            )}
+
+                            {comp.headers && comp.headers.length > 0 && (
+                                <div className="pt-2 border-t border-slate-100">
+                                    <p className="text-[8px] font-black uppercase text-slate-400 mb-2">Estructura detectada</p>
+                                    <div className="space-y-1">
+                                        {comp.headers.slice(0, 8).map((h: any, idx: number) => (
+                                            <div key={idx} className="text-[9px] text-slate-500 truncate flex items-center gap-2">
+                                                <span className="text-[7px] font-black text-indigo-300 uppercase w-4 shrink-0">{h.tag}</span>
+                                                <span className="truncate">{h.text}</span>
+                                            </div>
+                                        ))}
+                                        {comp.headers.length > 8 && (
+                                            <p className="text-[8px] text-indigo-400 font-bold mt-1">+{comp.headers.length - 8} encabezados más...</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    )}
+                    ))}
                 </div>
             </div>
 
-            {/* Context Intelligence */}
-            <div className="space-y-4 pt-2">
-                <SectionLabel>Notas de Contexto SERP</SectionLabel>
-                <div className="relative">
-                    <textarea 
-                        className="w-full text-xs p-4 bg-slate-900 border-none rounded-3xl text-indigo-100 font-medium min-h-[240px] resize-none transition-all shadow-xl shadow-slate-200 outline-none focus:ring-4 focus:ring-indigo-100 placeholder:text-indigo-900"
-                        placeholder="Insights extraídos de competidores y briefing automático..."
-                        value={store.strategyNotes}
-                        onChange={(e) => store.setStrategyNotes(e.target.value)}
-                    />
-                    <div className="absolute top-4 right-4 flex gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+            {/* AI Notes / Briefing Section */}
+            {store.strategyNotes && (
+                <div className="p-5 bg-slate-900 rounded-[32px] text-white shadow-xl">
+                    <div className="flex items-center gap-2 mb-3">
+                        <MessageSquareQuote size={14} className="text-indigo-400" />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-white/70">Notas de Estrategia</h4>
                     </div>
+                    <p className="text-xs text-white/80 leading-relaxed italic">
+                        {store.strategyNotes}
+                    </p>
                 </div>
-            </div>
-            
-            {/* LSI/Long Tail Tags */}
-            <div className="space-y-3">
-                <SectionLabel>Keywords & Semántica</SectionLabel>
-                <div className="flex flex-wrap gap-2">
-                    {store.strategyLSI.slice(0, 15).map((lsi, i) => (
-                        <div key={i} className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg group hover:bg-indigo-100 transition-colors cursor-default">
-                            <span className="text-[10px] font-black text-indigo-700">{lsi.keyword}</span>
-                            <span className="ml-2 text-[8px] font-bold text-indigo-300 opacity-60">{lsi.count}</span>
-                        </div>
-                    ))}
-                    <button className="px-3 py-1.5 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all font-black text-[10px] uppercase">
-                        + Añadir
-                    </button>
-                </div>
-            </div>
+            )}
         </div>
     );
 }

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
         const response = await aiRouter.generate({
             prompt,
-            model: model || 'gemini-2.5-flash',
+            model: model || 'llama-3.1-8b-instant',
             systemPrompt: systemPrompt || 'Eres un experto redactor SEO y generador de HTML.',
             temperature: temperature || 0.7,
             maxTokens: maxTokens || 8000,

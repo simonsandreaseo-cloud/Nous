@@ -2,25 +2,12 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-    format,
-    startOfMonth,
-    endOfMonth,
-    startOfWeek,
-    endOfWeek,
-    eachDayOfInterval,
-    isSameMonth,
-    isSameDay,
-    addMonths,
-    subMonths,
-    addDays,
+    format
 } from "date-fns";
 import { es } from "date-fns/locale";
 import {
-    ChevronLeft,
-    ChevronRight,
     Plus,
     FileText,
-    Ghost,
     CheckCircle2,
     Clock,
     MoreVertical,
@@ -33,8 +20,6 @@ import {
     Check,
     Loader2,
     Trash,
-    LayoutList,
-    TableProperties,
     Upload,
     Database,
     Wand2,
@@ -44,7 +29,8 @@ import {
     Trash2,
     Share,
     Layers,
-    Terminal
+    Terminal,
+    FileUp as FileUpIcon
 } from "lucide-react";
 import { useProjectStore, Task } from "@/store/useProjectStore";
 import { usePermissions } from '@/hooks/usePermissions';
@@ -60,10 +46,7 @@ import { useWriterStore } from "@/store/useWriterStore";
 import { parseDocx, parseHtml } from "@/lib/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
-import StrategyGallery from "./StrategyGallery";
-// import IntelligenceHub from "./IntelligenceHub";
 import NousOrb from "./NousOrb";
-import AIConsole from "./AIConsole";
 import { BatchProcessor } from '@/lib/services/writer/batch-actions';
 
 import { ProjectBadge } from "@/components/ui/ProjectBadge";
@@ -77,7 +60,6 @@ export function EditorialCalendar() {
     const setIsConsoleOpen = useWriterStore(state => state.setIsConsoleOpen);
     const initializeFromTask = useWriterStore(state => state.initializeFromTask);
     const router = useRouter();
-    const [viewDate, setViewDate] = useState(new Date());
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -94,7 +76,6 @@ export function EditorialCalendar() {
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
     const [isResearching, setIsResearching] = useState(false);
     const [researchProgress, setResearchProgress] = useState<number>(0);
-    const [currentView, setCurrentView] = useState<'grid' | 'calendar' | 'gallery'>('grid');
     const searchParams = useSearchParams();
 
     // Column Visibility State
@@ -118,13 +99,12 @@ export function EditorialCalendar() {
             { id: 'word_count', label: 'Palabras', defaultVisible: false },
             { id: 'lsi', label: 'LSI', defaultVisible: false },
             { id: 'competitors', label: 'Fuentes', defaultVisible: false },
-            { id: 'actions', label: 'Acciones', defaultVisible: true }
+            { id: 'Acciones Nous', label: 'Acciones Nous', defaultVisible: true }
         ].reduce((acc, col) => ({ ...acc, [col.id]: col.defaultVisible }), {});
     });
 
     const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false);
     const [isImportMenuOpen, setIsImportMenuOpen] = useState(false);
-    const [isBatchMenuOpen, setIsBatchMenuOpen] = useState(false);
     const [batchResearchStatus, setBatchResearchStatus] = useState<Record<string, number>>({});
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -159,12 +139,72 @@ export function EditorialCalendar() {
         router.replace(window.location.pathname + (newSearch ? '?' + newSearch : ''), { scroll: false });
     };
 
-    const handleRunResearch = (taskId: string) => {
-        setResearchTaskId(taskId);
-        setIsNewContentModalOpen(true);
+    const handleUnitAction = async (taskId: string, action: string) => {
+        if (!activeProject) return;
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        setIsResearching(true);
+        if (!isConsoleOpen) setIsConsoleOpen(true);
+        const onLog = (tid: string, stage: string, msg: string, res?: string) => addStrategyLog(tid, stage, msg, res);
+
+        try {
+            if (action === 'investigar') {
+                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 5 }));
+                const result = await StrategyService.runDeepSEOAnalysis({
+                    projectId: activeProject.id,
+                    keyword: task.target_keyword || task.title,
+                    onProgress: (p) => {
+                        const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90 };
+                        setBatchResearchStatus(prev => ({ ...prev, [taskId]: progressMap[p] || 10 }));
+                    },
+                    onLog: (s, m, r) => onLog(taskId, s, m, r),
+                    taskId: taskId
+                });
+                if (result) {
+                    await updateTask(taskId, {
+                        research_dossier: result.research_dossier,
+                        seo_title: result.seo_title,
+                        meta_description: result.meta_description,
+                        target_url_slug: result.target_url_slug,
+                        status: result.status
+                    });
+                }
+            } else if (action === 'outline') {
+                await BatchProcessor.processOutlines(
+                    [task], 
+                    activeProject.id, 
+                    useWriterStore.getState().csvData, 
+                    () => {}, 
+                    onLog,
+                    (id, up) => updateTask(id, up),
+                    (id, perc) => setBatchResearchStatus(prev => ({ ...prev, [id]: perc }))
+                );
+            } else if (action === 'draft') {
+                await BatchProcessor.processDrafts(
+                    [task], 
+                    () => {}, 
+                    onLog,
+                    (id, up) => updateTask(id, up),
+                    (id, perc) => setBatchResearchStatus(prev => ({ ...prev, [id]: perc }))
+                );
+            } else if (action === 'humanize') {
+                await BatchProcessor.processHumanization(
+                    [task], 
+                    () => {}, 
+                    onLog,
+                    (id, up) => updateTask(id, up),
+                    (id, perc) => setBatchResearchStatus(prev => ({ ...prev, [id]: perc }))
+                );
+            }
+        } catch (e: any) {
+            console.error(e);
+            NotificationService.error("Error en acción individual", e.message);
+        } finally {
+            setIsResearching(false);
+            setBatchResearchStatus(prev => ({ ...prev, [taskId]: 100 }));
+        }
     };
-
-
 
     const handleBatchDelete = async () => {
         if (selectedTaskIds.length === 0) return;
@@ -175,7 +215,7 @@ export function EditorialCalendar() {
         }
     };
 
-    const handleOrbAction = async (action: string) => {
+    const handleOrbAction = async (action: string, config?: any) => {
         if (!activeProject) return;
 
         if (action === 'sugerir_estrategia') {
@@ -193,7 +233,138 @@ export function EditorialCalendar() {
 
             const csvData = useWriterStore.getState().csvData;
 
-            if (action === 'investigar_ideas') {
+            if (action === 'batch_pipeline') {
+                const { research, draft, humanize, finalStatus } = config || {};
+                
+                // 1. Identify context (Selected or All active tasks)
+                let targetTasks = selectedTaskIds.length > 0 
+                    ? tasks.filter(t => selectedTaskIds.includes(t.id))
+                    : tasks;
+
+                if (targetTasks.length === 0) {
+                    NotificationService.notify("Información", "No hay contenidos seleccionados para procesar.");
+                    return;
+                }
+
+                // Initial UI Setup
+                setIsResearching(true);
+                setResearchProgress(0);
+                if (!isConsoleOpen) setIsConsoleOpen(true);
+
+                // Progress weighting
+                const activePhases = [research, draft || research, draft, humanize].filter(Boolean).length;
+                const phaseWeight = 100 / (activePhases || 1);
+                let currentPhaseIndex = 0;
+
+                // PHASE 1: RESEARCH
+                if (research) {
+                    const toResearch = targetTasks.filter(t => t.status === 'idea' || !t.research_dossier || Object.keys(t.research_dossier).length === 0);
+                    if (toResearch.length > 0) {
+                        NotificationService.notify("Nous Global", `Fase 1/4: Investigando ${toResearch.length} contenidos...`);
+                        let pCount = 0;
+                        for (const t of toResearch) {
+                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: 5 }));
+                            const result = await StrategyService.runDeepSEOAnalysis({
+                                projectId: activeProject.id,
+                                keyword: t.target_keyword || t.title,
+                                onLog: (s, m, r) => onLog(t.id, s, m, r),
+                                taskId: t.id
+                            });
+                            if (result) {
+                                await updateTask(t.id, {
+                                    research_dossier: result.research_dossier,
+                                    seo_title: result.seo_title,
+                                    meta_description: result.meta_description,
+                                    target_url_slug: result.target_url_slug,
+                                    status: result.status
+                                });
+                            }
+                            pCount++;
+                            // Global ring progress: (CurrentPhase * Weight) + (ProgressWithinPhase * Weight)
+                            const phaseBase = currentPhaseIndex * phaseWeight;
+                            setResearchProgress(phaseBase + ((pCount / toResearch.length) * phaseWeight));
+                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
+                        }
+                    }
+                    currentPhaseIndex++;
+                }
+
+                // PHASE 2: OUTLINES (Automatic if results exist and draft/research is true)
+                if (draft || research) {
+                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
+                    const toOutline = latestTasks.filter(t => {
+                        const hasResearch = t.research_dossier && Object.keys(t.research_dossier).length > 0;
+                        const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || 
+                                         (t.outline_structure?.headers?.length > 0);
+                        return hasResearch && !hasOutline;
+                    });
+                    
+                    if (toOutline.length > 0) {
+                        NotificationService.notify("Nous Global", `Fase 2/4: Generando arquitectura (Outlines) para ${toOutline.length} artículos...`);
+                        const phaseBase = currentPhaseIndex * phaseWeight;
+                        await BatchProcessor.processOutlines(
+                            toOutline, activeProject.id, csvData, 
+                            (p) => setResearchProgress(phaseBase + (p * 0.01 * phaseWeight)), 
+                            onLog, (id, up) => updateTask(id, up),
+                            (id, pr) => setBatchResearchStatus(prev => ({ ...prev, [id]: pr }))
+                        );
+                    }
+                    currentPhaseIndex++;
+                }
+
+                // PHASE 3: DRAFTING
+                if (draft) {
+                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
+                    const toDraft = latestTasks.filter(t => {
+                        const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || 
+                                         (t.outline_structure?.headers?.length > 0);
+                        const hasContent = !!(t.content_body && t.content_body.trim() !== '');
+                        return hasOutline && !hasContent;
+                    });
+
+                    if (toDraft.length > 0) {
+                        NotificationService.notify("Nous Global", `Fase 3/4: Redactando ${toDraft.length} contenidos completos...`);
+                        const phaseBase = currentPhaseIndex * phaseWeight;
+                        await BatchProcessor.processDrafts(
+                            toDraft, 
+                            (p) => setResearchProgress(phaseBase + (p * 0.01 * phaseWeight)), 
+                            onLog, (id, up) => updateTask(id, up),
+                            (id, pr) => setBatchResearchStatus(prev => ({ ...prev, [id]: pr }))
+                        );
+                    }
+                    currentPhaseIndex++;
+                }
+
+                // PHASE 4: HUMANIZATION
+                if (humanize) {
+                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
+                    const toHumanize = latestTasks.filter(t => !!t.content_body && !t.metadata?.is_humanized);
+                    if (toHumanize.length > 0) {
+                        NotificationService.notify("Nous Global", `Fase 4/4: Humanizando ${toHumanize.length} artículos...`);
+                        const phaseBase = currentPhaseIndex * phaseWeight;
+                        await BatchProcessor.processHumanization(
+                            toHumanize, 
+                            (p) => setResearchProgress(phaseBase + (p * 0.01 * phaseWeight)), 
+                            onLog, (id, up) => updateTask(id, up),
+                            (id, pr) => setBatchResearchStatus(prev => ({ ...prev, [id]: pr }))
+                        );
+                    }
+                    currentPhaseIndex++;
+                }
+
+                // FINAL STEP: STATUS UPDATE
+                if (finalStatus) {
+                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
+                    for (const t of latestTasks) {
+                        if (t.status !== finalStatus) {
+                            await updateTask(t.id, { status: finalStatus });
+                        }
+                    }
+                }
+
+                setResearchProgress(100);
+                NotificationService.success('Pipeline Completo', `Nous ha procesado todos los contenidos hasta el estado final.`);
+            } else if (action === 'investigar_ideas') {
                 const candidates = selectedTaskIds.length > 0 
                     ? tasks.filter(t => selectedTaskIds.includes(t.id))
                     : tasks.filter(t => t.status === 'idea');
@@ -221,7 +392,6 @@ export function EditorialCalendar() {
                         taskId: t.id
                     });
 
-                    // ACTUALIZACIÓN INMEDIATA EN LA GRILLA
                     if (result) {
                         await updateTask(t.id, {
                             research_dossier: result.research_dossier,
@@ -229,11 +399,10 @@ export function EditorialCalendar() {
                             meta_description: result.meta_description,
                             excerpt: result.extracto,
                             target_url_slug: result.target_url_slug,
-                            status: result.status // 'en_investigacion' or similar
+                            status: result.status
                         });
                     }
 
-                    // Using local counter to track progress
                     processedCount++;
                     const finalProg = (processedCount / candidates.length) * 100;
                     setResearchProgress(finalProg);
@@ -245,7 +414,6 @@ export function EditorialCalendar() {
                     t.research_dossier && (!t.outline_structure || !t.outline_structure.headers || t.outline_structure.headers.length === 0)
                 );
                 
-                // Si hay selección manual, priorizarla
                 if (selectedTaskIds.length > 0) {
                     filtered = tasks.filter(t => selectedTaskIds.includes(t.id));
                 }
@@ -322,7 +490,6 @@ export function EditorialCalendar() {
     };
 
     const handleGenerateStrategy = async () => {
-
         if (!activeProject) return;
         setIsLoadingStrategy(true);
         try {
@@ -349,6 +516,7 @@ export function EditorialCalendar() {
         });
         setSuggestedTasks(prev => prev.filter(t => t.target_keyword !== suggestion.target_keyword));
     };
+
     const handleBatchResearch = async () => {
         if (!activeProject || selectedTaskIds.length === 0) return;
         
@@ -372,7 +540,6 @@ export function EditorialCalendar() {
                     taskId: task.id
                 });
 
-                // ACTUALIZACIÓN INMEDIATA EN LA GRILLA
                 if (result) {
                     await updateTask(task.id, {
                         research_dossier: result.research_dossier,
@@ -403,7 +570,6 @@ export function EditorialCalendar() {
         
         setIsDeletingAll(true);
         try {
-            // Delete tasks for the active project
             const tasksToDelete = tasks.filter(t => t.project_id === activeProject.id);
             for (const task of tasksToDelete) {
                 await useProjectStore.getState().deleteTask(task.id);
@@ -432,30 +598,6 @@ export function EditorialCalendar() {
         setNewTaskTitle("");
     };
 
-    // Calendar Generation
-    const monthStart = startOfMonth(viewDate);
-    const monthEnd = endOfMonth(monthStart);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-
-    const days = eachDayOfInterval({
-        start: calendarStart,
-        end: calendarEnd,
-    });
-
-    const nextMonth = () => setViewDate(addMonths(viewDate, 1));
-    const prevMonth = () => setViewDate(subMonths(viewDate, 1));
-
-    const tasksByDay = useMemo(() => {
-        const map: Record<string, Task[]> = {};
-        tasks.forEach(task => {
-            const d = format(new Date(task.scheduled_date), 'yyyy-MM-dd');
-            if (!map[d]) map[d] = [];
-            map[d].push(task);
-        });
-        return map;
-    }, [tasks]);
-
     return (
         <div className="flex flex-col h-screen bg-white overflow-hidden relative">
             {/* Header / Navigation */}
@@ -463,45 +605,10 @@ export function EditorialCalendar() {
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3 border-r border-slate-100 pr-4 mr-2">
                         <CalendarIcon size={18} className="text-indigo-600" />
-                        <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Planificador</h3>
+                        <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Estrategia & Plan</h3>
                     </div>
                     
                     <div className="flex items-center gap-2">
-                        {/* Month Selector */}
-                        <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-100">
-                            <button onClick={prevMonth} className="p-1 hover:bg-white rounded-md transition-all text-slate-400 hover:text-slate-900">
-                                <ChevronLeft size={14} />
-                            </button>
-                            <span className="text-[10px] font-bold uppercase tracking-widest min-w-[100px] text-center text-slate-600 px-2">
-                                {format(viewDate, 'MMMM yyyy', { locale: es })}
-                            </span>
-                            <button onClick={nextMonth} className="p-1 hover:bg-white rounded-md transition-all text-slate-400 hover:text-slate-900">
-                                <ChevronRight size={14} />
-                            </button>
-                        </div>
-
-                        {/* View Switcher */}
-                        <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-100">
-                            <button 
-                                onClick={() => setCurrentView('grid')}
-                                className={cn(
-                                    "px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-md transition-all",
-                                    currentView === 'grid' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                                )}
-                            >
-                                Grilla
-                            </button>
-                            <button 
-                                onClick={() => setCurrentView('gallery')}
-                                className={cn(
-                                    "px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-md transition-all",
-                                    currentView === 'gallery' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                                )}
-                            >
-                                Galería
-                            </button>
-                        </div>
-
                         {/* Column Selector */}
                         <div className="relative">
                             <button 
@@ -546,125 +653,46 @@ export function EditorialCalendar() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* Batch Actions Menu */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setIsBatchMenuOpen(!isBatchMenuOpen)}
-                            className={cn(
-                                "h-8 px-3 rounded-xl transition-all border flex items-center gap-2 text-[10px] font-black uppercase tracking-widest",
-                                isBatchMenuOpen ? "bg-amber-50 border-amber-100 text-amber-600" : "bg-white border-slate-200 text-slate-400 hover:text-slate-600"
-                            )}
-                        >
-                            <Layers size={14} /> Acciones
-                        </button>
-                        <AnimatePresence>
-                            {isBatchMenuOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-30" onClick={() => setIsBatchMenuOpen(false)} />
-                                    <motion.div 
-                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-2 overflow-hidden"
-                                    >
-                                        <button
-                                            onClick={handleBatchResearch}
-                                            className="w-full flex items-center gap-3 p-2.5 hover:bg-indigo-50 rounded-xl transition-all text-left group"
-                                        >
-                                            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><Sparkles size={14} /></div>
-                                            <div>
-                                                <p className="text-[11px] font-bold text-slate-700">Investigar Lote</p>
-                                                <p className="text-[9px] text-slate-400">Procesar seleccionados</p>
-                                            </div>
-                                        </button>
-                                        <button
-                                            onClick={() => { setIsDeleteModalOpen(true); setIsBatchMenuOpen(false); }}
-                                            className="w-full flex items-center gap-3 p-2.5 hover:bg-rose-50 rounded-xl transition-all text-left group"
-                                        >
-                                            <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center group-hover:bg-rose-600 group-hover:text-white transition-all"><Trash2 size={14} /></div>
-                                            <div>
-                                                <p className="text-[11px] font-bold text-rose-700">Eliminar Todo</p>
-                                                <p className="text-[9px] text-rose-400">Limpiar proyecto actual</p>
-                                            </div>
-                                        </button>
-                                    </motion.div>
-                                </>
-                            )}
-                        </AnimatePresence>
-                    </div>
-
-                    <button
-                        onClick={handleGenerateStrategy}
-                        disabled={isLoadingStrategy}
-                        className="h-8 px-4 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/10 disabled:opacity-50"
-                    >
-                        {isLoadingStrategy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-amber-400" />}
-                        Sugerir Contenidos
-                    </button>
-
-                    <button
-                        onClick={() => setIsNewContentModalOpen(true)}
-                        className="h-8 w-8 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-600/20"
-                    >
-                        <Plus size={18} />
-                    </button>
-
-                    <div className="w-px h-6 bg-slate-100 mx-1" />
-
-                    <button
-                        onClick={() => setIsConsoleOpen(!isConsoleOpen)}
-                        className={cn(
-                            "h-8 px-3 rounded-xl transition-all border flex items-center gap-2 text-[10px] font-black uppercase tracking-widest",
-                            isConsoleOpen ? "bg-red-500 border-red-500 text-white shadow-lg" : "bg-emerald-500 border-emerald-500 text-white"
+                    <AnimatePresence>
+                        {selectedTaskIds.length > 0 && (
+                            <motion.button 
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                onClick={handleBatchDelete}
+                                className="h-10 px-6 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-600/20 hover:bg-rose-700 transition-all flex items-center gap-2 group"
+                            >
+                                <Trash2 size={14} className="group-hover:scale-110 transition-transform" />
+                                <span>Eliminar {selectedTaskIds.length} Tareas</span>
+                            </motion.button>
                         )}
-                    >
-                        <Terminal size={14} /> Monitor
-                    </button>
+                    </AnimatePresence>
                 </div>
             </header>
 
             {/* Main Area */}
             <main className="flex-1 overflow-hidden bg-white">
-                {currentView === 'grid' && (
-                    <StrategyGrid 
-                        onSelectTask={setSelectedTask} 
-                        onRunResearch={handleRunResearch}
-                        columnVisibility={columnVisibility}
-                        selectedTaskIds={selectedTaskIds}
-                        onSelectionChange={setSelectedTaskIds}
-                        batchProgress={batchResearchStatus}
-                    />
-                )}
-                {currentView === 'gallery' && (
-                    <StrategyGallery 
-                        onSelectTask={setSelectedTask}
-                        onRunResearch={handleRunResearch}
-                    />
-                )}
+                <StrategyGrid 
+                    onSelectTask={setSelectedTask} 
+                    onRunAction={handleUnitAction}
+                    columnVisibility={columnVisibility}
+                    selectedTaskIds={selectedTaskIds}
+                    onSelectionChange={setSelectedTaskIds}
+                    batchProgress={batchResearchStatus}
+                />
             </main>
 
             {/* Floating Nous Orb */}
             <NousOrb 
+                tasks={tasks}
                 onAction={handleOrbAction} 
-                isResearching={isResearching} 
-                progress={researchProgress} 
+                isProcessing={isResearching} 
+                processingProgress={researchProgress} 
+                selectedCount={selectedTaskIds.length}
             />
 
             {/* Modals & Overlays */}
             <AnimatePresence>
-                {/* AI Console Mobile/Sidebar */}
-                {isConsoleOpen && (
-                    <motion.div 
-                        initial={{ x: '100%' }}
-                        animate={{ x: 0 }}
-                        exit={{ x: '100%' }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed inset-y-0 right-0 w-full max-w-[500px] z-[100] bg-white shadow-2xl border-l border-slate-100 pointer-events-auto"
-                    >
-                        <AIConsole />
-                    </motion.div>
-                )}
-
                 {/* Content Detail View */}
                 {selectedTask && (
                     <ContentDetailView 
@@ -764,9 +792,6 @@ export function EditorialCalendar() {
     );
 }
 
-
-
-
 function MassSchedulingModal({ onClose }: { onClose: () => void }) {
     const [pastedData, setPastedData] = useState("");
     const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -783,8 +808,6 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
         reader.onload = (event) => {
             const text = event.target?.result as string;
             setPastedData(text);
-            // Auto-parsear después de cargar
-            setTimeout(() => handleParse(), 100);
         };
         reader.readAsText(file);
     };
@@ -792,42 +815,17 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
     const handleParse = () => {
         if (!pastedData.trim()) return;
 
-        // Intentar parsear como CSV con encabezados
         Papa.parse(pastedData, {
             header: true,
             skipEmptyLines: true,
-            transformHeader: (h) => h.trim(), // Limpiar espacios en encabezados
+            transformHeader: (h) => h.trim(),
             complete: (results) => {
-                console.log("Parsed result:", results);
-
-                // Si detectamos columnas conocidas, usamos la lógica de CSV avanzado
-                const hasKnownColumns = results.meta.fields?.some(f =>
-                    ['Título Propuesto', 'Keywords', 'Volumen', 'Viabilidad'].some(k => f.includes(k))
-                );
-
-                if (hasKnownColumns && results.data.length > 0) {
+                if (results.data.length > 0) {
                     const tasks = results.data.map((row: any, index: number) => {
-                        // Mapeo inteligente de columnas
                         const title = row['Título Propuesto'] || row['Title'] || row['Título'] || '';
-
-                        // Fecha: Si no hay columna fecha, usamos la fecha de inicio + index días
-                        // Ojo: Esto asume 1 tarea por día si no se especifica.
-                        let dateStr = row['Fecha'] || row['Date'];
-                        if (!dateStr) {
-                            // Distribución simple: 1 por día laborable? O todos seguidos?
-                            // Por simplicidad, 1 por día desde la fecha de inicio
-                            const baseDate = new Date(startDate);
-                            const targetDate = addDays(baseDate, index);
-                            dateStr = format(targetDate, 'yyyy-MM-dd');
-                        }
-
-                        // Parsear referencias (formato [url], [url])
-                        const refsRaw = row['Referencias'] || '';
-                        const refs = refsRaw.match(/\[(.*?)\]/g)?.map((r: string) => r.slice(1, -1)) || [];
-
                         return {
                             title,
-                            scheduled_date: dateStr,
+                            scheduled_date: row['Fecha'] || row['Date'] || format(new Date(), 'yyyy-MM-dd'),
                             target_keyword: row['Keywords (5)'] || row['Keywords'] || '',
                             volume: parseInt(row['Volumen']?.replace(/[^0-9]/g, '') || '0'),
                             viability: row['Viabilidad'] || '',
@@ -836,29 +834,9 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                             ai_percentage: parseInt(row['% IA']?.replace(/[^0-9]/g, '') || '0'),
                             docs_url: row['Docs'] || '',
                             layout_status: row['Maquetado'] === 'TRUE' || row['Maquetado'] === 'true',
-                            refs: refs
+                            refs: []
                         };
                     }).filter((t: any) => t.title);
-                    setParsedTasks(tasks);
-                } else {
-                    // Fallback: Parseo simple por tabulaciones/comas sin header (formato legacy)
-                    const lines = pastedData.split("\n").filter(l => l.trim());
-                    const tasks = lines.map((line, index) => {
-                        const parts = line.split(/[\t,;]/);
-                        const title = parts[0]?.trim();
-                        let date = parts[1]?.trim();
-
-                        if (!date || isNaN(new Date(date).getTime())) {
-                            // Si no hay fecha válida, usar fecha inicio + index
-                            const baseDate = new Date(startDate);
-                            const targetDate = addDays(baseDate, index);
-                            date = format(targetDate, 'yyyy-MM-dd');
-                        } else {
-                            date = format(new Date(date), "yyyy-MM-dd");
-                        }
-
-                        return { title, scheduled_date: date };
-                    }).filter(t => t.title);
                     setParsedTasks(tasks);
                 }
             }
@@ -868,27 +846,8 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
     const handleSave = async () => {
         if (!activeProject) return;
         setIsSaving(true);
-
         try {
             let tasksToSave = [...parsedTasks];
-
-            if (enrichWithSEO) {
-                const keywords = tasksToSave.map(t => t.target_keyword).filter(Boolean);
-                if (keywords.length > 0) {
-                    const response = await fetch('/api/dataforseo/keywords', {
-                        method: 'POST',
-                        body: JSON.stringify({ keywords })
-                    });
-                    const result = await response.json();
-                    if (result.success) {
-                        tasksToSave = tasksToSave.map(t => {
-                            const match = result.data.find((m: any) => m.keyword.toLowerCase() === t.target_keyword.toLowerCase());
-                            return match ? { ...t, volume: match.search_volume, viability: match.competition_level } : t;
-                        });
-                    }
-                }
-            }
-
             for (const task of tasksToSave) {
                 await addTask({
                     project_id: activeProject.id,
@@ -906,7 +865,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                     layout_status: task.layout_status
                 });
             }
-            NotificationService.notify("Importación Exitosa", `Se han programado ${tasksToSave.length} nuevas tareas estratégicas.`);
+            NotificationService.notify("Importación Exitosa", `Se han programado ${tasksToSave.length} nuevas tareas.`);
             onClose();
         } catch (e: any) {
             console.error("Import error:", e);
@@ -944,7 +903,6 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                                         onChange={(e) => setStartDate(e.target.value)}
                                         className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 transition-all font-bold text-slate-900"
                                     />
-                                    <p className="text-[10px] text-slate-400 mt-2">Las tareas sin fecha en el CSV se programarán consecutivamente a partir de este día.</p>
                                 </div>
 
                                 <div className="pt-4 border-t border-slate-200">
@@ -963,7 +921,6 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                                         />
                                         <div>
                                             <span className="text-xs font-black text-slate-900 uppercase tracking-tight block">Enriquecer con DataForSEO</span>
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block opacity-70">Obtiene volumen y viabilidad en vivo</span>
                                         </div>
                                     </label>
                                 </div>
@@ -972,8 +929,6 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
 
                         <div className="space-y-4">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">2. Cargar o Pegar CSV</label>
-
-                            {/* Botón de carga de archivo */}
                             <div className="relative">
                                 <input
                                     type="file"
@@ -989,16 +944,9 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                                     <Upload size={16} /> Seleccionar Archivo CSV
                                 </label>
                             </div>
-
-                            <div className="flex items-center gap-3">
-                                <div className="flex-1 h-px bg-slate-200"></div>
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">O Pegar Datos</span>
-                                <div className="flex-1 h-px bg-slate-200"></div>
-                            </div>
-
                             <textarea
                                 className="w-full h-32 bg-slate-50 border border-slate-100 rounded-3xl p-6 text-xs font-mono outline-none focus:border-indigo-500 transition-all resize-none"
-                                placeholder={`Título Propuesto,Keywords (5),Volumen,...\nMi Articulo,"key1, key2",100,...`}
+                                placeholder={`Título Propuesto,Keywords (5),...\nMi Articulo,"key1, key2",...`}
                                 value={pastedData}
                                 onChange={(e) => setPastedData(e.target.value)}
                             />
@@ -1006,7 +954,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                                 <button
                                     onClick={handleParse}
                                     disabled={!pastedData.trim()}
-                                    className="px-6 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 disabled:opacity-50"
+                                    className="px-6 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50"
                                 >
                                     Procesar Datos
                                 </button>
@@ -1016,29 +964,22 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
 
                     {parsedTasks.length > 0 && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="flex justify-between items-center">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Vista Previa ({parsedTasks.length} items)</label>
-                                <button onClick={() => setParsedTasks([])} className="text-[10px] font-bold text-red-400 hover:text-red-500 uppercase tracking-widest">Limpiar</button>
-                            </div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Vista Previa ({parsedTasks.length} items)</label>
                             <div className="max-h-60 overflow-y-auto border border-slate-100 rounded-2xl bg-white shadow-sm custom-scrollbar">
                                 <table className="w-full text-left border-collapse">
                                     <thead className="bg-slate-50 sticky top-0 z-10">
                                         <tr className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                                             <th className="p-4 border-b border-slate-100">Fecha</th>
                                             <th className="p-4 border-b border-slate-100">Título</th>
-                                            <th className="p-4 border-b border-slate-100">KW</th>
                                             <th className="p-4 border-b border-slate-100 text-right">Vol</th>
-                                            <th className="p-4 border-b border-slate-100 text-center">IA%</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {parsedTasks.map((t, i) => (
-                                            <tr key={i} className="border-b border-slate-50 last:border-none hover:bg-slate-50/50 transition-colors text-xs">
-                                                <td className="p-4 font-mono text-slate-500 whitespace-nowrap">{t.scheduled_date}</td>
+                                            <tr key={i} className="border-b border-slate-50 text-xs">
+                                                <td className="p-4 font-mono text-slate-500">{t.scheduled_date}</td>
                                                 <td className="p-4 font-bold text-slate-700">{t.title}</td>
-                                                <td className="p-4 text-slate-500 max-w-[150px] truncate" title={t.target_keyword}>{t.target_keyword}</td>
-                                                <td className="p-4 text-slate-400 font-mono text-right">{t.volume || '-'}</td>
-                                                <td className="p-4 text-slate-400 font-mono text-center">{t.ai_percentage ? `${t.ai_percentage}%` : '-'}</td>
+                                                <td className="p-4 text-slate-400 text-right">{t.volume || '-'}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -1048,49 +989,19 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                     )}
                 </div>
 
-                <div className="p-8 bg-white border-t border-slate-50 flex justify-end gap-4 z-20">
+                <div className="p-8 bg-white border-t border-slate-50 flex justify-end gap-4">
                     <button onClick={onClose} className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">Cancelar</button>
                     <button
                         disabled={parsedTasks.length === 0 || isSaving}
                         onClick={handleSave}
-                        className="px-12 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-[20px] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-500/20 disabled:opacity-50 hover:shadow-indigo-500/40 transition-all transform hover:-translate-y-1"
+                        className="px-12 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-[20px] text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-50 transition-all transform hover:-translate-y-1"
                     >
-                        {isSaving ? (
-                            <div className="flex items-center gap-2">
-                                <Loader2 size={14} className="animate-spin" /> Procesando...
-                            </div>
-                        ) : "Confirmar e Importar"}
+                        {isSaving ? "Procesando..." : "Confirmar e Importar"}
                     </button>
                 </div>
             </motion.div>
         </div>
     );
-}
-
-
-// Helper to handle individual file/text upload linking
-
-async function saveContentAndLink(taskId: string, html: string, userId?: string) {
-    const { data: draft, error: draftErr } = await supabase.from('content_drafts').insert({
-        user_id: userId,
-        html_content: html,
-        title: 'Contenido Adjunto'
-    }).select().single();
-
-    if (draftErr) throw draftErr;
-
-    const { error: linkErr } = await supabase.from('task_artifacts').insert({
-        task_id: taskId,
-        artifact_type: 'draft',
-        artifact_reference: draft.id,
-        name: 'Borrador Adjunto'
-    });
-
-    if (linkErr) throw linkErr;
-
-    await supabase.from('tasks').update({ status: 'in_progress' }).eq('id', taskId);
-
-    return draft.id;
 }
 
 function MassUploadModal({ onClose }: { onClose: () => void }) {
@@ -1147,81 +1058,79 @@ function MassUploadModal({ onClose }: { onClose: () => void }) {
                         <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Carga Masiva</h3>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Sincroniza múltiples archivos</p>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-slate-400 group">
-                        <X size={20} className="group-active:scale-95 transition-transform" />
+                    <button onClick={onClose} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all text-slate-400">
+                        <X size={20} />
                     </button>
                 </div>
 
                 <div className="flex-1 p-10 overflow-y-auto custom-scrollbar flex flex-col gap-8">
-                    <div className="border-2 border-dashed border-slate-100 rounded-[40px] p-20 text-center hover:bg-slate-50/50 transition-all cursor-pointer group bg-slate-50/20 relative">
+                    <div className="border-2 border-dashed border-slate-100 rounded-[40px] p-20 text-center hover:bg-slate-50/50 transition-all cursor-pointer relative">
                         <input type="file" multiple className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileSelection} />
-                        <div className="w-20 h-20 rounded-full bg-white shadow-xl shadow-slate-200/50 text-slate-400 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform">
+                        <div className="w-20 h-20 rounded-full bg-white shadow-xl text-slate-400 flex items-center justify-center mx-auto mb-6">
                             <FileUp size={32} />
                         </div>
                         <h4 className="text-lg font-black text-slate-700 uppercase tracking-tighter italic mb-2">Selecciona múltiples archivos</h4>
-                        <p className="text-sm text-slate-400 mb-6 px-12">Detectamos automáticamente a qué contenido programado pertenece cada archivo.</p>
-                        <span className="px-10 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all">
-                            Seleccionar Archivos
-                        </span>
                     </div>
 
                     {filesWithData.length > 0 && (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between mb-2 px-2">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{filesWithData.length} Archivos Encontrados</span>
-                                <button onClick={() => setFilesWithData([])} className="text-[10px] font-black text-red-400 uppercase tracking-widest hover:text-red-500">Limpiar Todo</button>
-                            </div>
-                            <div className="grid grid-cols-1 gap-3">
-                                {filesWithData.map((item, idx) => (
-                                    <div key={idx} className="p-4 bg-slate-50 border border-slate-100 rounded-[20px] flex items-center justify-between group animate-in slide-in-from-bottom-2">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-slate-300"><FileText size={20} /></div>
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-700 tracking-tight">{item.file.name}</p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    {item.matchedTaskId ? (
-                                                        <div className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-100 text-[8px] font-black text-emerald-600 uppercase tracking-widest">Auto-Detectado</div>
-                                                    ) : (
-                                                        <div className="px-2 py-0.5 rounded-md bg-amber-50 border border-amber-100 text-[8px] font-black text-amber-600 uppercase tracking-widest">Sin asignar</div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <select
-                                                className="bg-white border-none rounded-xl text-[10px] font-bold text-slate-500 py-2 px-4 shadow-sm outline-none"
-                                                value={item.matchedTaskId || ""}
-                                                onChange={(e) => {
-                                                    const newArr = [...filesWithData];
-                                                    newArr[idx].matchedTaskId = e.target.value;
-                                                    setFilesWithData(newArr);
-                                                }}
-                                            >
-                                                <option value="">Asignar manualmente...</option>
-                                                {tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                                            </select>
-                                            <button onClick={() => setFilesWithData(filesWithData.filter((_, i) => i !== idx))} className="p-2 text-slate-300 hover:text-red-400 transition-colors"><Trash size={16} /></button>
+                        <div className="grid grid-cols-1 gap-3">
+                            {filesWithData.map((item, idx) => (
+                                <div key={idx} className="p-4 bg-slate-50 border border-slate-100 rounded-[20px] flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-300"><FileText size={20} /></div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-700">{item.file.name}</p>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            className="bg-white border-none rounded-xl text-[10px] font-bold text-slate-500 py-2 px-4 shadow-sm"
+                                            value={item.matchedTaskId || ""}
+                                            onChange={(e) => {
+                                                const newArr = [...filesWithData];
+                                                newArr[idx].matchedTaskId = e.target.value;
+                                                setFilesWithData(newArr);
+                                            }}
+                                        >
+                                            <option value="">Asignar manualmente...</option>
+                                            {tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
 
                 <div className="p-10 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acción Conjunta</span>
-                        <label className="flex items-center gap-2 cursor-pointer mt-1">
-                            <input type="checkbox" className="w-4 h-4 rounded-md border-slate-200 text-cyan-500 focus:ring-cyan-500" checked={autoHumanize} onChange={(e) => setAutoHumanize(e.target.checked)} />
-                            <span className="text-[11px] font-bold text-slate-600">Humanizar automáticamente</span>
-                        </label>
-                    </div>
-                    <button disabled={filesWithData.length === 0 || isProcessing} onClick={handleStartProcessing} className="px-12 py-5 bg-slate-900 text-white rounded-[24px] text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3">
-                        {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <><Check size={18} /> Iniciar Procesamiento</>}
+                    <button disabled={filesWithData.length === 0 || isProcessing} onClick={handleStartProcessing} className="px-12 py-5 bg-slate-900 text-white rounded-[24px] text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl disabled:opacity-50 flex items-center gap-3">
+                        {isProcessing ? "Procesando..." : "Iniciar Procesamiento"}
                     </button>
                 </div>
             </motion.div>
         </div>
     );
+}
+
+async function saveContentAndLink(taskId: string, html: string, userId?: string) {
+    const { data: draft, error: draftErr } = await supabase.from('content_drafts').insert({
+        user_id: userId,
+        html_content: html,
+        title: 'Contenido Adjunto'
+    }).select().single();
+
+    if (draftErr) throw draftErr;
+
+    const { error: linkErr } = await supabase.from('task_artifacts').insert({
+        task_id: taskId,
+        artifact_type: 'draft',
+        artifact_reference: draft.id,
+        name: 'Borrador Adjunto'
+    });
+
+    if (linkErr) throw linkErr;
+
+    await supabase.from('tasks').update({ status: 'en_redaccion' }).eq('id', taskId);
+
+    return draft.id;
 }

@@ -146,21 +146,21 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                     .maybeSingle();
 
                 if (userData) {
-                    // Start as pending if they already exist too, so they have to acknowledge? 
-                    // Or active immediately. Let's start with pending as requested.
+                    // Add as 'active' immediately for existing users, as requested
                     const { error } = await supabase
                         .from('team_members')
                         .insert({
                             team_id: teamId,
                             user_id: userData.id,
                             role,
-                            status: 'pending',
+                            status: 'active',
                             custom_permissions: permissions
                         });
                     if (error) throw error;
-                    alert("Usuario añadido al equipo (Pendiente de aceptación).");
+                    alert("Usuario añadido al equipo correctamente.");
                 } else {
                     // Create an invitation in team_invites for email-based invite
+                    // A DB trigger will automatically activate this when the user signs up
                     const { data: { session } } = await supabase.auth.getSession();
                     const { error } = await supabase
                         .from('team_invites')
@@ -173,7 +173,7 @@ export function TeamSettings({ teamId }: { teamId: string }) {
                         });
                     
                     if (error) throw error;
-                    alert("Invitación enviada correctamente.");
+                    alert("El usuario no está registrado aún. Se le ha enviado una invitación y se unirá al equipo automáticamente al crear su cuenta.");
                 }
             }
             setIsModalOpen(false);

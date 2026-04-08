@@ -5,15 +5,14 @@ import { useEffect, useState } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
 
 import CrawlerConsole from "@/components/dashboard/CrawlerConsole";
-import DataRefinery from "@/components/dashboard/DataRefinery";
 import StrategyGrid from "@/components/dashboard/StrategyGrid";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, Globe, Database } from "lucide-react";
+import { LayoutDashboard, Globe } from "lucide-react";
 import { cn } from "@/utils/cn";
 
 export default function StrategyView() {
     const { activeProject } = useProjectStore();
-    const [view, setView] = useState<'planner' | 'crawler' | 'refinery'>('planner');
+    const [view, setView] = useState<'planner' | 'crawler'>('planner');
 
     return (
         <div className="flex flex-col h-full">
@@ -37,15 +36,6 @@ export default function StrategyView() {
                 >
                     <Globe size={14} /> Crawler
                 </button>
-                <button
-                    onClick={() => setView('refinery')}
-                    className={cn(
-                        "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
-                        view === 'refinery' ? "bg-white text-slate-900 shadow-sm shadow-slate-200" : "text-slate-400 hover:text-slate-600"
-                    )}
-                >
-                    <Database size={14} /> Refinería
-                </button>
             </div>
 
             <AnimatePresence mode="wait">
@@ -55,11 +45,10 @@ export default function StrategyView() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
-                    className="flex-1"
+                    className="flex-1 min-h-0"
                 >
                     {view === 'planner' && <StrategyGrid />}
                     {view === 'crawler' && <CrawlerConsole />}
-                    {view === 'refinery' && <DataRefinery />}
                 </motion.div>
             </AnimatePresence>
         </div>
