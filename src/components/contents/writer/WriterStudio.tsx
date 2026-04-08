@@ -6,7 +6,7 @@ import { useWriterStore } from '@/store/useWriterStore';
 import WriterEditor from '@/components/contents/writer/WriterEditor';
 import WriterDashboard from '@/components/contents/writer/WriterDashboard';
 import WriterSetupBoard from '@/components/contents/writer/WriterSetupBoard';
-import { LayoutTemplate, ChevronLeft, LayoutDashboard, Settings2, PenTool } from 'lucide-react';
+import { LayoutTemplate, ChevronLeft, LayoutDashboard, Settings2, PenTool, Send } from 'lucide-react';
 import { Button } from '@/components/dom/Button';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -33,7 +33,6 @@ export default function WriterStudio() {
     
     const { 
         handleSEO, 
-        handlePlanStructure, 
         handleGenerate, 
         handleHumanize, 
         handleRefine 
@@ -354,7 +353,7 @@ export default function WriterStudio() {
                         <div className="hidden md:block w-[1px] h-5 bg-slate-200/50" />
                         <div className="flex flex-col min-w-0">
                             <h1 className="text-[12px] md:text-[14px] font-black text-slate-900 tracking-tight truncate max-w-[200px] md:max-w-[400px] leading-tight">
-                                {strategyH1 || keyword || "Cargando..."}
+                                {strategyH1 || keyword || ""}
                             </h1>
                         </div>
                     </div>
@@ -369,21 +368,31 @@ export default function WriterStudio() {
                             <div className="w-[1px] h-6 bg-slate-200/50 mx-1" />
 
                             <div className="flex items-center gap-3">
-                                <div className="flex flex-col items-end">
-                                    <div className={cn(
-                                        "text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2",
-                                        isSaving ? "text-indigo-500" : "text-slate-400"
-                                    )}>
-                                        {isSaving ? "Capturando cambios..." : "Sincronizado"}
-                                        <div className={cn(
-                                            "w-1.5 h-1.5 rounded-full",
-                                            isSaving ? "bg-indigo-500 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]" : "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]"
-                                        )} />
-                                    </div>
-                                    <span className="text-[9px] text-slate-300 font-bold uppercase tracking-tighter">
-                                        {lastSaved ? `Activo ahora` : "Borrador"}
-                                    </span>
-                                </div>
+                                {viewMode === 'workspace' && (
+                                    <>
+                                        <div className="flex flex-col items-end">
+                                            <div className={cn(
+                                                "text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2",
+                                                isSaving ? "text-indigo-500" : "text-slate-400"
+                                            )}>
+                                                {isSaving ? "Capturando cambios..." : "Sincronizado"}
+                                                <div className={cn(
+                                                    "w-1.5 h-1.5 rounded-full",
+                                                    isSaving ? "bg-indigo-500 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]" : "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]"
+                                                )} />
+                                            </div>
+                                            <span className="text-[9px] text-slate-300 font-bold uppercase tracking-tighter">
+                                                {lastSaved ? `Activo ahora` : "Borrador"}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => useWriterStore.getState().finishContent()}
+                                            className="ml-2 flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                                        >
+                                            <Send size={14} /> Finalizar
+                                        </button>
+                                    </>
+                                )}
                             </div>
 
                             {viewMode === 'workspace' && (
@@ -411,7 +420,6 @@ export default function WriterStudio() {
                 isProcessing={isProcessingAny}
                 onWriterAction={(type) => {
                     if (type === 'seo') handleSEO();
-                    if (type === 'outline') handlePlanStructure();
                     if (type === 'generate') handleGenerate();
                     if (type === 'humanize') handleHumanize();
                     if (type === 'refine') handleRefine();

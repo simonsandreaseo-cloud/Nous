@@ -49,7 +49,7 @@ export default function SEOTab({ task }: SEOTabProps) {
     const [showWPModal, setShowWPModal] = useState(false);
 
     const dossier = (task as any).research_dossier || (task as any).seo_data || {};
-    const competitors: any[] = dossier.competitors || dossier.top10Urls || [];
+    const competitors: any[] = dossier.fullCompetitorAnalysis || dossier.competitors || dossier.top10Urls || [];
     const currentComp = competitors[competitorIndex];
 
     // Data completeness calculation
@@ -58,9 +58,12 @@ export default function SEOTab({ task }: SEOTabProps) {
         
         // Fallback to dossier for specific fields
         if (!val || (Array.isArray(val) && val.length === 0)) {
-            if (field.key === 'lsi_keywords') val = dossier.lsiKeywords;
+            if (field.key === 'lsi_keywords') val = dossier.lsiKeywords || dossier.lsi_keywords;
             if (field.key === 'research_dossier') val = dossier;
-            if (field.key === 'refs') val = dossier.top10Urls || dossier.competitors;
+            if (field.key === 'refs') val = dossier.top10Urls || dossier.competitors || dossier.fullCompetitorAnalysis;
+            if (field.key === 'target_url_slug') val = dossier.seoMetadata?.slug || dossier.slug;
+            if (field.key === 'excerpt') val = dossier.seoMetadata?.extracto || dossier.excerpt;
+            if (field.key === 'volume') val = dossier.searchVolume || dossier.volume;
         }
 
         const hasValue = val !== null && val !== undefined && val !== '' &&
@@ -87,8 +90,21 @@ export default function SEOTab({ task }: SEOTabProps) {
         setEditableTask(prev => ({ ...prev, [key]: value }));
     };
 
-    const currentVal = (key: keyof Task) =>
-        key in editableTask ? (editableTask as any)[key] : (task as any)[key];
+    const currentVal = (key: keyof Task) => {
+        if (key in editableTask) return (editableTask as any)[key];
+        
+        const baseVal = (task as any)[key];
+        if (baseVal) return baseVal;
+
+        // Smart Mapping for empty fields
+        if (key === 'seo_title') return dossier.seoMetadata?.seo_title || '';
+        if (key === 'meta_description') return dossier.seoMetadata?.meta_description || '';
+        if (key === 'h1') return dossier.seoMetadata?.h1 || '';
+        if (key === 'target_url_slug') return dossier.seoMetadata?.slug || dossier.slug || '';
+        if (key === 'excerpt') return dossier.seoMetadata?.extracto || dossier.excerpt || '';
+        
+        return '';
+    };
 
     return (
         <div className="grid grid-cols-12 gap-8">
@@ -153,8 +169,8 @@ export default function SEOTab({ task }: SEOTabProps) {
                             <label className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-2.5">Keyword Principal</label>
                             <input
                                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
-                                defaultValue={task.target_keyword || ''}
-                                onBlur={(e) => handleChange('target_keyword', e.target.value)}
+                                value={currentVal('target_keyword')}
+                                onChange={(e) => handleChange('target_keyword', e.target.value)}
                                 placeholder="Ej: marketing digital..."
                             />
                         </div>
@@ -163,8 +179,8 @@ export default function SEOTab({ task }: SEOTabProps) {
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">H1 (Título del Artículo)</label>
                             <input
                                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
-                                defaultValue={task.h1 || ''}
-                                onBlur={(e) => handleChange('h1', e.target.value)}
+                                value={currentVal('h1')}
+                                onChange={(e) => handleChange('h1', e.target.value)}
                                 placeholder="Título H1..."
                             />
                         </div>
@@ -173,8 +189,8 @@ export default function SEOTab({ task }: SEOTabProps) {
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2.5">SEO Title (max 60)</label>
                             <input
                                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
-                                defaultValue={task.seo_title || ''}
-                                onBlur={(e) => handleChange('seo_title', e.target.value)}
+                                value={currentVal('seo_title')}
+                                onChange={(e) => handleChange('seo_title', e.target.value)}
                                 placeholder="Título para el buscador..."
                             />
                         </div>
@@ -184,8 +200,8 @@ export default function SEOTab({ task }: SEOTabProps) {
                             <textarea
                                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
                                 rows={2}
-                                defaultValue={task.meta_description || ''}
-                                onBlur={(e) => handleChange('meta_description', e.target.value)}
+                                value={currentVal('meta_description')}
+                                onChange={(e) => handleChange('meta_description', e.target.value)}
                                 placeholder="Descripción corta para Google..."
                             />
                         </div>
@@ -195,8 +211,8 @@ export default function SEOTab({ task }: SEOTabProps) {
                             <textarea
                                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-medium text-slate-600 focus:outline-none focus:border-indigo-500 transition-all shadow-sm resize-none"
                                 rows={3}
-                                defaultValue={task.excerpt || ''}
-                                onBlur={(e) => handleChange('excerpt', e.target.value)}
+                                value={currentVal('excerpt')}
+                                onChange={(e) => handleChange('excerpt', e.target.value)}
                                 placeholder="Resumen corto del contenido..."
                             />
                         </div>
@@ -208,8 +224,8 @@ export default function SEOTab({ task }: SEOTabProps) {
                                     <span className="text-[10px] font-black text-slate-300">/</span>
                                     <input
                                         className="w-full text-sm font-mono text-slate-700 focus:outline-none"
-                                        defaultValue={task.target_url_slug || ''}
-                                        onBlur={(e) => handleChange('target_url_slug', e.target.value)}
+                                        value={currentVal('target_url_slug')}
+                                        onChange={(e) => handleChange('target_url_slug', e.target.value)}
                                         placeholder="mi-articulo-seo"
                                     />
                                 </div>
@@ -219,8 +235,8 @@ export default function SEOTab({ task }: SEOTabProps) {
                                 <input
                                     type="number"
                                     className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
-                                    defaultValue={task.target_word_count || ''}
-                                    onBlur={(e) => handleChange('target_word_count', parseInt(e.target.value))}
+                                    value={currentVal('target_word_count')}
+                                    onChange={(e) => handleChange('target_word_count', parseInt(e.target.value))}
                                     placeholder="1500"
                                 />
                             </div>
@@ -488,7 +504,11 @@ export default function SEOTab({ task }: SEOTabProps) {
                                 {[
                                     { label: 'Palabras', value: currentComp.word_count?.toLocaleString() || '—' },
                                     { label: 'H2s', value: currentComp.h2_count || '—' },
-                                    { label: 'Dominio', value: currentComp.domain_authority ? `DA${currentComp.domain_authority}` : '—' },
+                                    { 
+                                        label: 'Dominio', 
+                                        value: currentComp.domain_authority ? `DA${currentComp.domain_authority}` : 
+                                               (currentComp.url ? new URL(currentComp.url).hostname.replace('www.', '') : '—') 
+                                    },
                                 ].map(m => (
                                     <div key={m.label} className="bg-slate-50 rounded-2xl p-4 text-center border border-slate-100">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">{m.label}</span>

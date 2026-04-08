@@ -10,19 +10,14 @@ export async function POST(req: Request) {
 
         let targetUrl = url.trim();
 
-        const jinaBaseUrl = "https://r.jina.ai/";
+        const jinaTargetUrl = `https://r.jina.ai/${targetUrl}`;
         const rawKey = clientKey || process.env.JINA_READER_KEY || process.env.NEXT_PUBLIC_JINA_API_KEY;
         const apiKey = rawKey?.trim();
 
         const baseHeaders: Record<string, string> = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "x-respond-with": "markdown",
-            "x-reader-lm-v2": "true",
-            "X-With-Generated-Alt": "true",
-            "X-With-Iframe": "true",
-            "X-With-Images-Summary": "true",
-            "X-Retain-Images": "none",
+            "Accept": "text/plain", // Requested "dirtiest" format possible
+            "x-respond-with": "text", 
+            "X-No-Cache": "true", 
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         };
 
@@ -31,13 +26,15 @@ export async function POST(req: Request) {
             baseHeaders["Authorization"] = `Bearer ${token}`;
         }
 
-        console.log(`[JINA-READER] Extracting (POST): ${targetUrl.substring(0, 60)}...`);
+        console.log(`[JINA-READER] Extracting (GET): ${targetUrl.substring(0, 60)}...`);
+        console.log(`[JINA-READER] Headers:`, { ...baseHeaders, Authorization: apiKey ? "Bearer [MASKED]" : "None" });
+        
+        const startTime = Date.now();
         let response;
         try {
-            response = await fetch(jinaBaseUrl, { 
-                method: "POST", 
+            response = await fetch(jinaTargetUrl, { 
+                method: "GET", 
                 headers: baseHeaders,
-                body: JSON.stringify({ url: targetUrl }),
                 signal: AbortSignal.timeout(25000)
             });
         } catch (fetchError: any) {
@@ -48,6 +45,9 @@ export async function POST(req: Request) {
             throw fetchError;
         }
         
+        const duration = Date.now() - startTime;
+        console.log(`[JINA-READER] Response received in ${duration}ms. Status: ${response.status}`);
+
         if (!response.ok) {
             const errBody = await response.text().catch(() => "N/A");
             console.error(`[JINA-READER] API Rejected (${response.status}):`, errBody.substring(0, 500));
@@ -61,10 +61,9 @@ export async function POST(req: Request) {
 
             if (response.status === 429 && apiKey) {
                 await new Promise(r => setTimeout(r, 2000));
-                response = await fetch(jinaBaseUrl, { 
-                    method: "POST", 
-                    headers: baseHeaders,
-                    body: JSON.stringify({ url: targetUrl })
+                response = await fetch(jinaTargetUrl, { 
+                    method: "GET", 
+                    headers: baseHeaders
                 });
             } else if (response.status >= 400) {
                 return NextResponse.json({ 
@@ -81,11 +80,13 @@ export async function POST(req: Request) {
                 try {
                     const data = await response.json();
                     const result = data.data || data;
+                    const content = result.content || result.markdown || "";
+                    console.log(`[JINA-READER] Success (JSON). Content size: ${content.length} bytes.`);
                     return NextResponse.json({
                         ok: true,
                         title: result.title || "Contenido Extraído",
                         url: targetUrl,
-                        content: result.content || result.markdown || "",
+                        content: content,
                         markdown: result.markdown || result.content || ""
                     });
                 } catch (e) {
@@ -96,6 +97,7 @@ export async function POST(req: Request) {
             // Fallback for non-JSON or parse failure
             const text = await response.text();
             if (text.length > 100) {
+                console.log(`[JINA-READER] Success (Text). Content size: ${text.length} bytes.`);
                 return NextResponse.json({
                     ok: true,
                     title: "Extracción Directa",
@@ -116,6 +118,7 @@ export async function POST(req: Request) {
             if (directRes.ok) {
                 const html = await directRes.text();
                 const clean = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, '').replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gm, '').replace(/<[^>]+>/gm, ' ').replace(/\s+/gm, ' ').trim();
+                console.log(`[JINA-READER] Success (Auto-Extraction). Size: ${clean.length} bytes.`);
                 return NextResponse.json({ ok: true, title: "Auto-Extracción", url: targetUrl, content: clean.substring(0, 15000), markdown: clean.substring(0, 15000) });
             }
         } catch (e) {}

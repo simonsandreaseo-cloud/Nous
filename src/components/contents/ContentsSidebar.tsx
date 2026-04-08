@@ -25,7 +25,8 @@ import {
     PenLine,
     CheckSquare,
     Square,
-    Share2
+    Share2,
+    Image as ImageIcon
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 
@@ -44,6 +45,7 @@ export const CONTENT_TOOLS = [
     { id: "planner", label: "Planificador", icon: CalendarDays, color: "text-indigo-500" },
     { id: "writer", label: "Redactor", icon: PenLine, color: "text-amber-500" },
     { id: "distribution", label: "Distribución", icon: Share2, color: "text-emerald-500" },
+    { id: "imagenes", label: "Imagenes", icon: ImageIcon, color: "text-cyan-500" },
 ];
 
 interface ContentsSidebarProps {
@@ -66,12 +68,12 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
         const cleanup = initialize();
         
         // Auto-fetch if user just logged in
-        if (user && !isStoreLoading) {
+        if (user && teams.length === 0) {
             fetchTeams();
         }
 
         return cleanup;
-    }, [initialize, user, fetchTeams, isStoreLoading]);
+    }, [initialize, user]);
 
     return (
         <motion.aside 

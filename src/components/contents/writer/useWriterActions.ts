@@ -2,7 +2,6 @@
 
 import { 
     runHumanizerPipeline, 
-    runDeepSEOAnalysis, 
     generateOutlineStrategy, 
     generateArticleStream, 
     generateBriefingText, 
@@ -15,6 +14,7 @@ import {
     refineArticleContent, 
     ArticleConfig 
 } from '@/components/tools/writer/services';
+import { runDeepSEOAnalysis, generateContentOutline } from '@/lib/services/writer/seo-analyzer';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -47,13 +47,21 @@ export function useWriterActions() {
                 onProgress: (phase) => store.setStatus(phase),
                 modelName: modelToUse
             });
+
+            // 1. Sync store with research results
             store.setRawSeoData(res);
-            store.setDetectedNiche(res.nicheDetected);
-            store.setStrategyLSI(res.lsiKeywords || []);
-            store.setStrategyQuestions(res.frequentQuestions || []);
-            store.setStrategyLinks(res.suggestedInternalLinks || []);
-            store.setStrategyCompetitors(res.top10Urls?.slice(0, 5).map((u: { url: string }) => u.url).join(', ') || "");
+            if (res.nicheDetected) store.setDetectedNiche(res.nicheDetected);
+            if (res.lsiKeywords) store.setStrategyLSI(res.lsiKeywords);
+            if (res.frequentQuestions) store.setStrategyQuestions(res.frequentQuestions);
+            if (res.suggestedInternalLinks) store.setStrategyLinks(res.suggestedInternalLinks || []);
             
+            // Hypothetical keyword ideas
+            if (res.keywordIdeas) store.setStrategyKeywords(res.keywordIdeas);
+            
+            // Volume & Difficulty mapping
+            if (res.searchVolume || res.volume) store.setStrategyVolume(String(res.searchVolume || res.volume));
+            if (res.keywordDifficulty) store.setStrategyDifficulty(res.keywordDifficulty);
+
             // New: Cannibalization handling
             const cannibalUrls = (res as any).cannibalizationUrls || [];
             store.setStrategyCannibalization(cannibalUrls);
@@ -64,22 +72,41 @@ export function useWriterActions() {
             const brief = generateBriefingText(res);
             store.setStrategyNotes(brief);
 
-            // Persist the 15 high-quality links and LSI research to DB
+            // 2. Persist to DB (Dossier + Top level columns)
             if (store.draftId) {
-                console.log("[useWriterActions] Persisting 15 quality links to DB for task:", store.draftId);
+                console.log("[useWriterActions] Persisting Comprehensive SEO Strategy to DB for task:", store.draftId);
                 const { error: updateError } = await supabase
                     .from('tasks')
                     .update({
-                        seo_data: res, // Contains the 15 suggestedInternalLinks and LSI
-                        status: 'investigacion_proceso'
+                        seo_data: res, 
+                        h1: res.h1,
+                        seo_title: res.seo_title,
+                        meta_description: res.meta_description,
+                        excerpt: res.extracto,
+                        target_url_slug: res.target_url_slug,
+                        target_word_count: res.target_word_count,
+                        outline_structure: res.strategyOutline || [],
+                        status: 'por_redactar'
                     })
                     .eq('id', store.draftId);
                 
                 if (updateError) console.error("[useWriterActions] Error persisting research:", updateError.message);
             }
+
+            // 3. Populate specific strategy fields for immediate UI feedback
+            if (res.strategyOutline) {
+                store.setStrategyOutline(res.strategyOutline);
+            }
+
+            if (res.h1) store.setStrategyH1(res.h1);
+            if (res.seo_title) store.setStrategyTitle(res.seo_title);
+            if (res.target_url_slug) store.setStrategySlug(res.target_url_slug);
+            if (res.meta_description) store.setStrategyDesc(res.meta_description);
+            if (res.extracto) store.setStrategyExcerpt(res.extracto);
+            if (res.target_word_count) store.setStrategyWordCount(String(res.target_word_count));
             
-            store.setStatus('✅ Análisis SEO completado y guardado.');
-            store.setSidebarTab('seo');
+            store.setStatus('✅ Análisis SEO y Arquitectura completados.');
+            store.setSidebarTab('seo'); // Switching to SEO/Strategy tab
         } catch (e: any) {
             console.error(e);
             store.setStatus('❌ Error SEO: ' + e.message);
@@ -88,65 +115,41 @@ export function useWriterActions() {
         }
     }, [store, activeProject]);
 
-    // --- Plan Structure ---
-    const handlePlanStructure = useCallback(async () => {
+    // --- Plan Structure (REGENERATION) ---
+    const handleRegenerateOutline = useCallback(async () => {
         if (!store.rawSeoData) return alert('Realiza el análisis SEO primero.');
         store.setPlanningStructure(true);
-        store.setStatus('Diseñando outline estratégico...');
+        store.setStatus('Regenerando outline estratégico con Gemini 3.1 Flash Lite...');
         try {
-            const config: ArticleConfig = {
-                projectName: store.projectName, 
-                niche: store.detectedNiche || 'General', 
-                topic: store.keyword,
-                metaTitle: store.keyword, 
-                keywords: (store.rawSeoData.keywordIdeas?.shortTail || []).slice(0, 3).join(', ') || store.keyword, 
-                tone: store.strategyTone || 'Profesional',
-                wordCount: store.strategyWordCount || '1500', 
-                refUrls: store.strategyCompetitors,
-                refContent: store.strategyNotes, 
-                approvedLinks: store.strategyLinks,
-                csvData: store.csvData,
-            };
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-3-27b-it';
-            const res = await generateOutlineStrategy(config, store.keyword, store.rawSeoData as any, modelToUse);
-            store.addDebugPrompt('Estructura Estratégica', `Outline generado para: ${store.keyword}`, JSON.stringify(res));
+            const res = await generateContentOutline({
+                keyword: store.keyword,
+                seoMetadata: {
+                    h1: store.strategyH1,
+                    seo_title: store.strategyTitle,
+                    slug: store.strategySlug,
+                    meta_description: store.strategyDesc,
+                    extracto: store.strategyExcerpt,
+                    recommendedWordCount: store.strategyWordCount
+                },
+                cleanedLSI: store.strategyLSI,
+                suggestedLinks: store.strategyLinks,
+                validSEO: (store.rawSeoData as any).competitors || [],
+                wordCountGoal: parseInt(String(store.strategyWordCount)) || 1500
+            });
             
-            if (res.snippet) {
-                store.setStrategyTitle(res.snippet.metaTitle);
-                store.setStrategyH1(res.snippet.h1);
-                store.setStrategySlug(res.snippet.slug);
-                store.setStrategyDesc(res.snippet.metaDescription);
-            }
-            if (res.outline) {
-                store.setStrategyOutline(res.outline.headers || []);
-            }
-            if (res.suggestedInternalLinks) {
-                store.setStrategyInternalLinks(res.suggestedInternalLinks.map((u: { url: string; title?: string }) => ({ 
-                    url: u.url, 
-                    title: u.title || '',
-                    type: 'other' as const,
-                    search_index: "0"
-                })));
-            }
+            store.setStrategyOutline(res);
+            store.addDebugPrompt('Regeneración de Outline', `Nuevo outline generado para: ${store.keyword}`, JSON.stringify(res));
             
-            store.setStatus('✅ Outline generado con éxito. Persistiendo...');
-            
-            // Guardado inmediato en BD
             if (store.draftId) {
                 await supabase.from('tasks').update({
-                    outline_structure: { headers: res.outline?.headers || [] },
-                    // También actualizamos metadatos generados por el outline si existen
-                    h1: res.snippet?.h1 || store.strategyH1,
-                    seo_title: res.snippet?.metaTitle || store.strategyTitle,
-                    target_url_slug: res.snippet?.slug || store.strategySlug,
-                    meta_description: res.snippet?.metaDescription || store.strategyDesc
+                    outline_structure: res
                 }).eq('id', store.draftId);
             }
-
-            store.setSidebarTab('generate');
+            
+            store.setStatus('✅ Outline regenerado con éxito.');
         } catch (e: any) {
             console.error(e);
-            store.setStatus('❌ Error Estrategia: ' + e.message);
+            store.setStatus('❌ Error Regeneración: ' + e.message);
         } finally {
             store.setPlanningStructure(false);
         }
@@ -213,7 +216,6 @@ export function useWriterActions() {
                 approvedLinks: finalApprovedLinks,
                 questions: store.strategyQuestions,
                 lsiKeywords: store.strategyLSI.map((l) => l.keyword).concat(store.strategyLongTail),
-                creativityLevel: store.creativityLevel, 
                 contextInstructions: store.contextInstructions,
                 architectureInstructions: activeProject?.architecture_instructions,
                 architectureRules: activeProject?.architecture_rules,
@@ -278,7 +280,7 @@ export function useWriterActions() {
         } finally {
             store.setGenerating(false);
         }
-    }, [store, hasAccess, activeProject, hasTokens, consumeTokens, getTokensLimit]);
+    }, [store, hasAccess, activeProject, hasTokens, consumeTokens, getTokensLimit, selectTopRelevantLinks]);
 
     // --- Humanize ---
     const handleHumanize = useCallback(async () => {
@@ -364,7 +366,7 @@ export function useWriterActions() {
 
     return {
         handleSEO,
-        handlePlanStructure,
+        handleRegenerateOutline,
         handleGenerate,
         handleHumanize,
         handleRefine,

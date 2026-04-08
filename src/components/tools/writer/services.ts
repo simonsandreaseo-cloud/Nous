@@ -18,6 +18,7 @@ import {
 
 import { runDeepSEOAnalysis as libRunDeepSEOAnalysis, type DeepSEOConfig } from "@/lib/services/writer/seo-analyzer";
 import { buildPrompt as libBuildPrompt } from "@/lib/services/writer/prompts";
+import { processHtmlLinks, autoInterlinkAsync as libAutoInterlinkAsync, cleanAndFormatHtml as libCleanAndFormatHtml } from "@/lib/services/writer/html-processor";
 
 export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
     return libRunDeepSEOAnalysis({
@@ -35,13 +36,16 @@ export { type ArticleConfig, type SEOAnalysisResult, type DeepSEOAnalysisResult,
 import { executeWithKeyRotation as libExecuteWithKeyRotation } from "@/lib/services/writer/ai-core";
 
 export const executeWithKeyRotation = async <T>(
-    operation: (client: GoogleGenAI, currentModel: string) => Promise<T>,
-    modelName: string = 'gemini-2.5-flash',
-    keys?: string[] | string
+    operation: (client: any, currentModel: string) => Promise<T>,
+    modelName: string = 'default',
+    keys?: string[] | string,
+    onRotation?: any,
+    isStrictModel: boolean = false,
+    label: string = 'Operación AI'
 ): Promise<T> => {
     return libExecuteWithKeyRotation(async (client, m) => {
         return operation(client, m);
-    }, modelName, keys);
+    }, modelName, keys, onRotation, isStrictModel, label);
 };
 
 // --- Data Parsing Helpers ---
@@ -229,7 +233,7 @@ export const searchMoreLinks = async (keyword: string, csvData: ContentItem[]): 
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         try {
-            const model = ai.getGenerativeModel({ model: currentModel || 'gemini-2.5-flash' });
+            const model = ai.getGenerativeModel({ model: currentModel || AI_CONFIG.groq.models.balanced });
             const response = await model.generateContent(prompt);
             const terms = (response.response.text() || '').split(',').map(t => t.trim());
             const extraString = terms.join(' ');
@@ -256,47 +260,7 @@ export const searchMoreLinks = async (keyword: string, csvData: ContentItem[]): 
 
 // --- Post-Generation Auto Interlinking (Optimized - Async Chunking) ---
 
-export const autoInterlinkAsync = async (html: string, csvData: ContentItem[]): Promise<string> => {
-    const candidates = csvData.filter(i => i.title && i.url);
-    candidates.sort((a, b) => b.title.length - a.title.length);
-
-    let linkedHtml = html;
-    const alreadyLinked = new Set<string>();
-    let linkCount = 0;
-
-    const topCandidates = candidates.slice(0, 300);
-
-    for (let i = 0; i < topCandidates.length; i++) {
-        // Yield to main thread every 20 iterations to prevent UI freeze
-        if (i > 0 && i % 20 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 0));
-        }
-
-        const item = topCandidates[i];
-        if (linkCount >= 15) break;
-        if (item.title.length < 4) continue;
-        if (alreadyLinked.has(item.url)) continue;
-
-        const safeTitle = escapeRegExp(item.title);
-        const titleRegex = new RegExp(`(?<!<[^>]*)\\b${safeTitle}\\b`, 'i');
-
-        if (titleRegex.test(linkedHtml)) {
-            if (linkedHtml.includes(item.url)) {
-                alreadyLinked.add(item.url);
-                continue;
-            }
-            let replaced = false;
-            linkedHtml = linkedHtml.replace(titleRegex, (match) => {
-                if (replaced) return match;
-                replaced = true;
-                alreadyLinked.add(item.url);
-                linkCount++;
-                return `<a href="${item.url}" target="_blank" rel="noopener noreferrer" title="Ver ${match}">${match}</a>`;
-            });
-        }
-    }
-    return linkedHtml;
-};
+export const autoInterlinkAsync = libAutoInterlinkAsync;
 
 function escapeRegExp(string: string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -306,22 +270,7 @@ function escapeRegExp(string: string) {
 // POST PROCESSING: STRICT FORMATTING & BOLDING (Programmatic)
 // =================================================================
 
-export const cleanAndFormatHtml = (html: string): string => {
-    if (!html) return '';
-    let cleanString = html;
-    
-    // 1. CLEAN MARKDOWN & ARTIFACTS
-    // Bold: handle **bold** and __bold__
-    cleanString = cleanString.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
-    cleanString = cleanString.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
-    
-    // Headers (sometimes they slip as markdown)
-    cleanString = cleanString.replace(/^### (.*$)/gm, '<h3>$1</h3>');
-    cleanString = cleanString.replace(/^## (.*$)/gm, '<h2>$1</h2>');
-    cleanString = cleanString.replace(/^# (.*$)/gm, '<h2>$1</h2>'); // No H1 in body
-
-    return cleanString;
-};
+export const cleanAndFormatHtml = libCleanAndFormatHtml;
 
 // --- Strict Style Refinement (The "Phase") ---
 export const refineStyling = (html: string): string => {
@@ -394,8 +343,8 @@ export const generateArticleStream = async (model: string, prompt: string) => {
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
-            model: currentModel || 'gemma-3-27b-it',
-            systemInstruction: "Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]). Generas HTML impecable.",
+            model: currentModel,
+            systemInstruction: "Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]). Generas HTML impecable. Nous procesará los enlaces automáticamente.",
             generationConfig: {
                 temperature: 0.7,
             }
@@ -410,7 +359,7 @@ export const generateArticleStream = async (model: string, prompt: string) => {
                 yield { text: chunk.text() };
             }
         })();
-    });
+    }, model || 'default', undefined, undefined, false, 'Redacción Artículo');
 };
 
 export const refineArticleContent = async (
@@ -448,11 +397,11 @@ export const refineArticleContent = async (
     `;
 
     return executeWithKeyRotation(async (ai, currentModel) => {
-        const modelObj = ai.getGenerativeModel({ model: currentModel || 'gemini-2.5-flash' });
+        const modelObj = ai.getGenerativeModel({ model: currentModel });
         const response = await modelObj.generateContent(prompt);
         const resText = response.response.text() || (isSelection ? selectedText : currentHtml);
         return resText.replace(/```html/g, '').replace(/```/g, '').trim();
-    }, modelName);
+    }, modelName || 'default', undefined, undefined, false, 'Refinado Artículo');
 }
 
 export const findCampaignAssets = async (query: string, projectName: string, csvData?: ContentItem[], modelName?: string): Promise<VisualResource[]> => {
@@ -469,7 +418,7 @@ export const findCampaignAssets = async (query: string, projectName: string, csv
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
-            model: currentModel || 'gemini-2.5-flash',
+            model: currentModel || AI_CONFIG.groq.models.balanced,
         });
         const response = await modelObj.generateContent(prompt);
         let text = response.response.text() || "[]";
@@ -497,7 +446,7 @@ const _suggestImagePlacements = async (articleHtml: string, count: string): Prom
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
-            model: currentModel || 'gemini-2.5-flash',
+            model: currentModel || 'llama-3.3-70b-versatile',
             generationConfig: { responseMimeType: "application/json" }
         });
         const response = await modelObj.generateContent(truncated + "\n\n" + prompt);
@@ -515,7 +464,7 @@ export const generateRealImage = async (basePrompt: string, config: ImageGenConf
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         try {
-            const model = ai.getGenerativeModel({ model: currentModel || 'gemini-2.5-flash' });
+            const model = ai.getGenerativeModel({ model: currentModel || 'llama-3.3-70b-versatile' });
             const response = await model.generateContent(finalPrompt);
 
             const result = await response.response;
@@ -574,7 +523,7 @@ export const generateSchemaMarkup = async (metadata: any, articleHtml: string, t
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({
-            model: currentModel || 'gemini-2.5-flash',
+            model: currentModel || AI_CONFIG.groq.models.balanced,
             generationConfig: { responseMimeType: "application/json" }
         });
         const response = await model.generateContent(prompt);
@@ -746,7 +695,7 @@ const filterQualityResults = async (results: any[], keyword: string): Promise<an
     return executeWithKeyRotation(async (ai) => {
         try {
             const modelObj = ai.getGenerativeModel({
-                model: 'gemini-2.5-flash',
+                model: AI_CONFIG.groq.models.quality,
                 generationConfig: { responseMimeType: "application/json" }
             });
             const response = await modelObj.generateContent(prompt);
@@ -801,7 +750,7 @@ export const runSEOAnalysis = async (
         try {
             // Use key rotation for this generative step
             await executeWithKeyRotation(async (ai) => {
-                const modelObj = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+                const modelObj = ai.getGenerativeModel({ model: AI_CONFIG.groq.models.quality });
                 const queryResponse = await modelObj.generateContent(intentPrompt);
                 smartQuery = queryResponse.response.text()?.trim().replace(/^"|"$/g, '') || `${keyword} blog tendencias`;
             });
@@ -1142,13 +1091,13 @@ export const runHumanizerPipeline = async (
         onStatus(`Fase 1: Humanizando bloque ${i + 1}/${htmlChunks.length}...`);
         const chunkResult = await executeWithKeyRotation(async (ai, currentModel) => {
             const model = ai.getGenerativeModel({ 
-                model: currentModel || modelName,
+                model: currentModel,
                 systemInstruction: buildPhase1Prompt()
             });
             const res = await model.generateContent(htmlChunks[i]);
             const raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
             return cleanAndFormatHtml(raw);
-        }, modelName);
+        }, modelName, undefined, undefined, false, 'Redacción Humanización');
         humanizedChunks.push(chunkResult);
     }
 
@@ -1179,7 +1128,7 @@ export const runHumanizerPipeline = async (
         --- REGLAS CRÍTICAS ---
         * NO RESUMAS. El texto de salida debe ser íntegro.
         * NO "MEJORES" EL ESTILO HUMANO: Mantén el tono simple y cotidiano que ya tiene.
-        * ENLACES: Aquí tienes los enlaces que PUEDES usar en este bloque (si son pertinentes): ${linksTextList || 'Ninguno'}
+        * ENLACES: Aquí tienes los enlaces que PUEDES usar en este bloque (si son pertinentes): ${linksTextList || 'Ninguno'}.
         * LSI: Keywords a integrar si es posible: [${config.lsiKeywords?.join(', ') || 'Ninguna'}]
         `.trim();
     };
@@ -1192,7 +1141,7 @@ export const runHumanizerPipeline = async (
         
         const finalizedChunk = await executeWithKeyRotation(async (ai, currentModel) => {
             const model = ai.getGenerativeModel({ 
-                model: currentModel || modelName,
+                model: currentModel,
                 systemInstruction: buildPhase2Prompt(blockLinks),
                 generationConfig: {
                     temperature: 0.3
@@ -1201,7 +1150,7 @@ export const runHumanizerPipeline = async (
             const res = await model.generateContent(seoChunks[j]);
             const raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
             return cleanAndFormatHtml(raw);
-        }, modelName);
+        }, modelName, undefined, undefined, false, 'Redacción SEO Revisión');
 
         finalizedChunks.push(finalizedChunk);
 
@@ -1251,11 +1200,11 @@ export const runSmartEditor = async (
     ${html}
     `;
 
-    return executeWithKeyRotation(async (ai) => {
-        const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const model = ai.getGenerativeModel({ model: currentModel });
         const response = await model.generateContent(prompt);
         return response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-    });
+    }, 'default', undefined, undefined, false, 'Edición Inteligente');
 };
 
 /**
@@ -1300,11 +1249,11 @@ export const runSEOPostProcessor = async (
     ${html}
     `;
 
-    return executeWithKeyRotation(async (ai) => {
-        const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const model = ai.getGenerativeModel({ model: currentModel });
         const response = await model.generateContent(prompt);
         return response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-    });
+    }, 'default', undefined, undefined, false, 'SEO Post-Procesado');
 };
 
 /**
@@ -1422,9 +1371,9 @@ async function selectTopCompetitorsViaAI(keyword: string, competitors: Competito
     `;
 
     try {
-        const result = await executeWithKeyRotation(async (ai) => {
+        const result = await executeWithKeyRotation(async (ai, currentModel) => {
             const model = ai.getGenerativeModel({ 
-                model: 'gemini-2.5-flash',
+                model: currentModel,
                 generationConfig: { responseMimeType: "application/json" }
             });
             const response = await model.generateContent(prompt);
@@ -1436,7 +1385,7 @@ async function selectTopCompetitorsViaAI(keyword: string, competitors: Competito
                 return JSON.parse(match[0]);
             }
             throw new Error("Formato de respuesta inválido");
-        });
+        }, 'default', undefined, undefined, false, 'Investigación Competencia');
         
         if (Array.isArray(result)) return result.slice(0, 5);
         return competitors.slice(0, 5).map(c => c.url);
@@ -1466,14 +1415,14 @@ async function selectSemanticInternalLinks(keyword: string, pool: any[]): Promis
     [{"url": "...", "title": "..."}]`;
 
     try {
-        const resultText = await executeWithKeyRotation(async (client) => {
+        const resultText = await executeWithKeyRotation(async (client, currentModel) => {
             const model = client.getGenerativeModel({ 
-                model: "gemini-2.5-flash",
+                model: currentModel,
                 generationConfig: { responseMimeType: "application/json" }
             });
             const result = await model.generateContent(prompt);
             return result.response.text();
-        }, "gemini-2.5-flash");
+        }, "default", undefined, undefined, false, "Investigación SEO Internado");
 
         let cleaned = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
         

@@ -8,13 +8,13 @@ import {
     generateInsightAnalysis,
     identifyAiTrafficSources,
     generateJSONReportState
-} from '@/lib/services/report/geminiService';
+} from '@/lib/services/report/groqService';
 import { SegmentationService } from '@/lib/services/report/segmentationService';
 import { parseISO, subDays, format } from 'date-fns';
 import { GscRow } from '@/types/report';
 import { AnalyticsService } from '@/lib/services/report/analyticsService';
 import { supabase } from '@/lib/supabase';
-import { AI_CONFIG, getGeminiKey } from '@/lib/ai/config';
+import { AI_CONFIG } from '@/lib/ai/config';
 import { GoogleExportService } from '@/lib/services/export/googleExportService';
 
 export async function generateReportAction(
@@ -24,8 +24,8 @@ export async function generateReportAction(
     dateRange?: { start: string, end: string }
 ) {
     try {
-        const apiKey = getGeminiKey();
-        if (!apiKey) throw new Error("API Key de IA no configurada en el sistema");
+        const apiKey = "auto-rotated"; // Groq handles rotation internally through the service now
+
 
         // 1. Determine Date Ranges
         const endP2 = dateRange?.end ? parseISO(dateRange.end) : new Date();
@@ -157,7 +157,7 @@ export async function generateReportFromCsvAction(
     userContext: string
 ) {
     try {
-        const apiKey = getGeminiKey();
+        const apiKey = "auto-rotated";
         if (!apiKey) throw new Error("API Key de IA no configurada");
 
         const transform = (rows: GscRow[]) => ({
@@ -272,7 +272,7 @@ export async function getReportByIdAction(reportId: string) {
 export async function analyzeStructureAction(projectId: string) {
     console.log("[SERVER ACTION] analyzeStructureAction started for Project:", projectId);
     try {
-        const apiKey = getGeminiKey();
+        const apiKey = "auto-rotated";
         if (!apiKey) throw new Error("API Key de IA no configurada");
 
         // Fetch just the last 28 days to analyze structure
@@ -319,7 +319,7 @@ export async function analyzeStructureAction(projectId: string) {
 
 export async function generateAiContentAction(prompt: string, context: string) {
     try {
-        const apiKey = getGeminiKey();
+        const apiKey = "auto-rotated";
         if (!apiKey) throw new Error("API Key de IA no configurada");
 
         const html = await generateContent(prompt, context, apiKey);
@@ -416,7 +416,7 @@ export async function generateInsightDataAction(
     }
 ) {
     try {
-        const apiKey = getGeminiKey();
+        const apiKey = "auto-rotated";
 
         // Helper to calculate previous range
         const getPreviousRange = (start: string, end: string, mode: string) => {
@@ -636,10 +636,10 @@ export async function fetchGscSitesAction(userId: string) {
 
 export async function analyzeManualUrlsAction(entries: { url: string, category?: string }[]) {
     try {
-        const { getGeminiKey } = await import('@/lib/ai/config');
+        const { AI_CONFIG } = await import('@/lib/ai/config');
         const { SegmentationService } = await import('@/lib/services/report/segmentationService');
         
-        const apiKey = getGeminiKey();
+        const apiKey = "auto-rotated";
         if (!apiKey) throw new Error("API Key de IA no configurada");
 
         if (!entries || entries.length === 0) return { success: true, proposedRules: [] };

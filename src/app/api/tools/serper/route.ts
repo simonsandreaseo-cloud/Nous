@@ -40,7 +40,16 @@ export async function POST(req: Request) {
         return NextResponse.json(data);
 
     } catch (error: any) {
-        console.error("[SERPER-PROXY] Critical error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        const errorDetails = {
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+            cause: error.cause
+        };
+        console.error("[SERPER-PROXY] Critical error details:", errorDetails);
+        return NextResponse.json({ 
+            error: "Internal Server Error during Serper Search", 
+            message: error.message,
+            details: errorDetails
+        }, { status: 500 });
     }
 }

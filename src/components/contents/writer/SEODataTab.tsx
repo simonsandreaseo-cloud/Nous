@@ -18,7 +18,10 @@ import {
     BarChart,
     AlertCircle,
     Info,
-    CheckCircle
+    CheckCircle,
+    Trash2,
+    RefreshCw,
+    Eraser
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useWriterStore } from '@/store/useWriterStore';
@@ -59,6 +62,8 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
         strategyDesc,
         strategyExcerpt,
         strategyWordCount,
+        strategyKeywords,
+        isRefreshingLinks,
         // Setters
         setStrategyH1,
         setStrategyTitle,
@@ -72,6 +77,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
     // Accordion states for Modo Nous
     const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({
         metadata: false,
+        keywords: false,
         lsi: false,
         links: false,
         questions: false,
@@ -84,17 +90,30 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
     const [checkedItems, setCheckedItems] = useState<string[]>([]);
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
-    const lsiKeywords = strategyLSI.length > 0 ? strategyLSI : (researchDossier?.lsiKeywords || seoData?.lsiKeywords || []);
+    const rawLsiKeywords = strategyLSI.length > 0 ? strategyLSI : (researchDossier?.lsiKeywords || researchDossier?.keywordIdeas || seoData?.lsiKeywords || seoData?.keywordIdeas || []);
+    
+    // Safety deduplication for UI
+    const lsiKeywords = useMemo(() => {
+        const seen = new Set<string>();
+        return (rawLsiKeywords as any[]).filter(k => {
+            const word = (typeof k === 'string' ? k : k.keyword || '').trim().toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (!word || seen.has(word)) return false;
+            seen.add(word);
+            return true;
+        });
+    }, [rawLsiKeywords]);
+
     const frequentQuestions = strategyQuestions.length > 0 ? strategyQuestions : (researchDossier?.frequentQuestions || seoData?.frequentQuestions || []);
     
     const allLinksSource = [
-        ...(strategyLinks || []), 
-        ...(strategyInternalLinks || []), 
+        ...(strategyLinks || []),
         ...(researchDossier?.suggestedInternalLinks || []),
         ...(researchDossier?.suggested_links || []),
         ...(seoData?.suggestedInternalLinks || [])
     ];
-    
+
+    // Eliminar duplicados por URL de forma limpia
     const linkEntries: [string, any][] = allLinksSource
         .filter(l => !!l)
         .map((item): [string, any] => {
@@ -211,10 +230,12 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
         if(isContentLongEnough) score += 10;
 
         // Additional
-        // Keyword density (ideal 1-2%)
-        const densityOk = primaryDensity > 0.5 && primaryDensity < 2.5;
-        checks.push({ label: `Densidad de Focus Keyword (${primaryDensity.toFixed(2)}%)`, passed: densityOk, score: 10 });
+        // Keyword density (ideal 1-2%, viable > 0.5%)
+        const densityOk = primaryDensity >= 1.0;
+        const densityViable = primaryDensity >= 0.5;
+        checks.push({ label: `Densidad de Focus Keyword (${primaryDensity.toFixed(2)}%)`, passed: densityOk || densityViable, score: densityOk ? 10 : 5 });
         if(densityOk) score += 10;
+        else if(densityViable) score += 5;
 
         // Internal Links
         const hasInternalLinks = usedLinks.length > 0;
@@ -365,7 +386,12 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                         </div>
                         <div className="p-4 bg-white border border-slate-100 rounded-[20px] shadow-sm text-center">
                             <p className="text-[8px] font-black uppercase text-slate-400 mb-1 tracking-widest">Densidad KW</p>
-                            <p className={cn("text-sm font-black", primaryDensity > 0 && primaryDensity <= 2.5 ? "text-emerald-500" : "text-amber-500")}>
+                            <p className={cn(
+                                "text-sm font-black transition-colors", 
+                                primaryDensity >= 1 ? "text-emerald-500" : 
+                                primaryDensity >= 0.5 ? "text-amber-500" : 
+                                primaryDensity > 0 ? "text-red-400" : "text-slate-300"
+                            )}>
                                 {primaryDensity.toFixed(2)}%
                             </p>
                         </div>
@@ -604,12 +630,17 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                                     )}>
                                                         <div className="flex flex-col min-w-0 pr-4">
                                                             <span className={cn(
-                                                                "text-[10px] font-black uppercase tracking-wide truncate",
+                                                                "text-[10px] font-black uppercase tracking-wide truncate mb-0.5",
                                                                 isDone ? "text-emerald-700" : "text-slate-700"
                                                             )}>
                                                                 {link.title}
                                                             </span>
-                                                            <span className="text-[8px] font-mono text-slate-400 truncate">{link.url}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                {link.anchor_text && (
+                                                                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 rounded uppercase">{link.anchor_text}</span>
+                                                                )}
+                                                                <span className="text-[8px] font-mono text-slate-400 truncate">{link.url}</span>
+                                                            </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             {isDone && (
@@ -620,7 +651,123 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                                             <a href={link.url} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
                                                                 <ExternalLink size={12} />
                                                             </a>
+                                                            <button 
+                                                                onClick={() => useWriterStore.getState().removeStrategyLink(link.url)}
+                                                                className="p-2 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors text-slate-400"
+                                                            >
+                                                                <Trash2 size={12} />
+                                                            </button>
                                                         </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                        
+                                        {/* BOTONES DE ACCIÓN INFERIORES */}
+                                        <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-200/60 mt-4">
+                                            <button 
+                                                onClick={() => useWriterStore.getState().refreshInterlinking('append')}
+                                                disabled={isRefreshingLinks}
+                                                className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                                            >
+                                                <Search size={12} className={cn(isRefreshingLinks && "animate-spin")} /> Buscar más
+                                            </button>
+                                            <button 
+                                                onClick={() => useWriterStore.getState().refreshInterlinking('overwrite')}
+                                                disabled={isRefreshingLinks}
+                                                className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-bold hover:bg-slate-200 transition-colors disabled:opacity-50"
+                                            >
+                                                <RefreshCw size={12} className={cn(isRefreshingLinks && "animate-spin")} /> Regenerar
+                                            </button>
+                                            <button 
+                                                onClick={() => useWriterStore.getState().clearStrategyLinks()}
+                                                className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold hover:bg-red-100 transition-colors ml-auto"
+                                            >
+                                                <Eraser size={12} /> Limpiar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+
+                    {/* KEYWORDS HYPOTHETICAL ACCORDION */}
+                    <div className="bg-white border border-indigo-100 rounded-[24px] overflow-hidden shadow-sm">
+                        <div
+                            className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50 transition-colors"
+                            onClick={() => toggleAccordion('keywords')}
+                        >
+                            <div className="flex items-center gap-3">
+                                <Database size={16} className="text-indigo-500" />
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-700">Keywords Sugeridas (Hipatético)</h4>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                                    {strategyKeywords.length} Ideas
+                                </span>
+                                <ChevronDown size={16} className={cn("text-slate-400 transition-transform duration-300", openAccordions.keywords && "rotate-180")} />
+                            </div>
+                        </div>
+                        <AnimatePresence>
+                            {openAccordions.keywords && (
+                                <motion.div
+                                    initial={{ height: 0 }}
+                                    animate={{ height: 'auto' }}
+                                    exit={{ height: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="p-5 border-t border-indigo-50 bg-indigo-50/10 space-y-3">
+                                        {strategyKeywords.length === 0 ? (
+                                             <p className="text-[11px] text-slate-500 italic">Analiza el SEO para ver sugerencias detalladas.</p>
+                                        ) : (
+                                            strategyKeywords.map((k: any, idx: number) => {
+                                                const kw = k.keyword;
+                                                const density = calculateDensity(currentContent, kw);
+                                                const count = countOccurrences(currentContent, kw);
+                                                const used = count > 0;
+                                                
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className={cn(
+                                                            "p-3 rounded-xl border flex items-center justify-between gap-4 shadow-sm transition-all",
+                                                            used ? "bg-emerald-50/50 border-emerald-200" : "bg-white border-indigo-100"
+                                                        )}
+                                                    >
+                                                        <div className="flex flex-col min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={cn(
+                                                                    "w-1.5 h-1.5 rounded-full",
+                                                                    used ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
+                                                                )} />
+                                                                <span className="text-[12px] font-bold text-slate-800 truncate">{kw}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-[9px] font-black uppercase tracking-tighter text-indigo-400 bg-indigo-50 px-1.5 rounded">Vol: {k.volume}</span>
+                                                                <span className={cn(
+                                                                    "text-[9px] font-black uppercase tracking-tighter px-1.5 rounded",
+                                                                    k.difficulty?.toLowerCase().includes('alta') ? "bg-red-50 text-red-500" :
+                                                                    k.difficulty?.toLowerCase().includes('media') ? "bg-amber-50 text-amber-500" :
+                                                                    "bg-emerald-50 text-emerald-500"
+                                                                )}>Diff: {k.difficulty}</span>
+                                                                {used && (
+                                                                    <span className="text-[9px] font-black uppercase tracking-tighter text-emerald-600 bg-emerald-50 px-1.5 rounded">
+                                                                        {count} usos ({density.toFixed(2)}%)
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => {
+                                                                const exists = strategyLSI.some((l: any) => (typeof l === 'string' ? l : l.keyword).toLowerCase() === kw.toLowerCase());
+                                                                if (!exists) useWriterStore.getState().setStrategyLSI([...strategyLSI, kw]);
+                                                            }}
+                                                            className="h-8 px-3 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm shrink-0"
+                                                        >
+                                                            Añadir a LSI
+                                                        </button>
                                                     </div>
                                                 );
                                             })

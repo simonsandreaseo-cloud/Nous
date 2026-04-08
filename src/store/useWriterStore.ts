@@ -22,6 +22,7 @@ interface WriterState {
     linkedTaskId: string | null;
     linkedTaskTitle: string | null;
     projectId: string | null;
+    isRefreshingLinks: boolean;
 
     // ── View Flow ─────────────────────────────────────────
     viewMode: WriterViewMode;
@@ -77,7 +78,6 @@ interface WriterState {
     strategyVolume: string;
     strategyDifficulty: string;
     competitorDetails: any[];
-    geoCompetitorDetails: any[];
     strategyLSI: { keyword: string; count: string }[];
     strategyKeywords: { keyword: string; volume: string }[];
     strategyInternalLinks: ContentItem[];
@@ -87,10 +87,13 @@ interface WriterState {
     strategyLongTail: string[];
     strategyQuestions: string[];
     detectedNiche: string;
-    creativityLevel: 'low' | 'medium' | 'high';
+
     contextInstructions: string;
     isStrictMode: boolean;
     strictFrequency: number;
+    removeStrategyLink: (url: string) => void;
+    clearStrategyLinks: () => void;
+    refreshInterlinking: (mode?: 'overwrite' | 'append') => Promise<void>;
     metadata: any;
     activeUsers: Record<string, { name: string; photo: string; color: string }>;
     isRemoteUpdate: boolean;
@@ -136,6 +139,7 @@ interface WriterState {
     setModel: (model: string) => void;
     setStatus: (msg: string) => void;
     setDownloadProgress: (progress: number | null) => void;
+    markAsReadyForReview: () => Promise<void>;
 
     // ── Research Actions ──────────────────────────────────
     setResearching: (isResearching: boolean, topic?: string) => void;
@@ -164,7 +168,6 @@ interface WriterState {
     setStrategyVolume: (v: string) => void;
     setStrategyDifficulty: (v: string) => void;
     setCompetitorDetails: (v: any[]) => void;
-    setGeoCompetitorDetails: (v: any[]) => void;
     setStrategyLSI: (lsi: { keyword: string; count: string }[]) => void;
     setStrategyKeywords: (k: { keyword: string; volume: string }[]) => void;
     setStrategyInternalLinks: (links: ContentItem[]) => void;
@@ -179,7 +182,7 @@ interface WriterState {
     removeStrategyLSI: (index: number) => void;
     removeStrategyQuestion: (index: number) => void;
     setDetectedNiche: (niche: string) => void;
-    setCreativityLevel: (level: 'low' | 'medium' | 'high') => void;
+
     setActiveUsers: (users: Record<string, { name: string; photo: string; color: string }>) => void;
     setContextInstructions: (v: string) => void;
     setIsStrictMode: (v: boolean) => void;
@@ -208,8 +211,45 @@ interface WriterState {
     reset: () => void;
     loadContentById: (contentId: string) => Promise<void>;
     deleteContent: (contentId: string) => Promise<boolean>;
+    finishContent: () => Promise<void>;
     editor: any;
     setEditor: (editor: any) => void;
+    setStatus: (status: string) => void;
+    setSaving: (saving: boolean) => void;
+    isSaving: boolean;
+    lastSaved: Date | null;
+    keyword: string;
+    strategyH1: string;
+    draftId: string | null;
+    viewMode: WriterViewMode;
+    setViewMode: (mode: WriterViewMode) => void;
+    rawSeoData: any;
+    editorTab: 'visual' | 'code';
+    setEditorTab: (tab: 'visual' | 'code') => void;
+    content: string;
+    activeUsers: Record<string, { name: string; photo: string; color: string }>;
+    setActiveUsers: (users: Record<string, { name: string; photo: string; color: string }>) => void;
+    strategyOutline: StrategyOutlineItem[];
+    strategyTitle: string;
+    strategySlug: string;
+    strategyDesc: string;
+    strategyExcerpt: string;
+    strategyLinks: any[];
+    strategyNotes: string;
+    setIsRemoteUpdate: (v: boolean) => void;
+    setStatusMessage: (msg: string) => void;
+    setSavingState: (saving: boolean) => void;
+    isGenerating: boolean;
+    isAnalyzingSEO: boolean;
+    isPlanningStructure: boolean;
+    isHumanizing: boolean;
+    isRefining: boolean;
+    researchProgress: number;
+    statusMessage: string;
+    humanizerStatus: string;
+    researchTopic: string;
+    researchPhaseId: string | null;
+    isRefreshingLinks: boolean;
     
     // ── Debug / Console ───────────────────────────────────
     isConsoleOpen: boolean;
@@ -217,6 +257,10 @@ interface WriterState {
     debugPrompts: { phase: string, prompt: string, response?: string, timestamp: string }[];
     addDebugPrompt: (phase: string, prompt: string, response?: string) => void;
     clearDebugPrompts: () => void;
+
+    // ── Image Gallery ─────────────────────────────────────
+    taskImages: any[];
+    loadTaskImages: (taskId: string) => Promise<void>;
 }
 
 const defaultState = {
@@ -227,6 +271,7 @@ const defaultState = {
     linkedTaskId: null,
     linkedTaskTitle: null,
     projectId: null,
+    isRefreshingLinks: false,
     viewMode: 'dashboard' as WriterViewMode,
     projectContents: [],
 
@@ -277,7 +322,6 @@ const defaultState = {
     strategyVolume: '0',
     strategyDifficulty: '0',
     competitorDetails: [],
-    geoCompetitorDetails: [],
     strategyLSI: [],
     strategyKeywords: [],
     strategyInternalLinks: [],
@@ -287,7 +331,7 @@ const defaultState = {
     strategyLongTail: [],
     strategyQuestions: [],
     detectedNiche: '',
-    creativityLevel: 'medium' as const,
+
     contextInstructions: '',
     isStrictMode: false,
     strictFrequency: 30,
@@ -308,9 +352,10 @@ const defaultState = {
     activeSidebarTab: 'generate' as SidebarTab,
     editorTab: 'visual' as const,
     strategyDensity: 1.0,
+    taskImages: [],
 };
 
-export const useWriterStore = create<WriterState>((set) => ({
+export const useWriterStore = create<WriterState>((set, get) => ({
     ...defaultState,
 
     setContent: (content) => set({ content }),
@@ -332,6 +377,29 @@ export const useWriterStore = create<WriterState>((set) => ({
     setStatus: (statusMessage) => set({ statusMessage }),
     setDownloadProgress: (progress) => set({ downloadProgress: progress }),
     setIsRemoteUpdate: (isRemoteUpdate) => set({ isRemoteUpdate }),
+
+    markAsReadyForReview: async () => {
+        const state = get() as any;
+        const { draftId, setStatus, setViewMode } = state;
+        if (!draftId) return;
+
+        const { supabase } = await import('@/lib/supabase');
+        const { error } = await supabase
+            .from('tasks')
+            .update({ status: 'por_corregir' })
+            .eq('id', draftId);
+
+        if (!error) {
+            setStatus('✅ Tarea enviada a Corrección');
+            setTimeout(() => {
+                setStatus('');
+                setViewMode('dashboard');
+            }, 2000);
+        } else {
+            const err = error as any;
+            setStatus('❌ Error: ' + err.message);
+        }
+    },
 
     setResearching: (isResearching, topic) => set((state) => ({ 
         isResearching, 
@@ -378,7 +446,6 @@ export const useWriterStore = create<WriterState>((set) => ({
     setStrategyVolume: (strategyVolume) => set({ strategyVolume }),
     setStrategyDifficulty: (strategyDifficulty) => set({ strategyDifficulty }),
     setCompetitorDetails: (competitorDetails) => set({ competitorDetails }),
-    setGeoCompetitorDetails: (geoCompetitorDetails) => set({ geoCompetitorDetails }),
     setStrategyKeywords: (strategyKeywords) => set({ strategyKeywords }),
     setStrategyInternalLinks: (strategyInternalLinks) => set({ strategyInternalLinks }),
     setStrategyExternalLinks: (links) => set({ strategyExternalLinks: links }),
@@ -391,7 +458,7 @@ export const useWriterStore = create<WriterState>((set) => ({
     setStrategyMinWords: (strategyMinWords) => set({ strategyMinWords }),
     setStrategyMaxWords: (strategyMaxWords) => set({ strategyMaxWords }),
     setStrategyLongTail: (strategyLongTail) => set({ strategyLongTail }),
-    setCreativityLevel: (creativityLevel) => set({ creativityLevel }),
+
     setActiveUsers: (activeUsers) => set({ activeUsers }),
     setContextInstructions: (contextInstructions) => set({ contextInstructions }),
     setIsStrictMode: (isStrictMode) => set({ isStrictMode }),
@@ -433,7 +500,6 @@ export const useWriterStore = create<WriterState>((set) => ({
             strategyVolume: seoData.searchVolume || '0',
             strategyDifficulty: seoData.keywordDifficulty || '0',
             competitorDetails: seoData.competitors || (seoData as any).top10Urls || [],
-            geoCompetitorDetails: (seoData as any).geoCompetitors || (seoData as any).geoUrls || [],
             strategyLinks: seoData.suggestedInternalLinks || [],
         });
     },
@@ -503,6 +569,89 @@ export const useWriterStore = create<WriterState>((set) => ({
         }
     },
 
+    removeStrategyLink: (url) => set((state) => ({
+        strategyLinks: state.strategyLinks.filter((l: any) => l.url !== url)
+    })),
+
+    clearStrategyLinks: () => set({ strategyLinks: [] }),
+
+    refreshInterlinking: async (mode: 'append' | 'overwrite' = 'overwrite') => {
+        try {
+            const { executeWithGroq } = require('@/lib/services/groq');
+            const { strategyLinks, keyword, strategyH1, strategyExcerpt, strategyLSI, projectId } = get();
+            
+            if (!projectId) return;
+
+            set({ isRefreshingLinks: true });
+
+            // 1. Cargamos las reglas de arquitectura del proyecto
+            const { supabase } = require('@/lib/supabase');
+            
+            // 2. Preparamos los términos de búsqueda (Regex)
+            const rawTerms = [
+                ...keyword.split(/\s+/),
+                ...(strategyLSI || []).map((l: any) => typeof l === 'string' ? l.split(/\s+/) : (l.keyword?.split(/\s+/) || [])).flat()
+            ].filter(w => w && w.length > 3).map(w => w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            const allTerms = Array.from(new Set(rawTerms)).slice(0, 15);
+            const searchRegex = allTerms.join('|');
+
+            // 3. Consulta vía RPC optimizado de base de datos
+            const { data: units, error: rpcError } = await supabase.rpc('get_semantic_inventory_matches', { 
+                p_project_id: projectId,
+                p_regex: searchRegex,
+                p_limit: 40
+            });
+
+            if (rpcError) throw rpcError;
+
+            const highLsis = (strategyLSI || []).filter((l: any) => typeof l !== 'string' && l.count === "Alto").map((l: any) => l.keyword).join(", ");
+            const linkPrompt = `ESTRATEGIA DE INTERLINKING PARA: "${keyword}"
+H1 PROPUESTO: "${strategyH1}"
+RESUMEN: "${strategyExcerpt}"
+KEYWORDS CLAVE: ${highLsis || keyword}
+
+CATÁLOGO DISTRIBUIDO POR CATEGORÍAS:
+${JSON.stringify((units || []).map((u: any) => ({ 
+    title: u.title.substring(0, 60), 
+    url: u.url, 
+    category: u.category 
+})))}
+
+REGLAS:
+1. Elige los 5 artículos del catálogo que mejor conecten semánticamente con el contenido.
+2. ${mode === 'overwrite' ? 'Ignora los enlaces actuales y genera una lista totalmente nueva.' : 'Busca enlaces complementarios a los que ya existen.'}
+3. Retorna ÚNICAMENTE un array JSON válido: [{"url": "...", "title": "...", "anchor_text": "..."}]`;
+
+            const linkRes = await executeWithGroq(linkPrompt, "Arquitecto de Interlinking SEO.", "llama-3.1-8b-instant", true);
+            const newLinks = require('@/utils/json').safeJsonExtract(linkRes, []);
+
+            const { updateTask } = require('@/store/useProjectStore').useProjectStore.getState();
+
+            if (mode === 'append') {
+                const existingUrls = new Set(strategyLinks.map((l: any) => l.url));
+                const filteredNew = newLinks.filter((l: any) => !existingUrls.has(l.url));
+                const finalLinks = [...strategyLinks, ...filteredNew];
+                set({ strategyLinks: finalLinks });
+                // AUTO-SAVE to DB for integrity
+                const dossier = get().researchDossier || {};
+                await updateTask(get().draftId!, { 
+                    research_dossier: { ...dossier, suggestedInternalLinks: finalLinks, suggested_links: finalLinks } 
+                });
+            } else {
+                set({ strategyLinks: newLinks });
+                // AUTO-SAVE to DB for integrity
+                const dossier = get().researchDossier || {};
+                await updateTask(get().draftId!, { 
+                    research_dossier: { ...dossier, suggestedInternalLinks: newLinks, suggested_links: newLinks } 
+                });
+            }
+        } catch (e) {
+            console.error("Error al refrescar interlinking:", e);
+        } finally {
+            set({ isRefreshingLinks: false });
+        }
+    },
+
     toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
     editorTab: 'visual' as const,
     setEditorTab: (editorTab) => set({ editorTab }),
@@ -516,9 +665,15 @@ export const useWriterStore = create<WriterState>((set) => ({
         const slug = task.target_url_slug || dossier?.slug || dossier?.target_url_slug || '';
         const desc = task.meta_description || dossier?.meta_description || '';
         const excerpt = (task as any).excerpt || dossier?.excerpt || '';
-        const lsi = dossier?.lsiKeywords || state.strategyLSI;
-        const competitors = dossier?.competitors || dossier?.top10Urls || state.competitorDetails;
-        const geoCompetitors = dossier?.geoCompetitors || dossier?.geoUrls || state.geoCompetitorDetails;
+        const lsi = dossier?.lsiKeywords || dossier?.keywordIdeas || state.strategyLSI;
+        const competitors = dossier?.fullCompetitorAnalysis || dossier?.competitors || dossier?.top10Urls || state.competitorDetails;
+        
+        // Generar briefing si hay dossier
+        let notes = state.strategyNotes;
+        if (dossier) {
+            const { generateBriefingText } = require('@/components/tools/writer/services');
+            notes = generateBriefingText(dossier);
+        }
 
         return {
             title: task.title,
@@ -533,19 +688,33 @@ export const useWriterStore = create<WriterState>((set) => ({
             rawSeoData: dossier,
             seoResults: dossier,
             strategyWordCount: String(
+                parseInt(String(task.target_word_count)) || 
                 parseInt(String(dossier?.recommendedWordCount)) || 
                 parseInt(String(dossier?.word_count)) || 
-                parseInt(String(task.target_word_count)) || 
                 parseInt(String(state.strategyWordCount)) || 
                 1500
             ),
             strategyLSI: lsi,
             strategyQuestions: dossier?.frequentQuestions || state.strategyQuestions,
+            strategyKeywords: dossier?.keywordIdeas || state.strategyKeywords,
             competitorDetails: competitors,
-            geoCompetitorDetails: geoCompetitors,
+            strategyNotes: notes,
             strategyVolume: dossier?.searchVolume || dossier?.volume?.toString() || state.strategyVolume,
             strategyDifficulty: dossier?.keywordDifficulty || state.strategyDifficulty,
-            strategyOutline: (task as any).outline_structure?.headers || (task as any).outline_structure || [],
+            strategyOutline: (() => {
+                const rawOutline = (task as any).outline_structure?.headers || (task as any).outline_structure || [];
+                if (!Array.isArray(rawOutline)) return [];
+                return rawOutline.map(item => {
+                    if (typeof item === 'string') return { type: 'h2', text: item, wordCount: '300', currentWordCount: 0 };
+                    if (item && typeof item === 'object') return {
+                        type: item.type || 'h2',
+                        text: item.text || item.title || '',
+                        wordCount: String(item.wordCount || '300'),
+                        currentWordCount: item.currentWordCount || 0
+                    };
+                    return null;
+                }).filter(Boolean) as StrategyOutlineItem[];
+            })(),
             outlineStructure: (task as any).outline_structure,
             humanizerConfig: {
                 ...state.humanizerConfig,
@@ -557,6 +726,36 @@ export const useWriterStore = create<WriterState>((set) => ({
             viewMode: 'workspace'
         };
     }),
+    
+    finishContent: async () => {
+        const { draftId, setSaving, setStatus, setViewMode } = get();
+        if (!draftId) return;
+
+        setSaving(true);
+        setStatus('Finalizando y enviando a corrección...');
+
+        try {
+            const { supabase } = require('@/lib/supabase');
+            const { error } = await supabase
+                .from('tasks')
+                .update({ status: 'por_corregir' })
+                .eq('id', draftId);
+
+            if (error) throw error;
+            
+            setStatus('✅ Contenido finalizado');
+            setTimeout(() => {
+                setViewMode('dashboard');
+                // Refresh local contents to reflect the change
+                useWriterStore.getState().loadProjectContents && useWriterStore.getState().loadProjectContents(useWriterStore.getState().projectId || []);
+            }, 1000);
+        } catch (e: any) {
+            console.error('Error al finalizar:', e);
+            setStatus('❌ Error: ' + (e.message || 'Error desconocido'));
+        } finally {
+            setSaving(false);
+        }
+    },
 
     setProjectContents: (projectContents) => set({ projectContents }),
     loadProjectContents: async (projectId) => {
@@ -569,7 +768,9 @@ export const useWriterStore = create<WriterState>((set) => ({
             query = query.eq('project_id', projectId);
         }
 
-        const { data, error } = await query.order('created_at', { ascending: false });
+        const { data, error } = await query
+            .in('status', ['por_redactar', 'por_corregir', 'en_redaccion'])
+            .order('created_at', { ascending: false });
         if (!error && data) set({ projectContents: data });
     },
 
@@ -587,6 +788,7 @@ export const useWriterStore = create<WriterState>((set) => ({
             set((state) => ({
                 draftId: data.id,
                 title: data.title,
+                currentStatus: data.status,
                 content: data.content_body || '',
                 statusMessage: `Cargado: ${data.title}`,
                 viewMode: 'workspace',
@@ -601,14 +803,28 @@ export const useWriterStore = create<WriterState>((set) => ({
                 strategySlug: data.target_url_slug || dossier?.slug || dossier?.target_url_slug || '',
                 strategyDesc: data.meta_description || dossier?.meta_description || '',
                 strategyExcerpt: (data as any).excerpt || dossier?.excerpt || '',
-                strategyWordCount: dossier?.recommendedWordCount || dossier?.word_count?.toString() || data.target_word_count?.toString() || state.strategyWordCount,
-                strategyLSI: dossier?.lsiKeywords || state.strategyLSI,
+                strategyWordCount: String(parseInt(String(data.target_word_count)) || parseInt(String(dossier?.recommendedWordCount)) || parseInt(String(dossier?.word_count)) || parseInt(String(state.strategyWordCount)) || 1500),
+                strategyLSI: dossier?.lsiKeywords || dossier?.keywordIdeas || state.strategyLSI,
                 strategyQuestions: dossier?.frequentQuestions || state.strategyQuestions,
-                competitorDetails: dossier?.competitors || dossier?.top10Urls || state.competitorDetails,
-                geoCompetitorDetails: dossier?.geoCompetitors || dossier?.geoUrls || state.geoCompetitorDetails,
+                strategyKeywords: dossier?.keywordIdeas || state.strategyKeywords,
+                competitorDetails: dossier?.fullCompetitorAnalysis || dossier?.competitors || dossier?.top10Urls || state.competitorDetails,
+                strategyNotes: dossier ? require('@/components/tools/writer/services').generateBriefingText(dossier) : state.strategyNotes,
                 strategyVolume: dossier?.searchVolume || dossier?.volume?.toString() || state.strategyVolume,
                 strategyDifficulty: dossier?.keywordDifficulty || state.strategyDifficulty,
-                strategyOutline: (data as any).outline_structure?.headers || (data as any).outline_structure || state.strategyOutline,
+                strategyOutline: (() => {
+                    const rawOutline = (data as any).outline_structure?.headers || (data as any).outline_structure || state.strategyOutline;
+                    if (!Array.isArray(rawOutline)) return [];
+                    return rawOutline.map(item => {
+                        if (typeof item === 'string') return { type: 'h2', text: item, wordCount: '300', currentWordCount: 0 };
+                        if (item && typeof item === 'object') return {
+                            type: item.type || 'h2',
+                            text: item.text || item.title || '',
+                            wordCount: String(item.wordCount || '300'),
+                            currentWordCount: item.currentWordCount || 0
+                        };
+                        return null;
+                    }).filter(Boolean) as StrategyOutlineItem[];
+                })(),
                 outlineStructure: (data as any).outline_structure,
                 strategyLinks: dossier?.suggestedInternalLinks || dossier?.suggested_links || dossier?.suggestedLinks || (data as any).suggested_links || state.strategyLinks,
                 projectId: data.project_id || null,
@@ -668,4 +884,17 @@ export const useWriterStore = create<WriterState>((set) => ({
     }),
     
     reset: () => set({ ...defaultState }),
+
+    loadTaskImages: async (taskId) => {
+        const { supabase } = require('@/lib/supabase');
+        const { data, error } = await supabase
+            .from('task_images')
+            .select('*')
+            .eq('task_id', taskId)
+            .order('created_at', { ascending: true });
+
+        if (!error && data) {
+            set({ taskImages: data });
+        }
+    },
 }));

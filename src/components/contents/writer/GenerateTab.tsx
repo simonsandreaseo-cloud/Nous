@@ -62,7 +62,7 @@ export function GenerateTab({
                         ) : (
                             <Sparkles size={14} className="animate-pulse" />
                         )}
-                        {isPlanning ? 'Diseñando Outline...' : 'Generar Outline con Nous'}
+                        {isPlanning ? 'Planificando...' : 'Planificar Estructura'}
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center gap-2 translate-y-full group-hover:translate-y-0 transition-transform">
                         <Lightbulb size={14} />
@@ -95,28 +95,7 @@ export function GenerateTab({
 
 
 
-            {/* Nivel de Creatividad */}
-            <div className="p-4 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                    <SectionLabel>Nivel de Creatividad</SectionLabel>
-                    <Info size={12} className="text-slate-400" />
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                    {(['low', 'medium', 'high'] as const).map((level) => (
-                        <button
-                            key={level}
-                            onClick={() => store.setCreativityLevel(level)}
-                            className={`p-2 text-[10px] font-bold uppercase rounded-lg border-2 transition-all ${
-                                store.creativityLevel === level 
-                                    ? 'bg-white border-indigo-500 text-indigo-600 shadow-sm' 
-                                    : 'bg-transparent border-transparent text-slate-400 grayscale'
-                            }`}
-                        >
-                            {level === 'low' ? 'Mín' : level === 'medium' ? 'Equi' : 'Max'}
-                        </button>
-                    ))}
-                </div>
-            </div>
+
 
             {/* Actions */}
             <div className="flex flex-col gap-3 pt-4">

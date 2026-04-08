@@ -38,7 +38,8 @@ interface ContentDetailViewProps {
 const FLOW_STATES = [
     { id: 'idea', label: 'Idea' },
     { id: 'en_investigacion', label: 'Investigación' },
-    { id: 'por_redactar', label: 'Redacción' },
+    { id: 'por_redactar', label: 'Por Redactar' },
+    { id: 'en_redaccion', label: 'En Redacción' },
     { id: 'por_corregir', label: 'Corrección' },
     { id: 'por_maquetar', label: 'Maquetación' },
     { id: 'publicado', label: 'Publicado' },

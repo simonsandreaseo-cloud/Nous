@@ -1,62 +1,46 @@
 import Groq from "groq-sdk";
 
-const getGroqKey = () => process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY || "";
+const getGroqKey = () => 
+    process.env.NEXT_PUBLIC_GROQ_API_KEYS || 
+    process.env.NEXT_PUBLIC_GROQ_API_KEY || 
+    process.env.GROQ_API_KEYS || 
+    process.env.GROQ_API_KEY || 
+    "";
+
+import { executeWithKeyRotation } from "./writer/ai-core";
 
 /**
- * Ejecutor para modelos de Groq (Llama 3.1, 3.3, Mixtral)
- * Optimizado para velocidad extrema.
- * Soporta ejecución en cliente (vía proxy) y servidor (vía SDK).
+ * Ejecutor para modelos de Groq/Gemini con Cascada Hierárquica.
+ * Optimizado para velocidad extrema y resiliencia.
  */
 export const executeWithGroq = async (
     prompt: string, 
-    systemPrompt: string = "Eres un experto en SEO y redacción de contenidos.",
-    model: string = "llama-3.1-8b-instant",
+    systemPrompt: string = "Eres un experto en SEO.",
+    preferredModel: string = "default",
     jsonResponse: boolean = true
 ) => {
-    // 1. Detect environment
-    const isClient = typeof window !== "undefined";
+    // Detectamos la intención basado en el contenido del prompt o el sistema
+    const isWriting = prompt.toLowerCase().includes('escribe') || prompt.toLowerCase().includes('redact') || systemPrompt.toLowerCase().includes('escritor');
+    const label = isWriting ? 'Redacción SEO' : 'Investigación SEO';
 
-    if (isClient) {
-        console.log(`[Groq Service] Ejecutando vía Proxy (Cliente)...`);
-        const baseUrl = window.location.origin;
-        const response = await fetch(`${baseUrl}/api/tools/groq`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt, systemPrompt, model, jsonResponse })
-        });
-
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(`Groq Proxy Error: ${err.error || response.statusText}`);
-        }
-
-        const data = await response.json();
-        return data.result || "";
-    }
-
-    // 2. Server-side Execution (SDK)
-    const apiKey = getGroqKey();
-    if (!apiKey) throw new Error("GROQ_API_KEY no configurada en el servidor.");
-
-    const groq = new Groq({ apiKey });
-
-    try {
-        console.log(`[Groq Service] Ejecutando vía SDK (Servidor): ${model}...`);
-        
-        const completion = await groq.chat.completions.create({
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: prompt }
-            ],
-            model: model,
-            temperature: 0.2,
-            max_tokens: 4096,
-            response_format: jsonResponse ? { type: "json_object" } : undefined,
-        });
-
-        return completion.choices[0]?.message?.content || "";
-    } catch (e: any) {
-        console.error("[Groq Service] Error:", e.message);
-        throw e;
-    }
+    return executeWithKeyRotation(
+        async (client, model) => {
+            const modelObj = client.getGenerativeModel({
+                model,
+                systemInstruction: systemPrompt,
+                generationConfig: {
+                    responseMimeType: jsonResponse ? "application/json" : "text/plain",
+                    temperature: 0.2
+                }
+            });
+            const res = await modelObj.generateContent(prompt);
+            return res.response.text();
+        },
+        preferredModel,
+        undefined,
+        undefined,
+        false,
+        label
+    );
 };
+

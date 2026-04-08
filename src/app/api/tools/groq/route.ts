@@ -5,7 +5,11 @@ export async function POST(req: Request) {
     try {
         const { prompt, systemPrompt, model, jsonResponse } = await req.json();
 
-        const apiKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY;
+        const apiKey = 
+            process.env.NEXT_PUBLIC_GROQ_API_KEYS?.split(',')[0] || 
+            process.env.NEXT_PUBLIC_GROQ_API_KEY || 
+            process.env.GROQ_API_KEYS?.split(',')[0] || 
+            process.env.GROQ_API_KEY;
         
         if (!apiKey) {
             return NextResponse.json({ error: "GROQ_API_KEY not configured on server" }, { status: 500 });

@@ -29,7 +29,7 @@ import { useWriterStore } from '@/store/useWriterStore';
 
 interface NousOrbProps {
     tasks?: Task[];
-    onAction?: (actionType: 'sugerir_estrategia' | 'investigar_ideas' | 'generar_outlines' | 'redaccion_masiva' | 'humanizacion_masiva') => void;
+    onAction?: (actionType: string, config?: any) => void;
     isProcessing?: boolean;
     processingProgress?: number;
     activeProjectName?: string;
@@ -54,7 +54,7 @@ export default function NousOrb({
     
     // Writer specific states from store
     const { 
-        creativityLevel, setCreativityLevel,
+
         researchMode, setResearchMode,
         isConsoleOpen, setIsConsoleOpen,
         debugPrompts, clearDebugPrompts,
@@ -69,6 +69,12 @@ export default function NousOrb({
     const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
     const [logViewMode, setLogViewMode] = useState<'prompt' | 'response'>('prompt');
 
+    // Pipeline States
+    const [pipelineResearch, setPipelineResearch] = useState(true);
+    const [pipelineDraft, setPipelineDraft] = useState(true);
+    const [pipelineHumanize, setPipelineHumanize] = useState(false);
+    const [pipelineFinalStatus, setPipelineFinalStatus] = useState<'por_corregir' | 'en_redaccion' | 'por_maquetar' | 'publicado'>('por_corregir');
+
     // Progress logic
     const effectiveProgress = viewMode === 'writer' ? (storeProgress || processingProgress) : processingProgress;
     const effectiveIsProcessing = viewMode === 'writer' ? (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isProcessing) : isProcessing;
@@ -79,22 +85,29 @@ export default function NousOrb({
         if (viewMode === 'writer') return { ideas: 0, needOutline: 0, needDraft: 0, needHuman: 0 };
         
         // Filter tasks that need research
-        const ideas = tasks.filter(t => t.status === 'idea' || !t.research_dossier);
+        const ideas = tasks.filter(t => t.status === 'idea' || !t.research_dossier || Object.keys(t.research_dossier).length === 0);
         
         // Filter tasks that need outlines (have research, no outline structure)
-        const needOutline = tasks.filter(t => 
-            (t.status === 'por_redactar' || t.status === 'en_investigacion' || t.status === 'investigacion_proceso' || t.status === 'idea') && 
-            t.research_dossier && (!t.outline_structure || !t.outline_structure.headers || t.outline_structure.headers.length === 0)
-        );
+        const needOutline = tasks.filter(t => {
+            const hasResearch = t.research_dossier && Object.keys(t.research_dossier).length > 0;
+            const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || 
+                             (t.outline_structure?.headers?.length > 0);
+            return hasResearch && !hasOutline;
+        });
 
         // Filter tasks that need drafting (have outline, no content)
-        const needDraft = tasks.filter(t => 
-            t.outline_structure?.headers?.length > 0 && !t.content_body
-        );
+        const needDraft = tasks.filter(t => {
+            const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || 
+                             (t.outline_structure?.headers?.length > 0);
+            const hasContent = !!(t.content_body && t.content_body.trim() !== '');
+            return hasOutline && !hasContent;
+        });
 
         // Filter tasks that need humanization (have content, not humanized)
         const needHuman = tasks.filter(t => 
-            t.content_body && (!t.metadata?.is_humanized && !t.metadata?.humanized_at)
+            t.content_body && t.content_body.trim() !== '' && 
+            (!t.metadata?.is_humanized && !t.metadata?.humanized_at) &&
+            (t.status === 'por_corregir' || t.status === 'por_maquetar')
         );
 
         return {
@@ -108,11 +121,7 @@ export default function NousOrb({
     const effectiveSelectedCount = selectedCount || 0;
     const hasActions = viewMode === 'planner' && (stats.ideas > 0 || stats.needOutline > 0 || stats.needHuman > 0 || stats.needDraft > 0 || effectiveSelectedCount > 0);
 
-    const modes = [
-        { id: 'alta_calidad', label: 'Alta Calidad' },
-        { id: 'equilibrado', label: 'Equilibrado' },
-        { id: 'rapido', label: 'Rápido' },
-    ];
+
 
     return (
         <div className="fixed bottom-10 right-10 z-[300] flex flex-col items-end gap-4">
@@ -280,7 +289,7 @@ export default function NousOrb({
                         animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
                         exit={{ opacity: 0, scale: 0.9, y: 20, filter: 'blur(10px)' }}
                         className={cn(
-                            "w-[340px] bg-white/80 backdrop-blur-3xl border border-white/20 rounded-[40px] shadow-[0_32px_128px_rgba(0,0,0,0.15)] overflow-hidden",
+                            "w-[420px] bg-white/80 backdrop-blur-3xl border border-white/20 rounded-[40px] shadow-[0_32px_128px_rgba(0,0,0,0.15)] overflow-hidden",
                             "ring-1 ring-black/[0.05]"
                         )}
                     >
@@ -314,64 +323,9 @@ export default function NousOrb({
                         </div>
 
                         <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                            {/* SECCIÓN DE MODOS (HORIZONTAL SWITCH) */}
-                            <div className="space-y-3">
-                                <div className="relative p-1 bg-slate-100/50 rounded-2xl border border-slate-200/30 flex items-center h-10 overflow-hidden">
-                                    {/* Sliding Background */}
-                                    <motion.div
-                                        className="absolute h-8 bg-slate-900 rounded-xl shadow-lg z-0"
-                                        initial={false}
-                                        animate={{
-                                            width: 'calc(33.33% - 6px)',
-                                            x: nousMode === 'alta_calidad' ? 0 : nousMode === 'equilibrado' ? '100%' : '200%'
-                                        }}
-                                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                                        style={{
-                                            left: 4
-                                        }}
-                                    />
-                                    {modes.map((m) => (
-                                        <button
-                                            key={m.id}
-                                            onClick={() => setNousMode(m.id as any)}
-                                            className={cn(
-                                                "relative z-10 flex-1 h-full text-[9px] font-black uppercase tracking-[0.1em] transition-colors duration-300",
-                                                nousMode === m.id ? "text-white" : "text-slate-400 hover:text-slate-600"
-                                            )}
-                                        >
-                                            {m.label.includes('Calidad') ? 'Calidad' : m.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
 
-                            {/* CREATIVITY SELECTOR (Writer specific) */}
-                            {viewMode === 'writer' && strategyOutline.length > 0 && (
-                                <div className="px-1 py-1 bg-indigo-50/30 rounded-[24px] border border-indigo-100/50">
-                                    <div className="flex items-center justify-between mb-3 px-3 pt-2">
-                                        <label className="text-[9px] font-black uppercase underline decoration-indigo-200 underline-offset-4 decoration-2 tracking-widest text-slate-400">Nivel de Creatividad</label>
-                                        <div className="text-[9px] font-black text-indigo-500 bg-indigo-100 px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                                            {creativityLevel === 'low' ? 'Baja' : creativityLevel === 'medium' ? 'Equilibrada' : 'Alta'}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-1.5 p-1">
-                                        {(['low', 'medium', 'high'] as const).map((level) => (
-                                            <button
-                                                key={level}
-                                                onClick={() => setCreativityLevel(level)}
-                                                className={cn(
-                                                    "py-2 text-[9px] font-black uppercase rounded-xl transition-all border-2",
-                                                    creativityLevel === level 
-                                                        ? "bg-white border-indigo-500 text-indigo-600 shadow-sm" 
-                                                        : "bg-transparent border-transparent text-slate-400 hover:text-slate-600"
-                                                )}
-                                            >
-                                                {level === 'low' ? 'Min' : level === 'medium' ? 'Equi' : 'Max'}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+
+
 
                             {/* ACCIONES DEL REDACTOR (SINGLE ITEM) */}
                             {viewMode === 'writer' && (
@@ -384,13 +338,6 @@ export default function NousOrb({
                                             label="Investigación SEO" 
                                             color="indigo"
                                             onClick={() => { onWriterAction?.('seo'); setIsOpen(false); }}
-                                            disabled={effectiveIsProcessing}
-                                        />
-                                        <ActionButton 
-                                            icon={Layout} 
-                                            label={strategyOutline.length > 0 ? "Regenerar Outline" : "Generar Outline"} 
-                                            color="purple"
-                                            onClick={() => { onWriterAction?.('outline'); setIsOpen(false); }}
                                             disabled={effectiveIsProcessing}
                                         />
                                         {strategyOutline.length > 0 && (
@@ -409,13 +356,7 @@ export default function NousOrb({
                                             onClick={() => { onWriterAction?.('humanize'); setIsOpen(false); }}
                                             disabled={effectiveIsProcessing}
                                         />
-                                        <ActionButton 
-                                            icon={Activity} 
-                                            label="Refinar" 
-                                            color="slate"
-                                            onClick={() => { onWriterAction?.('refine'); }}
-                                            disabled={effectiveIsProcessing}
-                                        />
+
                                     </div>
                                 </>
                             )}
@@ -426,55 +367,92 @@ export default function NousOrb({
                                     <div className="h-2" />
                                     <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 px-2 block">Acciones Inteligentes</label>
                                     
-                                    <button 
-                                        onClick={() => { onAction?.('sugerir_estrategia'); setIsOpen(false); }}
-                                        className="w-full p-4 rounded-3xl bg-indigo-50 border border-indigo-100 group/btn transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-between text-indigo-900"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-2xl bg-white/50 flex items-center justify-center transition-transform group-hover/btn:rotate-12 border border-indigo-200">
-                                                <Sparkles size={18} className="text-indigo-600" />
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="text-[10px] font-black uppercase tracking-widest leading-none">Sugerir estrategia</p>
-                                                <p className="text-[9px] text-indigo-500 mt-1">Nuevas ideas de contenido</p>
-                                            </div>
+                                    <div className="bg-white/50 rounded-[24px] p-2 border border-slate-100/50 space-y-2 mt-2">
+                                        <div className="px-2 pt-1 pb-1">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-900 leading-none">Plan de Trabajo Múltiple</p>
+                                            <p className="text-[9px] text-slate-500 mt-1 leading-snug">Selecciona las fases a ejecutar para los {effectiveSelectedCount > 0 ? effectiveSelectedCount : (stats.ideas + stats.needOutline + stats.needDraft + stats.needHuman)} artículos detectados.</p>
                                         </div>
-                                        <ChevronRight size={14} className="opacity-40 group-hover/btn:opacity-100" />
-                                    </button>
-
-                                    <div className="grid grid-cols-1 gap-1.5">
-                                        <ActionButton 
-                                            icon={Search} 
-                                            label="Investigación" 
+                                        
+                                        <PipelineToggle 
+                                            icon={Search}
+                                            title="1. Investigar Ideas"
+                                            desc="Extracción de entidades, competidores y estructura SERP."
+                                            active={pipelineResearch}
+                                            onToggle={() => setPipelineResearch(!pipelineResearch)}
                                             count={effectiveSelectedCount > 0 ? effectiveSelectedCount : stats.ideas}
                                             color="indigo"
-                                            onClick={() => { onAction?.('investigar_ideas'); setIsOpen(false); }}
-                                            disabled={(effectiveSelectedCount === 0 && stats.ideas === 0) || effectiveIsProcessing}
                                         />
-                                        <ActionButton 
-                                            icon={Layout} 
-                                            label="Outlines" 
-                                            count={effectiveSelectedCount > 0 ? effectiveSelectedCount : stats.needOutline}
-                                            color="purple"
-                                            onClick={() => { onAction?.('generar_outlines'); setIsOpen(false); }}
-                                            disabled={(effectiveSelectedCount === 0 && stats.needOutline === 0) || effectiveIsProcessing}
-                                        />
-                                        <ActionButton 
-                                            icon={Sparkles} 
-                                            label="Redacción" 
+
+                                        <PipelineToggle 
+                                            icon={Sparkles}
+                                            title="2. Redactar Contenido"
+                                            desc="Creación de todo el contenido base usando IA Helios."
+                                            active={pipelineDraft}
+                                            onToggle={() => setPipelineDraft(!pipelineDraft)}
                                             count={effectiveSelectedCount > 0 ? effectiveSelectedCount : stats.needDraft}
                                             color="rose"
-                                            onClick={() => { onAction?.('redaccion_masiva'); setIsOpen(false); }}
-                                            disabled={(effectiveSelectedCount === 0 && stats.needDraft === 0) || effectiveIsProcessing}
                                         />
-                                        <ActionButton 
-                                            icon={Zap} 
-                                            label="Humanización" 
+
+                                        <PipelineToggle 
+                                            icon={Zap}
+                                            title="3. Humanizar Textos"
+                                            desc="Reescritura semántica para aportar un toque humano y evadir detectores."
+                                            active={pipelineHumanize}
+                                            onToggle={() => setPipelineHumanize(!pipelineHumanize)}
                                             count={effectiveSelectedCount > 0 ? effectiveSelectedCount : stats.needHuman}
                                             color="emerald"
-                                            onClick={() => { onAction?.('humanizacion_masiva'); setIsOpen(false); }}
-                                            disabled={(effectiveSelectedCount === 0 && stats.needHuman === 0) || effectiveIsProcessing}
                                         />
+
+                                        <div className="p-3 bg-slate-100/50 rounded-2xl border border-slate-200/50 mt-3">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <CheckCircle2 size={12} className="text-slate-400" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Estatus Final</span>
+                                                </div>
+                                                <span className="text-[8px] uppercase tracking-widest text-slate-400 font-bold">Post-proceso</span>
+                                            </div>
+                                            <div className="relative">
+                                                <select 
+                                                    value={pipelineFinalStatus}
+                                                    onChange={(e) => setPipelineFinalStatus(e.target.value as any)}
+                                                    className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+                                                >
+                                                    <option value="en_redaccion">Mantener en Redacción</option>
+                                                    <option value="por_corregir">Pasar a Corrección</option>
+                                                    <option value="por_maquetar">Pasar a Por Maquetar</option>
+                                                    <option value="publicado">Marcar como Publicado</option>
+                                                </select>
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                                    <ChevronDown size={14} />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button 
+                                            onClick={() => {
+                                                onAction?.('batch_pipeline', {
+                                                    research: pipelineResearch,
+                                                    draft: pipelineDraft,
+                                                    humanize: pipelineHumanize,
+                                                    finalStatus: pipelineFinalStatus
+                                                });
+                                                setIsOpen(false);
+                                            }}
+                                            disabled={effectiveIsProcessing}
+                                            className={cn(
+                                                "w-full mt-2 py-4 rounded-2xl flex flex-col items-center justify-center transition-all group/cta relative overflow-hidden",
+                                                effectiveIsProcessing ? "opacity-50 cursor-not-allowed bg-slate-100 text-slate-400" : "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_8px_30px_rgba(79,70,229,0.4)] hover:-translate-y-0.5"
+                                            )}
+                                        >
+                                            <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay"></div>
+                                            {/* Shine effect */}
+                                            <div className="absolute inset-0 -translate-x-[150%] bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover/cta:translate-x-[150%] transition-transform duration-1000 ease-in-out"></div>
+                                            
+                                            <div className="flex items-center gap-2 relative z-10">
+                                                <Zap size={16} className="text-indigo-200 fill-indigo-200" />
+                                                <span className="text-[14px] font-black uppercase tracking-[0.2em]">¡A Trabajar!</span>
+                                            </div>
+                                        </button>
                                     </div>
                                 </>
                             )}
@@ -513,7 +491,7 @@ export default function NousOrb({
                 <button
                     onClick={() => setIsOpen(!isOpen)}
                     className={cn(
-                        "relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 overflow-hidden",
+                        "relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500",
                         isOpen ? "scale-90" : "hover:scale-105 active:scale-95",
                         "bg-transparent"
                     )}
@@ -537,14 +515,68 @@ export default function NousOrb({
                     <div className="w-full h-full absolute inset-0">
                         <NousOrbLite isProcessing={effectiveIsProcessing} />
                     </div>
-
-                    {/* Minimal Notification Badge (Cyan Tech) */}
-                    {!isOpen && hasActions && !effectiveIsProcessing && (
-                        <div className="absolute top-4 right-4 w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.8)] pointer-events-none ring-2 ring-white/50 animate-pulse" />
-                    )}
                 </button>
+
+                {/* Minimal Notification Badge (Cyan Tech with Number) */}
+                {!isOpen && hasActions && !effectiveIsProcessing && (
+                    <div className="absolute top-2 right-2 bg-cyan-400 text-indigo-950 text-[10px] font-black rounded-full shadow-[0_0_15px_rgba(34,211,238,0.8)] pointer-events-none h-6 min-w-[24px] flex items-center justify-center px-1.5 ring-2 ring-white/20 z-50 tabular-nums animate-pulse">
+                        {effectiveSelectedCount > 0 ? effectiveSelectedCount : (stats.ideas + stats.needOutline + stats.needDraft + stats.needHuman)}
+                    </div>
+                )}
             </div>
         </div>
+    );
+}
+
+function PipelineToggle({ icon: Icon, title, desc, active, onToggle, count, color }: any) {
+    const colors: Record<string, string> = {
+        indigo: "bg-indigo-50 text-indigo-600 border-indigo-200 ring-indigo-500/30",
+        purple: "bg-purple-50 text-purple-600 border-purple-200 ring-purple-500/30",
+        rose: "bg-rose-50 text-rose-600 border-rose-200 ring-rose-500/30",
+        emerald: "bg-emerald-50 text-emerald-600 border-emerald-200 ring-emerald-500/30",
+        slate: "bg-slate-50 text-slate-600 border-slate-200 ring-slate-500/30"
+    };
+
+    return (
+        <label className={cn(
+            "flex items-start gap-3 p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden",
+            active ? colors[color].split(' ')[0] + " " + colors[color].split(' ')[2] : "bg-white border-slate-100 hover:bg-slate-50/80",
+            active && "ring-2 " + colors[color].split(' ')[3]
+        )}>
+            <div className="flex items-center pt-0.5 z-10">
+                <input 
+                    type="checkbox" 
+                    checked={active} 
+                    onChange={onToggle} 
+                    className="hidden" 
+                />
+                <div className={cn(
+                    "w-5 h-5 rounded-[6px] flex items-center justify-center border transition-all shadow-sm",
+                    active ? "bg-indigo-500 border-indigo-500" : "bg-white border-slate-300"
+                )}>
+                    {active && <CheckCircle2 size={12} className="text-white" />}
+                </div>
+            </div>
+            
+            <div className="flex-1 min-w-0 z-10">
+                <div className="flex items-center gap-2 mb-1">
+                    <Icon size={12} className={active ? colors[color].split(' ')[1] : "text-slate-400"} />
+                    <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", active ? colors[color].split(' ')[1] : "text-slate-600")}>
+                        {title}
+                    </span>
+                </div>
+                <p className="text-[9px] text-slate-500 leading-[1.4] pr-4">{desc}</p>
+            </div>
+
+            {count > 0 && (
+                <div className={cn(
+                    "absolute top-3 right-3 text-[9px] font-black px-1.5 py-0.5 rounded-md tabular-nums border z-10 transition-colors",
+                    active ? "bg-white/80 border-transparent text-indigo-700 shadow-sm" : "bg-slate-100 border-slate-200 text-slate-500"
+                )}>
+                    {count}
+                </div>
+            )}
+        </label>
     );
 }
 

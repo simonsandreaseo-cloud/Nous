@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
 import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useEffect, useState } from 'react';
 import {
@@ -42,7 +43,7 @@ export default function WriterEditor() {
     const { 
         content, setContent, isGenerating, editorTab,
         strategyOutline, updateSectionProgress, setEditor,
-        strategyDensity, setStrategyDensity, creativityLevel, setCreativityLevel,
+        strategyDensity, setStrategyDensity,
         setSidebarTab, isPlanningStructure, isAnalyzingSEO,
         isHumanizing, humanizerConfig, updateHumanizerConfig, humanizerStatus,
         hasGenerated, hasHumanized, researchMode, setResearchMode,
@@ -76,6 +77,12 @@ export default function WriterEditor() {
                     target: '_blank',
                     rel: 'noopener noreferrer',
                     class: 'cursor-pointer'
+                },
+            }),
+            Image.configure({
+                allowBase64: true,
+                HTMLAttributes: {
+                    class: 'rounded-3xl shadow-2xl border-4 border-white my-12 mx-auto block hover:scale-[1.02] transition-transform duration-500',
                 },
             }),
         ],
@@ -138,11 +145,15 @@ export default function WriterEditor() {
         let hasChanges = false;
 
         const newOutline = strategyOutline.map((item, index) => {
-            const currentHeaderText = item.text.trim();
+            if (!item) return item;
+            
+            const currentHeaderText = (item.text || "").trim();
             const nextHeader = strategyOutline[index + 1];
 
             // Search for current header starting after the last one found to handle duplicates
-            const startIdx = text.toLowerCase().indexOf(currentHeaderText.toLowerCase(), lastHeaderIdx);
+            const startIdx = currentHeaderText 
+                ? text.toLowerCase().indexOf(currentHeaderText.toLowerCase(), lastHeaderIdx)
+                : -1;
 
             if (startIdx === -1) {
                 if (item.currentWordCount !== 0) hasChanges = true;
@@ -155,11 +166,10 @@ export default function WriterEditor() {
 
             // Find start of next section
             let endIdx = text.length;
-            if (nextHeader) {
+            if (nextHeader && nextHeader.text) {
                 const nextHeaderIdx = text.toLowerCase().indexOf(nextHeader.text.toLowerCase(), afterHeaderIdx);
                 if (nextHeaderIdx !== -1) {
                     endIdx = nextHeaderIdx;
-                    // Don't update lastHeaderIdx here, we'll do it in the next iteration
                 }
             }
 
@@ -417,6 +427,16 @@ export default function WriterEditor() {
                         color: #1d4ed8 !important; 
                         background-color: #eff6ff;
                         text-decoration-thickness: 3px !important;
+                    }
+                    .ProseMirror img {
+                        max-width: 100%;
+                        height: auto;
+                        box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+                        cursor: zoom-in;
+                    }
+                    .ProseMirror img.ProseMirror-selectednode {
+                        outline: 4px solid #6366f1;
+                        outline-offset: 4px;
                     }
                 `}</style>
                 <EditorContent editor={editor} />

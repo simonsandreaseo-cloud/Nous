@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Nous Clinical Tech | Intelligent SEO System",
+  title: "Nous",
   description: "Experience the next generation of clinical SEO technology with Nous. High-performance analysis for medical and technical data environments.",
   keywords: ["Clinical SEO", "Intelligent Systems", "Medical Tech", "Bio-Digital Analysis", "Nous Tech"],
   authors: [{ name: "Nous Clinical Team" }],
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     canonical: "https://nous-clinical.tech",
   },
   openGraph: {
-    title: "Nous Clinical Tech | Intelligent SEO System",
+    title: "Nous",
     description: "Next-generation clinical SEO analytics and bio-digital intelligence.",
     url: "https://nous-clinical.tech",
     siteName: "Nous Clinical Tech",

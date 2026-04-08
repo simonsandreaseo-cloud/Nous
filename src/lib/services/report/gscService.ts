@@ -290,7 +290,7 @@ export const GscService = {
                 if (!resDeep.data.rows || resDeep.data.rows.length === 0) break;
 
                 for (const row of resDeep.data.rows) {
-                    const pageUrl = row.keys![0];
+                    const pageUrl = sanitizeUrl(row.keys![0]);
                     const query = row.keys![1];
                     const normUrl = normalizeUrl(pageUrl);
                     const entry = uniqueUrls.get(normUrl);

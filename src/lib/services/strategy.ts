@@ -5,19 +5,26 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useWriterStore } from '@/store/useWriterStore';
 import type { DeepSEOAnalysisResult } from '@/lib/services/writer/types';
 
-async function queryAI(prompt: string, modelId: string = 'gemini-2.5-flash', jsonResponse: boolean = true): Promise<string> {
-    const apiKey = getGeminiKey();
-    if (!apiKey) throw new Error("Gemini API Key missing");
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
-    const ai = new GoogleGenerativeAI(apiKey);
-    const model = ai.getGenerativeModel({ model: modelId });
-    const config: any = {};
-    if (jsonResponse) config.responseMimeType = 'application/json';
-    const res = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: config
-    });
-    return res.response.text();
+async function queryAI(prompt: string, modelId: string = 'default', jsonResponse: boolean = true): Promise<string> {
+    const { executeWithKeyRotation } = await import('./writer/ai-core');
+    return executeWithKeyRotation(
+        async (client, model) => {
+            const modelObj = client.getGenerativeModel({
+                model,
+                generationConfig: {
+                    responseMimeType: jsonResponse ? "application/json" : "text/plain",
+                    temperature: 0.2
+                }
+            });
+            const res = await modelObj.generateContent(prompt);
+            return res.response.text();
+        },
+        modelId,
+        undefined,
+        undefined,
+        false,
+        'Investigación SEO'
+    );
 }
 
 import { Task } from '@/types/project';
