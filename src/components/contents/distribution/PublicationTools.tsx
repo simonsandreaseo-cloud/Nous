@@ -113,7 +113,7 @@ Schemas: ${JSON.stringify(task.research_dossier?.schemas || [], null, 2)}
         },
     ];
 
-    const isPublic = task.status === 'publicado' || task.status === 'done';
+    const isPublic = task.status === 'publicado';
 
     return (
         <div className="h-full flex flex-col gap-10 p-12 overflow-y-auto custom-scrollbar bg-white border-l border-slate-100 shadow-2xl relative">

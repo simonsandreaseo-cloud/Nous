@@ -81,7 +81,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
             const { data: newTask, error: createError } = await (addTask({
                 project_id: activeProject.id,
                 title: idea,
-                status: "investigacion_proceso",
+                status: "en_investigacion",
                 scheduled_date: new Date().toISOString().split('T')[0],
                 target_keyword: idea,
                 brief: "Investigación en curso..."
@@ -95,7 +95,7 @@ export default function NewContentModal({ isOpen, onClose }: NewContentModalProp
             // Let's find the task we just added (titles are unique-ish for this project for now, or just get the latest)
             // A better way is to update the store to return the added task. Let's assume it does or we can get it.
             const allTasks = useProjectStore.getState().tasks;
-            const createdTask = allTasks.find(t => t.title === idea && t.project_id === activeProject.id && t.status === 'investigacion_proceso');
+            const createdTask = allTasks.find(t => t.title === idea && t.project_id === activeProject.id && t.status === 'en_investigacion');
             const taskId = createdTask?.id;
 
             const isFast = false;

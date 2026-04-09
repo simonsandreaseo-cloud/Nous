@@ -13,7 +13,7 @@ interface DistributionCardProps {
 }
 
 export function DistributionCard({ task, onClick }: DistributionCardProps) {
-    const isPublished = task.status === 'publicado' || task.status === 'done';
+    const isPublished = task.status === 'publicado';
     
     // Calculate word count from content_body
     const wordCount = task.content_body 

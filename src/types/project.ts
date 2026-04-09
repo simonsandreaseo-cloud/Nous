@@ -59,9 +59,7 @@ export type TaskStatus =
     | 'en_redaccion' 
     | 'por_corregir' 
     | 'por_maquetar' 
-    | 'publicado'
-    | 'investigacion_proceso' // Legacy
-    | 'done';                // Legacy
+    | 'publicado';
 
 
 export interface Task {

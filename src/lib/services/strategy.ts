@@ -143,7 +143,8 @@ Keyword: ${keyword || 'N/A'}`;
                 research_dossier: {
                     lsiKeywords: [],
                     top10Urls: []
-                }
+                },
+                status: 'en_investigacion'
             };
         }
     }

@@ -32,7 +32,7 @@ export function PublicationMode() {
     [tasks]);
 
     const completedToday = useMemo(() => 
-        tasks.filter(t => (t.status === 'publicado' || t.status === 'done') && 
+        tasks.filter(t => (t.status === 'publicado') && 
                     new Date(t.completed_at || "").toDateString() === new Date().toDateString()),
     [tasks]);
 
@@ -56,7 +56,7 @@ export function PublicationMode() {
     const handleStatusToggle = async () => {
         if (!activeTask) return;
         
-        const isCurrentlyPublic = activeTask.status === 'publicado' || activeTask.status === 'done';
+        const isCurrentlyPublic = activeTask.status === 'publicado';
         const nextStatus = isCurrentlyPublic ? 'por_maquetar' : 'publicado';
         
         try {
