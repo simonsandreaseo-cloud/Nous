@@ -35,7 +35,7 @@ import { ImagePlanningService } from '@/lib/services/imagePlanningService';
 import { uploadGeneratedImage } from '@/lib/actions/imageActions';
 import { ContentSelector } from './ContentSelector';
 import { ArticlePreview } from './ArticlePreview';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase';
 
 const TRANSLATIONS = {
     es: {
@@ -70,7 +70,8 @@ const TRANSLATIONS = {
 
 export default function ImageGenerator() {
     const t = TRANSLATIONS.es;
-    const supabase = createClientComponentClient();
+    // const supabase = createClientComponentClient(); 
+    // Use the imported supabase instead
 
     // UI States
     const [status, setStatus] = useState<ProcessingStatus>(ProcessingStatus.IDLE);
