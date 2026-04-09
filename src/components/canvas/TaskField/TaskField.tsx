@@ -15,13 +15,11 @@ export function TaskField() {
     const statusColors = useMemo(() => ({
         idea: new THREE.Color('#06b6d4'),                 // Cyan
         en_investigacion: new THREE.Color('#6366f1'),     // Indigo
-        investigacion_proceso: new THREE.Color('#6366f1'),// Indigo (legacy alias)
         por_redactar: new THREE.Color('#f59e0b'),         // Amber
-        en_redaccion: new THREE.Color('#f59e0b'),         // Amber (legacy alias)
+        en_redaccion: new THREE.Color('#4f46e5'),         // Indigo (Darker for writing)
         por_corregir: new THREE.Color('#8b5cf6'),         // Violet
         por_maquetar: new THREE.Color('#14b8a6'),         // Teal
         publicado: new THREE.Color('#10b981'),            // Emerald
-        done: new THREE.Color('#10b981'),                 // Emerald (legacy alias)
     }), []);
 
     // Update Mesh when tasks change
@@ -38,14 +36,12 @@ export function TaskField() {
             let x = 0;
             switch (task.status) {
                 case 'idea': x = ideaOffset + (Math.random() * 3 - 1.5); break;
-                case 'en_investigacion':
-                case 'investigacion_proceso': x = investigationOffset + (Math.random() * 3 - 1.5); break;
+                case 'en_investigacion': x = investigationOffset + (Math.random() * 3 - 1.5); break;
                 case 'por_redactar':
                 case 'en_redaccion': x = writingOffset + (Math.random() * 3 - 1.5); break;
                 case 'por_corregir': x = correctionOffset + (Math.random() * 3 - 1.5); break;
                 case 'por_maquetar':
-                case 'publicado':
-                case 'done': x = doneOffset + (Math.random() * 3 - 1.5); break;
+                case 'publicado': x = doneOffset + (Math.random() * 3 - 1.5); break;
                 default: x = ideaOffset;
             }
 

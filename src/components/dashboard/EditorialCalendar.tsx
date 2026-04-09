@@ -30,9 +30,10 @@ import {
     Share,
     Layers,
     Terminal,
-    FileUp as FileUpIcon
+    FileUp as FileUpIcon,
+    Search
 } from "lucide-react";
-import { useProjectStore, Task } from "@/store/useProjectStore";
+import { useProjectStore, Task, STATUS_LABELS } from "@/store/useProjectStore";
 import { usePermissions } from '@/hooks/usePermissions';
 
 import { StrategyService, addStrategyLog } from "@/lib/services/strategy";
@@ -109,6 +110,13 @@ export function EditorialCalendar() {
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    
+    // Advanced Filters State
+    const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState<string[]>([]);
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
+    const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
 
     const toggleColumn = (colId: string) => {
         const newVisibility = { ...columnVisibility, [colId]: !columnVisibility[colId] };
@@ -137,6 +145,55 @@ export function EditorialCalendar() {
         params.delete('action');
         const newSearch = params.toString();
         router.replace(window.location.pathname + (newSearch ? '?' + newSearch : ''), { scroll: false });
+    };
+
+    // Filter Logic
+    const filteredTasks = useMemo(() => {
+        return tasks.filter(task => {
+            // Search Query Filter
+            if (searchQuery) {
+                const searchLower = searchQuery.toLowerCase();
+                const matchesTitle = task.title?.toLowerCase().includes(searchLower);
+                const matchesKeyword = task.target_keyword?.toLowerCase().includes(searchLower);
+                const matchesSlug = task.target_url_slug?.toLowerCase().includes(searchLower);
+                if (!matchesTitle && !matchesKeyword && !matchesSlug) return false;
+            }
+
+            // Status Filter
+            if (statusFilter.length > 0 && !statusFilter.includes(task.status)) {
+                return false;
+            }
+
+            // Date Range Filter
+            if (dateFrom || dateTo) {
+                const taskDate = task.scheduled_date ? new Date(task.scheduled_date) : null;
+                if (!taskDate) return false;
+
+                if (dateFrom && taskDate < new Date(dateFrom)) return false;
+                if (dateTo) {
+                    const endLimit = new Date(dateTo);
+                    endLimit.setHours(23, 59, 59, 999);
+                    if (taskDate > endLimit) return false;
+                }
+            }
+
+            return true;
+        });
+    }, [tasks, searchQuery, statusFilter, dateFrom, dateTo]);
+
+    const toggleStatusFilter = (status: string) => {
+        setStatusFilter(prev => 
+            prev.includes(status) 
+                ? prev.filter(s => s !== status) 
+                : [...prev, status]
+        );
+    };
+
+    const clearFilters = () => {
+        setSearchQuery("");
+        setStatusFilter([]);
+        setDateFrom("");
+        setDateTo("");
     };
 
     const handleUnitAction = async (taskId: string, action: string) => {
@@ -410,7 +467,7 @@ export function EditorialCalendar() {
                 }
             } else if (action === 'generar_outlines') {
                 let filtered = tasks.filter(t => 
-                    (t.status === 'por_redactar' || t.status === 'en_investigacion' || t.status === 'investigacion_proceso' || t.status === 'idea') && 
+                    (t.status === 'por_redactar' || t.status === 'en_investigacion' || t.status === 'idea') && 
                     t.research_dossier && (!t.outline_structure || !t.outline_structure.headers || t.outline_structure.headers.length === 0)
                 );
                 
@@ -670,9 +727,127 @@ export function EditorialCalendar() {
                 </div>
             </header>
 
+            {/* Filter Bar */}
+            <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-wrap items-center gap-4 shrink-0">
+                {/* Search Input */}
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar por título o keyword..." 
+                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 placeholder:text-slate-300 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 transition-all"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+
+                {/* Status Multi-Select */}
+                <div className="relative">
+                    <button 
+                        onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
+                        className={cn(
+                            "h-9 px-4 flex items-center gap-2 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest",
+                            statusFilter.length > 0 ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                        )}
+                    >
+                        <Layers size={14} />
+                        <span>Estado {statusFilter.length > 0 && `(${statusFilter.length})`}</span>
+                    </button>
+                    
+                    <AnimatePresence>
+                        {isStatusFilterOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsStatusFilterOpen(false)} />
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute left-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-4"
+                                >
+                                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-3 px-1">Filtrar por Estado</span>
+                                    <div className="grid grid-cols-1 gap-1">
+                                        {Object.entries(STATUS_LABELS).map(([status, label]) => {
+                                            const isActive = statusFilter.includes(status);
+                                            return (
+                                                <button 
+                                                    key={status}
+                                                    onClick={() => toggleStatusFilter(status)}
+                                                    className={cn(
+                                                        "flex items-center gap-3 p-2 rounded-lg transition-all text-left",
+                                                        isActive ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-50 text-slate-600"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
+                                                        isActive ? "bg-indigo-500 border-indigo-500 text-white" : "border-slate-300 bg-white"
+                                                    )}>
+                                                        {isActive && <Check size={10} strokeWidth={4} />}
+                                                    </div>
+                                                    <span className="text-[10px] font-bold uppercase tracking-tight">{label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between">
+                                        <button 
+                                            onClick={() => setStatusFilter([])}
+                                            className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600"
+                                        >
+                                            Limpiar
+                                        </button>
+                                        <button 
+                                            onClick={() => setIsStatusFilterOpen(false)}
+                                            className="text-[9px] font-black text-indigo-600 uppercase tracking-widest"
+                                        >
+                                            Aplicar
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Date Filters */}
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-indigo-400 transition-all">
+                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest mr-2 leading-none">Desde</span>
+                        <input 
+                            type="date" 
+                            className="bg-transparent border-none text-[10px] font-bold text-slate-700 outline-none p-0 cursor-pointer"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-indigo-400 transition-all">
+                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest mr-2 leading-none">Hasta</span>
+                        <input 
+                            type="date" 
+                            className="bg-transparent border-none text-[10px] font-bold text-slate-700 outline-none p-0 cursor-pointer"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Clear All Filters */}
+                {(searchQuery || statusFilter.length > 0 || dateFrom || dateTo) && (
+                    <button 
+                        onClick={clearFilters}
+                        className="ml-auto flex items-center gap-2 group px-3 py-2 rounded-xl transition-all"
+                    >
+                        <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-500 transition-all">
+                            <X size={12} />
+                        </div>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-rose-500 transition-all">Limpiar Filtros</span>
+                    </button>
+                )}
+            </div>
+
             {/* Main Area */}
-            <main className="flex-1 overflow-hidden bg-white">
+            <main className="flex-1 overflow-hidden bg-white flex flex-col min-h-0">
                 <StrategyGrid 
+                    tasks={filteredTasks}
                     onSelectTask={setSelectedTask} 
                     onRunAction={handleUnitAction}
                     columnVisibility={columnVisibility}

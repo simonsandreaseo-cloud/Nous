@@ -39,6 +39,7 @@ interface StrategyGridProps {
     selectedTaskIds?: string[];
     onSelectionChange?: (ids: string[]) => void;
     batchProgress?: Record<string, number>;
+    tasks?: Task[];
 }
 
 export default function StrategyGrid({ 
@@ -47,9 +48,10 @@ export default function StrategyGrid({
     columnVisibility: externalVisibility,
     selectedTaskIds = [],
     onSelectionChange,
-    batchProgress = {}
+    batchProgress = {},
+    tasks: externalTasks
 }: StrategyGridProps) {
-    const { tasks, activeProject, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
+    const { tasks: storeTasks, activeProject, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
     const [deletePopupId, setDeletePopupId] = useState<string | null>(null);
     const [deleteOptions, setDeleteOptions] = useState({ research: false, writing: false });
@@ -78,7 +80,9 @@ export default function StrategyGrid({
     const router = useRouter();
     const { initializeFromTask } = useWriterStore();
 
-    const sortedTasks = [...tasks].sort((a, b) => new Date(a.scheduled_date || 0).getTime() - new Date(b.scheduled_date || 0).getTime());
+    const tasksToUse = externalTasks || storeTasks;
+
+    const sortedTasks = [...tasksToUse].sort((a, b) => new Date(a.scheduled_date || 0).getTime() - new Date(b.scheduled_date || 0).getTime());
     const { canCreateOrDelete, canEditAny, canTakeTasks } = usePermissions();
 
     const visibleColumns = ALL_COLUMNS.filter(c => columnVisibility[c.id]);
