@@ -17,7 +17,8 @@ import {
     LogOut, 
     User,
     Settings,
-    Home
+    Home,
+    Palette
 } from "lucide-react";
 import { NousLogo } from "@/components/dom/NousLogo";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
