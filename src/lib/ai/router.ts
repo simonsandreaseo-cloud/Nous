@@ -1,33 +1,65 @@
 import { executeWithKeyRotation } from '../services/writer/ai-core';
+import { GoogleGenAI } from '@google/genai';
 import { AIRequest, AIResponse } from './types';
 
 class AIRouter {
     async generate(request: AIRequest): Promise<AIResponse> {
-        let { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode } = request;
+        const { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode, label: callerLabel } = request;
 
-        // Intent detection for hierarchical fallback
-        const isWriting = prompt.toLowerCase().includes('escribe') || prompt.toLowerCase().includes('redact') || (systemPrompt && systemPrompt.toLowerCase().includes('escritor'));
-        const label = isWriting ? 'Redacción SEO' : 'Investigación SEO';
+        // CRITICAL: Use the caller's label to activate the correct hierarchy.
+        // Fall back to intent-based detection only if no label is provided.
+        const resolvedLabel = callerLabel || (
+            (prompt.toLowerCase().includes('escribe') || prompt.toLowerCase().includes('redact') ||
+             (systemPrompt && systemPrompt.toLowerCase().includes('escritor')))
+                ? 'Redacción SEO'
+                : 'Investigación SEO'
+        );
 
         const text = await executeWithKeyRotation(
             async (client, currentModel) => {
-                const modelObj = client.getGenerativeModel({
-                    model: currentModel,
-                    systemInstruction: systemPrompt,
-                    generationConfig: {
-                        temperature,
-                        maxOutputTokens: maxTokens,
-                        responseMimeType: jsonMode ? "application/json" : "text/plain"
-                    }
-                });
-                const res = await modelObj.generateContent(prompt);
-                return res.response.text();
+                // The client object can be either:
+                //   - GoogleGenAI instance (from @google/genai) → use client.models.generateContent()
+                //   - GroqClientCompatibility instance → has getGenerativeModel() mimicking Gemini SDK
+                // We detect which one by checking for the 'models' property (native Google SDK).
+
+                const isGoogleNative = client instanceof GoogleGenAI || (client as any).models;
+                const isGemma = currentModel.toLowerCase().includes('gemma');
+
+                if (isGoogleNative) {
+                    // Native @google/genai SDK path
+                    const finalPrompt = (isGemma && systemPrompt) ? `${systemPrompt}\n\n${prompt}` : prompt;
+                    const response = await (client as GoogleGenAI).models.generateContent({
+                        model: currentModel,
+                        contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
+                        config: {
+                            systemInstruction: isGemma ? undefined : systemPrompt,
+                            temperature,
+                            maxOutputTokens: maxTokens,
+                            responseMimeType: jsonMode ? 'application/json' : 'text/plain',
+                        }
+                    });
+                    return response.text ?? '';
+                } else {
+                    // Compatible path (GroqClientCompatibility or OpenRouterClientCompatibility)
+                    // These mimic the Gemini SDK interface
+                    const modelObj = client.getGenerativeModel({
+                        model: currentModel,
+                        systemInstruction: systemPrompt,
+                        generationConfig: {
+                            temperature,
+                            maxOutputTokens: maxTokens,
+                            responseMimeType: jsonMode ? 'application/json' : 'text/plain',
+                        }
+                    });
+                    const res = await modelObj.generateContent(prompt);
+                    return res.response.text();
+                }
             },
             model,
             undefined,
             undefined,
             false,
-            label
+            resolvedLabel
         );
 
         return {
@@ -38,4 +70,3 @@ class AIRouter {
 }
 
 export const aiRouter = new AIRouter();
-

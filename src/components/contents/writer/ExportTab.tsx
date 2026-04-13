@@ -41,7 +41,7 @@ export function ExportTab({
                         disabled
                         className="w-full py-3.5 bg-white/10 text-white/90 rounded-2xl text-[11px] font-black uppercase tracking-widest opacity-50 cursor-not-allowed border border-white/10"
                     >
-                        Exportar a Shopify
+                        Exportar a CMS
                     </button>
                 </div>
                 

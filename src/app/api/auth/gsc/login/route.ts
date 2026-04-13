@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const redirectTo = searchParams.get('redirect') || '/settings';
+    const scopeParam = searchParams.get('scope') || 'all';
 
     // Limpiamos las variables por si vienen con espacios o barras accidentales
     const clientId = process.env.GOOGLE_CLIENT_ID?.trim().replace(/\/$/, '');
@@ -20,19 +21,36 @@ export async function GET(req: Request) {
         redirectUri
     );
 
+    const SCOPE_MAP: Record<string, string[]> = {
+        gsc: ['https://www.googleapis.com/auth/webmasters.readonly'],
+        ga4: ['https://www.googleapis.com/auth/analytics.readonly'],
+        drive: [
+            'https://www.googleapis.com/auth/drive.file',
+            'https://www.googleapis.com/auth/drive.readonly',
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/documents',
+            'https://www.googleapis.com/auth/presentations'
+        ],
+        all: [
+            'https://www.googleapis.com/auth/webmasters.readonly',
+            'https://www.googleapis.com/auth/analytics.readonly',
+            'https://www.googleapis.com/auth/drive.file',
+            'https://www.googleapis.com/auth/drive.readonly',
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/documents'
+        ]
+    };
+
+    const requestedScopes = [
+        'https://www.googleapis.com/auth/userinfo.email',
+        'openid',
+        ...(SCOPE_MAP[scopeParam] || SCOPE_MAP.all)
+    ];
+
     // Generate the url that will be used for the consent dialog.
     const authorizeUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline', // Essential for getting a refresh token
-        scope: [
-            'https://www.googleapis.com/auth/webmasters.readonly',
-            'https://www.googleapis.com/auth/userinfo.email',
-            'https://www.googleapis.com/auth/spreadsheets',          // Read/Write Sheets
-            'https://www.googleapis.com/auth/documents',             // Read/Write Docs
-            'https://www.googleapis.com/auth/drive.file',            // Create/Manage specific files
-            'https://www.googleapis.com/auth/presentations',         // Read/Write Slides
-            'https://www.googleapis.com/auth/drive.readonly',        // Read Drive metadata
-            'https://www.googleapis.com/auth/analytics.readonly'     // Read GA4 Data
-        ],
+        scope: requestedScopes,
         prompt: 'consent', // Force consent prompt to ensure refresh token is returned
         include_granted_scopes: true,
         state: redirectTo, // Use state to pass the return URL

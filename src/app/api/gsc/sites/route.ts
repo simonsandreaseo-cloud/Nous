@@ -32,7 +32,6 @@ export async function GET(req: Request) {
         });
 
         console.log("[DEBUG] Validating Supabase token...");
-        // Validate the token and get the user
         const { data: { user }, error: authError } = await serverSupabase.auth.getUser();
 
         if (authError || !user) {
@@ -44,22 +43,41 @@ export async function GET(req: Request) {
         }
 
         console.log("[DEBUG] User identified:", user.id);
+        const { searchParams } = new URL(req.url);
+        const connectionId = searchParams.get('connectionId');
 
         // 2. Get the refresh token
-        // We use serverSupabase with the user's token, so RLS applies
-        const { data: tokenData, error: dbError } = await serverSupabase
-            .from('user_gsc_tokens')
+        let query = serverSupabase
+            .from('user_google_connections')
             .select('refresh_token')
-            .eq('user_id', user.id)
-            .maybeSingle();
+            .eq('user_id', user.id);
+        
+        if (connectionId) {
+            query = query.eq('id', connectionId);
+        }
+
+        const { data: tokenData, error: dbError } = await query.maybeSingle();
 
         if (dbError) {
             console.error("[DEBUG] Error fetching token from DB:", dbError);
             return NextResponse.json({ error: 'Error de base de datos' }, { status: 500 });
         }
 
-        if (!tokenData?.refresh_token) {
-            console.error("[DEBUG] No refresh token found for user in user_gsc_tokens");
+        let refreshToken = tokenData?.refresh_token;
+
+        if (!refreshToken) {
+            // Fallback for one session to legacy table
+            const { data: legacyData } = await serverSupabase
+                .from('user_gsc_tokens')
+                .select('refresh_token')
+                .eq('user_id', user.id)
+                .maybeSingle();
+            
+            refreshToken = legacyData?.refresh_token;
+        }
+
+        if (!refreshToken) {
+            console.error("[DEBUG] No refresh token found for user");
             return NextResponse.json({ error: 'GSC no vinculado para este usuario' }, { status: 404 });
         }
 
@@ -68,7 +86,7 @@ export async function GET(req: Request) {
             process.env.GOOGLE_CLIENT_ID,
             process.env.GOOGLE_CLIENT_SECRET
         );
-        auth.setCredentials({ refresh_token: tokenData.refresh_token });
+        auth.setCredentials({ refresh_token: refreshToken });
 
         const searchconsole = google.searchconsole({ version: 'v1', auth });
 
@@ -80,12 +98,16 @@ export async function GET(req: Request) {
             success: true,
             sites: sites.map(s => ({
                 url: s.siteUrl,
-                permission: s.permissionLevel
+                permission: s.permissionLevel,
+                accountEmail: refreshToken ? 'Sincronizado' : 'Desconocido'
             }))
         });
 
-    } catch (err: any) {
-        console.error('Error listing GSC sites:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (error: any) {
+        console.error("[API-GSC-SITES] Error fatal:", error);
+        return NextResponse.json({ 
+            error: 'Error interno del servidor', 
+            details: error.message 
+        }, { status: 500 });
     }
 }

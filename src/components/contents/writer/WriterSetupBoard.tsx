@@ -5,9 +5,10 @@ import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { Button } from '@/components/dom/Button';
 import { runDeepSEOAnalysis } from '@/components/tools/writer/services';
+
 import { 
     Target, X, Sparkles, Hash, Link2, 
-    Type, RefreshCw, Layers, Plus, Trash2, Globe, Send, ChevronRight
+    Type, RefreshCw, Layers, Plus, Trash2, Globe, Send, ChevronRight, AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,53 +29,23 @@ export default function WriterSetupBoard({ onFinished }: { onFinished?: () => vo
         store.setStatus("Iniciando Investigación Nous...");
         
         try {
-            if (activeProject?.id) await store.loadProjectInventory(activeProject.id);
             const seoData = await runDeepSEOAnalysis({
                 keyword: store.keyword, 
-                csvData: store.csvData, 
                 projectId: activeProject?.id, 
+                projectDomain: activeProject?.domain,
                 onProgress: (phase) => store.setStatus(phase),
                 onLog: (phase, prompt) => store.addDebugPrompt(phase, prompt)
             });
             
-            store.setStatus("Procesando competidores...");
+            store.setStatus("Procesando resultados...");
             store.setIsConsoleOpen(true); // Pop up console to show research audit
-            store.setCompetitorDetails(seoData.competitors || []);
-            store.setStrategyCompetitors(seoData.competitors?.map((c: any) => c.url).join('\n') || '');
+            
+            // Delegate all data mapping to the store
+            store.updateStrategyFromSeo(seoData);
 
-            store.setStatus("Analizando Keywords...");
-            // Correct separation: Main keywords come from keywordIdeas, LSI from lsiKeywords
-            const mainKeywordPool = seoData.keywordIdeas 
-                ? [...(seoData.keywordIdeas.shortTail || []), ...(seoData.keywordIdeas.midTail || [])]
-                : [];
-            
-            const mappedKeywords = mainKeywordPool.map((k: any) => ({
-                keyword: typeof k === 'string' ? k : k.keyword, 
-                volume: typeof k === 'string' ? '0' : (k.volume || '0')
-            }));
-            
-            store.setStrategyKeywords(mappedKeywords.slice(0, 5));
-            store.setStrategyVolume(seoData.searchVolume || '0');
-            store.setStrategyDifficulty(seoData.keywordDifficulty || '0');
+            store.setStatus("Investigación completada");
+            setActiveSection('results');
 
-            store.setStatus("Estructurando intención...");
-            store.setStrategyQuestions(seoData.frequentQuestions || []);
-            store.setStrategyLSI(seoData.lsiKeywords || []);
-            
-            store.setStatus("Finalizando briefing...");
-            store.setRawSeoData(seoData);
-            store.setStrategyWordCount(seoData.recommendedWordCount || '1500');
-            store.setStrategyMinWords((parseInt(seoData.recommendedWordCount || '1500') * 0.8).toString());
-            store.setStrategyMaxWords((parseInt(seoData.recommendedWordCount || '1500') * 1.2).toString());
-            
-            if (seoData.suggestedInternalLinks) {
-                store.setStrategyInternalLinks(seoData.suggestedInternalLinks.map((u: { url: string; title?: string }) => ({ 
-                    url: u.url, 
-                    title: u.title || '',
-                    type: 'other' as const,
-                    search_index: "0"
-                })));
-            }
 
             store.setStatus("Investigación completada");
             setActiveSection('results');
@@ -242,6 +213,38 @@ export default function WriterSetupBoard({ onFinished }: { onFinished?: () => vo
                                 <span className="w-1.5 h-3 bg-indigo-500 rounded-full" />
                                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-800">Resultados SEO</h3>
                             </div>
+
+                            {/* CANNIBALIZATION ALERT */}
+                            {store.strategyCannibalization && store.strategyCannibalization.length > 0 && (
+                                <motion.div 
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="bg-rose-50 border border-rose-100 rounded-xl p-4 flex items-start gap-4 shadow-sm"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                                        <AlertTriangle size={18} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-rose-600">Alerta de Canibalización</p>
+                                        <p className="text-[11px] font-medium text-rose-800/80 leading-relaxed">
+                                            Hemos detectado que tu dominio ya posiciona con estas URLs para esta búsqueda. ¡Evita competir contra ti mismo!
+                                        </p>
+                                        <div className="pt-2 space-y-1">
+                                            {store.strategyCannibalization.map((url, idx) => (
+                                                <a 
+                                                    key={idx} 
+                                                    href={url} 
+                                                    target="_blank" 
+                                                    rel="noreferrer"
+                                                    className="block text-[10px] font-bold text-rose-500 hover:underline truncate bg-white/50 px-2 py-1 rounded border border-rose-100/50"
+                                                >
+                                                    {url}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
 
                             {/* Keywords Grid */}
                             <CompactSection title="Keywords (Volumen)" icon={Hash}>

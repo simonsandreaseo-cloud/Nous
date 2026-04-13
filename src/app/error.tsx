@@ -22,18 +22,18 @@ export default function Error({
                 animate={{ opacity: 1, y: 0 }}
                 className="text-center"
             >
-                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                <div className="w-20 h-20 bg-indigo-500/5 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-indigo-500/10">
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
                 </div>
-                <h1 className="text-xl font-bold tracking-[0.3em] uppercase mb-2">Interface_Exception</h1>
-                <p className="text-[10px] text-foreground/40 uppercase tracking-widest mb-8 max-w-xs mx-auto">
-                    An unexpected error occured during neural link stabilization.
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 mb-3">Algo no salió como esperábamos</h1>
+                <p className="text-sm text-slate-500 mb-10 max-w-sm mx-auto leading-relaxed">
+                    Hemos detectado una interrupción en el proceso. No te preocupes, tus datos están a salvo. Reiniciemos la interfaz para continuar.
                 </p>
                 <button
                     onClick={() => reset()}
-                    className="px-8 py-3 bg-foreground text-background text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-opacity"
+                    className="px-10 py-4 bg-slate-900 text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-slate-800 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-slate-200"
                 >
-                    Attempt_Restart
+                    Reiniciar Sistema
                 </button>
             </motion.div>
         </div>

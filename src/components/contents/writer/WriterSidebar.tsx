@@ -9,6 +9,7 @@ import { AssistantTab } from './AssistantTab';
 import { ResearchTab } from './ResearchTab';
 import { ExportTab } from './ExportTab';
 import { MediaTab } from './MediaTab';
+import { ToolsTab } from './ToolsTab';
 
 /**
  * REFACTORING STATUS: 70% Complete
@@ -20,7 +21,7 @@ import { MediaTab } from './MediaTab';
  * 4. [UX]: Add transitions between tabs (Framer Motion recommended).
  */
 import { useWriterStore } from '@/store/useWriterStore';
-import { LayoutTemplate, MessageSquareMore, FileSearch, Search, MonitorSmartphone, Share2, ImagePlus } from 'lucide-react';
+import { LayoutTemplate, MessageSquareMore, FileSearch, Search, MonitorSmartphone, Share2, ImagePlus, Wrench } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SidebarTab } from '@/store/useWriterStore';
@@ -29,11 +30,12 @@ export default function WriterSidebar() {
     const store = useWriterStore();
     const {
         handleSEO,
-        handlePlanStructure,
+        handleRegenerateOutline,
         handleGenerate,
         handleHumanize,
         handleRefine
     } = useWriterActions();
+
 
     const renderTabContent = () => {
         let content = null;
@@ -45,24 +47,29 @@ export default function WriterSidebar() {
                 content = (
                     <GenerateTab 
                         onGenerate={handleGenerate} 
-                        onPlanStructure={handlePlanStructure}
+                        onRegenerateOutline={handleRegenerateOutline}
                         onHumanize={handleHumanize} 
                         isLoading={store.isGenerating} 
                         isPlanning={store.isPlanningStructure}
                     />
+
                 );
                 break;
             case 'assistant':
                 content = <AssistantTab onRefine={handleRefine} isRefining={store.isRefining} />;
                 break;
             case 'research':
-                content = <ResearchTab onPlanStructure={handlePlanStructure} isPlanning={store.isPlanningStructure} />;
+                content = <ResearchTab />; // ResearchTab no longer takes onPlanStructure as prop in its definition
                 break;
+
             case 'export':
                 content = <ExportTab onExportWP={() => {}} onSaveCloud={() => {}} />;
                 break;
             case 'media':
                 content = <MediaTab />;
+                break;
+            case 'tools':
+                content = <ToolsTab />;
                 break;
             default:
                 content = null;
@@ -101,7 +108,8 @@ export default function WriterSidebar() {
                     {[
                         { id: 'seo', icon: Search, label: 'SEO' },
                         { id: 'generate', icon: LayoutTemplate, label: 'Editor' },
-                        { id: 'media', icon: ImagePlus, label: 'Media' },
+                        { id: 'media', icon: ImagePlus, label: 'Imágenes' },
+                        { id: 'tools', icon: Wrench, label: 'Tools' },
                         { id: 'assistant', icon: MessageSquareMore, label: 'Asistente' },
                         { id: 'research', icon: FileSearch, label: 'Datos' },
                         { id: 'export', icon: Share2, label: 'Exportar' }

@@ -26,6 +26,8 @@ import {
 import { cn } from '@/utils/cn';
 import { useWriterStore } from '@/store/useWriterStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import * as SEOScoringService from '@/lib/services/writer/seo-scoring';
+
 
 interface SEODataTabProps {
     seoData: any;
@@ -147,193 +149,43 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
         return currentContent.toLowerCase().includes(text.toLowerCase());
     };
 
-    const getWordCount = (text: string) => {
-        return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+    const context: SEOScoringService.SEOScoringContext = {
+        keyword: keyword || '',
+        content: currentContent,
+        metrics: {
+            title: strategyTitle || '',
+            description: strategyDesc || '',
+            slug: strategySlug || '',
+            h1: strategyH1 || ''
+        },
+        links: uniqueLinks.map(l => ({ url: l.url, title: l.title }))
     };
 
-    const currentWordCount = getWordCount(currentContent);
+    const currentWordCount = SEOScoringService.getWordCount(currentContent);
+    const primaryDensity = SEOScoringService.calculateKeywordDensity(currentContent, keyword || '');
 
-    // Helpers
-    const countOccurrences = (text: string, searchStr: string) => {
-        if (!searchStr) return 0;
-        const regex = new RegExp(searchStr.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
-        return (text.match(regex) || []).length;
-    };
-
-    const calculateDensity = (text: string, searchStr: string) => {
-        if (!searchStr || !text) return 0;
-        const occurrences = countOccurrences(text, searchStr);
-        const searchWords = getWordCount(searchStr);
-        const totalWords = getWordCount(text);
-        if (totalWords === 0) return 0;
-        return ((occurrences * searchWords) / totalWords) * 100;
-    };
-
-    // Calculate Densities
-    const primaryDensity = calculateDensity(currentContent, keyword || '');
-
-    const lsiDensities = lsiKeywords.map((k: any) => {
-        const kw = typeof k === 'string' ? k : k.keyword;
-        return {
-            keyword: kw,
-            density: calculateDensity(currentContent, kw),
-            count: countOccurrences(currentContent, kw)
-        };
-    });
-
-    const totalLSICount = lsiDensities.reduce((acc: number, curr: any) => acc + curr.count, 0);
 
     const usedLSI = lsiKeywords.filter((k: any) => isUsed(k));
     const usedLinks = uniqueLinks.filter((l: any) => {
         const slug = l.url.replace(/^https?:\/\/[^\/]+/, '');
         return currentContent.includes(l.url) || (slug.length > 1 && currentContent.includes(slug));
     });
-    const checkedQuestions = frequentQuestions.filter((q: string, idx: number) => checkedItems.includes(`q-${idx}`));
 
-    // Meta metadata completion
-    const metaFields = [strategyH1, strategyTitle, strategySlug, strategyDesc, strategyExcerpt];
-    const filledMetaFields = metaFields.filter(f => !!f).length;
+    const rankMath = SEOScoringService.calculateRankMath(context);
+    const yoastRules = SEOScoringService.calculateYoast(context);
 
+    // Missing definitions that caused ReferenceErrors
+    const filledMetaFields = [strategyH1, strategyTitle, strategySlug, strategyDesc, strategyExcerpt].filter(Boolean).length;
+    
+    const totalLSICount = useMemo(() => {
+        return lsiKeywords.reduce((acc, k) => {
+            const kw = typeof k === 'string' ? k : k.keyword;
+            return acc + SEOScoringService.countOccurrences(currentContent, kw);
+        }, 0);
+    }, [lsiKeywords, currentContent]);
 
-    // --- RANK MATH ---
-    const calculateRankMath = () => {
-        let score = 0;
-        const checks = [];
+    const checkedQuestions = frequentQuestions.filter((q, idx) => checkedItems.includes(`q-${idx}`));
 
-        // Basic SEO
-        const hasKeyword = !!keyword;
-
-        // Focus Keyword in SEO Title
-        const keywordInTitle = hasKeyword && (strategyTitle || '').toLowerCase().includes(keyword.toLowerCase());
-        checks.push({ label: "Focus Keyword en el SEO Title", passed: keywordInTitle, score: 10 });
-        if(keywordInTitle) score += 10;
-
-        // Focus Keyword in Meta Description
-        const keywordInDesc = hasKeyword && (strategyDesc || '').toLowerCase().includes(keyword.toLowerCase());
-        checks.push({ label: "Focus Keyword en la Meta Descripción", passed: keywordInDesc, score: 10 });
-        if(keywordInDesc) score += 10;
-
-        // Focus Keyword in URL
-        const keywordInUrl = hasKeyword && (strategySlug || '').toLowerCase().includes(keyword.toLowerCase().replace(/\s+/g, '-'));
-        checks.push({ label: "Focus Keyword en la URL", passed: keywordInUrl, score: 10 });
-        if(keywordInUrl) score += 10;
-
-        // Focus Keyword appears in the first 10% of the content
-        const first10Percent = currentContent.substring(0, Math.max(100, currentContent.length * 0.1));
-        const keywordInFirst10Percent = hasKeyword && first10Percent.toLowerCase().includes(keyword.toLowerCase());
-        checks.push({ label: "Focus Keyword en el inicio del contenido", passed: keywordInFirst10Percent, score: 10 });
-        if(keywordInFirst10Percent) score += 10;
-
-        // Content Length (Rank Math ideal is 600+)
-        const isContentLongEnough = currentWordCount >= 600;
-        checks.push({ label: `Longitud del contenido (${currentWordCount} palabras)`, passed: isContentLongEnough, score: 10 });
-        if(isContentLongEnough) score += 10;
-
-        // Additional
-        // Keyword density (ideal 1-2%, viable > 0.5%)
-        const densityOk = primaryDensity >= 1.0;
-        const densityViable = primaryDensity >= 0.5;
-        checks.push({ label: `Densidad de Focus Keyword (${primaryDensity.toFixed(2)}%)`, passed: densityOk || densityViable, score: densityOk ? 10 : 5 });
-        if(densityOk) score += 10;
-        else if(densityViable) score += 5;
-
-        // Internal Links
-        const hasInternalLinks = usedLinks.length > 0;
-        checks.push({ label: `Enlaces internos (${usedLinks.length})`, passed: hasInternalLinks, score: 10 });
-        if(hasInternalLinks) score += 10;
-
-        // Title Length
-        const titleLength = (strategyTitle || '').length;
-        const titleLengthOk = titleLength > 40 && titleLength < 60;
-        checks.push({ label: `Longitud del SEO Title (${titleLength} chars)`, passed: titleLengthOk, score: 10 });
-        if(titleLengthOk) score += 10;
-
-        // Desc Length
-        const descLength = (strategyDesc || '').length;
-        const descLengthOk = descLength > 120 && descLength < 160;
-        checks.push({ label: `Longitud Meta Descripción (${descLength} chars)`, passed: descLengthOk, score: 10 });
-        if(descLengthOk) score += 10;
-
-        // Subheadings
-        const hasSubheadings = countOccurrences(currentContent, '<h2') > 0 || countOccurrences(currentContent, '##') > 0;
-        checks.push({ label: "Uso de subtítulos (H2, H3)", passed: hasSubheadings, score: 10 });
-        if(hasSubheadings) score += 10;
-
-        return { score, checks };
-    };
-
-    // --- YOAST ---
-    const calculateYoast = () => {
-        const rules = [];
-
-        const hasKeyword = !!keyword;
-
-        // Internal links
-        if (usedLinks.length > 0) {
-            rules.push({ text: "Enlaces internos: Hay suficientes enlaces internos.", status: "good" });
-        } else {
-            rules.push({ text: "Enlaces internos: No hay enlaces internos. Añade algunos.", status: "bad" });
-        }
-
-        // Keyphrase in introduction
-        const firstParagrah = currentContent.substring(0, 300);
-        if (hasKeyword && firstParagrah.toLowerCase().includes(keyword.toLowerCase())) {
-            rules.push({ text: "Frase clave en la introducción: ¡Bien hecho!", status: "good" });
-        } else {
-            rules.push({ text: "Frase clave en la introducción: La frase clave no aparece en el primer párrafo.", status: "bad" });
-        }
-
-        // Keyphrase length
-        if (hasKeyword) {
-            rules.push({ text: "Longitud de frase clave: ¡Buen trabajo!", status: "good" });
-        } else {
-            rules.push({ text: "Frase clave: No has establecido una frase clave.", status: "bad" });
-        }
-
-        // Keyphrase density
-        if (primaryDensity === 0) {
-            rules.push({ text: "Densidad de frase clave: La frase clave no se encontró.", status: "bad" });
-        } else if (primaryDensity > 2.5) {
-            rules.push({ text: `Densidad de frase clave: (${primaryDensity.toFixed(2)}%) es muy alta.`, status: "bad" });
-        } else if (primaryDensity < 0.5) {
-            rules.push({ text: `Densidad de frase clave: (${primaryDensity.toFixed(2)}%) es muy baja.`, status: "ok" });
-        } else {
-            rules.push({ text: `Densidad de frase clave: (${primaryDensity.toFixed(2)}%) Excelente.`, status: "good" });
-        }
-
-        // Meta description length
-        const descLength = (strategyDesc || '').length;
-        if (descLength === 0) {
-            rules.push({ text: "Longitud meta descripción: No se ha especificado meta descripción.", status: "bad" });
-        } else if (descLength < 120) {
-            rules.push({ text: "Longitud meta descripción: Es muy corta.", status: "ok" });
-        } else if (descLength > 156) {
-            rules.push({ text: "Longitud meta descripción: Es muy larga.", status: "ok" });
-        } else {
-            rules.push({ text: "Longitud meta descripción: ¡Bien hecho!", status: "good" });
-        }
-
-        // SEO Title width
-        const titleLength = (strategyTitle || '').length;
-        if (titleLength === 0) {
-             rules.push({ text: "Ancho del título SEO: Por favor crea un título SEO.", status: "bad" });
-        } else if (titleLength < 40) {
-            rules.push({ text: "Ancho del título SEO: Es muy corto.", status: "ok" });
-        } else if (titleLength > 60) {
-            rules.push({ text: "Ancho del título SEO: Es muy largo.", status: "ok" });
-        } else {
-            rules.push({ text: "Ancho del título SEO: ¡Buen trabajo!", status: "good" });
-        }
-
-        // Text length
-        if (currentWordCount < 300) {
-            rules.push({ text: `Longitud del texto: El texto contiene ${currentWordCount} palabras. Es muy poco.`, status: "bad" });
-        } else {
-            rules.push({ text: `Longitud del texto: El texto contiene ${currentWordCount} palabras. ¡Buen trabajo!`, status: "good" });
-        }
-
-        return rules;
-    };
 
 
     if (!researchDossier && !seoData && lsiKeywords.length === 0) {
@@ -349,7 +201,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
     }
 
     return (
-        <div className="p-8 space-y-8 animate-in fade-in duration-500 pb-20">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-8 animate-in fade-in duration-500 pb-20">
 
             {/* TABS */}
             <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
@@ -724,8 +576,8 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                         ) : (
                                             strategyKeywords.map((k: any, idx: number) => {
                                                 const kw = k.keyword;
-                                                const density = calculateDensity(currentContent, kw);
-                                                const count = countOccurrences(currentContent, kw);
+                                                const density = SEOScoringService.calculateKeywordDensity(currentContent, kw);
+                                                const count = SEOScoringService.countOccurrences(currentContent, kw);
                                                 const used = count > 0;
                                                 
                                                 return (
@@ -853,14 +705,14 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                 <circle
                                     cx="50%" cy="50%" r="42"
                                     fill="transparent"
-                                    stroke={calculateRankMath().score >= 80 ? '#10b981' : calculateRankMath().score >= 50 ? '#f59e0b' : '#ef4444'}
+                                    stroke={rankMath.score >= 80 ? '#10b981' : rankMath.score >= 50 ? '#f59e0b' : '#ef4444'}
                                     strokeWidth="8"
                                     strokeDasharray="264"
-                                    strokeDashoffset={264 - (264 * calculateRankMath().score) / 100}
+                                    strokeDashoffset={264 - (264 * rankMath.score) / 100}
                                     strokeLinecap="round"
                                 />
                             </svg>
-                            <span className="text-2xl font-black text-slate-800">{calculateRankMath().score}</span>
+                            <span className="text-2xl font-black text-slate-800">{rankMath.score}</span>
                         </div>
                         <div>
                             <h3 className="text-lg font-black text-slate-800">Rank Math Score</h3>
@@ -873,7 +725,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                             <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-600">SEO Básico & Adicional</h4>
                         </div>
                         <div className="p-2">
-                            {calculateRankMath().checks.map((check, i) => (
+                            {rankMath.checks.map((check, i) => (
                                 <div key={i} className="flex items-center gap-3 p-3 border-b border-slate-50 last:border-0">
                                     {check.passed ? (
                                         <CheckCircle size={16} className="text-emerald-500 shrink-0" />
@@ -905,7 +757,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
 
                     <div className="bg-white rounded-[24px] overflow-hidden border border-slate-200 shadow-sm p-4">
                         <div className="space-y-4">
-                            {calculateYoast().map((rule, i) => (
+                            {yoastRules.map((rule, i) => (
                                 <div key={i} className="flex items-start gap-3">
                                     <div className={cn(
                                         "w-3 h-3 rounded-full mt-0.5 shrink-0",

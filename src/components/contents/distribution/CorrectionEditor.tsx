@@ -1,16 +1,17 @@
 "use client";
 
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Typography from '@tiptap/extension-typography';
-import Link from '@tiptap/extension-link';
-import Placeholder from '@tiptap/extension-placeholder';
+import { useEditor, EditorContent } from '@tiptap/react';
+import { BubbleMenu, FloatingMenu } from '@tiptap/react/menus';
 import { 
     Bold, Italic, Strikethrough, Code, List, ListOrdered, 
-    Heading1, Heading2, Heading3, Quote, Link as LinkIcon, Unlink, ExternalLink, Trash2, FileText, Code2, Check
+    Heading1, Heading2, Heading3, Quote, Link as LinkIcon, Unlink, ExternalLink, Trash2, FileText, Code2, Check,
+    Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
+    Type, Palette, Highlighter, ChevronDown, X
 } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/utils/cn';
+import { getSharedExtensions } from '@/lib/tiptap-extensions';
+import { LinkPopover } from '@/components/shared/LinkPopover';
 
 interface CorrectionEditorProps {
     content: string;
@@ -19,27 +20,11 @@ interface CorrectionEditorProps {
 
 export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
     const [viewMode, setViewMode] = useState<'visual' | 'code'>('visual');
-    const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-    const [tempLink, setTempLink] = useState("");
 
     const editor = useEditor({
-        extensions: [
-            StarterKit,
-            Typography,
-            Placeholder.configure({
-                placeholder: 'Edita el contenido aquí...',
-            }),
-            Link.configure({
-                openOnClick: false, // Changed to false for better editing control
-                autolink: true,
-                HTMLAttributes: {
-                    target: '_blank',
-                    rel: 'noopener noreferrer',
-                    class: 'cursor-pointer'
-                }
-            }),
-        ],
+        extensions: getSharedExtensions('Edita el contenido aquí...'),
         content: content,
+        immediatelyRender: false,
         editorProps: {
             attributes: {
                 class: 'prose prose-lg prose-indigo focus:outline-none max-w-none min-h-[700px] pb-32 transition-all duration-500 mx-auto ' +
@@ -64,18 +49,6 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
             }
         }
     }, [content, editor]);
-
-    const handleSetLink = useCallback(() => {
-        if (tempLink) {
-            editor?.chain().focus().setLink({ href: tempLink }).run();
-        } else {
-            editor?.chain().focus().unsetLink().run();
-        }
-    }, [editor, tempLink]);
-
-    const handleUnsetLink = useCallback(() => {
-        editor?.chain().focus().unsetLink().run();
-    }, [editor]);
 
     if (!editor) return null;
 
@@ -177,69 +150,49 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
             {/* Selection Bubble Menu */}
             <BubbleMenu 
                 editor={editor} 
-                tippyOptions={{ duration: 100 }}
+                pluginKey="correctionMainBubbleMenu"
+                tippyOptions={{ duration: 150 }}
                 shouldShow={({ editor }) => !editor.isActive('link') && editor.state.selection.content().size > 0}
             >
-                <div className="flex bg-slate-900 rounded-xl p-1 shadow-2xl gap-1">
-                    <button onClick={() => editor.chain().focus().toggleBold().run()} className="p-2 text-white hover:bg-white/10 rounded-lg"><Bold size={14}/></button>
-                    <button onClick={() => editor.chain().focus().toggleItalic().run()} className="p-2 text-white hover:bg-white/10 rounded-lg"><Italic size={14}/></button>
+                <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-xl shadow-2xl border border-slate-200/50 rounded-2xl p-1.5 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-center gap-0.5 pr-1 border-r border-slate-100">
+                        <button onClick={() => editor.chain().focus().toggleBold().run()} className={cn("p-2 rounded-xl transition-all hover:bg-slate-100", editor.isActive('bold') ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500')}><Bold size={15}/></button>
+                        <button onClick={() => editor.chain().focus().toggleItalic().run()} className={cn("p-2 rounded-xl transition-all hover:bg-slate-100", editor.isActive('italic') ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500')}><Italic size={15}/></button>
+                        <button onClick={() => editor.chain().focus().toggleUnderline().run()} className={cn("p-2 rounded-xl transition-all hover:bg-slate-100", editor.isActive('underline') ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500')}><UnderlineIcon size={15}/></button>
+                    </div>
+
+                    <div className="flex items-center gap-1 px-1 border-r border-slate-100 group/size relative">
+                        <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer text-slate-700 font-black text-[10px]">
+                            {editor.getAttributes('textStyle').fontSize || '16px'}
+                            <ChevronDown size={10} className="text-slate-400" />
+                        </div>
+                        <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 p-1 hidden group-hover/size:flex flex-col min-w-[60px] z-50">
+                            {['12px', '14px', '16px', '18px', '20px', '24px', '32px'].map(size => (
+                                <button key={size} onClick={() => editor.chain().focus().setFontSize(size).run()} className="px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-left">{size}</button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-0.5 px-1 border-r border-slate-100">
+                        <button onClick={() => editor.chain().focus().setTextAlign('left').run()} className={cn("p-2 rounded-xl hover:bg-slate-100", editor.isActive({ textAlign: 'left' }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500')}><AlignLeft size={15}/></button>
+                        <button onClick={() => editor.chain().focus().setTextAlign('center').run()} className={cn("p-2 rounded-xl hover:bg-slate-100", editor.isActive({ textAlign: 'center' }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500')}><AlignCenter size={15}/></button>
+                    </div>
+
+                    <div className="flex items-center gap-0.5 pl-1">
+                        <div className="relative group/color">
+                            <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl"><Palette size={15}/></button>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 p-2 hidden group-hover/color:grid grid-cols-4 gap-1 z-50">
+                                {['#000000', '#475569', '#2563eb', '#16a34a', '#dc2626', '#d97706', '#9333ea', '#db2777'].map(color => (
+                                    <button key={color} onClick={() => editor.chain().focus().setColor(color).run()} className="w-5 h-5 rounded-md border border-slate-100" style={{ backgroundColor: color }} />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </BubbleMenu>
 
-            {/* Link Popover Menu */}
-            <BubbleMenu 
-                editor={editor} 
-                tippyOptions={{ 
-                    duration: 100, 
-                    placement: 'bottom',
-                    onShow: () => {
-                        const currentUrl = editor.getAttributes('link').href || "";
-                        setTempLink(currentUrl);
-                    }
-                }}
-                shouldShow={({ editor }) => editor.isActive('link')}
-            >
-                <div className="flex items-center bg-white shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-slate-200 rounded-2xl p-1.5 gap-1.5 min-w-[280px]">
-                    <div className="flex-1 flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-xl border border-slate-100">
-                        <LinkIcon size={12} className="text-slate-300" />
-                        <input 
-                            type="text" 
-                            className="bg-transparent text-[10px] font-bold text-slate-800 outline-none w-full placeholder:text-slate-300"
-                            placeholder="https://..."
-                            value={tempLink}
-                            onChange={(e) => setTempLink(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSetLink();
-                                if (e.key === 'Escape') editor.chain().focus().run();
-                            }}
-                        />
-                    </div>
-                    <button 
-                        onClick={handleSetLink}
-                        className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
-                        title="Guardar Enlace"
-                    >
-                        <Check size={14} />
-                    </button>
-                    <div className="w-[1px] h-4 bg-slate-100 mx-0.5" />
-                    <button 
-                        onClick={handleUnsetLink}
-                        className="p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all active:scale-90"
-                        title="Eliminar Enlace"
-                    >
-                        <Trash2 size={14} />
-                    </button>
-                    <a 
-                        href={tempLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="p-2 text-slate-300 hover:bg-slate-50 hover:text-slate-600 rounded-xl transition-all active:scale-90"
-                        title="Abrir en pestaña nueva"
-                    >
-                        <ExternalLink size={14} />
-                    </a>
-                </div>
-            </BubbleMenu>
+            {/* Link Popover */}
+            {editor && <LinkPopover editor={editor} />}
 
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {viewMode === 'visual' ? (

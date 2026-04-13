@@ -135,7 +135,9 @@ export const LoadingSpinner = () => (
 
 export const MetadataField = ({ label, value }: { label: string, value: string }) => {
     const copy = () => {
-        navigator.clipboard.writeText(value);
+        if (document.hasFocus()) {
+            navigator.clipboard.writeText(value);
+        }
     };
     return (
         <div style={styles.metadataRow as any}>

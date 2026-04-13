@@ -118,16 +118,19 @@ export async function GET(req: Request) {
         if (tokens.access_token) tokenUpdates.access_token = tokens.access_token;
         if (tokens.refresh_token) tokenUpdates.refresh_token = tokens.refresh_token;
         if (tokens.expiry_date) tokenUpdates.expires_at = new Date(tokens.expiry_date).toISOString();
+        if (tokens.scope) {
+            tokenUpdates.scopes = tokens.scope.split(' ');
+        }
 
         // Upsert based on (user_id, email)
         const { data: savedToken, error: tokenError } = await supabase
-            .from('user_gsc_tokens')
+            .from('user_google_connections')
             .upsert(tokenUpdates, { onConflict: 'user_id, email' })
             .select()
             .single();
 
         if (tokenError) {
-            console.error('Error updating user_gsc_tokens:', tokenError);
+            console.error('Error updating user_google_connections:', tokenError);
             return NextResponse.redirect(new URL(`/settings?error=token_save_failed`, req.url));
         }
 

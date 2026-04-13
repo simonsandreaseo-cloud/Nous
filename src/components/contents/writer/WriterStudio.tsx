@@ -3,10 +3,29 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react';
 
 import { useWriterStore } from '@/store/useWriterStore';
+import { useProjectStore } from '@/store/useProjectStore';
+import { useShallow } from 'zustand/react/shallow';
 import WriterEditor from '@/components/contents/writer/WriterEditor';
 import WriterDashboard from '@/components/contents/writer/WriterDashboard';
 import WriterSetupBoard from '@/components/contents/writer/WriterSetupBoard';
-import { LayoutTemplate, ChevronLeft, LayoutDashboard, Settings2, PenTool, Send } from 'lucide-react';
+import { 
+    LayoutTemplate, 
+    ChevronLeft, 
+    LayoutDashboard, 
+    Settings2, 
+    PenTool, 
+    Send, 
+    ImagePlus, 
+    Wrench, 
+    Image as ImageIcon, 
+    Sparkles, 
+    Trash2, 
+    Download, 
+    RefreshCcw,
+    Maximize2
+} from 'lucide-react';
+import ImageLightbox from './modals/ImageLightbox';
+
 import { Button } from '@/components/dom/Button';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,11 +34,145 @@ import SEODataTab from './SEODataTab';
 import OutlineSidebar from './OutlineSidebar';
 import OutlineEditorPanel from './OutlineEditorPanel';
 import CompetitorPanel from './CompetitorPanel';
+import { MediaTab } from './MediaTab';
+import { ToolsTab } from './ToolsTab';
+import TranslationSidebarPanel from './TranslationSidebarPanel';
 import PresenceAvatars from './PresenceAvatars';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import NousOrb from '@/components/dashboard/NousOrb';
 import { useWriterActions } from './useWriterActions';
+import { deleteImageAction, uploadGeneratedImage } from '@/lib/actions/imageActions';
+import { saveAs } from 'file-saver';
+import { PollinationsService } from '@/lib/services/pollinationsService';
+
+// --- NEW COMPONENT: FEATURED IMAGE SLOT ---
+export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | null, onFullscreen?: (img: any) => void }) => {
+    const { taskImages, loadTaskImages, keyword, strategyH1 } = useWriterStore();
+    const featured = taskImages.find((img: any) => img.type === 'featured');
+    const [isRegenerating, setIsRegenerating] = useState(false);
+
+    // Hide component completely if no featured image exists OR it doesn't have a URL yet
+    if (!taskId || !featured || !featured.url) return null;
+
+
+    const handleDownload = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!featured) return;
+        saveAs(featured.url, `${featured.title || 'portada'}.jpg`);
+    };
+
+    const handleDelete = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!featured) return;
+        if (window.confirm("¿Eliminar portada permanentemente?")) {
+            await deleteImageAction(featured.id, featured.storage_path);
+            await loadTaskImages(taskId);
+        }
+    };
+
+    const handleRegenerate = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!featured || isRegenerating) return;
+        setIsRegenerating(true);
+        try {
+            const prompt = featured.prompt || strategyH1 || keyword || "Imagen de portada profesional";
+            const newUrl = PollinationsService.generateImageUrl(prompt, {
+                model: 'grok-imagine-pro',
+                width: 1280,
+                height: 720,
+                seed: Math.floor(Math.random() * 1000000)
+            });
+            
+            const res = await uploadGeneratedImage({
+                url: newUrl,
+                taskId: taskId,
+                imageId: featured.id,
+                prompt: prompt,
+                altText: featured.alt_text || "Portada",
+                title: featured.title || "Portada",
+                type: 'featured'
+            });
+
+            if (res.success) {
+                await loadTaskImages(taskId);
+            }
+        } catch (err) {
+            console.error("Failed to regenerate portada", err);
+        } finally {
+            setIsRegenerating(false);
+        }
+    };
+
+    return (
+        <div className="mb-8 group/featured relative animate-in fade-in slide-in-from-top-4 duration-700">
+            <div className={cn(
+                "relative w-full aspect-[21/9] overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/50 shadow-2xl transition-all duration-500",
+                "border-solid border-slate-100 shadow-indigo-500/5"
+            )}>
+                {/* FLOATING LABEL */}
+                <div className="absolute top-6 left-6 z-20 px-4 py-1.5 bg-black/80 backdrop-blur-md text-white border border-white/20 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl">
+                    Portada Magistral
+                </div>
+
+                <img 
+                    src={featured.url} 
+                    alt={featured.alt_text} 
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover/featured:scale-105"
+                />
+                
+                {/* PREMIUM OVERLAY ACTIONS */}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/featured:opacity-100 transition-all duration-300 flex items-center justify-center gap-4 backdrop-blur-[2px] z-10">
+                    <button 
+                        onClick={handleRegenerate}
+                        disabled={isRegenerating}
+                        className={cn(
+                            "p-4 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-500 transition-all shadow-xl scale-90 group-hover/featured:scale-100",
+                            isRegenerating && "animate-spin"
+                        )}
+                        title="Regenerar Portada"
+                    >
+                        <RefreshCcw size={20} />
+                    </button>
+                    {onFullscreen && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onFullscreen(featured); }}
+                            className="p-4 rounded-2xl bg-white text-slate-900 hover:bg-indigo-50 transition-all shadow-xl scale-90 group-hover/featured:scale-100"
+                            title="Ver Pantalla Completa"
+                        >
+                            <Maximize2 size={20} />
+                        </button>
+                    )}
+                    <button 
+                        onClick={handleDownload}
+                        className="p-4 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all shadow-xl scale-90 group-hover/featured:scale-100"
+                        title="Descargar Portada"
+                    >
+                        <Download size={20} />
+                    </button>
+                    <button 
+                        onClick={handleDelete}
+                        className="p-4 rounded-2xl bg-rose-600/20 text-rose-400 hover:bg-rose-600 hover:text-white transition-all shadow-xl scale-90 group-hover/featured:scale-100"
+                        title="Eliminar Permanente"
+                    >
+                        <Trash2 size={20} />
+                    </button>
+                </div>
+
+                {/* PROMPT INFO PILL (BOTTOM) */}
+                <div className="absolute bottom-6 left-6 right-6 z-10 pointer-events-none opacity-0 group-hover/featured:opacity-100 transition-opacity">
+                    <div className="bg-black/40 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 max-w-2xl">
+                        <p className="text-[10px] text-white/50 font-black uppercase tracking-widest mb-1">Prompt de Generación</p>
+                        <p className="text-[12px] text-white/90 font-medium line-clamp-1 italic">{featured.prompt}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const EMPTY_ARRAY: any[] = [];
 
 export default function WriterStudio() {
     const {
@@ -28,8 +181,52 @@ export default function WriterStudio() {
         editorTab, setEditorTab, content, activeUsers, setActiveUsers,
         strategyOutline, strategyTitle, strategySlug, strategyDesc, strategyExcerpt, strategyLinks,
         strategyNotes, setIsRemoteUpdate, setStatus, setSaving, isGenerating,
-        isAnalyzingSEO, isPlanningStructure, isHumanizing, isRefining
-    } = useWriterStore();
+        isAnalyzingSEO, isPlanningStructure, isHumanizing, isRefining, nousExtractorFindings,
+        wordCountReal, activeSidebarTab, setSidebarTab,
+        currentLanguage, contentVersions, switchLanguage,
+        projectId, csvData, loadProjectInventory
+    } = useWriterStore(useShallow(state => ({
+        isSidebarOpen: state.isSidebarOpen,
+        toggleSidebar: state.toggleSidebar,
+        isSaving: state.isSaving,
+        lastSaved: state.lastSaved,
+        keyword: state.keyword,
+        strategyH1: state.strategyH1,
+        draftId: state.draftId,
+        viewMode: state.viewMode,
+        setViewMode: state.setViewMode,
+        rawSeoData: state.rawSeoData,
+        editorTab: state.editorTab,
+        setEditorTab: state.setEditorTab,
+        content: state.content,
+        activeUsers: state.activeUsers,
+        setActiveUsers: state.setActiveUsers,
+        strategyOutline: state.strategyOutline,
+        strategyTitle: state.strategyTitle,
+        strategySlug: state.strategySlug,
+        strategyDesc: state.strategyDesc,
+        strategyExcerpt: state.strategyExcerpt,
+        strategyLinks: state.strategyLinks,
+        strategyNotes: state.strategyNotes,
+        setIsRemoteUpdate: state.setIsRemoteUpdate,
+        setStatus: state.setStatus,
+        setSaving: state.setSaving,
+        isGenerating: state.isGenerating,
+        isAnalyzingSEO: state.isAnalyzingSEO,
+        isPlanningStructure: state.isPlanningStructure,
+        isHumanizing: state.isHumanizing,
+        isRefining: state.isRefining,
+        nousExtractorFindings: state.nousExtractorFindings,
+        wordCountReal: state.wordCountReal,
+        activeSidebarTab: state.activeSidebarTab,
+        setSidebarTab: state.setSidebarTab,
+        currentLanguage: state.currentLanguage,
+        contentVersions: state.contentVersions,
+        switchLanguage: state.switchLanguage,
+        projectId: state.projectId,
+        csvData: state.csvData,
+        loadProjectInventory: state.loadProjectInventory
+    })));
     
     const { 
         handleSEO, 
@@ -37,6 +234,10 @@ export default function WriterStudio() {
         handleHumanize, 
         handleRefine 
     } = useWriterActions();
+    
+    const targetLanguages = useProjectStore(state => 
+        state.activeProject?.settings?.content_preferences?.default_translator_languages || EMPTY_ARRAY
+    );
 
     const isProcessingAny = isGenerating || isAnalyzingSEO || isPlanningStructure || isHumanizing || isRefining;
 
@@ -147,45 +348,56 @@ export default function WriterStudio() {
     }, [draftId, setIsRemoteUpdate, setStatus]);
 
     // --- AUTO-SAVE IMPLEMENTATION ---
+    const { updateTask } = useProjectStore();
+
     useEffect(() => {
         if (!draftId || isGenerating || !hasAccess) return;
 
-        // Immediately set saving state when content changes to show UI feedback
-        // even before the 3s debounce starts in the DB update.
-        // Actually, store.setContent no longer sets isSaving, so we do it here.
-        
-        const currentState = {
-            content_body: useWriterStore.getState().content,
-            h1: useWriterStore.getState().strategyH1,
-            seo_title: useWriterStore.getState().strategyTitle,
-            target_url_slug: useWriterStore.getState().strategySlug,
-            meta_description: useWriterStore.getState().strategyDesc,
-            excerpt: useWriterStore.getState().strategyExcerpt,
-            research_dossier: {
-                ...useWriterStore.getState().rawSeoData,
-                briefing: useWriterStore.getState().strategyNotes,
-                suggested_links: useWriterStore.getState().strategyLinks
-            },
-            outline_structure: { headers: useWriterStore.getState().strategyOutline },
-        };
-
-        // Set UI to saving mode immediately
-        setSaving(true);
+        // Set UI to saving mode immediately if not already saving
+        if (!isSaving) setSaving(true);
 
         const timer = setTimeout(async () => {
-            try {
-                const { error } = await supabase
-                    .from('tasks')
-                    .update(currentState)
-                    .eq('id', draftId);
+            const latestState = useWriterStore.getState() as any;
+            
+            // GUARD: Check if the ID has changed or component is no longer focused on this draft
+            if (latestState.draftId !== draftId) {
+                console.log('[AutoSave] Blocked: Draft changed from', draftId, 'to', latestState.draftId);
+                return;
+            }
 
-                if (error) throw error;
+            const payload = {
+                content_body: latestState.content,
+                word_count_real: latestState.wordCountReal,
+                h1: latestState.strategyH1,
+                seo_title: latestState.strategyTitle,
+                target_url_slug: latestState.strategySlug,
+                meta_description: latestState.strategyDesc,
+                excerpt: latestState.strategyExcerpt,
+                research_dossier: {
+                    ...latestState.rawSeoData,
+                    briefing: latestState.strategyNotes,
+                    suggested_links: latestState.strategyLinks,
+                    nous_extractor_findings: latestState.nousExtractorFindings
+                },
+                outline_structure: { headers: latestState.strategyOutline },
+            };
+
+            // PROTECTION: Never auto-save if content is empty but it's a known non-empty draft
+            if (!payload.content_body && draftId) {
+                console.warn('[AutoSave] Blocked: Content is empty, skipping to prevent accidental data loss.');
+                setSaving(false);
+                return;
+            }
+
+            try {
+                // Using updateTask from projectStore to sync local state and DB atomically
+                await updateTask(draftId, payload);
             } catch (e: any) {
                 console.error('[AutoSave] Error full:', e);
                 const errorMsg = e.message || 'Error desconocido';
                 setStatus('❌ Error al guardar: ' + errorMsg);
             } finally {
-                setSaving(false);
+                if (isSaving) setSaving(false);
             }
         }, 3000); // 3 second debounce
 
@@ -194,11 +406,11 @@ export default function WriterStudio() {
         };
     }, [
         draftId, content, strategyH1, strategyTitle, strategySlug, strategyDesc, 
-        strategyOutline, rawSeoData, strategyLinks, strategyNotes, isGenerating, setSaving, setStatus, hasAccess
+        strategyOutline, rawSeoData, strategyLinks, strategyNotes, nousExtractorFindings,
+        isGenerating, setSaving, setStatus, hasAccess, wordCountReal, updateTask
     ]);
 
     // --- Data Bootstrapping (Inventory/Links) ---
-    const { projectId, csvData, loadProjectInventory } = useWriterStore();
     useEffect(() => {
         if (projectId && (!csvData || csvData.length === 0)) {
             loadProjectInventory(projectId);
@@ -208,7 +420,7 @@ export default function WriterStudio() {
     // ── DASHBOARD VIEW ──────────────────────────────────────
 
     const [splitWidth, setSplitWidth] = useState(50);
-    const [activeRightTab, setActiveRightTab] = useState<'outline' | 'competitors' | 'seo'>('outline');
+    // Removed local activeRightTab state to use global activeSidebarTab from store
     const containerRef = useRef<HTMLDivElement>(null);
 
     const handleDrag = (event: any, info: any) => {
@@ -240,8 +452,9 @@ export default function WriterStudio() {
                 <div className={cn("h-full overflow-y-auto custom-scrollbar flex-1", isSidebarOpen ? "transition-none" : "transition-all duration-500 ease-[0.23,1,0.32,1]")}
                     style={{ width: isSidebarOpen ? `${splitWidth}%` : '100%' }}>
                     <div className={cn("mx-auto min-h-full transition-all duration-500 px-4 sm:px-8", isSidebarOpen ? "w-full" : "max-w-4xl")}>
-                        <WriterEditor />
+                        <WriterEditor key={draftId || 'workspace'} />
                     </div>
+
                 </div>
 
                 {/* Drag Handle */}
@@ -270,42 +483,72 @@ export default function WriterStudio() {
                             className="h-full bg-slate-50 flex flex-col overflow-hidden border-l border-slate-200/50 shadow-[inset_10px_0_20px_rgba(0,0,0,0.02)]"
                         >
                             <div className="px-6 py-4 border-b border-slate-200/50 bg-white/80 backdrop-blur-md sticky top-0 z-30">
-                                <div className="flex items-center gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-200/40 w-fit">
+                                <div className="flex items-center gap-2 p-1.5 bg-slate-100/50 rounded-2xl border border-slate-200/40 w-full overflow-x-auto custom-scrollbar-horizontal">
                                     <button 
-                                        onClick={() => setActiveRightTab('outline')}
+                                        onClick={() => setSidebarTab('research')}
                                         className={cn(
-                                            "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                            activeRightTab === 'outline' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
+                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                            activeSidebarTab === 'research' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
                                         )}
                                     >
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeRightTab === 'outline' ? "bg-indigo-500 animate-pulse" : "bg-slate-300")} />
-                                        Outline
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'research' ? "bg-indigo-500 animate-pulse" : "bg-slate-300")} />
+                                        OUTLINE
                                     </button>
                                     <button 
-                                        onClick={() => setActiveRightTab('competitors')}
+                                        onClick={() => setSidebarTab('history')}
                                         className={cn(
-                                            "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                            activeRightTab === 'competitors' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
+                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                            activeSidebarTab === 'history' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
                                         )}
                                     >
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeRightTab === 'competitors' ? "bg-slate-400" : "bg-slate-300")} />
-                                        Competidores
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'history' ? "bg-slate-400" : "bg-slate-300")} />
+                                        COMPETIDORES
                                     </button>
                                     <button 
-                                        onClick={() => setActiveRightTab('seo')}
+                                        onClick={() => setSidebarTab('seo')}
                                         className={cn(
-                                            "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                            activeRightTab === 'seo' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
+                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                            activeSidebarTab === 'seo' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
                                         )}
                                     >
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeRightTab === 'seo' ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-                                        Datos SEO
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'seo' ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+                                        DATOS SEO
+                                    </button>
+                                    <button 
+                                        onClick={() => setSidebarTab('media')}
+                                        className={cn(
+                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                            activeSidebarTab === 'media' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
+                                        )}
+                                    >
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'media' ? "bg-purple-500 animate-pulse" : "bg-slate-300")} />
+                                        IMÁGENES
+                                    </button>
+                                    <button 
+                                        onClick={() => setSidebarTab('tools')}
+                                        className={cn(
+                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                            activeSidebarTab === 'tools' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
+                                        )}
+                                    >
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'tools' ? "bg-amber-500 animate-pulse" : "bg-slate-300")} />
+                                        HERRAMIENTAS
+                                    </button>
+                                    <button 
+                                        onClick={() => setSidebarTab('translate')}
+                                        className={cn(
+                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                                            activeSidebarTab === 'translate' ? "bg-white text-emerald-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
+                                        )}
+                                    >
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'translate' ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+                                        TRADUCIR
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50">
-                                {activeRightTab === 'outline' ? (
+                            <div className="flex-1 flex flex-col min-h-0 bg-slate-50/50">
+                                {activeSidebarTab === 'research' ? (
                                     <OutlineEditorPanel 
                                         isSidebar 
                                         editorText={content} 
@@ -319,10 +562,16 @@ export default function WriterStudio() {
                                             ]).run();
                                         }}
                                     />
-                                ) : activeRightTab === 'competitors' ? (
-                                    <CompetitorPanel />
-                                ) : (
+                                ) : activeSidebarTab === 'seo' ? (
                                     <SEODataTab seoData={rawSeoData} currentContent={content} />
+                                ) : activeSidebarTab === 'media' ? (
+                                    <MediaTab />
+                                ) : activeSidebarTab === 'tools' ? (
+                                    <ToolsTab />
+                                ) : activeSidebarTab === 'translate' ? (
+                                    <TranslationSidebarPanel />
+                                ) : (
+                                    <CompetitorPanel />
                                 )}
                             </div>
                         </motion.div>
@@ -352,9 +601,38 @@ export default function WriterStudio() {
                         </Button>
                         <div className="hidden md:block w-[1px] h-5 bg-slate-200/50" />
                         <div className="flex flex-col min-w-0">
-                            <h1 className="text-[12px] md:text-[14px] font-black text-slate-900 tracking-tight truncate max-w-[200px] md:max-w-[400px] leading-tight">
-                                {strategyH1 || keyword || ""}
-                            </h1>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-[12px] md:text-[14px] font-black text-slate-900 tracking-tight truncate max-w-[200px] md:max-w-[400px] leading-tight">
+                                    {strategyH1 || keyword || ""}
+                                </h1>
+                                
+                                {/* Language Version Selector */}
+                                <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-xl border border-slate-100/50 ml-2">
+                                    {targetLanguages.map((langCode: string) => {
+                                        const isGenerated = !!contentVersions[langCode];
+                                        const isActive = currentLanguage === langCode;
+                                        
+                                        return (
+                                            <button
+                                                key={langCode}
+                                                onClick={() => isGenerated && switchLanguage(langCode)}
+                                                disabled={!isGenerated && !isActive}
+                                                className={cn(
+                                                    "w-7 h-7 rounded-lg text-[9px] font-black uppercase flex items-center justify-center transition-all",
+                                                    isActive 
+                                                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" 
+                                                        : isGenerated 
+                                                            ? "bg-white text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-100" 
+                                                            : "bg-slate-100 text-slate-300 cursor-not-allowed opacity-50"
+                                                )}
+                                                title={isActive ? "Versión actual" : isGenerated ? `Cambiar a ${langCode.toUpperCase()}` : `Versión ${langCode.toUpperCase()} no generada`}
+                                            >
+                                                {langCode}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         </div>
                     </div>
 

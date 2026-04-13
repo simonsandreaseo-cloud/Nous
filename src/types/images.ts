@@ -44,6 +44,8 @@ export interface GeneratedImage {
   paragraphIndex?: number;
   altText: string;
   title: string;
+  width?: number; // Target physical width
+  height?: number; // Target physical height
   storage_path?: string;
 }
 

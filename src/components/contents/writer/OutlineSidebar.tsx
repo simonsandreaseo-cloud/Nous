@@ -13,7 +13,8 @@ export default function OutlineSidebar() {
         strategyOutline, strategyWordCount, setStrategyOutline,
         setStrategyWordCount, keyword, rawSeoData, isPlanningStructure
     } = useWriterStore();
-    const { handlePlanStructure } = useWriterActions();
+    const { handleRegenerateOutline } = useWriterActions();
+
     const [expandedNotes, setExpandedNotes] = useState<number[]>([]);
     const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
     const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -98,9 +99,10 @@ export default function OutlineSidebar() {
 
                     <button
                         disabled={isPlanningStructure || !rawSeoData}
-                        onClick={handlePlanStructure}
+                        onClick={handleRegenerateOutline}
                         className="group relative w-full h-11 bg-indigo-600 hover:bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none overflow-hidden shadow-lg shadow-indigo-200 hover:shadow-black/20 active:scale-95"
                     >
+
                         <div className="absolute inset-0 flex items-center justify-center gap-2 group-hover:-translate-y-full transition-transform duration-500">
                             {isPlanningStructure ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} className="animate-pulse" />}
                             {isPlanningStructure ? 'Diseñando Outline...' : 'Generar Outline con Nous'}
@@ -137,10 +139,11 @@ export default function OutlineSidebar() {
                 </div>
                 <button
                     disabled={isPlanningStructure || !rawSeoData}
-                    onClick={handlePlanStructure}
+                    onClick={handleRegenerateOutline}
                     title="Regenerar outline con IA"
                     className="group relative px-4 py-2 bg-slate-900 hover:bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg transition-all duration-300 disabled:opacity-40 overflow-hidden shadow-sm active:scale-95 flex items-center gap-2"
                 >
+
                     {isPlanningStructure ? (
                         <RefreshCw size={11} className="animate-spin" />
                     ) : (

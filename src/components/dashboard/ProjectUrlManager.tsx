@@ -26,7 +26,7 @@ interface ProjectUrl {
     top_query: string;
     clicks_30d: number;
     impressions_30d: number;
-    ctr_30d: number;
+    sessions?: number;
     position_30d: number;
     strategic_score: number;
     status: string;
@@ -42,6 +42,9 @@ export default function ProjectUrlManager() {
     const [creatingTaskId, setCreatingTaskId] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'high_potential' | 'striking_distance'>('all');
+    const [page, setPage] = useState(0);
+    const [pageSize] = useState(50);
+    const [totalCount, setTotalCount] = useState(0);
 
     const { addTask, tasks } = useProjectStore();
 
@@ -49,13 +52,33 @@ export default function ProjectUrlManager() {
         if (!activeProject) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('project_urls')
-                .select('*')
-                .eq('project_id', activeProject.id)
-                .order('strategic_score', { ascending: false });
+            let query = supabase
+                .from('view_project_urls_enriched')
+                .select('*', { count: 'exact' })
+                .eq('project_id', activeProject.id);
+
+            // 1. Server-side Filtering
+            if (search) {
+                query = query.or(`url.ilike.%${search}%,top_query.ilike.%${search}%`);
+            }
+
+            if (filter === 'high_potential') {
+                query = query.gte('strategic_score', 80);
+            } else if (filter === 'striking_distance') {
+                query = query.gt('position_30d', 3).lte('position_30d', 15);
+            }
+
+            // 2. Pagination
+            const from = page * pageSize;
+            const to = from + pageSize - 1;
+
+            const { data, error, count } = await query
+                .order('strategic_score', { ascending: false })
+                .range(from, to);
 
             if (error) throw error;
+
+            setTotalCount(count || 0);
 
             // Mark which URLs already have a task
             const existingUrls = new Set(tasks.map(t => t.url));
@@ -106,8 +129,13 @@ export default function ProjectUrlManager() {
     };
 
     useEffect(() => {
+        // Reset page when filter or search changes
+        setPage(0);
+    }, [filter, search]);
+
+    useEffect(() => {
         fetchUrls();
-    }, [activeProject]);
+    }, [activeProject, page, filter, search]);
 
     const handleRunAudit = async () => {
         if (!activeProject || isAuditing) return;
@@ -123,14 +151,8 @@ export default function ProjectUrlManager() {
         }
     };
 
-    const filteredUrls = urls.filter(u => {
-        const matchesSearch = u.url.toLowerCase().includes(search.toLowerCase()) ||
-            u.top_query?.toLowerCase().includes(search.toLowerCase());
-
-        if (filter === 'high_potential') return matchesSearch && u.strategic_score >= 80;
-        if (filter === 'striking_distance') return matchesSearch && u.position_30d > 3 && u.position_30d <= 15;
-        return matchesSearch;
-    });
+    // Data is now filtered at the database level
+    const filteredUrls = urls;
 
     return (
         <div className="flex flex-col gap-8">
@@ -197,9 +219,9 @@ export default function ProjectUrlManager() {
                 <table className="w-full text-left">
                     <thead>
                         <tr className="border-b border-slate-50 bg-slate-50/50">
-                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">URL / Top Query</th>
-                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Métricas (30d)</th>
-                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Score Estratégico</th>
+                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">GSC (30d)</th>
+                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">GA4 Sessions</th>
+                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Score</th>
                             <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
                             <th className="px-8 py-6"></th>
                         </tr>
@@ -255,8 +277,16 @@ export default function ProjectUrlManager() {
                                             </div>
                                             <div className="text-center">
                                                 <span className="block text-[9px] font-black text-slate-300 uppercase mb-1">CTR</span>
-                                                <span className="text-xs font-bold text-slate-700">{url.ctr_30d.toFixed(1)}%</span>
+                                                <span className="text-xs font-bold text-slate-700">
+                                                    {url.impressions_30d > 0 ? ((url.clicks_30d / url.impressions_30d) * 100).toFixed(1) : '0.0'}%
+                                                </span>
                                             </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-6">
+                                        <div className="text-center">
+                                            <span className="text-xs font-bold text-indigo-600">{(url.sessions || 0).toLocaleString()}</span>
+                                            <span className="block text-[8px] font-black text-slate-300 uppercase">Sesiones</span>
                                         </div>
                                     </td>
                                     <td className="px-8 py-6">
@@ -318,6 +348,31 @@ export default function ProjectUrlManager() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination Controls */}
+            {!loading && totalCount > pageSize && (
+                <div className="flex items-center justify-between px-8 py-6 bg-white border border-slate-100 rounded-[30px] shadow-sm">
+                    <div className="text-[10px] font-black uppercase text-slate-400">
+                        Mostrando {page * pageSize + 1} - {Math.min((page + 1) * pageSize, totalCount)} de {totalCount} URLs
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            disabled={page === 0}
+                            className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-slate-100 transition-colors"
+                        >
+                            Anterior
+                        </button>
+                        <button
+                            onClick={() => setPage(p => p + 1)}
+                            disabled={(page + 1) * pageSize >= totalCount}
+                            className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 hover:bg-slate-800 transition-colors"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

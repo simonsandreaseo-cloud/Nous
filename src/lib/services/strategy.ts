@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import { getGeminiKey } from '@/lib/ai/config';
-import { runDeepSEOAnalysis as runRealDeepAnalysis, type DeepSEOConfig } from '@/lib/services/writer/seo-analyzer';
+import { ResearchOrchestrator } from '@/lib/services/writer/research';
+import { type DeepSEOConfig } from '@/lib/services/writer/types';
+
 import { useProjectStore } from '@/store/useProjectStore';
 import { useWriterStore } from '@/store/useWriterStore';
 import type { DeepSEOAnalysisResult } from '@/lib/services/writer/types';
@@ -119,18 +121,16 @@ Keyword: ${keyword || 'N/A'}`;
             const serperKey = process.env.NEXT_PUBLIC_SERPER_API_KEY || "";
             const jinaKey = process.env.NEXT_PUBLIC_JINA_API_KEY || "";
 
-            return await runRealDeepAnalysis({
+            return await ResearchOrchestrator.runDeepAnalysis({
                 keyword: keyword || config.keyword,
-                serperKey,
-                jinaKey,
                 projectId,
-                csvData: inventory || [],
                 taskId,
                 onProgress,
                 onLog,
-                modelName: modelName || 'gemini-3.1-flash-lite-preview',
-                isFastMode
+                isFastMode,
+                forceRestart: config.forceRestart
             });
+
         } catch (e) {
             console.error("Deep SEO Analysis Error:", e);
             // Fallback object safely as "Idea"

@@ -58,4 +58,29 @@ bin/
 *.deb
 *.rpm
 *.zip
-*.tar.gz
+# -----------------------------------------------
+# GENTLE AI & TEMPORARY FILES
+# -----------------------------------------------
+conversación con antigravity.txt
+artifacts/
+scratch/
+tmp/
+nous-local-image-node/
+*.log
+*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+# Exclude root images/txt but allow them in public folder
+!public/**/*
+!src/assets/**/*
+
+# Project Specific
+agent-teams-lite-main/
+.env.local
+.env
+supabase/backups_data/
+supabase/.temp/

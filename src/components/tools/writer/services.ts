@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI as GoogleGenAI, SchemaType as Type } from "@google/generative-ai";
+import { GoogleGenerativeAI as GoogleGenAI, Type } from "@google/genai";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 
@@ -16,17 +16,15 @@ import {
     AIImageRequest
 } from "@/lib/services/writer/types";
 
-import { runDeepSEOAnalysis as libRunDeepSEOAnalysis, type DeepSEOConfig } from "@/lib/services/writer/seo-analyzer";
-import { buildPrompt as libBuildPrompt } from "@/lib/services/writer/prompts";
-import { processHtmlLinks, autoInterlinkAsync as libAutoInterlinkAsync, cleanAndFormatHtml as libCleanAndFormatHtml } from "@/lib/services/writer/html-processor";
+import { ResearchOrchestrator as libResearchOrchestrator } from "@/lib/services/writer/research";
+import { type DeepSEOConfig } from "@/lib/services/writer/types";
 
 export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
-    return libRunDeepSEOAnalysis({
-        ...config,
-        serperKey: config.serperKey || process.env.NEXT_PUBLIC_SERPER_API_KEY || "",
-        jinaKey: config.jinaKey || process.env.NEXT_PUBLIC_JINA_API_KEY || "",
-    });
+    return libResearchOrchestrator.runDeepAnalysis(config);
 };
+
+import { buildPrompt as libBuildPrompt } from "@/lib/services/writer/prompts";
+
 export const buildPrompt = libBuildPrompt;
 
 export { type ArticleConfig, type SEOAnalysisResult, type DeepSEOAnalysisResult, type CompetitorDetail, type ContentItem, type HumanizerConfig, type VisualResource, type ImageGenConfig, type AIImageRequest };
@@ -48,113 +46,33 @@ export const executeWithKeyRotation = async <T>(
     }, modelName, keys, onRotation, isStrictModel, label);
 };
 
-// --- Data Parsing Helpers ---
+import { 
+    autoInterlinkAsync as libAutoInterlinkAsync,
+    processHtmlLinks as libProcessHtmlLinks,
+    cleanAndFormatHtml as libCleanAndFormatHtml,
+    refineStyling as libRefineStyling
+} from "@/lib/services/writer/html-processor";
 
-const categorizeUrl = (url: string): string => {
-    if (!url) return 'other';
-    const l = url.toLowerCase();
-    if (l.includes('/products/') || l.includes('/producto/') || l.includes('/p/') || l.includes('/item/')) return 'product';
-    if (l.includes('/collections/') || l.includes('/coleccion/') || l.includes('/category/') || l.includes('/c/')) return 'collection';
-    if (l.includes('/blogs/') || l.includes('/blog/') || l.includes('/news/') || l.includes('/noticias/') || l.includes('/journal/')) return 'blog';
-    if (l.includes('/pages/') || l.includes('nosotros') || l.includes('contacto') || l.includes('about')) return 'static';
-    return 'other';
-};
+import {
+    categorizeUrl as libCategorizeUrl,
+    extractDomain as libExtractDomain,
+    extractTitleFromUrl as libExtractTitleFromUrl,
+    parseCSV as libParseCSV,
+    parseDocx as libParseDocx,
+    parseHtml as libParseHtml
+} from "@/lib/services/writer/data-parsers";
 
-const extractDomain = (url: string): string => {
-    try {
-        const hostname = new URL(url).hostname;
-        return hostname.replace(/^www\./, '');
-    } catch (e) {
-        return "";
-    }
-};
-
-const extractTitleFromUrl = (url: string): string => {
-    try {
-        const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-        const lastSegment = cleanUrl.split('/').pop() || "";
-        let title = lastSegment.split('?')[0].replace(/\.html$/, '').replace(/\.php$/, '');
-        title = title.replace(/-/g, ' ').replace(/_/g, ' ');
-        return title.replace(/\b\w/g, l => l.toUpperCase());
-    } catch (e) {
-        return "Enlace";
-    }
-};
-
-export const parseCSV = (text: string) => {
-    const lines = text.split(/\r\n|\n/).filter(l => l.trim());
-    if (lines.length === 0) return { headers: [], data: [] };
-
-    const firstLine = lines[0];
-    const commaCount = (firstLine.match(/,/g) || []).length;
-    const semiCount = (firstLine.match(/;/g) || []).length;
-    const delimiter = semiCount > commaCount ? ';' : ',';
-
-    const parseLine = (line: string) => {
-        const result = [];
-        let startValueIndex = 0;
-        let inQuotes = false;
-
-        for (let i = 0; i < line.length; i++) {
-            if (line[i] === '"') {
-                inQuotes = !inQuotes;
-            } else if (line[i] === delimiter && !inQuotes) {
-                let val = line.substring(startValueIndex, i).trim();
-                if (val.startsWith('"') && val.endsWith('"')) {
-                    val = val.slice(1, -1).replace(/""/g, '"');
-                }
-                result.push(val);
-                startValueIndex = i + 1;
-            }
-        }
-        let lastVal = line.substring(startValueIndex).trim();
-        if (lastVal.startsWith('"') && lastVal.endsWith('"')) {
-            lastVal = lastVal.slice(1, -1).replace(/""/g, '"');
-        }
-        result.push(lastVal);
-        return result;
-    };
-
-    const data: ContentItem[] = [];
-    const seenUrls = new Set<string>();
-
-    for (let i = 1; i < lines.length; i++) {
-        const row = parseLine(lines[i]);
-        row.forEach(cell => {
-            if (!cell || cell.length < 4) return; // Relaxed length check
-            const cellContent = cell.trim();
-            const isUrl = cellContent.includes('/') && (
-                cellContent.startsWith('http') ||
-                cellContent.startsWith('www') ||
-                cellContent.startsWith('/')
-            );
-
-            if (isUrl) {
-                let cleanUrl = cellContent;
-                if (!cleanUrl.startsWith('http') && !cleanUrl.startsWith('/')) {
-                    cleanUrl = 'https://' + cleanUrl;
-                }
-                if (!seenUrls.has(cleanUrl)) {
-                    seenUrls.add(cleanUrl);
-                    const title = extractTitleFromUrl(cleanUrl);
-                    let type = categorizeUrl(cleanUrl) as any;
-                    if (type === 'other' && cleanUrl.split('/').length > 4) type = 'product';
-                    data.push({
-                        url: cleanUrl,
-                        title,
-                        type,
-                        search_index: `${title} ${type} ${cleanUrl}`.toLowerCase()
-                    });
-                }
-            }
-        });
-    }
-
-    if (data.length === 0) {
-        throw new Error("No se detectaron URLs válidas en el archivo.");
-    }
-    return { headers: [], data };
-};
+// --- Bridge Exports ---
+export const categorizeUrl = libCategorizeUrl;
+export const extractDomain = libExtractDomain;
+export const extractTitleFromUrl = libExtractTitleFromUrl;
+export const parseCSV = libParseCSV;
+export const parseDocx = libParseDocx;
+export const parseHtml = libParseHtml;
+export const autoInterlinkAsync = libAutoInterlinkAsync;
+export const processHtmlLinks = libProcessHtmlLinks;
+export const cleanAndFormatHtml = libCleanAndFormatHtml;
+export const refineStyling = libRefineStyling;
 
 const _parseJSON = (text: string) => {
     try {
@@ -187,48 +105,35 @@ const _parseHtml = async (file: File): Promise<string> => {
 
 // --- Semantic Retrieval & Linking ---
 
-const retrieveContext = (allData: ContentItem[], topic: string, keywords: string) => {
-    if (!allData || allData.length === 0) return { products: [], collections: [], others: [] };
+export const retrieveContext = async (keyword: string, projectId: string): Promise<{ products: any[], collections: any[], others: any[] }> => {
+    if (!projectId) return { products: [], collections: [], others: [] };
+    
+    const { supabase } = await import('@/lib/supabase');
+    
+    // Preparamos los términos de búsqueda (Regex)
+    const rawTerms = (keyword || '').split(/\s+/).filter(w => w && w.length > 3).map(w => w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const allTerms = Array.from(new Set(rawTerms)).slice(0, 15);
+    const searchRegex = allTerms.join('|');
 
-    const cleanText = (topic + " " + keywords).toLowerCase();
-    const terms = cleanText
-        .replace(/[^\p{L}\p{N}\s]/gu, '')
-        .split(/\s+/)
-        .filter(w => w.length >= 3);
-
-    const scoreItem = (item: ContentItem) => {
-        let score = 0;
-        const title = item.title || item.url || "";
-        const idx = (item.search_index || `${title} ${item.type || 'page'} ${item.url}`).toLowerCase();
-
-        if (idx.includes(topic.toLowerCase())) score += 50;
-
-        terms.forEach(term => {
-            if (idx.includes(term.toLowerCase())) score += 20;
-        });
-
-        if (item.url.length > 150) score -= 5;
-
-        if (item.type === 'collection') score += 5;
-        if (item.type === 'product') score += 2;
-
-        return score;
-    };
-
-    const scored = allData.map(item => ({ item, score: scoreItem(item) }));
-    scored.sort((a, b) => b.score - a.score);
-
-    const relevant = scored.filter(s => s.score > 10);
-    const resultPool = relevant.length < 5 ? scored.slice(0, 50) : relevant;
+    const { data: units, error: rpcError } = await supabase.rpc('get_semantic_inventory_matches', { 
+        p_project_id: projectId,
+        p_regex: searchRegex,
+        p_limit: 50
+    });
+    
+    if (rpcError || !units) {
+        console.error("[retrieveContext] RPC Error:", rpcError);
+        return { products: [], collections: [], others: [] };
+    }
 
     return {
-        products: resultPool.filter(x => x.item.type === 'product').slice(0, 50).map(x => x.item),
-        collections: resultPool.filter(x => x.item.type === 'collection').slice(0, 20).map(x => x.item),
-        others: resultPool.filter(x => x.item.type !== 'product' && x.item.type !== 'collection').slice(0, 20).map(x => x.item)
+        products: (units as any[]).filter((u: any) => u.category === 'product'),
+        collections: (units as any[]).filter((u: any) => u.category === 'collection'),
+        others: (units as any[]).filter((u: any) => u.category !== 'product' && u.category !== 'collection')
     };
 };
 
-export const searchMoreLinks = async (keyword: string, csvData: ContentItem[]): Promise<ContentItem[]> => {
+export const searchMoreLinks = async (keyword: string, projectId: string): Promise<ContentItem[]> => {
     const prompt = `Give me 5 search terms to find relevant products in a database for the topic "${keyword}". Return CSV.`;
 
     return executeWithKeyRotation(async (ai, currentModel) => {
@@ -238,7 +143,7 @@ export const searchMoreLinks = async (keyword: string, csvData: ContentItem[]): 
             const terms = (response.response.text() || '').split(',').map(t => t.trim());
             const extraString = terms.join(' ');
 
-            const context = retrieveContext(csvData, keyword, extraString);
+            const context = await retrieveContext(keyword + " " + extraString, projectId);
             const mix = [
                 ...context.collections.slice(0, 5), 
                 ...context.products.slice(0, 5),
@@ -247,7 +152,7 @@ export const searchMoreLinks = async (keyword: string, csvData: ContentItem[]): 
             return mix.slice(0, 10);
         } catch (e) {
             console.error("[searchMoreLinks] GEMINI ERROR, falling back to local search:", e);
-            const context = retrieveContext(csvData, keyword, "información artículo");
+            const context = await retrieveContext(keyword, projectId);
             return [
                 ...context.collections.slice(0, 3), 
                 ...context.products.slice(0, 3),
@@ -257,81 +162,6 @@ export const searchMoreLinks = async (keyword: string, csvData: ContentItem[]): 
     });
 }
 
-
-// --- Post-Generation Auto Interlinking (Optimized - Async Chunking) ---
-
-export const autoInterlinkAsync = libAutoInterlinkAsync;
-
-function escapeRegExp(string: string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// =================================================================
-// POST PROCESSING: STRICT FORMATTING & BOLDING (Programmatic)
-// =================================================================
-
-export const cleanAndFormatHtml = libCleanAndFormatHtml;
-
-// --- Strict Style Refinement (The "Phase") ---
-export const refineStyling = (html: string): string => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
-    // 1. REMOVE ALL EXISTING BOLD TAGS WITHIN PARAGRAPHS
-    // We want to apply the strict "4-8 words" rule cleanly.
-    doc.querySelectorAll('p strong, p b').forEach(el => {
-        // Replace with text content, keeping it inline
-        const text = document.createTextNode(el.textContent || '');
-        el.parentNode?.replaceChild(text, el);
-    });
-
-    // 2. APPLY STRICT BOLDING LOGIC
-    const paragraphs = doc.querySelectorAll('p');
-    paragraphs.forEach(p => {
-        // Skip blockquotes or if it already has links/bold
-        if (p.closest('blockquote')) return;
-        if (p.querySelector('a')) return;
-
-        const text = p.textContent || "";
-        const words = text.split(/\s+/);
-
-        // Only valid for paragraphs of decent length
-        if (words.length < 25) return;
-
-        // Rule: Not all paragraphs. 60% chance.
-        if (Math.random() > 0.4) {
-            // Calculate safe range to avoid start/end
-            const safeStartMin = Math.floor(words.length * 0.15);
-            const safeStartMax = Math.floor(words.length * 0.70);
-
-            if (safeStartMax > safeStartMin) {
-                const startIdx = Math.floor(Math.random() * (safeStartMax - safeStartMin)) + safeStartMin;
-                // Rule: 4 to 8 words
-                const length = Math.floor(Math.random() * 5) + 4; // 4,5,6,7,8
-
-                const pre = words.slice(0, startIdx).join(' ');
-                const target = words.slice(startIdx, startIdx + length).join(' ');
-                const post = words.slice(startIdx + length).join(' ');
-
-                // Only if target is not empty
-                if (target.trim().length > 0) {
-                    p.innerHTML = `${pre} <strong>${target}</strong> ${post}`;
-                }
-            }
-        }
-    });
-
-    // 3. STYLE & HIERARCHY CHECKS (Programmatic cleaning)
-    // Ensure h1 is h1, others follow suit.
-    // (Assuming H1 is handled by main render, check internal headers)
-
-    // Ensure no empty headers
-    doc.querySelectorAll('h2, h3, h4').forEach(h => {
-        if (!h.textContent?.trim()) h.remove();
-    });
-
-    return doc.body.innerHTML;
-}
 
 // --- Prompt Construction ---
 
@@ -344,7 +174,7 @@ export const generateArticleStream = async (model: string, prompt: string) => {
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
-            systemInstruction: "Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]). Generas HTML impecable. Nous procesará los enlaces automáticamente.",
+            systemInstruction: "Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]) ni etiquetas de imagen <img>. Generas HTML impecable. Nous procesará los enlaces e imágenes automáticamente.",
             generationConfig: {
                 temperature: 0.7,
             }
@@ -724,15 +554,17 @@ const filterQualityResults = async (results: any[], keyword: string): Promise<an
 
 export const runSEOAnalysis = async (
     keyword: string,
-    csvData: any[],
+    projectId: string,
+    projectDomain?: string,
     projectName?: string,
     serperKeyOverride?: string,
     modelName?: string,
     isIdea: boolean = false
 ): Promise<SEOAnalysisResult> => {
     const serperKey = serperKeyOverride || process.env.NEXT_PUBLIC_SERPER_API_KEY || '';
-    // 1. Context Retrieval (Internal Data)
-    const context = retrieveContext(csvData, keyword, "");
+    
+    // 1. Context Retrieval (Internal Data via RPC)
+    const context = await retrieveContext(keyword, projectId);
     const productContext = context.products.slice(0, 30).map(p => `- ${p.title} (${p.url})`).join('\n');
     const collectionContext = context.collections.slice(0, 15).map(c => `- ${c.title} (${c.url})`).join('\n');
 
@@ -788,6 +620,16 @@ export const runSEOAnalysis = async (
                     console.log(`[SEO-Analytic] Falling back to Jina AI for: "${keyword}"`);
                     realSerpData = await fetchJinaSearch(keyword);
                     source = "jina";
+                }
+            }
+
+            let cannibalizationRisk: string[] = [];
+            if (projectDomain && realSerpData && realSerpData.organic) {
+                const domainClean = projectDomain.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+                const matches = realSerpData.organic.filter((r: any) => (r.link || r.url || '').toLowerCase().includes(domainClean));
+                if (matches.length > 0) {
+                    cannibalizationRisk = matches.map((m: any) => m.link || m.url);
+                    console.log(`[SEO-Analytic] ⚠️ RISK OF CANNIBALIZATION DETECTED:`, cannibalizationRisk);
                 }
             }
 
@@ -1441,10 +1283,7 @@ async function selectSemanticInternalLinks(keyword: string, pool: any[]): Promis
     }
 }
 
-/**
- * runDeepSEOAnalysis: The mega-orchestrator
- */
-// runDeepSEOAnalysis body removed
+
 
 // --- Briefing Generation Helper ---
 export function generateBriefingText(seoData: SEOAnalysisResult): string {

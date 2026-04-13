@@ -26,7 +26,10 @@ import {
     CheckSquare,
     Square,
     Share2,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Languages,
+    Sliders,
+    Settings2
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 
@@ -42,10 +45,13 @@ const GLOBAL_AREAS = [
 ];
 
 export const CONTENT_TOOLS = [
-    { id: "planner", label: "Planificador", icon: CalendarDays, color: "text-indigo-500" },
-    { id: "writer", label: "Redactor", icon: PenLine, color: "text-amber-500" },
-    { id: "distribution", label: "Distribución", icon: Share2, color: "text-emerald-500" },
-    { id: "imagenes", label: "Imagenes", icon: ImageIcon, color: "text-cyan-500" },
+    { id: "planner", label: "Planificador", icon: CalendarDays, color: "text-indigo-500", bg: "bg-indigo-500" },
+    { id: "writer", label: "Redactor", icon: PenLine, color: "text-amber-500", bg: "bg-amber-500" },
+    { id: "distribution", label: "Distribución", icon: Share2, color: "text-emerald-500", bg: "bg-emerald-500" },
+];
+
+export const CONFIG_TOOLS = [
+    { id: "custom-tools", label: "Configuraciones", icon: Sliders, color: "text-indigo-500" },
 ];
 
 interface ContentsSidebarProps {
@@ -166,7 +172,8 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                                 title={isCollapsed ? tool.label : undefined}
                                 onClick={() => onToolSelect(tool.id)}
                                 className={cn(
-                                    "mx-3 h-10 flex items-center px-4 rounded-lg transition-all group relative overflow-hidden shrink-0",
+                                    "h-10 flex items-center rounded-lg transition-all group relative overflow-hidden shrink-0",
+                                    isCollapsed ? "mx-3 px-0 justify-center" : "mx-3 px-4",
                                     isActive
                                         ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
                                         : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
@@ -177,7 +184,9 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                                         size={16}
                                         className={cn(
                                             "transition-colors",
-                                            isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"
+                                            isActive 
+                                                ? "text-white" 
+                                                : cn("opacity-70 group-hover:opacity-100", tool.color)
                                         )}
                                     />
                                 </div>
@@ -199,8 +208,28 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                 </div>
             </div>
 
-            {/* Footer: User Profile + Collapse Toggle */}
-            <div className="p-3 border-t border-slate-100/60 shrink-0 bg-white/40">
+            {/* Footer: Config + User Profile + Collapse Toggle */}
+            <div className="p-3 border-t border-slate-100/60 shrink-0 bg-white/40 flex flex-col gap-3">
+                {/* Config Trigger (Above User Profile) */}
+                <button 
+                    onClick={() => onToolSelect('custom-tools')}
+                    className={cn(
+                        "h-10 rounded-lg flex items-center transition-all group/config overflow-hidden shrink-0",
+                        isCollapsed ? "w-10 mx-auto justify-center" : "w-full px-4",
+                        activeTool === 'custom-tools' 
+                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" 
+                            : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                    )}
+                    title="Configuraciones"
+                >
+                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                        <Sliders size={18} className={cn("transition-transform group-hover/config:scale-110", activeTool === 'custom-tools' && "animate-pulse")} />
+                    </div>
+                    {!isCollapsed && (
+                        <span className="ml-3 text-[11px] font-bold uppercase tracking-tight">Configuraciones</span>
+                    )}
+                </button>
+
                 <div className="flex items-center gap-2">
                     {/* User Profile Hook */}
                     <div className="relative group/profile shrink-0">
@@ -299,9 +328,10 @@ function ProjectSelector({ isCollapsed }: { isCollapsed: boolean }) {
                 
                 <Link 
                     href="/settings" 
-                    className="p-1.5 rounded-lg hover:bg-white text-slate-300 hover:text-slate-600 transition-all border border-transparent hover:border-slate-100"
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white text-slate-300 hover:text-slate-600 transition-all border border-transparent hover:border-slate-100"
                     title="Configuración de Proyectos"
                 >
+                    {!isCollapsed && <span className="text-[10px] font-bold uppercase tracking-tight">Configuraciones</span>}
                     <Settings size={14} />
                 </Link>
             </div>

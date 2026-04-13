@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
 import { AnalyticsService } from '@/lib/services/report/analyticsService';
 import { createClient } from '@supabase/supabase-js';
 
@@ -32,17 +31,20 @@ export async function GET(req: Request) {
         }
 
         console.log("[GA4-API] User identified:", user.id);
+        const { searchParams } = new URL(req.url);
+        const connectionId = searchParams.get('connectionId');
 
         // 2. Fetch properties using the AnalyticsService (Node.js environment)
-        const sites = await AnalyticsService.findProperties(user.id);
+        const sites = await AnalyticsService.findProperties(user.id, connectionId || undefined);
 
         return NextResponse.json({
             success: true,
             sites: sites || []
         });
 
-    } catch (err: any) {
-        console.error('[GA4-API] Error listing properties:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error('[GA4-API] Error listing properties:', error);
+        return NextResponse.json({ error: error.message || 'Error desconocido' }, { status: 500 });
     }
 }

@@ -15,8 +15,8 @@ export const BackgroundMesh = () => {
 
     // Responsive scale
     const scale = useMemo(() => {
-        if ((camera as any).isPerspectiveCamera) {
-            const fov = (camera as any).fov * (Math.PI / 180);
+        if (camera instanceof THREE.PerspectiveCamera) {
+            const fov = camera.fov * (Math.PI / 180);
             const height = 2 * Math.tan(fov / 2) * distance;
             const width = height * (size.width / size.height);
             return [width, height, 1] as [number, number, number];
@@ -27,9 +27,9 @@ export const BackgroundMesh = () => {
 
     // Update scale on resize
     useFrame(() => {
-        if (mesh.current && (camera as any).isPerspectiveCamera) {
+        if (mesh.current && camera instanceof THREE.PerspectiveCamera) {
             const dist = Math.abs(camera.position.z - mesh.current.position.z);
-            const fov = (camera as any).fov * (Math.PI / 180);
+            const fov = camera.fov * (Math.PI / 180);
             const height = 2 * Math.tan(fov / 2) * dist;
             const width = height * (size.width / size.height);
             mesh.current.scale.set(width, height, 1);

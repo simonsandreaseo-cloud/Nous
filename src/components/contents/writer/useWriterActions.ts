@@ -14,7 +14,11 @@ import {
     refineArticleContent, 
     ArticleConfig 
 } from '@/components/tools/writer/services';
-import { runDeepSEOAnalysis, generateContentOutline } from '@/lib/services/writer/seo-analyzer';
+import { ResearchOrchestrator } from '@/lib/services/writer/research';
+import { OutlineEngine } from '@/lib/services/writer/research/outline-engine';
+import { LinkPatcherService } from '@/lib/services/link-patcher';
+import { NousExtractorService } from '@/lib/services/nous-extractor';
+
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -40,13 +44,13 @@ export function useWriterActions() {
         store.setStatus('Realizando análisis profundo de SEO...');
         try {
             const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-3-27b-it';
-            const res = await runDeepSEOAnalysis({
+            const res = await ResearchOrchestrator.runDeepAnalysis({
                 keyword: store.keyword,
-                csvData: store.csvData,
                 projectId: activeProject?.id,
                 onProgress: (phase) => store.setStatus(phase),
                 modelName: modelToUse
             });
+
 
             // 1. Sync store with research results
             store.setRawSeoData(res);
@@ -121,7 +125,7 @@ export function useWriterActions() {
         store.setPlanningStructure(true);
         store.setStatus('Regenerando outline estratégico con Gemini 3.1 Flash Lite...');
         try {
-            const res = await generateContentOutline({
+            const res = await OutlineEngine.generate({
                 keyword: store.keyword,
                 seoMetadata: {
                     h1: store.strategyH1,
@@ -133,9 +137,10 @@ export function useWriterActions() {
                 },
                 cleanedLSI: store.strategyLSI,
                 suggestedLinks: store.strategyLinks,
-                validSEO: (store.rawSeoData as any).competitors || [],
+                validCompetitors: (store.rawSeoData as any).competitors || [],
                 wordCountGoal: parseInt(String(store.strategyWordCount)) || 1500
             });
+
             
             store.setStrategyOutline(res);
             store.addDebugPrompt('Regeneración de Outline', `Nuevo outline generado para: ${store.keyword}`, JSON.stringify(res));
@@ -221,6 +226,15 @@ export function useWriterActions() {
                 architectureRules: activeProject?.architecture_rules,
                 isStrictMode: store.isStrictMode, 
                 strictFrequency: store.strictFrequency,
+                extractorInstructions: NousExtractorService.getActiveRulesForPhase(activeProject, 'writer')
+                    .map(r => {
+                        let placementText = "";
+                        if (r.placement_mode === 'new_paragraph') placementText = "OBLIGATORIO: Coloca el dato extraído (ej: RID) en un párrafo INDEPENDIENTE, en una línea él solo, justo después del párrafo donde está el enlace.";
+                        else if (r.placement_mode === 'new_line') placementText = "Coloca el dato extraído en una nueva línea (br) inmediatamente después del enlace.";
+                        else placementText = "Coloca el dato extraído inmediatamente después del enlace (inline).";
+                        
+                        return `- Para reglas "${r.name}": ${placementText} (Pattern: ${r.extraction_value})`;
+                    }).join('\n')
             };
 
             if (activeProject && !hasTokens(1)) {
@@ -260,7 +274,10 @@ export function useWriterActions() {
             store.setStatus('Generando vínculos interlinking...');
             const linked = await autoInterlinkAsync(
                 cleanHtml, 
-                finalApprovedLinks
+                finalApprovedLinks,
+                activeProject?.architecture_rules,
+                activeProject?.architecture_instructions,
+                activeProject
             );
             store.setAnalyzingSEO(true);
             // Log Phase 2 context for debugging
@@ -273,6 +290,29 @@ export function useWriterActions() {
             store.addDebugPrompt('Refinamiento Finalizado', `Limpieza y SEO post-procesamiento completados`, formatted.substring(0, 1000));
             store.setHasGenerated(true);
             store.setStatus('✅ Artículo generado con éxito.');
+            
+            // --- AUTOMATIC EXTRACTION (IF ACTIVE) ---
+            const activeExtractorRules = NousExtractorService.getActiveRulesForPhase(activeProject, 'writer');
+            if (activeExtractorRules.length > 0) {
+                store.setStatus('Ejecutando extractores de datos...');
+                const extractedHtml = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
+                store.setContent(cleanAndFormatHtml(extractedHtml));
+            }
+
+            // --- AUTO-PATCHER ORCHESTRATION ---
+            const patchers = LinkPatcherService.getPatchersForProcess(activeProject, 'writer');
+            if (patchers.length > 0 && store.editor) {
+                store.setStatus('Normalizando URLs con Nous Patcher...');
+                try {
+                    for (const patcher of patchers) {
+                        await LinkPatcherService.processEditorLinks(store.editor, patcher, 'apply');
+                    }
+                    store.setStatus('✅ Artículo generado y URLs normalizadas.');
+                } catch (pe) {
+                    console.error('[AutoPatcher] Failure:', pe);
+                }
+            }
+
             store.setSidebarTab('assistant');
         } catch (e: any) {
             console.error(e);

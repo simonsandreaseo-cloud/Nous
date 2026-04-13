@@ -6,29 +6,36 @@ export const GoogleContentService = {
     /**
      * Get the access token using the same logic as GscService
      */
-    async getAccessToken(supabaseClient?: any) {
+    async getAccessToken(supabaseClient?: any, connectionId?: string) {
         const client = supabaseClient || supabase;
 
-        // 1. Check active session (Client-side only) - This might not work if client isn't passed with session
-        // But if we passed a client with Authorization header, getUser() works.
-
-        // 2. Get User
+        // 1. Get User
         const { data: { user } } = await client.auth.getUser();
 
-        // If no user from getUser, maybe session?
         if (!user) {
             const { data: { session } } = await client.auth.getSession();
             if (session?.provider_token) return session.provider_token;
             return null;
         }
 
-        const { data, error } = await client
-            .from('user_gsc_tokens')
+        let query = client
+            .from('user_google_connections')
             .select('access_token')
-            .eq('user_id', user.id)
-            .maybeSingle();
+            .eq('user_id', user.id);
+        
+        if (connectionId) {
+            query = query.eq('id', connectionId);
+        } else {
+            query = query.order('updated_at', { ascending: false });
+        }
 
-        if (error || !data) return null;
+        const { data, error } = await query.maybeSingle();
+
+        if (error || !data) {
+            // Legacy fallback during migration
+            const { data: legacy } = await client.from('user_gsc_tokens').select('access_token').eq('user_id', user.id).maybeSingle();
+            return legacy?.access_token || null;
+        }
 
         return data.access_token;
     },

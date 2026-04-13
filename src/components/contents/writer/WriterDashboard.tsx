@@ -53,25 +53,35 @@ export default function WriterDashboard() {
 
             {/* Content Area */}
             <main className="flex-1 overflow-y-auto custom-scrollbar px-10 pb-10">
-                {projectContents.length === 0 ? (
+                {!activeProject ? (
                     <div className="h-[60vh] flex flex-col items-center justify-center text-center space-y-6">
-                        <div className="w-20 h-20 bg-slate-100 rounded-[28px] flex items-center justify-center text-slate-300">
+                        <div className="w-20 h-20 bg-amber-50 rounded-[28px] flex items-center justify-center text-amber-500 border border-amber-100/50">
+                            <Calendar size={40} />
+                        </div>
+                        <div className="max-w-xs">
+                            <h3 className="text-lg font-bold text-slate-700 uppercase tracking-tight">Sin Proyecto Seleccionado</h3>
+                            <p className="text-sm text-slate-400 mt-2 font-medium">Por favor, activa al menos un proyecto en la barra lateral para ver y gestionar tus contenidos.</p>
+                        </div>
+                    </div>
+                ) : (!projectContents || projectContents.length === 0) ? (
+                    <div className="h-[60vh] flex flex-col items-center justify-center text-center space-y-6">
+                        <div className="w-20 h-20 bg-slate-100 rounded-[28px] flex items-center justify-center text-slate-300 border border-slate-200/50">
                             <FileText size={40} />
                         </div>
                         <div className="max-w-xs">
-                            <h3 className="text-lg font-bold text-slate-700">No hay artículos aún</h3>
-                            <p className="text-sm text-slate-400 mt-1">Comienza tu viaje editorial creando tu primer contenido con investigación SEO.</p>
+                            <h3 className="text-lg font-bold text-slate-700 uppercase tracking-tight">Escritorio Vacío</h3>
+                            <p className="text-sm text-slate-400 mt-2 font-medium">Este proyecto no tiene tareas en redacción o los filtros están ocultando los artículos publicados.</p>
                         </div>
                         <Button 
                             variant="outline" 
                             onClick={() => setViewMode('setup')}
-                            className="rounded-xl border-slate-200"
+                            className="rounded-xl border-slate-200 font-bold uppercase text-[10px] tracking-widest"
                         >
-                            Empezar ahora
+                            Crear Primer Contenido
                         </Button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                         {projectContents.map((content, idx) => (
                             <motion.div
                                 key={content.id}

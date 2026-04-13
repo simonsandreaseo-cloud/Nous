@@ -30,9 +30,9 @@ import {
     InlineImageCount,
     ImagePlan
 } from '@/types/images';
-import { PollinationsService } from '@/lib/services/pollinationsService';
-import { ImagePlanningService } from '@/lib/services/imagePlanningService';
 import { uploadGeneratedImage } from '@/lib/actions/imageActions';
+import { ImageWorkflowService } from '@/lib/services/writer/image-workflow';
+
 import { ContentSelector } from './ContentSelector';
 import { ArticlePreview } from './ArticlePreview';
 import { supabase } from '@/lib/supabase';
@@ -160,97 +160,30 @@ export default function ImageGenerator() {
             };
             setBlogPost(post);
 
-            // 2. Planning
-            setStatus(ProcessingStatus.ANALYZING_TEXT);
-            setStatusMessage(t.planning);
-            const plan = await ImagePlanningService.planImages(
-                paragraphs, 
-                instructions, 
-                'es', 
+            // 2. Execute Workflow
+            await ImageWorkflowService.executeFullPipeline(paragraphs, {
+                instructions,
+                language: 'es',
                 inlineImageCount,
-                realismMode
-            );
-            setImagePlan(plan);
-
-            // 3. Batch Generation
-            setStatus(ProcessingStatus.GENERATING_IMAGES);
-            const imagesStore: GeneratedImage[] = [];
-
-            // Featured Image logic for dimensions
-            let fWidth = 1280;
-            let fHeight = 720;
-            
-            if (useCustomSize) {
-                fWidth = customWidth;
-                fHeight = customHeight;
-            } else {
-                if (featuredRatio === '1:1') { fWidth = 1024; fHeight = 1024; }
-                else if (featuredRatio === '4:3') { fWidth = 1024; fHeight = 768; }
-            }
-
-            // Featured Image
-            setStatusMessage(`${t.generating} (Portada)`);
-            const featuredUrl = PollinationsService.generateImageUrl(plan.featuredImage.prompt, {
-                width: fWidth,
-                height: fHeight,
-                model: sourceModel,
-                enhance: optimizePrompt
-            });
-            
-            const featuredImg: GeneratedImage = {
-                id: Math.random().toString(36).substr(2, 9),
-                url: featuredUrl,
-                prompt: plan.featuredImage.prompt,
-                filename: plan.featuredImage.filename,
-                type: 'featured',
-                altText: plan.featuredImage.altText,
-                title: plan.featuredImage.title
-            };
-            imagesStore.push(featuredImg);
-            setGeneratedImages([...imagesStore]);
-
-            // Inline Images
-            for (let i = 0; i < plan.inlineImages.length; i++) {
-                const item = plan.inlineImages[i];
-                setStatusMessage(`${t.generating} (${i + 1}/${plan.inlineImages.length})`);
-                
-                // Inline dimensions logic
-                let iWidth = 1024;
-                let iHeight = 576;
-                if (useCustomSize && applyCustomToBody) {
-                    iWidth = customWidth;
-                    iHeight = customHeight;
+                realismMode,
+                sourceModel,
+                optimizePrompt,
+                featuredRatio,
+                useCustomSize,
+                customDimensions: { width: customWidth, height: customHeight },
+                applyCustomToBody,
+                taskId: selectedTask.id,
+                projectLogoUrl: selectedTask.project_logo_url,
+                onStatusChange: (s, msg) => {
+                    setStatus(s);
+                    setStatusMessage(msg);
+                },
+                onImageGenerated: (images) => {
+                    setGeneratedImages(images);
                 }
+            });
 
-                const url = PollinationsService.generateImageUrl(item.prompt, {
-                    width: iWidth,
-                    height: iHeight,
-                    model: sourceModel,
-                    enhance: optimizePrompt
-                });
-
-                imagesStore.push({
-                    id: Math.random().toString(36).substr(2, 9),
-                    url,
-                    prompt: item.prompt,
-                    filename: item.filename,
-                    type: 'inline',
-                    paragraphIndex: item.paragraphIndex,
-                    altText: item.altText,
-                    title: item.title
-                });
-                setGeneratedImages([...imagesStore]);
-            }
-
-            // 4. Persistence in Supabase (via Server Actions)
-            setStatus(ProcessingStatus.SAVING);
-            setStatusMessage(t.saving);
-            await saveToSupabase(imagesStore);
-
-            setStatus(ProcessingStatus.COMPLETED);
-            setStatusMessage(t.complete);
-
-            // Refresh existing
+            // Refresh existing list
             handleContentSelection(selectedTask);
 
         } catch (err: any) {
@@ -260,79 +193,32 @@ export default function ImageGenerator() {
         }
     };
 
-    const saveToSupabase = async (images: GeneratedImage[]) => {
-        if (!selectedTask) return;
-
-        for (const img of images) {
-            try {
-                // Use Server Action with optional logo watermark
-                const result = await uploadGeneratedImage({
-                    url: img.url,
-                    taskId: selectedTask.id,
-                    imageId: img.id,
-                    prompt: img.prompt,
-                    altText: img.altText,
-                    title: img.title,
-                    type: img.type as 'featured' | 'inline',
-                    paragraphIndex: img.paragraphIndex,
-                    logoUrl: selectedTask.project_logo_url // Automatically loaded from ContentSelector
-                });
-
-                if (result.success && result.publicUrl) {
-                    setGeneratedImages(prev => prev.map(p => 
-                        p.id === img.id ? { ...p, url: result.publicUrl!, storage_path: result.storagePath } : p
-                    ));
-                } else {
-                    throw new Error(result.error || "Error al subir imagen");
-                }
-
-            } catch (e: any) {
-                console.error("Error saving image via Server Action:", e);
-            }
-        }
-    };
-
     const handleRegenerate = async (image: GeneratedImage, refinement?: string) => {
         if (status === ProcessingStatus.GENERATING_IMAGES || status === ProcessingStatus.SAVING) return;
 
         try {
             const prevStatus = status;
             setStatus(ProcessingStatus.REGENERATING);
-            
-            let activePrompt = image.prompt;
-            if (refinement) activePrompt = `${activePrompt}. Requirement: ${refinement}`;
-            
-            // Regeneration logic for dimensions
-            let rWidth = image.type === 'featured' ? 1280 : 1024;
-            let rHeight = image.type === 'featured' ? 720 : 576;
+            setGeneratedImages(prev => prev.map(img => img.id === image.id ? { ...img, url: '/loading-spinner.gif' } : img)); // Temporary UI feedback
 
-            if (useCustomSize) {
-                if (image.type === 'featured' || applyCustomToBody) {
-                    rWidth = customWidth;
-                    rHeight = customHeight;
-                }
-            }
+            const updatedImage = await ImageWorkflowService.regenerateImage(image, {
+                sourceModel,
+                optimizePrompt,
+                useCustomSize,
+                customDimensions: { width: customWidth, height: customHeight },
+                applyCustomToBody,
+                taskId: selectedTask.id,
+                projectLogoUrl: selectedTask.project_logo_url
+            }, refinement);
 
-            const newUrl = PollinationsService.generateImageUrl(activePrompt, {
-                width: rWidth,
-                height: rHeight,
-                model: sourceModel,
-                enhance: optimizePrompt
-            });
-
-            // Updating in state
-            setGeneratedImages(prev => prev.map(img => img.id === image.id ? { ...img, url: newUrl } : img));
-            
-            // Re-save specific image using Server Action
-            const updatedImg = { ...image, url: newUrl };
-            await saveToSupabase([updatedImg]);
-
+            setGeneratedImages(prev => prev.map(img => img.id === image.id ? updatedImage : img));
             setStatus(prevStatus);
         } catch (err: any) {
             alert("Error al regenerar: " + err.message);
             setStatus(ProcessingStatus.COMPLETED);
         }
     };
+
 
     const handleDownloadAll = async () => {
         if (generatedImages.length === 0) return;

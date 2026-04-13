@@ -7,6 +7,7 @@ export interface AIRequest {
     temperature?: number;
     maxTokens?: number;
     jsonMode?: boolean;
+    label?: string; // Activates the correct hierarchy in executeWithKeyRotation
 }
 
 export interface AIResponse {

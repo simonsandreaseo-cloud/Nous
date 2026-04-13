@@ -1,8 +1,32 @@
 {
+  "inputs": [
+    {
+      "id": "SUPABASE_PROJECT_REF",
+      "type": "promptString",
+      "description": "Tu Supabase Project Reference ID (ej: xyzabc123)",
+      "password": false
+    },
+    {
+      "id": "SUPABASE_ACCESS_TOKEN",
+      "type": "promptString",
+      "description": "Personal Access Token de Supabase",
+      "password": true
+    }
+  ],
   "servers": {
-    "gemini-api-docs-mcp": {
-      "type": "http",
-      "url": "https://gemini-api-docs-mcp.dev"
+    "supabase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@0.7.0",
+        "--project-ref",
+        "${input:SUPABASE_PROJECT_REF}"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${input:SUPABASE_ACCESS_TOKEN}"
+      },
+      "version": "0.7.0"
     }
   }
 }

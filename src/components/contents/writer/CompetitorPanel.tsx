@@ -164,14 +164,27 @@ export default function CompetitorPanel() {
                                     // 1. Prioritize pre-structured headers from Research/Helios
                                     let displayHeaders = currentComp.headers || [];
                                     
-                                    // 2. Legacy Rescue logic: if no headers, try to parse them from the content
+                                    // 2. HTML Rescue logic: if no headers, try to parse them from the HTML content
                                     if (displayHeaders.length === 0 && currentComp.content) {
-                                        const parsed = currentComp.content.match(/#{1,4}\s+[^|#\n]+/g);
-                                        if (parsed) {
-                                            displayHeaders = parsed.map((h: string) => ({
-                                                tag: h.startsWith('###') ? 'h3' : h.startsWith('##') ? 'h2' : 'h1',
-                                                text: h.replace(/^#+\s+/, '').trim()
-                                            }));
+                                        // Match both Markdown and HTML headers for maximum compatibility
+                                        const htmlTags = currentComp.content.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi);
+                                        if (htmlTags) {
+                                            displayHeaders = htmlTags.map((tag: string) => {
+                                                const level = tag.substring(2, 3);
+                                                return {
+                                                    tag: `h${level}`,
+                                                    text: tag.replace(/<[^>]+>/g, '').trim()
+                                                };
+                                            });
+                                        } else {
+                                            // Fallback to Markdown regex if no HTML tags found
+                                            const mdHeaders = currentComp.content.match(/#{1,4}\s+[^|#\n]+/g);
+                                            if (mdHeaders) {
+                                                displayHeaders = mdHeaders.map((h: string) => ({
+                                                    tag: h.startsWith('###') ? 'h3' : h.startsWith('##') ? 'h2' : 'h1',
+                                                    text: h.replace(/^#+\s+/, '').trim()
+                                                }));
+                                            }
                                         }
                                     }
 
@@ -217,41 +230,53 @@ export default function CompetitorPanel() {
                                                         >
                                                             <div className="pt-2 pb-1 pl-4">
                                                                 <div className="p-4 bg-slate-50 border border-slate-200 border-dashed rounded-2xl mb-2">
-                                                                    <p className="text-[10px] text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
-                                                                        {(() => {
-                                                                            const content = currentComp.content || "";
-                                                                            if (!content) return "No hay contenido disponible para esta sección.";
-                                                                            
-                                                                            // Clean header text for matching
-                                                                            const cleanSearch = h.text.trim();
-                                                                            const escapedSearch = cleanSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                                                                            
-                                                                            // More robust regex: handle markdown headers with potential extra spaces or newlines
-                                                                            const regex = new RegExp(`#{1,5}\\s+${escapedSearch}`, 'i');
-                                                                            const headerMatch = content.match(regex);
-                                                                            
-                                                                            if (!headerMatch) {
-                                                                                // Fallback: try to find the text directly if it's not a markdown header
+                                                                    <div 
+                                                                        className="text-[10px] text-slate-600 font-medium leading-relaxed prose prose-sm max-w-none"
+                                                                        dangerouslySetInnerHTML={{
+                                                                            __html: (() => {
+                                                                                const content = currentComp.content || "";
+                                                                                if (!content) return "No hay contenido disponible para esta sección.";
+                                                                                
+                                                                                // Clean header text for matching
+                                                                                const cleanSearch = h.text.trim();
+                                                                                const escapedSearch = cleanSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                                                                
+                                                                                // 1. Try HTML Match
+                                                                                const htmlRegex = new RegExp(`<h[1-5][^>]*>\\s*${escapedSearch}\\s*</h[1-5]>`, 'i');
+                                                                                const htmlMatch = content.match(htmlRegex);
+                                                                                
+                                                                                if (htmlMatch) {
+                                                                                    const startIdx = htmlMatch.index! + htmlMatch[0].length;
+                                                                                    const rest = content.substring(startIdx);
+                                                                                    const nextHeaderMatch = rest.match(/<h[1-5][^>]*>/i);
+                                                                                    return (nextHeaderMatch ? rest.substring(0, nextHeaderMatch.index) : rest).trim() || "Sección sin contenido inmediato.";
+                                                                                }
+
+                                                                                // 2. Fallback to Markdown Match
+                                                                                const mdRegex = new RegExp(`#{1,5}\\s+${escapedSearch}`, 'i');
+                                                                                const mdMatch = content.match(mdRegex);
+                                                                                
+                                                                                if (mdMatch) {
+                                                                                    const startIdx = mdMatch.index! + mdMatch[0].length;
+                                                                                    const rest = content.substring(startIdx);
+                                                                                    const nextHeaderMatch = rest.match(/\n#{1,5}\s+/);
+                                                                                    const segment = nextHeaderMatch ? rest.substring(0, nextHeaderMatch.index) : rest;
+                                                                                    return segment.trim().replace(/\n/g, '<br/>') || "Sección sin texto descriptivo.";
+                                                                                }
+
+                                                                                // 3. Simple Text Fallback
                                                                                 const simpleIndex = content.toLowerCase().indexOf(cleanSearch.toLowerCase());
                                                                                 if (simpleIndex !== -1) {
                                                                                     const startIdx = simpleIndex + cleanSearch.length;
                                                                                     const rest = content.substring(startIdx);
-                                                                                    const nextHeaderMatch = rest.match(/\n#{1,5}\s+/);
-                                                                                    return nextHeaderMatch ? rest.substring(0, nextHeaderMatch.index).trim() : rest.trim();
+                                                                                    const nextTagMatch = rest.match(/<h[1-5]|#{1,5}\s+/i);
+                                                                                    return (nextTagMatch ? rest.substring(0, nextTagMatch.index) : rest).trim() || "Contenido no segmentable.";
                                                                                 }
+
                                                                                 return "Contenido no indexado para este encabezado específico.";
-                                                                            }
-                                                                            
-                                                                            const startIdx = headerMatch.index! + headerMatch[0].length;
-                                                                            const rest = content.substring(startIdx);
-                                                                            
-                                                                            // Find next header to stop
-                                                                            const nextHeaderMatch = rest.match(/\n#{1,5}\s+/);
-                                                                            const segment = nextHeaderMatch ? rest.substring(0, nextHeaderMatch.index) : rest;
-                                                                            
-                                                                            return segment.trim() || "Sección sin texto descriptivo inmediato.";
-                                                                        })()}
-                                                                    </p>
+                                                                            })()
+                                                                        }}
+                                                                    />
                                                                 </div>
                                                             </div>
                                                         </motion.div>

@@ -26,7 +26,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { Task, useProjectStore } from "@/store/useProjectStore";
 import { NotificationService } from "@/lib/services/notifications";
-import { generateArticleSchemas } from "@/lib/services/writer/seo-analyzer";
+import { SchemaGenerator } from "@/lib/services/writer/research/schema-generator";
+
 
 interface PublicationToolsProps {
     task: Task;
@@ -43,14 +44,16 @@ export function PublicationTools({ task, onStatusToggle, onReportIssue }: Public
 
     const handleCopy = async (id: string, text: string, type: 'text' | 'html' | 'rich-text' = 'text') => {
         try {
-            if (type === 'rich-text') {
-                const blob = new Blob([text], { type: 'text/html' });
-                const plainText = text.replace(/<[^>]*>?/gm, '');
-                const plainBlob = new Blob([plainText], { type: 'text/plain' });
-                const data = [new ClipboardItem({ 'text/html': blob, 'text/plain': plainBlob })];
-                await navigator.clipboard.write(data);
-            } else {
-                await navigator.clipboard.writeText(text);
+            if (document.hasFocus()) {
+                if (type === 'rich-text') {
+                    const blob = new Blob([text], { type: 'text/html' });
+                    const plainText = text.replace(/<[^>]*>?/gm, '');
+                    const plainBlob = new Blob([plainText], { type: 'text/plain' });
+                    const data = [new ClipboardItem({ 'text/html': blob, 'text/plain': plainBlob })];
+                    await navigator.clipboard.write(data);
+                } else {
+                    await navigator.clipboard.writeText(text);
+                }
             }
             
             setCopyingStatus(prev => ({ ...prev, [id]: true }));
@@ -82,7 +85,8 @@ Schemas: ${JSON.stringify(task.research_dossier?.schemas || [], null, 2)}
 
         setIsGeneratingSchemas(true);
         try {
-            const schemas = await generateArticleSchemas(task.title, task.content_body);
+            const schemas = await SchemaGenerator.generateArticleSchemas(task.title, task.content_body);
+
             
             // Actualizamos la tarea con los nuevos schemas
             const updatedDossier = {

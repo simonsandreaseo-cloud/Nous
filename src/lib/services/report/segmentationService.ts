@@ -1,5 +1,5 @@
 async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-2.5-flash', jsonResponse: boolean = false): Promise<string> {
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const { GoogleGenerativeAI } = await import("@google/genai");
     const ai = new GoogleGenerativeAI(apiKey);
     const model = ai.getGenerativeModel({ model: modelId });
     const config: any = {};

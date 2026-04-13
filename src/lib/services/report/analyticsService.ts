@@ -19,12 +19,12 @@ const getSupabaseClient = () => {
 export const AnalyticsService = {
 
     // Helper: Get Authenticated Client
-    async getAuthClient(userId: string, email?: string) {
+    async getAuthClient(userId: string, connectionId?: string) {
         const supabase = getSupabaseClient();
-        let query = supabase.from('user_gsc_tokens').select('*').eq('user_id', userId);
+        let query = supabase.from('user_google_connections').select('*').eq('user_id', userId);
 
-        if (email) {
-            query = query.eq('email', email);
+        if (connectionId) {
+            query = query.eq('id', connectionId);
         } else {
             // Default to most recently updated if none specified
             query = query.order('updated_at', { ascending: false });
@@ -51,10 +51,10 @@ export const AnalyticsService = {
         oauth2Client.on('tokens', async (newTokens) => {
             if (newTokens.access_token) {
                 const supabaseAdmin = getSupabaseClient();
-                await supabaseAdmin.from('user_gsc_tokens').update({
+                await supabaseAdmin.from('user_google_connections').update({
                     access_token: newTokens.access_token,
                     refresh_token: newTokens.refresh_token || tokens.refresh_token,
-                    expires_at: new Date(newTokens.expiry_date || Date.now() + 3500 * 1000).toISOString(),
+                    expires_at: newTokens.expiry_date ? new Date(newTokens.expiry_date).toISOString() : new Date(Date.now() + 3500 * 1000).toISOString(),
                     updated_at: new Date().toISOString()
                 }).eq('id', tokens.id); // Use the unique ID for safe updates
             }
@@ -64,14 +64,12 @@ export const AnalyticsService = {
     },
 
     // 1. List all GA4 Properties (from all connected accounts by default)
-    async findProperties(userId: string, email?: string): Promise<{ id: string, name: string, accountEmail?: string }[]> {
+    async findProperties(userId: string, connectionId?: string): Promise<{ id: string, name: string, accountEmail?: string }[]> {
         try {
             const supabase = getSupabaseClient();
-            let query = supabase.from('user_gsc_tokens').select('*').eq('user_id', userId);
-            const clientId = process.env.GOOGLE_CLIENT_ID;
-            const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-            if (email) query = query.eq('email', email);
+            let query = supabase.from('user_google_connections').select('*').eq('user_id', userId);
+            
+            if (connectionId) query = query.eq('id', connectionId);
 
             const { data: accounts } = await query;
             console.log(`[GA4-DISCOVERY] Found ${accounts?.length || 0} connected tokens for user ${userId}`);
@@ -309,6 +307,7 @@ export const AnalyticsService = {
 
                 return {
                     path: entry.path,
+                    sessions: entry.sessions,
                     avg_session_duration: avgDuration,
                     bounce_rate: bounceRate,
                     top_sources: JSON.stringify(sortedSources)

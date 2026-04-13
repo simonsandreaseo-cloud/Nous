@@ -1,4 +1,4 @@
-export async function fetchSerperSearch(query: string, gl = "es", hl = "es", num = 20): Promise<any[]> {
+export async function fetchSerperSearch(query: string, gl = "es", hl = "es", num = 30): Promise<any[]> {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || '');
     const proxyUrl = `${origin}/api/tools/serper`;
@@ -9,7 +9,7 @@ export async function fetchSerperSearch(query: string, gl = "es", hl = "es", num
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ q: query, gl, hl, num }),
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(30000) // Increase to 30s for 100 results
     });
 
     if (!response.ok) {

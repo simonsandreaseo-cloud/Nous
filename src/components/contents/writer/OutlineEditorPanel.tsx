@@ -127,7 +127,10 @@ export default function OutlineEditorPanel({
     }
 
     return (
-        <div className={cn(isSidebar ? "p-4" : "mx-auto max-w-[700px] px-4 sm:px-8 pt-6", className)}>
+        <div className={cn(
+            isSidebar ? "flex-1 overflow-y-auto custom-scrollbar p-4" : "mx-auto max-w-[700px] px-4 sm:px-8 pt-6", 
+            className
+        )}>
             <motion.div
                 layout
                 className={cn(

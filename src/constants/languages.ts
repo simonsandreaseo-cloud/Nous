@@ -1,0 +1,15 @@
+export const AVAILABLE_LANGUAGES = [
+    { code: 'en', name: 'Inglés', flag: '🇺🇸' },
+    { code: 'ca', name: 'Catalán', flag: '🇦🇩' },
+    { code: 'cs', name: 'Checo', flag: '🇨🇿' },
+    { code: 'da', name: 'Danés', flag: '🇩🇰' },
+    { code: 'fr', name: 'Francés', flag: '🇫🇷' },
+    { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+    { code: 'no', name: 'Noruego', flag: '🇳🇴' },
+    { code: 'pt', name: 'Portugués', flag: '🇵🇹' },
+    { code: 'sv', name: 'Sueco', flag: '🇸🇪' },
+    { code: 'de', name: 'Alemán', flag: '🇩🇪' },
+    { code: 'nl', name: 'Neerlandés', flag: '🇳🇱' },
+    { code: 'pl', name: 'Polaco', flag: '🇵🇱' },
+    { code: 'ro', name: 'Rumano', flag: '🇷🇴' },
+];

@@ -27,78 +27,40 @@ function GscCompleteContent() {
             try {
                 // Get session from CLIENT (where it is active)
                 const { data: { session } } = await supabase.auth.getSession();
-                console.log("[DEBUG] Session detected in GSC Complete:", session ? "YES" : "NO");
-                console.log("[DEBUG] User ID:", session?.user?.id);
-
                 if (!session?.user) {
-                    console.error("[DEBUG] No user session found");
                     setStatus("error");
                     setErrorMsg("No hay una sesión activa. Por favor, inicia sesión de nuevo.");
                     return;
                 }
 
                 const userId = session.user.id;
+                const email = searchParams.get("email");
 
                 // 1. Save Token and connection status at USER LEVEL first
-                console.log("[DEBUG] Upserting user tokens for ID:", userId);
-                const { error: tokenError } = await supabase.from("user_gsc_tokens").upsert({
+                console.log("[DEBUG] Upserting user connections for ID:", userId, "Email:", email);
+                const { error: tokenError } = await supabase.from("user_google_connections").upsert({
                     user_id: userId,
+                    email: email,
                     access_token: at,
                     refresh_token: rt,
                     expires_at: ex ? new Date(parseInt(ex)).toISOString() : null,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id' });
+                    updated_at: new Date().toISOString(),
+                    scopes: searchParams.get("scopes")?.split(' ') || []
+                }, { onConflict: 'user_id, email' });
 
                 if (tokenError) {
-                    console.error("[DEBUG] CRITICAL: user_gsc_tokens upsert failed:", tokenError);
+                    console.error("[DEBUG] CRITICAL: user_google_connections upsert failed:", tokenError);
+                    setStatus("error");
+                    setErrorMsg(`Error al guardar conexión: ${tokenError.message}`);
+                    return;
                 }
 
-                // 2. Mark existing projects as GSC-enabled
-                const updates: any = {
-                    gsc_connected: true,
-                    google_refresh_token: rt,
-                };
-
-                console.log("[DEBUG] Updating projects table for user_id:", userId);
-                const { data: updatedData, error: updateError } = await supabase
-                    .from("projects")
-                    .update(updates)
-                    .eq("user_id", userId)
-                    .select('id');
-
-                if (updateError) {
-                    console.error("[DEBUG] Error updating projects table:", updateError);
-                }
-
-                const count = updatedData ? updatedData.length : 0;
-                console.log("[DEBUG] Projects affected by update:", count);
-
-                // FALLBACK: If user has no projects, create one automatically
-                if (count === 0) {
-                    console.log("[DEBUG] No projects found. Creating a fallback project...");
-                    const { error: createError } = await supabase
-                        .from("projects")
-                        .insert({
-                            user_id: userId,
-                            name: "Sitio Importado (GSC)",
-                            domain: "pendiente.com",
-                            gsc_connected: true,
-                            google_refresh_token: rt,
-                            scraper_settings: { paths: ["/"] }
-                        });
-
-                    if (createError) {
-                        console.error("[DEBUG] Error creating fallback project:", createError);
-                    } else {
-                        console.log("[DEBUG] Fallback project created successfully.");
-                    }
-                }
-
-                // Even if count is 0, we consider success because the USER level token is saved
+                // Marks success since the connection is now in the database
                 setStatus("success");
-                setTimeout(() => router.push("/settings?gsc=connected"), 1500);
+                setTimeout(() => router.push("/settings/agency/connections?google=connected"), 1500);
 
             } catch (err: any) {
+
                 console.error(err);
                 setStatus("error");
                 setErrorMsg(err.message || "Error al guardar la conexión.");

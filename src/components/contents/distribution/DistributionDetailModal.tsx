@@ -37,15 +37,17 @@ export function DistributionDetailModal({ task, onClose }: DistributionDetailMod
 
     const handleCopy = async (id: string, text: string, type: 'text' | 'html' | 'rich-text' = 'text') => {
         try {
-            if (type === 'rich-text') {
-                // To copy rich text/HTML to clipboard so it's recognized as formatted text
-                const blob = new Blob([text], { type: 'text/html' });
-                const plainText = text.replace(/<[^>]*>?/gm, '');
-                const plainBlob = new Blob([plainText], { type: 'text/plain' });
-                const data = [new ClipboardItem({ 'text/html': blob, 'text/plain': plainBlob })];
-                await navigator.clipboard.write(data);
-            } else {
-                await navigator.clipboard.writeText(text);
+            if (document.hasFocus()) {
+                if (type === 'rich-text') {
+                    // To copy rich text/HTML to clipboard so it's recognized as formatted text
+                    const blob = new Blob([text], { type: 'text/html' });
+                    const plainText = text.replace(/<[^>]*>?/gm, '');
+                    const plainBlob = new Blob([plainText], { type: 'text/plain' });
+                    const data = [new ClipboardItem({ 'text/html': blob, 'text/plain': plainBlob })];
+                    await navigator.clipboard.write(data);
+                } else {
+                    await navigator.clipboard.writeText(text);
+                }
             }
             
             setCopyingStatus(prev => ({ ...prev, [id]: true }));

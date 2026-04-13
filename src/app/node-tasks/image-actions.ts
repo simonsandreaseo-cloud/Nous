@@ -106,12 +106,13 @@ export const analyzeTextAndPlanImagesAction = async (
                     const apiKey = getGeminiKey();
                     if (!apiKey) throw new Error("Gemini API Key missing (GEMINI_API_KEYS).");
 
-                    const { GoogleGenerativeAI } = await import("@google/generative-ai");
-                    const ai = new GoogleGenerativeAI(apiKey);
+                    const { GoogleGenAI } = await import("@google/genai");
+                    const ai = new GoogleGenAI({ apiKey });
                     const model = ai.getGenerativeModel({
-                        model: "gemini-2.5-flash",
+                        model: "gemini-3.1-flash",
                         systemInstruction: systemPrompt
                     });
+
 
                     const response = await model.generateContent({
                         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
@@ -232,11 +233,12 @@ export const generateImageAction = async (
                      const { GoogleGenAI } = await import("@google/genai");
                      const ai = new GoogleGenAI({ apiKey });
 
+
                      // Ensure aspectRatio is valid for the SDK
                      const validRatio = aspectRatio === 'custom' ? '16:9' : aspectRatio;
 
                      const response = await ai.models.generateContent({
-                         model: modelId,
+                         model: "Imagen-4-Pro",
                          contents: { parts: [{ text: prompt }] },
                          config: {
                              imageConfig: {
@@ -244,6 +246,7 @@ export const generateImageAction = async (
                              }
                          }
                      });
+
 
                      const candidate = response.candidates?.[0];
                      if (!candidate) throw new Error("Safety filters blocked the generation or key quota exceeded.");

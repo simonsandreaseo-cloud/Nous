@@ -4,11 +4,11 @@ import { GscService } from '@/lib/services/report/gscService';
 import { runFullAnalysis } from '@/lib/services/report/analysisService';
 import {
     getRelevantSections,
-    generateContent,
     generateInsightAnalysis,
     identifyAiTrafficSources,
     generateJSONReportState
 } from '@/lib/services/report/groqService';
+import { aiRouter } from '@/lib/ai/router';
 import { SegmentationService } from '@/lib/services/report/segmentationService';
 import { parseISO, subDays, format } from 'date-fns';
 import { GscRow } from '@/types/report';
@@ -45,7 +45,7 @@ export async function generateReportAction(
         const fullDataP1 = await GscService.fetchData(projectId, fmt(startP1), fmt(endP1));
         const fullDataP2 = await GscService.fetchData(projectId, fmt(startP2), fmt(endP2));
 
-        const transform = (data: any) => ({
+        const transform = (data: { pageMetrics: GscRow[], queryMetrics: GscRow[], jointMetrics: GscRow[] }) => ({
             pages: data.pageMetrics,
             queries: data.queryMetrics,
             joint: data.jointMetrics
@@ -57,7 +57,7 @@ export async function generateReportAction(
         let segmentRules: any[] = customRules || [];
 
         if (!customRules || customRules.length === 0) {
-            const uniqueUrls = Array.from(new Set(p2Data.pages.map((r: any) => r.page).filter(Boolean))) as string[];
+            const uniqueUrls = Array.from(new Set(p2Data.pages.map((r: GscRow) => r.page).filter(Boolean))) as string[];
             if (uniqueUrls.length > 0) {
                 try {
                     segmentRules = await SegmentationService.generateSegmentRules(uniqueUrls, apiKey);
@@ -80,7 +80,7 @@ export async function generateReportAction(
             if (project) {
                 // Use saved property ID if available and connected, otherwise try discovery
                 let propertyId = project.ga4_property_id;
-                const ga4Email = (project as any).ga4_account_email;
+                const ga4Email = project.ga4_account_email;
 
                 if (!propertyId && project.domain) {
                     propertyId = await AnalyticsService.findPropertyId(project.domain, project.user_id, ga4Email);
@@ -309,23 +309,25 @@ export async function analyzeStructureAction(projectId: string) {
         console.log("[SERVER ACTION] analyzeStructureAction finished for Project:", projectId);
         return { success: true, proposedRules, uncategorizedSample: uncategorized, totalUrls: uniqueUrls.length };
 
-    } catch (e: any) {
-        console.error("Structure Analysis Error:", e);
-        // Important: Return a serializable object, do not throw if possible to avoid 500 crash in UI
+    } catch (e: unknown) {
+        const error = e as Error;
+        console.error("Structure Analysis Error:", error);
         console.log("[SERVER ACTION] analyzeStructureAction finished with error for Project:", projectId);
-        return { success: false, error: e.message || "Unknown Server Error" };
+        return { success: false, error: error.message || "Unknown Server Error" };
     }
 }
 
 export async function generateAiContentAction(prompt: string, context: string) {
     try {
-        const apiKey = "auto-rotated";
-        if (!apiKey) throw new Error("API Key de IA no configurada");
-
-        const html = await generateContent(prompt, context, apiKey);
-        return { success: true, html };
-    } catch (e: any) {
-        return { success: false, error: e.message };
+        const response = await aiRouter.generate({
+            prompt: `Contexto: ${context}\n\nSolicitud: ${prompt}`,
+            model: 'gemini-3.1-flash-preview',
+            systemPrompt: 'Eres un analista SEO experto que genera contenido en HTML para informes ejecutivos.'
+        });
+        return { success: true, html: response.text };
+    } catch (e: unknown) {
+        const error = e as Error;
+        return { success: false, error: error.message };
     }
 }
 

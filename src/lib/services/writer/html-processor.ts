@@ -1,5 +1,7 @@
 import { ContentItem } from "./types";
+import { Project } from "@/types/project";
 import { sanitizeUrl } from "@/utils/domain";
+import { LinkPatcherService } from "../link-patcher";
 
 /**
  * SMART AUTO-INTERLINKING PIPELINE
@@ -9,7 +11,8 @@ export const autoInterlinkAsync = async (
     html: string, 
     inventory: ContentItem[], 
     architectureRules?: { name: string, regex: string }[],
-    architectureInstructions?: string
+    architectureInstructions?: string,
+    project?: Project | null
 ): Promise<string> => {
     if (!inventory || inventory.length === 0) return html;
 
@@ -124,7 +127,13 @@ export const autoInterlinkAsync = async (
                     const match = text.match(titleRegex);
                     if (match) {
                         const span = document.createElement('span');
-                        const finalUrl = sanitizeUrl(item.url);
+                        
+                        // APPLY PATCHING BEFORE INSERTION
+                        let finalUrl = sanitizeUrl(item.url);
+                        if (project) {
+                            finalUrl = LinkPatcherService.patchUrlForProcess(finalUrl, project, 'internal_linking');
+                        }
+
                         const parts = text.split(titleRegex);
                         
                         // Note: split can return multiple parts if there are multiple matches, 

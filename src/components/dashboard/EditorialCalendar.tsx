@@ -31,7 +31,9 @@ import {
     Layers,
     Terminal,
     FileUp as FileUpIcon,
-    Search
+    Search,
+    Image as ImageIcon,
+    Languages
 } from "lucide-react";
 import { useProjectStore, Task, STATUS_LABELS } from "@/store/useProjectStore";
 import { usePermissions } from '@/hooks/usePermissions';
@@ -44,19 +46,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { NotificationService } from "@/lib/services/notifications";
 import { useWriterStore } from "@/store/useWriterStore";
-import { parseDocx, parseHtml } from "@/lib/utils/data-importer";
+import { parseDocx, parseHtml } from "@/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
 import NousOrb from "./NousOrb";
 import { BatchProcessor } from '@/lib/services/writer/batch-actions';
+import { formatTasksToTSV, formatTasksToCSV } from "@/utils/exportUtils";
 
 import { ProjectBadge } from "@/components/ui/ProjectBadge";
-import NewContentModal from "./NewContentModal";
 import ContentDetailView from "./ContentDetailView";
 import { useSearchParams } from "next/navigation";
 
 export function EditorialCalendar() {
-    const { tasks, activeProject, activeProjectIds, updateTask, addTask, fetchProjectTasks, deleteTasks } = useProjectStore();
+    const { 
+        tasks, activeProject, activeProjectIds, updateTask, addTask, 
+        fetchProjectTasks, deleteTasks, fetchTasksFullData 
+    } = useProjectStore();
     const isConsoleOpen = useWriterStore(state => state.isConsoleOpen);
     const setIsConsoleOpen = useWriterStore(state => state.setIsConsoleOpen);
     const initializeFromTask = useWriterStore(state => state.initializeFromTask);
@@ -72,21 +77,19 @@ export function EditorialCalendar() {
     const [newTaskTitle, setNewTaskTitle] = useState("");
     const [newTaskDate, setNewTaskDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
-    const [isNewContentModalOpen, setIsNewContentModalOpen] = useState(false);
     const [researchTaskId, setResearchTaskId] = useState<string | undefined>(undefined);
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+    const [improveTitleWithNous, setImproveTitleWithNous] = useState(true);
     const [isResearching, setIsResearching] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const [researchProgress, setResearchProgress] = useState<number>(0);
     const searchParams = useSearchParams();
 
     // Column Visibility State
     const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('ns_grid_columns');
-            if (saved) return JSON.parse(saved);
-        }
-        return [
+        const defaults = [
             { id: 'project', label: 'Proy.', defaultVisible: true },
+            { id: 'content_type', label: 'Tipo', defaultVisible: true },
             { id: 'status', label: 'Estado', defaultVisible: true },
             { id: 'date', label: 'Publicación', defaultVisible: true },
             { id: 'title', label: 'Título', defaultVisible: true },
@@ -97,11 +100,25 @@ export function EditorialCalendar() {
             { id: 'strategy', label: 'Estrategia', defaultVisible: false },
             { id: 'assigned', label: 'Responsable', defaultVisible: false },
             { id: 'total_volume', label: 'Vol.', defaultVisible: false },
-            { id: 'word_count', label: 'Palabras', defaultVisible: false },
+            { id: 'word_count', label: 'Palabras (Obj)', defaultVisible: false },
+            { id: 'word_count_real', label: 'Palabras (Reales)', defaultVisible: false },
             { id: 'lsi', label: 'LSI', defaultVisible: false },
             { id: 'competitors', label: 'Fuentes', defaultVisible: false },
+            { id: 'content', label: 'Cuerpo', defaultVisible: true },
             { id: 'Acciones Nous', label: 'Acciones Nous', defaultVisible: true }
         ].reduce((acc, col) => ({ ...acc, [col.id]: col.defaultVisible }), {});
+
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('ns_grid_columns');
+            if (saved) {
+                try {
+                    return { ...defaults, ...JSON.parse(saved) };
+                } catch (e) {
+                    return defaults;
+                }
+            }
+        }
+        return defaults;
     });
 
     const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false);
@@ -110,6 +127,8 @@ export function EditorialCalendar() {
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
+    const [batchDeleteOptions, setBatchDeleteOptions] = useState({ research: false, writing: false, images: false, translations: false });
     
     // Advanced Filters State
     const [searchQuery, setSearchQuery] = useState("");
@@ -134,18 +153,11 @@ export function EditorialCalendar() {
     // Check for research trigger
     useEffect(() => {
         if (searchParams.get('action') === 'new-research') {
-            setIsNewContentModalOpen(true);
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete('action');
+            router.replace(window.location.pathname + '?' + params.toString(), { scroll: false });
         }
     }, [searchParams]);
-
-    const handleCloseSEOModal = () => {
-        setIsNewContentModalOpen(false);
-        setResearchTaskId(undefined);
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete('action');
-        const newSearch = params.toString();
-        router.replace(window.location.pathname + (newSearch ? '?' + newSearch : ''), { scroll: false });
-    };
 
     // Filter Logic
     const filteredTasks = useMemo(() => {
@@ -196,6 +208,50 @@ export function EditorialCalendar() {
         setDateTo("");
     };
 
+    const handleCopyTable = async () => {
+        if (filteredTasks.length === 0) return;
+        setIsExporting(true);
+        try {
+            const taskIds = filteredTasks.map(t => t.id);
+            const fullDataTasks = await fetchTasksFullData(taskIds);
+            const tsvContent = formatTasksToTSV(fullDataTasks);
+            if (document.hasFocus()) {
+                await navigator.clipboard.writeText(tsvContent);
+                NotificationService.success("Tabla copiada", "Lista para pegar en Google Sheets.");
+            }
+        } catch (error) {
+            NotificationService.error("Error al copiar", "No se pudo generar el formato.");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleDownloadCSV = async () => {
+        if (filteredTasks.length === 0) return;
+        setIsExporting(true);
+        try {
+            const taskIds = filteredTasks.map(t => t.id);
+            const fullDataTasks = await fetchTasksFullData(taskIds);
+            const csvContent = formatTasksToCSV(fullDataTasks);
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `planner_export_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            NotificationService.success("CSV Descargado", "El reporte está listo.");
+        } catch (error) {
+            NotificationService.error("Error al exportar", "No se pudo generar el archivo.");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const handleUnitAction = async (taskId: string, action: string) => {
         if (!activeProject) return;
         const task = tasks.find(t => t.id === taskId);
@@ -206,7 +262,8 @@ export function EditorialCalendar() {
         const onLog = (tid: string, stage: string, msg: string, res?: string) => addStrategyLog(tid, stage, msg, res);
 
         try {
-            if (action === 'investigar') {
+            if (action === 'investigar' || action === 'completar_investigacion' || action === 'investigar_forzado') {
+                const forceRestart = action === 'investigar_forzado';
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 5 }));
                 const result = await StrategyService.runDeepSEOAnalysis({
                     projectId: activeProject.id,
@@ -216,14 +273,18 @@ export function EditorialCalendar() {
                         setBatchResearchStatus(prev => ({ ...prev, [taskId]: progressMap[p] || 10 }));
                     },
                     onLog: (s, m, r) => onLog(taskId, s, m, r),
-                    taskId: taskId
+                    taskId: taskId,
+                    forceRestart
                 });
                 if (result) {
                     await updateTask(taskId, {
+                        title: improveTitleWithNous && result.seo_title ? result.seo_title : task.title,
                         research_dossier: result.research_dossier,
+                        h1: result.h1,
                         seo_title: result.seo_title,
                         meta_description: result.meta_description,
                         target_url_slug: result.target_url_slug,
+                        excerpt: result.excerpt,
                         status: result.status
                     });
                 }
@@ -263,12 +324,34 @@ export function EditorialCalendar() {
         }
     };
 
+
     const handleBatchDelete = async () => {
         if (selectedTaskIds.length === 0) return;
-        if (confirm(`¿Estás seguro de eliminar ${selectedTaskIds.length} tareas?`)) {
-            await deleteTasks(selectedTaskIds);
+        setIsBatchDeleteModalOpen(true);
+    };
+
+    const confirmBatchDelete = async (all: boolean = false) => {
+        if (selectedTaskIds.length === 0) return;
+        
+        setIsDeletingAll(true);
+        try {
+            if (all) {
+                await deleteTasks(selectedTaskIds);
+                NotificationService.notify("Tareas Eliminadas", `Se eliminaron completamente ${selectedTaskIds.length} contenidos.`);
+            } else {
+                for (const taskId of selectedTaskIds) {
+                    await useProjectStore.getState().selectiveDeleteTask(taskId, batchDeleteOptions);
+                }
+                NotificationService.notify("Limpieza Exitosa", `Se limpiaron los datos seleccionados de ${selectedTaskIds.length} contenidos.`);
+            }
             setSelectedTaskIds([]);
-            NotificationService.notify("Tareas Eliminadas", "La selección ha sido eliminada.");
+            setIsBatchDeleteModalOpen(false);
+            setBatchDeleteOptions({ research: false, writing: false, images: false, translations: false });
+        } catch (e: any) {
+            console.error(e);
+            NotificationService.error("Error en eliminación masiva", e.message);
+        } finally {
+            setIsDeletingAll(false);
         }
     };
 
@@ -294,19 +377,14 @@ export function EditorialCalendar() {
                 const { research, draft, humanize, finalStatus } = config || {};
                 
                 // 1. Identify context (Selected or All active tasks)
-                let targetTasks = selectedTaskIds.length > 0 
+                const targetTasks = (selectedTaskIds && selectedTaskIds.length > 0)
                     ? tasks.filter(t => selectedTaskIds.includes(t.id))
                     : tasks;
 
-                if (targetTasks.length === 0) {
+                if (!targetTasks || targetTasks.length === 0) {
                     NotificationService.notify("Información", "No hay contenidos seleccionados para procesar.");
                     return;
                 }
-
-                // Initial UI Setup
-                setIsResearching(true);
-                setResearchProgress(0);
-                if (!isConsoleOpen) setIsConsoleOpen(true);
 
                 // Progress weighting
                 const activePhases = [research, draft || research, draft, humanize].filter(Boolean).length;
@@ -315,7 +393,11 @@ export function EditorialCalendar() {
 
                 // PHASE 1: RESEARCH
                 if (research) {
-                    const toResearch = targetTasks.filter(t => t.status === 'idea' || !t.research_dossier || Object.keys(t.research_dossier).length === 0);
+                    const toResearch = targetTasks.filter(t => 
+                        t.status === 'idea' || 
+                        !t.research_dossier || 
+                        t.research_dossier._checkpoint !== 'outline_done'
+                    );
                     if (toResearch.length > 0) {
                         NotificationService.notify("Nous Global", `Fase 1/4: Investigando ${toResearch.length} contenidos...`);
                         let pCount = 0;
@@ -329,6 +411,7 @@ export function EditorialCalendar() {
                             });
                             if (result) {
                                 await updateTask(t.id, {
+                                    title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title,
                                     research_dossier: result.research_dossier,
                                     seo_title: result.seo_title,
                                     meta_description: result.meta_description,
@@ -451,6 +534,7 @@ export function EditorialCalendar() {
 
                     if (result) {
                         await updateTask(t.id, {
+                            title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title,
                             research_dossier: result.research_dossier,
                             seo_title: result.seo_title,
                             meta_description: result.meta_description,
@@ -599,6 +683,7 @@ export function EditorialCalendar() {
 
                 if (result) {
                     await updateTask(task.id, {
+                        title: improveTitleWithNous && result.seo_title ? result.seo_title : task.title,
                         research_dossier: result.research_dossier,
                         seo_title: result.seo_title,
                         meta_description: result.meta_description,
@@ -664,7 +749,23 @@ export function EditorialCalendar() {
                         <CalendarIcon size={18} className="text-indigo-600" />
                         <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Estrategia & Plan</h3>
                     </div>
-                    
+
+                    <div className="flex items-center gap-3 border-r border-slate-100 pr-4">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Mejorar título con Nous</span>
+                        <button 
+                            onClick={() => setImproveTitleWithNous(!improveTitleWithNous)}
+                            className={cn(
+                                "w-10 h-5 rounded-full transition-all duration-300 relative",
+                                improveTitleWithNous ? "bg-indigo-500" : "bg-slate-200"
+                            )}
+                        >
+                            <div className={cn(
+                                "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300",
+                                improveTitleWithNous ? "left-5.5" : "left-0.5"
+                            )} />
+                        </button>
+                    </div>
+
                     <div className="flex items-center gap-2">
                         {/* Column Selector */}
                         <div className="relative">
@@ -834,14 +935,34 @@ export function EditorialCalendar() {
                 {(searchQuery || statusFilter.length > 0 || dateFrom || dateTo) && (
                     <button 
                         onClick={clearFilters}
-                        className="ml-auto flex items-center gap-2 group px-3 py-2 rounded-xl transition-all"
+                        className="flex items-center gap-2 group px-3 py-2 rounded-xl transition-all"
                     >
                         <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-500 transition-all">
                             <X size={12} />
                         </div>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-rose-500 transition-all">Limpiar Filtros</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-rose-500 transition-all">Limpiar</span>
                     </button>
                 )}
+
+                {/* Export Buttons */}
+                <div className="ml-auto flex items-center gap-2">
+                    <button 
+                        onClick={handleCopyTable}
+                        disabled={isExporting || filteredTasks.length === 0}
+                        className="flex items-center gap-2.5 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 hover:bg-indigo-500 hover:text-white transition-all disabled:opacity-50 group"
+                    >
+                        {isExporting ? <Loader2 size={12} className="animate-spin" /> : <Clipboard size={12} className="group-hover:scale-110 transition-transform" />}
+                        <span className="text-[9px] font-black uppercase tracking-widest">Copiar Tabla</span>
+                    </button>
+                    <button 
+                        onClick={handleDownloadCSV}
+                        disabled={isExporting || filteredTasks.length === 0}
+                        className="flex items-center gap-2.5 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white hover:bg-slate-800 transition-all disabled:opacity-50 group shadow-lg shadow-slate-200"
+                    >
+                        {isExporting ? <Loader2 size={12} className="animate-spin" /> : <FileDown size={12} className="group-hover:-translate-y-0.5 transition-transform" />}
+                        <span className="text-[9px] font-black uppercase tracking-widest">Descargar CSV</span>
+                    </button>
+                </div>
             </div>
 
             {/* Main Area */}
@@ -876,88 +997,71 @@ export function EditorialCalendar() {
                     />
                 )}
 
-                {/* New Content / Research Modal */}
-                {isNewContentModalOpen && (
-                    <NewContentModal 
-                        isOpen={isNewContentModalOpen}
-                        onClose={handleCloseSEOModal}
-                    />
-                )}
-
-                {/* Strategy Suggestions Modal */}
-                {isStrategyModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md pointer-events-auto">
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
-                        >
-                            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-indigo-50/30">
-                                <div>
-                                    <h2 className="text-2xl font-black text-slate-900 uppercase italic flex items-center gap-2">
-                                        <Sparkles className="text-indigo-600" /> Estrategia IA
-                                    </h2>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Sugerencias basadas en el proyecto</p>
-                                </div>
-                                <button onClick={() => setIsStrategyModalOpen(false)} className="p-3 bg-white hover:bg-slate-50 rounded-2xl border border-slate-100 text-slate-400">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                                {suggestedTasks.map((task, i) => (
-                                    <div key={i} className="p-4 bg-white border border-slate-100 rounded-2xl mb-3 flex justify-between items-center hover:shadow-md transition-all group">
-                                        <div>
-                                            <h3 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{task.title}</h3>
-                                            <div className="flex items-center gap-3 mt-1">
-                                                <span className="text-[10px] text-slate-400 font-mono uppercase">KW: {task.target_keyword}</span>
-                                                <span className="text-[10px] text-slate-400 font-mono uppercase bg-slate-50 px-2 rounded">Vol: {task.volume}</span>
-                                            </div>
-                                        </div>
-                                        <button onClick={() => handleAcceptSuggestion(task)} className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all">Aceptar</button>
-                                    </div>
-                                ))}
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-
-                {/* Bulk/Clear Modal */}
-                {isDeleteModalOpen && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-rose-500/20 backdrop-blur-xl pointer-events-auto">
+                {/* Batch Delete Confirmation Modal */}
+                {isBatchDeleteModalOpen && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm pointer-events-auto">
                         <motion.div 
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-white w-full max-w-md rounded-[32px] p-10 shadow-2xl overflow-hidden relative"
+                            className="bg-white w-full max-w-sm rounded-[24px] p-6 shadow-2xl relative"
                         >
-                            <div className="mb-6">
-                                <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase italic">Limpieza Total</h3>
-                                <p className="text-xs text-slate-500 mt-2">Esta acción eliminará todos los contenidos del proyecto activo. No se puede deshacer.</p>
+                            <div className="mb-6 border-b border-slate-100 pb-4">
+                                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Limpieza Selectiva</h3>
+                                <p className="text-xs text-slate-500 mt-1">¿Qué deseas eliminar de {selectedTaskIds.length} contenidos?</p>
                             </div>
                             
-                            <div className="space-y-4">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Escribe "ELIMINAR TODO" para confirmar</p>
-                                <input 
-                                    type="text" 
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm font-bold text-rose-600 outline-none focus:border-rose-200 transition-all"
-                                    placeholder="ELIMINAR TODO"
-                                    value={deleteConfirmText}
-                                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                                />
-                                <div className="flex gap-3">
-                                    <button 
-                                        onClick={() => setIsDeleteModalOpen(false)}
-                                        className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+                            <div className="space-y-2 mb-6">
+                                {[
+                                    { key: 'research', label: 'Investigación', icon: Search },
+                                    { key: 'writing', label: 'Redacción', icon: FileText },
+                                    { key: 'images', label: 'Imágenes', icon: ImageIcon },
+                                    { key: 'translations', label: 'Traducciones', icon: Languages },
+                                ].map(({ key, label, icon: Icon }) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setBatchDeleteOptions(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}
+                                        className={cn(
+                                            "w-full flex items-center gap-3 justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all",
+                                            (batchDeleteOptions as any)[key] ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : "bg-slate-50 text-slate-600 border border-slate-50 hover:bg-slate-100"
+                                        )}
                                     >
-                                        Cancelar
+                                        <span className="flex items-center gap-2"><Icon size={16} />{label}</span>
+                                        {(batchDeleteOptions as any)[key] && <Check size={14} />}
                                     </button>
+                                ))}
+                            </div>
+
+                            <div className="space-y-3">
+                                {(batchDeleteOptions.research || batchDeleteOptions.writing || batchDeleteOptions.images || batchDeleteOptions.translations) && (
                                     <button 
-                                        onClick={handleDeleteAll}
-                                        disabled={deleteConfirmText !== "ELIMINAR TODO" || isDeletingAll}
-                                        className="flex-1 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-rose-600/20 disabled:opacity-30 hover:bg-rose-700 transition-all flex items-center justify-center gap-2"
+                                        onClick={() => confirmBatchDelete(false)}
+                                        disabled={isDeletingAll}
+                                        className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex justify-center items-center gap-2"
                                     >
-                                        {isDeletingAll ? <Loader2 size={16} className="animate-spin" /> : "Confirmar"}
+                                        {isDeletingAll ? <Loader2 size={14} className="animate-spin" /> : "Confirmar Limpieza Parcial"}
                                     </button>
-                                </div>
+                                )}
+                                
+                                <div className="h-px bg-slate-100 w-full my-2" />
+
+                                <button 
+                                    onClick={() => {
+                                        if (confirm('¿Eliminar por completo todos estos contenidos?')) {
+                                            confirmBatchDelete(true);
+                                        }
+                                    }}
+                                    disabled={isDeletingAll}
+                                    className="w-full py-3 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex justify-center items-center gap-2 border border-rose-100"
+                                >
+                                    {isDeletingAll ? <Loader2 size={14} className="animate-spin" /> : "ELIMINAR TODO POR COMPLETO"}
+                                </button>
+
+                                <button 
+                                    onClick={() => setIsBatchDeleteModalOpen(false)}
+                                    className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors mt-2"
+                                >
+                                    Cancelar
+                                </button>
                             </div>
                         </motion.div>
                     </div>

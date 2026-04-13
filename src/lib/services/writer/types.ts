@@ -34,6 +34,7 @@ export interface ArticleConfig {
     architectureRules?: any[]; // New: Regex-based architecture rules
     isStrictMode?: boolean;
     strictFrequency?: number;
+    extractorInstructions?: string;
 }
 
 export interface VisualResource {
@@ -137,4 +138,16 @@ export interface HumanizerConfig {
     isStrictMode?: boolean;
     strictFrequency?: number;
     questions?: string[];
+}
+
+// --- Research Pipeline Config ---
+export interface DeepSEOConfig {
+    keyword: string;
+    projectId?: string;
+    taskId?: string;
+    onProgress?: (phase: string) => void;
+    onLog?: (stage: string, message: string, result?: string) => void;
+    isFastMode?: boolean;
+    /** If true, ignores any existing checkpoint and restarts research from scratch */
+    forceRestart?: boolean;
 }

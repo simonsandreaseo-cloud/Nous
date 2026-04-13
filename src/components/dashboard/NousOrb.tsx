@@ -19,13 +19,31 @@ import {
     AlertTriangle,
     MessageSquare,
     CheckCircle2,
-    Clock
+    Clock,
+    Globe,
+    Database,
+    Layers,
+    FileText,
+    Image as ImageIcon,
+    Edit3
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Task } from '@/types/project';
 import { NousOrbLite } from '@/components/canvas/NousOrbLite';
 import { useAppStore } from '@/store/useAppStore';
 import { useWriterStore } from '@/store/useWriterStore';
+
+const getIconForPhase = (phase: string) => {
+    const p = phase.toLowerCase();
+    if (p.includes('serp') || p.includes('búsqueda') || p.includes('exploración')) return <Search size={12} className="text-cyan-500" />;
+    if (p.includes('scraping') || p.includes('extrayendo') || p.includes('lectura')) return <Database size={12} className="text-violet-500" />;
+    if (p.includes('lsi') || p.includes('keyword') || p.includes('semántica')) return <Layers size={12} className="text-emerald-500" />;
+    if (p.includes('metadata') || p.includes('seo')) return <FileText size={12} className="text-amber-500" />;
+    if (p.includes('interlinking') || p.includes('enlace')) return <Globe size={12} className="text-indigo-500" />;
+    if (p.includes('outline') || p.includes('estructura')) return <Edit3 size={12} className="text-rose-500" />;
+    if (p.includes('image') || p.includes('media')) return <ImageIcon size={12} className="text-fuchsia-500" />;
+    return <Zap size={12} className="text-slate-400" />;
+};
 
 interface NousOrbProps {
     tasks?: Task[];
@@ -125,157 +143,103 @@ export default function NousOrb({
 
     return (
         <div className="fixed bottom-10 right-10 z-[300] flex flex-col items-end gap-4">
-            {/* Monitor AI (Neural Prompt Console) - Ported from WriterEditor */}
+            {/* Monitor en Vivo Elegante (Reemplaza a la consola oscura) */}
             <AnimatePresence>
                 {isConsoleOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                        className="w-[500px] max-h-[600px] bg-slate-950 border border-white/10 rounded-[32px] shadow-[0_32px_128px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col z-[310] backdrop-blur-2xl ring-1 ring-white/10"
+                        layoutId="nous-orb-morph"
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="w-[420px] max-h-[600px] bg-white/90 backdrop-blur-2xl border border-white/50 rounded-[32px] shadow-[0_32px_128px_rgba(79,70,229,0.15)] overflow-hidden flex flex-col z-[310] ring-1 ring-black/[0.03]"
                     >
-                        {/* Header */}
-                        <div className="p-5 border-b border-white/5 bg-slate-900/50 flex items-center justify-between">
+                        {/* Header Elegante */}
+                        <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-indigo-50/20 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                                    <Terminal size={16} className="text-emerald-400" />
+                                <div className="relative w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-purple-500/10" />
+                                    <Sparkles size={20} className="text-indigo-500 relative z-10" />
                                 </div>
                                 <div>
-                                    <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-400">Neural Monitor</h4>
-                                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Helios Engine Live Stream</p>
+                                    <h4 className="text-sm font-black uppercase tracking-[0.15em] text-slate-800">Nous Intelligence</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Creación en tiempo real</p>
                                 </div>
                             </div>
                             
                             <div className="flex items-center gap-2">
-                                <button 
-                                    onClick={() => {
-                                        const allText = debugPrompts.map(p => `--- PHASE: ${p.phase} ---\nPROMPT:\n${p.prompt}\n\nRESPONSE:\n${p.response || 'No response'}\n`).join('\n\n');
-                                        navigator.clipboard.writeText(allText);
-                                    }}
-                                    className="p-2 text-slate-500 hover:text-white transition-colors"
-                                    title="Copiar Todo"
-                                >
-                                    <Copy size={14} />
+                                <button onClick={clearDebugPrompts} className="p-2 text-slate-400 hover:text-slate-600 transition-colors" title="Limpiar Panel">
+                                    <Trash2 size={16} />
                                 </button>
-                                <button 
-                                    onClick={clearDebugPrompts}
-                                    className="p-2 text-slate-500 hover:text-white transition-colors"
-                                    title="Limpiar Consola"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                                <button onClick={() => setIsConsoleOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-all">
+                                <button onClick={() => setIsConsoleOpen(false)} className="p-2 bg-slate-100/50 hover:bg-slate-200/50 rounded-xl text-slate-500 hover:text-slate-800 transition-all">
                                     <X size={16} />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Progress Monitor (Active only during research) */}
+                        {/* Barra de Progreso Elegante */}
                         <AnimatePresence>
                             {effectiveIsProcessing && (
                                 <motion.div 
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: "auto", opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    className="bg-indigo-600/10 border-b border-indigo-500/20 p-4"
+                                    className="bg-indigo-50/50 border-b border-indigo-100/50 p-6"
                                 >
                                     <div className="flex justify-between items-end mb-3">
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest truncate">{researchTopic || effectiveStatus}</span>
-                                            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Analizando en segundo plano</span>
+                                        <div className="flex flex-col min-w-0 pr-4">
+                                            <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest truncate">{researchTopic || effectiveStatus}</span>
+                                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Sintetizando datos...</span>
                                         </div>
-                                        <span className="text-sm font-black text-white italic tracking-tighter">{effectiveProgress}%</span>
+                                        <span className="text-xl font-black text-indigo-600 italic tracking-tighter">{Math.round(effectiveProgress)}%</span>
                                     </div>
-                                    <div className="h-1.5 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/5">
+                                    <div className="h-2 bg-white rounded-full overflow-hidden p-0.5 shadow-inner border border-slate-100">
                                         <motion.div 
                                             initial={{ width: 0 }}
                                             animate={{ width: `${effectiveProgress}%` }}
-                                            className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full"
+                                            className="h-full bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-full shadow-sm"
                                         />
                                     </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
 
-                        {/* Logs List */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                            {/* Cannibalization Alert */}
-                            {strategyCannibalization && strategyCannibalization.length > 0 && (
-                                <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl relative overflow-hidden">
-                                     <div className="flex items-center gap-3 mb-2">
-                                        <AlertTriangle className="text-rose-500" size={14} />
-                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-500">Canibalización Detectada</h4>
-                                    </div>
-                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight mb-3">
-                                        Se han encontrado {strategyCannibalization.length} URLs de tu proyecto en el SERP.
-                                    </p>
-                                    <div className="max-h-24 overflow-y-auto custom-scrollbar pr-2 space-y-1">
-                                        {strategyCannibalization.map((url: string, idx: number) => (
-                                            <div key={idx} className="p-2 bg-black/40 rounded-lg text-[8px] font-mono text-slate-500 truncate">
-                                                {url}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
+                        {/* Stream de Logs con Textos de Valor */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/30">
                             {debugPrompts.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-center py-20 opacity-20">
-                                    <Cpu size={32} className="mb-4 text-emerald-400" />
-                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] leading-loose">
-                                        Sistema Ready<br/>Capturando señales...
+                                <div className="h-full flex flex-col items-center justify-center text-center py-16 opacity-40">
+                                    <BrainCircuit size={40} className="mb-4 text-indigo-400" />
+                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] leading-loose text-slate-500">
+                                        Nous en Espera<br/>Listo para la creación.
                                     </p>
                                 </div>
                             ) : (
                                 debugPrompts.map((log, i) => (
-                                    <div 
+                                    <motion.div 
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.1 }}
                                         key={i} 
-                                        className={cn(
-                                            "border rounded-2xl transition-all overflow-hidden",
-                                            expandedIndex === i ? "bg-white/5 border-emerald-500/30" : "bg-black/20 border-white/5"
-                                        )}
+                                        className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm relative overflow-hidden group"
                                     >
-                                        <div 
-                                            onClick={() => setExpandedIndex(expandedIndex === i ? null : i)}
-                                            className="p-3 cursor-pointer flex items-center justify-between"
-                                        >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className={cn("w-1.5 h-1.5 rounded-full", log.response ? "bg-emerald-500" : "bg-amber-500 animate-pulse")} />
-                                                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest truncate">{log.phase}</span>
+                                        <div className="flex items-start gap-3 relative z-10">
+                                            <div className="mt-0.5 w-7 h-7 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
+                                                {getIconForPhase(log.phase)}
                                             </div>
-                                            {expandedIndex === i ? <ChevronUp size={12} className="text-slate-600" /> : <ChevronDown size={12} className="text-slate-600" />}
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest truncate whitespace-normal leading-tight">{log.prompt}</span>
+                                                {log.response && (
+                                                    <span className="text-[10px] font-medium text-slate-500 mt-1 leading-relaxed">
+                                                        {log.response}
+                                                    </span>
+                                                )}
+                                                <span className="text-[8px] font-bold text-slate-300 mt-2">{log.timestamp}</span>
+                                            </div>
                                         </div>
-
-                                        <AnimatePresence>
-                                            {expandedIndex === i && (
-                                                <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="border-t border-white/5 overflow-hidden">
-                                                    <div className="flex bg-black/40 p-1 gap-1">
-                                                        <button onClick={() => setLogViewMode('prompt')} className={cn("flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all", logViewMode === 'prompt' ? "bg-slate-800 text-white" : "text-slate-600")}>Prompt</button>
-                                                        <button onClick={() => setLogViewMode('response')} className={cn("flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all", logViewMode === 'response' ? "bg-slate-800 text-white" : "text-slate-600", !log.response && "opacity-20")}>Response</button>
-                                                    </div>
-                                                    <div className="p-3 relative">
-                                                        <pre className="text-[10px] text-slate-400 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
-                                                            {logViewMode === 'prompt' ? log.prompt : (log.response || "Esperando respuesta...")}
-                                                        </pre>
-                                                        <button onClick={() => navigator.clipboard.writeText(logViewMode === 'prompt' ? log.prompt : (log.response || ""))} className="absolute top-2 right-2 p-1.5 bg-white/5 rounded-lg text-slate-500 hover:text-white">
-                                                            <Copy size={10} />
-                                                        </button>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
+                                        {/* Hover glow */}
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-50/30 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
+                                    </motion.div>
                                 ))
                             )}
-                        </div>
-                        
-                        {/* Footer */}
-                        <div className="p-3 bg-slate-900 border-t border-white/5 flex items-center justify-between text-[8px] font-black text-slate-600 uppercase tracking-[0.2em]">
-                            <span>Helios v2.0 Monitoring</span>
-                            <div className="flex items-center gap-2">
-                                <Activity size={10} className="text-emerald-500" />
-                                <span className="text-emerald-500">Live</span>
-                            </div>
                         </div>
                     </motion.div>
                 )}

@@ -8,7 +8,7 @@ import { cn } from "@/utils/cn";
 import Link from "next/link";
 
 export function ProjectSelector() {
-    const { projects, activeProjectIds, toggleProjectActive, setAllProjectsActive } = useProjectStore();
+    const { projects, activeProjectIds, setActiveProject, setAllProjectsActive } = useProjectStore();
     const [isOpen, setIsOpen] = useState(false);
 
     const activeProjects = projects.filter(p => activeProjectIds.includes(p.id));
@@ -26,7 +26,7 @@ export function ProjectSelector() {
         <div className="relative z-50">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-3 pl-1 pr-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 transition-all group backdrop-blur-md"
+                className="flex items-center gap-3 pl-1 pr-3 py-1.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-100 transition-all group shadow-sm bg-opacity-80 backdrop-blur-md"
             >
                 <div 
                     className="w-6 h-6 rounded-full flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform"
@@ -53,7 +53,7 @@ export function ProjectSelector() {
                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 p-2"
+                            className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 p-2"
                         >
                             <div className="flex items-center justify-between px-3 py-2 border-b border-slate-50 mb-1">
                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -81,7 +81,7 @@ export function ProjectSelector() {
                                             key={project.id}
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                toggleProjectActive(project.id);
+                                                setActiveProject(project.id);
                                             }}
                                             className={cn(
                                                 "w-full p-2.5 rounded-xl text-left transition-all group border border-transparent",

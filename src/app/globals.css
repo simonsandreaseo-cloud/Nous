@@ -110,3 +110,14 @@ body {
     background-position: 0 0;
   }
 }
+
+@keyframes flash-highlight {
+  0% { background-color: transparent; }
+  30% { background-color: rgba(99, 102, 241, 0.4); box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.flash-highlight {
+  animation: flash-highlight 1.5s ease-out;
+  border-radius: 4px;
+}

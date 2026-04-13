@@ -3,8 +3,8 @@
 import { useProjectStore, Task, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MoreVertical, CheckCircle2, Clock, Calendar, Hash, Tag, Activity, Edit3, Trash2, Plus, Sparkles, X, Globe, FileText, User, UserPlus, ArrowRight, Check, Search, Layout, Zap, BrainCircuit, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { MoreVertical, CheckCircle2, Clock, Calendar, Hash, Tag, Activity, Edit3, Trash2, Plus, Sparkles, X, Globe, FileText, User, UserPlus, ArrowRight, Check, Search, Layout, Zap, BrainCircuit, Loader2, ChevronDown, RefreshCw, Image as ImageIcon, Languages } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationService } from '@/lib/services/notifications';
@@ -16,6 +16,7 @@ import CompetitorModal from './CompetitorModal';
 
 export const ALL_COLUMNS = [
     { id: 'project', label: 'Proy.', width: 'min-w-[50px] w-[5%]', defaultVisible: true },
+    { id: 'content_type', label: 'Tipo', width: 'min-w-[80px] w-[6%]', defaultVisible: true },
     { id: 'status', label: 'Estado', width: 'min-w-[100px] w-[8%]', defaultVisible: true },
     { id: 'date', label: 'Publicación', width: 'min-w-[100px] w-[10%]', defaultVisible: true },
     { id: 'title', label: 'Título', width: 'min-w-[200px] w-[25%]', defaultVisible: true },
@@ -26,9 +27,11 @@ export const ALL_COLUMNS = [
     { id: 'strategy', label: 'Estrategia', width: 'min-w-[80px] w-[6%]', defaultVisible: true },
     { id: 'assigned', label: 'Responsable', width: 'min-w-[100px] w-[8%]', defaultVisible: true },
     { id: 'total_volume', label: 'Vol.', width: 'min-w-[60px] w-[6%]', defaultVisible: true },
-    { id: 'word_count', label: 'Palabras', width: 'min-w-[70px] w-[7%]', defaultVisible: true },
+    { id: 'word_count', label: 'Palabras (Obj)', width: 'min-w-[70px] w-[7%]', defaultVisible: true },
+    { id: 'word_count_real', label: 'Palabras (Reales)', width: 'min-w-[90px] w-[9%]', defaultVisible: false },
     { id: 'lsi', label: 'LSI', width: 'min-w-[120px] w-[12%]', defaultVisible: true },
     { id: 'competitors', label: 'Fuentes', width: 'min-w-[100px] w-[8%]', defaultVisible: true },
+    { id: 'content', label: 'Cuerpo', width: 'min-w-[60px] w-[5%]', defaultVisible: true },
     { id: 'Acciones Nous', label: 'Acciones Nous', width: 'min-w-[140px] w-[9%]', defaultVisible: true },
 ];
 
@@ -54,17 +57,25 @@ export default function StrategyGrid({
     const { tasks: storeTasks, activeProject, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
     const [deletePopupId, setDeletePopupId] = useState<string | null>(null);
-    const [deleteOptions, setDeleteOptions] = useState({ research: false, writing: false });
+    const [deleteOptions, setDeleteOptions] = useState({ research: false, writing: false, images: false, translations: false });
+
     const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
     const [tempValue, setTempValue] = useState("");
     
     // Internal fallback for compatibility, but primarily uses externalVisibility
     const [internalVisibility] = useState<Record<string, boolean>>(() => {
+        const defaults = ALL_COLUMNS.reduce((acc, col) => ({ ...acc, [col.id]: col.defaultVisible }), {});
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('ns_grid_columns');
-            if (saved) return JSON.parse(saved);
+            if (saved) {
+                try {
+                    return { ...defaults, ...JSON.parse(saved) };
+                } catch (e) {
+                    return defaults;
+                }
+            }
         }
-        return ALL_COLUMNS.reduce((acc, col) => ({ ...acc, [col.id]: col.defaultVisible }), {});
+        return defaults;
     });
 
     const columnVisibility = externalVisibility || internalVisibility;
@@ -79,6 +90,8 @@ export default function StrategyGrid({
     const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
     const router = useRouter();
     const { initializeFromTask } = useWriterStore();
+    const [outlinePopupId, setOutlinePopupId] = useState<string | null>(null);
+    const [isRegeneratingOutline, setIsRegeneratingOutline] = useState(false);
 
     const tasksToUse = externalTasks || storeTasks;
 
@@ -117,7 +130,7 @@ export default function StrategyGrid({
     const handleSave = async () => {
         if (!editingCell) return;
         const { id, field } = editingCell;
-        const originalTask = tasks.find(t => t.id === id);
+        const originalTask = tasksToUse.find(t => t.id === id);
         if (originalTask) {
             const actualField = (field as string) === 'date' ? 'scheduled_date' : field as keyof Task;
             await updateTask(id, { [actualField]: tempValue });
@@ -171,6 +184,7 @@ export default function StrategyGrid({
             title: "",
             scheduled_date: format(new Date(), 'yyyy-MM-dd'),
             status: 'idea' as const,
+            content_type: 'Blog Post',
             target_keyword: "",
             viability: "",
             brief: ""
@@ -187,7 +201,7 @@ export default function StrategyGrid({
 
     const handleAddKeyword = async () => {
         if (!keywordModal || !newKw.keyword.trim()) return;
-        const task = tasks.find(t => t.id === keywordModal.taskId);
+        const task = tasksToUse.find(t => t.id === keywordModal.taskId);
         if (!task) return;
 
         if (keywordModal.type === 'main') {
@@ -338,6 +352,40 @@ export default function StrategyGrid({
                                     {columnVisibility['project'] && (
                                         <td className="px-3 py-2">
                                             <ProjectBadge projectId={task.project_id} />
+                                        </td>
+                                    )}
+
+                                    {columnVisibility['content_type'] && (
+                                        <td className="px-3 py-2">
+                                            {editingCell?.id === task.id && editingCell?.field === 'content_type' ? (
+                                                <>
+                                                    <input
+                                                        type="text"
+                                                        autoFocus
+                                                        list="content-types-list"
+                                                        value={tempValue}
+                                                        onChange={(e) => setTempValue(e.target.value)}
+                                                        onKeyDown={handleKeyDown}
+                                                        onBlur={handleSave}
+                                                        className="w-full bg-white border border-indigo-200 rounded-md p-1.5 text-[10px] font-bold text-slate-700 outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                                    />
+                                                    <datalist id="content-types-list">
+                                                        <option value="Blog Post" />
+                                                        <option value="Landing Transaccional" />
+                                                        <option value="Review / Reseña" />
+                                                        <option value="Guía Definitiva" />
+                                                        <option value="Pilar Page" />
+                                                    </datalist>
+                                                </>
+                                            ) : (
+                                                <div 
+                                                    className="inline-flex items-center gap-1.5 px-2 py-1 bg-slate-100/50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-md text-[9px] font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 transition-colors cursor-text group"
+                                                    onClick={(e) => handleCellClick(task, 'content_type', e)}
+                                                >
+                                                    <Layout size={10} className="opacity-50 group-hover:opacity-100" />
+                                                    {task.content_type || 'Blog Post'}
+                                                </div>
+                                            )}
                                         </td>
                                     )}
 
@@ -582,23 +630,110 @@ export default function StrategyGrid({
 
                                     {columnVisibility['strategy'] && (
                                         <td className="px-3 py-2">
-                                            <div className="flex items-center gap-1.5 justify-center">
+                                            <div 
+                                                className="flex items-center gap-1.5 justify-center cursor-pointer group/plan"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOutlinePopupId(outlinePopupId === task.id ? null : task.id);
+                                                }}
+                                            >
                                                 {((Array.isArray(task.outline_structure) && task.outline_structure.length > 0) || (task.outline_structure?.headers?.length > 0)) ? (
-                                                    <div className="flex items-center gap-1 text-violet-500 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-100" title="Outline Completo">
+                                                    <div className="flex items-center gap-1 text-violet-500 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-100 group-hover/plan:bg-violet-500 group-hover/plan:text-white transition-all shadow-sm" title="Outline Completo (Clic para Ver)">
                                                         <Sparkles size={11} />
                                                         <span className="text-[8px] font-black uppercase tracking-tighter">Plan</span>
                                                     </div>
                                                 ) : task.brief ? (
-                                                    <div className="flex items-center gap-1 text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100" title="Solo Brief">
+                                                    <div className="flex items-center gap-1 text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 group-hover/plan:bg-slate-900 group-hover/plan:text-white transition-all" title="Solo Brief (Clic para Ver)">
                                                         <FileText size={11} />
                                                         <span className="text-[8px] font-black uppercase tracking-tighter">Notas</span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[8px] text-slate-200 italic">--</span>
+                                                    <div className="flex items-center gap-1 text-slate-200 hover:text-indigo-400 transition-all">
+                                                        <Plus size={10} />
+                                                        <span className="text-[8px] font-bold uppercase tracking-tighter">Plan</span>
+                                                    </div>
                                                 )}
                                             </div>
+
+                                            {/* Outline Quick View Popup */}
+                                            <AnimatePresence>
+                                                {outlinePopupId === task.id && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-40" onClick={() => setOutlinePopupId(null)} />
+                                                        <motion.div 
+                                                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                            className="absolute left-0 bottom-full mb-3 w-80 bg-white border border-slate-200 rounded-[28px] shadow-2xl z-50 overflow-hidden flex flex-col max-h-[400px]"
+                                                        >
+                                                            <div className="p-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                                                                        <Sparkles size={14} />
+                                                                    </div>
+                                                                    <span className="text-[10px] font-black uppercase text-slate-900 tracking-widest">Estructura Nous</span>
+                                                                </div>
+                                                                <button 
+                                                                    onClick={async (e) => {
+                                                                        e.stopPropagation();
+                                                                        setIsRegeneratingOutline(true);
+                                                                        await onRunAction?.(task.id, 'plan');
+                                                                        setIsRegeneratingOutline(false);
+                                                                        setOutlinePopupId(null);
+                                                                        NotificationService.notify("Regenerando Outline", "Nous está trabajando en la nueva estructura.");
+                                                                    }}
+                                                                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-[8px] font-black uppercase tracking-widest hover:border-indigo-400 hover:text-indigo-600 transition-all shadow-sm"
+                                                                >
+                                                                    {isRegeneratingOutline ? <Loader2 size={10} className="animate-spin" /> : <Zap size={10} />}
+                                                                    Regenerar
+                                                                </button>
+                                                            </div>
+                                                            <div className="p-5 overflow-y-auto custom-scrollbar bg-white">
+                                                                {((Array.isArray(task.outline_structure) && task.outline_structure.length > 0) || (task.outline_structure?.headers?.length > 0)) ? (
+                                                                    <div className="space-y-3">
+                                                                        {(task.outline_structure?.headers || task.outline_structure).map((h: any, i: number) => (
+                                                                            <div key={i} className="flex gap-3 group/item">
+                                                                                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 uppercase h-fit">
+                                                                                    {h.tag || 'H' + (i % 2 === 0 ? '2' : '3')}
+                                                                                </span>
+                                                                                <p className="text-[10px] font-bold text-slate-700 leading-tight">
+                                                                                    {h.text || h.title || (typeof h === 'string' ? h : 'Sección')}
+                                                                                </p>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : task.brief ? (
+                                                                    <p className="text-[10px] text-slate-500 italic leading-relaxed">{task.brief}</p>
+                                                                ) : (
+                                                                    <div className="py-8 text-center space-y-3">
+                                                                        <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-200">
+                                                                            <BrainCircuit size={24} />
+                                                                        </div>
+                                                                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Sin Planificación Activa</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+                                                                <button 
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (document.hasFocus()) {
+                                                                            navigator.clipboard.writeText(text);
+                                                                            NotificationService.success("Outline Copiado");
+                                                                        }
+                                                                    }}
+                                                                    className="text-[9px] font-black uppercase text-slate-400 hover:text-indigo-600 tracking-[0.2em] transition-colors"
+                                                                >
+                                                                    Copiar Estructura
+                                                                </button>
+                                                            </div>
+                                                        </motion.div>
+                                                    </>
+                                                )}
+                                            </AnimatePresence>
                                         </td>
                                     )}
+
 
                                      {columnVisibility['assigned'] && (
                                         <td className="px-3 py-2 relative">
@@ -686,8 +821,16 @@ export default function StrategyGrid({
 
                                     {columnVisibility['word_count'] && (
                                         <td className="px-3 py-2">
-                                            <span className="text-[10px] font-bold text-slate-500 tabular-nums">
+                                            <span className="text-[10px] font-bold text-slate-400 tabular-nums">
                                                 {task.word_count || "--"}
+                                            </span>
+                                        </td>
+                                    )}
+
+                                    {columnVisibility['word_count_real'] && (
+                                        <td className="px-3 py-2">
+                                            <span className="text-[10px] font-bold text-indigo-600 tabular-nums">
+                                                {task.word_count_real || 0}
                                             </span>
                                         </td>
                                     )}
@@ -806,6 +949,27 @@ export default function StrategyGrid({
                                             </div>
                                         </td>
                                     )}
+
+                                    {columnVisibility['content'] && (
+                                        <td className="px-3 py-2 text-center">
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    initializeFromTask(task, activeProject);
+                                                    router.push('/contents/writer');
+                                                }}
+                                                className={cn(
+                                                    "p-2 rounded-xl transition-all border",
+                                                    task.content_body?.trim() 
+                                                        ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100"
+                                                        : "bg-slate-50 text-slate-300 border-slate-100 hover:text-indigo-500 hover:bg-slate-100"
+                                                )}
+                                                title={task.content_body?.trim() ? "Abrir Redactor (Con Contenido)" : "Abrir Redactor (Vacío)"}
+                                            >
+                                                <FileText size={14} />
+                                            </button>
+                                        </td>
+                                    )}
                                      {columnVisibility['Acciones Nous'] && (
                                         <td className="px-3 py-2 pr-6">
                                             <div className="flex items-center justify-end gap-2">
@@ -827,7 +991,7 @@ export default function StrategyGrid({
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setDeletePopupId(deletePopupId === task.id ? null : task.id);
-                                                            setDeleteOptions({ research: false, writing: false });
+                                                            setDeleteOptions({ research: false, writing: false, images: false, translations: false });
                                                         }}
                                                         className={cn(
                                                             "p-2 rounded-xl transition-all border",
@@ -853,35 +1017,29 @@ export default function StrategyGrid({
                                                                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">¿Qué deseas eliminar?</span>
                                                                     </div>
                                                                     <div className="p-2 space-y-1">
-                                                                        <button 
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setDeleteOptions(prev => ({ ...prev, research: !prev.research }));
-                                                                            }}
-                                                                            className={cn(
-                                                                                "w-full flex items-center justify-between px-3 py-2 rounded-lg text-[10px] font-bold transition-all",
-                                                                                deleteOptions.research ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50"
-                                                                            )}
-                                                                        >
-                                                                            <span>Investigación</span>
-                                                                            {deleteOptions.research && <Check size={12} />}
-                                                                        </button>
-                                                                        
-                                                                        <button 
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setDeleteOptions(prev => ({ ...prev, writing: !prev.writing }));
-                                                                            }}
-                                                                            className={cn(
-                                                                                "w-full flex items-center justify-between px-3 py-2 rounded-lg text-[10px] font-bold transition-all",
-                                                                                deleteOptions.writing ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50"
-                                                                            )}
-                                                                        >
-                                                                            <span>Redacción</span>
-                                                                            {deleteOptions.writing && <Check size={12} />}
-                                                                        </button>
+                                                                        {[
+                                                                            { key: 'research', label: 'Investigación', icon: Search },
+                                                                            { key: 'writing', label: 'Redacción', icon: FileText },
+                                                                            { key: 'images', label: 'Imágenes', icon: ImageIcon },
+                                                                            { key: 'translations', label: 'Traducciones', icon: Languages },
+                                                                        ].map(({ key, label, icon: Icon }) => (
+                                                                            <button
+                                                                                key={key}
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setDeleteOptions(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
+                                                                                }}
+                                                                                className={cn(
+                                                                                    "w-full flex items-center gap-2 justify-between px-3 py-2 rounded-lg text-[10px] font-bold transition-all",
+                                                                                    (deleteOptions as any)[key] ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50"
+                                                                                )}
+                                                                            >
+                                                                                <span className="flex items-center gap-1.5"><Icon size={11} />{label}</span>
+                                                                                {(deleteOptions as any)[key] && <Check size={12} />}
+                                                                            </button>
+                                                                        ))}
 
-                                                                        {(deleteOptions.research || deleteOptions.writing) && (
+                                                                        {(deleteOptions.research || deleteOptions.writing || deleteOptions.images || deleteOptions.translations) && (
                                                                             <button 
                                                                                 onClick={async (e) => {
                                                                                     e.stopPropagation();
@@ -932,7 +1090,7 @@ export default function StrategyGrid({
                                         <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-slate-900 group-hover:text-white transition-all scale-90 group-hover:scale-100">
                                             <Plus size={14} />
                                         </div>
-                                        Agregar Nuevo Contenido
+                                        Agregar Fila
                                     </button>
                                 </td>
                             </tr>
@@ -1055,70 +1213,157 @@ export default function StrategyGrid({
 }
 
 function IntelligentActionButton({ task, onAction, isProcessing }: { task: Task, onAction: (type: string) => void, isProcessing?: boolean }) {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const buttonRef = useRef<HTMLDivElement>(null);
+    const [openUpwards, setOpenUpwards] = useState(false);
+
+    useEffect(() => {
+        if (isDropdownOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            // Si está muy cerca del final de la pantalla, abrir hacia arriba
+            if (window.innerHeight - rect.bottom < 250) {
+                setOpenUpwards(true);
+            } else {
+                setOpenUpwards(false);
+            }
+        }
+    }, [isDropdownOpen]);
+
     const getActionState = () => {
         if (isProcessing) {
             return { label: 'Procesando', action: 'none', color: 'indigo', icon: Loader2, animate: true };
         }
-        // 1. Necesita Investigación
+        
+        // 1. Sin investigación -> Investigar
         if (!task.research_dossier || Object.keys(task.research_dossier).length === 0) {
             return { label: 'Investigar', action: 'investigar', color: 'indigo', icon: Search };
         }
-        // 2. Necesita Redacción (Si tiene dossier o está en estado por_redactar)
+        
+        // 2. Investigación parcial (checkpoint presente pero no outline_done, o outline_structure vacio)
+        const outlineValid = task.outline_structure?.headers?.length > 0;
+        const checkpoint = (task.research_dossier as any)?._checkpoint;
+        const DONE_CHECKPOINT = 'outline_done';
+        
+        if (!outlineValid || (checkpoint && checkpoint !== DONE_CHECKPOINT)) {
+            // Si hay investigación iniciada pero no terminada (no hay outline)
+            return { label: 'Completar Inv.', action: 'completar_investigacion', color: 'amber', icon: RefreshCw };
+        }
+        
+        // 3. Sin redacción -> Redactar
         if (task.status === 'por_redactar' || (!task.content_body || task.content_body.trim() === '')) {
             return { label: 'Redactar', action: 'draft', color: 'rose', icon: Sparkles };
         }
-        // 3. Necesita Humanización
+        
+        // 4. Sin humanizar -> Humanizar
         if (!task.metadata?.is_humanized) {
             return { label: 'Humanizar', action: 'humanize', color: 'emerald', icon: Zap };
         }
-        // Por defecto: Ver en editor
+        
+        // 5. Completo -> Ver Editor
         return { label: 'Ver Editor', action: 'writer', color: 'slate', icon: Edit3 };
     };
 
     const state = getActionState();
     const Icon = state.icon;
 
-    const colors: any = {
-        indigo: "bg-indigo-50 text-indigo-600 hover:bg-indigo-600 border-indigo-100/50 hover:border-indigo-600",
-        purple: "bg-purple-50 text-purple-600 hover:bg-purple-600 border-purple-100/50 hover:border-purple-600",
-        rose: "bg-rose-50 text-rose-600 hover:bg-rose-600 border-rose-100/50 hover:border-rose-600",
-        emerald: "bg-emerald-50 text-emerald-600 hover:bg-emerald-600 border-emerald-100/50 hover:border-emerald-600",
-        slate: "bg-slate-50 text-slate-600 hover:bg-slate-800 border-slate-100/50 hover:border-slate-800"
+    const colors: Record<string, string> = {
+        indigo: "bg-indigo-50 text-indigo-600 border-indigo-100/50",
+        amber: "bg-amber-50 text-amber-600 border-amber-100/50",
+        rose: "bg-rose-50 text-rose-600 border-rose-100/50",
+        emerald: "bg-emerald-50 text-emerald-600 border-emerald-100/50",
+        slate: "bg-slate-50 text-slate-600 border-slate-100/50"
     };
 
+    const dropdownOptions = [
+        { label: 'Completar Investigación', action: 'completar_investigacion', icon: RefreshCw, desc: 'Reanuda desde el último checkpoint' },
+        { label: 'Investigar de 0', action: 'investigar_forzado', icon: Search, desc: 'Reinicia toda la investigación' },
+        { label: 'Redactar', action: 'draft', icon: Sparkles, desc: 'Genera el borrador' },
+        { label: 'Humanizar', action: 'humanize', icon: Zap, desc: 'Aplica humanización' },
+        { label: 'Ver Editor', action: 'writer', icon: Edit3, desc: 'Abre el redactor' },
+    ];
+
     return (
-        <button
-            disabled={isProcessing}
-            onClick={(e) => { e.stopPropagation(); if (!isProcessing) onAction(state.action); }}
-            className={cn(
-                "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 group whitespace-nowrap border min-w-[120px] justify-between",
-                colors[state.color as string],
-                !isProcessing && "hover:text-white",
-                isProcessing && "opacity-80 cursor-not-allowed"
-            )}
-        >
-            <div className="flex items-center gap-2">
-                <div className={cn(
-                    "w-4 h-4 rounded-full flex items-center justify-center shrink-0",
-                    isProcessing ? "bg-indigo-600 text-white" : "bg-white/20"
-                )}>
+        <div className="relative flex items-stretch" onClick={e => e.stopPropagation()} ref={buttonRef}>
+            {/* Main action button */}
+            <button
+                disabled={isProcessing}
+                onClick={() => { if (!isProcessing) onAction(state.action); }}
+                className={cn(
+                    "pl-2.5 pr-2 py-1.5 rounded-l-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 whitespace-nowrap border-y border-l min-w-[110px]",
+                    colors[state.color],
+                    isProcessing && "opacity-70 cursor-not-allowed"
+                )}
+            >
+                <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 bg-white/30">
                     {isProcessing ? (
-                        <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     ) : (
-                        <img 
-                            src="/LogoNous.png" 
-                            alt="Nous" 
-                            className="w-3.5 h-3.5 object-contain" 
-                        />
+                        <img src="/LogoNous.png" alt="Nous" className="w-3.5 h-3.5 object-contain" />
                     )}
                 </div>
                 <span>{state.label}</span>
-            </div>
-            <Icon size={10} className={cn(
-                "opacity-50 transition-opacity",
-                !isProcessing && "group-hover:opacity-100",
-                state.animate && "animate-spin"
-            )} />
-        </button>
+            </button>
+
+            {/* Split divider + chevron */}
+            <button
+                disabled={isProcessing}
+                onClick={() => setIsDropdownOpen(v => !v)}
+                className={cn(
+                    "px-1.5 rounded-r-xl border transition-all flex items-center",
+                    colors[state.color],
+                    "border-l border-l-current/20",
+                    isProcessing && "opacity-70 cursor-not-allowed"
+                )}
+            >
+                <ChevronDown size={10} className={cn("transition-transform", isDropdownOpen && "rotate-180")} />
+            </button>
+
+            {/* Dropdown menu */}
+            <AnimatePresence>
+                {isDropdownOpen && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: openUpwards ? 8 : -8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: openUpwards ? 8 : -8 }}
+                            className={cn(
+                                "absolute right-0 w-52 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden",
+                                openUpwards ? "bottom-full mb-2" : "top-full mt-2"
+                            )}
+                        >
+                            <div className="p-2.5 bg-slate-50 border-b border-slate-100">
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Acciones Nous</span>
+                            </div>
+                            <div className="p-1.5 space-y-0.5">
+                                {dropdownOptions.map(opt => (
+                                    <button
+                                        key={opt.action}
+                                        onClick={() => { onAction(opt.action); setIsDropdownOpen(false); }}
+                                        className={cn(
+                                            "w-full text-left px-3 py-2 rounded-lg transition-all group/opt",
+                                            opt.action === state.action
+                                                ? "bg-indigo-50 text-indigo-600"
+                                                : "text-slate-600 hover:bg-slate-50"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <opt.icon size={11} className="shrink-0" />
+                                            <div>
+                                                <p className="text-[10px] font-black">{opt.label}</p>
+                                                <p className="text-[9px] text-slate-400 font-medium">{opt.desc}</p>
+                                            </div>
+                                            {opt.action === state.action && (
+                                                <Check size={10} className="ml-auto text-indigo-500" />
+                                            )}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }

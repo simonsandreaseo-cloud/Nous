@@ -9,22 +9,37 @@ export const GscService = {
      * This function attempts to get it from the client-side supabase instance if running on client,
      * but for server actions, we will expect the token to be passed.
      */
-    async getAccessToken() {
+    async getAccessToken(connectionId?: string) {
         // 1. Check active session (Client-side only)
+        // Note: provider_token only exists if the user just logged in. 
+        // For recurring use, we must use the database.
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.provider_token) return session.provider_token;
-
-        // 2. Fallback to persisted token in database
+        
+        // 2. Fetch from database (unified connections table)
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return null;
 
-        const { data, error } = await supabase
-            .from('user_gsc_tokens')
+        let query = supabase
+            .from('user_google_connections')
             .select('access_token, refresh_token, expires_at')
-            .eq('user_id', user.id)
-            .maybeSingle();
+            .eq('user_id', user.id);
 
-        if (error || !data) return null;
+        if (connectionId) {
+            query = query.eq('id', connectionId);
+        }
+
+        const { data, error } = await query.maybeSingle();
+
+        if (error || !data) {
+            // Fallback for transition: check old table if not found in new one
+            const { data: oldData } = await supabase
+                .from('user_gsc_tokens')
+                .select('access_token')
+                .eq('user_id', user.id)
+                .maybeSingle();
+            
+            return oldData?.access_token || null;
+        }
 
         return data.access_token;
     },

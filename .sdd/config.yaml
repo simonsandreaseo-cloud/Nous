@@ -1,0 +1,30 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Next.js 16, React 19, Supabase, Groq, Gemini (Antigravity native).
+  Architecture: Modular (Feature-First) + Clean/Hexagonal principles.
+  Testing: Not found (npm test script missing).
+  Style: ESLint, Tailwind 4.
+
+strict_tdd: false
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Identify affected modules/packages
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group tasks by phase (infrastructure, implementation, testing)
+    - Use hierarchical numbering (1.1, 1.2, etc.)
+  apply:
+    - Follow existing code patterns and conventions
+    - Load relevant coding skills for the project stack
+  verify:
+    - Comparison against every spec scenario is mandatory
+  archive:
+    - Summarize technical decisions and trade-offs

@@ -10,13 +10,13 @@ import React from 'react';
 
 export function GenerateTab({ 
     onGenerate, 
-    onPlanStructure,
+    onRegenerateOutline,
     onHumanize, 
     isLoading,
     isPlanning
 }: { 
     onGenerate: () => void; 
-    onPlanStructure: () => void;
+    onRegenerateOutline: () => void;
     onHumanize: () => void; 
     isLoading: boolean;
     isPlanning: boolean;
@@ -53,9 +53,10 @@ export function GenerateTab({
                 {/* Botón principal con el mismo estilo que "Generar Artículo" */}
                 <button
                     disabled={isPlanning || !store.rawSeoData}
-                    onClick={onPlanStructure}
+                    onClick={onRegenerateOutline}
                     className="group relative w-full h-11 bg-indigo-600 hover:bg-black text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden shadow-lg shadow-indigo-200 hover:shadow-black/20 active:scale-95"
                 >
+
                     <div className="absolute inset-0 flex items-center justify-center gap-2 group-hover:-translate-y-full transition-transform">
                         {isPlanning ? (
                             <RefreshCw size={14} className="animate-spin" />
