@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import DOMPurify from 'isomorphic-dompurify';
 import { 
     X, 
     Copy, 
@@ -209,7 +210,7 @@ export function DistributionDetailModal({ task, onClose }: DistributionDetailMod
                                     {localTask.content_body ? (
                                         <div 
                                             className="prose prose-slate prose-sm max-w-none text-slate-600"
-                                            dangerouslySetInnerHTML={{ __html: localTask.content_body }}
+                                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(localTask.content_body || '') }}
                                         />
                                     ) : (
                                         <div className="h-full flex flex-col items-center justify-center text-center py-20">

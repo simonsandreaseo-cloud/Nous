@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { scrapeMassiveAction } from "@/lib/actions/scraper";
 
 export interface ScrapedContent {
     url: string;
@@ -16,46 +17,52 @@ export const ScraperService = {
         if (onLog) onLog("INFO", "Despliegue de Rastreadores Nous", `Escaneando la web profunda: procesando ${urls.length} fuentes en paralelo...`);
 
         try {
-            const { data, error } = await supabase.functions.invoke('research-engine', {
-                body: { 
-                    urls,
-                    contentType: taskContext.contentType || "Blog Post",
-                    searchIntent: taskContext.searchIntent || "",
-                    targetH1: taskContext.h1 || ""
-                },
-                headers: {
-                    'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-                }
+            const responseData = await scrapeMassiveAction(urls, {
+                contentType: taskContext.contentType || "Blog Post",
+                searchIntent: taskContext.searchIntent || "",
+                targetH1: taskContext.h1 || ""
             });
 
-            if (error || !data?.success) {
-                console.error("[ScraperService] Mass Extraction failed:", error || data);
-                if (onLog) onLog("WARN", "Aviso de Sistema", `Ajustando estrategia. Error subyacente: ${data?.error || error?.message || 'Desconocido'}`);
-                return [];
+            const isSuccess = responseData && responseData.success === true;
+
+            if (!isSuccess) {
+                console.error("[ScraperService] Mass Extraction failed:", responseData.error || "Unknown error");
+                if (onLog) onLog("WARN", "Aviso de Sistema", `Ajustando estrategia. Error subyacente: ${responseData?.error || 'Desconocido'}`);
+                
+                throw new Error(`Fallo en la extracción masiva: ${responseData?.error || 'Error desconocido'}`);
             }
 
-            const survivors = data.survivors || [];
+            const survivors = responseData.survivors || [];
+            
+            if (survivors.length === 0) {
+                if (onLog) {
+                    onLog("WARN", "Aviso de Sistema", "Filtro Cognitivo estricto: Ningún competidor superó el análisis de calidad. Abortando investigación.");
+                }
+                
+                throw new Error("Filtro Cognitivo estricto: Ningún competidor superó el análisis de calidad. Abortando investigación.");
+            }
+
             if (onLog) {
-                onLog("OK", "Auditoria de Calidad", `Se descartaron contenidos de bajo valor. ${data.surviving_pureza} fuentes superaron el estandar de calidad estricto.`);
-                onLog("IA", "Analisis Cognitivo Nous", `Se seleccionaron ${data.final_useful_count} referencias de alto valor estrategico para la redaccion.`);
+                onLog("OK", "Auditoria de Calidad", `Se descartaron contenidos de bajo valor. ${responseData.surviving_pureza} fuentes superaron el estandar de calidad estricto.`);
+                onLog("IA", "Analisis Cognitivo Nous", `Se seleccionaron ${responseData.final_useful_count} referencias de alto valor estrategico para la redaccion.`);
             }
 
             if (typeof window !== 'undefined') {
-                (window as any)._lastCognitiveReport = data.cognitive_report;
+                (window as any)._lastCognitiveReport = responseData.cognitive_report;
             }
 
             return survivors.map((survivor: any) => {
                 const comp = competitors.find(c => c.url === survivor.url) || { title: "Desconocido", snippet: "" };
                 
                 // Fallback robusto para calcular palabras y extractos
-                const textContent = survivor.text || (survivor.html ? survivor.html.replace(/<[^>]+>/g, ' ') : '') || '';
+                const textContent = survivor.content || survivor.text || (survivor.html ? survivor.html.replace(/<[^>]+>/g, ' ') : '') || '';
                 const computedWordCount = survivor.wordCount || textContent.split(/\s+/).filter((w: string) => w.length > 0).length || 0;
                 
                 return {
                     url: survivor.url,
                     title: comp.title,
-                    content: survivor.html || textContent || comp.snippet || `<p>${comp.title}</p>`, 
+                    originalPosition: comp.originalPosition || null,
+                    content: textContent || comp.snippet || `<p>${comp.title}</p>`, 
                     summary: survivor.summary || (textContent ? textContent.substring(0, 300) + '...' : comp.snippet || comp.title),
                     headers: survivor.headers || [],
                     wordCount: computedWordCount
@@ -64,7 +71,7 @@ export const ScraperService = {
 
         } catch (e: any) {
             console.error("[ScraperService] Mass Extraction exception:", e);
-            return [];
+            throw e;
         }
     },
 
@@ -102,7 +109,7 @@ export const ScraperService = {
             return {
                 url,
                 title,
-                content: data.html || textContent || snippet || `<p>${title}</p>`,
+                content: textContent || snippet || `<p>${title}</p>`,
                 summary: data.summary || (textContent ? textContent.substring(0, 300) + '...' : snippet || title),
                 headers: data.headers || [],
                 wordCount: computedWordCount

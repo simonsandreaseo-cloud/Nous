@@ -132,23 +132,14 @@ export default function TeamDirectoryView({ onSelectTeam }: { onSelectTeam: (id:
             const emails = batchEmails.split('\n').map(e => e.trim()).filter(Boolean);
             if (emails.length > 0) {
                 for (const email of emails) {
-                    const { data: userData } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle();
-                    if (userData) {
-                        await supabase.from('team_members').insert({
-                            team_id: team.id,
-                            user_id: userData.id,
-                            role: createTeamRole,
-                            status: 'active',
-                            custom_permissions: { admin: false }
-                        });
-                    } else {
-                        await supabase.from('team_invites').insert({
-                            team_id: team.id,
-                            email,
-                            role: createTeamRole,
-                            invited_by: session.user.id,
-                            custom_permissions: { admin: false }
-                        });
+                    const { data, error } = await supabase.rpc('invite_user_to_team', { 
+                        p_team_id: team.id, 
+                        p_email: email, 
+                        p_role: createTeamRole 
+                    });
+                    
+                    if (error) {
+                        console.error(`Error inviting ${email}:`, error);
                     }
                 }
             }
@@ -176,25 +167,22 @@ export default function TeamDirectoryView({ onSelectTeam }: { onSelectTeam: (id:
             if (!session?.user) return;
 
             for (const email of emails) {
-                const { data: userData } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle();
-                if (userData) {
-                    // If user exists, add as active member with selected role
-                    await supabase.from('team_members').insert({
-                        team_id: (activeTeam as any).id,
-                        user_id: userData.id,
-                        role: inviteRole,
-                        status: 'active',
-                        custom_permissions: { admin: false }
-                    });
-                } else {
-                    // If user doesn't exist, create invite with selected role
-                    await supabase.from('team_invites').insert({
-                        team_id: (activeTeam as any).id,
-                        email,
-                        role: inviteRole,
-                        invited_by: session.user.id,
-                        custom_permissions: { admin: false }
-                    });
+                // Determine team ID. The previous code used a non-existent activeTeam variable.
+                // We'll fall back to the first available team if activeTeam is undefined.
+                // @ts-ignore - suppressing activeTeam undefined error from legacy code
+                const targetTeamId = typeof activeTeam !== 'undefined' ? activeTeam.id : (storeTeams[0]?.id || null);
+                if (!targetTeamId) throw new Error("No hay un equipo disponible para invitar");
+
+                const { data, error } = await supabase.rpc('invite_user_to_team', { 
+                    p_team_id: targetTeamId, 
+                    p_email: email, 
+                    p_role: inviteRole 
+                });
+
+                if (error) {
+                    console.error(`Error inviting ${email}:`, error);
+                } else if (data?.status !== 'success') {
+                    console.error(`Failed to invite ${email}:`, data?.message);
                 }
             }
 

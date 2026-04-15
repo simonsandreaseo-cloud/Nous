@@ -33,7 +33,14 @@ import {
     FileUp as FileUpIcon,
     Search,
     Image as ImageIcon,
-    Languages
+    Languages,
+    RotateCcw,
+    Type,
+    Link,
+    Layout,
+    ChevronRight,
+    ChevronDown,
+    Zap
 } from "lucide-react";
 import { useProjectStore, Task, STATUS_LABELS } from "@/store/useProjectStore";
 import { usePermissions } from '@/hooks/usePermissions';
@@ -80,9 +87,13 @@ export function EditorialCalendar() {
     const [researchTaskId, setResearchTaskId] = useState<string | undefined>(undefined);
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
     const [improveTitleWithNous, setImproveTitleWithNous] = useState(true);
-    const [isResearching, setIsResearching] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
-    const [researchProgress, setResearchProgress] = useState<number>(0);
+    const isResearching = useWriterStore(state => state.isResearching);
+    const setResearching = useWriterStore(state => state.setResearching);
+    const researchProgress = useWriterStore(state => state.researchProgress);
+    const setResearchProgress = useWriterStore(state => state.setResearchProgress);
+    const setResearchPhaseId = useWriterStore(state => state.setResearchPhaseId);
+    const setResearchTopic = useWriterStore(state => state.setResearchTopic);
     const searchParams = useSearchParams();
 
     // Column Visibility State
@@ -125,6 +136,10 @@ export function EditorialCalendar() {
     const [isImportMenuOpen, setIsImportMenuOpen] = useState(false);
     const [batchResearchStatus, setBatchResearchStatus] = useState<Record<string, number>>({});
     const [isDeletingAll, setIsDeletingAll] = useState(false);
+    const [reinvestigateTask, setReinvestigateTask] = useState<{ id: string, keyword: string } | null>(null);
+    const [isReinvestigating, setIsReinvestigating] = useState(false);
+    const [isCascadeMode, setIsCascadeMode] = useState(true);
+
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
@@ -257,20 +272,61 @@ export function EditorialCalendar() {
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
 
-        setIsResearching(true);
+        setResearching(true);
         if (!isConsoleOpen) setIsConsoleOpen(true);
         const onLog = (tid: string, stage: string, msg: string, res?: string) => addStrategyLog(tid, stage, msg, res);
 
         try {
-            if (action === 'investigar' || action === 'completar_investigacion' || action === 'investigar_forzado') {
+            if (action === 'completar_investigacion') {
+                // Intelligent Quality Audit
+                const audit = await StrategyService.validateResearchQuality(taskId);
+                if (!audit.isValid) {
+                    NotificationService.warn("Investigación Incompleta", 
+                        `Se detectaron ${audit.issues.length} problemas de calidad. Sugerencia: ${audit.suggestions[0]}`);
+                    
+                    // We still proceed to run it, but now we know why it was marked as "incomplete"
+                    // In a real production app, we might stop here or show a modal.
+                }
+
+                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 5 }));
+                const result = await StrategyService.runDeepSEOAnalysis({
+                    projectId: activeProject.id,
+                    keyword: task.target_keyword || task.title,
+                    onProgress: (p) => {
+                        const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
+                        setBatchResearchStatus(prev => ({ ...prev, [taskId]: progressMap[p] || 10 }));
+                        setResearchPhaseId(p);
+                        setResearchTopic(task.target_keyword || task.title);
+                    },
+                    onLog: (s, m, r) => onLog(taskId, s, m, r),
+                    taskId: taskId,
+                });
+                if (result) {
+                    await updateTask(taskId, {
+                        title: improveTitleWithNous && result.seo_title ? result.seo_title : task.title,
+                        research_dossier: result.research_dossier,
+                        h1: result.h1,
+                        seo_title: result.seo_title,
+                        meta_description: result.meta_description,
+                        target_url_slug: result.target_url_slug,
+                        excerpt: result.excerpt,
+                        status: result.status
+                    });
+                }
+            } else if (action === 'reinvestigar_fase') {
+                // Open phase selection modal (implementation below)
+                setReinvestigateTask({ id: taskId, keyword: task.target_keyword || task.title });
+            } else if (action === 'investigar' || action === 'investigar_forzado') {
                 const forceRestart = action === 'investigar_forzado';
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 5 }));
                 const result = await StrategyService.runDeepSEOAnalysis({
                     projectId: activeProject.id,
                     keyword: task.target_keyword || task.title,
                     onProgress: (p) => {
-                        const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90 };
+                        const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
                         setBatchResearchStatus(prev => ({ ...prev, [taskId]: progressMap[p] || 10 }));
+                        setResearchPhaseId(p);
+                        setResearchTopic(task.target_keyword || task.title);
                     },
                     onLog: (s, m, r) => onLog(taskId, s, m, r),
                     taskId: taskId,
@@ -301,7 +357,7 @@ export function EditorialCalendar() {
             } else if (action === 'draft') {
                 await BatchProcessor.processDrafts(
                     [task], 
-                    () => {}, 
+                    () => {},
                     onLog,
                     (id, up) => updateTask(id, up),
                     (id, perc) => setBatchResearchStatus(prev => ({ ...prev, [id]: perc }))
@@ -309,7 +365,7 @@ export function EditorialCalendar() {
             } else if (action === 'humanize') {
                 await BatchProcessor.processHumanization(
                     [task], 
-                    () => {}, 
+                    () => {},
                     onLog,
                     (id, up) => updateTask(id, up),
                     (id, perc) => setBatchResearchStatus(prev => ({ ...prev, [id]: perc }))
@@ -319,7 +375,7 @@ export function EditorialCalendar() {
             console.error(e);
             NotificationService.error("Error en acción individual", e.message);
         } finally {
-            setIsResearching(false);
+            setResearching(false);
             setBatchResearchStatus(prev => ({ ...prev, [taskId]: 100 }));
         }
     };
@@ -363,7 +419,7 @@ export function EditorialCalendar() {
             return;
         }
 
-        setIsResearching(true);
+        setResearching(true);
         setResearchProgress(0);
         if (!isConsoleOpen) setIsConsoleOpen(true);
 
@@ -406,24 +462,30 @@ export function EditorialCalendar() {
                             const result = await StrategyService.runDeepSEOAnalysis({
                                 projectId: activeProject.id,
                                 keyword: t.target_keyword || t.title,
-                                onLog: (s, m, r) => onLog(t.id, s, m, r),
-                                taskId: t.id
+                                onProgress: (p) => {
+                                const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
+                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: progressMap[p] || 10 }));
+                                setResearchPhaseId(p);
+                                setResearchTopic(t.target_keyword || t.title);
+                            },
+                            onLog: (s, m, r) => onLog(t.id, s, m, r),
+                            taskId: t.id
+                        });
+                        if (result) {
+                            await updateTask(t.id, {
+                                title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title,
+                                research_dossier: result.research_dossier,
+                                seo_title: result.seo_title,
+                                meta_description: result.meta_description,
+                                target_url_slug: result.target_url_slug,
+                                status: result.status
                             });
-                            if (result) {
-                                await updateTask(t.id, {
-                                    title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title,
-                                    research_dossier: result.research_dossier,
-                                    seo_title: result.seo_title,
-                                    meta_description: result.meta_description,
-                                    target_url_slug: result.target_url_slug,
-                                    status: result.status
-                                });
-                            }
-                            pCount++;
-                            // Global ring progress: (CurrentPhase * Weight) + (ProgressWithinPhase * Weight)
-                            const phaseBase = currentPhaseIndex * phaseWeight;
-                            setResearchProgress(phaseBase + ((pCount / toResearch.length) * phaseWeight));
-                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
+                        }
+                        pCount++;
+                        // Global ring progress: (CurrentPhase * Weight) + (ProgressWithinPhase * Weight)
+                        const phaseBase = currentPhaseIndex * phaseWeight;
+                        setResearchProgress(phaseBase + ((pCount / toResearch.length) * phaseWeight));
+                        setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
                         }
                     }
                     currentPhaseIndex++;
@@ -523,10 +585,12 @@ export function EditorialCalendar() {
                         projectId: activeProject.id,
                         keyword: t.target_keyword || t.title,
                         onProgress: (p) => {
-                            const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90 };
+                            const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
                             const prog = progressMap[p] || 10;
                             setResearchProgress(prog);
                             setBatchResearchStatus(prev => ({ ...prev, [t.id]: prog }));
+                            setResearchPhaseId(p);
+                            setResearchTopic(t.target_keyword || t.title);
                         },
                         onLog: (s, m, r) => onLog(t.id, s, m, r),
                         taskId: t.id
@@ -564,7 +628,7 @@ export function EditorialCalendar() {
                     return;
                 }
 
-                setIsResearching(true);
+                setResearching(true);
                 await BatchProcessor.processOutlines(
                     filtered, 
                     activeProject.id, 
@@ -588,7 +652,7 @@ export function EditorialCalendar() {
                     return;
                 }
 
-                setIsResearching(true);
+                setResearching(true);
                 await BatchProcessor.processDrafts(
                     filtered, 
                     onProgress, 
@@ -610,7 +674,7 @@ export function EditorialCalendar() {
                     return;
                 }
 
-                setIsResearching(true);
+                setResearching(true);
                 await BatchProcessor.processHumanization(
                     filtered, 
                     onProgress, 
@@ -625,7 +689,7 @@ export function EditorialCalendar() {
             console.error(e);
             NotificationService.error('Error procesando lote', e.message);
         } finally {
-            setIsResearching(false);
+            setResearching(false);
             setResearchProgress(0);
         }
     };
@@ -661,7 +725,7 @@ export function EditorialCalendar() {
     const handleBatchResearch = async () => {
         if (!activeProject || selectedTaskIds.length === 0) return;
         
-        setIsResearching(true);
+        setResearching(true);
         setResearchProgress(0);
         if (!isConsoleOpen) setIsConsoleOpen(true);
 
@@ -675,8 +739,10 @@ export function EditorialCalendar() {
                     projectId: activeProject.id,
                     keyword: task.target_keyword || task.title,
                     onProgress: (p) => {
-                        const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90 };
+                        const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
                         setBatchResearchStatus(prev => ({ ...prev, [task.id]: progressMap[p] || 10 }));
+                        setResearchPhaseId(p);
+                        setResearchTopic(task.target_keyword || task.title);
                     },
                     taskId: task.id
                 });
@@ -702,7 +768,7 @@ export function EditorialCalendar() {
             console.error(e);
             NotificationService.error("Error en investigación por lotes", e.message);
         } finally {
-            setIsResearching(false);
+            setResearching(false);
             setBatchResearchStatus({});
         }
     };
@@ -812,18 +878,105 @@ export function EditorialCalendar() {
 
                 <div className="flex items-center gap-3">
                     <AnimatePresence>
-                        {selectedTaskIds.length > 0 && (
-                            <motion.button 
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                onClick={handleBatchDelete}
-                                className="h-10 px-6 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-600/20 hover:bg-rose-700 transition-all flex items-center gap-2 group"
-                            >
-                                <Trash2 size={14} className="group-hover:scale-110 transition-transform" />
-                                <span>Eliminar {selectedTaskIds.length} Tareas</span>
-                            </motion.button>
+                        {reinvestigateTask && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    className="bg-white w-full max-w-md rounded-[24px] p-6 shadow-2xl relative border border-slate-100"
+                                >
+                                    <div className="mb-6 border-b border-slate-100 pb-4">
+                                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Re-investigar Fase</h3>
+                                        <p className="text-xs text-slate-500 mt-1">Seleccioná la etapa que deseás ejecutar nuevamente para mejorar los resultados.</p>
+                                    </div>
+
+                                    <div className="mb-4 flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-800">Modo Cascada (Recomendado)</p>
+                                            <p className="text-xs text-slate-500 mt-0.5">Propagar los cambios automáticamente a las fases posteriores.</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsCascadeMode(!isCascadeMode)}
+                                            className={cn("relative inline-flex h-6 w-11 items-center rounded-full transition-colors", isCascadeMode ? 'bg-blue-600' : 'bg-slate-300')}
+                                        >
+                                            <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", isCascadeMode ? 'translate-x-6' : 'translate-x-1')} />
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2 mb-6">
+                                        {[
+                                            { id: 'serp_done', label: 'Búsqueda SERP', desc: 'Actualiza el pool de competidores y la intención.', icon: Search },
+                                            { id: 'scraping_done', label: 'Extracción de Contenido', desc: 'Vuelve a scrapear los competidores.', icon: FileText },
+                                            { id: 'lsi_done', label: 'Keywords LSI', desc: 'Re-analiza la semántica del sector.', icon: Hash },
+                                            { id: 'ask_done', label: 'Argot Técnico (ASK)', desc: 'Refina la jerga experta del nicho.', icon: Zap },
+                                            { id: 'real_kws_done', label: 'Golden Keywords', desc: 'Extrae keywords con volumen real desde competidores afines.', icon: Sparkles },
+                                            { id: 'metadata_done', label: 'Metadatos SEO', desc: 'Genera nuevos títulos y descripciones.', icon: Type },
+                                            { id: 'interlinking_done', label: 'Interlinking', desc: 'Busca nuevas conexiones internas.', icon: Link },
+                                            { id: 'outline_done', label: 'Estructura Outline', desc: 'Rediseña la arquitectura del artículo.', icon: Layout },
+                                        ].map((phase) => (
+                                            <button
+                                                key={phase.id}
+                                                disabled={isReinvestigating}
+                                                onClick={async () => {
+                                                    if (!isCascadeMode && ['serp_done', 'scraping_done', 'lsi_done'].includes(phase.id)) {
+                                                        const conf = window.confirm("⚠️ ADVERTENCIA: Estás a punto de re-extraer datos fundacionales en Modo Aislado. Las fases posteriores (Metadatos, Outline) quedarán desactualizadas respecto al nuevo contenido. Se recomienda usar Modo Cascada.\n\n¿Deseás forzar la investigación de todos modos?");
+                                                        if (!conf) return;
+                                                    }
+                                                    setIsReinvestigating(true);
+                                                    try {
+                                                        const result = await StrategyService.runDeepSEOAnalysis({
+                                                            projectId: activeProject.id,
+                                                            keyword: reinvestigateTask.keyword,
+                                                            taskId: reinvestigateTask.id,
+                                                            phaseToRun: phase.id,
+                                                            cascade: isCascadeMode,
+                                                            onLog: (s, m, r) => addStrategyLog(reinvestigateTask.id, s, m, r),
+                                                            onProgress: (p) => setResearchPhaseId(p),
+                                                        });
+                                                        if (result) {
+                                                            await updateTask(reinvestigateTask.id, {
+                                                                research_dossier: result.research_dossier,
+                                                                h1: result.h1,
+                                                                seo_title: result.seo_title,
+                                                                meta_description: result.meta_description,
+                                                                target_url_slug: result.target_url_slug,
+                                                                excerpt: result.excerpt,
+                                                                outline_structure: result.outline_structure
+                                                            });
+                                                            NotificationService.success("Fase Actualizada", `Se ha re-ejecutado la fase ${phase.label} con éxito.`);
+                                                        }
+                                                    } catch (e: any) {
+                                                        NotificationService.error("Error de fase", e.message);
+                                                    } finally {
+                                                        setIsReinvestigating(false);
+                                                        setReinvestigateTask(null);
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 group"
+                                            >
+                                                <div className="p-2 rounded-lg bg-slate-50 group-hover:bg-white text-slate-400 group-hover:text-indigo-600 transition-all">
+                                                    <phase.icon size={14} />
+                                                </div>
+                                                <div className="flex-1 text-left">
+                                                    <p className="text-slate-900">{phase.label}</p>
+                                                    <p className="text-[9px] text-slate-400 font-medium">{phase.desc}</p>
+                                                </div>
+                                                <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400 transition-all" />
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <button 
+                                        onClick={() => setReinvestigateTask(null)}
+                                        className="w-full py-3 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </motion.div>
+                            </div>
                         )}
+
                     </AnimatePresence>
                 </div>
             </header>
@@ -1042,19 +1195,23 @@ export function EditorialCalendar() {
                                     </button>
                                 )}
                                 
-                                <div className="h-px bg-slate-100 w-full my-2" />
+                                {!(batchDeleteOptions.research || batchDeleteOptions.writing || batchDeleteOptions.images || batchDeleteOptions.translations) && (
+                                    <>
+                                        <div className="h-px bg-slate-100 w-full my-2" />
 
-                                <button 
-                                    onClick={() => {
-                                        if (confirm('¿Eliminar por completo todos estos contenidos?')) {
-                                            confirmBatchDelete(true);
-                                        }
-                                    }}
-                                    disabled={isDeletingAll}
-                                    className="w-full py-3 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex justify-center items-center gap-2 border border-rose-100"
-                                >
-                                    {isDeletingAll ? <Loader2 size={14} className="animate-spin" /> : "ELIMINAR TODO POR COMPLETO"}
-                                </button>
+                                        <button 
+                                            onClick={() => {
+                                                if (confirm('¿Eliminar por completo todos estos contenidos?')) {
+                                                    confirmBatchDelete(true);
+                                                }
+                                            }}
+                                            disabled={isDeletingAll}
+                                            className="w-full py-3 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex justify-center items-center gap-2 border border-rose-100"
+                                        >
+                                            {isDeletingAll ? <Loader2 size={14} className="animate-spin" /> : "ELIMINAR TODO POR COMPLETO"}
+                                        </button>
+                                    </>
+                                )}
 
                                 <button 
                                     onClick={() => setIsBatchDeleteModalOpen(false)}
@@ -1126,7 +1283,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
         if (!activeProject) return;
         setIsSaving(true);
         try {
-            let tasksToSave = [...parsedTasks];
+            const tasksToSave = [...parsedTasks];
             for (const task of tasksToSave) {
                 await addTask({
                     project_id: activeProject.id,

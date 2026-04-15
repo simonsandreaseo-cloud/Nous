@@ -129,4 +129,10 @@ export interface WriterStoreState {
     currentLanguage: string;
     parentTaskId: string | null;
     contentVersions: Record<string, string>; // langCode -> taskUuid
+
+    // UI - Dual Mode & Resizable
+    redactorUI: 'zen' | 'standard';
+    leftSidebarWidth: number;
+    rightSidebarWidth: number;
+    isToolboxOpen: boolean;
 }

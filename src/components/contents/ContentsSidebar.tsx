@@ -29,11 +29,15 @@ import {
     Image as ImageIcon,
     Languages,
     Sliders,
-    Settings2
+    Settings2,
+    ChevronsRight
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 
 
+
+import { useWriterStore } from "@/store/useWriterStore";
+import { useShallow } from "zustand/react/shallow";
 
 const GLOBAL_AREAS = [
     { id: "contenidos", label: "Contenidos", icon: Home, href: "/contents" },
@@ -46,7 +50,7 @@ const GLOBAL_AREAS = [
 
 export const CONTENT_TOOLS = [
     { id: "planner", label: "Planificador", icon: CalendarDays, color: "text-indigo-500", bg: "bg-indigo-500" },
-    { id: "writer", label: "Redactor", icon: PenLine, color: "text-amber-500", bg: "bg-amber-500" },
+    { id: "writer", label: "Studio", icon: PenLine, color: "text-amber-500", bg: "bg-amber-500" },
     { id: "distribution", label: "Distribución", icon: Share2, color: "text-emerald-500", bg: "bg-emerald-500" },
 ];
 
@@ -66,9 +70,20 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [sectionMenuOpen, setSectionMenuOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    const { redactorUI, setRedactorUI, setViewMode } = useWriterStore(useShallow(state => ({
+        redactorUI: state.redactorUI,
+        setRedactorUI: state.setRedactorUI,
+        setViewMode: state.setViewMode
+    })));
 
     // Identify current core section based on pathname
     const currentGlobalArea = GLOBAL_AREAS.find(a => a.href && pathname.startsWith(a.href)) || GLOBAL_AREAS[0];
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         const cleanup = initialize();
@@ -210,6 +225,55 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
 
             {/* Footer: Config + User Profile + Collapse Toggle */}
             <div className="p-3 border-t border-slate-100/60 shrink-0 bg-white/40 flex flex-col gap-3">
+                {/* Redactor UI Switcher (Standard / Zen) */}
+                <div className="flex items-center gap-1 p-1 bg-slate-50/80 border border-slate-200/40 rounded-xl shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] shrink-0 mx-auto w-full">
+                    {isCollapsed ? (
+                        <>
+                            <button
+                                onClick={() => { setRedactorUI('standard'); setViewMode('workspace'); }}
+                                title="Estándar"
+                                className={cn(
+                                    "flex-1 flex justify-center py-2 rounded-lg transition-all",
+                                    redactorUI === 'standard' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                <Square size={14} />
+                            </button>
+                            <button
+                                onClick={() => { setRedactorUI('zen'); setViewMode('dashboard'); }}
+                                title="Zen"
+                                className={cn(
+                                    "flex-1 flex justify-center py-2 rounded-lg transition-all",
+                                    redactorUI === 'zen' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                <Compass size={14} />
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => { setRedactorUI('standard'); setViewMode('workspace'); }}
+                                className={cn(
+                                    "px-3 flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                    redactorUI === 'standard' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                Estándar
+                            </button>
+                            <button
+                                onClick={() => { setRedactorUI('zen'); setViewMode('dashboard'); }}
+                                className={cn(
+                                    "px-3 flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                    redactorUI === 'zen' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                Zen
+                            </button>
+                        </>
+                    )}
+                </div>
+
                 {/* Config Trigger (Above User Profile) */}
                 <button 
                     onClick={() => onToolSelect('custom-tools')}
@@ -230,58 +294,67 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                     )}
                 </button>
 
-                <div className="flex items-center gap-2">
-                    {/* User Profile Hook */}
-                    <div className="relative group/profile shrink-0">
+                    <div className="flex items-center gap-2">
+                        {/* Unpin button - only visible when collapsed */}
+                        <div className="relative group/profile shrink-0 flex flex-col items-center gap-1">
+                            {isCollapsed && (
+                                <button 
+                                    onClick={() => setIsCollapsed(false)}
+                                    className="p-1 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all shadow-sm border border-indigo-100"
+                                    title="Desfijar Panel"
+                                >
+                                    <ChevronsRight size={12} />
+                                </button>
+                            )}
+                            <button 
+                                onClick={() => user ? setShowProfileMenu(!showProfileMenu) : signInWithGoogle()}
+                                className="w-10 h-10 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 transition-all cursor-pointer"
+                            >
+                                {mounted && user?.user_metadata?.avatar_url ? (
+                                    <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    <User size={16} className="text-slate-400" />
+                                )}
+                            </button>
+                            
+                            {/* Dropdown if user is logged in (Bottom-up menu) */}
+                            <AnimatePresence>
+                                {user && showProfileMenu && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl p-2 z-[110]"
+                                    >
+                                        <div className="px-3 py-2 mb-1">
+                                            <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Perfil</p>
+                                            <p className="text-xs font-bold text-slate-800 truncate">{user.email}</p>
+                                        </div>
+                                        <button 
+                                            onClick={signOut}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                        >
+                                            <LogOut size={14} />
+                                            Cerrar Sesión
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                        
+                        {/* Collapse Button */}
                         <button 
-                            onClick={() => user ? setShowProfileMenu(!showProfileMenu) : signInWithGoogle()}
-                            className="w-10 h-10 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 transition-all cursor-pointer"
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                            className="flex-1 h-10 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 border border-transparent transition-all overflow-hidden"
                         >
-                            {user?.user_metadata?.avatar_url ? (
-                                <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                            ) : (
-                                <User size={16} className="text-slate-400" />
+                            {isCollapsed ? <ChevronRight size={18} /> : (
+                                <div className="flex items-center gap-2 px-2 w-full">
+                                    <ChevronLeft size={18} />
+                                    <span className="text-[9px] font-black uppercase tracking-widest truncate">Fijar Panel</span>
+                                </div>
                             )}
                         </button>
-                        
-                        {/* Dropdown if user is logged in (Bottom-up menu) */}
-                        <AnimatePresence>
-                            {user && showProfileMenu && (
-                                <motion.div 
-                                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                    className="absolute bottom-full left-0 mb-3 w-48 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl p-2 z-[110]"
-                                >
-                                    <div className="px-3 py-2 mb-1">
-                                        <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Perfil</p>
-                                        <p className="text-xs font-bold text-slate-800 truncate">{user.email}</p>
-                                    </div>
-                                    <button 
-                                        onClick={signOut}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                    >
-                                        <LogOut size={14} />
-                                        Cerrar Sesión
-                                    </button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
                     </div>
-
-                    {/* Collapse Button */}
-                    <button 
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="flex-1 h-10 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 border border-transparent transition-all overflow-hidden"
-                    >
-                        {isCollapsed ? <ChevronRight size={18} /> : (
-                            <div className="flex items-center gap-2 px-2 w-full">
-                                <ChevronLeft size={18} />
-                                <span className="text-[9px] font-black uppercase tracking-widest truncate">Fijar Panel</span>
-                            </div>
-                        )}
-                    </button>
-                </div>
             </div>
         </motion.aside>
     );
@@ -290,12 +363,17 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
 function ProjectSelector({ isCollapsed }: { isCollapsed: boolean }) {
     const { projects, activeProjectIds, toggleProjectActive, setAllProjectsActive, isLoading } = useProjectStore();
     const [isOpen, setIsOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     if (isCollapsed) {
         return (
             <div className="py-4 border-b border-slate-100/60 flex justify-center">
                 <div className="relative">
-                    {isLoading ? (
+                    {isLoading || !mounted ? (
                         <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
                             <Loader2 size={14} className="text-indigo-400 animate-spin" />
                         </div>
@@ -317,13 +395,13 @@ function ProjectSelector({ isCollapsed }: { isCollapsed: boolean }) {
                         onClick={() => setIsOpen(!isOpen)}
                         className="flex items-center gap-2 group cursor-pointer transition-all"
                     >
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-slate-600">
                             Proyectos Activos 
-                            <span className="ml-1 text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md">{activeProjectIds.length}</span>
+                            <span className="ml-1 text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md">{mounted ? activeProjectIds.length : 0}</span>
                         </span>
                         <ChevronDown size={12} className={cn("text-slate-400 transition-transform", isOpen && "rotate-180")} />
                     </button>
-                    {isLoading && <Loader2 size={10} className="text-indigo-400 animate-spin" />}
+                    {(isLoading || !mounted) && <Loader2 size={10} className="text-indigo-400 animate-spin" />}
                 </div>
                 
                 <Link 
@@ -361,7 +439,7 @@ function ProjectSelector({ isCollapsed }: { isCollapsed: boolean }) {
                             </div>
 
                             <div className="max-h-[160px] overflow-y-auto custom-scrollbar pr-1 space-y-1">
-                                {projects.map(p => {
+                                {mounted && projects.map(p => {
                                     const isActive = activeProjectIds.includes(p.id);
                                     return (
                                         <button

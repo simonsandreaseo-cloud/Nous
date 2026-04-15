@@ -94,12 +94,60 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.4);
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
   }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
 }
 
 @keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
   100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer-from-right {
+  0% {
     transform: translateX(100%);
   }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.tr-shimmer {
+  position: relative;
+}
+
+.tr-shimmer > * {
+  position: relative;
+  z-index: 1;
+}
+
+.tr-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(to right, transparent, rgba(99, 102, 241, 0.05), transparent);
+  animation: shimmer-from-right 2s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+  width: 100%;
 }
 
 @keyframes progress-bar-stripes {

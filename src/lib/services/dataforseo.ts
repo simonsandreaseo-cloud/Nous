@@ -15,8 +15,11 @@ export class DataForSeoService {
      * Uses the Search Volume Live endpoint.
      */
     static async getKeywordsMetrics(keywords: string[], locationCode: number = 2724, languageCode: string = 'es'): Promise<KeywordMetrics[]> {
-        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
-        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const login = process.env.DATAFORSEO_LOGIN;
+        const pass = process.env.DATAFORSEO_PASSWORD;
+        if (!login || !pass) {
+            throw new Error("Faltan credenciales de DataForSEO en .env.local");
+        }
         const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/keywords_data/google/search_volume/live`, {
@@ -52,8 +55,11 @@ export class DataForSeoService {
      * Fetches keyword suggestions based on a seed keyword.
      */
     static async getKeywordSuggestions(keyword: string, locationCode: number = 2724, languageCode: string = 'es'): Promise<any[]> {
-        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
-        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const login = process.env.DATAFORSEO_LOGIN;
+        const pass = process.env.DATAFORSEO_PASSWORD;
+        if (!login || !pass) {
+            throw new Error("Faltan credenciales de DataForSEO en .env.local");
+        }
         const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/keywords_data/google/keyword_suggestions/live`, {
@@ -80,8 +86,11 @@ export class DataForSeoService {
      * Uses the Google Ads Keywords For Site Live endpoint.
      */
     static async getKeywordsForSite(target: string, targetType: 'site' | 'page' = 'page', locationCode: number = 2724, languageCode: string = 'es'): Promise<any[]> {
-        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
-        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const login = process.env.DATAFORSEO_LOGIN;
+        const pass = process.env.DATAFORSEO_PASSWORD;
+        if (!login || !pass) {
+            throw new Error("Faltan credenciales de DataForSEO en .env.local");
+        }
         const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/keywords_data/google_ads/keywords_for_site/live`, {
@@ -115,8 +124,11 @@ export class DataForSeoService {
      * This provides ACTUAL organic ranking data, not just Ads data.
      */
     static async getRankedKeywords(target: string, targetType: 'site' | 'page' = 'page', locationCode: number = 2840, languageCode: string = 'es', limit: number = 100): Promise<any[]> {
-        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
-        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const login = process.env.DATAFORSEO_LOGIN;
+        const pass = process.env.DATAFORSEO_PASSWORD;
+        if (!login || !pass) {
+            throw new Error("Faltan credenciales de DataForSEO en .env.local");
+        }
         const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/dataforseo_labs/google/ranked_keywords/live`, {
@@ -158,12 +170,206 @@ export class DataForSeoService {
     }
 
     /**
+     * Creates a background task (POST) to fetch ranked keywords for a list of URLs using DataForSEO Labs.
+     * Prevents 402 errors from Live endpoints by using standard tasks.
+     */
+    static async createRankedKeywordsTask(urls: string[], locationCode: number = 2724, languageCode: string = 'es', limit: number = 50): Promise<string[]> {
+        if (!urls || urls.length === 0) return [];
+        
+        const login = process.env.DATAFORSEO_LOGIN;
+        const pass = process.env.DATAFORSEO_PASSWORD;
+        if (!login || !pass) {
+            throw new Error("Faltan credenciales de DataForSEO en .env.local");
+        }
+        const auth = Buffer.from(`${login}:${pass}`).toString('base64');
+
+        const postData = urls.map(url => ({
+            target: url,
+            target_type: "page",
+            location_code: locationCode,
+            language_code: languageCode,
+            limit: limit,
+            order_by: ["keyword_data.keyword_info.search_volume,desc"],
+            ignore_synonyms: true
+        }));
+
+        try {
+            const response = await fetch(`${this.BASE_URL}/dataforseo_labs/google/ranked_keywords/task_post`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${auth}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(postData)
+            });
+
+            const result = await response.json();
+
+            if (!result.tasks) {
+                console.error("DataForSEO Labs Error Response:", JSON.stringify(result));
+                return [];
+            }
+
+            return result.tasks.map((t: any) => t.id).filter(Boolean);
+        } catch (error: any) {
+            console.error("[DataForSEO] createRankedKeywordsTask error:", error.message);
+            return [];
+        }
+    }
+
+    /**
+     * Checks and retrieves the result of DataForSEO Labs tasks.
+     */
+    static async getRankedKeywordsTaskResults(taskIds: string[]): Promise<{ isReady: boolean, results: any[] }> {
+        if (!taskIds || taskIds.length === 0) return { isReady: true, results: [] };
+        
+        const login = process.env.DATAFORSEO_LOGIN;
+        const pass = process.env.DATAFORSEO_PASSWORD;
+        if (!login || !pass) {
+            throw new Error("Faltan credenciales de DataForSEO en .env.local");
+        }
+        const auth = Buffer.from(`${login}:${pass}`).toString('base64');
+
+        const keywordsMap = new Map<string, any>();
+        let allReady = true;
+
+        for (const taskId of taskIds) {
+            try {
+                const response = await fetch(`${this.BASE_URL}/dataforseo_labs/google/ranked_keywords/task_get/${taskId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Basic ${auth}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (!result.tasks || result.tasks.length === 0) {
+                    continue;
+                }
+
+                const task = result.tasks[0];
+                
+                // 40601: Task Created, 40602: Task In Queue
+                if (task.status_code === 40601 || task.status_code === 40602 || task.status_code === 40611 || task.status_code === 40612) {
+                    allReady = false;
+                    continue;
+                }
+
+                if (task.status_code === 20000 && task.result && Array.isArray(task.result)) {
+                    task.result.forEach((res: any) => {
+                        const items = res.items || [];
+                        items.forEach((item: any) => {
+                            const kw = item.keyword_data?.keyword;
+                            const sv = item.keyword_data?.keyword_info?.search_volume || 0;
+                            if (kw && !keywordsMap.has(kw)) {
+                                keywordsMap.set(kw, {
+                                    keyword: kw,
+                                    search_volume: sv,
+                                    rank: item.ranked_serp_element?.serp_item?.rank_group,
+                                    cpc: item.keyword_data?.keyword_info?.cpc,
+                                    competition: item.keyword_data?.keyword_info?.competition_level,
+                                    url: item.ranked_serp_element?.serp_item?.url
+                                });
+                            }
+                        });
+                    });
+                }
+            } catch (error: any) {
+                console.error(`[DataForSEO] getRankedKeywordsTaskResult error for ${taskId}:`, error.message);
+            }
+        }
+
+        return {
+            isReady: allReady,
+            results: Array.from(keywordsMap.values()).sort((a, b) => b.search_volume - a.search_volume)
+        };
+    }
+
+    /**
+     * Fetches ranked keywords for a list of URLs using DataForSEO Labs.
+     * @deprecated Use createRankedKeywordsTask and getRankedKeywordsTaskResults for async processing to avoid 402s.
+     */
+    static async getRankedKeywordsForUrls(urls: string[], locationCode: number = 2724, languageCode: string = 'es', limit: number = 50): Promise<any[]> {
+        if (!urls || urls.length === 0) return [];
+        
+        const login = process.env.DATAFORSEO_LOGIN;
+        const pass = process.env.DATAFORSEO_PASSWORD;
+        if (!login || !pass) {
+            throw new Error("Faltan credenciales de DataForSEO en .env.local");
+        }
+        const auth = Buffer.from(`${login}:${pass}`).toString('base64');
+
+        // Map urls to array of target objects
+        const postData = urls.map(url => ({
+            target: url,
+            target_type: "page",
+            location_code: locationCode,
+            language_code: languageCode,
+            limit: limit,
+            order_by: ["keyword_data.keyword_info.search_volume,desc"],
+            ignore_synonyms: true
+        }));
+
+        try {
+            const response = await fetch(`${this.BASE_URL}/dataforseo_labs/google/ranked_keywords/live`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${auth}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(postData)
+            });
+
+            const result = await response.json();
+
+            if (!result.tasks) {
+                console.error("DataForSEO Labs Error Response:", JSON.stringify(result));
+                return [];
+            }
+
+            const keywordsMap = new Map<string, any>();
+
+            result.tasks.forEach((task: any) => {
+                if (task.status_code === 20000 && task.result && Array.isArray(task.result)) {
+                    task.result.forEach((res: any) => {
+                        const items = res.items || [];
+                        items.forEach((item: any) => {
+                            const kw = item.keyword_data?.keyword;
+                            const sv = item.keyword_data?.keyword_info?.search_volume || 0;
+                            if (kw && !keywordsMap.has(kw)) {
+                                keywordsMap.set(kw, {
+                                    keyword: kw,
+                                    search_volume: sv,
+                                    rank: item.ranked_serp_element?.serp_item?.rank_group,
+                                    cpc: item.keyword_data?.keyword_info?.cpc,
+                                    competition: item.keyword_data?.keyword_info?.competition_level,
+                                    url: item.ranked_serp_element?.serp_item?.url
+                                });
+                            }
+                        });
+                    });
+                }
+            });
+
+            return Array.from(keywordsMap.values()).sort((a, b) => b.search_volume - a.search_volume);
+        } catch (error: any) {
+            console.error("[DataForSEO] getRankedKeywordsForUrls error:", error.message);
+            return [];
+        }
+    }
+
+    /**
      * Fetches the actual Google SERP (Top results) for a keyword.
      * Essential for "New Content" to know who to emulate.
      */
     static async getSerpForKeyword(keyword: string, locationCode: number = 2724, languageCode: string = 'es'): Promise<any[]> {
-        const login = process.env.DATAFORSEO_LOGIN || 'contacto@simonsandreaseo.com';
-        const pass = process.env.DATAFORSEO_PASSWORD || '1105792facfc02ac';
+        const login = process.env.DATAFORSEO_LOGIN;
+        const pass = process.env.DATAFORSEO_PASSWORD;
+        if (!login || !pass) {
+            throw new Error("Faltan credenciales de DataForSEO en .env.local");
+        }
         const auth = Buffer.from(`${login}:${pass}`).toString('base64');
 
         const response = await fetch(`${this.BASE_URL}/serp/google/organic/live/advanced`, {

@@ -1,4 +1,4 @@
-export async function fetchSerperSearch(query: string, gl = "es", hl = "es", num = 30): Promise<any[]> {
+export async function fetchSerperSearch(query: string, gl = "es", hl = "es", num = 30): Promise<{organic: any[], faqs: any[]}> {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || '');
     const proxyUrl = `${origin}/api/tools/serper`;
@@ -19,9 +19,12 @@ export async function fetchSerperSearch(query: string, gl = "es", hl = "es", num
     }
 
     const data = await response.json();
-    return data.organic || [];
+    return {
+      organic: (data.organic || []).map((r: any, index: number) => ({ ...r, originalPosition: index + 1 })),
+      faqs: data.peopleAlsoAsk || []
+    };
   } catch (error: any) {
     console.error("[Serper Service] Error:", error.message);
-    return [];
+    return { organic: [], faqs: [] };
   }
 }

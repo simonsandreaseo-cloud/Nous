@@ -59,3 +59,18 @@ export enum ProcessingStatus {
   COMPLETED = 'COMPLETED',
   ERROR = 'ERROR',
 }
+
+export interface ImageRowConfig {
+  id: string;
+  type: 'portada' | 'cuerpo';
+  imageId?: string;
+  url?: string;
+  altText?: string;
+  title?: string;
+  prompt?: string;
+  model: string;
+  ratio: string;
+  width: number;
+  height: number;
+  miniPrompt: string;
+}

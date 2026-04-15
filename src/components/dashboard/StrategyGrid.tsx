@@ -3,7 +3,7 @@
 import { useProjectStore, Task, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MoreVertical, CheckCircle2, Clock, Calendar, Hash, Tag, Activity, Edit3, Trash2, Plus, Sparkles, X, Globe, FileText, User, UserPlus, ArrowRight, Check, Search, Layout, Zap, BrainCircuit, Loader2, ChevronDown, RefreshCw, Image as ImageIcon, Languages } from 'lucide-react';
+import { MoreVertical, CheckCircle2, Clock, Calendar, Hash, Tag, Activity, Edit3, Trash2, Plus, Sparkles, X, Globe, FileText, User, UserPlus, ArrowRight, Check, Search, Layout, Zap, BrainCircuit, Loader2, ChevronDown, RefreshCw, Image as ImageIcon, Languages, RotateCcw } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -321,21 +321,13 @@ export default function StrategyGrid({
                                 <tr
                                     key={task.id}
                                     className={cn(
-                                        "group hover:bg-slate-50/30 even:bg-slate-50/10 transition-all cursor-pointer select-none border-b border-slate-50 last:border-none relative overflow-hidden",
+                                        "group hover:bg-slate-50/30 even:bg-slate-50/10 transition-all cursor-pointer select-none border-b border-slate-50 last:border-none relative",
                                         selectedTaskIds.includes(task.id) && "bg-indigo-50/40 hover:bg-indigo-50/60",
-                                        batchProgress[task.id] && batchProgress[task.id] < 100 && "bg-indigo-50/20"
+                                        batchProgress[task.id] && batchProgress[task.id] < 100 && "bg-indigo-50/20 tr-shimmer [&_*]:overflow-visible"
                                     )}
                                     onClick={() => onSelectTask?.(task)}
                                 >
                                     <td className="px-3 py-2 w-[1%] whitespace-nowrap min-w-[40px]" onClick={(e) => toggleOne(task.id, e)}>
-                                        {batchProgress[task.id] && batchProgress[task.id] < 100 && (
-                                            <motion.div 
-                                                initial={{ x: "-100%" }}
-                                                animate={{ x: "100%" }}
-                                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                                className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/5 to-transparent pointer-events-none z-0"
-                                            />
-                                        )}
                                         <div 
                                             className={cn(
                                                 "w-4 h-4 rounded-[4px] border flex items-center justify-center transition-all opacity-0 group-hover:opacity-100",
@@ -718,7 +710,9 @@ export default function StrategyGrid({
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         if (document.hasFocus()) {
-                                                                            navigator.clipboard.writeText(text);
+                                                                            const outlineHeaders = task.outline_structure?.headers || task.outline_structure || [];
+                                                                            const outlineText = outlineHeaders.map((h: any) => `${h.tag || 'H2'} ${h.text || h.title || ''}`).join('\n');
+                                                                            navigator.clipboard.writeText(outlineText);
                                                                             NotificationService.success("Outline Copiado");
                                                                         }
                                                                     }}
@@ -1052,21 +1046,25 @@ export default function StrategyGrid({
                                                                             </button>
                                                                         )}
 
-                                                                        <div className="h-px bg-slate-100 my-1" />
+                                                                        {!(deleteOptions.research || deleteOptions.writing || deleteOptions.images || deleteOptions.translations) && (
+                                                                            <>
+                                                                                <div className="h-px bg-slate-100 my-1" />
 
-                                                                        <button 
-                                                                            onClick={async (e) => {
-                                                                                e.stopPropagation();
-                                                                                if (confirm('¿Eliminar todo este contenido?')) {
-                                                                                    await selectiveDeleteTask(task.id, { all: true });
-                                                                                    setDeletePopupId(null);
-                                                                                }
-                                                                            }}
-                                                                            className="w-full text-left px-3 py-2 text-[10px] font-bold text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center justify-between"
-                                                                        >
-                                                                            <span>ELIMINAR TODO</span>
-                                                                            <Trash2 size={12} />
-                                                                        </button>
+                                                                                <button 
+                                                                                    onClick={async (e) => {
+                                                                                        e.stopPropagation();
+                                                                                        if (confirm('¿Eliminar todo este contenido?')) {
+                                                                                            await selectiveDeleteTask(task.id, { all: true });
+                                                                                            setDeletePopupId(null);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="w-full text-left px-3 py-2 text-[10px] font-bold text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center justify-between"
+                                                                                >
+                                                                                    <span>ELIMINAR TODO</span>
+                                                                                    <Trash2 size={12} />
+                                                                                </button>
+                                                                            </>
+                                                                        )}
                                                                     </div>
                                                                 </motion.div>
                                                             </>
@@ -1276,6 +1274,7 @@ function IntelligentActionButton({ task, onAction, isProcessing }: { task: Task,
 
     const dropdownOptions = [
         { label: 'Completar Investigación', action: 'completar_investigacion', icon: RefreshCw, desc: 'Reanuda desde el último checkpoint' },
+        { label: 'Re-investigar Fase', action: 'reinvestigar_fase', icon: RotateCcw, desc: 'Re-ejecutar una parte específica' },
         { label: 'Investigar de 0', action: 'investigar_forzado', icon: Search, desc: 'Reinicia toda la investigación' },
         { label: 'Redactar', action: 'draft', icon: Sparkles, desc: 'Genera el borrador' },
         { label: 'Humanizar', action: 'humanize', icon: Zap, desc: 'Aplica humanización' },
@@ -1298,7 +1297,8 @@ function IntelligentActionButton({ task, onAction, isProcessing }: { task: Task,
                     {isProcessing ? (
                         <div className="w-2.5 h-2.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     ) : (
-                        <img src="/LogoNous.png" alt="Nous" className="w-3.5 h-3.5 object-contain" />
+                                <img src="/LogoNous.png" alt="Nous" className="w-3.5 h-3.5 object-contain" style={{ width: 'auto', height: 'auto' }} />
+
                     )}
                 </div>
                 <span>{state.label}</span>

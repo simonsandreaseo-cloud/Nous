@@ -37,8 +37,11 @@ export const suggestImagePlacements = async (articleHtml: string, count: string)
 
     const prompt = `
     Eres Director de Arte. Analiza este artículo HTML. Sugiere ${numImages} ubicaciones para imágenes en el cuerpo.
+    
+    Para cada imagen, debes proporcionar un 'semantic_anchor': una frase corta y única (exactamente como aparece en el texto) que preceda inmediatamente a la ubicación sugerida de la imagen.
+    
     FORMATO OUTPUT (JSON):
-    [{"id": "body_1", "type": "body", "placement": "...", "context": "...", "prompt": "...", "alt": "...", "title": "...", "filename": "..."}]
+    [{"id": "body_1", "type": "body", "semantic_anchor": "frase exacta del texto", "placement": "descripción del lugar", "context": "por qué aquí", "prompt": "...", "alt": "...", "title": "...", "filename": "..."}]
     `;
 
     return executeWithKeyRotation(async (ai) => {

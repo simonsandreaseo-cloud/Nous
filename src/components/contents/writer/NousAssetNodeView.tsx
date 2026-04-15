@@ -21,7 +21,8 @@ import {
     BetweenVerticalEnd,
     Layers,
     BringToFront,
-    Square
+    Square,
+    CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
@@ -33,7 +34,7 @@ import { uploadGeneratedImage, deleteImageAction } from '@/lib/actions/imageActi
 
 export default function NousAssetNodeView(props: any) {
     const { node, deleteNode, updateAttributes } = props;
-    const { url, alt, title, prompt, type, id, width, height, align, wrapping } = node.attrs;
+    const { url, alt, title, prompt, type, id, width, height, align, wrapping, status, semanticAnchor } = node.attrs;
 
     const [isResizing, setIsResizing] = useState(false);
     const [resizerWidth, setResizerWidth] = useState(width);
@@ -193,17 +194,19 @@ export default function NousAssetNodeView(props: any) {
                 align === 'full' && "w-full"
             )}
         >
-            <motion.div 
-                ref={containerRef}
-                style={containerStyle}
-                layout
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className={cn(
-                    "group relative transition-shadow duration-500",
-                    showMenu && "z-[100]"
-                )}
-                onClick={() => setShowMenu(!showMenu)}
-            >
+                <motion.div 
+                    ref={containerRef}
+                    style={containerStyle}
+                    layout
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className={cn(
+                        "group relative transition-shadow duration-500",
+                        showMenu && "z-[100]",
+                        status === 'ghost' && "opacity-60 grayscale-[0.5] saturate-50 ring-4 ring-indigo-400/30 ring-offset-4"
+                    )}
+                    onClick={() => setShowMenu(!showMenu)}
+                >
+
                 {/* FLOATING ACTION OVERLAYS */}
                 <AnimatePresence>
                     {(showMenu || isResizing) && (
@@ -220,12 +223,19 @@ export default function NousAssetNodeView(props: any) {
                                 <Maximize2 size={24} />
                             </motion.button>
 
-                            {/* PORTADA LABEL - HTML TAG STYLE */}
-                            {type === 'featured' && (
-                                <div className="absolute top-4 left-4 px-3 py-1 bg-black/90 text-white border border-white/20 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl">
-                                    Portada Magistral
-                                </div>
-                            )}
+                                 {/* PORTADA LABEL - HTML TAG STYLE */}
+                                 {type === 'featured' && (
+                                     <div className="absolute top-4 left-4 z-20 px-3 py-1 bg-black/90 text-white border border-white/20 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl">
+                                         Portada Magistral
+                                     </div>
+                                 )}
+
+                                 {status === 'ghost' && (
+                                     <div className="absolute top-4 right-4 z-20 px-3 py-1 bg-indigo-600 text-white border border-indigo-400 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl animate-pulse">
+                                         Sugerencia Ghost
+                                     </div>
+                                 )}
+
                         </div>
                     )}
                 </AnimatePresence>
@@ -241,80 +251,60 @@ export default function NousAssetNodeView(props: any) {
                         >
                             <div className="flex flex-col gap-2 p-3 bg-slate-950/95 backdrop-blur-3xl rounded-[1.8rem] border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
                                 
-                                {/* ROW 1: SIZES & MAIN ACTIONS */}
-                                <div className="flex items-center justify-between gap-4 pb-2 border-b border-white/5">
-                                    {/* Predefined Sizes (Left) */}
-                                    <div className="flex items-center gap-1 px-1">
-                                        {presets.map(p => (
-                                            <button 
-                                                key={p.value}
-                                                onClick={(e) => { e.stopPropagation(); updateAttributes({ width: p.value }); }}
-                                                className={cn(
-                                                    "w-9 h-9 rounded-xl flex items-center justify-center text-[9px] font-black transition-all hover:bg-white/10 group-hover:scale-105",
-                                                    width === p.value ? 'bg-white text-slate-950 shadow-lg shadow-white/20' : 'text-slate-500'
-                                                )}
-                                            >
-                                                {p.label}
-                                            </button>
-                                        ))}
-                                    </div>
+                                 {/* ROW 1: SIZES & MAIN ACTIONS */}
+                                 <div className="flex items-center justify-between gap-4 pb-2 border-b border-white/5">
+                                     {/* Predefined Sizes (Left) */}
+                                     <div className="flex items-center gap-1 px-1">
+                                         {presets.map(p => (
+                                             <button 
+                                                 key={p.value}
+                                                 onClick={(e) => { e.stopPropagation(); updateAttributes({ width: p.value }); }}
+                                                 className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-[9px] font-black transition-all hover:bg-white/10 group-hover:scale-105", width === p.value ? 'bg-white text-slate-950 shadow-lg shadow-white/20' : 'text-slate-500')}
+                                             >
+                                                 {p.label}
+                                             </button>
+                                         ))}
+                                     </div>
+                                     
+                                     <div className="flex items-center gap-1 pr-1">
+                                         {status === 'ghost' && (
+                                             <button 
+                                                 onClick={(e) => { e.stopPropagation(); updateAttributes({ status: 'final' }); }}
+                                                 className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-emerald-500/40"
+                                                 title="Aceptar esta imagen en el artículo"
+                                             >
+                                                 <CheckCircle2 size={16} />
+                                                 <span className="text-[10px] font-black uppercase tracking-wider">Aceptar</span>
+                                             </button>
+                                         )}
+                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/5 mx-2">
+                                             <div className="flex flex-col">
+                                                 <span className="text-[7px] font-black text-slate-500 uppercase">Ancho</span>
+                                                 <input type="number" value={node.attrs.pixelWidth || 800} onChange={(e) => updateAttributes({ pixelWidth: parseInt(e.target.value) })} className="w-12 bg-transparent border-none text-[10px] font-black text-white p-0 focus:ring-0" />
+                                             </div>
+                                             <span className="text-slate-700 text-[10px]">×</span>
+                                             <div className="flex flex-col">
+                                                 <span className="text-[7px] font-black text-slate-500 uppercase">Alto</span>
+                                                 <input type="number" value={node.attrs.pixelHeight || 450} onChange={(e) => updateAttributes({ pixelHeight: parseInt(e.target.value) })} className="w-12 bg-transparent border-none text-[10px] font-black text-white p-0 focus:ring-0" />
+                                             </div>
+                                         </div>
+                                         <button onClick={handleAbsoluteDelete} className="p-2.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all hover:scale-110" title="Eliminar permanentemente">
+                                             <Trash2 size={18} />
+                                         </button>
+                                         <button onClick={handleRegenerate} disabled={isRegenerating} className={cn("p-2.5 rounded-xl transition-all hover:scale-110", isRegenerating ? "animate-spin text-indigo-400" : "text-indigo-400 hover:bg-indigo-500/10")} title="Regenerar con IA">
+                                             <RefreshCcw size={18} />
+                                         </button>
+                                         <button onClick={handleDownload} className="p-2.5 text-slate-300 hover:bg-white/10 rounded-xl transition-all hover:scale-110" title="Descargar">
+                                             <Download size={18} />
+                                         </button>
+                                         <button onClick={(e) => { e.stopPropagation(); deleteNode(); }} className="p-2.5 text-orange-400 hover:bg-orange-500/10 rounded-xl transition-all hover:scale-110" title="Quitar del editor">
+                                             <X size={18} />
+                                         </button>
+                                     </div>
+                                  </div>
+                                  
+                                 {/* ROW 2: ALIGNMENT & WRAPPING */}
 
-                                    {/* Action Section (Right) */}
-                                    <div className="flex items-center gap-1 pr-1">
-                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/5 mx-2">
-                                            <div className="flex flex-col">
-                                                <span className="text-[7px] font-black text-slate-500 uppercase">Ancho</span>
-                                                <input 
-                                                    type="number"
-                                                    value={node.attrs.pixelWidth || 800}
-                                                    onChange={(e) => updateAttributes({ pixelWidth: parseInt(e.target.value) })}
-                                                    className="w-12 bg-transparent border-none text-[10px] font-black text-white p-0 focus:ring-0"
-                                                />
-                                            </div>
-                                            <span className="text-slate-700 text-[10px]">×</span>
-                                            <div className="flex flex-col">
-                                                <span className="text-[7px] font-black text-slate-500 uppercase">Alto</span>
-                                                <input 
-                                                    type="number"
-                                                    value={node.attrs.pixelHeight || 450}
-                                                    onChange={(e) => updateAttributes({ pixelHeight: parseInt(e.target.value) })}
-                                                    className="w-12 bg-transparent border-none text-[10px] font-black text-white p-0 focus:ring-0"
-                                                />
-                                            </div>
-                                        </div>
-                                        <button 
-                                            onClick={handleAbsoluteDelete}
-                                            className="p-2.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all hover:scale-110"
-                                            title="Eliminar permanentemente"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                        <button 
-                                            onClick={handleRegenerate}
-                                            disabled={isRegenerating}
-                                            className={cn("p-2.5 rounded-xl transition-all hover:scale-110", isRegenerating ? "animate-spin text-indigo-400" : "text-indigo-400 hover:bg-indigo-500/10")}
-                                            title="Regenerar con IA"
-                                        >
-                                            <RefreshCcw size={18} />
-                                        </button>
-                                        <button 
-                                            onClick={handleDownload}
-                                            className="p-2.5 text-slate-300 hover:bg-white/10 rounded-xl transition-all hover:scale-110"
-                                            title="Descargar"
-                                        >
-                                            <Download size={18} />
-                                        </button>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); deleteNode(); }}
-                                            className="p-2.5 text-orange-400 hover:bg-orange-500/10 rounded-xl transition-all hover:scale-110"
-                                            title="Quitar del editor"
-                                        >
-                                            <X size={18} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* ROW 2: ALIGNMENT & WRAPPING */}
                                 <div className="flex items-center justify-between gap-4">
                                     {/* Alignment (Left) */}
                                     <div className="flex items-center gap-1">

@@ -27,6 +27,8 @@ import { cn } from '@/utils/cn';
 import { useWriterStore } from '@/store/useWriterStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as SEOScoringService from '@/lib/services/writer/seo-scoring';
+import { applyBatchOptimization } from '@/lib/services/writer/seo-optimization';
+import { toast } from 'sonner';
 
 
 interface SEODataTabProps {
@@ -66,6 +68,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
         strategyWordCount,
         strategyKeywords,
         isRefreshingLinks,
+        editor,
         // Setters
         setStrategyH1,
         setStrategyTitle,
@@ -184,7 +187,115 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
         }, 0);
     }, [lsiKeywords, currentContent]);
 
-    const checkedQuestions = frequentQuestions.filter((q, idx) => checkedItems.includes(`q-${idx}`));
+    const [isOptimizing, setIsOptimizing] = useState(false);
+
+    const handleBatchOptimization = async () => {
+        if (!editor) {
+            toast.error("El editor no está inicializado.");
+            return;
+        }
+        
+        setIsOptimizing(true);
+        toast.loading("Analizando y generando inyecciones SEO...", { id: "batch-opt" });
+        
+        try {
+            const missingLSI = lsiKeywords.filter((k: any) => !isUsed(k)).map((k: any) => typeof k === 'string' ? k : k.keyword);
+            const req = {
+                currentContent: editor.getHTML(),
+                h1: strategyH1 || strategyTitle || keyword || 'Sin Título',
+                missingLSI,
+                missingASK: [] // Add your missing ASK logic here if any
+            };
+            
+            const result = await applyBatchOptimization(req);
+            
+            // 1. Nectar Injection
+            if (result.nectarParagraph) {
+                // Find the first H1 and insert after it.
+                let inserted = false;
+                editor.state.doc.descendants((node: any, pos: number) => {
+                    if (!inserted && node.type.name === 'heading' && node.attrs.level === 1) {
+                        editor.commands.insertContentAt(pos + node.nodeSize, '<p data-ai-nectar="true"><strong>Nota del Editor:</strong> ' + result.nectarParagraph + '</p>');
+                        inserted = true;
+                        return false;
+                    }
+                });
+                
+                // Fallback: If no H1, insert at the beginning
+                if (!inserted) {
+                    editor.commands.insertContentAt(0, '<p data-ai-nectar="true"><strong>Nota del Editor:</strong> ' + result.nectarParagraph + '</p>');
+                }
+            }
+            
+            // 2. Paragraph Edits (LSI/ASK injection)
+            if (result.paragraphEdits && result.paragraphEdits.length > 0) {
+                // We'll iterate through the edits and replace the text.
+                // To avoid breaking Tiptap's structure drastically, a simple find-and-replace on text nodes is risky if we replace HTML.
+                // A safer approach for HTML replacement is to let Tiptap handle it if we can find the exact text block.
+                
+                result.paragraphEdits.forEach((edit) => {
+                    const originalHTML = edit.originalTextExtract.trim();
+                    const newHTML = edit.newOptimizedText.trim();
+                    
+                    // Simple global find-and-replace is hard in tiptap. We'll get the current HTML, do a replace, and set the content.
+                    // This is slightly destructive if not careful, but given we are replacing entire blocks:
+                    if (originalHTML && newHTML) {
+                        let contentHTML = editor.getHTML();
+                        // Escape regex
+                        const safeOriginal = originalHTML.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(safeOriginal, 'g');
+                        
+                        if (regex.test(contentHTML)) {
+                            contentHTML = contentHTML.replace(regex, newHTML);
+                            editor.commands.setContent(contentHTML);
+                        } else {
+                            // Fallback: try replacing without HTML tags
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = originalHTML;
+                            const plainText = tempDiv.textContent || tempDiv.innerText || "";
+                            
+                            const safeText = plainText.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const textRegex = new RegExp(safeText, 'g');
+                            
+                            if (textRegex.test(contentHTML)) {
+                                contentHTML = contentHTML.replace(textRegex, newHTML);
+                                editor.commands.setContent(contentHTML);
+                            } else {
+                                console.warn("No se encontró el bloque original para reemplazar:", edit.originalTextExtract);
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 3. External Links
+            if (result.externalLinks && result.externalLinks.length > 0) {
+                let contentHTML = editor.getHTML();
+                result.externalLinks.forEach((link: any) => {
+                    if (link.anchorText && link.url) {
+                        const safeAnchor = link.anchorText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        // Reemplazar la primera ocurrencia de la palabra/frase exacta
+                        const textRegex = new RegExp(`\\b${safeAnchor}\\b`, 'i');
+                        
+                        // Prevención básica: No reemplazar si ya hay un href que contenga esa url o texto
+                        if (!contentHTML.includes(link.url)) {
+                            contentHTML = contentHTML.replace(textRegex, `<a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.anchorText}</a>`);
+                        }
+                    }
+                });
+                editor.commands.setContent(contentHTML);
+            }
+            
+            toast.success("Optimización en lote aplicada correctamente.", { id: "batch-opt" });
+        } catch (error: any) {
+            console.error("Batch Optimization Error:", error);
+            toast.error(error.message || "Error al aplicar optimización.", { id: "batch-opt" });
+        } finally {
+            setIsOptimizing(false);
+        }
+    };
+
+    const checkedQuestions = frequentQuestions.filter((q: string, idx: number) => checkedItems.includes(`q-${idx}`));
 
 
 
@@ -553,7 +664,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                         >
                             <div className="flex items-center gap-3">
                                 <Database size={16} className="text-indigo-500" />
-                                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-700">Keywords Sugeridas (Hipatético)</h4>
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-700">Keywords Sugeridas (Hipotético)</h4>
                             </div>
                             <div className="flex items-center gap-4">
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
@@ -695,85 +806,27 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                 </div>
             )}
 
-            {/* MODO RANK MATH */}
-            {activeTab === 'rankmath' && (
-                <div className="space-y-6">
-                    <div className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm flex items-center gap-6">
-                        <div className="w-24 h-24 rounded-full border-8 border-slate-100 relative flex items-center justify-center">
-                            {/* Simple circular progress visualization */}
-                            <svg className="absolute inset-0 w-full h-full -rotate-90">
-                                <circle
-                                    cx="50%" cy="50%" r="42"
-                                    fill="transparent"
-                                    stroke={rankMath.score >= 80 ? '#10b981' : rankMath.score >= 50 ? '#f59e0b' : '#ef4444'}
-                                    strokeWidth="8"
-                                    strokeDasharray="264"
-                                    strokeDashoffset={264 - (264 * rankMath.score) / 100}
-                                    strokeLinecap="round"
-                                />
-                            </svg>
-                            <span className="text-2xl font-black text-slate-800">{rankMath.score}</span>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-black text-slate-800">Rank Math Score</h3>
-                            <p className="text-xs font-medium text-slate-500">Métricas simuladas basadas en las reglas de Rank Math.</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-[24px] overflow-hidden border border-slate-200 shadow-sm">
-                        <div className="p-4 bg-slate-50 border-b border-slate-100">
-                            <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-600">SEO Básico & Adicional</h4>
-                        </div>
-                        <div className="p-2">
-                            {rankMath.checks.map((check, i) => (
-                                <div key={i} className="flex items-center gap-3 p-3 border-b border-slate-50 last:border-0">
-                                    {check.passed ? (
-                                        <CheckCircle size={16} className="text-emerald-500 shrink-0" />
-                                    ) : (
-                                        <Circle size={16} className="text-red-400 shrink-0" />
-                                    )}
-                                    <span className={cn("text-[11px] font-bold", check.passed ? "text-slate-700" : "text-slate-500")}>
-                                        {check.label}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* MODO YOAST */}
-            {activeTab === 'yoast' && (
-                <div className="space-y-6">
-                    <div className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
-                            <Target size={24} className="text-slate-700" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-black text-slate-800">Análisis Yoast SEO</h3>
-                            <p className="text-xs font-medium text-slate-500">Indicadores de semáforo estilo Yoast.</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-[24px] overflow-hidden border border-slate-200 shadow-sm p-4">
-                        <div className="space-y-4">
-                            {yoastRules.map((rule, i) => (
-                                <div key={i} className="flex items-start gap-3">
-                                    <div className={cn(
-                                        "w-3 h-3 rounded-full mt-0.5 shrink-0",
-                                        rule.status === 'good' ? "bg-emerald-500" :
-                                        rule.status === 'ok' ? "bg-amber-500" :
-                                        "bg-red-500"
-                                    )} />
-                                    <span className="text-[12px] font-medium text-slate-700 leading-tight">
-                                        {rule.text}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* STICKY FOOTER FOR BATCH OPTIMIZATION */}
+            <div className="sticky bottom-0 -mx-8 -mb-8 px-8 py-4 bg-white/90 backdrop-blur-xl border-t border-slate-200 z-10">
+                <button
+                    onClick={handleBatchOptimization}
+                    disabled={isOptimizing || !editor}
+                    className="w-full relative overflow-hidden group flex items-center justify-center gap-2 py-3 px-4 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest text-[11px] transition-all hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
+                >
+                    <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+                    {isOptimizing ? (
+                        <>
+                            <RefreshCw size={14} className="animate-spin" />
+                            Aplicando Magia...
+                        </>
+                    ) : (
+                        <>
+                            <Sparkles size={14} className="text-amber-400 group-hover:animate-pulse" />
+                            Aplicar Optimización en Lote
+                        </>
+                    )}
+                </button>
+            </div>
         </div>
     );
 }

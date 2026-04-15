@@ -19,9 +19,18 @@ import {
     FileText,
     TrendingUp
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/utils/cn";
 import { NotificationService } from "@/lib/services/notifications";
+
+const PROGRESS_PHASES = [
+    { id: "serp", label: "Búsqueda en SERP" },
+    { id: "scraping", label: "Extrayendo Competidores" },
+    { id: "keywords", label: "Optimización Semántica" },
+    { id: "metadata", label: "Generando Ficha SEO" },
+    { id: "interlinking", label: "Buscando Enlaces Internos" },
+    { id: "outline", label: "Construyendo Dossier" }
+];
 
 export default function AIConsole() {
     const { 
@@ -80,6 +89,12 @@ export default function AIConsole() {
 
         return { competitorsCount, lsiCount, linksCount, wordCount };
     }, [debugPrompts, isResearching]);
+
+    const currentIndex = useMemo(() => {
+        if (!researchPhaseId) return 0;
+        const idx = PROGRESS_PHASES.findIndex(p => p.id === researchPhaseId);
+        return idx >= 0 ? idx : 0;
+    }, [researchPhaseId]);
 
     return (
         <motion.div
@@ -157,9 +172,38 @@ export default function AIConsole() {
                             </motion.div>
                         </div>
                         
-                        <div className="flex items-center gap-2 mt-3 p-2 bg-black/40 rounded-xl border border-white/5">
-                            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                            <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest truncate">Fase: {researchPhaseId || 'Iniciando'}</span>
+                        <div className="mt-4 bg-black/40 rounded-xl border border-white/5 overflow-hidden h-10 relative">
+                            <motion.div 
+                                animate={{ y: -(currentIndex * 40) }}
+                                transition={{ type: "spring", stiffness: 100, damping: 20 }}
+                                className="flex flex-col"
+                            >
+                                {PROGRESS_PHASES.map((phase, i) => (
+                                    <div key={phase.id} className="h-10 flex items-center px-4 gap-3 shrink-0">
+                                        <div className={cn(
+                                            "w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-500",
+                                            i < currentIndex ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400" : 
+                                            i === currentIndex ? "bg-indigo-500 border border-indigo-400 text-white" : "bg-slate-800 text-slate-500"
+                                        )}>
+                                            {i < currentIndex ? <CheckCircle2 size={12} /> : <span className="text-[10px] font-black">{i + 1}</span>}
+                                        </div>
+                                        <span className={cn(
+                                            "text-[10px] font-black uppercase tracking-widest flex-1",
+                                            i < currentIndex ? "text-emerald-400" : 
+                                            i === currentIndex ? "text-indigo-300" : "text-slate-600"
+                                        )}>
+                                            {phase.label}
+                                        </span>
+                                        {i === currentIndex && (
+                                            <div className="flex gap-1">
+                                                <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                                <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                                <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </motion.div>
                         </div>
                     </motion.div>
                 )}

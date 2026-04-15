@@ -83,18 +83,19 @@ export function NousOrbLite({ isProcessing = false }: NousOrbLiteProps) {
             >
                 {/* Logo Nous Centered */}
                 <div className="relative w-11 h-11 flex items-center justify-center">
-                    <Image
-                        src="/LogoNous.png"
-                        alt="Nous Assistant"
-                        width={44}
-                        height={44}
-                        priority
-                        className={cn(
-                            "object-contain transition-all duration-700",
-                            isProcessing ? "scale-110 drop-shadow-[0_0_8px_rgba(99,102,241,0.2)]" : "group-hover:scale-105"
-                        )}
-                        style={{ filter: 'contrast(1.05) brightness(1)' }}
-                    />
+                                <Image
+                                    src="/LogoNous.png"
+                                    alt="Nous Assistant"
+                                    width={44}
+                                    height={44}
+                                    priority
+                                    className={cn(
+                                        "object-contain transition-all duration-700",
+                                        isProcessing ? "scale-110 drop-shadow-[0_0_8px_rgba(99,102,241,0.2)]" : "group-hover:scale-105"
+                                    )}
+                                    style={{ filter: 'contrast(1.05) brightness(1)', width: 'auto', height: 'auto' }}
+                                />
+
                 </div>
 
                 {/* Internal Crystal HUD Detail */}

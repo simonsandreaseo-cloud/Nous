@@ -183,42 +183,19 @@ export function TeamSettings({ teamId, onBack }: { teamId: string, onBack?: () =
                 if (error) throw error;
                 alert("Permisos actualizados correctamente.");
             } else {
-                // Invite logic: In the new architecture, we'll try to find user by email first
-                const { data: userData } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .eq('email', email)
-                    .maybeSingle();
+                // Invite logic using the new RPC
+                const { data, error } = await supabase.rpc('invite_user_to_team', { 
+                    p_team_id: teamId, 
+                    p_email: email, 
+                    p_role: role 
+                });
 
-                if (userData) {
-                    // Add as 'active' immediately for existing users, as requested
-                    const { error } = await supabase
-                        .from('team_members')
-                        .insert({
-                            team_id: teamId,
-                            user_id: userData.id,
-                            role,
-                            status: 'active',
-                            custom_permissions: permissions
-                        });
-                    if (error) throw error;
-                    alert("Usuario añadido al equipo correctamente.");
+                if (error) throw error;
+                
+                if (data?.status === 'success') {
+                    alert(data.message);
                 } else {
-                    // Create an invitation in team_invites for email-based invite
-                    // A DB trigger will automatically activate this when the user signs up
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const { error } = await supabase
-                        .from('team_invites')
-                        .insert({
-                            team_id: teamId,
-                            email,
-                            role,
-                            invited_by: session?.user?.id,
-                            custom_permissions: permissions
-                        });
-                    
-                    if (error) throw error;
-                    alert("El usuario no está registrado aún. Se le ha enviado una invitación y se unirá al equipo automáticamente al crear su cuenta.");
+                    throw new Error(data?.message || "Error al invitar usuario");
                 }
             }
             setIsModalOpen(false);

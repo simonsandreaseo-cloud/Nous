@@ -5,13 +5,15 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu, FloatingMenu } from '@tiptap/react/menus';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
-import { useEffect, useState, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
     Bold, Italic, Strikethrough, Code, Quote, List, ListOrdered,
     Heading1, Heading2, Heading3, Sparkles,
     CheckCircle2, Search, Layout, FileText, Zap, Loader2,
     Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-    Type, Palette, Highlighter, ChevronDown, Link as LinkIcon, X, Trash2
+    Type, Palette, Highlighter, ChevronDown, Link as LinkIcon, X, Trash2, Languages,
+    Send, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { getSharedExtensions } from '@/lib/tiptap-extensions';
@@ -21,6 +23,7 @@ import { useWriterActions } from './useWriterActions';
 import { FeaturedImageSlot } from './WriterStudio';
 import ImageLightbox from './modals/ImageLightbox';
 import { EditorView } from '@tiptap/pm/view';
+import PresenceAvatars from './PresenceAvatars';
 
 
 
@@ -53,12 +56,59 @@ export default function WriterEditor() {
         isHumanizing, humanizerConfig, updateHumanizerConfig, humanizerStatus,
         hasGenerated, hasHumanized, researchMode, setResearchMode,
         statusMessage, rawSeoData, linkedTaskId, isRemoteUpdate, setEditorTab,
-        setWordCountReal, deleteVersion, parentTaskId, draftId
-    } = useWriterStore();
+        setWordCountReal, deleteVersion, parentTaskId, draftId,
+        currentLanguage, contentVersions, switchLanguage,
+        redactorUI, setRedactorUI, setViewMode,
+        isSaving, lastSaved, activeUsers, finishContent
+    } = useWriterStore(useShallow(state => ({
+        content: state.content,
+        setContent: state.setContent,
+        isGenerating: state.isGenerating,
+        editorTab: state.editorTab,
+        strategyOutline: state.strategyOutline,
+        updateSectionProgress: state.updateSectionProgress,
+        setEditor: state.setEditor,
+        strategyDensity: state.strategyDensity,
+        setStrategyDensity: state.setStrategyDensity,
+        setSidebarTab: state.setSidebarTab,
+        isPlanningStructure: state.isPlanningStructure,
+        isAnalyzingSEO: state.isAnalyzingSEO,
+        isHumanizing: state.isHumanizing,
+        humanizerConfig: state.humanizerConfig,
+        updateHumanizerConfig: state.updateHumanizerConfig,
+        humanizerStatus: state.humanizerStatus,
+        hasGenerated: state.hasGenerated,
+        hasHumanized: state.hasHumanized,
+        researchMode: state.researchMode,
+        setResearchMode: state.setResearchMode,
+        statusMessage: state.statusMessage,
+        rawSeoData: state.rawSeoData,
+        linkedTaskId: state.linkedTaskId,
+        isRemoteUpdate: state.isRemoteUpdate,
+        setEditorTab: state.setEditorTab,
+        setWordCountReal: state.setWordCountReal,
+        deleteVersion: state.deleteVersion,
+        parentTaskId: state.parentTaskId,
+        draftId: state.draftId,
+        currentLanguage: state.currentLanguage,
+        contentVersions: state.contentVersions,
+        switchLanguage: state.switchLanguage,
+        redactorUI: state.redactorUI,
+        setRedactorUI: state.setRedactorUI,
+        setViewMode: state.setViewMode,
+        isSaving: state.isSaving,
+        lastSaved: state.lastSaved,
+        activeUsers: state.activeUsers,
+        finishContent: state.finishContent
+    })));
     const [fullscreenImage, setFullscreenImage] = useState<any>(null);
 
     const { updateTask } = useProjectStore();
     const { handleRegenerateOutline, handleGenerate, handleHumanize } = useWriterActions();
+
+    const targetLanguages = useProjectStore(useShallow(state => 
+        state.activeProject?.settings?.content_preferences?.default_translator_languages || []
+    ));
 
 
     // Specific Status Logic
@@ -73,21 +123,54 @@ export default function WriterEditor() {
     const [slashMenuPos, setSlashMenuPos] = useState<{ x: number, y: number } | null>(null);
     const [dropLinePos, setDropLinePos] = useState<{ top: number, left: number, width: number } | null>(null);
 
+    // --- Language Gallery Logic ---
+    const galleryRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const checkScroll = useCallback(() => {
+        if (galleryRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = galleryRef.current;
+            setCanScrollLeft(scrollLeft > 0);
+            setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 2);
+        }
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(checkScroll, 100);
+        return () => clearTimeout(timer);
+    }, [checkScroll, contentVersions, targetLanguages, currentLanguage]);
+
+    const handleGalleryScroll = (direction: 'left' | 'right') => {
+        if (galleryRef.current) {
+            const scrollAmount = 150;
+            galleryRef.current.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    };
+    const extensions = useMemo(() => 
+        getSharedExtensions('Escribe algo increíble... (Teclea "/nous" para llamar a la IA o "/" para comandos)'), 
+    []);
+
     const editor = useEditor({
-        extensions: getSharedExtensions('Escribe algo increíble... (Teclea "/nous" para llamar a la IA o "/" para comandos)'),
+        extensions,
         content: content,
         immediatelyRender: false,
         editorProps: {
             attributes: {
 
-                class: 'prose prose-lg prose-indigo focus:outline-none max-w-none min-h-[700px] pb-32 transition-all duration-500 mx-auto ' +
-                       'prose-h1:text-5xl prose-h1:font-black prose-h1:text-slate-900 prose-h1:mb-10 prose-h1:tracking-tight prose-h1:leading-tight ' +
-                       'prose-h2:text-3xl prose-h2:font-black prose-h2:text-slate-800 prose-h2:mt-16 prose-h2:mb-8 prose-h2:pb-4 prose-h2:border-b-2 prose-h2:border-slate-100 ' +
-                       'prose-h3:text-2xl prose-h3:font-black prose-h3:text-indigo-900 prose-h3:mt-12 prose-h3:mb-6 ' +
-                       'prose-p:text-slate-600 prose-p:leading-[1.9] prose-p:text-[18px] prose-p:mb-10 ' +
-                       'prose-li:text-slate-600 prose-li:leading-relaxed prose-li:mb-2 ' +
-                       'prose-strong:text-slate-900 prose-strong:font-black ' +
-                       'prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/30 prose-blockquote:py-4 prose-blockquote:px-8 prose-blockquote:rounded-r-3xl prose-blockquote:not-italic prose-blockquote:text-indigo-900 prose-blockquote:text-xl prose-blockquote:font-medium',
+                class: cn(
+                    'prose prose-lg prose-indigo focus:outline-none max-w-none min-h-[700px] pb-32 transition-all duration-700 mx-auto',
+                    'prose-h1:text-[56px] prose-h1:font-black prose-h1:text-slate-900 prose-h1:mb-12 prose-h1:tracking-tighter prose-h1:leading-[0.9] prose-h1:italic',
+                    'prose-h2:text-[32px] prose-h2:font-black prose-h2:text-slate-800 prose-h2:mt-20 prose-h2:mb-8 prose-h2:pb-4 prose-h2:border-b-2 prose-h2:border-slate-100/50',
+                    'prose-h3:text-[24px] prose-h3:font-black prose-h3:text-indigo-900 prose-h3:mt-14 prose-h3:mb-6',
+                    'prose-p:text-slate-600 prose-p:leading-[1.8] prose-p:text-[18px] prose-p:mb-10 prose-p:font-medium',
+                    'prose-li:text-slate-600 prose-li:leading-relaxed prose-li:mb-3',
+                    'prose-strong:text-slate-900 prose-strong:font-black',
+                    'prose-blockquote:border-l-[6px] prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/20 prose-blockquote:py-6 prose-blockquote:px-10 prose-blockquote:rounded-r-[32px] prose-blockquote:not-italic prose-blockquote:text-indigo-900 prose-blockquote:text-xl prose-blockquote:font-bold prose-blockquote:shadow-sm'
+                ),
 
             },
             handleDragOver: (view: EditorView, event: DragEvent) => {
@@ -310,105 +393,6 @@ export default function WriterEditor() {
 
     return (
         <div className="relative w-full h-full flex flex-col">
-            {/* VIEW MODE SWITCHER & NOUS STATUS - ALWAYS VISIBLE */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-100/50 bg-white/40 rounded-2xl">
-                {/* NOUS ASSISTANT PROCESS INDICATOR */}
-                <div className="flex-1 flex items-center justify-start">
-                    <AnimatePresence>
-                        {(isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing) && (
-                            <motion.div 
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                className="flex items-center gap-3 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/50 shadow-sm"
-                            >
-                                {/* Small Orb */}
-                                <div className="relative w-6 h-6 flex items-center justify-center">
-                                    <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping" />
-                                    <div className="relative w-4 h-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                                        <div className="w-full h-full absolute inset-0 bg-white/20 animate-[spin_2s_linear_infinite] rounded-full" />
-                                        <span className="text-[7px] text-white font-black">N</span>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col min-w-[120px]">
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-600 leading-none">Agente Nous</span>
-                                    <span className="text-[9px] text-slate-500 font-bold mt-1 truncate max-w-[220px]">
-                                        {isHumanizing ? humanizerStatus : statusMessage || "Procesando..."}
-                                    </span>
-                                </div>
-
-                                <div className="flex items-center gap-2 border-l border-slate-200 pl-4 ml-1">
-                                    <StepIcon 
-                                        active={isAnalyzingSEO} 
-                                        done={!!rawSeoData && !isAnalyzingSEO} 
-                                        icon={Search} 
-                                        label="Investigación SEO" 
-                                    />
-                                    <StepIcon 
-                                        active={isPlanningStructure} 
-                                        done={strategyOutline.length > 0 && !isPlanningStructure} 
-                                        icon={Layout} 
-                                        label="Estructura Outline" 
-                                    />
-                                    <StepIcon 
-                                        active={isDrafting} 
-                                        done={(hasGenerated || isPostProd) && !isDrafting} 
-                                        icon={FileText} 
-                                        label="Redacción IA" 
-                                    />
-                                    <StepIcon 
-                                        active={isPostProd} 
-                                        done={hasGenerated && !isPostProd} 
-                                        icon={Zap} 
-                                        label="Post-Producción" 
-                                    />
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                <div className="flex items-center gap-1 p-0.5 bg-slate-100/50 border border-slate-200/40 rounded-lg shadow-sm">
-                    <button 
-                        onClick={() => setEditorTab('visual')}
-                        className={cn(
-                            "px-4 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all",
-                            editorTab === 'visual' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
-                        )}
-                    >
-                        Visual
-                    </button>
-                    <button 
-                        onClick={() => setEditorTab('code')}
-                        className={cn(
-                            "px-4 py-1.5 rounded-md text-[9px] font-black uppercase tracking-widest transition-all",
-                            editorTab === 'code' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
-                        )}
-                    >
-                        Código
-                    </button>
-                    
-                    <div className="w-[1px] h-4 bg-slate-200/50 mx-1" />
-                    
-                    <button 
-                        onClick={async () => {
-                            const isParent = draftId === parentTaskId;
-                            const message = isParent 
-                                ? "¿Estás seguro de eliminar el PROYECTO ORIGINAL? Esto borrará todas las versiones y volverás al dashboard."
-                                : "¿Eliminar esta TRADUCCIÓN? Volverás a la versión original.";
-                                
-                            if (window.confirm(message)) {
-                                await deleteVersion(draftId!);
-                            }
-                        }}
-                        className="p-1.5 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
-                        title="Eliminar esta versión"
-                    >
-                        <Trash2 size={14} />
-                    </button>
-                </div>
-            </div>
 
             <div className={cn("relative flex-1 mt-6", editorTab !== 'visual' && 'hidden')}>
                 <FeaturedImageSlot 

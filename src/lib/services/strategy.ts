@@ -110,17 +110,9 @@ Keyword: ${keyword || 'N/A'}`;
      * Runs a deep SEO research for a topic/idea.
      * Analyzes SERP, extracts LSI keywords, and builds a research dossier.
      */
-    static async runDeepSEOAnalysis(config: DeepSEOConfig & { projectId: string }): Promise<any> {
-        const { projectId, keyword, onProgress, onLog, modelName, taskId, isFastMode } = config;
+    static async runDeepSEOAnalysis(config: DeepSEOConfig & { projectId: string, phaseToRun?: any }): Promise<any> {
+        const { projectId, keyword, onProgress, onLog, modelName, taskId, isFastMode, cascade, forceRestart } = config;
         try {
-            // Fetch project inventory for semantic links
-            const { data: projectData } = await supabase.from('projects').select('name, domain').eq('id', projectId).single();
-            const { data: inventory } = await supabase.from('project_urls').select('url, title').eq('project_id', projectId).limit(10000);
-            
-            // Attempt to get keys from environment
-            const serperKey = process.env.NEXT_PUBLIC_SERPER_API_KEY || "";
-            const jinaKey = process.env.NEXT_PUBLIC_JINA_API_KEY || "";
-
             return await ResearchOrchestrator.runDeepAnalysis({
                 keyword: keyword || config.keyword,
                 projectId,
@@ -128,12 +120,11 @@ Keyword: ${keyword || 'N/A'}`;
                 onProgress,
                 onLog,
                 isFastMode,
-                forceRestart: config.forceRestart
-            });
-
+                forceRestart,
+                cascade
+            }, config.phaseToRun);
         } catch (e) {
             console.error("Deep SEO Analysis Error:", e);
-            // Fallback object safely as "Idea"
             return {
                 title: keyword,
                 target_keyword: keyword,
@@ -147,6 +138,13 @@ Keyword: ${keyword || 'N/A'}`;
                 status: 'en_investigacion'
             };
         }
+    }
+
+    /**
+     * Validates the quality of the research dossier for a specific task.
+     */
+    static async validateResearchQuality(taskId: string): Promise<any> {
+        return await ResearchOrchestrator.validateQuality(taskId);
     }
 
     /**

@@ -1,3 +1,14 @@
+export interface ImagePreset {
+    id: string;
+    type: 'portada' | 'body';
+    ratio: '16:9' | '1:1' | '4:3' | '9:16' | 'auto' | 'custom';
+    width: number;
+    height: number;
+    model: string;
+    mini_prompt: string;
+    manualIndex?: number | null;
+}
+
 export interface Project {
     id: string;
     user_id: string;
@@ -18,8 +29,12 @@ export interface Project {
         images?: {
             watermark_enabled: boolean;
             max_kb: number;
-            portada: { width: number; height: number };
-            body: { width: number; height: number };
+            master_prompt?: string;
+            portada_preset?: ImagePreset;
+            body_presets?: ImagePreset[];
+            // Legacy fallbacks
+            portada?: { width: number; height: number };
+            body?: { width: number; height: number };
         };
     } & Record<string, any>;
     gsc_connected: boolean;

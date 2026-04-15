@@ -6,7 +6,8 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';
 import { Languages, Plus, CheckCircle2, Loader2, Send, Zap, AlertCircle } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import { aiRouter } from '@/lib/ai/router';
+import { executeTranslation } from '@/lib/services/writer/ai-core';
+
 import { LinkPatcherService } from '@/lib/services/link-patcher';
 import { mdToHtml } from '@/utils/markdown';
 import { NotificationService } from '@/lib/services/notifications';
@@ -42,8 +43,6 @@ export default function TranslationSidebarPanel() {
         missingLanguages.forEach(code => newProgress[code] = 'pending');
         setProgress(newProgress);
 
-        // We use the parent content as source for consistent translations
-        // If we are currently in a child, we'd need to fetch the parent first or just use current if it's the original
         const sourceId = parentTaskId || draftId;
         
         for (const langCode of missingLanguages) {
@@ -51,40 +50,42 @@ export default function TranslationSidebarPanel() {
             try {
                 const langName = AVAILABLE_LANGUAGES.find(l => l.code === langCode)?.name || langCode;
                 
-                const systemPrompt = `Eres un traductor experto de contenidos SEO. 
-Traduce el siguiente contenido al ${langName}.
-Mantén estrictamente el formato MARKDOWN para el cuerpo del contenido.
-Devuelve el resultado en formato JSON con la siguiente estructura:
+                // 1. Translate Metadata (H1, SEO Title, Meta Desc, Excerpt)
+                // We use a structured prompt for metadata but route it through our experts
+                const metadataPrompt = `Translate the following metadata to ${langName}. 
+Return ONLY a JSON object:
 {
-  "h1": "título principal traducido",
-  "seo_title": "título SEO traducido",
-  "meta_description": "meta descripción traducida",
-  "excerpt": "resumen corto traducido",
-  "target_url_slug": "url-slug-traducido-y-optimizado",
-  "content_body": "cuerpo integro en markdown traducido"
+  "h1": "...",
+  "seo_title": "...",
+  "meta_description": "...",
+  "excerpt": "...",
+  "target_url_slug": "..."
 }
-Solo devuelve el JSON, sin texto adicional. Asegúrate de que el slug sea válido para URLs (minúsculas, guiones, sin caracteres especiales).`;
-
-                const prompt = `Contenido original:
-Título: ${strategyH1}
+Data:
+H1: ${strategyH1}
 SEO Title: ${strategyTitle}
 Meta Desc: ${strategyDesc}
-Slug actual: ${strategySlug}
-Resumen: ${strategyExcerpt}
+Slug: ${strategySlug}
+Excerpt: ${strategyExcerpt}`;
 
-Cuerpo:
-${content}`;
+                // We use the general executeTranslation for metadata as well, but since we need JSON, 
+                // we'll wrap it or handle it. For simplicity and to keep the " cascade", we use a 
+                // slightly modified call or just a separate expert.
+                const metadataRaw = await executeTranslation(metadataPrompt, langName);
+                let translatedData;
+                try {
+                    // Clean possible markdown JSON blocks
+                    const jsonString = metadataRaw.replace(/```json|```/g, '').trim();
+                    translatedData = JSON.parse(jsonString);
+                } catch (e) {
+                    console.error("Metadata JSON parse failed, using fallbacks");
+                    translatedData = { h1: strategyH1, seo_title: strategyTitle, meta_description: strategyDesc, excerpt: strategyExcerpt, target_url_slug: strategySlug };
+                }
 
-                const response = await aiRouter.generate({
-                    model: 'gemma-3-27b-it',
-                    systemPrompt,
-                    prompt,
-                    jsonMode: true,
-                    temperature: 0.3
-                });
-
-                const translatedData = JSON.parse(response.text);
-                const htmlContent = mdToHtml(translatedData.content_body);
+                // 2. Translate Content Body (The heavy lifting)
+                const translatedBody = await executeTranslation(content, langName);
+                
+                const htmlContent = mdToHtml(translatedBody);
                 const patchedContentBody = LinkPatcherService.patchHtmlForProcess(htmlContent, activeProject, 'translator');
 
                 const newTask: any = {
@@ -108,7 +109,6 @@ ${content}`;
                 await addTask(newTask);
                 setProgress(prev => ({ ...prev, [langCode]: 'done' }));
                 
-                // Refresh versions in store
                 if (loadContentById) await loadContentById(draftId);
                 
             } catch (error) {

@@ -141,9 +141,10 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
             const allTerms = Array.from(new Set(rawTerms)).slice(0, 15);
             const searchRegex = allTerms.join('|');
 
-            const { data: units, error: rpcError } = await supabase.rpc('get_semantic_inventory_matches', { 
+            const { data: units, error: rpcError } = await supabase.rpc('get_semantic_inventory_matches_v3', { 
                 p_project_id: projectId,
-                p_regex: searchRegex,
+                p_base_regex: searchRegex,
+                p_ask_regex: '',
                 p_limit: 40
             });
 

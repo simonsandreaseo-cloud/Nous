@@ -92,6 +92,17 @@ export interface SEOAnalysisResult {
     competitors?: CompetitorDetail[];
 }
 
+export interface TaskCompetitor {
+    id?: string;
+    task_id: string;
+    url: string;
+    title?: string;
+    rank_position?: number;
+    headers?: any;
+    content?: string;
+    created_at?: string;
+}
+
 export interface CompetitorDetail {
     url: string;
     title: string;
@@ -148,6 +159,8 @@ export interface DeepSEOConfig {
     onProgress?: (phase: string) => void;
     onLog?: (stage: string, message: string, result?: string) => void;
     isFastMode?: boolean;
+    /** Si false, solo actualiza la fase especificada sin propagar los efectos corriente abajo */
+    cascade?: boolean;
     /** If true, ignores any existing checkpoint and restarts research from scratch */
     forceRestart?: boolean;
 }

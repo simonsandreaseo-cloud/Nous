@@ -1,6 +1,4 @@
-import { executeWithKeyRotation } from "../ai-core";
 import { safeJsonExtract } from "@/utils/json";
-import { ScraperService } from "./scrapers";
 import { aiRouter } from "@/lib/ai/router";
 
 /**
@@ -9,7 +7,7 @@ import { aiRouter } from "@/lib/ai/router";
  */
 export const OutlineEngine = {
     /**
-     * Generates a detailed content outline (H2s, H3s, notes, word counts).
+     * Generates a detailed content outline (H2s, H3s, instructions, keywords, word counts).
      */
     async generate(params: {
         keyword: string,
@@ -17,9 +15,13 @@ export const OutlineEngine = {
         cleanedLSI: any[],
         suggestedLinks: any[],
         validCompetitors: any[],
-        wordCountGoal?: number
+        wordCountGoal?: number,
+        faqs?: any[],
+        askKeywords?: any[],
+        realKeywords?: any[],
+        masterIntent?: string
     }): Promise<any[]> {
-        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors } = params;
+        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors, wordCountGoal, faqs = [], askKeywords = [], realKeywords = [], masterIntent = "" } = params;
         
         // Build competitor headers string safely to avoid token explosion
         const competitorHeaders = validCompetitors.slice(0, 6).map(v => {
@@ -32,61 +34,142 @@ export const OutlineEngine = {
             return `### FUENTE: ${v.title}\n${headersText}`;
         }).join('\n\n');
         
-        const highLsi = cleanedLSI.slice(0, 25).map(l => l.keyword).join(", ");
+        // Model Rotation Matrix (Safe-guards for both phases)
+        const fallbackModels = [
+            "gemini-1.5-flash-lite-001", // Hyper-fast
+            "gemini-1.5-flash",          // Fast & Capable
+            "gemma-2-27b-it",            // Technical fallback
+            "llama-3.3-70b-versatile"    // Robust fallback
+        ];
 
-        const outlinePrompt = `ESTRATEGIA PROFUNDA DE CONTENIDOS PARA: "${keyword}"
-OBJETIVO: Crear el mejor artículo del nicho superando a la competencia.
+        try {
+            // PHASE 1: Structural Synthesis (H2/H3 Skeleton)
+            const faqsText = faqs.slice(0, 5).map(f => `- ${f.question || f.title || JSON.stringify(f)}`).join('\n');
+            
+            const phase1Prompt = `ESTRATEGIA PROFUNDA DE ESTRUCTURA PARA: "${keyword}"
+OBJETIVO: Crear el mejor esqueleto de H2/H3 del nicho superando a la competencia.
 
 METADATOS PROPUESTOS:
 H1: "${seoMetadata.h1}"
-SEO TITLE: "${seoMetadata.seo_title}"
-SLUG: "${seoMetadata.slug}"
-DESC: "${seoMetadata.meta_description}"
-EXTRACTO: "${seoMetadata.extracto || seoMetadata.excerpt}"
-
-KEYWORDS LSI PRIORITARIAS:
-${highLsi}
-
-ENLACES INTERNOS A INTEGRAR (POOL):
-${JSON.stringify(suggestedLinks.slice(0, 10))}
+INTENCIÓN MAESTRA: "${masterIntent}"
 
 ESTRUCTURA DE COMPETIDORES RELEVANTES:
-${competitorHeaders.substring(0, 4000)}
+${competitorHeaders.substring(0, 3000)}
 
-REGLAS PARA EL OUTLINE:
-1. Diseña una estructura lógica y fluida de H2s y H3s (mínimo 6 secciones).
-2. Para cada sección, define:
-   - "type" (H2 o H3).
-   - "text" (el título del encabezado).
-   - "notes" (Instrucciones para el redactor, puntos clave Y sugerencia de qué enlace del POOL colocar aquí si encaja naturalmente).
+PREGUNTAS FRECUENTES (FAQs):
+${faqsText || "Ninguna FAQ específica detectada."}
 
-RESPONDE ÚNICAMENTE CON UN ARRAY JSON (sin markdown):
-[{"type": "H2", "text": "Título de Sección", "notes": "Foco en..."}]`;
+REGLAS PARA EL ESQUELETO:
+1. Diseña una estructura lógica y fluida de H2s y H3s.
+2. Asegúrate de responder las FAQs de manera natural.
+3. Devuelve UN ARRAY JSON de objetos con "level" (2 o 3) y "text" (título).
 
-        try {
-            const outlineRes = await aiRouter.generate({
-                prompt: outlinePrompt,
-                model: "gemma-3-27b-it", // Dense Reasoning
-                systemPrompt: "Experto en arquitectura de contenidos y SEO. Solo devuelves JSON válido, sin markdown de bloques de código y sin explicaciones adicionales.",
-                label: "Arquitectura Writing",
-                temperature: 0.2
+FORMATO:
+[{"level": 2, "text": "Título de Sección"}]`;
+
+            let skeleton: any[] = [];
+            for (const model of fallbackModels) {
+                try {
+                    const phase1Res = await aiRouter.generate({
+                        prompt: phase1Prompt,
+                        model: model,
+                        systemPrompt: "Eres un Arquitecto de Contenidos. Devuelves el array JSON con el esqueleto H2/H3. Sin explicaciones.",
+                        jsonMode: true,
+                        label: `Outline P1 (${model})`,
+                        temperature: 0.2
+                    });
+                    skeleton = safeJsonExtract<any[]>(phase1Res.text, []);
+                    if (skeleton.length > 0) break;
+                } catch (e) {
+                    console.warn(`[OutlineEngine] P1 Fallback: ${model} failed`, e);
+                }
+            }
+
+            if (!skeleton || skeleton.length === 0) {
+                throw new Error("Critical: Phase 1 failed to generate any structure.");
+            }
+
+            // PHASE 2: E-E-A-T Enrichment (Structured JSON)
+            const highLsi = cleanedLSI.slice(0, 30).map(l => l.keyword).join(", ");
+            const realKwsText = realKeywords.slice(0, 20).map(k => k.keyword).join(", ");
+            const askKwsText = askKeywords.slice(0, 20).map(k => k.keyword).join(", ");
+            const linksText = JSON.stringify(suggestedLinks.slice(0, 10));
+            const competitorContent = validCompetitors.slice(0, 3).map(v => `### ${v.title}\n${(v.content || v.summary || "").substring(0, 1000)}`).join('\n\n');
+            const skeletonText = skeleton.map((s, i) => `${i + 1}. H${s.level || 2}: ${s.text}`).join('\n');
+
+            const phase2Prompt = `ENRIQUECIMIENTO E-E-A-T DEL ESQUELETO: "${keyword}"
+
+ESQUELETO ACTUAL:
+${skeletonText}
+
+RECURSOS SEMÁNTICOS:
+- LSI: ${highLsi}
+- Golden KWs: ${realKwsText}
+- Jerga (ASK): ${askKwsText}
+- Enlaces sugeridos: ${linksText}
+
+CONTENIDO DE COMPETIDORES:
+${competitorContent.substring(0, 4000)}
+
+INSTRUCCIONES:
+Para cada una de las ${skeleton.length} secciones, genera las pautas para el redactor.
+RESULTADO OBLIGATORIO: Un objeto JSON donde las llaves sean el índice de la sección (ej: "1", "2") y el valor sea un objeto con:
+- instructions: (Pautas detalladas y referencias)
+- keywords: (Array de strings con LSI/ASK/Golden KWs ideales para ese H2)
+
+FORMATO:
+{
+ "1": { "instructions": "...", "keywords": ["kw1", "kw2"] },
+ "2": { ... }
+}`;
+
+            let enrichmentData: Record<string, any> = {};
+            for (const model of fallbackModels) {
+                try {
+                    const enrichRes = await aiRouter.generate({
+                        prompt: phase2Prompt,
+                        model: model,
+                        systemPrompt: "Eres un Editor Senior E-E-A-T. Devuelves el JSON exacto con las pautas por sección.",
+                        jsonMode: true,
+                        label: `Outline P2 (${model})`,
+                        temperature: 0.3
+                    });
+                    enrichmentData = safeJsonExtract<Record<string, any>>(enrichRes.text, {});
+                    if (Object.keys(enrichmentData).length > 0) break;
+                } catch (e) {
+                    console.warn(`[OutlineEngine] P2 Fallback: ${model} failed`, e);
+                }
+            }
+
+            // FINAL MAPPING (UI Adapter)
+            const totalWeight = skeleton.reduce((sum, s) => sum + ((s.level || s.type) === 3 ? 1.0 : 1.5), 0);
+            const goal = wordCountGoal || 1500;
+
+            const finalOutline = skeleton.map((section, index) => {
+                const sectionNum = String(index + 1);
+                const enrichment = enrichmentData[sectionNum] || enrichmentData[index] || {};
+                
+                const level = section.level || (section.type === "H3" ? 3 : 2);
+                const weight = level === 3 ? 1.0 : 1.5;
+                const calculatedWordCount = Math.floor((weight / totalWeight) * goal);
+
+                return {
+                    level: level,
+                    text: section.text,
+                    instructions: enrichment.instructions || "Desarrolla esta sección basándote en la intención de búsqueda y el contexto de la competencia.",
+                    keywords: Array.isArray(enrichment.keywords) ? enrichment.keywords : [],
+                    wordCount: String(calculatedWordCount),
+                    currentWordCount: 0
+                };
             });
 
-            let parsed = safeJsonExtract<any[]>(outlineRes.text, []);
-            
-            return parsed.map(item => ({
-                type: item.type || 'H2',
-                text: item.text || 'Sección sin título',
-                wordCount: "0",
-                notes: item.notes || '',
-                currentWordCount: 0
-            })).filter(Boolean);
+            return finalOutline;
 
         } catch (error) {
             console.error("[OutlineEngine] Critical Failure:", error);
             // Emergency fallback structure
             return [
-                { type: 'H2', text: `Guía sobre ${keyword}`, wordCount: "0", notes: 'Estructura por defecto generada por fallo del motor.', currentWordCount: 0 }
+                { level: 2, text: `Guía Maestra sobre ${keyword}`, wordCount: "1500", instructions: 'Error en el motor de outlines. Generando estructura de emergencia.', keywords: [], currentWordCount: 0 }
             ];
         }
     }

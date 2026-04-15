@@ -120,7 +120,7 @@ Focus: Raw data evidence (Top 10 max).
 Reply ONLY with the valid JSON array containing exactly these two objects. Do not wrap in markdown \`\`\`json block.`;
 export const getRelevantSections = async (payload: ReportPayload, apiKey: string): Promise<string[]> => {
     // If the payload has explicit selections, use them, otherwise use a default sequence
-    let sections = ['ESTADO_SEO'];
+    const sections = ['ESTADO_SEO'];
 
     if (payload.topWinners && payload.topWinners.length > 0) sections.push('OPORTUNIDAD_STRIKING_DISTANCE');
     if (payload.topLosers && payload.topLosers.length > 0) sections.push('ALERTA_PERDEDORES_P1');

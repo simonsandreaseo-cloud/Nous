@@ -11,6 +11,10 @@ export interface UiActions {
     setAnalyzingSEO: (isAnalyzingSEO: boolean) => void;
     setPlanningStructure: (isPlanningStructure: boolean) => void;
     setHumanizing: (isHumanizing: boolean) => void;
+    setResearching: (isResearching: boolean) => void;
+    setResearchProgress: (researchProgress: number) => void;
+    setResearchPhaseId: (researchPhaseId: string) => void;
+    setResearchTopic: (researchTopic: string) => void;
     setExporting: (isExporting: boolean) => void;
     setRefining: (isRefining: boolean) => void;
     setHasGenerated: (has: boolean) => void;
@@ -25,6 +29,12 @@ export interface UiActions {
     setEditorTab: (tab: 'visual' | 'code') => void;
     setNousExtractorFindings: (findings: Record<string, any[]>) => void;
     setPatcherFindings: (findings: Record<string, any[]>) => void;
+    
+    // Dual Mode Actions
+    setRedactorUI: (ui: 'zen' | 'standard') => void;
+    setLeftSidebarWidth: (width: number) => void;
+    setRightSidebarWidth: (width: number) => void;
+    toggleToolbox: () => void;
 }
 
 
@@ -33,7 +43,7 @@ export type UiSlice = WriterStoreState & UiActions;
 export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     // Initial State
     viewMode: 'dashboard',
-    activeSidebarTab: 'assistant',
+    activeSidebarTab: 'seo',
     statusMessage: '',
     isSaving: false,
     isCheckSaving: false,
@@ -41,6 +51,10 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     isAnalyzingSEO: false,
     isPlanningStructure: false,
     isHumanizing: false,
+    isResearching: false,
+    researchProgress: 0,
+    researchPhaseId: '',
+    researchTopic: '',
     isExporting: false,
     isRefining: false,
     hasGenerated: false,
@@ -55,6 +69,12 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     editorTab: 'visual',
     nousExtractorFindings: {},
     patcherFindings: {},
+    
+    // Dual Mode Init
+    redactorUI: 'standard',
+    leftSidebarWidth: 18, // Adjusted to 18 as requested
+    rightSidebarWidth: 30,
+    isToolboxOpen: false,
 
 
     // Actions
@@ -67,6 +87,10 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     setAnalyzingSEO: (isAnalyzingSEO) => set({ isAnalyzingSEO }),
     setPlanningStructure: (isPlanningStructure) => set({ isPlanningStructure }),
     setHumanizing: (isHumanizing) => set({ isHumanizing }),
+    setResearching: (isResearching) => set({ isResearching }),
+    setResearchProgress: (researchProgress) => set({ researchProgress }),
+    setResearchPhaseId: (researchPhaseId) => set({ researchPhaseId }),
+    setResearchTopic: (researchTopic) => set({ researchTopic }),
     setExporting: (isExporting) => set({ isExporting }),
     setRefining: (isRefining) => set({ isRefining }),
     setHasGenerated: (hasGenerated) => set({ hasGenerated }),
@@ -89,5 +113,10 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     setEditorTab: (editorTab) => set({ editorTab }),
     setNousExtractorFindings: (nousExtractorFindings) => set({ nousExtractorFindings }),
     setPatcherFindings: (patcherFindings) => set({ patcherFindings }),
+
+    setRedactorUI: (redactorUI) => set({ redactorUI }),
+    setLeftSidebarWidth: (leftSidebarWidth) => set({ leftSidebarWidth }),
+    setRightSidebarWidth: (rightSidebarWidth) => set({ rightSidebarWidth }),
+    toggleToolbox: () => set((state: any) => ({ isToolboxOpen: !state.isToolboxOpen })),
 } as any);
 

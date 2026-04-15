@@ -1,7 +1,47 @@
 import { supabase } from '@/lib/supabase';
 import { Project } from '@/types/project';
+import { executeTranslation } from '../writer/ai-core';
 
 export class I18nService {
+
+    /**
+     * Main entry point for text translation.
+     * Uses an AI-driven cascade with fallback to original text.
+     */
+    static async translateText(
+        text: string, 
+        targetLanguage: string, 
+        sourceLanguage: string = 'English',
+        projectId?: string
+    ): Promise<string> {
+        try {
+            return await executeTranslation(text, targetLanguage, sourceLanguage);
+        } catch (error: any) {
+            await this.logTranslationError(error, { text, targetLanguage, sourceLanguage, projectId });
+            return text; // Fallback: return original text
+        }
+    }
+
+    /**
+     * Logs translation failures for auditing and improvement.
+     */
+    static async logTranslationError(error: any, context: { text: string, targetLanguage: string, sourceLanguage: string, projectId?: string }) {
+        console.error(`[I18nService] Translation Error: ${error.message}`, { ...context });
+        
+        try {
+            await supabase.from('translation_errors').insert({
+                error_message: error.message,
+                input_text: context.text.substring(0, 1000),
+                target_lang: context.targetLanguage,
+                source_lang: context.sourceLanguage,
+                project_id: context.projectId,
+                created_at: new Date().toISOString()
+            });
+        } catch (e) {
+            console.warn('[I18nService] Could not write to translation_errors table');
+        }
+    }
+
     /**
      * Detects language from a URL based on project settings
      */
@@ -47,6 +87,7 @@ export class I18nService {
 
         // 4. Default Language Fallback
         if (!detected || !settings.languages.includes(detected)) {
+            console.warn(`[I18nService] Language detection fallback to default: ${settings.default_language}`);
             return settings.default_language || null;
         }
 

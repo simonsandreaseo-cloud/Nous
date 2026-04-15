@@ -16,6 +16,8 @@ export const NousAsset = Node.create({
       alt: { default: '' },
       title: { default: '' },
       prompt: { default: '' },
+      semanticAnchor: { default: null },
+      status: { default: 'final' }, // 'ghost' | 'final'
       paragraphIndex: { default: null },
       width: { default: '100%' },
       height: { default: 'auto' },

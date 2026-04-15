@@ -46,10 +46,10 @@ export default function BriefingEditorPanel({
             }
         });
 
-        if (bestMatch !== -1 && bestMatch !== activeIdx) {
-            setActiveIdx(bestMatch);
+        if (bestMatch !== -1) {
+            setActiveIdx((prev) => prev !== bestMatch ? bestMatch : prev);
         }
-    }, [editorText, strategyOutline, activeIdx]);
+    }, [editorText, strategyOutline]);
 
     const activeItem = strategyOutline[activeIdx];
     const totalSections = strategyOutline.length;

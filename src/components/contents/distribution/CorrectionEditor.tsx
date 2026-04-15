@@ -21,8 +21,12 @@ interface CorrectionEditorProps {
 export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
     const [viewMode, setViewMode] = useState<'visual' | 'code'>('visual');
 
+    const extensions = useMemo(() => 
+        getSharedExtensions('Edita el contenido aquí...'), 
+    []);
+
     const editor = useEditor({
-        extensions: getSharedExtensions('Edita el contenido aquí...'),
+        extensions,
         content: content,
         immediatelyRender: false,
         editorProps: {

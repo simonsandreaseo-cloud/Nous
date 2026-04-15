@@ -22,22 +22,35 @@ import {
     Trash2, 
     Download, 
     RefreshCcw,
-    Maximize2
+    Maximize2,
+    Search,
+    Layout,
+    FileText,
+    Zap,
+    Languages,
+    ChevronRight,
+    Cloud,
+    CloudOff,
+    Loader2
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
 
 import { Button } from '@/components/dom/Button';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import CompetitorCard from './CompetitorCard';
-import SEODataTab from './SEODataTab';
 import OutlineSidebar from './OutlineSidebar';
-import OutlineEditorPanel from './OutlineEditorPanel';
-import CompetitorPanel from './CompetitorPanel';
-import { MediaTab } from './MediaTab';
-import { ToolsTab } from './ToolsTab';
-import TranslationSidebarPanel from './TranslationSidebarPanel';
+
+const SEODataTab = dynamic(() => import('./SEODataTab'), { loading: () => <div className="p-8 text-center text-[10px] uppercase font-black tracking-widest text-slate-400">Cargando...</div> });
+const FloatingOutlineUI = dynamic(() => import('./widgets/FloatingOutlineUI'));
+import { CompetitorPanel } from './CompetitorPanel';
+const MediaTab = dynamic(() => import('./MediaTab').then(mod => mod.MediaTab), { loading: () => <div className="p-8 text-center text-[10px] uppercase font-black tracking-widest text-slate-400">Cargando...</div> });
+const ToolsTab = dynamic(() => import('./ToolsTab').then(mod => mod.ToolsTab), { loading: () => <div className="p-8 text-center text-[10px] uppercase font-black tracking-widest text-slate-400">Cargando...</div> });
+const TranslationSidebarPanel = dynamic(() => import('./TranslationSidebarPanel'), { loading: () => <div className="p-8 text-center text-[10px] uppercase font-black tracking-widest text-slate-400">Cargando...</div> });
 import PresenceAvatars from './PresenceAvatars';
+import { InventorySidebar } from './sidebars/InventorySidebar';
+import { FloatingToolbox } from './widgets/FloatingToolbox';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import NousOrb from '@/components/dashboard/NousOrb';
@@ -45,8 +58,17 @@ import { useWriterActions } from './useWriterActions';
 import { deleteImageAction, uploadGeneratedImage } from '@/lib/actions/imageActions';
 import { saveAs } from 'file-saver';
 import { PollinationsService } from '@/lib/services/pollinationsService';
+import { NousLogo } from '@/components/dom/NousLogo';
 
-// --- NEW COMPONENT: FEATURED IMAGE SLOT ---
+const StepIcon = ({ active, done, icon: Icon, label }: { active: boolean, done: boolean, icon: any, label: string }) => (
+    <div className={cn(
+        "flex items-center gap-1.5 transition-all",
+        active ? "text-indigo-600" : done ? "text-emerald-500" : "text-slate-300 opacity-50 grayscale"
+    )}>
+        <Icon size={12} className={cn(active && "animate-pulse")} />
+        <span className="text-[8px] font-black uppercase tracking-widest">{label}</span>
+    </div>
+);
 export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | null, onFullscreen?: (img: any) => void }) => {
     const { taskImages, loadTaskImages, keyword, strategyH1 } = useWriterStore();
     const featured = taskImages.find((img: any) => img.type === 'featured');
@@ -184,7 +206,9 @@ export default function WriterStudio() {
         isAnalyzingSEO, isPlanningStructure, isHumanizing, isRefining, nousExtractorFindings,
         wordCountReal, activeSidebarTab, setSidebarTab,
         currentLanguage, contentVersions, switchLanguage,
-        projectId, csvData, loadProjectInventory
+        projectId, csvData, loadProjectInventory, loadContentById,
+        redactorUI, setRedactorUI, leftSidebarWidth, setLeftSidebarWidth, 
+        rightSidebarWidth, setRightSidebarWidth, isToolboxOpen, toggleToolbox
     } = useWriterStore(useShallow(state => ({
         isSidebarOpen: state.isSidebarOpen,
         toggleSidebar: state.toggleSidebar,
@@ -225,9 +249,72 @@ export default function WriterStudio() {
         switchLanguage: state.switchLanguage,
         projectId: state.projectId,
         csvData: state.csvData,
-        loadProjectInventory: state.loadProjectInventory
+        loadProjectInventory: state.loadProjectInventory,
+        loadContentById: state.loadContentById,
+        
+        // Dual Mode States
+        redactorUI: state.redactorUI,
+        setRedactorUI: state.setRedactorUI,
+        leftSidebarWidth: state.leftSidebarWidth,
+        setLeftSidebarWidth: state.setLeftSidebarWidth,
+        rightSidebarWidth: state.rightSidebarWidth,
+        setRightSidebarWidth: state.setRightSidebarWidth,
+        isToolboxOpen: state.isToolboxOpen,
+        toggleToolbox: state.toggleToolbox,
+        deleteVersion: state.deleteVersion,
+        parentTaskId: state.parentTaskId,
+        statusMessage: state.statusMessage,
+        hasGenerated: state.hasGenerated
     })));
+
+    const { tasks, isLoading: isProjectLoading, activeProject } = useProjectStore(useShallow(state => ({
+        tasks: state.tasks,
+        isLoading: state.isLoading,
+        activeProject: state.activeProject
+    })));
+
+    const targetLanguages = useMemo(() => 
+        activeProject?.settings?.content_preferences?.default_translator_languages || EMPTY_ARRAY
+    , [activeProject]);
+
+    const isPostProd = isGenerating && (
+        statusMessage.toLowerCase().includes('vínculos') || 
+        statusMessage.toLowerCase().includes('optimizando') || 
+        statusMessage.toLowerCase().includes('interlinking') ||
+        statusMessage.toLowerCase().includes('estilos')
+    );
+    const isDrafting = isGenerating && !isPostProd;
+
+    // --- Language Gallery Logic ---
+    const galleryRef = useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const checkScroll = useCallback(() => {
+        if (galleryRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = galleryRef.current;
+            setCanScrollLeft(scrollLeft > 0);
+            setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 2);
+        }
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(checkScroll, 100);
+        return () => clearTimeout(timer);
+    }, [checkScroll, contentVersions, targetLanguages, currentLanguage]);
+
+    const handleGalleryScroll = (direction: 'left' | 'right') => {
+        if (galleryRef.current) {
+            const scrollAmount = 150;
+            galleryRef.current.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    };
     
+    // --- Presence Grace Period Implementation ---
+    const presenceBuffer = useRef<Record<string, { user: any, lastSeen: number }>>({});
     const { 
         handleSEO, 
         handleGenerate, 
@@ -235,9 +322,6 @@ export default function WriterStudio() {
         handleRefine 
     } = useWriterActions();
     
-    const targetLanguages = useProjectStore(state => 
-        state.activeProject?.settings?.content_preferences?.default_translator_languages || EMPTY_ARRAY
-    );
 
     const isProcessingAny = isGenerating || isAnalyzingSEO || isPlanningStructure || isHumanizing || isRefining;
 
@@ -276,23 +360,36 @@ export default function WriterStudio() {
         channel
             .on('presence', { event: 'sync' }, () => {
                 const state = channel.presenceState();
-                const formattedUsers: any = {};
+                const now = Date.now();
+                
+                // 1. Update/Add current users to buffer
                 Object.entries(state).forEach(([id, presenceArray]: [string, any]) => {
                     const info = presenceArray[0];
                     if (info) {
-                        formattedUsers[id] = {
-                            name: info.name || 'Editor Anónimo',
-                            photo: info.photo || '',
-                            color: info.color || '#cbd5e1',
+                        presenceBuffer.current[id] = {
+                            lastSeen: now,
+                            user: {
+                                name: info.name || 'Editor Anónimo',
+                                photo: info.photo || '',
+                                color: info.color || '#cbd5e1',
+                            }
                         };
                     }
                 });
+
+                // 2. Derive visible users (current + buffer within 60s)
+                const visibleUsers: any = {};
+                Object.entries(presenceBuffer.current).forEach(([id, data]) => {
+                    if (now - data.lastSeen < 60000) {
+                        visibleUsers[id] = data.user;
+                    }
+                });
                 
-                // Only update store if users actually changed to avoid flickering
+                // 3. Only update store if users actually changed to avoid flickering
                 const currentUsersJson = JSON.stringify(useWriterStore.getState().activeUsers);
-                const nextUsersJson = JSON.stringify(formattedUsers);
+                const nextUsersJson = JSON.stringify(visibleUsers);
                 if (currentUsersJson !== nextUsersJson) {
-                    setActiveUsers(formattedUsers);
+                    setActiveUsers(visibleUsers);
                 }
             })
             .subscribe(async (status) => {
@@ -300,6 +397,26 @@ export default function WriterStudio() {
                     await trackPresence(channel);
                 }
             });
+
+        // 4. Periodical cleanup interval for the buffer (every 10s)
+        const cleanupInterval = setInterval(() => {
+            const now = Date.now();
+            let hasChanges = false;
+            const nextVisibleUsers: any = {};
+
+            Object.entries(presenceBuffer.current).forEach(([id, data]) => {
+                if (now - data.lastSeen < 60000) {
+                    nextVisibleUsers[id] = data.user;
+                } else {
+                    delete presenceBuffer.current[id];
+                    hasChanges = true;
+                }
+            });
+
+            if (hasChanges) {
+                setActiveUsers(nextVisibleUsers);
+            }
+        }, 10000);
 
         // Background sustain: Re-track when window gains focus to avoid inactivity drops
         const handleVisibilityChange = () => {
@@ -313,6 +430,7 @@ export default function WriterStudio() {
         return () => {
             window.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleVisibilityChange);
+            clearInterval(cleanupInterval);
             channel.unsubscribe();
         };
     }, [draftId, localUser, setActiveUsers, trackPresence]);
@@ -417,293 +535,354 @@ export default function WriterStudio() {
         }
     }, [projectId, csvData?.length, loadProjectInventory]);
 
-    // ── DASHBOARD VIEW ──────────────────────────────────────
+    // --- Auto-skip Dashboard for Standard Mode ---
+    useEffect(() => {
+        if (redactorUI === 'standard' && viewMode === 'dashboard') {
+            setViewMode('workspace');
+        }
+    }, [redactorUI, viewMode, setViewMode]);
 
-    const [splitWidth, setSplitWidth] = useState(50);
-    // Removed local activeRightTab state to use global activeSidebarTab from store
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    const handleDrag = (event: any, info: any) => {
-        if (!containerRef.current) return;
-        const containerWidth = containerRef.current.getBoundingClientRect().width;
-        // Calculate new percentage based on mouse movement
-        const deltaPercentage = (info.delta.x / containerWidth) * 100;
-        setSplitWidth((prev: number) => {
-            const newVal = prev + deltaPercentage;
-            // Clamp between 30% and 70%
-            return Math.min(Math.max(newVal, 30), 70);
-        });
+    const [isResizingRight, setIsResizingRight] = useState(false);
+    
+    const handleRightResizeDown = (e: React.MouseEvent) => {
+        setIsResizingRight(true);
+        e.preventDefault();
     };
 
-    // Parse Competitors for 50/50 view
-    let competitors: { url: string, content?: string }[] = [];
-    if (rawSeoData && rawSeoData.competitors) {
-        competitors = rawSeoData.competitors;
-    }
+    const handleRightResizeMove = useCallback((e: MouseEvent) => {
+        if (!isResizingRight) return;
+        const newWidth = ((window.innerWidth - e.clientX) / window.innerWidth) * 100;
+        if (newWidth > 15 && newWidth < 45) {
+            setRightSidebarWidth(newWidth);
+        }
+    }, [isResizingRight, setRightSidebarWidth]);
+
+    const handleRightResizeUp = useCallback(() => {
+        setIsResizingRight(false);
+    }, []);
+
+    useEffect(() => {
+        if (isResizingRight) {
+            window.addEventListener('mousemove', handleRightResizeMove);
+            window.addEventListener('mouseup', handleRightResizeUp);
+        } else {
+            window.removeEventListener('mousemove', handleRightResizeMove);
+            window.removeEventListener('mouseup', handleRightResizeUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleRightResizeMove);
+            window.removeEventListener('mouseup', handleRightResizeUp);
+        };
+    }, [isResizingRight, handleRightResizeMove, handleRightResizeUp]);
+
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // common internal views (Dashboard, Setup, Workspace)
     const renderContent = () => {
+        // --- STANDARD MODE: Always Workspace (unless in Setup) ---
+        if (redactorUI === 'standard') {
+            if (viewMode === 'setup') return <WriterSetupBoard />;
+            
+            return (
+                <div className="flex-1 flex overflow-hidden">
+                    {/* LEFT: Inventory Sidebar (Now below header) */}
+                    <InventorySidebar />
+
+                    {/* CENTER: Editor */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-200/50" ref={containerRef}>
+                        <div className="mx-auto min-h-full transition-all duration-500 p-4 md:p-6">
+                            <div className="relative bg-white shadow-2xl min-h-screen max-w-4xl mx-auto rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
+                                <FloatingOutlineUI />
+                                <WriterEditor key={draftId || 'standard'} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- ZEN MODE: Multi-view (Dashboard, Setup, Workspace) ---
         if (viewMode === 'dashboard') return <WriterDashboard />;
         if (viewMode === 'setup') return <WriterSetupBoard />;
-
+        
         return (
-            <div className="flex-1 overflow-hidden flex relative bg-white/20" ref={containerRef}>
-                {/* Left Side: Zen Editor */}
-                <div className={cn("h-full overflow-y-auto custom-scrollbar flex-1", isSidebarOpen ? "transition-none" : "transition-all duration-500 ease-[0.23,1,0.32,1]")}
-                    style={{ width: isSidebarOpen ? `${splitWidth}%` : '100%' }}>
-                    <div className={cn("mx-auto min-h-full transition-all duration-500 px-4 sm:px-8", isSidebarOpen ? "w-full" : "max-w-4xl")}>
-                        <WriterEditor key={draftId || 'workspace'} />
+            <div className="flex-1 overflow-hidden flex flex-col relative bg-slate-200/50" ref={containerRef}>
+                {/* Zen Editor (Centered, max-width) */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar flex justify-center relative">
+                    <div className="w-full max-w-4xl px-4 py-6">
+                        <div className="relative bg-white shadow-2xl min-h-screen rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
+                            <FloatingOutlineUI />
+                            <WriterEditor key={draftId || 'zen'} />
+                        </div>
                     </div>
-
                 </div>
-
-                {/* Drag Handle */}
-                {isSidebarOpen && (
-                    <motion.div
-                        drag="x"
-                        dragConstraints={{ left: 0, right: 0 }}
-                        dragElastic={0}
-                        dragMomentum={false}
-                        onDrag={handleDrag}
-                        className="absolute top-0 bottom-0 z-50 w-2 hover:bg-indigo-500/20 cursor-col-resize flex items-center justify-center group"
-                        style={{ left: `calc(${splitWidth}% - 4px)` }}
-                    >
-                        <div className="h-8 w-1 bg-slate-300 rounded-full group-hover:bg-indigo-400 transition-colors" />
-                    </motion.div>
-                )}
-
-                {/* Right Side: Competitors / Research (50/50 Mode) */}
-                <AnimatePresence>
-                    {isSidebarOpen && (
-                        <motion.div
-                            initial={{ width: 0, opacity: 0 }}
-                            animate={{ width: `${100 - splitWidth}%`, opacity: 1 }}
-                            exit={{ width: 0, opacity: 0 }}
-                            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-                            className="h-full bg-slate-50 flex flex-col overflow-hidden border-l border-slate-200/50 shadow-[inset_10px_0_20px_rgba(0,0,0,0.02)]"
-                        >
-                            <div className="px-6 py-4 border-b border-slate-200/50 bg-white/80 backdrop-blur-md sticky top-0 z-30">
-                                <div className="flex items-center gap-2 p-1.5 bg-slate-100/50 rounded-2xl border border-slate-200/40 w-full overflow-x-auto custom-scrollbar-horizontal">
-                                    <button 
-                                        onClick={() => setSidebarTab('research')}
-                                        className={cn(
-                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                            activeSidebarTab === 'research' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
-                                        )}
-                                    >
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'research' ? "bg-indigo-500 animate-pulse" : "bg-slate-300")} />
-                                        OUTLINE
-                                    </button>
-                                    <button 
-                                        onClick={() => setSidebarTab('history')}
-                                        className={cn(
-                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                            activeSidebarTab === 'history' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
-                                        )}
-                                    >
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'history' ? "bg-slate-400" : "bg-slate-300")} />
-                                        COMPETIDORES
-                                    </button>
-                                    <button 
-                                        onClick={() => setSidebarTab('seo')}
-                                        className={cn(
-                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                            activeSidebarTab === 'seo' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
-                                        )}
-                                    >
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'seo' ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-                                        DATOS SEO
-                                    </button>
-                                    <button 
-                                        onClick={() => setSidebarTab('media')}
-                                        className={cn(
-                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                            activeSidebarTab === 'media' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
-                                        )}
-                                    >
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'media' ? "bg-purple-500 animate-pulse" : "bg-slate-300")} />
-                                        IMÁGENES
-                                    </button>
-                                    <button 
-                                        onClick={() => setSidebarTab('tools')}
-                                        className={cn(
-                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                            activeSidebarTab === 'tools' ? "bg-white text-indigo-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
-                                        )}
-                                    >
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'tools' ? "bg-amber-500 animate-pulse" : "bg-slate-300")} />
-                                        HERRAMIENTAS
-                                    </button>
-                                    <button 
-                                        onClick={() => setSidebarTab('translate')}
-                                        className={cn(
-                                            "flex-shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                                            activeSidebarTab === 'translate' ? "bg-white text-emerald-600 shadow-sm border border-slate-100/50" : "text-slate-400 hover:text-slate-600"
-                                        )}
-                                    >
-                                        <div className={cn("w-1.5 h-1.5 rounded-full", activeSidebarTab === 'translate' ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-                                        TRADUCIR
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 flex flex-col min-h-0 bg-slate-50/50">
-                                {activeSidebarTab === 'research' ? (
-                                    <OutlineEditorPanel 
-                                        isSidebar 
-                                        editorText={content} 
-                                        onInsertSection={(item) => {
-                                            const { editor } = useWriterStore.getState();
-                                            if (!editor) return;
-                                            const level = item.type === 'H1' ? 1 : item.type === 'H3' ? 3 : item.type === 'H4' ? 4 : 2;
-                                            editor.chain().focus().insertContent([
-                                                { type: 'heading', attrs: { level }, content: [{ type: 'text', text: item.text }] },
-                                                { type: 'paragraph' }
-                                            ]).run();
-                                        }}
-                                    />
-                                ) : activeSidebarTab === 'seo' ? (
-                                    <SEODataTab seoData={rawSeoData} currentContent={content} />
-                                ) : activeSidebarTab === 'media' ? (
-                                    <MediaTab />
-                                ) : activeSidebarTab === 'tools' ? (
-                                    <ToolsTab />
-                                ) : activeSidebarTab === 'translate' ? (
-                                    <TranslationSidebarPanel />
-                                ) : (
-                                    <CompetitorPanel />
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                
+                {/* Floating Toolbox for Zen Mode */}
+                <FloatingToolbox />
             </div>
         );
     }
+
 
     // ── ROOT RENDER (Unified Header for Presence) ──────────────────────────────────────
     return (
         <div className="flex w-full h-full bg-white overflow-hidden">
             <main className="flex-1 flex flex-col min-w-0 bg-white relative">
-                {/* Unified Header / Toolkit */}
-                <header className="h-auto md:h-20 py-4 md:py-0 flex flex-wrap md:flex-nowrap items-center justify-between px-6 md:px-10 bg-white/10 backdrop-blur-xl z-50 sticky top-0 shrink-0 select-none border-b border-slate-200/20 gap-4">
-                    <div className="flex items-center gap-4 md:gap-6 min-w-0">
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => {
-                                if (viewMode === 'workspace' || viewMode === 'setup') setViewMode('dashboard');
-                                else setViewMode('dashboard'); 
-                            }}
-                            className="h-9 px-3 md:px-4 rounded-lg text-[11px] uppercase font-black tracking-tighter text-slate-500 hover:bg-slate-100/50 transition-all border-none shrink-0"
-                        >
-                            {viewMode === 'dashboard' ? 'Salir' : <div className="flex items-center gap-2"><ChevronLeft size={14} /> Volver</div>}
-                        </Button>
-                        <div className="hidden md:block w-[1px] h-5 bg-slate-200/50" />
-                        <div className="flex flex-col min-w-0">
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-[12px] md:text-[14px] font-black text-slate-900 tracking-tight truncate max-w-[200px] md:max-w-[400px] leading-tight">
-                                    {strategyH1 || keyword || ""}
-                                </h1>
-                                
-                                {/* Language Version Selector */}
-                                <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-xl border border-slate-100/50 ml-2">
-                                    {targetLanguages.map((langCode: string) => {
-                                        const isGenerated = !!contentVersions[langCode];
-                                        const isActive = currentLanguage === langCode;
-                                        
-                                        return (
-                                            <button
-                                                key={langCode}
-                                                onClick={() => isGenerated && switchLanguage(langCode)}
-                                                disabled={!isGenerated && !isActive}
-                                                className={cn(
-                                                    "w-7 h-7 rounded-lg text-[9px] font-black uppercase flex items-center justify-center transition-all",
-                                                    isActive 
-                                                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" 
-                                                        : isGenerated 
-                                                            ? "bg-white text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-100" 
-                                                            : "bg-slate-100 text-slate-300 cursor-not-allowed opacity-50"
-                                                )}
-                                                title={isActive ? "Versión actual" : isGenerated ? `Cambiar a ${langCode.toUpperCase()}` : `Versión ${langCode.toUpperCase()} no generada`}
-                                            >
-                                                {langCode}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
+                {/* 1. PRIMARY HEADER (Article Metadata & Presence) */}
+                <header className="h-14 flex items-center justify-between px-6 md:px-10 bg-white/10 backdrop-blur-xl z-50 sticky top-0 shrink-0 select-none border-b border-slate-200/20 gap-4">
+                    <div className="flex items-center gap-6 min-w-0">
+                        {redactorUI === 'zen' && (
+                            <>
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => setViewMode('dashboard')}
+                                    className="h-9 px-4 rounded-lg text-[11px] uppercase font-black tracking-tighter text-slate-500 hover:bg-slate-100/50 transition-all border-none shrink-0"
+                                >
+                                    <div className="flex items-center gap-2"><ChevronLeft size={14} /> Volver</div>
+                                </Button>
+                                <div className="hidden md:block w-[1px] h-5 bg-slate-200/50" />
+                            </>
+                        )}
+                        <h1 className="text-[12px] md:text-[14px] font-black text-slate-900 tracking-tight truncate max-w-[200px] md:max-w-[500px] leading-tight italic">
+                            {strategyH1 || keyword || "Sin Título"}
+                        </h1>
                     </div>
 
-                    <div className="flex items-center gap-4 md:gap-8 ml-auto">
-                        <div className="hidden md:block w-[1px] h-6 bg-slate-200/50 mx-1" />
-
-                        <div className="flex items-center gap-6">
-                            {/* PRESENCE ICONOS: VISIBLES SIEMPRE QUE HAYA DRAFTID */}
-                            {draftId && activeUsers && <PresenceAvatars users={activeUsers} />}
-                            
-                            <div className="w-[1px] h-6 bg-slate-200/50 mx-1" />
-
-                            <div className="flex items-center gap-3">
-                                {viewMode === 'workspace' && (
-                                    <>
-                                        <div className="flex flex-col items-end">
-                                            <div className={cn(
-                                                "text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-2",
-                                                isSaving ? "text-indigo-500" : "text-slate-400"
-                                            )}>
-                                                {isSaving ? "Capturando cambios..." : "Sincronizado"}
-                                                <div className={cn(
-                                                    "w-1.5 h-1.5 rounded-full",
-                                                    isSaving ? "bg-indigo-500 animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.6)]" : "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]"
-                                                )} />
-                                            </div>
-                                            <span className="text-[9px] text-slate-300 font-bold uppercase tracking-tighter">
-                                                {lastSaved ? `Activo ahora` : "Borrador"}
-                                            </span>
-                                        </div>
-                                        <button
-                                            onClick={() => useWriterStore.getState().finishContent()}
-                                            className="ml-2 flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
-                                        >
-                                            <Send size={14} /> Finalizar
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-
-                            {viewMode === 'workspace' && (
-                                <button
-                                    onClick={toggleSidebar}
-                                    className={cn(
-                                        "p-2.5 rounded-lg transition-all duration-300 border border-transparent hover:bg-slate-100/50",
-                                        isSidebarOpen ? "text-indigo-600 bg-indigo-50/50 border-indigo-100" : "text-slate-400"
-                                    )}
-                                    title={isSidebarOpen ? "Modo Zen" : "Modo 50/50"}
-                                >
-                                    <LayoutTemplate size={20} />
-                                </button>
-                            )}
-                        </div>
+                    <div className="flex items-center gap-6">
+                        {/* Left empty for symmetry if needed, or put global actions here */}
                     </div>
                 </header>
 
+                {/* 2. SECONDARY TOOLBAR (Languages, View Mode, AI Progress) */}
+                <div className="z-40 bg-white border-b border-slate-100 px-6 md:px-10 py-1 shrink-0">
+                    <div className="flex items-center justify-between gap-4">
+                        
+                        {/* LEFT: PRESENCE & SYNC */}
+                        <div className="flex items-center gap-4 shrink-0">
+                            {activeUsers && <PresenceAvatars users={activeUsers} />}
+                            <div className="w-[1px] h-4 bg-slate-200/50" />
+                            <div 
+                                className="flex items-center justify-center p-1.5 rounded-lg border border-transparent hover:bg-slate-50 transition-colors"
+                                title={isSaving ? "Guardando en la nube..." : "Sincronizado con Supabase"}
+                            >
+                                {isSaving ? (
+                                    <Cloud className="text-amber-500 animate-pulse" size={14} />
+                                ) : (
+                                    <Cloud className="text-emerald-500" size={14} />
+                                )}
+                            </div>
+                        </div>
+
+                        {/* CENTER: AI PROGRESS */}
+                        <div className="flex-1 flex justify-center">
+                            <AnimatePresence>
+                                {(isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing) && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                                        className="hidden xl:flex items-center gap-4 px-3 py-1 bg-slate-50/50 rounded-xl border border-slate-200/40"
+                                    >
+                                        <div className="flex items-center gap-1.5 pr-3 border-r border-slate-200/50">
+                                            <StepIcon active={isAnalyzingSEO} done={!!rawSeoData && !isAnalyzingSEO} icon={Search} label="SEO" />
+                                            <StepIcon active={isPlanningStructure} done={strategyOutline.length > 0 && !isPlanningStructure} icon={Layout} label="OUTLINE" />
+                                            <StepIcon active={isDrafting} done={(hasGenerated || isPostProd) && !isDrafting} icon={FileText} label="DRAFT" />
+                                            <StepIcon active={isPostProd} done={hasGenerated && !isPostProd} icon={Zap} label="FINAL" />
+                                        </div>
+                                        <div className="relative w-4 h-4">
+                                            <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping" />
+                                            <div className="w-4 h-4 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center">
+                                                <span className="text-[7px] text-white font-black italic">N</span>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* RIGHT: LANGUAGES & TAB SWITCHER */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            {/* LANGUAGES GALLERY */}
+                            <div className="min-w-0 max-w-[280px] flex items-center gap-1 bg-transparent group/gallery">
+                                <div className="flex items-center gap-1.5 px-1 shrink-0">
+                                    <button 
+                                        onClick={async () => {
+                                            const isParent = draftId === parentTaskId;
+                                            const message = isParent 
+                                                ? "¿Estás seguro de eliminar el PROYECTO ORIGINAL? Esto borrará todas las versiones." : "¿Eliminar esta TRADUCCIÓN?";
+                                            if (window.confirm(message)) await deleteVersion(draftId!);
+                                        }}
+                                        className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                                    >
+                                        <Trash2 size={11} />
+                                    </button>
+                                    <Languages size={12} className="text-slate-400" />
+                                </div>
+
+                                <div className="relative flex-1 flex items-center overflow-hidden">
+                                    <AnimatePresence>
+                                        {canScrollLeft && (
+                                            <motion.button
+                                                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                                                onClick={() => handleGalleryScroll('left')}
+                                                className="absolute left-0 z-20 p-1 bg-white/90 rounded-md shadow-sm border border-slate-200 text-slate-500"
+                                            >
+                                                <ChevronLeft size={10} />
+                                            </motion.button>
+                                        )}
+                                    </AnimatePresence>
+
+                                    <div 
+                                        ref={galleryRef} onScroll={checkScroll}
+                                        className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 px-1 scroll-smooth"
+                                        style={{ maskImage: 'linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent)' }}
+                                    >
+                                        {Array.from(new Set([...Object.keys(contentVersions), ...targetLanguages])).map((langCode: string) => {
+                                            const isGenerated = !!contentVersions[langCode];
+                                            const isActive = currentLanguage === langCode;
+                                            if (!langCode) return null;
+                                            return (
+                                                <button
+                                                    key={langCode}
+                                                    onClick={() => isGenerated && switchLanguage(langCode)}
+                                                    disabled={!isGenerated && !isActive}
+                                                    className={cn(
+                                                        "px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase transition-all shrink-0 select-none border",
+                                                        isActive ? "bg-slate-900 text-white shadow-sm border-slate-800" : 
+                                                        isGenerated ? "bg-transparent text-slate-500 hover:bg-slate-50 hover:shadow-sm border-transparent" : "text-slate-300 opacity-40 border-transparent"
+                                                    )}
+                                                >
+                                                    {langCode}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <AnimatePresence>
+                                        {canScrollRight && (
+                                            <motion.button
+                                                initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                                                onClick={() => handleGalleryScroll('right')}
+                                                className="absolute right-0 z-10 p-1 bg-white/90 rounded-md shadow-sm border border-slate-200 text-slate-500"
+                                            >
+                                                <ChevronRight size={10} />
+                                            </motion.button>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+
+                            {/* TAB SWITCHER: Visual / Código */}
+                            <div className="flex items-center gap-1 p-0.5 bg-slate-100/30 border border-slate-200/40 rounded-lg shadow-sm w-[100px] shrink-0">
+                                <button 
+                                    onClick={() => setEditorTab('visual')}
+                                    className={cn(
+                                        "px-2 flex-1 py-1 rounded-md text-[8px] font-black uppercase tracking-widest transition-all",
+                                        editorTab === 'visual' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                                    )}
+                                >
+                                    V
+                                </button>
+                                <button 
+                                    onClick={() => setEditorTab('code')}
+                                    className={cn(
+                                        "px-2 flex-1 py-1 rounded-md text-[8px] font-black uppercase tracking-widest transition-all",
+                                        editorTab === 'code' ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                                    )}
+                                >
+                                    C
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. CONTENT AREA */}
                 <div className="flex-1 overflow-hidden flex flex-col">
                     {renderContent()}
                 </div>
             </main>
-            <NousOrb 
-                viewMode="writer" 
-                isProcessing={isProcessingAny}
-                onWriterAction={(type) => {
-                    if (type === 'seo') handleSEO();
-                    if (type === 'generate') handleGenerate();
-                    if (type === 'humanize') handleHumanize();
-                    if (type === 'refine') handleRefine();
-                }}
-            />
+
+                                 {/* RIGHT: Tools Sidebar (Full Height) */}
+                                 {redactorUI === 'standard' && (
+                                     <div 
+                                         className="h-full bg-slate-50 flex flex-col overflow-hidden border-l border-slate-200/50 relative shadow-[inset_10px_0_20px_rgba(0,0,0,0.02)]"
+                                         style={{ width: `${rightSidebarWidth}%` }}
+                                     >
+                                         {/* Drag Handle */}
+                                         <div 
+                                             onMouseDown={handleRightResizeDown}
+                                             className={cn(
+                                                 "absolute top-0 left-0 w-1 h-full cursor-col-resize transition-all z-30",
+                                                 isResizingRight ? "bg-indigo-500 w-1" : "hover:bg-indigo-300/50 hover:w-1"
+                                             )}
+                                         />
+                                         
+                                         {/* ACTION BOX: Finalizar Button (Unified Header) */}
+                                         <div className="p-4 bg-white border-b border-slate-200/50 shadow-sm z-20">
+                                             <button
+                                                 onClick={() => finishContent()}
+                                                 className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 active:scale-95 group"
+                                             >
+                                                 <Send size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                                 Finalizar Artículo
+                                             </button>
+                                         </div>
+                                         
+                                         {/* Tools Content Tabs */}
+                                         <div className="px-5 py-3 border-b border-slate-200/50 bg-white/40 backdrop-blur-md z-10">
+                                             <div className="grid grid-cols-6 gap-2 p-1 bg-slate-100 rounded-none border border-slate-200 w-full overflow-hidden">
+                                                 {[
+                                                     { id: 'history', icon: <Search size={16} /> },
+                                                     { id: 'seo', icon: <Zap size={16} /> },
+                                                     { id: 'media', icon: <ImagePlus size={16} /> },
+                                                     { id: 'tools', icon: <Wrench size={16} /> },
+                                                     { id: 'translate', icon: <Languages size={16} /> },
+                                                     { id: 'nous', icon: <NousLogo showText={false} className="scale-75" /> },
+                                                 ].map(tab => (
+                                                     <button 
+                                                         key={tab.id}
+                                                         onClick={() => setSidebarTab(tab.id as any)}
+                                                         className={cn(
+                                                             "flex items-center justify-center aspect-square transition-all duration-150 border-2 rounded-none",
+                                                             activeSidebarTab === tab.id 
+                                                                 ? "bg-slate-50 text-indigo-500 border-indigo-200 shadow-sm" 
+                                                                 : "bg-white text-slate-400 border-slate-200 hover:border-slate-300 hover:text-slate-600"
+                                                         )}
+                                                     >
+                                                         {tab.icon}
+                                                     </button>
+                                                 ))}
+                                             </div>
+                                         </div>
+                                         
+                                         <div className="flex-1 flex flex-col min-h-0 bg-slate-50/20">
+                                             {activeSidebarTab === 'seo' ? (
+                                                 <SEODataTab seoData={rawSeoData} currentContent={content} />
+                                             ) : activeSidebarTab === 'media' ? (
+                                                 <MediaTab />
+                                             ) : activeSidebarTab === 'tools' ? (
+                                                 <ToolsTab />
+                                             ) : activeSidebarTab === 'translate' ? (
+                                                 <TranslationSidebarPanel />
+                                             ) : activeSidebarTab === 'nous' ? (
+                                                 <div className="p-4 h-full flex items-center justify-center">
+                                                     <NousOrb 
+                                                         viewMode="writer" 
+                                                         isProcessing={isProcessingAny}
+                                                         onWriterAction={(type) => {
+                                                             if (type === 'seo') handleSEO();
+                                                             if (type === 'generate') handleGenerate();
+                                                             if (type === 'humanize') handleHumanize();
+                                                             if (type === 'refine') handleRefine();
+                                                         }}
+                                                     />
+                                                 </div>
+                                             ) : (
+                                                 <CompetitorPanel />
+                                             )}
+                                         </div>
+                                     </div>
+                                 )}
         </div>
     );
-}
-
+}

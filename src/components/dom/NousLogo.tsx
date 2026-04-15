@@ -56,16 +56,18 @@ export function NousLogo({ isProcessing = false, showText = true, className }: N
 
                 {/* The PNG Logo */}
                 <div className="relative z-10 w-7 h-7">
-                    <Image
-                        src="/LogoNous.png"
-                        alt="Nous Logo"
-                        width={28}
-                        height={28}
-                        className={cn(
-                            "object-contain transition-transform duration-500",
-                            isProcessing ? "scale-110 drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" : "group-hover:scale-110"
-                        )}
-                    />
+                                <Image
+                                    src="/LogoNous.png"
+                                    alt="Nous Logo"
+                                    width={28}
+                                    height={28}
+                                    className={cn(
+                                        "object-contain transition-transform duration-500",
+                                        isProcessing ? "scale-110 drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" : "group-hover:scale-110"
+                                    )}
+                                    style={{ width: 'auto', height: 'auto' }}
+                                />
+
                 </div>
 
                 {/* Active Pulse Dot (Floating) */}

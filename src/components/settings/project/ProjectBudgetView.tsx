@@ -130,6 +130,30 @@ export default function ProjectBudgetView() {
     const layoutPercentage = layoutTarget > 0 ? (layoutValue / layoutTarget) * 100 : 0;
 
     const missingAmount = isFinancial ? totalFinancialBudget - totalExecutedSpend : 0;
+    
+    // Detailed Metric Logic for Silos
+    const analyticalWordSpend = programmedWords * wordPrice;
+    const analyticalLayoutSpend = programmedArticles * layoutPrice; 
+    const totalAnalyticalSpend = analyticalWordSpend + analyticalLayoutSpend;
+    
+    const analyticalPercentage = isFinancial 
+        ? (totalFinancialBudget > 0 ? (totalAnalyticalSpend / totalFinancialBudget) * 100 : 0)
+        : (wordBudget > 0 ? (programmedWords / wordBudget) * 100 : 0);
+
+    const executiveWordSpend = executedWords * wordPrice;
+    const executiveLayoutSpend = executedLayouts * layoutPrice;
+    const totalExecutiveActualSpend = executiveWordSpend + executiveLayoutSpend;
+    
+    const executivePercentage = isFinancial 
+        ? (totalFinancialBudget > 0 ? (totalExecutiveActualSpend / totalFinancialBudget) * 100 : 0)
+        : (wordBudget > 0 ? (executedWords / wordBudget) * 100 : 0);
+
+    // KPI Progress
+    const programmedWordsPercent = wordBudget > 0 ? (programmedWords / wordBudget) * 100 : 0;
+    const executedWordsPercent = wordBudget > 0 ? (executedWords / wordBudget) * 100 : 0;
+    
+    const programmedLayoutsPercent = layoutBudget > 0 ? (programmedArticles / layoutBudget) * 100 : 0;
+    const executedLayoutsPercent = layoutBudget > 0 ? (executedLayouts / layoutBudget) * 100 : 0;
 
     if (!activeProject) return null;
 
@@ -361,62 +385,164 @@ export default function ProjectBudgetView() {
                             )}
                         </div>
                         
-                        <div className="space-y-8">
-                            {/* Programmed (Analytical Success) */}
-                            <div>
-                                <div className="flex justify-between items-end mb-2">
-                                    <div>
-                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Éxito Analítico (Programado)</p>
-                                        <h4 className="text-xl font-black italic">{programmedDisplayValue} <span className="text-[10px] text-slate-500 not-italic uppercase ml-1">{isFinancial ? 'USD' : 'Palabras'}</span></h4>
-                                    </div>
-                                    <span className="text-xs font-black">{programmedPercentage.toFixed(1)}%</span>
-                                </div>
-                                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                    <motion.div 
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${Math.min(programmedPercentage, 100)}%` }}
-                                        className="h-full bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Executed (Implementation Success) */}
-                            <div>
-                                <div className="flex justify-between items-end mb-2">
-                                    <div>
-                                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Éxito Ejecutivo (Publicado)</p>
-                                        <h4 className="text-xl font-black italic">{executedDisplayValue} <span className="text-[10px] text-slate-500 not-italic uppercase ml-1">{isFinancial ? 'Invertidos' : 'Palabras Reales'}</span></h4>
-                                    </div>
-                                    <span className="text-xs font-black">{executedPercentage.toFixed(1)}%</span>
-                                </div>
-                                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                    <motion.div 
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${Math.min(executedPercentage, 100)}%` }}
-                                        className="h-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Layout Success */}
-                            <div>
-                                <div className="flex justify-between items-end mb-2">
-                                    <div>
-                                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Carga y Maquetación</p>
-                                        <h4 className="text-md font-black italic">
-                                            {isFinancial ? `$${executedLayoutSpend.toLocaleString()}` : executedLayouts}
-                                            <span className="text-[10px] text-slate-500 not-italic uppercase ml-1">{isFinancial ? 'USD' : 'Maquetados'}</span>
+                        <div className="space-y-12">
+                            {/* SILO 01: ANALÍTICO (PLANIFICACIÓN) */}
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-start">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                            <p className="text-[10px] font-black text-violet-400 uppercase tracking-[0.2em]">01. Silo Analítico (Planeación)</p>
+                                        </div>
+                                        <h4 className="text-2xl font-black italic">
+                                            {isFinancial ? `$${totalAnalyticalSpend.toLocaleString()}` : programmedWords.toLocaleString()} 
+                                            <span className="text-[10px] text-slate-500 not-italic uppercase ml-2 tracking-widest">{isFinancial ? 'USD Proyectados' : 'Palas. Plan'}</span>
                                         </h4>
                                     </div>
-                                    <span className="text-xs font-black">{layoutPercentage.toFixed(1)}%</span>
+                                    <div className="text-right">
+                                        <span className="text-sm font-black text-violet-400">{analyticalPercentage.toFixed(1)}%</span>
+                                        <p className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">Éxito Teórico</p>
+                                    </div>
                                 </div>
-                                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+
+                                <div className="h-3 bg-white/5 rounded-full overflow-hidden relative">
                                     <motion.div 
                                         initial={{ width: 0 }}
-                                        animate={{ width: `${Math.min(layoutPercentage, 100)}%` }}
-                                        className="h-full bg-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.5)]"
+                                        animate={{ width: `${Math.min(analyticalPercentage, 100)}%` }}
+                                        className="h-full bg-violet-600 shadow-[0_0_15px_rgba(139,92,246,0.3)]"
                                     />
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 bg-white/5 rounded-2xl border border-white/10 space-y-2">
+                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Carga de Palabras</p>
+                                        <div className="flex justify-between items-baseline">
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-xs font-bold">{programmedWords.toLocaleString()}</span>
+                                                <span className="text-[9px] text-slate-500 font-bold">${analyticalWordSpend.toLocaleString()}</span>
+                                            </div>
+                                            <span className="text-[9px] text-violet-400 font-black">{programmedWordsPercent.toFixed(1)}%</span>
+                                        </div>
+                                        <div className="h-0.5 bg-white/5 rounded-full overflow-hidden">
+                                            <motion.div 
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${Math.min(programmedWordsPercent, 100)}%` }}
+                                                className="h-full bg-violet-500"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="p-3 bg-white/5 rounded-2xl border border-white/10 space-y-2">
+                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Artículos / Maq.</p>
+                                        <div className="flex justify-between items-baseline">
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-xs font-bold">{programmedArticles.toLocaleString()}</span>
+                                                <span className="text-[9px] text-slate-500 font-bold">${analyticalLayoutSpend.toLocaleString()}</span>
+                                            </div>
+                                            <span className="text-[9px] text-violet-400 font-black">{programmedLayoutsPercent.toFixed(1)}%</span>
+                                        </div>
+                                        <div className="h-0.5 bg-white/5 rounded-full overflow-hidden">
+                                            <motion.div 
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${Math.min(programmedLayoutsPercent, 100)}%` }}
+                                                className="h-full bg-indigo-400"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {isFinancial && (
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                                            <span>Distribución Proyectada (Plan)</span>
+                                            <span className="text-violet-300">${totalAnalyticalSpend.toLocaleString()}</span>
+                                        </div>
+                                        <div className="h-2 bg-white/5 rounded-lg overflow-hidden flex">
+                                            <div style={{ width: `${(analyticalWordSpend / (totalAnalyticalSpend || 1)) * 100}%` }} className="bg-violet-600 h-full border-r border-white/10" />
+                                            <div style={{ width: `${(analyticalLayoutSpend / (totalAnalyticalSpend || 1)) * 100}%` }} className="bg-indigo-400 h-full" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* DIVIDER */}
+                            <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                            {/* SILO 02: EJECUTIVO (PUBLICACIÓN) */}
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-start">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">02. Silo Ejecutivo (Realidad)</p>
+                                        </div>
+                                        <h4 className="text-2xl font-black italic">
+                                            {isFinancial ? `$${totalExecutiveActualSpend.toLocaleString()}` : executedWords.toLocaleString()} 
+                                            <span className="text-[10px] text-slate-500 not-italic uppercase ml-2 tracking-widest">{isFinancial ? 'USD Invertidos' : 'Palas. Reales'}</span>
+                                        </h4>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-sm font-black text-emerald-400">{executivePercentage.toFixed(1)}%</span>
+                                        <p className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter">Éxito Real</p>
+                                    </div>
+                                </div>
+
+                                <div className="h-3 bg-white/5 rounded-full overflow-hidden relative">
+                                    <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${Math.min(executivePercentage, 100)}%` }}
+                                        className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 bg-white/5 rounded-2xl border border-white/10 space-y-2">
+                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Palabras Logradas</p>
+                                        <div className="flex justify-between items-baseline">
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-xs font-bold">{executedWords.toLocaleString()}</span>
+                                                <span className="text-[9px] text-slate-500 font-bold">${executiveWordSpend.toLocaleString()}</span>
+                                            </div>
+                                            <span className="text-[9px] text-emerald-400 font-black">{executedWordsPercent.toFixed(1)}%</span>
+                                        </div>
+                                        <div className="h-0.5 bg-white/5 rounded-full overflow-hidden">
+                                            <motion.div 
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${Math.min(executedWordsPercent, 100)}%` }}
+                                                className="h-full bg-emerald-400"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="p-3 bg-white/5 rounded-2xl border border-white/10 space-y-2">
+                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Maquetaciones OK</p>
+                                        <div className="flex justify-between items-baseline">
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-xs font-bold">{executedLayouts.toLocaleString()}</span>
+                                                <span className="text-[9px] text-slate-500 font-bold">${executiveLayoutSpend.toLocaleString()}</span>
+                                            </div>
+                                            <span className="text-[9px] text-emerald-400 font-black">{executedLayoutsPercent.toFixed(1)}%</span>
+                                        </div>
+                                        <div className="h-0.5 bg-white/5 rounded-full overflow-hidden">
+                                            <motion.div 
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${Math.min(executedLayoutsPercent, 100)}%` }}
+                                                className="h-full bg-teal-400"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {isFinancial && (
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                                            <span>Distribución Real (Publicado)</span>
+                                            <span className="text-emerald-300">${totalExecutiveActualSpend.toLocaleString()}</span>
+                                        </div>
+                                        <div className="h-2 bg-white/5 rounded-lg overflow-hidden flex">
+                                            <div style={{ width: `${(executiveWordSpend / (totalExecutiveActualSpend || 1)) * 100}%` }} className="bg-emerald-500 h-full border-r border-white/10" />
+                                            <div style={{ width: `${(executiveLayoutSpend / (totalExecutiveActualSpend || 1)) * 100}%` }} className="bg-teal-400 h-full" />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

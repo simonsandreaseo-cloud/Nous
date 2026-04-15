@@ -1,40 +1,35 @@
 import { 
-    BlogPost, 
     ImagePlan, 
     GeneratedImage, 
-    AspectRatio, 
-    InlineImageCount,
     ProcessingStatus 
 } from '@/types/images';
+import { ImagePreset } from '@/types/project';
 import { PollinationsService } from '@/lib/services/pollinationsService';
+import { VertexImageService } from '@/lib/services/images/vertexService';
 import { ImagePlanningService } from '@/lib/services/imagePlanningService';
 import { uploadGeneratedImage } from '@/lib/actions/imageActions';
 
 export interface WorkflowOptions {
     instructions: string;
     language: 'es' | 'en';
-    inlineImageCount: InlineImageCount;
-    realismMode: 'standard' | 'hyperrealistic';
-    sourceModel: string;
-    optimizePrompt: boolean;
-    featuredRatio: AspectRatio;
-    useCustomSize: boolean;
-    customDimensions: { width: number; height: number };
-    applyCustomToBody: boolean;
+    // The new preset-driven options
+    masterPrompt?: string;
+    portadaPreset?: ImagePreset;
+    bodyPresets?: ImagePreset[];
     taskId: string;
+    projectId?: string; // needed to fetch watermark/max_kb settings in Server Action
     projectLogoUrl?: string;
     onStatusChange: (status: ProcessingStatus, message: string) => void;
     onImageGenerated: (images: GeneratedImage[]) => void;
 }
 
 /**
- * Image Workflow Service
- * Orchestrates the full process of analyzing content, planning images,
- * generating them via AI, and persisting them to storage.
+ * Image Workflow Service (V3)
+ * Orchestrates the full process using dynamic slots and multiple AI models.
  */
 export const ImageWorkflowService = {
     /**
-     * Executes the full image generation pipeline for a blog post.
+     * Executes the full image generation pipeline using Presets.
      */
     async executeFullPipeline(paragraphs: string[], options: WorkflowOptions) {
         const { 
@@ -42,118 +37,164 @@ export const ImageWorkflowService = {
             onImageGenerated, 
             instructions, 
             language, 
-            inlineImageCount, 
-            realismMode,
-            sourceModel,
-            optimizePrompt,
-            featuredRatio,
-            useCustomSize,
-            customDimensions,
-            applyCustomToBody,
+            masterPrompt = "",
+            portadaPreset,
+            bodyPresets = [],
             taskId,
+            projectId,
             projectLogoUrl
         } = options;
 
         try {
-            // 1. Planning Phase
-            onStatusChange(ProcessingStatus.ANALYZING_TEXT, "Planificando visuales...");
+            // Count how many non-anchored slots we have for Gemini to plan
+            const availableBodySlots = bodyPresets.filter(p => p.manualIndex == null);
+            const anchoredSlots = bodyPresets.filter(p => p.manualIndex != null);
+
+            onStatusChange(ProcessingStatus.ANALYZING_TEXT, "Planificando visuales con IA...");
             const plan = await ImagePlanningService.planImages(
                 paragraphs, 
                 instructions, 
                 language, 
-                inlineImageCount,
-                realismMode
+                // Instruct Gemini to only plan for slots that aren't anchored manually
+                availableBodySlots.length > 0 ? availableBodySlots.length : 'auto',
+                // Standard realism, models will handle the heavy lifting
+                'hyperrealistic'
             );
 
             const imagesStore: GeneratedImage[] = [];
 
-            // 2. Featured Image Generation
-            onStatusChange(ProcessingStatus.GENERATING_IMAGES, "Generando imagen de portada...");
-            
-            let fWidth = 1280;
-            let fHeight = 720;
-            if (useCustomSize) {
-                fWidth = customDimensions.width;
-                fHeight = customDimensions.height;
-            } else {
-                if (featuredRatio === '1:1') { fWidth = 1024; fHeight = 1024; }
-                else if (featuredRatio === '4:3') { fWidth = 1024; fHeight = 768; }
-            }
-
-            // Normalize for Pollinations (High quality composition)
-            const fNorm = PollinationsService.getNormalizedDimensions(fWidth, fHeight);
-
-            const featuredUrl = PollinationsService.generateImageUrl(plan.featuredImage.prompt, {
-                width: fNorm.width,
-                height: fNorm.height,
-                model: sourceModel,
-                enhance: optimizePrompt
-            });
-
-            const featuredImg: GeneratedImage = {
-                id: Math.random().toString(36).substr(2, 9),
-                url: featuredUrl,
-                prompt: plan.featuredImage.prompt,
-                filename: plan.featuredImage.filename,
-                type: 'featured',
-                altText: plan.featuredImage.altText,
-                title: plan.featuredImage.title,
-                width: fWidth,
-                height: fHeight
-            };
-            imagesStore.push(featuredImg);
-            onImageGenerated([...imagesStore]);
-
-            // 3. Inline Images Generation
-            for (let i = 0; i < plan.inlineImages.length; i++) {
-                const item = plan.inlineImages[i];
-                onStatusChange(ProcessingStatus.GENERATING_IMAGES, `Generando imagen ${i + 1}/${plan.inlineImages.length}...`);
+            // ==========================================
+            // 1. PORTADA (HERO) GENERATION
+            // ==========================================
+            if (portadaPreset) {
+                onStatusChange(ProcessingStatus.GENERATING_IMAGES, "Renderizando Portada Magistral...");
+                const pPrompt = `${plan.featuredImage.prompt}, ${portadaPreset.mini_prompt}, ${masterPrompt}`.replace(/, ,/g, ',').trim();
                 
-                let iWidth = 1024;
-                let iHeight = 576;
-                if (useCustomSize && applyCustomToBody) {
-                    iWidth = customDimensions.width;
-                    iHeight = customDimensions.height;
+                let featuredUrl = '';
+                
+                if (portadaPreset.model.includes('imagen')) {
+                    // Use Vertex AI
+                    featuredUrl = await VertexImageService.generateImage({
+                        prompt: pPrompt,
+                        model: portadaPreset.model,
+                        aspectRatio: portadaPreset.ratio as any || '16:9'
+                    });
+                } else {
+                    // Use Pollinations
+                    const pNorm = PollinationsService.getNormalizedDimensions(portadaPreset.width, portadaPreset.height);
+                    featuredUrl = PollinationsService.generateImageUrl(pPrompt, {
+                        width: pNorm.width,
+                        height: pNorm.height,
+                        model: portadaPreset.model,
+                        enhance: true
+                    });
                 }
 
-                // Normalize for Pollinations
-                const iNorm = PollinationsService.getNormalizedDimensions(iWidth, iHeight);
+                const featuredImg: GeneratedImage = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    url: featuredUrl,
+                    prompt: pPrompt,
+                    filename: plan.featuredImage.filename,
+                    type: 'featured',
+                    altText: plan.featuredImage.altText,
+                    title: plan.featuredImage.title,
+                    width: portadaPreset.width,
+                    height: portadaPreset.height
+                };
+                imagesStore.push(featuredImg);
+                onImageGenerated([...imagesStore]);
+            }
 
-                const url = PollinationsService.generateImageUrl(item.prompt, {
-                    width: iNorm.width,
-                    height: iNorm.height,
-                    model: sourceModel,
-                    enhance: optimizePrompt
+            // ==========================================
+            // 2. BODY SLOTS GENERATION
+            // ==========================================
+            // We combine Gemini's suggestions with our physical slots
+            const finalBodyTasks = [];
+            
+            // Add anchored slots first (they ignore Gemini's position, but we still need a prompt. 
+            // We'll just ask Gemini to summarize that specific paragraph later, but for now we use the general instructions)
+            for (const slot of anchoredSlots) {
+                // If it's anchored, we extract the paragraph text to build a context prompt
+                const pText = paragraphs[slot.manualIndex!] || instructions;
+                finalBodyTasks.push({
+                    slot,
+                    paragraphIndex: slot.manualIndex!,
+                    basePrompt: `Context: ${pText}. Image requirement: Highly detailed visual representation.`
                 });
+            }
+
+            // Add Gemini's planned slots mapping them to available body slots
+            for (let i = 0; i < plan.inlineImages.length; i++) {
+                const aiSuggestion = plan.inlineImages[i];
+                // Cycle through available slots if Gemini suggests more images than slots we have
+                const slot = availableBodySlots[i % availableBodySlots.length] || bodyPresets[0]; 
+                
+                if (slot) {
+                    finalBodyTasks.push({
+                        slot,
+                        paragraphIndex: aiSuggestion.paragraphIndex,
+                        basePrompt: aiSuggestion.prompt,
+                        filename: aiSuggestion.filename,
+                        altText: aiSuggestion.altText,
+                        title: aiSuggestion.title
+                    });
+                }
+            }
+
+            // Execute Body Tasks
+            for (let i = 0; i < finalBodyTasks.length; i++) {
+                const task = finalBodyTasks[i];
+                onStatusChange(ProcessingStatus.GENERATING_IMAGES, `Renderizando imagen de cuerpo ${i + 1} de ${finalBodyTasks.length}...`);
+                
+                const combinedPrompt = `${task.basePrompt}, ${task.slot.mini_prompt}, ${masterPrompt}`.replace(/, ,/g, ',').trim();
+                let url = '';
+
+                if (task.slot.model.includes('imagen')) {
+                    // Use Vertex AI
+                    url = await VertexImageService.generateImage({
+                        prompt: combinedPrompt,
+                        model: task.slot.model,
+                        aspectRatio: (task.slot.ratio !== 'auto' && task.slot.ratio !== 'custom') ? task.slot.ratio as any : '16:9'
+                    });
+                } else {
+                    // Use Pollinations
+                    const iNorm = PollinationsService.getNormalizedDimensions(task.slot.width, task.slot.height);
+                    url = PollinationsService.generateImageUrl(combinedPrompt, {
+                        width: iNorm.width,
+                        height: iNorm.height,
+                        model: task.slot.model,
+                        enhance: true
+                    });
+                }
 
                 imagesStore.push({
                     id: Math.random().toString(36).substr(2, 9),
                     url,
-                    prompt: item.prompt,
-                    filename: item.filename,
+                    prompt: combinedPrompt,
+                    filename: task.filename || `inline-${i}.jpg`,
                     type: 'inline',
-                    paragraphIndex: item.paragraphIndex,
-                    altText: item.altText,
-                    title: item.title,
-                    width: iWidth,
-                    height: iHeight
+                    paragraphIndex: task.paragraphIndex,
+                    altText: task.altText || "Imagen descriptiva",
+                    title: task.title || "Apoyo Visual",
+                    width: task.slot.width,
+                    height: task.slot.height
                 });
                 onImageGenerated([...imagesStore]);
             }
 
-            // 4. Persistence Phase
-            onStatusChange(ProcessingStatus.SAVING, "Guardando imágenes en la nube...");
-            const finalImages = await this.persistImages(imagesStore, taskId, projectLogoUrl);
+            // ==========================================
+            // 3. PERSISTENCE PHASE (Supabase + Sharp)
+            // ==========================================
+            onStatusChange(ProcessingStatus.SAVING, "Optimizando y guardando en la nube...");
+            const finalImages = await this.persistImages(imagesStore, taskId, projectId, projectLogoUrl);
             
-            // Re-report final persistent URLs
             onImageGenerated(finalImages);
-            
-            onStatusChange(ProcessingStatus.COMPLETED, "¡Diseño Completado!");
+            onStatusChange(ProcessingStatus.COMPLETED, "¡Diseño Editorial Completado!");
             return { success: true, images: finalImages };
 
         } catch (error) {
             console.error("[ImageWorkflowService] Error:", error);
-            onStatusChange(ProcessingStatus.ERROR, "Ha ocurrido un error durante la generación.");
+            onStatusChange(ProcessingStatus.ERROR, "Error en el pipeline de diseño.");
             throw error;
         }
     },
@@ -161,7 +202,7 @@ export const ImageWorkflowService = {
     /**
      * Persists a list of generated images to Supabase via Server Actions.
      */
-    async persistImages(images: GeneratedImage[], taskId: string, projectLogoUrl?: string): Promise<GeneratedImage[]> {
+    async persistImages(images: GeneratedImage[], taskId: string, projectId?: string, projectLogoUrl?: string): Promise<GeneratedImage[]> {
         const persistedImages: GeneratedImage[] = [];
 
         for (const img of images) {
@@ -171,13 +212,14 @@ export const ImageWorkflowService = {
                     taskId: taskId,
                     imageId: img.id,
                     prompt: img.prompt,
-                    altText: img.altText,
-                    title: img.title,
+                    altText: img.altText || '',
+                    title: img.title || '',
                     type: img.type,
                     paragraphIndex: img.paragraphIndex,
                     width: img.width,
                     height: img.height,
-                    logoUrl: projectLogoUrl
+                    logoUrl: projectLogoUrl,
+                    projectId: projectId
                 });
 
                 if (result.success && result.publicUrl) {
@@ -188,7 +230,7 @@ export const ImageWorkflowService = {
                     });
                 } else {
                     console.error(`Failed to persist image ${img.id}:`, result.error);
-                    persistedImages.push(img); // Keep original if upload fails
+                    persistedImages.push(img); // Keep original (Base64 or Pollinations URL) if upload fails
                 }
             } catch (e) {
                 console.error(`Error in persistImages for ${img.id}:`, e);
@@ -200,51 +242,46 @@ export const ImageWorkflowService = {
     },
 
     /**
-     * Handles regeneration of a specific image.
+     * Handles regeneration of a specific image using the new preset flow.
      */
     async regenerateImage(
         image: GeneratedImage, 
-        options: Pick<WorkflowOptions, 'sourceModel' | 'optimizePrompt' | 'useCustomSize' | 'customDimensions' | 'applyCustomToBody' | 'taskId' | 'projectLogoUrl'>,
+        options: { model: string, width: number, height: number, ratio: string, taskId: string, projectId?: string, projectLogoUrl?: string },
         refinement?: string
     ): Promise<GeneratedImage> {
-        const { sourceModel, optimizePrompt, useCustomSize, customDimensions, applyCustomToBody, taskId, projectLogoUrl } = options;
         
         let activePrompt = image.prompt;
-        if (refinement) activePrompt = `${activePrompt}. Requirement: ${refinement}`;
+        if (refinement) activePrompt = `${activePrompt}. ${refinement}`;
         
-        let rWidth = image.type === 'featured' ? 1280 : 1024;
-        let rHeight = image.type === 'featured' ? 720 : 576;
+        let newUrl = '';
 
-        if (useCustomSize) {
-            if (image.type === 'featured' || applyCustomToBody) {
-                rWidth = customDimensions.width;
-                rHeight = customDimensions.height;
-            }
-        } else if (image.width && image.height) {
-            // Keep existing dimensions if not overriding with custom
-            rWidth = image.width;
-            rHeight = image.height;
+        if (options.model.includes('imagen')) {
+            // Vertex AI
+            newUrl = await VertexImageService.generateImage({
+                prompt: activePrompt,
+                model: options.model,
+                aspectRatio: (options.ratio !== 'auto' && options.ratio !== 'custom') ? options.ratio as any : '16:9'
+            });
+        } else {
+            // Pollinations
+            const rNorm = PollinationsService.getNormalizedDimensions(options.width, options.height);
+            newUrl = PollinationsService.generateImageUrl(activePrompt, {
+                width: rNorm.width,
+                height: rNorm.height,
+                model: options.model,
+                enhance: true
+            });
         }
-
-        // Normalize for Pollinations
-        const rNorm = PollinationsService.getNormalizedDimensions(rWidth, rHeight);
-
-        const newUrl = PollinationsService.generateImageUrl(activePrompt, {
-            width: rNorm.width,
-            height: rNorm.height,
-            model: sourceModel,
-            enhance: optimizePrompt
-        });
 
         const updatedImg: GeneratedImage = { 
             ...image, 
             url: newUrl,
-            width: rWidth,
-            height: rHeight
+            prompt: activePrompt,
+            width: options.width,
+            height: options.height
         };
         
-        // Persist the regenerated image
-        const persisted = await this.persistImages([updatedImg], taskId, projectLogoUrl);
+        const persisted = await this.persistImages([updatedImg], options.taskId, options.projectId, options.projectLogoUrl);
         return persisted[0];
     }
 };

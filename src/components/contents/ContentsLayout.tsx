@@ -10,7 +10,7 @@ import dynamic from "next/dynamic";
 
 const WriterStudio = dynamic(
     () => import("@/components/contents/writer/WriterStudio"),
-    { loading: () => <ToolLoading name="Redactor" />, ssr: false }
+    { loading: () => <ToolLoading name="Studio" />, ssr: false }
 );
 const EditorialCalendar = dynamic(
     () => import("@/components/dashboard/EditorialCalendar").then(mod => mod.EditorialCalendar),

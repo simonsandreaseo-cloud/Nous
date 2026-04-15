@@ -1,10 +1,10 @@
 schema: spec-driven
 
 context: |
-  Tech stack: Next.js 16, React 19, Supabase, Groq, Gemini (Antigravity native).
-  Architecture: Modular (Feature-First) + Clean/Hexagonal principles.
-  Testing: Not found (npm test script missing).
-  Style: ESLint, Tailwind 4.
+  Tech stack: Next.js 16.2.3, React 19.2.4, TypeScript, Tailwind 4.
+  Architecture: Clean Architecture, Atomic Design, Container-Presentational.
+  Testing: No automated test runner detected (Vitest/Jest). Ad-hoc scripts in root.
+  Style: ESLint, Strict Typing.
 
 strict_tdd: false
 

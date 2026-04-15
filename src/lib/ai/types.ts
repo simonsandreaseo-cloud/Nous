@@ -8,6 +8,7 @@ export interface AIRequest {
     maxTokens?: number;
     jsonMode?: boolean;
     label?: string; // Activates the correct hierarchy in executeWithKeyRotation
+    forceModel?: boolean; // Bypasses the label-based hierarchy and strictly uses the requested model
 }
 
 export interface AIResponse {

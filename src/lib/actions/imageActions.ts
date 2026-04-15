@@ -3,6 +3,84 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+const DIMENSION_FLOOR = 200;
+const DOWNSCALE_MULTIPLIER = 0.8;
+
+export type OptimizationResult = {
+    buffer: Buffer;
+    finalQuality: number;
+    finalWidth: number;
+    finalHeight: number;
+};
+
+export async function binarySearchQuality(
+    getSize: (q: number) => Promise<number>,
+    min: number,
+    max: number,
+    limit: number
+): Promise<number> {
+    let low = min;
+    let high = max;
+    let optimal = min;
+
+    while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const size = await getSize(mid);
+
+        if (size <= limit) {
+            optimal = mid;
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+
+    return optimal;
+}
+
+export async function optimizeImageWeight(
+    baseImage: any,
+    maxSizeBytes: number
+): Promise<OptimizationResult> {
+    let currentWidth = 0;
+    let currentHeight = 0;
+    
+    const meta = await baseImage.metadata();
+    currentWidth = meta.width || 0;
+    currentHeight = meta.height || 0;
+
+    while (true) {
+        // Binary Search for optimal quality in [15, 85]
+        const getSize = async (q: number) => {
+            const buffer = await baseImage.webp({ quality: q }).toBuffer();
+            return buffer.length;
+        };
+
+        const finalQuality = await binarySearchQuality(getSize, 15, 85, maxSizeBytes);
+        const finalBuffer = await baseImage.webp({ quality: finalQuality }).toBuffer();
+
+        // If it fits, or we've hit the floor, return
+        if (finalBuffer.length <= maxSizeBytes || currentWidth <= DIMENSION_FLOOR || currentHeight <= DIMENSION_FLOOR) {
+            return {
+                buffer: finalBuffer,
+                finalQuality,
+                finalWidth: currentWidth,
+                finalHeight: currentHeight
+            };
+        }
+
+        // Emergency Downscaling
+        currentWidth = Math.max(DIMENSION_FLOOR, Math.floor(currentWidth * DOWNSCALE_MULTIPLIER));
+        currentHeight = Math.max(DIMENSION_FLOOR, Math.floor(currentHeight * DOWNSCALE_MULTIPLIER));
+        
+        baseImage = baseImage.resize(currentWidth, currentHeight, {
+            fit: 'cover',
+            position: 'center'
+        });
+    }
+}
+
+
 // Helper to get Supabase Admin client only on server side
 // This prevents environment variables from being mismanaged during client-side shim evaluation
 function getSupabaseAdmin() {
@@ -60,15 +138,24 @@ export async function uploadGeneratedImage(params: {
             }
         }
         
-        // 1. Download image from Pollinations
-        const response = await fetch(params.url);
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error(`[Pollinations Error] Status: ${response.status}, Body:`, errorBody);
-            throw new Error(`Pollinations request failed: ${response.status} ${response.statusText}`);
+        let originalBuffer: Buffer;
+
+        // Determine if URL is a Data URI (Base64 from Vertex AI) or a remote URL (Pollinations)
+        if (params.url.startsWith('data:image')) {
+            console.log("Processing Data URI (Base64) image payload...");
+            const base64Data = params.url.split(',')[1];
+            originalBuffer = Buffer.from(base64Data, 'base64');
+        } else {
+            console.log("Processing remote URL payload...");
+            const response = await fetch(params.url);
+            if (!response.ok) {
+                const errorBody = await response.text();
+                console.error(`[Image Fetch Error] Status: ${response.status}, Body:`, errorBody);
+                throw new Error(`Image request failed: ${response.status} ${response.statusText}`);
+            }
+            originalBuffer = Buffer.from(await response.arrayBuffer());
         }
 
-        let originalBuffer = Buffer.from(await response.arrayBuffer());
         const sharp = (await import('sharp')).default;
         let mainImage = sharp(originalBuffer);
 
@@ -120,19 +207,17 @@ export async function uploadGeneratedImage(params: {
             }
         }
 
-        // 4. Conversion to WebP with Iterative Compression
+        // 4. Conversion to WebP with Weight Optimization
         console.log(`Optimizing WebP to fit under ${maxKb}KB...`);
-        let quality = 85;
-        let finalBuffer = await mainImage.webp({ quality }).toBuffer();
-        
-        // Simple iterative loop to respect max weight
-        // We use a small threshold (0.95) to ensure we stay safely below the limit
         const maxSizeBytes = maxKb * 1024;
         
-        while (finalBuffer.length > maxSizeBytes && quality > 15) {
-            quality -= 10;
-            console.log(`Weight limit exceeded (${Math.round(finalBuffer.length / 1024)}KB). Retrying with quality ${quality}...`);
-            finalBuffer = await mainImage.webp({ quality }).toBuffer();
+        const { buffer: finalBuffer, finalQuality, finalWidth, finalHeight } = await optimizeImageWeight(
+            mainImage,
+            maxSizeBytes
+        );
+
+        if (finalBuffer.length > maxSizeBytes) {
+            console.warn(`[Weight Budget Violation] Image still exceeds ${maxKb}KB after maximum optimization (Quality: ${finalQuality}, Dim: ${finalWidth}x${finalHeight}). Final size: ${Math.round(finalBuffer.length / 1024)}KB`);
         }
 
         const fileExt = 'webp';
