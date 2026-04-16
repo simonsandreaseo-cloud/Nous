@@ -13,6 +13,7 @@ export interface PersistenceActions {
     finishContent: () => Promise<void>;
     switchLanguage: (langCode: string) => Promise<void>;
     deleteVersion: (taskId: string) => Promise<void>;
+    setVersionStatus: (langCode: string, taskId: string | null) => void;
 }
 
 export type PersistenceSlice = WriterStoreState & PersistenceActions;
@@ -31,7 +32,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
     contentVersions: {},
 
     // Actions
-    loadResearchData: async (contentId) => {
+    loadResearchData: async (contentId: string) => {
         const { supabase } = require('@/lib/supabase');
         const { data, error } = await supabase
             .from('content_research')
@@ -40,7 +41,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
             .maybeSingle();
 
         if (!error && data) {
-            set((state) => {
+            set((state: any) => {
                 const serp = data.serp_data || {};
                 const sLinks = serp.suggestedInternalLinks || serp.suggested_links || serp.suggestedLinks || [];
                 
@@ -53,7 +54,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         }
     },
 
-    saveResearchData: async (contentId, keyword, serp, competitors) => {
+    saveResearchData: async (contentId: string, keyword: string, serp: any, competitors: any) => {
         const { supabase } = require('@/lib/supabase');
         await supabase.from('content_research').upsert({
             content_id: contentId,
@@ -63,7 +64,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         }, { onConflict: 'content_id' });
     },
 
-    loadProjectContents: async (projectId) => {
+    loadProjectContents: async (projectId: string | string[]) => {
         const { supabase } = require('@/lib/supabase');
         let query = supabase.from('tasks').select('*');
 
@@ -80,8 +81,9 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         if (!error && data) set({ projectContents: data } as any);
     },
 
-    loadContentById: async (contentId) => {
+    loadContentById: async (contentId: string) => {
         const { supabase } = require('@/lib/supabase');
+        // Fetch the task metadata
         const { data, error } = await supabase
             .from('tasks')
             .select('*')
@@ -89,36 +91,50 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
             .maybeSingle();
 
         if (!error && data) {
-            console.log(`[Persistence] Task loaded: "${data.title}" (ID: ${contentId}) content_body present: ${!!data.content_body}`);
-            const dossier = (data as any).research_dossier || (data as any).seo_data || null;
             const { initializeFromTask, loadResearchData } = get() as any;
             
-            // We use a simplified version of initializeFromTask logic here or call it directly
             if (initializeFromTask) {
                 initializeFromTask(data, { id: data.project_id });
             }
             
-            // Cargar versiones de idiomas
+            // --- Robust Version Loading ---
+            // A version is either the parent itself or a task pointing to this parent
             const parentId = data.translation_parent_id || data.id;
-            const { data: versions } = await supabase
+            
+            const { data: versions, error: vError } = await supabase
                 .from('tasks')
                 .select('id, language')
                 .or(`id.eq.${parentId},translation_parent_id.eq.${parentId}`);
 
-            if (versions) {
+            if (vError) {
+                console.error('[Persistence] Error loading versions:', vError);
+            }
+
+            if (versions && versions.length > 0) {
                 const versionMap = versions.reduce((acc: any, v: any) => ({
                     ...acc,
-                    [v.language]: v.id
+                    [v.language || 'es']: v.id
                 }), {});
+                
+                console.log(`[Persistence] Versions mapped for parent ${parentId}:`, versionMap);
                 set({ contentVersions: versionMap, parentTaskId: parentId });
+            } else {
+                // Fallback: at least the current one
+                set({ 
+                    contentVersions: { [data.language || 'es']: data.id }, 
+                    parentTaskId: parentId 
+                });
             }
             
+            // Load heavy data from satellite tables
             if (loadResearchData) await loadResearchData(contentId);
             if (get().loadTaskImages) await get().loadTaskImages(contentId);
+        } else {
+            console.error('[Persistence] Failed to load content by ID:', contentId, error);
         }
     },
 
-    deleteContent: async (contentId) => {
+    deleteContent: async (contentId: string) => {
         const { supabase } = require('@/lib/supabase');
         const { error } = await supabase.from('tasks').delete().eq('id', contentId);
         if (error) return false;
@@ -132,7 +148,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         return true;
     },
 
-    initializeFromTask: (task, project) => set((state) => {
+    initializeFromTask: (task: any, project: any) => set((state: any) => {
         const dossier = (task as any).research_dossier || (task as any).seo_data || null;
         const seoTitle = task.seo_title || dossier?.seo_title || dossier?.strategyTitle || task.title || '';
         const h1 = task.h1 || dossier?.h1 || dossier?.title || task.title || '';
@@ -221,6 +237,16 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         }
     },
     
+    setVersionStatus: (langCode: string, taskId: string | null) => {
+        set((state) => ({
+            contentVersions: taskId 
+                ? { ...state.contentVersions, [langCode]: taskId }
+                : Object.fromEntries(
+                    Object.entries(state.contentVersions).filter(([key]) => key !== langCode)
+                  )
+        }));
+    },
+    
     loadProjectInventory: async (projectId: string) => {
         const { supabase } = require('@/lib/supabase');
         const { data, error } = await supabase
@@ -237,7 +263,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         const { supabase } = require('@/lib/supabase');
         const { data, error } = await supabase
             .from('task_images')
-            .select('*')
+            .select('id, task_id, url, alt_text, type, paragraph_index, storage_path, title')
             .eq('task_id', taskId);
             
         if (!error && data) {

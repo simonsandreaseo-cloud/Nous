@@ -103,26 +103,66 @@ export const NousAsset = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     const { 
-        url, id, type, prompt, paragraphIndex, align, wrapping, storage_path, pixelWidth, pixelHeight, ...rest 
+        url, id, role, prompt, paragraphIndex, semanticAnchor, align, wrapping, width, height, ...rest 
     } = HTMLAttributes;
 
+    const styles: Record<string, string> = {};
+
+    // 1. DIMENSIONS
+    styles['width'] = width || '100%';
+    if (height && height !== 'auto') styles['height'] = height;
+    styles['max-width'] = '100%';
+
+    // 2. ALIGNMENT & FLOAT (Screaming HTML)
+    if (align === 'center') {
+        styles['display'] = 'block';
+        styles['margin-left'] = 'auto';
+        styles['margin-right'] = 'auto';
+    } else if (align === 'full') {
+        styles['width'] = '100%';
+        styles['display'] = 'block';
+        styles['clear'] = 'both';
+    } else if (align === 'left' || align === 'right') {
+        styles['float'] = align;
+        styles['margin'] = align === 'left' ? '0 1.5rem 1rem 0' : '0 0 1rem 1.5rem';
+    }
+
+    // 3. WRAPPING OVERRIDES
+    if (wrapping === 'break') {
+        styles['display'] = 'block';
+        styles['clear'] = 'both';
+    } else if (wrapping === 'inline') {
+        styles['display'] = 'inline-block';
+        styles['vertical-align'] = 'middle';
+        styles['margin'] = '0 0.5rem';
+    }
+
+    const styleString = Object.entries(styles)
+        .map(([k, v]) => `${k}:${v}`)
+        .join(';');
+
     return [
-        'img', 
-        mergeAttributes(rest, { 
-          'src': url,
+        'figure',
+        { 
+          'style': styleString, 
           'data-nous-asset': 'true',
           'data-id': id,
-          'data-type': type,
-          'data-prompt': prompt,
-          'data-paragraph-index': paragraphIndex,
-          'data-align': align,
-          'data-wrapping': wrapping,
-          'data-storage-path': storage_path,
-          'data-pixel-width': pixelWidth,
-          'data-pixel-height': pixelHeight,
-        })
+          'data-role': role,
+          'data-anchor': semanticAnchor
+        },
+        [
+            'img', 
+            mergeAttributes(rest, { 
+                'src': url,
+                'alt': HTMLAttributes.alt || '',
+                'title': HTMLAttributes.title || '',
+                'loading': 'lazy',
+                'style': 'width:100%; height:auto; display:block; border-radius:1.5rem; shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);'
+            })
+        ]
     ];
   },
+
 
   addNodeView() {
     return ReactNodeViewRenderer(NousAssetNodeView);

@@ -231,25 +231,35 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
     },
 
     fetchTaskContent: async (taskId) => {
-        const { data, error } = await supabase
-            .from('task_contents')
-            .select('content_body')
-            .eq('id', taskId)
-            .maybeSingle();
-            
-        if (error) console.error('Error fetching task content:', error);
-        return data?.content_body || '';
+        try {
+            const { data, error } = await supabase
+                .from('task_contents')
+                .select('content_body')
+                .eq('id', taskId)
+                .maybeSingle();
+                
+            if (error) throw error;
+            return data?.content_body || '';
+        } catch (err) {
+            console.error('[TaskSlice] Error fetching content:', err);
+            return '';
+        }
     },
 
     fetchTaskResearch: async (taskId) => {
-        const { data, error } = await supabase
-            .from('task_research')
-            .select('*')
-            .eq('id', taskId)
-            .maybeSingle();
-            
-        if (error) console.error('Error fetching task research:', error);
-        return data || {};
+        try {
+            const { data, error } = await supabase
+                .from('task_research')
+                .select('*')
+                .eq('id', taskId)
+                .maybeSingle();
+                
+            if (error) throw error;
+            return data || {};
+        } catch (err) {
+            console.error('[TaskSlice] Error fetching research:', err);
+            return {};
+        }
     },
 
     deleteTask: async (taskId) => {

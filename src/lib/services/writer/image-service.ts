@@ -15,7 +15,7 @@ export const findCampaignAssets = async (query: string, projectName: string, csv
 
     return executeWithKeyRotation(async (ai) => {
         const modelObj = ai.getGenerativeModel({
-            model: modelName || 'gemini-2.5-flash',
+            model: modelName || 'gemini-3.1-flash-preview',
         });
         const response = await modelObj.generateContent(prompt);
         let text = response.response.text() || "[]";
@@ -46,7 +46,7 @@ export const suggestImagePlacements = async (articleHtml: string, count: string)
 
     return executeWithKeyRotation(async (ai) => {
         const modelObj = ai.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.1-flash-preview',
             generationConfig: { responseMimeType: "application/json" }
         });
         const response = await modelObj.generateContent(truncated + "\n\n" + prompt);
@@ -64,7 +64,7 @@ export const generateRealImage = async (basePrompt: string, config: ImageGenConf
 
     return executeWithKeyRotation(async (ai) => {
         try {
-            const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+            const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-preview' });
             const response = await model.generateContent(finalPrompt);
 
             const result = await response.response;

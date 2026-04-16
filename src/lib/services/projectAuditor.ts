@@ -98,7 +98,8 @@ export class ProjectAuditorService {
             };
         });
 
-        // 4. Batch upsert to Supabase
+        // 4. Batch upsert to Supabase (DISABLED FOR EGRESS PROTECTION)
+        /*
         console.log(`[ProjectAuditor] Upserting ${upsertData.length} URLs to project_urls table...`);
 
         // Split into chunks of 100 to avoid request size limits
@@ -114,7 +115,9 @@ export class ProjectAuditorService {
                 throw error;
             }
         }
+        */
 
-        console.log(`[ProjectAuditor] Audit complete for project ${projectId}.`);
+        console.log(`[ProjectAuditor] Audit complete (DB Update Skipped) for project ${projectId}.`);
+
     }
 }

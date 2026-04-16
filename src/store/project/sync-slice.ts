@@ -67,11 +67,19 @@ export const createSyncSlice: StateCreator<ProjectStore, [], [], SyncActions> = 
     fetchProjectInventory: async (projectId) => {
         const { data, error } = await supabase
             .from('project_urls')
-            .select('url, title, type, category')
+            .select('url, title, category, top_query, strategic_score')
             .eq('project_id', projectId);
             
         if (error) {
             console.error('[fetchProjectInventory] Error:', error);
+            // If it's a 400, it's likely a missing column. Fallback to basic select.
+            if (error.code === 'PGRST204' || error.code === '42703') {
+                const { data: fallbackData } = await supabase
+                    .from('project_urls')
+                    .select('url, category')
+                    .eq('project_id', projectId);
+                return fallbackData || [];
+            }
             return [];
         }
         return data || [];

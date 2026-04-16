@@ -14,6 +14,7 @@ import { Superscript } from '@tiptap/extension-superscript';
 import { FontFamily } from '@tiptap/extension-font-family';
 import { CharacterCount } from '@tiptap/extension-character-count';
 import { NousAsset } from './tiptap-nous-asset';
+import { ImageSlot } from './tiptap-image-slot';
 
 // Custom FontSize Extension
 declare module '@tiptap/core' {
@@ -81,41 +82,12 @@ export const getSharedExtensions = (placeholder: string) => [
   Placeholder.configure({
     placeholder,
   }),
-  Link.extend({
-    addAttributes() {
-      return {
-        ...this.parent?.(),
-        'data-original-url': {
-          default: null,
-          parseHTML: element => element.getAttribute('data-original-url'),
-          renderHTML: attributes => {
-            if (!attributes['data-original-url']) {
-              return {};
-            }
-            return {
-              'data-original-url': attributes['data-original-url'],
-            };
-          },
-        },
-      };
-    },
-  }).configure({
-    openOnClick: false,
-    autolink: true,
-    defaultProtocol: 'https',
-    HTMLAttributes: {
-      target: '_blank',
-      rel: 'noopener noreferrer',
-      class: 'cursor-pointer'
-    },
-  }),
   Image.configure({
     allowBase64: true,
     HTMLAttributes: {
       class: 'rounded-3xl shadow-2xl border-4 border-white my-12 mx-auto block hover:scale-[1.02] transition-transform duration-500',
     },
   }),
-  Underline,
   TextAlign.configure({
     types: ['heading', 'paragraph'],
   }),
@@ -130,4 +102,5 @@ export const getSharedExtensions = (placeholder: string) => [
   FontSize,
   CharacterCount,
   NousAsset,
+  ImageSlot,
 ];

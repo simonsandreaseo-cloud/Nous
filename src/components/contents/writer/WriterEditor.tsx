@@ -204,16 +204,20 @@ export default function WriterEditor() {
                 const data = event.dataTransfer?.getData('application/nous-asset');
                 if (data && editor) {
                     event.preventDefault();
-                    const asset = JSON.parse(data);
+                    const assetData = JSON.parse(data);
                     
-                    // Use standard insertContent which handles positioning via selection better
                     editor.chain().focus().insertContent({
                         type: 'nousAsset',
                         attrs: {
-                            id: asset.id,
-                            url: asset.url,
-                            alt: asset.alt,
-                            type: asset.type === 'featured' ? 'featured' : 'inline'
+                            id: assetData.id,
+                            url: assetData.url,
+                            alt: assetData.alt || '',
+                            title: assetData.title || '',
+                            role: assetData.role || 'feature',
+                            status: 'final',
+                            width: '100%',
+                            align: 'center',
+                            wrapping: 'break'
                         }
                     }).run();
                     return true;
@@ -647,11 +651,25 @@ export default function WriterEditor() {
                 <ImageLightbox 
                     isOpen={!!fullscreenImage}
                     onClose={() => setFullscreenImage(null)}
-                    url={fullscreenImage.url}
-                    title={fullscreenImage.title || "Portada"}
-                    alt={fullscreenImage.alt_text}
-                    prompt={fullscreenImage.prompt}
-                    assetId={fullscreenImage.id}
+                    asset={{
+                        id: fullscreenImage.id,
+                        url: fullscreenImage.url,
+                        title: fullscreenImage.title || "Portada",
+                        alt: fullscreenImage.alt_text || '',
+                        prompt: fullscreenImage.prompt || '',
+                        status: 'final',
+                        type: 'image',
+                        role: fullscreenImage.type === 'featured' ? 'hero' : 'feature',
+                        design: {
+                            width: '100%',
+                            align: 'center',
+                            wrapping: 'break',
+                            aspectRatio: '16:9'
+                        },
+                        positioning: {
+                            paragraphIndex: fullscreenImage.paragraph_index || 0
+                        }
+                    }}
                 />
             )}
         </div>

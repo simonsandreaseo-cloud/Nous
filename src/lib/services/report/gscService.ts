@@ -258,7 +258,8 @@ export const GscService = {
                 console.error("[GSC-SERVICE] GA4 data integration failed, continuing with GSC only:", ga4Error);
             }
 
-            // --- STEP 4: UPSERT TO DATABASE (SPLIT STRATEGY) ---
+            // --- STEP 4: UPSERT TO DATABASE (DISABLED FOR EGRESS PROTECTION) ---
+            /*
             const urlsArray = Array.from(uniqueUrls.values());
             if (urlsArray.length > 0) {
                 // 1. Upsert Registry (Base URLs)
@@ -349,8 +350,10 @@ export const GscService = {
                     }
                 }
             }
+            */
 
-            return { count: urlsArray.length };
+            return { count: 0 }; // Return 0 to indicate no DB changes made
+
 
         } catch (e: any) {
             console.error("[GSC-SERVICE] Fatal Error during Unified Sync:", e);

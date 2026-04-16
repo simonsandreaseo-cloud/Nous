@@ -25,6 +25,8 @@ export interface ProjectActions {
 export interface TaskActions {
     fetchProjectTasks: (projectId?: string) => Promise<void>;
     fetchTaskDetails: (taskId: string) => Promise<Task | null>;
+    fetchTaskContent: (taskId: string) => Promise<string>;
+    fetchTaskResearch: (taskId: string) => Promise<any>;
     fetchTasksFullData: (taskIds: string[]) => Promise<Task[]>;
     addTask: (task: Omit<Task, 'id' | 'created_at'>) => Promise<{ data: Task | null, error: any }>;
     updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
@@ -51,7 +53,7 @@ export interface TeamActions {
 export interface SyncActions {
     syncGscData: (siteUrl: string, startDate: string, endDate: string) => Promise<void>;
     syncProjectInventory: (projectId: string, siteUrl: string) => Promise<void>;
-    fetchProjectInventory: (projectId: string) => Promise<{url: string, title?: string, type?: string, category?: string}[]>;
+    fetchProjectInventory: (projectId: string) => Promise<{url: string, title?: string, category?: string, top_query?: string, strategic_score?: number}[]>;
 }
 
 export type ProjectStore = ProjectStoreState & ProjectActions & TaskActions & TeamActions & SyncActions;

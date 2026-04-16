@@ -107,13 +107,6 @@ export const AI_CONFIG = {
                 'gemini-3.1-flash-preview',      // Fallback 2: Strategic
                 'qwen-3-235b-a22b-instruct-2507', // Fallback 3: Cerebras Ultra
                 'zai-glm-4.7'            // Fallback 4: Cerebras Máximo (Botón Nuclear)
-            ],
-            writing: [
-                'gemini-3.1-flash-lite-preview', // Priority 1: Editorial
-                'gemma-4-31b-it',               // Fallback 1: Calidad Premium
-                'gemini-3.1-flash-preview',      // Fallback 2: High Impact
-                'gpt-oss-120b',         // Fallback 3: Cerebras Balanceado
-                'groq/compound'         // Fallback 4: Deep Reasoning
             ]
         }
     },

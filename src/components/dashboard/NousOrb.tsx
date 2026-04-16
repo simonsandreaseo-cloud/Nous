@@ -32,6 +32,7 @@ import { Task } from '@/types/project';
 import { NousOrbLite } from '@/components/canvas/NousOrbLite';
 import { useAppStore } from '@/store/useAppStore';
 import { useWriterStore } from '@/store/useWriterStore';
+import { useProjectStore } from '@/store/useProjectStore';
 
 const getIconForPhase = (phase: string) => {
     const p = phase.toLowerCase();
@@ -91,7 +92,11 @@ export default function NousOrb({
     const [pipelineResearch, setPipelineResearch] = useState(true);
     const [pipelineDraft, setPipelineDraft] = useState(true);
     const [pipelineHumanize, setPipelineHumanize] = useState(false);
+    const [pipelineTranslate, setPipelineTranslate] = useState(false);
     const [pipelineFinalStatus, setPipelineFinalStatus] = useState<'por_corregir' | 'en_redaccion' | 'por_maquetar' | 'publicado'>('por_corregir');
+
+    const { activeProject } = useProjectStore();
+    const i18nLanguages = activeProject?.i18n_settings?.languages || [];
 
     // Progress logic
     const effectiveProgress = viewMode === 'writer' ? (storeProgress || processingProgress) : processingProgress;
@@ -367,6 +372,18 @@ export default function NousOrb({
                                             color="emerald"
                                         />
 
+                                        {i18nLanguages.length > 0 && (
+                                            <PipelineToggle 
+                                                icon={Globe}
+                                                title="4. Traducir Contenido"
+                                                desc={`Generar versiones en ${i18nLanguages.length} idiomas configurados.`}
+                                                active={pipelineTranslate}
+                                                onToggle={() => setPipelineTranslate(!pipelineTranslate)}
+                                                count={effectiveSelectedCount > 0 ? (effectiveSelectedCount * i18nLanguages.length) : ((stats.ideas + stats.needOutline + stats.needDraft + stats.needHuman) * i18nLanguages.length)}
+                                                color="purple"
+                                            />
+                                        )}
+
                                         <div className="p-3 bg-slate-100/50 rounded-2xl border border-slate-200/50 mt-3">
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex items-center gap-2">
@@ -398,6 +415,7 @@ export default function NousOrb({
                                                     research: pipelineResearch,
                                                     draft: pipelineDraft,
                                                     humanize: pipelineHumanize,
+                                                    translate: pipelineTranslate,
                                                     finalStatus: pipelineFinalStatus
                                                 });
                                                 setIsOpen(false);

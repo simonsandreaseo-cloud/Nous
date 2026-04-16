@@ -3,7 +3,7 @@ import { executeWithKeyRotation } from "@/lib/services/writer/ai-core";
 export const generateArticleStream = async (model: string, prompt: string) => {
     return executeWithKeyRotation(async (ai) => {
         const modelObj = ai.getGenerativeModel({
-            model: model || 'gemini-2.5-flash',
+            model: model || 'gemini-2.0-flash',
             systemInstruction: "Eres un redactor HTML experto. Generas HTML limpio.",
             generationConfig: {
                 temperature: 0.7,
@@ -56,7 +56,7 @@ export const refineArticleContent = async (
     `;
 
     return executeWithKeyRotation(async (ai) => {
-        const modelObj = ai.getGenerativeModel({ model: modelName || 'gemini-2.5-flash' });
+        const modelObj = ai.getGenerativeModel({ model: modelName || 'gemini-2.0-flash' });
         const response = await modelObj.generateContent(prompt);
         const resText = response.response.text() || (isSelection ? selectedText : currentHtml);
         return resText.replace(/```html/g, '').replace(/```/g, '').trim();

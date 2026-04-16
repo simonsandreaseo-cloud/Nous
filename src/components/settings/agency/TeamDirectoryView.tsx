@@ -211,17 +211,17 @@ export default function TeamDirectoryView({ onSelectTeam }: { onSelectTeam: (id:
                 <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">Equipos de Trabajo</h1>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Arquitectura de equipos y proyectos</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-1">Arquitectura de equipos y proyectos</p>
                     </div>
                     
                     <button 
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="group relative px-6 py-3 bg-slate-900 text-white rounded-xl overflow-hidden shadow-xl transition-all hover:scale-[1.02] active:scale-95"
+                        className="group relative px-6 py-3 bg-slate-900 text-white rounded-xl overflow-hidden shadow-[0_8px_16px_rgba(0,0,0,0.1)] transition-all hover:scale-[1.02] active:scale-95"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="relative flex items-center gap-2">
-                            <Plus size={18} className="text-indigo-300" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Crear Equipo</span>
+                            <Plus size={16} className="text-indigo-300" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Crear Equipo</span>
                         </div>
                     </button>
                 </header>
@@ -253,11 +253,11 @@ export default function TeamDirectoryView({ onSelectTeam }: { onSelectTeam: (id:
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 overflow-hidden">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest">Miembros sin equipo</h2>
-                            <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">Arrastra para asignar</p>
+                            <h2 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">Miembros sin equipo</h2>
+                            <p className="text-[8px] text-slate-400 font-bold uppercase mt-1">Arrastra para asignar</p>
                         </div>
-                        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center">
-                            <UserPlus size={16} />
+                        <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center">
+                            <UserPlus size={14} />
                         </div>
                     </div>
 
@@ -527,6 +527,8 @@ export default function TeamDirectoryView({ onSelectTeam }: { onSelectTeam: (id:
 }
 
 function DraggableMember({ member }: { member: any }) {
+    const displayName = (member.full_name && member.full_name !== 'MIEMBRO') ? member.full_name : member.email.split('@')[0];
+    
     return (
         <motion.div
             layoutId={member.id}
@@ -535,22 +537,20 @@ function DraggableMember({ member }: { member: any }) {
             dragElastic={1}
             whileDrag={{ scale: 1.05, zIndex: 50 }}
             onDragStart={(e) => {
-                // Use standard DataTransfer for drop target detection if needed, 
-                // but we'll use a local state 'isDraggingOver' via onDragEnter on cards
                 (e as any).dataTransfer?.setData("userId", member.id);
             }}
-            className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-200 transition-colors group/draggable"
+            className="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-200 transition-colors group/draggable"
         >
-            <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center overflow-hidden shrink-0 group-hover/draggable:ring-2 group-hover/draggable:ring-indigo-500/20 transition-all">
+            <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 group-hover/draggable:border-indigo-200 transition-all">
                 {member.avatar_url ? (
                     <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
-                    <span className="text-[10px] font-black text-slate-300">{(member.full_name || member.email).charAt(0).toUpperCase()}</span>
+                    <span className="text-[9px] font-black text-slate-300 tracking-tighter">{displayName.charAt(0).toUpperCase()}</span>
                 )}
             </div>
             <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black text-slate-800 truncate uppercase tracking-tight">{member.full_name || member.email.split('@')[0]}</p>
-                <p className="text-[8px] font-bold text-slate-400 truncate">{member.email}</p>
+                <p className="text-[10px] font-black text-slate-800 truncate uppercase tracking-tight">{displayName}</p>
+                <p className="text-[9px] font-bold text-slate-400 truncate tracking-tight">{member.email}</p>
             </div>
         </motion.div>
     );
@@ -581,21 +581,21 @@ function TeamCard({ team, idx, onSelect, isDraggingOver, onDragEnter, onDragLeav
                 style={{ backgroundColor: team.header_color || '#F8FAFC' }}
             />
             
-            <div className="p-6 pt-0 -mt-8 flex-1">
-                <div className="flex justify-between items-end mb-6">
+            <div className="p-6 pt-0 -mt-6 flex-1">
+                <div className="flex justify-between items-end mb-4">
                     <div 
-                        className="w-16 h-16 rounded-2xl bg-slate-900 border-4 border-white flex items-center justify-center text-white shadow-lg overflow-hidden"
+                        className="w-12 h-12 rounded-xl bg-slate-900 border-2 border-white flex items-center justify-center text-white shadow-sm overflow-hidden"
                         style={{ color: team.icon_color || '#FFFFFF' }}
                     >
                         {team.icon_url ? (
                             <img src={team.icon_url} alt="" className="w-full h-full object-cover" />
                         ) : (
-                            <Building2 size={28} />
+                            <Building2 size={24} />
                         )}
                     </div>
                 </div>
 
-                <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tight mb-4 group-hover:text-indigo-600 transition-colors">
+                <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight mb-4 group-hover:text-indigo-600 transition-colors">
                     {team.name}
                 </h3>
                 

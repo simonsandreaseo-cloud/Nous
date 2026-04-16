@@ -41,11 +41,10 @@ const SEO_FIELDS = [
 ];
 
 export default function SEOTab({ task }: SEOTabProps) {
-    const { updateTask, activeProject, fetchProjectInventory } = useProjectStore();
+    const { updateTask, activeProject } = useProjectStore();
     const [competitorIndex, setCompetitorIndex] = useState(0);
     const [editableTask, setEditableTask] = useState<Partial<Task>>({});
     const [isSaving, setIsSaving] = useState(false);
-    const [projectUrls, setProjectUrls] = useState<{ url: string; title?: string }[]>([]);
     const [showWPModal, setShowWPModal] = useState(false);
 
     const dossier = (task as any).research_dossier || (task as any).seo_data || {};
@@ -71,12 +70,6 @@ export default function SEOTab({ task }: SEOTabProps) {
             !(typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0);
         return acc + (hasValue ? field.weight : 0);
     }, 0);
-
-    useEffect(() => {
-        if (activeProject) {
-            fetchProjectInventory(activeProject.id).then(urls => setProjectUrls(urls));
-        }
-    }, [activeProject]);
 
     const handleSave = async () => {
         if (Object.keys(editableTask).length === 0) return;
@@ -340,50 +333,6 @@ export default function SEOTab({ task }: SEOTabProps) {
                             </div>
                         </div>
                     )}
-
-                    {/* General Inventory */}
-                    <div>
-                        <div className="flex items-center gap-3 mb-4">
-                            <Link2 size={16} className="text-slate-400" />
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Inventario del Proyecto</span>
-                        </div>
-                        <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-                            {projectUrls.length > 0 ? projectUrls.slice(0, 10).map((u, i) => {
-                                const isPresent = task.content_body?.includes(u.url);
-                                const isSuggested = dossier.suggestedInternalLinks?.some((sl: any) => sl.url === u.url);
-                                if (isSuggested) return null; // Don't duplicate
-
-                                return (
-                                    <div key={i} className={cn(
-                                        "flex items-center justify-between px-4 py-3 rounded-2xl border transition-all group shadow-sm",
-                                        isPresent ? "bg-emerald-50 border-emerald-100" : "bg-slate-50 border-slate-100"
-                                    )}>
-                                        <div className="flex flex-col min-w-0">
-                                            <span className={cn(
-                                                "text-[10px] font-black uppercase tracking-wide truncate pr-4",
-                                                isPresent ? "text-emerald-700" : "text-slate-600"
-                                            )}>
-                                                {u.title || u.url.replace(/https?:\/\//, '').split('/')[1] || 'Internal Link'}
-                                            </span>
-                                            <span className="text-[8px] font-mono text-slate-400 truncate opacity-50">{u.url}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {isPresent && (
-                                                <div className="px-2 py-0.5 bg-emerald-500 text-white rounded text-[8px] font-black uppercase tracking-widest">Linked</div>
-                                            )}
-                                            <a href={u.url} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-white rounded-lg transition-colors text-slate-300 hover:text-indigo-500 shadow-inner">
-                                                <ExternalLink size={12} />
-                                            </a>
-                                        </div>
-                                    </div>
-                                );
-                            }) : (
-                                <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-2xl">
-                                    <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Sin URLs del proyecto. Ejecuta la auditoría GSC.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 </div>
 
                 {/* Schema Suggestions */}

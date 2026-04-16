@@ -1,126 +1,95 @@
-/**
- * NousAssetPatcher v2.0
- * 
- * El "Maestro Sastre" del contenido de Nous.
- * Se encarga de transformar el HTML semántico de Nous en el HTML productivo
- * aplicando reglas de dimensiones, alineación y parches de URL.
- */
+import { PatcherMaster, PatcherRule } from '../images/PatcherMaster';
 
-export interface PatcherRule {
-    pattern: string;     // Regex pattern
-    replacement: string; // Replacement string with $1, $2, etc.
-}
+/**
+ * NousAssetPatcher v3.0 (Powered by PatcherMaster)
+ * 
+ * Orchestrates the final HTML transformation for production export.
+ */
 
 export interface PatcherSettings {
     useNousDimensions: boolean;
     hideFeatured: boolean;
     hideAllImages: boolean;
     rules: PatcherRule[];
-    assetsMap: Record<string, string>; // Mapping of ID -> Final URL if manual
+    assetsMap: Record<string, string>; // Mapping of ID -> Final URL if manual override
+    supabaseHost?: string; 
+    customDomain?: string;
 }
 
 export class NousAssetPatcher {
     /**
-     * Procesa el HTML aplicando todas las reglas y máscaras habilitadas.
+     * Patches the HTML applying all active rules and Screaming HTML logic.
      */
     static patch(html: string, settings: PatcherSettings): string {
         if (typeof window === 'undefined' || !html) return html;
 
+        const master = new PatcherMaster(settings.rules, settings.supabaseHost, settings.customDomain);
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         
-        const assets = doc.querySelectorAll('nous-asset');
+        // Find assets and slots
+        const elements = Array.from(doc.querySelectorAll('nous-asset, [data-nous-asset], div[data-type="imageSlot"]'));
 
-        assets.forEach(asset => {
-            const id = asset.getAttribute('id');
-            const type = asset.getAttribute('type');
+        elements.forEach(element => {
+            const isSlot = element.getAttribute('data-type') === 'imageSlot';
+            const id = element.getAttribute('id') || element.getAttribute('data-id');
+            const role = element.getAttribute('data-role') || element.getAttribute('type') || 'feature';
             
-            // 1. APLICAR MÁSCARAS (Switches)
-            
-            // Caso: Ocultar portada
-            if (type === 'featured' && settings.hideFeatured) {
-                asset.remove();
+            // 1. CLEANUP SLOTS: We don't want placeholders in the production export.
+            if (isSlot) {
+                element.remove();
                 return;
             }
 
-            // Caso: Ocultar todas las imágenes (Carga manual en CMS)
+            // 2. MASKING RULES
+            if (role === 'hero' && settings.hideFeatured) {
+                element.remove();
+                return;
+            }
+
             if (settings.hideAllImages) {
-                const comment = doc.createComment(` [Nous Asset Mask: ${id || 'no-id'}] `);
-                asset.parentNode?.replaceChild(comment, asset);
+                const comment = doc.createComment(` [Nous Asset Masked: ${id || 'no-id'}] `);
+                element.parentNode?.replaceChild(comment, element);
                 return;
             }
 
-            // 2. PROCESAR URL
-            let finalUrl = asset.getAttribute('url') || '';
-            const manualUrl = id ? settings.assetsMap[id] : null;
+            // 3. URL TRANSFORMATION
+            let rawUrl = element.getAttribute('url') || element.getAttribute('src') || '';
+            let finalUrl = master.transform(rawUrl, role === 'hero' ? 'featured' : 'inline');
 
-            if (manualUrl) {
-                finalUrl = manualUrl;
-            } else {
-                // Aplicar reglas de Regex si existen
-                settings.rules.forEach(rule => {
-                    try {
-                        const regex = new RegExp(rule.pattern, 'g');
-                        finalUrl = finalUrl.replace(regex, rule.replacement);
-                    } catch (e) {
-                        console.error('Error applying patcher rule:', rule, e);
-                    }
-                });
+            // Manual override priority
+            if (id && settings.assetsMap[id]) {
+                finalUrl = settings.assetsMap[id];
             }
 
-            // 3. CONSTRUIR HTML FINAL (Estructura Universal)
-            const width = asset.getAttribute('width') || '100%';
-            const height = asset.getAttribute('height') || 'auto';
-            const align = asset.getAttribute('align') || 'center';
-            const alt = asset.getAttribute('alt') || '';
+            // 4. BUILD FINAL SCREAMING HTML
+            const width = element.getAttribute('width') || element.getAttribute('data-width') || '100%';
+            const align = element.getAttribute('align') || element.getAttribute('data-align') || 'center';
+            const wrapping = element.getAttribute('wrapping') || element.getAttribute('data-wrapping') || 'break';
+            const alt = element.getAttribute('alt') || '';
+            const title = element.getAttribute('title') || '';
 
-            // Estructura sugerida por el Gentleman (CMS compatible)
-            // <div class="container"><b><img ...></b></div>
-            const container = doc.createElement('div');
-            container.className = 'nous-patch-container';
-            
-            // Aplicar estilo de alineación
-            const wrapperStyle = this.getWrapperStyle(align);
-            Object.assign(container.style, wrapperStyle);
+            const figure = doc.createElement('figure');
+            figure.setAttribute('style', PatcherMaster.getScreamingStyles(align, wrapping, width));
+            figure.setAttribute('data-nous-asset-exported', 'true');
+            if (id) figure.setAttribute('data-id', id);
 
-            const b = doc.createElement('b');
             const img = doc.createElement('img');
-            
             img.setAttribute('src', finalUrl);
             img.setAttribute('alt', alt);
+            if (title) img.setAttribute('title', title);
             img.setAttribute('loading', 'lazy');
+            img.setAttribute('style', 'width:100%; height:auto; display:block; border-radius:1.5rem;');
             
-            // Solo aplicamos dimensiones si el switch está ON
-            if (settings.useNousDimensions) {
-                if (width !== '100%') {
-                    // Si es px, lo pasamos a atributo width puro para el CMS
-                    const cleanWidth = width.replace('px', '');
-                    img.setAttribute('width', cleanWidth);
-                }
-                if (height !== 'auto') {
-                    const cleanHeight = height.replace('px', '');
-                    img.setAttribute('height', cleanHeight);
-                }
+            // Physical dimensions for older CMS support
+            if (settings.useNousDimensions && width.includes('px')) {
+                img.setAttribute('width', width.replace('px', ''));
             }
 
-            b.appendChild(img);
-            container.appendChild(b);
-
-            asset.parentNode?.replaceChild(container, asset);
+            figure.appendChild(img);
+            element.parentNode?.replaceChild(figure, element);
         });
 
         return doc.body.innerHTML;
-    }
-
-    private static getWrapperStyle(align: string): Partial<CSSStyleDeclaration> {
-        switch (align) {
-            case 'left':
-                return { float: 'left', margin: '0 2rem 2rem 0', display: 'inline-block' };
-            case 'right':
-                return { float: 'right', margin: '0 0 2rem 2rem', display: 'inline-block' };
-            case 'center':
-            default:
-                return { display: 'block', margin: '2rem auto', textAlign: 'center' };
-        }
     }
 }

@@ -1,52 +1,63 @@
-
 /**
- * Types for the Image Generation module.
+ * Senior Layout Engine - Unified Types
+ * This file centralizes all visual asset definitions for the Nous ecosystem.
  */
 
-export interface BlogPost {
-  paragraphs: string[];
-  rawText: string;
-}
-
-export type AspectRatio = '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | 'custom';
+export type AssetStatus = 'pending' | 'ghost' | 'final' | 'error';
+export type LayoutRole = 'hero' | 'feature' | 'icon' | 'info';
+export type AssetAlignment = 'left' | 'center' | 'right' | 'full';
+export type AssetWrapping = 'inline' | 'wrap' | 'break' | 'behind' | 'front';
 export type SupportedLanguage = 'en' | 'es';
 export type InlineImageCount = 'auto' | number;
 
-export interface CustomDimensions {
-  width: number;
-  height: number;
+/**
+ * ImageAsset: The atomic unit of visual design in Nous.
+ * This is the SINGLE SOURCE OF TRUTH for all visual assets.
+ */
+export interface ImageAsset {
+  // --- IDENTIFICATION ---
+  id: string;               // Unique Tiptap Node ID
+  status: AssetStatus;
+  type: 'image' | 'slot';
+  role: LayoutRole;
+  
+  // --- CONTENT ---
+  url?: string;
+  storagePath?: string;     // Internal path for Supabase/Cloudflare R2
+  prompt: string;           // Final prompt (Gemini + Presets + Master)
+  alt: string;              // Multilingual SEO alt text
+  title: string;            // Editorial title
+  rationale?: string;       // AI justification for this placement
+
+  // --- DESIGN (Screaming HTML Portability) ---
+  design: {
+    width: string;          // Portable format: "100%", "400px"
+    align: AssetAlignment;
+    wrapping: AssetWrapping;
+    aspectRatio: string;    // Ej: "16:9", "1:1"
+    pixelDimensions?: {
+      w: number;
+      h: number;
+    };
+  };
+
+  // --- EDITORIAL RESILIENCE ---
+  positioning: {
+    semanticAnchor?: string; // The phrase this asset is anchored to
+    paragraphIndex: number;  // Fallback/Legacy index for sorting
+    offset?: number;         // Character offset within the anchor
+  };
 }
 
 export interface ImagePlan {
-  featuredImage: {
-    prompt: string;
-    filename: string;
-    rationale: string;
-    altText: string;
-    title: string;
-  };
-  inlineImages: {
-    paragraphIndex: number; 
-    prompt: string;
-    filename: string;
-    rationale: string;
-    altText: string;
-    title: string;
-  }[];
+  featuredImage: Partial<ImageAsset>;
+  inlineImages: Partial<ImageAsset>[];
 }
 
-export interface GeneratedImage {
-  id: string;
-  url: string;
-  prompt: string;
-  filename: string;
-  type: 'featured' | 'inline';
-  paragraphIndex?: number;
-  altText: string;
-  title: string;
-  width?: number; // Target physical width
-  height?: number; // Target physical height
-  storage_path?: string;
+export interface HeadlessLayoutResult {
+    slots: ImageAsset[];
+    generatedImages: ImageAsset[];
+    status: 'success' | 'partial_success' | 'error';
 }
 
 export enum ProcessingStatus {
@@ -58,19 +69,4 @@ export enum ProcessingStatus {
   SAVING = 'SAVING',
   COMPLETED = 'COMPLETED',
   ERROR = 'ERROR',
-}
-
-export interface ImageRowConfig {
-  id: string;
-  type: 'portada' | 'cuerpo';
-  imageId?: string;
-  url?: string;
-  altText?: string;
-  title?: string;
-  prompt?: string;
-  model: string;
-  ratio: string;
-  width: number;
-  height: number;
-  miniPrompt: string;
 }

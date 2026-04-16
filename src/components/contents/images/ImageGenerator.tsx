@@ -30,8 +30,11 @@ import {
     InlineImageCount,
     ImagePlan
 } from '@/types/images';
-import { uploadGeneratedImage } from '@/lib/actions/imageActions';
-import { ImageWorkflowService } from '@/lib/services/writer/image-workflow';
+import { 
+    uploadGeneratedImage, 
+    executeImagePipelineAction, 
+    regenerateImageAction 
+} from '@/lib/actions/imageActions';
 
 import { ContentSelector } from './ContentSelector';
 import { ArticlePreview } from './ArticlePreview';
@@ -160,28 +163,45 @@ export default function ImageGenerator() {
             };
             setBlogPost(post);
 
-            // 2. Execute Workflow
-            await ImageWorkflowService.executeFullPipeline(paragraphs, {
+            // 2. Execute Workflow via Server Action
+            const res = await executeImagePipelineAction({
+                paragraphs,
                 instructions,
                 language: 'es',
-                inlineImageCount,
-                realismMode,
-                sourceModel,
-                optimizePrompt,
-                featuredRatio,
-                useCustomSize,
-                customDimensions: { width: customWidth, height: customHeight },
-                applyCustomToBody,
                 taskId: selectedTask.id,
-                projectLogoUrl: selectedTask.project_logo_url,
-                onStatusChange: (s, msg) => {
-                    setStatus(s);
-                    setStatusMessage(msg);
+                portadaPreset: {
+                    model: sourceModel,
+                    ratio: featuredRatio,
+                    width: useCustomSize ? customWidth : 1280,
+                    height: useCustomSize ? customHeight : 720,
+                    mini_prompt: instructions
                 },
-                onImageGenerated: (images) => {
-                    setGeneratedImages(images);
-                }
+                bodyPresets: Array(typeof inlineImageCount === 'number' ? inlineImageCount : 3).fill({
+                    model: sourceModel,
+                    ratio: 'auto',
+                    width: (useCustomSize && applyCustomToBody) ? customWidth : 800,
+                    height: (useCustomSize && applyCustomToBody) ? customHeight : 450,
+                    mini_prompt: instructions
+                })
             });
+
+            if (res.success && res.assets) {
+                // Map ImageAsset back to GeneratedImage for this component's local state
+                const mapped: GeneratedImage[] = res.assets.map(asset => ({
+                    id: asset.id,
+                    url: asset.url!,
+                    prompt: asset.prompt,
+                    filename: `${asset.id}.webp`,
+                    type: asset.role === 'hero' ? 'featured' : 'inline',
+                    paragraphIndex: asset.positioning.paragraphIndex,
+                    altText: asset.alt,
+                    title: asset.title
+                }));
+                setGeneratedImages(mapped);
+                setStatus(ProcessingStatus.COMPLETED);
+            } else {
+                throw new Error(res.error || "Fallo en la generación remota");
+            }
 
             // Refresh existing list
             handleContentSelection(selectedTask);
@@ -201,17 +221,38 @@ export default function ImageGenerator() {
             setStatus(ProcessingStatus.REGENERATING);
             setGeneratedImages(prev => prev.map(img => img.id === image.id ? { ...img, url: '/loading-spinner.gif' } : img)); // Temporary UI feedback
 
-            const updatedImage = await ImageWorkflowService.regenerateImage(image, {
-                sourceModel,
-                optimizePrompt,
-                useCustomSize,
-                customDimensions: { width: customWidth, height: customHeight },
-                applyCustomToBody,
-                taskId: selectedTask.id,
-                projectLogoUrl: selectedTask.project_logo_url
-            }, refinement);
+            const res = await regenerateImageAction({
+                asset: {
+                    id: image.id,
+                    prompt: image.prompt,
+                    role: image.type === 'featured' ? 'hero' : 'feature',
+                    positioning: { paragraphIndex: image.paragraphIndex }
+                },
+                options: {
+                    sourceModel,
+                    customDimensions: useCustomSize ? { width: customWidth, height: customHeight } : undefined,
+                    taskId: selectedTask.id
+                },
+                refinement
+            });
 
-            setGeneratedImages(prev => prev.map(img => img.id === image.id ? updatedImage : img));
+            if (res.success && res.asset) {
+                const asset = res.asset;
+                const updatedImage: GeneratedImage = {
+                    id: asset.id,
+                    url: asset.url!,
+                    prompt: asset.prompt,
+                    filename: `${asset.id}.webp`,
+                    type: asset.role === 'hero' ? 'featured' : 'inline',
+                    paragraphIndex: asset.positioning.paragraphIndex,
+                    altText: asset.alt,
+                    title: asset.title
+                };
+                setGeneratedImages(prev => prev.map(img => img.id === image.id ? updatedImage : img));
+            } else {
+                throw new Error(res.error || "Fallo en la regeneración remota");
+            }
+            
             setStatus(prevStatus);
         } catch (err: any) {
             alert("Error al regenerar: " + err.message);

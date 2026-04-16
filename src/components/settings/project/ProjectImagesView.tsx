@@ -1,16 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
-import { Save, Loader2, Shield, Weight, Image as ImageIcon, Sparkles, Layers, Plus, Trash2, Maximize2 } from "lucide-react";
+import { Save, Loader2, Shield, Weight, Image as ImageIcon, Sparkles, Layers, Plus, Trash2 } from "lucide-react";
 import { Switch } from "@headlessui/react";
 import { cn } from "@/utils/cn";
 import { ImagePreset } from "@/types/project";
 
 const AVAILABLE_MODELS = [
-    { id: "imagen-4.0-generate-001", label: "Imagen 4.0", provider: "Google AI", quality: "ULTRA", color: "text-purple-600 bg-purple-50 border-purple-200" },
-    { id: "imagen-3.0-fast-generate", label: "Imagen Fast", provider: "Google AI", quality: "ALTA", color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
-    { id: "grok-imagine-pro", label: "Grok Pro", provider: "Pollinations", quality: "ALTA", color: "text-indigo-600 bg-indigo-50 border-indigo-200" },
     { id: "flux", label: "Flux 1 Pro", provider: "Pollinations", quality: "ULTRA", color: "text-rose-600 bg-rose-50 border-rose-200" },
+    { id: "grok-imagine-pro", label: "Grok Pro", provider: "Pollinations", quality: "ALTA", color: "text-indigo-600 bg-indigo-50 border-indigo-200" },
     { id: "wan-image-pro", label: "Wan Pro", provider: "Pollinations", quality: "MEDIA-ALTA", color: "text-amber-600 bg-amber-50 border-amber-200" }
 ];
 
@@ -44,7 +42,7 @@ export default function ProjectImagesView() {
             ratio: "16:9",
             width: 1280,
             height: 720,
-            model: "imagen-4.0-generate-001",
+            model: "flux",
             mini_prompt: ""
         },
         body_presets: [
@@ -54,7 +52,7 @@ export default function ProjectImagesView() {
                 ratio: "auto",
                 width: 800,
                 height: 450,
-                model: "imagen-3.0-fast-generate",
+                model: "flux",
                 mini_prompt: ""
             }
         ]
@@ -73,7 +71,7 @@ export default function ProjectImagesView() {
                     ratio: "16:9",
                     width: imgSettings.portada?.width || 1280,
                     height: imgSettings.portada?.height || 720,
-                    model: "imagen-4.0-generate-001",
+                    model: "flux",
                     mini_prompt: ""
                 },
                 body_presets: imgSettings.body_presets?.length ? imgSettings.body_presets : [
@@ -83,7 +81,7 @@ export default function ProjectImagesView() {
                         ratio: "auto",
                         width: imgSettings.body?.width || 800,
                         height: imgSettings.body?.height || 450,
-                        model: "imagen-3.0-fast-generate",
+                        model: "flux",
                         mini_prompt: ""
                     }
                 ]
@@ -151,7 +149,7 @@ export default function ProjectImagesView() {
                     ratio: "auto",
                     width: 800,
                     height: 450,
-                    model: "imagen-3.0-fast-generate",
+                    model: "flux",
                     mini_prompt: ""
                 }
             ]

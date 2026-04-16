@@ -1,0 +1,19 @@
+Modelo,Categoría,RPM,TPM,RPD
+Gemini 3 Flash,Modelos de texto de salida,7 / 5,30.57K / 250K,9 / 20
+Gemma 4 31B,Otros modelos,15 / 15,1.01M / Ilimitado,388 / 1.5K
+Gemini 3.1 Flash Lite,Modelos de texto de salida,4 / 15,198.1K / 250K,10 / 500
+Gemini 2.5 Flash Lite,Modelos de texto de salida,2 / 10,131.83K / 250K,4 / 20
+Gemma 3 12B,Otros modelos,2 / 30,4.82K / 15K,3 / 14.4K
+Gemini 2.5 Flash,Modelos de texto de salida,0 / 5,0 / 250K,0 / 20
+Gemini 2.5 Flash TTS,Modelos generativos multimodales,0 / 3,0 / 10K,0 / 10
+Gemma 3 1B,Otros modelos,0 / 30,0 / 15K,0 / 14.4K
+Gemma 3 4B,Otros modelos,0 / 30,0 / 15K,0 / 14.4K
+Gemma 3 27B,Otros modelos,0 / 30,0 / 15K,0 / 14.4K
+Gemma 3 2B,Otros modelos,0 / 30,0 / 15K,0 / 14.4K
+Gemma 4 26B,Otros modelos,0 / 15,0 / Ilimitado,0 / 1.5K
+Gemini Embedding 1,Otros modelos,0 / 100,0 / 30K,0 / 1K
+Gemini Robotics ER 1.5 Preview,Otros modelos,0 / 10,0 / 250K,0 / 20
+Gemini Robotics ER 1.6 Preview,Otros modelos,0 / 5,0 / 250K,0 / 20
+Gemini Embedding 2,Otros modelos,0 / 100,0 / 30K,0 / 1K
+Gemini 2.5 Flash Native Audio Dialog,API en vivo,0 / Ilimitado,0 / 1M,0 / Ilimitado
+Gemini 3 Flash Live,API en vivo,0 / Ilimitado,0 / 65K,0 / Ilimitado

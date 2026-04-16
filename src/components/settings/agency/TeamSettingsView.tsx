@@ -264,24 +264,24 @@ export function TeamSettings({ teamId, onBack }: { teamId: string, onBack?: () =
                 </div>
             ) : null}
 
-            <div className="flex justify-between items-center mb-8 relative z-10">
-                <div className="flex items-center gap-4">
+            <div className="flex justify-between items-end mb-10 border-b border-slate-100 pb-8">
+                <div className="flex items-center gap-6">
                     {onBack && (
                         <button 
                             onClick={onBack}
                             className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:text-slate-900 flex items-center justify-center transition-all hover:bg-slate-100 border border-slate-100"
                         >
-                            <X size={20} />
+                            <X size={18} />
                         </button>
                     )}
                     <div>
-                        <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Miembros del Equipo</h2>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Niveles de acceso y jerarquía</p>
+                        <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">Miembros del Equipo</h2>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">Niveles de acceso y jerarquía</p>
                     </div>
                 </div>
                 <button
                     onClick={openInviteModal}
-                    className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/10"
+                    className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all flex items-center gap-2 shadow-[0_8px_16px_rgba(0,0,0,0.1)]"
                 >
                     <Plus size={14} /> Añadir Miembro
                 </button>
@@ -305,46 +305,52 @@ export function TeamSettings({ teamId, onBack }: { teamId: string, onBack?: () =
                         ) : (
                             <div className="space-y-4">
                                 {/* Members List */}
-                                {members.map(member => (
-                                    <div key={member.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-200 transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center font-black text-slate-400">
-                                                {(member.profiles?.full_name || member.profiles?.email || 'M').charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-black text-slate-900 uppercase tracking-tight">
-                                                    {(member.profiles?.full_name && member.profiles.full_name !== 'MIEMBRO') ? member.profiles.full_name : (member.profiles?.email || 'Miembro')}
-                                                </p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">{member.role}</span>
-                                                    {member.status === 'pending' && (
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md">Pendiente</span>
-                                                    )}
-                                                    {member.custom_permissions?.admin && (
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 px-2 py-0.5 rounded-md">Admin</span>
-                                                    )}
+                                {members.map(member => {
+                                    const displayName = (member.profiles?.full_name && member.profiles.full_name !== 'MIEMBRO') ? member.profiles.full_name : (member.profiles?.email || 'Miembro');
+                                    return (
+                                        <div key={member.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-200 transition-all group">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center font-black text-slate-300">
+                                                    {member.profiles?.avatar_url ? (
+                                                        <img src={member.profiles.avatar_url} className="w-full h-full object-cover rounded-xl" />
+                                                    ) : displayName.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">
+                                                        {displayName}
+                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50/50 px-1.5 py-0.5 rounded border border-indigo-100/50">{member.role}</span>
+                                                        {member.status === 'pending' && (
+                                                            <span className="text-[8px] font-black uppercase tracking-widest text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">Pendiente</span>
+                                                        )}
+                                                        {member.custom_permissions?.admin && (
+                                                            <span className="text-[8px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">Admin</span>
+                                                        )}
+                                                        <span className="text-[8px] font-bold text-slate-400 ml-1">{member.profiles?.email}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {teamOwnerId === currentUserId && member.user_id !== currentUserId && (
-                                                <button 
-                                                    onClick={() => handleTransferOwnership(member.user_id)} 
-                                                    className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all border border-indigo-100"
-                                                    title="Transferir Propiedad"
-                                                >
-                                                    Transferir Propiedad
+                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {teamOwnerId === currentUserId && member.user_id !== currentUserId && (
+                                                    <button 
+                                                        onClick={() => handleTransferOwnership(member.user_id)} 
+                                                        className="px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-indigo-600 hover:bg-slate-50 rounded-lg transition-all border border-slate-100"
+                                                        title="Transferir Propiedad"
+                                                    >
+                                                        Transferir
+                                                    </button>
+                                                )}
+                                                <button onClick={() => openEditModal(member)} className="p-2 text-slate-300 hover:text-slate-900 transition-colors">
+                                                    <Edit2 size={14} />
                                                 </button>
-                                            )}
-                                            <button onClick={() => openEditModal(member)} className="p-2 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors">
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button onClick={() => handleDeleteMember(member.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                                <Trash2 size={16} />
-                                            </button>
+                                                <button onClick={() => handleDeleteMember(member.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
 
                                 {/* Invites List */}
                                 {invites.map(invite => (
@@ -447,15 +453,15 @@ export function TeamSettings({ teamId, onBack }: { teamId: string, onBack?: () =
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-[32px] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="sticky top-0 bg-white border-b border-slate-100 p-6 flex justify-between items-center z-[110]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[0_32px_64px_rgba(0,0,0,0.2)] animate-in zoom-in-95 duration-200">
+                        <div className="sticky top-0 bg-white border-b border-slate-50 p-8 flex justify-between items-center z-[110]">
                             <div>
-                                <h3 className="text-lg font-black text-slate-900 uppercase italic">{isEditing ? 'Editar Accesos' : 'Añadir al Equipo'}</h3>
-                                <p className="text-xs text-slate-500">Configura los permisos para {isEditing ? email : 'este usuario'}.</p>
+                                <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">{isEditing ? 'Editar Accesos' : 'Añadir al Equipo'}</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-2">Configuración de permisos y roles</p>
                             </div>
-                            <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
-                                <X size={16} />
+                            <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-all">
+                                <X size={18} />
                             </button>
                         </div>
 

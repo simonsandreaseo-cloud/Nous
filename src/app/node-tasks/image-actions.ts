@@ -1,4 +1,4 @@
-// "use server" removed for desktop build
+"use server";
 
 import { ImagePlan, AspectRatio, SupportedLanguage, InlineImageCount } from '@/types/images';
 import { getGeminiKey, getGeminiKeysCount } from '@/lib/ai/config';

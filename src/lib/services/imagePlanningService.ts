@@ -1,13 +1,14 @@
-
 import { aiRouter } from '../ai/router';
-import { ImagePlan, InlineImageCount, SupportedLanguage } from '@/types/images';
+import { ImagePlan, SupportedLanguage, InlineImageCount } from '@/types/images';
 
 /**
- * Service for planning image placements and prompts based on content.
+ * ImagePlanningService (V3 - Senior Layout Engine)
+ * The single tactical brain for visual strategy.
+ * Complies with AI Hierarchy: Uses gemini-3.1-flash-lite-preview for context volume.
  */
 export class ImagePlanningService {
   /**
-   * Analyzes content and returns a plan for featured and inline images.
+   * Analyzes content and returns a unified visual strategy plan.
    */
   static async planImages(
     paragraphs: string[],
@@ -16,58 +17,55 @@ export class ImagePlanningService {
     inlineImageCount: InlineImageCount = 'auto',
     realismMode: 'standard' | 'hyperrealistic' = 'standard'
   ): Promise<ImagePlan> {
-    const contentWithIndices = paragraphs.map((p, i) => `[Párrafo ${i}]: ${p}`).join("\n\n");
-
+    const fullText = paragraphs.join("\n\n");
+    
     const countInstruction = inlineImageCount === 'auto' 
       ? "Sugiere entre 2 y 3 imágenes para romper el texto visualmente."
       : `Sugiere exactamente ${inlineImageCount} imágenes para romper el texto visualmente.`;
 
-    const langInstruction = language === 'es' 
-      ? "Los metadatos (altText, title, rationale) deben estar en ESPAÑOL. Los PROMPTS deben estar en INGLÉS para garantizar la mejor calidad de generación."
-      : "Todo en Inglés.";
+    const systemPrompt = `Eres un Director de Arte y Maquetador Editorial Senior. 
+Tu misión es planificar una estrategia visual de alto impacto para un artículo premium.
 
-    const realismInstruction = realismMode === 'hyperrealistic'
-      ? "IMPORTANTE: Genera prompts EXTRA DETALLADOS y FOTOREALISTAS. Incluye descriptores como: 'raw photo, realistic skin texture, highly detailed, photorealistic, cinematic lighting, shot on 35mm lens, national geographic style, ultra realistic'. EVITA estilos artísticos, 3D render o ilustraciones."
-      : "Estilo equilibrado entre estético y descriptivo.";
+REGLAS DE ORO:
+1. SEMANTIC ANCHOR: Para cada imagen, identifica una frase corta (5-8 palabras) del texto donde la imagen agrega valor conceptual. Esta frase DEBE existir tal cual en el texto.
+2. ROLES EDITORIALES:
+   - HERO: Portada magistral (16:9). El "vibe" general del artículo.
+   - FEATURE: Apoyo visual descriptivo para secciones clave.
+   - INFO: Visualización de conceptos o datos.
+   - ICON: Minimalismo simbólico para detalles específicos.
+3. PROMPTS: Deben ser en INGLÉS, altamente descriptivos, incluyendo iluminación (cinematic lighting), estilo de cámara (f/1.8, 35mm) y composición.
+4. COHERENCIA: Todas las imágenes deben compartir una estética visual común basada en el estilo solicitado.
 
-    const systemPrompt = `Eres un experto en maquetación visual de blogs y SEO. 
-Analiza el artículo proporcionado y planifica una imagen destacada (featuredImage) y varias imágenes internas (inlineImages) para mejorar el engagement y el SEO.
-
-Reglas:
-1. Genera prompts visuales detallados en INGLÉS.
-2. Genera nombres de archivo SEO en formato kebab-case.
-3. El texto de alt y título debe estar en el idioma solicitado (${language}).
-4. Asegúrate de que las imágenes internas se ubiquen en índices de párrafos que tengan sentido temático.
-5. CALIDAD VISUAL: ${realismInstruction}
-
-DEBES RESPONDER EXCLUSIVAMENTE EN FORMATO JSON siguiendo este esquema:
+DEBES RESPONDER EXCLUSIVAMENTE EN JSON:
 {
   "featuredImage": {
-    "prompt": "descripción visual detallada",
-    "filename": "nombre-archivo-seo.jpg",
-    "rationale": "por qué esta imagen",
-    "altText": "texto alternativo SEO",
-    "title": "título de la imagen"
+    "semanticAnchor": "frase exacta del inicio",
+    "role": "hero",
+    "prompt": "Master prompt in English...",
+    "alt": "Descripción SEO",
+    "title": "Título sugerido",
+    "rationale": "Por qué elegiste este visual"
   },
   "inlineImages": [
     {
-      "paragraphIndex": number,
-      "prompt": "descripción",
-      "filename": "nombre.jpg",
-      "rationale": "razón",
-      "altText": "alt",
-      "title": "título"
+      "semanticAnchor": "frase exacta del cuerpo",
+      "role": "feature",
+      "prompt": "Specific prompt in English...",
+      "alt": "...",
+      "title": "...",
+      "rationale": "..."
     }
   ]
 }`;
 
     const prompt = `
       ${countInstruction}
-      ${langInstruction}
-      Instrucciones de Estilo: ${instructions || "Estilo profesional, limpio y moderno."}
+      Modo de realismo: ${realismMode}
+      Instrucciones de Estilo: ${instructions || "Estética moderna y profesional."}
+      Idioma de metadatos (alt/title): ${language === 'es' ? 'Español' : 'English'}
 
       TEXTO DEL ARTÍCULO:
-      ${contentWithIndices}
+      ${fullText}
     `;
 
     try {
@@ -75,16 +73,18 @@ DEBES RESPONDER EXCLUSIVAMENTE EN FORMATO JSON siguiendo este esquema:
         prompt,
         systemPrompt,
         jsonMode: true,
-        model: 'gemini-2.5-flash'
+        model: 'gemini-3.1-flash-lite-preview'
       });
 
-      if (!response.text) throw new Error("Respuesta vacía de la IA.");
+      if (!response.text) throw new Error("IA returned empty response.");
       
-      const cleanJson = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleanJson) as ImagePlan;
+      const cleanJson = response.text.replace(/```json|```/g, '').trim();
+      const plan = JSON.parse(cleanJson);
+
+      return plan as ImagePlan;
     } catch (error: any) {
-      console.error("Planning error:", error);
-      throw new Error("Error al planificar imágenes: " + (error.message || "Error desconocido"));
+      console.error("[ImagePlanningService] Tactical Planning Error:", error);
+      throw new Error("Error en la planificación semántica visual: " + error.message);
     }
   }
 }

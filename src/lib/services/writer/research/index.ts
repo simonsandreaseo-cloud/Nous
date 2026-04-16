@@ -369,9 +369,12 @@ Retorna ÚNICAMENTE este formato JSON válido:
         }
 
         if (units && units.length > 0) {
-            const { data: catData } = await supabase.from('project_urls').select('category').eq('project_id', projectId).not('category', 'is', null);
-            const distinctCategories = Array.from(new Set((catData || []).map((c: any) => c.category))).filter(Boolean);
+            // Optimized: Fetch unique categories via RPC instead of downloading thousands of rows
+            const { data: distinctCategoriesData } = await supabase.rpc('get_unique_categories', { p_project_id: projectId });
+            const distinctCategories = (distinctCategoriesData || []).map((c: any) => c.category || c).filter(Boolean);
+            
             const argotRule = askSet.size > 0 ? `\n\nREGLA DE PUNTAJE DE ARGOT: prioritiza x5 palabras ASK: ${Array.from(askSet).join(', ')}` : '';
+
 
             const linkRes = await aiRouter.generate({
                 prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${units.length} artículos):\n${JSON.stringify(units)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${maxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,

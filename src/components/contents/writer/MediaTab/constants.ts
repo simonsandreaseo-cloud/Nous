@@ -1,8 +1,6 @@
 export const AVAILABLE_MODELS = [
     { id: 'grok-imagine-pro', label: 'Grok Pro', provider: 'Pollinations', quality: 'ALTA' },
     { id: 'flux', label: 'Flux 1 Pro', provider: 'Pollinations', quality: 'ULTRA' },
-    { id: 'imagen-4.0-generate-001', label: 'Imagen 4.0', provider: 'Google AI', quality: 'ULTRA' },
-    { id: 'imagen-3.0-fast-generate', label: 'Imagen Fast', provider: 'Google AI', quality: 'ALTA' },
     { id: 'wan-image-pro', label: 'Wan Pro', provider: 'Pollinations', quality: 'MEDIA-ALTA' }
 ];
 
