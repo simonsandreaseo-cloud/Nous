@@ -7,10 +7,10 @@ import { Task } from '@/types/project';
 const LIGHT_TASK_COLUMNS = `
     id, project_id, title, brief, scheduled_date, status, content_type, priority, 
     target_keyword, target_url_slug, metadata, volume, viability, 
-    word_count, target_word_count, word_count_real, ai_percentage, docs_url, layout_status, outline_structure,
+    word_count, target_word_count, word_count_real, ai_percentage, docs_url, layout_status,
     creator_id, researcher_id, writer_id, corrector_id, assigned_to, 
     assigned_at, completed_at, created_at,
-    seo_title, meta_description, h1, excerpt, language, content_body
+    seo_title, meta_description, h1, excerpt, language
 `;
 
 export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = (set, get) => ({
@@ -39,23 +39,37 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
     },
 
     fetchTaskDetails: async (taskId) => {
-        const { data, error } = await supabase
+        // Fetch core metadata
+        const { data: task, error: taskError } = await supabase
             .from('tasks')
             .select('*')
             .eq('id', taskId)
             .single();
 
-        if (error) {
-            console.error('Error fetching task details:', error);
+        if (taskError) {
+            console.error('Error fetching task details:', taskError);
             return null;
         }
 
+        // Fetch heavy data in parallel
+        const [contentBody, researchData] = await Promise.all([
+            get().fetchTaskContent(taskId),
+            get().fetchTaskResearch(taskId)
+        ]);
+
+        // Aggregate into a full object for the frontend (backward compatibility)
+        const fullTask = { 
+            ...task, 
+            content_body: contentBody, 
+            ...researchData 
+        } as Task;
+
         // Update local state to include full data for this task
         set(state => ({
-            tasks: state.tasks.map(t => t.id === taskId ? (data as Task) : t)
+            tasks: state.tasks.map(t => t.id === taskId ? fullTask : t)
         }));
 
-        return data as Task;
+        return fullTask;
     },
 
     fetchTasksFullData: async (taskIds) => {
@@ -82,26 +96,66 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
     addTask: async (newTask) => {
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
+        const taskId = (newTask as any).id || crypto.randomUUID();
 
-        const { data, error } = await supabase
-            .from('tasks')
-            .insert([{
-                ...newTask,
-                creator_id: user?.id,
-                assigned_to: newTask.assigned_to || user?.id,
-                assigned_at: (newTask.assigned_to || user?.id) ? new Date().toISOString() : null
-            }])
-            .select()
-            .maybeSingle();
+        // Prepare distributed data
+        const taskData = {
+            ...newTask,
+            id: taskId,
+            creator_id: user?.id,
+            assigned_to: newTask.assigned_to || user?.id,
+            assigned_at: (newTask.assigned_to || user?.id) ? new Date().toISOString() : null
+        };
 
-        if (error || !data) {
-            NotificationService.error('Error al crear tarea', error?.message || 'No se pudo recuperar la tarea creada');
-            return { data: null, error };
+        // Extract heavy data
+        const contentBody = taskData.content_body;
+        const researchData = {
+            research_dossier: taskData.research_dossier || {},
+            outline_structure: taskData.outline_structure || {},
+            seo_data: taskData.seo_data || {},
+            schemas: taskData.schemas || {}
+        };
+
+        // Remove heavy fields from main task insert
+        delete taskData.content_body;
+        delete taskData.research_dossier;
+        delete taskData.outline_structure;
+        delete taskData.seo_data;
+        delete taskData.schemas;
+
+        // Execute inserts sequentially to avoid foreign key violations
+        const { error: taskError } = await supabase.from('tasks').insert([taskData]);
+
+        if (taskError) {
+            NotificationService.error('Error al crear tarea', taskError.message);
+            return { data: null, error: taskError };
         }
 
-        set(state => ({ tasks: [...state.tasks, data as Task] }));
+        const relatedPromises = [];
+        if (contentBody) {
+            relatedPromises.push(supabase.from('task_contents').insert([{ id: taskId, content_body: contentBody }]));
+        }
+
+        if (Object.keys(researchData).length > 0) {
+            relatedPromises.push(supabase.from('task_research').insert([{ id: taskId, ...researchData }]));
+        }
+
+        if (relatedPromises.length > 0) {
+            const relatedResults = await Promise.all(relatedPromises);
+            const relatedError = relatedResults.find(r => r.error)?.error;
+
+            if (relatedError) {
+                NotificationService.error('Error al crear detalles de la tarea', relatedError.message);
+                return { data: null, error: relatedError };
+            }
+        }
+
+        // Optimistic update to local state
+        const fullTask = { ...taskData, content_body: contentBody, ...researchData } as Task;
+        set(state => ({ tasks: [...state.tasks, fullTask] }));
+        
         NotificationService.success('Tarea creada');
-        return { data: data as Task, error: null };
+        return { data: fullTask, error: null };
     },
 
     updateTask: async (taskId, updates) => {
@@ -112,58 +166,90 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
         const userId = session?.user?.id;
         const finalUpdates: any = { ...updates };
 
+        // Distribute updates into specific buckets to save egress and maintain clean architecture
+        const contentUpdates: any = {};
+        const researchUpdates: any = {};
+        const taskUpdates: any = {};
+
+        // Mapping logic for distributed tables
+        Object.entries(finalUpdates).forEach(([key, value]) => {
+            if (key === 'content_body') {
+                contentUpdates[key] = value;
+            } else if (['research_dossier', 'outline_structure', 'seo_data', 'schemas'].includes(key)) {
+                researchUpdates[key] = value;
+            } else {
+                taskUpdates[key] = value;
+            }
+        });
+
         if (userId) {
             // Researcher Tracking
             if (updates.research_dossier && !currentTask?.researcher_id) {
-                finalUpdates.researcher_id = userId;
-                if (!currentTask?.assigned_to) {
-                    finalUpdates.assigned_to = userId;
-                    finalUpdates.assigned_at = new Date().toISOString();
-                }
+                taskUpdates.researcher_id = userId;
             }
 
             // Writer Tracking & Auto-Status
             if (updates.content_body !== undefined && updates.content_body.trim() !== '') {
                 if (!currentTask?.writer_id) {
-                    finalUpdates.writer_id = userId;
-                    if (!currentTask?.assigned_to) {
-                        finalUpdates.assigned_to = userId;
-                        finalUpdates.assigned_at = new Date().toISOString();
-                    }
+                    taskUpdates.writer_id = userId;
                 }
                 
                 if (!updates.status && (!currentTask?.status || ['idea', 'por_redactar', 'en_investigacion'].includes(currentTask.status))) {
-                    finalUpdates.status = 'por_corregir';
+                    taskUpdates.status = 'por_corregir';
                 }
             }
-
-            // Corrector Tracking
-            const approvalStatuses = ['por_maquetar', 'publicado'];
-            if (updates.status && approvalStatuses.includes(updates.status) && !currentTask?.corrector_id) {
-                finalUpdates.corrector_id = userId;
-            }
         }
 
-        const { data, error } = await supabase
-            .from('tasks')
-            .update(finalUpdates)
-            .eq('id', taskId)
-            .select()
-            .maybeSingle();
+        // Execute updates in parallel for better performance
+        const promises = [];
+        
+        if (Object.keys(taskUpdates).length > 0) {
+            promises.push(supabase.from('tasks').update(taskUpdates).eq('id', taskId));
+        }
+        
+        if (Object.keys(contentUpdates).length > 0) {
+            promises.push(supabase.from('task_contents').upsert({ id: taskId, ...contentUpdates }));
+        }
+        
+        if (Object.keys(researchUpdates).length > 0) {
+            promises.push(supabase.from('task_research').upsert({ id: taskId, ...researchUpdates }));
+        }
 
-        if (error) {
-            NotificationService.error('Error al actualizar tarea', error.message);
+        const results = await Promise.all(promises);
+        const hasError = results.some(r => r.error);
+
+        if (hasError) {
+            const error = results.find(r => r.error)?.error;
+            NotificationService.error('Error al actualizar tarea', error?.message || 'Error desconocido');
             return;
         }
 
-        if (!data) {
-            console.warn(`[TaskSlice] Update succeeded but row not returned for ID: ${taskId}. Possibly deleted or RLS restriction.`);
-            return;
-        }
-
+        // Optimistic update: merging locally
         set(state => ({
-            tasks: state.tasks.map(t => t.id === taskId ? (data as Task) : t)
+            tasks: state.tasks.map(t => t.id === taskId ? { ...t, ...finalUpdates } as Task : t)
         }));
+    },
+
+    fetchTaskContent: async (taskId) => {
+        const { data, error } = await supabase
+            .from('task_contents')
+            .select('content_body')
+            .eq('id', taskId)
+            .maybeSingle();
+            
+        if (error) console.error('Error fetching task content:', error);
+        return data?.content_body || '';
+    },
+
+    fetchTaskResearch: async (taskId) => {
+        const { data, error } = await supabase
+            .from('task_research')
+            .select('*')
+            .eq('id', taskId)
+            .maybeSingle();
+            
+        if (error) console.error('Error fetching task research:', error);
+        return data || {};
     },
 
     deleteTask: async (taskId) => {
@@ -322,19 +408,18 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
             assigned_at: userId ? new Date().toISOString() : null
         };
 
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('tasks')
             .update(updates)
-            .eq('id', taskId)
-            .select()
-            .maybeSingle();
+            .eq('id', taskId);
 
-        if (error || !data) {
-            NotificationService.error('Error al asignar tarea', error?.message || 'Tarea no encontrada');
+        if (error) {
+            NotificationService.error('Error al asignar tarea', error.message);
             return;
         }
+
         set(state => ({
-            tasks: state.tasks.map(t => t.id === taskId ? (data as Task) : t)
+            tasks: state.tasks.map(t => t.id === taskId ? { ...t, ...updates } as Task : t)
         }));
         NotificationService.notify('Tarea asignada');
     },

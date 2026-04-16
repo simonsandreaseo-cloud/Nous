@@ -8,7 +8,7 @@ import {
     Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
     Type, Palette, Highlighter, ChevronDown, X
 } from 'lucide-react';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { cn } from '@/utils/cn';
 import { getSharedExtensions } from '@/lib/tiptap-extensions';
 import { LinkPopover } from '@/components/shared/LinkPopover';
@@ -48,9 +48,9 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
 
     useEffect(() => {
         if (editor && content !== editor.getHTML()) {
-            if (!editor.isFocused) {
-                editor.commands.setContent(content, false);
-            }
+                    if (!editor.isFocused) {
+                        editor.commands.setContent(content, { emitUpdate: false });
+                    }
         }
     }, [content, editor]);
 
@@ -155,7 +155,6 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
             <BubbleMenu 
                 editor={editor} 
                 pluginKey="correctionMainBubbleMenu"
-                tippyOptions={{ duration: 150 }}
                 shouldShow={({ editor }) => !editor.isActive('link') && editor.state.selection.content().size > 0}
             >
                 <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-xl shadow-2xl border border-slate-200/50 rounded-2xl p-1.5 animate-in zoom-in-95 duration-200">
