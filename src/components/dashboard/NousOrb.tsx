@@ -134,7 +134,6 @@ export default function NousOrb({
     const hasActions = viewMode === 'planner' && (stats.ideas > 0 || stats.needOutline > 0 || stats.needHuman > 0 || stats.needDraft > 0 || effectiveSelectedCount > 0);
 
 
-
     return (
         <div className={cn(
             "z-[300] flex flex-col items-end gap-4",
@@ -287,98 +286,3 @@ export default function NousOrb({
         </div>
     );
 }
-
-
-                        {/* Stream de Logs con Textos de Valor */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-slate-50/30">
-                            {debugPrompts.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-center py-16 opacity-40">
-                                    <BrainCircuit size={40} className="mb-4 text-indigo-400" />
-                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] leading-loose text-slate-500">
-                                        Nous en Espera<br/>Listo para la creación.
-                                    </p>
-                                </div>
-                            ) : (
-                                debugPrompts.map((log, i) => (
-                                    <motion.div 
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: i * 0.1 }}
-                                        key={i} 
-                                        className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm relative overflow-hidden group"
-                                    >
-                                        <div className="flex items-start gap-3 relative z-10">
-                                            <div className="mt-0.5 w-7 h-7 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
-                                                {getIconForPhase(log.phase)}
-                                            </div>
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest truncate whitespace-normal leading-tight">{log.prompt}</span>
-                                                {log.response && (
-                                                    <span className="text-[10px] font-medium text-slate-500 mt-1 leading-relaxed">
-                                                        {log.response}
-                                                    </span>
-                                                )}
-                                                <span className="text-[8px] font-bold text-slate-300 mt-2">{log.timestamp}</span>
-                                            </div>
-                                        </div>
-                                        {/* Hover glow */}
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-50/30 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
-                                    </motion.div>
-                                ))
-                            )}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* El Orbe Nous Unificado (Minimalista) */}
-            <div className="relative group p-4 mr-[-16px] mb-[-16px]">
-                <div className={cn(
-                    "absolute inset-0 rounded-full blur-3xl transition-all duration-1000 opacity-30",
-                    effectiveIsProcessing ? "bg-indigo-500 scale-125 animate-pulse" : "bg-slate-300 group-hover:bg-indigo-400 group-hover:opacity-40"
-                )} />
-
-                <button
-                    className={cn(
-                        "relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500",
-                        "hover:scale-105 active:scale-95",
-                        "bg-transparent"
-                    )}
-                >
-                    {/* Subtle Processing Ring */}
-                    {effectiveIsProcessing && (
-                        <svg className="absolute inset-0 w-full h-full -rotate-90 scale-[1.05]">
-                            <circle
-                                cx="48" cy="48" r="46"
-                                fill="none"
-                                stroke="#6366f1"
-                                strokeWidth="1"
-                                strokeDasharray="289"
-                                strokeDashoffset={289 - (289 * (effectiveProgress / 100))}
-                                strokeLinecap="round"
-                                className="transition-all duration-700 opacity-60"
-                            />
-                        </svg>
-                    )}
-
-                    <div className="w-full h-full absolute inset-0">
-                        <NousOrbLite isProcessing={effectiveIsProcessing} />
-                    </div>
-                </button>
-
-                {/* Minimal Notification Badge (Cyan Tech with Number) */}
-                {hasActions && !effectiveIsProcessing && (
-                    <div className="absolute top-2 right-2 bg-cyan-400 text-indigo-950 text-[10px] font-black rounded-full shadow-[0_0_15px_rgba(34,211,238,0.8)] pointer-events-none h-6 min-w-[24px] flex items-center justify-center px-1.5 ring-2 ring-white/20 z-50 tabular-nums animate-pulse">
-                        {effectiveSelectedCount > 0 ? effectiveSelectedCount : (stats.ideas + stats.needOutline + stats.needDraft + stats.needHuman)}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
