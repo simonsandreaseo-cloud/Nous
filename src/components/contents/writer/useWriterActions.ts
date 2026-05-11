@@ -372,6 +372,20 @@ export function useWriterActions() {
             
 
             store.setHasHumanized(true);
+
+            // Update humanization metadata in DB
+            if (store.draftId) {
+                const { error: humanizeError } = await supabase
+                    .from('tasks')
+                    .update({
+                        is_humanized: true,
+                        humanized_at: new Date().toISOString(),
+                    })
+                    .eq('id', store.draftId);
+                
+                if (humanizeError) console.error("[useWriterActions] Error updating humanization metadata:", humanizeError.message);
+            }
+
             store.setHumanizerStatus('✅ ¡Humanización completada!');
             setTimeout(() => store.setHumanizerStatus(''), 3000);
         } catch (e: any) {

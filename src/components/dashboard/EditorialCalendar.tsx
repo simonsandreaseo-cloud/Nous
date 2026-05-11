@@ -544,7 +544,7 @@ export function EditorialCalendar() {
 
                 if (humanize) {
                     const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
-                    const toHumanize = latestTasks.filter(t => !!t.content_body && !t.metadata?.is_humanized);
+                    const toHumanize = latestTasks.filter(t => !!t.content_body);
                     if (toHumanize.length > 0) {
                         NotificationService.notify("Nous Global", `Fase 4/5: Humanizando ${toHumanize.length} artículos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
@@ -655,7 +655,7 @@ export function EditorialCalendar() {
                     setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
                 }
             } else if (action === 'humanizacion_masiva') {
-                let filtered = tasks.filter(t => !!t.content_body && !t.metadata?.is_humanized);
+                let filtered = tasks.filter(t => !!t.content_body);
                 if (selectedTaskIds.length > 0) filtered = tasks.filter(t => selectedTaskIds.includes(t.id));
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay artículos redactados que necesiten humanización.'); return; }
                 let pCount = 0;

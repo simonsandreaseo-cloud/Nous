@@ -54,6 +54,7 @@ import { FloatingToolbox } from './widgets/FloatingToolbox';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import NousOrb from '@/components/dashboard/NousOrb';
+import NousAssistantMenu from '@/components/dashboard/NousAssistantMenu';
 import { useWriterActions } from './useWriterActions';
 import { deleteImageAction, uploadGeneratedImage } from '@/lib/actions/imageActions';
 import { saveAs } from 'file-saver';
@@ -580,7 +581,26 @@ export default function WriterStudio() {
                          activeSidebarTab === 'media' ? <MediaTab /> : 
                          activeSidebarTab === 'tools' ? <ToolsTab /> : 
                          activeSidebarTab === 'translate' ? <TranslationSidebarPanel /> : 
-                         activeSidebarTab === 'nous' ? <div className="p-4 h-full flex items-center justify-center"><NousOrb viewMode="writer" isProcessing={isProcessingAny} onWriterAction={(type) => { if (type === 'seo') handleSEO(); if (type === 'generate') handleGenerate(); if (type === 'humanize') handleHumanize(); if (type === 'refine') handleRefine(); }} /></div> : 
+                          activeSidebarTab === 'nous' ? (
+                              <div className="h-full flex flex-col p-4 gap-6">
+                                  <div className="flex justify-center shrink-0">
+                                      <NousOrb 
+                                          variant="header" 
+                                          viewMode="writer" 
+                                          isProcessing={isProcessingAny} 
+                                          onWriterAction={(type) => { if (type === 'seo') handleSEO(); if (type === 'generate') handleGenerate(); if (type === 'humanize') handleHumanize(); if (type === 'refine') handleRefine(); }} 
+                                      />
+                                  </div>
+                                  <div className="flex-1 overflow-hidden">
+                                      <NousAssistantMenu 
+                                          viewMode="writer" 
+                                          isProcessing={isProcessingAny} 
+                                          onWriterAction={(type) => { if (type === 'seo') handleSEO(); if (type === 'generate') handleGenerate(); if (type === 'humanize') handleHumanize(); if (type === 'refine') handleRefine(); }} 
+                                      />
+                                  </div>
+                              </div>
+                          ) : 
+
                          <CompetitorPanel />}
                     </div>
                 </div>
