@@ -59,6 +59,7 @@ interface NousOrbProps {
     onWriterAction?: (actionType: 'seo' | 'outline' | 'generate' | 'refine' | 'humanize') => void;
 }
 
+// Force rebuild trigger - Version 1.0.1
 export default function NousOrb({ 
     tasks = [], 
     onAction, 
@@ -67,7 +68,8 @@ export default function NousOrb({
     processingProgress = 0,
     activeProjectName = "Sistema Nous",
     selectedCount = 0,
-    viewMode = 'planner'
+    viewMode = 'planner',
+    variant = 'floating'
 }: NousOrbProps) {
     const { nousMode, setNousMode } = useAppStore();
     
