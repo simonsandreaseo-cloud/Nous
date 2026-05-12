@@ -592,11 +592,20 @@ export default function WriterStudio() {
                                       />
                                   </div>
                                   <div className="flex-1 overflow-hidden">
-                                      <NousAssistantMenu 
-                                          viewMode="writer" 
-                                          isProcessing={isProcessingAny} 
-                                          onWriterAction={(type) => { if (type === 'seo') handleSEO(); if (type === 'generate') handleGenerate(); if (type === 'humanize') handleHumanize(); if (type === 'refine') handleRefine(); }} 
-                                      />
+                                       <NousAssistantMenu 
+                                           viewMode="writer" 
+                                           isProcessing={isProcessingAny} 
+                                           onWriterAction={(type) => { 
+                                               console.log("[DEBUG-Studio] Writer action received from Menu:", type);
+                                               if (type === 'seo') handleSEO(); 
+                                               if (type === 'generate') handleGenerate(); 
+                                               if (type === 'humanize') {
+                                                   console.log("[DEBUG-Studio] Calling handleHumanize from Menu...");
+                                                   handleHumanize(); 
+                                               } 
+                                               if (type === 'refine') handleRefine(); 
+                                           }} 
+                                       />
                                   </div>
                               </div>
                           ) : 

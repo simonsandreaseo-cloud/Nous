@@ -324,9 +324,17 @@ export function useWriterActions() {
 
     // --- Humanize ---
     const handleHumanize = useCallback(async () => {
-        if (!hasAccess) return alert('No tienes permisos.');
-        if (!store.content) return;
+        console.log("[DEBUG-Humanize] Action triggered");
+        if (!hasAccess) {
+            console.log("[DEBUG-Humanize] Access denied");
+            return alert('No tienes permisos.');
+        }
+        if (!store.content) {
+            console.log("[DEBUG-Humanize] No content found in store. Current content length:", store.content?.length);
+            return;
+        }
         
+        console.log("[DEBUG-Humanize] Starting pipeline for content length:", store.content.length);
         store.setHumanizing(true);
         store.setHumanizerStatus('Iniciando humanización...');
         // Unify links for humanizer
