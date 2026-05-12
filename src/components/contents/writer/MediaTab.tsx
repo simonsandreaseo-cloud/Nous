@@ -150,9 +150,9 @@ export function MediaTab() {
                                     onUpdate={(id, updates) => actions.updateAssetAttributes(id, updates)}
                                     onGenerate={(id) => actions.handleGenerateAsset(id)}
                                     onDelete={(id) => actions.handleDeleteAsset(id, asset.storagePath)}
-                                    onFullscreen={() => setFullscreenAsset(asset)}
+                                    onFullscreen={(a) => setFullscreenAsset(a)}
                                     onDownload={() => actions.handleDownload(asset.url || "", asset.title)}
-                                    onUpload={async () => {}}
+                                    onUpload={(id, file) => actions.handleUploadAsset(id, file)}
                                 />
                             ))}
                         </AnimatePresence>
@@ -190,13 +190,33 @@ export function MediaTab() {
                                 <section className="space-y-3">
                                     <div className="flex items-center gap-2">
                                         <Type size={12} className="text-indigo-500" />
-                                        <label className="text-[9px] font-black uppercase text-slate-400">Contexto Visual</label>
+                                        <label className="text-[9px] font-black uppercase text-slate-400">Contexto Visual (Prompt)</label>
                                     </div>
                                     <textarea 
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 outline-none focus:border-indigo-500 transition-all min-h-[80px]"
                                         value={selectedAsset.prompt}
                                         onChange={(e) => actions.updateAssetAttributes(selectedAssetId!, { prompt: e.target.value })}
                                     />
+                                </section>
+
+                                <section className="space-y-3">
+                                    <label className="text-[9px] font-black uppercase text-slate-400 block">Metadatos Editoriales</label>
+                                    <div className="space-y-2">
+                                        <input 
+                                            type="text"
+                                            placeholder="Título del activo..."
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] text-slate-600 outline-none"
+                                            value={selectedAsset.title || ""}
+                                            onChange={(e) => actions.updateAssetAttributes(selectedAssetId!, { title: e.target.value })}
+                                        />
+                                        <input 
+                                            type="text"
+                                            placeholder="Texto alternativo (SEO Alt)..."
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] text-slate-600 outline-none"
+                                            value={selectedAsset.alt || ""}
+                                            onChange={(e) => actions.updateAssetAttributes(selectedAssetId!, { alt: e.target.value })}
+                                        />
+                                    </div>
                                 </section>
 
                                 <section className="space-y-3 p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100">
@@ -211,6 +231,46 @@ export function MediaTab() {
                                         onChange={(e) => actions.updateAssetAttributes(selectedAssetId!, { positioning: { ...selectedAsset.positioning, semanticAnchor: e.target.value } })}
                                         placeholder="Frase del texto..."
                                     />
+                                </section>
+
+                                <section className="space-y-3">
+                                    <label className="text-[9px] font-black uppercase text-slate-400 block">Configuración de Diseño</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase">Rol</span>
+                                            <select 
+                                                value={selectedAsset.role}
+                                                onChange={(e) => actions.updateAssetAttributes(selectedAssetId!, { role: e.target.value as any })}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[10px] text-slate-600 outline-none"
+                                            >
+                                                <option value="hero">Hero (Portada)</option>
+                                                <option value="feature">Feature</option>
+                                                <option value="icon">Icon</option>
+                                                <option value="info">Info</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase">Ajuste</span>
+                                            <select 
+                                                value={selectedAsset.design.wrapping}
+                                                onChange={(e) => actions.updateAssetAttributes(selectedAssetId!, { design: { ...selectedAsset.design, wrapping: e.target.value as any } })}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[10px] text-slate-600 outline-none"
+                                            >
+                                                <option value="break">Separar</option>
+                                                <option value="wrap">Envolver</option>
+                                                <option value="inline">Intercalar</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[8px] font-bold text-slate-400 uppercase">Ancho Editorial</span>
+                                        <input 
+                                            type="text"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[10px] text-slate-600 outline-none"
+                                            value={selectedAsset.design.width}
+                                            onChange={(e) => actions.updateAssetAttributes(selectedAssetId!, { design: { ...selectedAsset.design, width: e.target.value } })}
+                                        />
+                                    </div>
                                 </section>
 
                                 <section className="space-y-3">

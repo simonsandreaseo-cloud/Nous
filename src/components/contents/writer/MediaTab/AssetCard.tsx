@@ -24,7 +24,7 @@ interface AssetCardProps {
     onGenerate: (id: string) => Promise<void>;
     onUpload: (id: string, file: File) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
-    onFullscreen: (img: any) => void;
+    onFullscreen: (asset: ImageAsset) => void;
     onDownload: (url: string, title?: string) => void;
 }
 
@@ -39,7 +39,6 @@ export const AssetCard = memo(({
     onFullscreen, 
     onDownload 
 }: AssetCardProps) => {
-    const [isExpanded, setIsExpanded] = useState(false);
     const [isOver, setIsOver] = useState(false);
 
     const handleDrop = (e: React.DragEvent) => {
@@ -54,12 +53,12 @@ export const AssetCard = memo(({
             layout
             onClick={onSelect}
             className={cn(
-                "group relative flex flex-col rounded-2xl border transition-all duration-200 cursor-pointer",
+                "group relative flex flex-col rounded-2xl border transition-all duration-200 cursor-pointer overflow-hidden",
                 asset.role === 'hero' ? "bg-indigo-50/30 border-indigo-200" : "bg-white border-slate-200",
                 isSelected ? "border-indigo-500 ring-2 ring-indigo-500/20 shadow-md" : "hover:border-indigo-300 shadow-sm"
             )}
         >
-            {/* ROW COMPACTO: CONTENIDO PRINCIPAL */}
+            {/* CONTENIDO PRINCIPAL */}
             <div className="p-2 flex items-center gap-3">
                 {/* Miniatura */}
                 <div 
@@ -106,12 +105,22 @@ export const AssetCard = memo(({
                                 {asset.title || `Activo ${asset.id.slice(-4)}`}
                             </span>
                         </div>
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); onGenerate(asset.id); }}
-                            className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-all shadow-sm"
-                        >
-                            <Zap size={12} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onGenerate(asset.id); }}
+                                className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-all shadow-sm"
+                                title="Generar / Regenerar"
+                            >
+                                <Zap size={12} />
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onDelete(asset.id); }}
+                                className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                title="Eliminar"
+                            >
+                                <Trash2 size={12} />
+                            </button>
+                        </div>
                     </div>
                     <div className="relative">
                         <input 
@@ -124,78 +133,7 @@ export const AssetCard = memo(({
                         />
                     </div>
                 </div>
-
-                {/* Acciones */}
-                <div className="flex items-center gap-1 shrink-0">
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-                        className={cn("p-1.5 rounded-lg transition-all", isExpanded ? "bg-indigo-100 text-indigo-600" : "text-slate-400 hover:bg-slate-100")}
-                    >
-                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </button>
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); onDelete(asset.id); }}
-                        className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                    >
-                        <Trash2 size={14} />
-                    </button>
-                </div>
             </div>
-
-            {/* PANEL DE ADN - Expandido */}
-            <AnimatePresence>
-                {isExpanded && (
-                    <motion.div 
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden border-t border-slate-100"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="p-3 grid grid-cols-2 gap-3 bg-slate-50/50 rounded-b-2xl">
-                            {/* Alineación */}
-                            <div className="space-y-1">
-                                <label className="text-[8px] font-black text-slate-400 uppercase">Alineación</label>
-                                <select 
-                                    value={asset.design.align}
-                                    onChange={(e) => onUpdate(asset.id, { design: { ...asset.design, align: e.target.value as any } })}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-700 outline-none"
-                                >
-                                    <option value="left">Izquierda</option>
-                                    <option value="center">Centro</option>
-                                    <option value="right">Derecha</option>
-                                    <option value="full">Total</option>
-                                </select>
-                            </div>
-
-                            {/* Wrapping */}
-                            <div className="space-y-1">
-                                <label className="text-[8px] font-black text-slate-400 uppercase">Ajuste de Texto</label>
-                                <select 
-                                    value={asset.design.wrapping}
-                                    onChange={(e) => onUpdate(asset.id, { design: { ...asset.design, wrapping: e.target.value as any } })}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-700 outline-none"
-                                >
-                                    <option value="break">Separar</option>
-                                    <option value="wrap">Envolver</option>
-                                    <option value="inline">Intercalar</option>
-                                </select>
-                            </div>
-
-                             {/* Ancho */}
-                            <div className="space-y-1 col-span-2">
-                                <label className="text-[8px] font-black text-slate-400 uppercase">Ancho Tiptap</label>
-                                <input 
-                                    type="text" 
-                                    value={asset.design.width} 
-                                    onChange={(e) => onUpdate(asset.id, { design: { ...asset.design, width: e.target.value } })}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-700 outline-none"
-                                />
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </motion.div>
     );
 });

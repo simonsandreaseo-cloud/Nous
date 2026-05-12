@@ -135,7 +135,7 @@ export const retrieveContext = async (keyword: string, projectId: string): Promi
 };
 
 export const searchMoreLinks = async (keyword: string, projectId: string): Promise<ContentItem[]> => {
-    const prompt = `Give me 5 search terms to find relevant products in a database for the topic "${keyword}". Return CSV.`;
+    const prompt = `Give me 5 search terms to find relevant products in a database for the topic "${keyword}". Return CSV only. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el CSV y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios o cualquier texto explicativo.`;
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         try {
@@ -175,7 +175,7 @@ export const generateArticleStream = async (model: string, prompt: string) => {
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
-            systemInstruction: "Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]) ni etiquetas de imagen <img>. Generas HTML impecable. Nous procesará los enlaces e imágenes automáticamente.",
+            systemInstruction: "Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]) ni etiquetas de imagen <img>. Generas HTML impecable. Nous procesará los enlaces e imágenes automáticamente. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el código HTML y terminar con la etiqueta de cierre. Queda estrictamente prohibido incluir prefacios, análisis de constraints o cualquier texto que no sea el resultado final.",
             generationConfig: {
                 temperature: 0.7,
             }
@@ -221,10 +221,11 @@ export const refineArticleContent = async (
     ${context}
     
     OUTPUT RULES:
-    1. ${isSelection ? 'Return ONLY the refined version of the specific text provided. Do NOT return the whole article.' : 'Return valid HTML content for the whole article (inside body).'}
-    2. Do NOT strip existing images or links unless instructed.
-    3. Apply requested changes while maintaining tone and style.
-    4. Return the result WITHOUT any markdown blocks (like \`\`\`html).
+    1. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el resultado solicitado y terminar con el cierre del mismo. Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea la respuesta final.
+    2. ${isSelection ? 'Return ONLY the refined version of the specific text provided. Do NOT return the whole article.' : 'Return valid HTML content for the whole article (inside body).'}
+    3. Do NOT strip existing images or links unless instructed.
+    4. Apply requested changes while maintaining tone and style.
+    5. Return the result WITHOUT any markdown blocks (like \`\`\`html).
     `;
 
     return executeWithKeyRotation(async (ai, currentModel) => {
@@ -245,6 +246,7 @@ export const findCampaignAssets = async (query: string, projectName: string, csv
     Query Modifier: ${excludeTerms}
     Return a JSON Array: [{"brand": "Brand Name", "description": "Page Title", "url": "URL", "isImage": false}]
     Only return valid, reachable URLs.
+    Return JSON ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el [ y terminar con ]. Queda estrictamente prohibido incluir prefacios o explicaciones.
     `;
 
     return executeWithKeyRotation(async (ai, currentModel) => {
@@ -273,6 +275,7 @@ const _suggestImagePlacements = async (articleHtml: string, count: string): Prom
     Eres Director de Arte. Analiza este artículo HTML. Sugiere ${numImages} ubicaciones para imágenes en el cuerpo.
     FORMATO OUTPUT (JSON):
     [{"id": "body_1", "type": "body", "placement": "...", "context": "...", "prompt": "...", "alt": "...", "title": "...", "filename": "..."}]
+    Return JSON ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el [ y terminar con ]. Queda estrictamente prohibido incluir prefacios o explicaciones.
     `;
 
     return executeWithKeyRotation(async (ai, currentModel) => {
@@ -350,7 +353,7 @@ export const compositeWatermark = (base64Image: string, base64Watermark: string)
 
 
 export const generateSchemaMarkup = async (metadata: any, articleHtml: string, type: 'Article' | 'Product' = 'Article'): Promise<string> => {
-    const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0, 500)}. Include 'image' placeholder. Return JSON only.`;
+    const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0, 500)}. Include 'image' placeholder. Return JSON ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con { y terminar con }. Queda estrictamente prohibido incluir prefacios o explicaciones.`;
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({
@@ -520,6 +523,7 @@ const filterQualityResults = async (results: any[], keyword: string): Promise<an
     - KEEP: Blogs, News, Guides, Reviews, Informational Articles.
     - DISCARD: Product pages (Add to cart), Login pages.
     Return a JSON Array of IDs that are GOOD references. Example: [0, 2, 5, 8]
+    Return JSON ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el [ y terminar con ]. Queda estrictamente prohibido incluir prefacios o explicaciones.
     Candidates: ${JSON.stringify(candidates)}
     `;
 
@@ -717,7 +721,7 @@ export const runSEOAnalysis = async (
         3. Identificar competidores y PRIORIZAR las preguntas extraídas de REAL SERP DATA (People Also Ask) para la sección de FAQs.
         
         TAREA: Analiza y extrae solo los datos brutos de investigación SEO. No generes estructuras de contenido ni metadatos en este paso.
-        Retorna JSON válido.`;
+        Retorna JSON válido ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con { y terminar con }. Queda estrictamente prohibido incluir prefacios o explicaciones.`;
 
     return executeWithKeyRotation(async (ai) => {
         const model = ai.getGenerativeModel({
@@ -800,7 +804,7 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
     4. Meta Description: Compelling, < 160 chars.
     5. Outline: Array of headers (H2, H3).
     
-    Output JSON format only.
+    Output JSON format ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con { y terminar con }. Queda estrictamente prohibido incluir prefacios o explicaciones.
     `;
 
     const schema = {
@@ -899,7 +903,7 @@ export const runHumanizerPipeline = async (
     const htmlChunks = chunkHtml(html, CHUNK_SIZE);
     onStatus(`Iniciando humanización en ${htmlChunks.length} bloques...`);
 
-    const SYSTEM_PROMPT_BASE = "Tu salida debe ser solo el bloque de HTML procesado, sin explicaciones ni prefacios. Solo el código HTML.";
+    const SYSTEM_PROMPT_BASE = "Tu salida debe ser solo el bloque de HTML procesado. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios, análisis de constraints, pasos de verificación o cualquier texto que no sea la respuesta final. NO uses markdown.";
     const HTML_RULE = "ERES UN REDACTOR HUMANO. REGLA CRÍTICA: NO RESUMAS. NO OMITAS NADA. El bloque de salida debe tener el mismo número de elementos que la entrada.";
 
     // ---------------------------------------------
@@ -1039,6 +1043,7 @@ export const runSmartEditor = async (
     ${strictInstructions}
     
     REGLA DE ORO: Mantén intacta la estructura HTML (enlaces, imágenes, listas).
+    Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea la respuesta final. NO uses markdown.
     HTML:
     ${html}
     `;
@@ -1073,12 +1078,12 @@ export const runSEOPostProcessor = async (
     3. Nunca pongas negritas en la primera ni última palabra de un párrafo.
     4. NO pongas negritas en encabezados (H2, H3), blockquotes ni listas.
     5. Prioriza resaltar conceptos con las palabras clave objetivo.
-
+    
     CRITICAL RULES PARA SEO & LSI:
     1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer y último párrafo si no está ya.
     2. Inserta o refuerza las siguientes palabras clave LSI y semánticas si es posible sin forzar: [${config.lsiKeywords?.join(', ') || 'N/A'}]
     3. Mantén la densidad alta pero legible.
-
+    
     INTEGRIDAD ESTRUCTURAL Y ENLACES (VITAL):
     1. MANTÉN INTACTOS TODOS LOS ENLACES <a> PRESENTES. No cambies sus URLs ni los elimines.
     2. PROHIBIDO: NO inventes nuevos enlaces. NO uses enlaces que empiecen por "#".
@@ -1086,11 +1091,12 @@ export const runSEOPostProcessor = async (
     4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia, no añadas nuevos si no están fuera del HTML ya):
        ${linkList}
     5. Mantén todas las imágenes e IDs de elementos.
-    6. Retorna ÚNICAMENTE código HTML puro (body content). Sin explicaciones.
-
+    6. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea la respuesta final. NO uses markdown.
+    
     HTML A PULIR:
     ${html}
     `;
+
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({ model: currentModel });

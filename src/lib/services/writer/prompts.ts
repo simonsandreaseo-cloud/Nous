@@ -100,7 +100,10 @@ ${strictModeInstruction}
     - Responde: [${questions?.join(', ') || 'N/A'}]
 
 ESTILO Y FORMATO HTML (CRÍTICO):
-1. **RETORNA SOLO EL CONTENIDO DENTRO DEL BODY.** No incluyas <head>, <html>, ni markdown (\`\`\`).
+1. **RESPUESTA DIRECTA (ANTI-LEAKAGE):**
+    - Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el contenido HTML y terminar con la etiqueta de cierre.
+    - Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea el resultado final.
+    - RETORNA SOLO EL CONTENIDO DENTRO DEL BODY. No incluyas <head>, <html>, ni markdown (\`\`\`).
 2. **NEGRILLAS:** Usa negrillas de forma natural para resaltar términos clave. (Serán optimizadas después).
 3. **LISTAS/TABLAS:** Usa etiquetas HTML estándar.
 4. **ENLACES HTML:** Usa <a href="..." target="_blank">Anchor</a>.

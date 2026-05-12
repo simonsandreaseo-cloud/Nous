@@ -12,7 +12,8 @@ import {
 import { 
     deleteImageAction, 
     uploadGeneratedImage, 
-    executeImagePipelineAction 
+    executeImagePipelineAction,
+    uploadManualImage
 } from '@/lib/actions/imageActions';
 import { saveAs } from 'file-saver';
 import { BlueprintService } from '@/lib/services/BlueprintService';
@@ -169,6 +170,47 @@ export function useImageManager() {
         }
     }, [draftId, assets, content, activeProject, loadTaskImages, updateAssetAttributes, projectId]);
 
+    const handleUploadAsset = useCallback(async (id: string, file: File) => {
+        if (!draftId) return;
+        setStatus(ProcessingStatus.SAVING);
+        setStatusMessage(`Subiendo archivo: ${file.name}`);
+        
+        try {
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            const base64 = await base64Promise;
+
+            const res = await uploadManualImage({
+                base64,
+                fileType: file.type,
+                taskId: draftId,
+                fileName: file.name,
+                altText: file.name,
+                type: 'inline'
+            });
+
+            if (res.success && res.publicUrl) {
+                updateAssetAttributes(id, {
+                    url: res.publicUrl,
+                    status: 'final',
+                    storagePath: res.storagePath,
+                    title: file.name
+                });
+                await loadTaskImages(draftId);
+                setStatus(ProcessingStatus.COMPLETED);
+            } else {
+                throw new Error(res.error || "Error al subir la imagen");
+            }
+        } catch (e: any) {
+            setError(e.message);
+            setStatus(ProcessingStatus.ERROR);
+        }
+    }, [draftId, updateAssetAttributes, loadTaskImages]);
+
     const handleDeleteAsset = useCallback(async (id: string, storagePath?: string) => {
         if (!draftId) return;
         if (!window.confirm("¿Eliminar permanentemente?")) return;
@@ -195,7 +237,7 @@ export function useImageManager() {
         state: { status, statusMessage, error, assets, selectedAssetId, activeProject, draftId },
         actions: { setStatus, setStatusMessage, setError, setSelectedAssetId, updateAssetAttributes, 
                    applyBlueprint: (id: string) => BlueprintService.applyBlueprint(editor, id), 
-                   handleGenerateAsset, handleDeleteAsset,
+                   handleGenerateAsset, handleDeleteAsset, handleUploadAsset,
                    handleDownload: (url: string, title?: string) => saveAs(url, `${title || 'asset'}.jpg`),
                    handleRefresh: async () => { if (draftId) await loadTaskImages(draftId); } }
     };

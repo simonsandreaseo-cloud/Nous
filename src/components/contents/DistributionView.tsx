@@ -5,18 +5,13 @@ import {
     Share2, 
     Loader2,
     ArrowUpAz,
-    ArrowDownAz,
-    PencilLine
+    ArrowDownAz
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/utils/cn";
 import { useProjectStore } from "@/store/useProjectStore";
-import { CorrectionMode } from "./distribution/CorrectionMode";
 import { PublicationMode } from "./distribution/PublicationMode";
 
 export default function DistributionView() {
     const { tasks, isLoading, activeProjectIds, fetchProjectTasks } = useProjectStore();
-    const [viewMode, setViewMode] = useState<"correction" | "distribution">("correction");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
     // Sync tasks on mount or when active project changes
@@ -51,72 +46,27 @@ export default function DistributionView() {
                         <div>
                             <h2 className="text-xl font-black text-slate-900 tracking-tighter uppercase italic leading-tight">Salida Nous</h2>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", viewMode === 'correction' ? "bg-amber-400" : "bg-emerald-400")} />
-                                {viewMode === 'correction' ? "Revisión & Pulido Humano" : "Gestión de Distribución"}
+                                <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-400" />
+                                Gestión de Distribución
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-1 p-1 bg-slate-100/80 rounded-[20px] border border-slate-200/50">
+                    <div className="flex items-center gap-4">
                         <button 
-                            onClick={() => setViewMode('correction')}
-                            className={cn(
-                                "flex items-center gap-2 px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                viewMode === 'correction' ? "bg-white text-indigo-600 shadow-sm border border-slate-200/40" : "text-slate-400 hover:text-slate-600"
-                            )}
+                            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                            className="h-11 px-4 flex items-center gap-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all shadow-sm"
                         >
-                            <PencilLine size={14} className={cn(viewMode === 'correction' ? "text-indigo-500" : "text-slate-300")} />
-                            Corrección
-                        </button>
-                        <button 
-                            onClick={() => setViewMode('distribution')}
-                            className={cn(
-                                "flex items-center gap-2 px-6 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                viewMode === 'distribution' ? "bg-white text-indigo-600 shadow-sm border border-slate-200/40" : "text-slate-400 hover:text-slate-600"
-                            )}
-                        >
-                            <Share2 size={14} className={cn(viewMode === 'distribution' ? "text-emerald-500" : "text-slate-300")} />
-                            Distribución
+                            {sortOrder === "desc" ? <ArrowDownAz size={16} /> : <ArrowUpAz size={16} />}
+                            <span className="hidden md:inline">Fecha</span>
                         </button>
                     </div>
-
-                    <button 
-                        onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                        className="h-11 px-4 flex items-center gap-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all shadow-sm"
-                    >
-                        {sortOrder === "desc" ? <ArrowDownAz size={16} /> : <ArrowUpAz size={16} />}
-                        <span className="hidden md:inline">Fecha</span>
-                    </button>
                 </div>
             </div>
 
-            {/* Content Area Switch */}
+            {/* Content Area */}
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <AnimatePresence mode="wait">
-                    {viewMode === 'correction' ? (
-                        <motion.div 
-                            key="correction"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            transition={{ duration: 0.3 }}
-                            className="flex-1 flex overflow-hidden"
-                        >
-                            <CorrectionMode />
-                        </motion.div>
-                    ) : (
-                        <motion.div 
-                            key="distribution"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ duration: 0.3 }}
-                            className="flex-1 flex overflow-hidden"
-                        >
-                            <PublicationMode />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                <PublicationMode />
             </div>
         </div>
     );
