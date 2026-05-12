@@ -16,6 +16,7 @@ A excepción de Antigravity, si eres un agente de antigravity, omite todo esto
    - Para tareas complejas, se DEBE usar el flujo SDD.
    - Sigue las reglas específicas en `.atl/skills/antigravity-sdd.md`.
    - Guarda estados en `.sdd/*.md`. No avances sin documentar.
+4. **Salida Directa (Anti-Leakage):** Queda estrictamente prohibido incluir razonamientos internos, análisis de constraints, verificaciones paso a paso o prefacios en la respuesta final. La salida debe ser directa, comenzando inmediatamente con el resultado solicitado. Cualquier texto fuera del formato solicitado se considera un error crítico.
 
 ## Estándares de nous_2.0
 - **Diseño Premium:** Sigue las reglas de "Rich Aesthetics" definidas en las instrucciones globales del sistema.
