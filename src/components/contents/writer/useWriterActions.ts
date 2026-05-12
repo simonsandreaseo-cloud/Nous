@@ -43,7 +43,7 @@ export function useWriterActions() {
         store.setAnalyzingSEO(true);
         store.setStatus('Realizando análisis profundo de SEO...');
         try {
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-3-27b-it';
+            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-4-31b-it';
             const res = await ResearchOrchestrator.runDeepAnalysis({
                 keyword: store.keyword,
                 projectId: activeProject?.id,
@@ -247,7 +247,7 @@ export function useWriterActions() {
             store.setStatus('Redactando artículo (1 Token usado)…');
             if (activeProject) await consumeTokens(1);
 
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-3-27b-it';
+            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-4-31b-it';
             const stream = await generateArticleStream(modelToUse, prompt);
             let buffer = '';
             for await (const chunk of stream) {
@@ -364,7 +364,7 @@ export function useWriterActions() {
                 questions: store.strategyQuestions
             };
 
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-3-27b-it';
+            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-4-31b-it';
             const result = await runHumanizerPipeline(
                 store.content,
                 config,
@@ -411,7 +411,7 @@ export function useWriterActions() {
         store.setRefining(true);
         store.setStatus('Refinando artículo…');
         try {
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-3-27b-it';
+            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-4-31b-it';
             const refined = await refineArticleContent(store.content, store.refinementInstructions, modelToUse);
             const styled = refineStyling(refined);
             store.setContent(styled);
