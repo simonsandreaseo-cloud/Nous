@@ -218,7 +218,7 @@ ${FEW_SHOT_HTML}`,
                 yield { text: chunk.text() };
             }
         })();
-    }, model || 'default', undefined, undefined, false, 'Redacción Artículo');
+    }, model || 'default', undefined, undefined, undefined, false, 'Redacción Artículo');
 };
 
 export const refineArticleContent = async (
@@ -239,33 +239,39 @@ export const refineArticleContent = async (
         : '';
  
     const prompt = `
-    Role: Content Editor.
-    Task: Refine the following ${isSelection ? 'SPECIFIC TEXT SECTION' : 'HTML article'} based strictly on user instructions.
-    
+    ${ANTI_LEAKAGE_SYSTEM_BASE}
+    Role: Content Editor. Refine HTML content strictly following instructions.
+    ${FEW_SHOT_HTML}
+
     USER INSTRUCTIONS:
     "${instructions}"
-    
-    ${target}
-    ${context}
-    
+
     OUTPUT RULES:
     1. ${isSelection ? 'Return ONLY the refined version of the specific text provided. Do NOT return the whole article.' : 'Return valid HTML content for the whole article (inside body).'}
     2. Do NOT strip existing images or links unless instructed.
     3. Apply requested changes while maintaining tone and style.
-    4. Return the result WITHOUT any markdown blocks (like \`\`\`html).
-    `;
+    4. Return WITHOUT markdown blocks.
+
+    <<<HTML_INPUT>>>
+    ${target}
+    ${context}
+    <<<HTML_INPUT>>>
+
+    SALIDA HTML DIRECTA (sin prefacios ni resúmenes):`;
  
     return executeWithKeyRotation(async (ai, currentModel) => {
-        const modelObj = ai.getGenerativeModel({ 
-            model: currentModel,
-            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
-Role: Content Editor. Refine HTML content strictly following instructions.
-${FEW_SHOT_HTML}`
-        });
-        const response = await modelObj.generateContent(prompt + "\n\nRESULTADO DIRECTO (SIN PREFACIOS):");
-        const resText = response.response.text() || (isSelection ? selectedText : currentHtml);
-        return resText.replace(/```html/g, '').replace(/```/g, '').trim();
-    }, modelName || 'default', undefined, undefined, false, 'Refinado Artículo');
+        const modelObj = ai.getGenerativeModel({ model: currentModel });
+        const response = await modelObj.generateContent(prompt);
+        let resText = response.response.text() || (isSelection ? selectedText : currentHtml);
+        // Poda por código
+        resText = resText.replace(/```html/g, '').replace(/```/g, '').trim();
+        const firstTag = resText.indexOf('<');
+        const lastTag = resText.lastIndexOf('>');
+        if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+            resText = resText.substring(firstTag, lastTag + 1);
+        }
+        return resText;
+    }, modelName || 'default', undefined, undefined, undefined, false, 'Refinado Artículo');
 }
 
 
@@ -999,16 +1005,22 @@ export const runHumanizerPipeline = async (
         return textContent.length === 0;
     };
 
-    // Elimina líneas de reasoning interleaved ("* Algo: texto" que no son HTML)
-    // El patron matchea líneas que empiezan con * seguido de texto no-HTML
+    // Elimina razonamiento interleaved del modelo antes de que llegue al DOM parser.
+    // Captura: bullets (* ), numerados (1. ), frases de opening, notas, etc.
     const stripReasoningLines = (text: string): string => {
         return text
             .split('\n')
             .filter(line => {
                 const trimmed = line.trim();
-                // Eliminar líneas que son bullets de razonamiento (empiezan con * pero no son HTML)
-                if (/^\*\s+[A-ZÁ-Ú][^<]/.test(trimmed)) return false;
-                if (/^\*\s+(SEO|Task|Input|Output|Constraints?|Para|Revision|Preservation|No\s)/i.test(trimmed)) return false;
+                if (!trimmed) return true; // conservar líneas vacías
+                // Bullets de reasoning (* Algo: o * palabra_clave)
+                if (/^\*\s+\S/.test(trimmed) && !trimmed.startsWith('*<')) return false;
+                // Listas numeradas de análisis (1. Analysis:, 2. Input:, etc.)
+                if (/^\d+\.\s+(analysis|input|output|task|constraint|note|revision|preservation|seo|para\s)/i.test(trimmed)) return false;
+                // Frases de apertura típicas de LLMs
+                if (/^(note|here'?s|aquí|el siguiente|the following|as requested|como solicitado|result|resultado|salida|output)[:]/i.test(trimmed)) return false;
+                // Líneas de análisis tipo "SEO: ...", "Task: ...", "Input: ..."
+                if (/^(seo|task|input|output|constraints?|revision|preservation|no\s+links|no\s+lsi|no\s+keywords|no\s+markdown)\s*:/i.test(trimmed)) return false;
                 return true;
             })
             .join('\n')
@@ -1053,7 +1065,7 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
             }
 
             return cleanAndFormatHtml(raw);
-        }, modelName, undefined, undefined, false, 'Redacción Humanización');
+        }, modelName, undefined, undefined, undefined, false, 'Redacción Humanización');
         humanizedChunks.push(chunkResult);
     }
 
@@ -1133,7 +1145,7 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
             }
 
             return cleanAndFormatHtml(raw);
-        }, modelName, undefined, undefined, false, 'Redacción SEO Revisión');
+        }, modelName, undefined, undefined, undefined, false, 'Redacción SEO Revisión');
 
         finalizedChunks.push(finalizedChunk);
         remainingLinks = remainingLinks.slice(2);

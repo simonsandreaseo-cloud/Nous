@@ -210,12 +210,17 @@ export const cleanAndFormatHtml = (html: string): string => {
 
     const listItems = doc.querySelectorAll('li');
     listItems.forEach(li => {
+        // BUG-04 fix: solo procesar si no hay elementos <a> con URLs que contengan ':'
+        if (li.querySelector('a')) return;
         if (li.textContent?.includes(':') && !li.querySelector('strong')) {
             const parts = li.innerHTML.split(':');
             if (parts.length > 1) {
                 const label = parts[0];
                 const rest = parts.slice(1).join(':');
-                li.innerHTML = `<strong>${label}</strong>:${rest}`;
+                // Solo wrappear si el label parece texto plano (sin tags HTML)
+                if (!label.includes('<') && !label.includes('>')) {
+                    li.innerHTML = `<strong>${label}</strong>:${rest}`;
+                }
             }
         }
     });
@@ -248,13 +253,16 @@ export const refineStyling = (html: string): string => {
 
         if (words.length < 25) return;
 
-        if (Math.random() > 0.4) {
+        // BUG-06 fix: deterministic pseudo-random based on text content
+        // Same text always gets the same bold placement
+        const seed = text.length % 10;
+        if (seed > 3) { // equivalent probability to Math.random() > 0.4
             const safeStartMin = Math.floor(words.length * 0.15);
             const safeStartMax = Math.floor(words.length * 0.70);
 
             if (safeStartMax > safeStartMin) {
-                const startIdx = Math.floor(Math.random() * (safeStartMax - safeStartMin)) + safeStartMin;
-                const length = Math.floor(Math.random() * 5) + 4;
+                const startIdx = safeStartMin + ((text.charCodeAt(0) + text.length) % (safeStartMax - safeStartMin));
+                const length = 4 + (text.charCodeAt(1) % 5); // 4-8 words, deterministic
 
                 const pre = words.slice(0, startIdx).join(' ');
                 const target = words.slice(startIdx, startIdx + length).join(' ');
