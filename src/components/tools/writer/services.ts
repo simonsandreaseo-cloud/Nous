@@ -991,9 +991,40 @@ export const runHumanizerPipeline = async (
         Aplica estas reglas de humanización al texto DENTRO de las etiquetas HTML. Mantén intacta la estructura de etiquetas. No elimines información, solo cambia el estilo y la estructura de las frases.
     `.trim();
 
+    // --- HELPERS DE LIMPIEZA ---
+    // Detecta chunks que no tienen texto real (solo <br>, <p></p>, <hr>, etc.)
+    // para evitar mandarlos al modelo y que este razones en voz alta
+    const isTrivialChunk = (chunk: string): boolean => {
+        const textContent = chunk.replace(/<[^>]*>/g, '').replace(/\s/g, '');
+        return textContent.length === 0;
+    };
+
+    // Elimina líneas de reasoning interleaved ("* Algo: texto" que no son HTML)
+    // El patron matchea líneas que empiezan con * seguido de texto no-HTML
+    const stripReasoningLines = (text: string): string => {
+        return text
+            .split('\n')
+            .filter(line => {
+                const trimmed = line.trim();
+                // Eliminar líneas que son bullets de razonamiento (empiezan con * pero no son HTML)
+                if (/^\*\s+[A-ZÁ-Ú][^<]/.test(trimmed)) return false;
+                if (/^\*\s+(SEO|Task|Input|Output|Constraints?|Para|Revision|Preservation|No\s)/i.test(trimmed)) return false;
+                return true;
+            })
+            .join('\n')
+            .trim();
+    };
+
     const humanizedChunks: string[] = [];
     for (let i = 0; i < htmlChunks.length; i++) {
         onStatus(`Fase 1: Humanizando bloque ${i + 1}/${htmlChunks.length}...`);
+
+        // BYPASS: chunks triviales (solo <br>, separadores) van directo sin pasar por el modelo
+        if (isTrivialChunk(htmlChunks[i])) {
+            humanizedChunks.push(htmlChunks[i]);
+            continue;
+        }
+
         const chunkResult = await executeWithKeyRotation(async (ai, currentModel) => {
             const model = ai.getGenerativeModel({ model: currentModel });
             const phase1Instructions = buildPhase1Prompt();
@@ -1011,14 +1042,16 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
 
             const res = await model.generateContent(userPrompt);
             let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-            
-            // Post-processing cleanup (Defensa en profundidad)
+
+            // Capa 1: Strip reasoning lines interleaved
+            raw = stripReasoningLines(raw);
+            // Capa 2: Poda por código (firstTag/lastTag)
             const firstTag = raw.indexOf('<');
             const lastTag = raw.lastIndexOf('>');
             if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
                 raw = raw.substring(firstTag, lastTag + 1);
             }
-            
+
             return cleanAndFormatHtml(raw);
         }, modelName, undefined, undefined, false, 'Redacción Humanización');
         humanizedChunks.push(chunkResult);
@@ -1058,10 +1091,15 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
 
     for (let j = 0; j < seoChunks.length; j++) {
         onStatus(`Fase 2: Procesando bloque ${j + 1}/${seoChunks.length}...`);
-        
-        // Seleccionamos un subconjunto de enlaces para este bloque (ej. 2 por bloque para distribuir)
+
+        // BYPASS: chunks triviales van directo, el modelo no tiene nada que optimizar en ellos
         const blockLinks = remainingLinks.slice(0, 2);
-        
+        if (isTrivialChunk(seoChunks[j])) {
+            finalizedChunks.push(seoChunks[j]);
+            remainingLinks = remainingLinks.slice(2);
+            continue;
+        }
+
         const finalizedChunk = await executeWithKeyRotation(async (ai, currentModel) => {
             const model = ai.getGenerativeModel({ 
                 model: currentModel,
@@ -1085,7 +1123,9 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
             const res = await model.generateContent(userPrompt);
             let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
-            // Post-processing cleanup (Defensa en profundidad)
+            // Capa 1: Strip reasoning lines interleaved
+            raw = stripReasoningLines(raw);
+            // Capa 2: Poda por código (firstTag/lastTag)
             const firstTag = raw.indexOf('<');
             const lastTag = raw.lastIndexOf('>');
             if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
@@ -1096,9 +1136,6 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
         }, modelName, undefined, undefined, false, 'Redacción SEO Revisión');
 
         finalizedChunks.push(finalizedChunk);
-
-        // Si el bloque de salida contiene enlaces que usamos del inventario, los marcamos como usados (o simplemente avanzamos el slice)
-        // En este caso, para simplificar, avanzamos el slice de los que se le ofrecieron.
         remainingLinks = remainingLinks.slice(2);
     }
 
