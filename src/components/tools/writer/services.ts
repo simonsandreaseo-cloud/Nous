@@ -211,10 +211,6 @@ ${FEW_SHOT_HTML}`,
             contents: [{ role: 'user', parts: [{ text: prompt + "\n\nRESULTADO DIRECTO (SIN PREFACIOS):" }] }],
         });
 
-        const result = await modelObj.generateContentStream({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        });
-
         // Unified stream wrapper
         return (async function* () {
             for await (const chunk of result.stream) {
