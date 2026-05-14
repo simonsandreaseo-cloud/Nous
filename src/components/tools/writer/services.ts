@@ -36,6 +36,7 @@ import { executeWithKeyRotation as libExecuteWithKeyRotation } from "@/lib/servi
 export const executeWithKeyRotation = async <T>(
     operation: (client: any, currentModel: string) => Promise<T>,
     modelName: string = 'default',
+    explicitHierarchy?: string[],
     keys?: string[] | string,
     onRotation?: any,
     isStrictModel: boolean = false,
@@ -43,7 +44,7 @@ export const executeWithKeyRotation = async <T>(
 ): Promise<T> => {
     return libExecuteWithKeyRotation(async (client, m) => {
         return operation(client, m);
-    }, modelName, keys, onRotation, isStrictModel, label);
+    }, modelName, explicitHierarchy, keys, onRotation, isStrictModel, label);
 };
 
 import { 
