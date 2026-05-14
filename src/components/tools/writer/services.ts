@@ -170,16 +170,47 @@ export const searchMoreLinks = async (keyword: string, projectId: string): Promi
 
 // --- API Calls (Resilient) ---
 
-export const generateArticleStream = async (model: string, prompt: string) => {
+// --- ANTI-LEAKAGE UTILS ---
+const ANTI_LEAKAGE_SYSTEM_BASE = `Eres un Transformador Determinista. Tu única función es procesar la entrada y devolver la salida en el formato exacto solicitado.
+Sáltate todo razonamiento interno, análisis de constraints, prefacios, comentarios o pasos de verificación. 
+Tu respuesta DEBE comenzar directamente con el primer carácter del resultado final y terminar inmediatamente después del último carácter del resultado. 
+Cualquier texto fuera del formato solicitado es un error crítico. NO uses markdown.`;
 
+const FEW_SHOT_HTML = `
+Ejemplo 1:
+Entrada: "Humaniza este texto: El gato es negro."
+Salida: <p>El gato es de color negro.</p>
+
+Ejemplo 2:
+Entrada: "Refina este HTML: <div>Hola</div>"
+Salida: <div>Hola, ¿cómo estás?</div>
+`;
+
+const FEW_SHOT_JSON = `
+Ejemplo 1:
+Entrada: "Extrae links de: google.com, bing.com"
+Salida: [{"url": "google.com"}, {"url": "bing.com"}]
+
+Ejemplo 2:
+Entrada: "Sugerir imágenes para: Receta de tarta"
+Salida: [{"id": "body_1", "prompt": "Tarta de chocolate deliciosa"}]
+`;
+
+export const generateArticleStream = async (model: string, prompt: string) => {
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
-            systemInstruction: "Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]) ni etiquetas de imagen <img>. Generas HTML impecable. Nous procesará los enlaces e imágenes automáticamente. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el código HTML y terminar con la etiqueta de cierre. Queda estrictamente prohibido incluir prefacios, análisis de constraints o cualquier texto que no sea el resultado final.",
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]) ni etiquetas de imagen <img>. Generas HTML impecable. Nous procesará los enlaces e imágenes automáticamente.
+${FEW_SHOT_HTML}`,
             generationConfig: {
                 temperature: 0.7,
             }
         });
+        const result = await modelObj.generateContentStream({
+            contents: [{ role: 'user', parts: [{ text: prompt + "\n\nRESULTADO DIRECTO (SIN PREFACIOS):" }] }],
+        });
+
         const result = await modelObj.generateContentStream({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
@@ -209,7 +240,7 @@ export const refineArticleContent = async (
     const context = isSelection 
         ? `\nFULL ARTICLE CONTEXT (FOR REFERENCE ONLY):\n${currentHtml.substring(0, 3000)}` 
         : '';
-
+ 
     const prompt = `
     Role: Content Editor.
     Task: Refine the following ${isSelection ? 'SPECIFIC TEXT SECTION' : 'HTML article'} based strictly on user instructions.
@@ -221,39 +252,46 @@ export const refineArticleContent = async (
     ${context}
     
     OUTPUT RULES:
-    1. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el resultado solicitado y terminar con el cierre del mismo. Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea la respuesta final.
-    2. ${isSelection ? 'Return ONLY the refined version of the specific text provided. Do NOT return the whole article.' : 'Return valid HTML content for the whole article (inside body).'}
-    3. Do NOT strip existing images or links unless instructed.
-    4. Apply requested changes while maintaining tone and style.
-    5. Return the result WITHOUT any markdown blocks (like \`\`\`html).
+    1. ${isSelection ? 'Return ONLY the refined version of the specific text provided. Do NOT return the whole article.' : 'Return valid HTML content for the whole article (inside body).'}
+    2. Do NOT strip existing images or links unless instructed.
+    3. Apply requested changes while maintaining tone and style.
+    4. Return the result WITHOUT any markdown blocks (like \`\`\`html).
     `;
-
+ 
     return executeWithKeyRotation(async (ai, currentModel) => {
-        const modelObj = ai.getGenerativeModel({ model: currentModel });
-        const response = await modelObj.generateContent(prompt);
+        const modelObj = ai.getGenerativeModel({ 
+            model: currentModel,
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+Role: Content Editor. Refine HTML content strictly following instructions.
+${FEW_SHOT_HTML}`
+        });
+        const response = await modelObj.generateContent(prompt + "\n\nRESULTADO DIRECTO (SIN PREFACIOS):");
         const resText = response.response.text() || (isSelection ? selectedText : currentHtml);
         return resText.replace(/```html/g, '').replace(/```/g, '').trim();
     }, modelName || 'default', undefined, undefined, false, 'Refinado Artículo');
 }
 
+
 export const findCampaignAssets = async (query: string, projectName: string, csvData?: ContentItem[], modelName?: string): Promise<VisualResource[]> => {
     const safeProjectName = projectName || "mysite";
     const excludeTerms = `-site:${safeProjectName.replace(/\s+/g, '').toLowerCase()}.com -site:${safeProjectName.replace(/\s+/g, '').toLowerCase()}.es -inurl:${safeProjectName.replace(/\s+/g, '').toLowerCase()}`;
-
+ 
     const prompt = `
     Find OFFICIAL brand assets (Press kits, Lookbooks, Campaign pages) for: "${query}".
     CRITICAL: Exclude any URL from the project "${projectName}". We need EXTERNAL official sources.
     Query Modifier: ${excludeTerms}
     Return a JSON Array: [{"brand": "Brand Name", "description": "Page Title", "url": "URL", "isImage": false}]
     Only return valid, reachable URLs.
-    Return JSON ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el [ y terminar con ]. Queda estrictamente prohibido incluir prefacios o explicaciones.
     `;
-
+ 
     return executeWithKeyRotation(async (ai, currentModel) => {
-        const modelObj = ai.getGenerativeModel({
+        const modelObj = ai.getGenerativeModel({ 
             model: currentModel || AI_CONFIG.groq.models.balanced,
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+Task: Find official brand assets and return them as a JSON array.
+${FEW_SHOT_JSON}`
         });
-        const response = await modelObj.generateContent(prompt);
+        const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
         let text = response.response.text() || "[]";
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const start = text.indexOf('[');
@@ -267,27 +305,31 @@ export const findCampaignAssets = async (query: string, projectName: string, csv
     });
 };
 
+
 const _suggestImagePlacements = async (articleHtml: string, count: string): Promise<AIImageRequest[]> => {
     const truncated = articleHtml.substring(0, 30000);
     const numImages = count === 'auto' ? "3 to 5" : count;
-
+ 
     const prompt = `
     Eres Director de Arte. Analiza este artículo HTML. Sugiere ${numImages} ubicaciones para imágenes en el cuerpo.
     FORMATO OUTPUT (JSON):
     [{"id": "body_1", "type": "body", "placement": "...", "context": "...", "prompt": "...", "alt": "...", "title": "...", "filename": "..."}]
-    Return JSON ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el [ y terminar con ]. Queda estrictamente prohibido incluir prefacios o explicaciones.
     `;
-
+ 
     return executeWithKeyRotation(async (ai, currentModel) => {
-        const modelObj = ai.getGenerativeModel({
+        const modelObj = ai.getGenerativeModel({ 
             model: currentModel || 'llama-3.3-70b-versatile',
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+Task: Suggest image placements for an HTML article and return as JSON array.
+${FEW_SHOT_JSON}`,
             generationConfig: { responseMimeType: "application/json" }
         });
-        const response = await modelObj.generateContent(truncated + "\n\n" + prompt);
+        const response = await modelObj.generateContent(truncated + "\n\n" + prompt + "\n\nRESULTADO JSON DIRECTO:");
         const json = JSON.parse(response.response.text() || "[]");
         return json.map((item: any, idx: number) => ({ ...item, id: `body_${idx}`, status: 'pending' }));
     });
 };
+
 
 export const generateRealImage = async (basePrompt: string, config: ImageGenConfig, context: 'featured' | 'body', aspectRatio: string = '16:9'): Promise<string> => {
     const colorString = config.colors.length > 0 ? `Color Palette Hex Codes: ${config.colors.join(', ')}.` : "Auto color palette.";
@@ -353,17 +395,21 @@ export const compositeWatermark = (base64Image: string, base64Watermark: string)
 
 
 export const generateSchemaMarkup = async (metadata: any, articleHtml: string, type: 'Article' | 'Product' = 'Article'): Promise<string> => {
-    const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0, 500)}. Include 'image' placeholder. Return JSON ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con { y terminar con }. Queda estrictamente prohibido incluir prefacios o explicaciones.`;
-
+    const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0, 500)}. Include 'image' placeholder.`;
+ 
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({
             model: currentModel || AI_CONFIG.groq.models.balanced,
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+Task: Generate JSON-LD Schema.org markup. Return JSON ONLY.
+${FEW_SHOT_JSON}`,
             generationConfig: { responseMimeType: "application/json" }
         });
-        const response = await model.generateContent(prompt);
+        const response = await model.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
         return response.response.text() || "{}";
-    });
+    }, modelName);
 }
+
 
 // --- SERP INTEGRATIONS ---
 
@@ -509,31 +555,33 @@ const fetchJinaSearch = async (query: string): Promise<any> => {
 // --- AI FILTERING GATEKEEPER ---
 const filterQualityResults = async (results: any[], keyword: string): Promise<any[]> => {
     if (!results || results.length === 0) return [];
-
+ 
     const candidates = results.map((r, i) => ({
         id: i,
         title: r.title,
         snippet: r.snippet,
         link: r.link
     })).slice(0, 15);
-
+ 
     const prompt = `
     TASK: You are an Editor. We are writing a HIGH QUALITY BLOG POST about "${keyword}".
     Filter out "Junk" URLs.
     - KEEP: Blogs, News, Guides, Reviews, Informational Articles.
     - DISCARD: Product pages (Add to cart), Login pages.
     Return a JSON Array of IDs that are GOOD references. Example: [0, 2, 5, 8]
-    Return JSON ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el [ y terminar con ]. Queda estrictamente prohibido incluir prefacios o explicaciones.
     Candidates: ${JSON.stringify(candidates)}
     `;
-
+ 
     return executeWithKeyRotation(async (ai) => {
         try {
             const modelObj = ai.getGenerativeModel({
                 model: AI_CONFIG.groq.models.quality,
+                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+Task: Filter URLs and return a JSON array of indices.
+${FEW_SHOT_JSON}`,
                 generationConfig: { responseMimeType: "application/json" }
             });
-            const response = await modelObj.generateContent(prompt);
+            const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
             let rawText = response.response.text() || "[]";
             
             // Clean markdown if present
@@ -543,10 +591,10 @@ const filterQualityResults = async (results: any[], keyword: string): Promise<an
             const start = rawText.indexOf('[');
             const end = rawText.lastIndexOf(']');
             if (start !== -1 && end !== -1) rawText = rawText.substring(start, end + 1);
-
+ 
             const goodIds: number[] = JSON.parse(rawText || "[]");
             if (!Array.isArray(goodIds)) throw new Error("Not an array");
-
+ 
             const filtered = results.filter((_, index) => goodIds.includes(index));
             if (filtered.length === 0) return results.slice(0, 3);
             return filtered.slice(0, 8);
@@ -556,6 +604,7 @@ const filterQualityResults = async (results: any[], keyword: string): Promise<an
         }
     });
 }
+
 
 export const runSEOAnalysis = async (
     keyword: string,
@@ -572,25 +621,31 @@ export const runSEOAnalysis = async (
     const context = await retrieveContext(keyword, projectId);
     const productContext = context.products.slice(0, 30).map(p => `- ${p.title} (${p.url})`).join('\n');
     const collectionContext = context.collections.slice(0, 15).map(c => `- ${c.title} (${c.url})`).join('\n');
-
+ 
     // 2. GATHER EXTERNAL INTEL (SERP)
     let serpContext = "";
-
+ 
     if (serperKey) {
         const intentPrompt = `
         Constraint: Build a Google Search query to find Articles, Blogs or Guides about "${keyword}". 
         Project filter (exclude): ${projectName || ''}
         Format: ONLY the query string, NO explanation.
         `;
-
+ 
         let smartQuery = "";
         try {
             // Use key rotation for this generative step
             await executeWithKeyRotation(async (ai) => {
-                const modelObj = ai.getGenerativeModel({ model: AI_CONFIG.groq.models.quality });
-                const queryResponse = await modelObj.generateContent(intentPrompt);
+                const modelObj = ai.getGenerativeModel({ 
+                    model: AI_CONFIG.groq.models.quality,
+                    systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+Task: Build a search query. Return the query string ONLY.
+${FEW_SHOT_JSON}`
+                });
+                const queryResponse = await modelObj.generateContent(intentPrompt + "\n\nRESULTADO DIRECTO:");
                 smartQuery = queryResponse.response.text()?.trim().replace(/^"|"$/g, '') || `${keyword} blog tendencias`;
             });
+
 
             // Moderate exclusions - don't over-filter
             if (!smartQuery.includes('-site:amazon')) {
@@ -721,19 +776,23 @@ export const runSEOAnalysis = async (
         3. Identificar competidores y PRIORIZAR las preguntas extraídas de REAL SERP DATA (People Also Ask) para la sección de FAQs.
         
         TAREA: Analiza y extrae solo los datos brutos de investigación SEO. No generes estructuras de contenido ni metadatos en este paso.
-        Retorna JSON válido ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con { y terminar con }. Queda estrictamente prohibido incluir prefacios o explicaciones.`;
-
+        Retorna JSON válido.`;
+ 
     return executeWithKeyRotation(async (ai) => {
         const model = ai.getGenerativeModel({
-            model: modelName || 'gemini-2.5-flash', // Use current stable model
+            model: modelName || 'gemini-2.5-flash',
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+Task: Analyze SEO data and return it as a structured JSON object.
+${FEW_SHOT_JSON}`,
             generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: schema as any
             }
         });
-
-        const response = await model.generateContent(systemPrompt);
+ 
+        const response = await model.generateContent(systemPrompt + "\n\nRESULTADO JSON DIRECTO:");
         const result = response.response;
+
         let json: any = {};
         let rawText = "";
 
@@ -803,10 +862,8 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
     3. Slug: Short, URL-friendly.
     4. Meta Description: Compelling, < 160 chars.
     5. Outline: Array of headers (H2, H3).
-    
-    Output JSON format ONLY. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con { y terminar con }. Queda estrictamente prohibido incluir prefacios o explicaciones.
     `;
-
+ 
     const schema = {
         type: Type.OBJECT,
         properties: {
@@ -843,18 +900,22 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
         },
         required: ["snippet", "outline"]
     };
-
+ 
     return executeWithKeyRotation(async (ai) => {
-        const modelObj = ai.getGenerativeModel({
+        const modelObj = ai.getGenerativeModel({ 
             model: 'gemini-2.5-flash',
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+Task: Generate an SEO Content Strategy and Outline as JSON.
+${FEW_SHOT_JSON}`,
             generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: schema as any
             }
         });
-
-        const response = await modelObj.generateContent(prompt);
+ 
+        const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
         let rawText = response.response.text() || "{}";
+
         
         const start = rawText.indexOf('{');
         const end = rawText.lastIndexOf('}');
@@ -937,12 +998,30 @@ export const runHumanizerPipeline = async (
     for (let i = 0; i < htmlChunks.length; i++) {
         onStatus(`Fase 1: Humanizando bloque ${i + 1}/${htmlChunks.length}...`);
         const chunkResult = await executeWithKeyRotation(async (ai, currentModel) => {
-            const model = ai.getGenerativeModel({ 
-                model: currentModel,
-                systemInstruction: buildPhase1Prompt()
-            });
-            const res = await model.generateContent(htmlChunks[i]);
-            const raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            const model = ai.getGenerativeModel({ model: currentModel });
+            const phase1Instructions = buildPhase1Prompt();
+            const userPrompt = `
+${phase1Instructions}
+
+### EJECUCIÓN:
+Procesa el siguiente bloque HTML siguiendo estrictamente las instrucciones anteriores.
+
+<<<HTML_INPUT>>>
+${htmlChunks[i]}
+<<<HTML_INPUT>>>
+
+SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacios ni resúmenes):`;
+
+            const res = await model.generateContent(userPrompt);
+            let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            
+            // Post-processing cleanup (Defensa en profundidad)
+            const firstTag = raw.indexOf('<');
+            const lastTag = raw.lastIndexOf('>');
+            if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+                raw = raw.substring(firstTag, lastTag + 1);
+            }
+            
             return cleanAndFormatHtml(raw);
         }, modelName, undefined, undefined, false, 'Redacción Humanización');
         humanizedChunks.push(chunkResult);
@@ -989,13 +1068,33 @@ export const runHumanizerPipeline = async (
         const finalizedChunk = await executeWithKeyRotation(async (ai, currentModel) => {
             const model = ai.getGenerativeModel({ 
                 model: currentModel,
-                systemInstruction: buildPhase2Prompt(blockLinks),
                 generationConfig: {
                     temperature: 0.3
                 }
             });
-            const res = await model.generateContent(seoChunks[j]);
-            const raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            const phase2Instructions = buildPhase2Prompt(blockLinks);
+            const userPrompt = `
+${phase2Instructions}
+
+### EJECUCIÓN:
+Procesa el siguiente bloque HTML siguiendo estrictamente las instrucciones anteriores.
+
+<<<HTML_INPUT>>>
+${seoChunks[j]}
+<<<HTML_INPUT>>>
+
+SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacios ni resúmenes):`;
+
+            const res = await model.generateContent(userPrompt);
+            let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+
+            // Post-processing cleanup (Defensa en profundidad)
+            const firstTag = raw.indexOf('<');
+            const lastTag = raw.lastIndexOf('>');
+            if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+                raw = raw.substring(firstTag, lastTag + 1);
+            }
+
             return cleanAndFormatHtml(raw);
         }, modelName, undefined, undefined, false, 'Redacción SEO Revisión');
 
