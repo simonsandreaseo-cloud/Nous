@@ -135,11 +135,13 @@ export const autoInterlinkAsync = async (
                         // APPLY PATCHING BEFORE INSERTION
                         let finalUrl = item.url;
                         
-                        // Si la URL es relativa, forzamos el dominio del proyecto para evitar
-                        // que el navegador la resuelva contra nous-production.vercel.app
-                        if (finalUrl.startsWith('/')) {
-                            const baseUrl = project?.domain ? `https://${project.domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')}` : '';
-                            finalUrl = baseUrl + finalUrl;
+                        // Si la URL NO es absoluta (no empieza con http), forzamos el dominio del proyecto.
+                        // Esto previene que el navegador la resuelva contra nous-production.vercel.app
+                        if (finalUrl && !finalUrl.startsWith('http')) {
+                            const cleanPath = finalUrl.startsWith('/') ? finalUrl : `/${finalUrl}`;
+                            const domain = project?.domain || 'www.opticabassol.com'; // Fallback seguro
+                            const baseUrl = `https://${domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')}`;
+                            finalUrl = baseUrl + cleanPath;
                         }
 
                         finalUrl = sanitizeUrl(finalUrl);
