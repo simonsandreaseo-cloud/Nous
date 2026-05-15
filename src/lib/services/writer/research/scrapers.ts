@@ -1,5 +1,4 @@
-import { supabase } from "@/lib/supabase";
-import { scrapeMassiveAction } from "@/lib/actions/scraper";
+
 
 export interface ScrapedContent {
     url: string;
@@ -14,54 +13,72 @@ export const ScraperService = {
     async scrapeMassive(competitors: {url: string, title: string, snippet?: string}[], taskContext: { contentType?: string, searchIntent?: string, h1?: string } = {}, onLog?: (p: string, m: string, res?: string) => void): Promise<ScrapedContent[]> {
         const urls = competitors.map(c => c.url);
         
-        if (onLog) onLog("INFO", "Despliegue de Rastreadores Nous", `Escaneando la web profunda: procesando ${urls.length} fuentes en paralelo...`);
+        if (onLog) onLog("INFO", "Despliegue de Firecrawl", `Iniciando batch scrape para ${urls.length} fuentes en paralelo...`);
 
         try {
-            const { data, error } = await supabase.functions.invoke('research-engine', {
-                body: { 
-                    urls, 
-                    isSingleExtraction: false,
-                    contentType: taskContext.contentType || "Blog Post",
-                    searchIntent: taskContext.searchIntent || "",
-                    targetH1: taskContext.h1 || ""
-                }
-            });
-
-            if (error) throw error;
-            if (!data || !data.success) throw new Error(data?.error || "Error desconocido");
-
-            const survivors = data.survivors || [];
+            const apiKey = process.env.NEXT_PUBLIC_FIRECRAWL_API_KEY || 'fc-1a6816cc1b414aacbb04e101d5da6479';
             
-            if (survivors.length === 0) {
-                if (onLog) {
-                    onLog("WARN", "Aviso de Sistema", "Filtro Cognitivo estricto: Ningún competidor superó el análisis de calidad. Abortando investigación.");
+            const startRes = await fetch('https://api.firecrawl.dev/v1/batch/scrape', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    urls,
+                    formats: ["markdown"]
+                })
+            });
+            const startData = await startRes.json();
+            
+            if (!startData.success) throw new Error("Fallo al iniciar Firecrawl: " + JSON.stringify(startData));
+
+            const jobId = startData.id;
+            if (onLog) onLog("INFO", "Firecrawl Batch", `Job ID: ${jobId}. Esperando completado de extracción...`);
+
+            let completed = false;
+            let finalData: any = null;
+            let attempts = 0;
+            
+            while (!completed && attempts < 60) { // 3 minutos max
+                await new Promise(r => setTimeout(r, 3000));
+                attempts++;
+                const pollRes = await fetch(`https://api.firecrawl.dev/v1/batch/scrape/${jobId}`, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                const pollData = await pollRes.json();
+                
+                if (pollData.status === "completed") {
+                    completed = true;
+                    finalData = pollData;
+                } else if (pollData.status === "failed") {
+                    throw new Error("Firecrawl Job failed: " + JSON.stringify(pollData));
                 }
-                throw new Error("Filtro Cognitivo estricto: Ningún competidor superó el análisis de calidad.");
             }
+
+            if (!finalData || !finalData.data) throw new Error("Timeout o error obteniendo resultados de Firecrawl.");
+
+            const survivors = finalData.data.filter((d: any) => d.markdown && d.markdown.length > 500);
 
             if (onLog) {
-                onLog("OK", "Auditoria de Calidad", `Se descartaron contenidos de bajo valor. ${data.surviving_pureza} fuentes superaron el estandar de calidad estricto.`);
-                onLog("IA", "Analisis Cognitivo Nous", `Se seleccionaron ${data.final_useful_count} referencias de alto valor estrategico para la redaccion.`);
-            }
-
-            if (typeof window !== 'undefined') {
-                (window as any)._lastCognitiveReport = data.cognitive_report;
+                onLog("OK", "Scrape Completado", `Se extrajeron exitosamente ${survivors.length} URLs útiles de ${urls.length} solicitadas.`);
             }
 
             return survivors.map((survivor: any) => {
-                const comp = competitors.find(c => c.url === survivor.url) || { title: "Desconocido", snippet: "" };
+                const sourceUrl = survivor.metadata?.sourceURL || survivor.metadata?.url;
+                // Buscar competidor original
+                const comp = competitors.find(c => c.url === sourceUrl || sourceUrl?.includes(c.url)) || { title: survivor.metadata?.title || "Desconocido", snippet: "" };
                 
-                // Fallback robusto para calcular palabras y extractos
-                const textContent = survivor.content || survivor.text || (survivor.html ? survivor.html.replace(/<[^>]+>/g, ' ') : '') || '';
-                const computedWordCount = survivor.wordCount || textContent.split(/\s+/).filter((w: string) => w.length > 0).length || 0;
+                const textContent = survivor.markdown || '';
+                const computedWordCount = survivor.metadata?.wordCount || textContent.split(/\s+/).filter((w: string) => w.length > 0).length || 0;
                 
                 return {
-                    url: survivor.url,
+                    url: sourceUrl || comp.url || "",
                     title: comp.title,
-                    originalPosition: comp.originalPosition || null,
-                    content: textContent || comp.snippet || `<p>${comp.title}</p>`, 
-                    summary: survivor.summary || (textContent ? textContent.substring(0, 300) + '...' : comp.snippet || comp.title),
-                    headers: survivor.headers || [],
+                    originalPosition: (comp as any).originalPosition || null,
+                    content: textContent, 
+                    summary: textContent.substring(0, 300) + '...',
+                    headers: [], // Firecrawl maneja markdown nativo
                     wordCount: computedWordCount
                 };
             });
@@ -74,25 +91,24 @@ export const ScraperService = {
 
     async scrapeAndClean(url: string, title: string, onLog?: (p: string, m: string, res?: string) => void, snippet?: string): Promise<ScrapedContent> {
         try {
-            if (onLog) onLog("INFO", `${title.substring(0, 20)}...`, "Extrayendo HTML via Supabase Edge...");
+            if (onLog) onLog("INFO", `${title.substring(0, 20)}...`, "Extrayendo vía Firecrawl...");
 
-            const { data, error } = await supabase.functions.invoke('research-engine', {
-                body: { urls: [url], isSingleExtraction: true }
+            const apiKey = process.env.NEXT_PUBLIC_FIRECRAWL_API_KEY || 'fc-1a6816cc1b414aacbb04e101d5da6479';
+
+            const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url, formats: ["markdown"] })
             });
+            const data = await res.json();
 
-            if (data && onLog) {
-                onLog("INFO", `${title.substring(0, 20)}...`, `Edge Function responde: ${data.ok ? "SUCCESS" : "FAIL"} (${(data.html || "").length} chars)`);
-            }
-
-            if (error || !data?.ok) {
-                const errMsg = error?.message || data?.error || "Extraction failed";
-                const httpStatus = data?.status;
-                
-                if (onLog) onLog("WARN", `${title.substring(0, 20)}...`, `Bloqueado (${httpStatus || 'ERR'}) en ${url} - usando snippet como fallback`);
-                
+            if (!data.success || !data.data?.markdown) {
+                if (onLog) onLog("WARN", `${title.substring(0, 20)}...`, `Firecrawl sin contenido para ${url} — usando snippet`);
                 return {
-                    url,
-                    title,
+                    url, title,
                     content: snippet || `<p>${title}</p>`,
                     summary: snippet || title,
                     headers: [],
@@ -100,22 +116,21 @@ export const ScraperService = {
                 };
             }
 
-            const textContent = data.text || (data.html ? data.html.replace(/<[^>]+>/g, ' ') : '') || '';
-            const computedWordCount = data.wordCount || textContent.split(/\s+/).filter((w: string) => w.length > 0).length || 0;
+            const textContent = data.data.markdown;
+            const computedWordCount = textContent.split(/\s+/).filter((w: string) => w.length > 0).length;
 
             return {
                 url,
-                title,
-                content: textContent || snippet || `<p>${title}</p>`,
-                summary: data.summary || (textContent ? textContent.substring(0, 300) + '...' : snippet || title),
-                headers: data.headers || [],
+                title: data.data.metadata?.title || title,
+                content: textContent,
+                summary: textContent.substring(0, 300) + '...',
+                headers: [],
                 wordCount: computedWordCount
             };
 
         } catch (error: any) {
             return {
-                url,
-                title,
+                url, title,
                 content: snippet || `<p>${title}</p>`,
                 summary: snippet || title,
                 headers: [],
