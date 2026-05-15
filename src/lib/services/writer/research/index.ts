@@ -54,7 +54,7 @@ export const ResearchOrchestrator = {
      */
     async validateQuality(taskId: string): Promise<QualityAudit> {
         const { data: taskData } = await supabase
-            .from('tasks')
+            .from('task_research')
             .select('research_dossier')
             .eq('id', taskId)
             .single();
@@ -411,16 +411,16 @@ Retorna ÚNICAMENTE este formato JSON válido:
 
         const saveCheckpoint = async (phase: string, data: any) => {
             if (!taskId) return data;
-            const { data: current } = await supabase.from('tasks').select('research_dossier').eq('id', taskId).single();
+            const { data: current } = await supabase.from('task_research').select('research_dossier').eq('id', taskId).maybeSingle();
             const existing = current?.research_dossier || {};
             const updated = { ...existing, ...data, _checkpoint: phase, _checkpoints_at: { ...(existing._checkpoints_at || {}), [phase]: new Date().toISOString() } };
-            await supabase.from('tasks').update({ research_dossier: updated }).eq('id', taskId);
+            await supabase.from('task_research').upsert({ id: taskId, research_dossier: updated });
             return updated;
         };
 
         let dossier: any = {};
         if (taskId && !forceRestart) {
-            const { data: taskData } = await supabase.from('tasks').select('research_dossier').eq('id', taskId).single();
+            const { data: taskData } = await supabase.from('task_research').select('research_dossier').eq('id', taskId).maybeSingle();
             dossier = taskData?.research_dossier || {};
         }
         
@@ -560,10 +560,14 @@ Retorna ÚNICAMENTE este formato JSON válido:
                 excerpt: dossier.excerpt,
                 target_url_slug: dossier.target_url_slug,
                 target_word_count: dossier.recommendedWordCount,
-                outline_structure: dossier.outline_structure,
-                status: "por_redactar",
-                research_dossier: dossier
+                status: "por_redactar"
             }).eq('id', config.taskId);
+
+            await supabase.from('task_research').upsert({
+                id: config.taskId,
+                outline_structure: dossier.outline_structure,
+                research_dossier: dossier
+            });
         }
 
         return dossier;

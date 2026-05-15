@@ -41,4 +41,9 @@ export class NotificationService {
         console.warn(`⚠️ ${title}${body ? ': ' + body : ''}`);
         await NotificationService.notify(title, body, 'warning');
     }
+
+    /** Alias for warning to prevent TypeErrors in legacy code */
+    static async warn(title: string, body?: string) {
+        return this.warning(title, body);
+    }
 }
