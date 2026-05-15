@@ -228,7 +228,30 @@ Responde ÚNICAMENTE con este JSON:
                     };
                 }
             }
-            return await ScraperService.scrapeMassive(rankedPool, taskContext, onLog);
+
+            // Filter out domains that Firecrawl doesn't support to avoid batch rejection
+            const UNSUPPORTED_DOMAINS = ['reddit.com', 'amazon.', 'youtube.com', 'youtu.be', 'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com', 'linkedin.com', 'pinterest.com'];
+            const scrapablePool = rankedPool.filter((r: any) => {
+                const url = (r.url || r.link || '').toLowerCase();
+                return !UNSUPPORTED_DOMAINS.some(d => url.includes(d));
+            });
+            const blockedPool = rankedPool.filter((r: any) => {
+                const url = (r.url || r.link || '').toLowerCase();
+                return UNSUPPORTED_DOMAINS.some(d => url.includes(d));
+            });
+
+            if (onLog && blockedPool.length > 0) {
+                onLog('INFO', 'Filtro Firecrawl', `${blockedPool.length} URLs de plataformas no scrapeables excluidas (Reddit, Amazon, etc.)`);
+            }
+
+            if (scrapablePool.length === 0) {
+                if (onLog) onLog('WARN', 'Scraping', 'Todos los resultados son de plataformas no scrapeables. Usando snippets SERP.');
+                return rankedPool
+                    .filter((r: any) => r.snippet && r.snippet.length > 50)
+                    .map((r: any) => ({ url: r.url || r.link, title: r.title, content: `<p>${r.snippet}</p>`, summary: r.snippet, headers: [], wordCount: r.snippet.split(/\s+/).length }));
+            }
+
+            return await ScraperService.scrapeMassive(scrapablePool, taskContext, onLog);
         }
         return [];
     },
@@ -428,7 +451,7 @@ Retorna ÚNICAMENTE este formato JSON válido:
         }
         
         // Initialize State Machine Cache
-        dossier.context_cache = dossier.context_cache || {};
+        dossier.context_cache = (dossier.context_cache && typeof dossier.context_cache === 'object') ? dossier.context_cache : {};
 
         const PHASES: ResearchPhase[] = ['serp_done', 'scraping_done', 'lsi_done', 'ask_done', 'real_kws_done', 'metadata_done', 'interlinking_done', 'outline_done'];
         
