@@ -433,7 +433,7 @@ export default function StrategyGrid({
                                                         "w-1 h-1 rounded-full",
                                                         STATUS_COLORS[task.status]?.dot || 'bg-slate-400'
                                                     )} />
-                                                    {STATUS_LABELS[task.status] || task.status.replace(/_/g, ' ')}
+                                                    {STATUS_LABELS[task.status] || (task.status ? task.status.replace(/_/g, ' ') : '—')}
                                                 </div>
                                             )}
                                         </td>

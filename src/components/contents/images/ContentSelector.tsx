@@ -84,7 +84,7 @@ export const ContentSelector: React.FC<ContentSelectorProps> = ({ onSelect, sele
                                         {task.title || 'Sin título'}
                                     </p>
                                     <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                                        {task.status.replace('_', ' ')}
+                                        {task.status ? task.status.replace('_', ' ') : '—'}
                                     </span>
                                 </div>
                             </div>
