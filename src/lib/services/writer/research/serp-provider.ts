@@ -28,7 +28,7 @@ export const SerpProvider = {
     async fetchSerperSearch(query: string): Promise<{ results: any[], faqs: any[] }> {
         try {
             // Reverted to 20 results as requested
-            const res = await fetchSerperSearch(query, "es", "es", 20);
+            const res = await fetchSerperSearch(query, "es", "es", 15);
             
             if (res && res.organic && Array.isArray(res.organic)) {
                 const results = res.organic.map((r: any) => ({

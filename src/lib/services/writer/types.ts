@@ -78,7 +78,7 @@ export interface SEOAnalysisResult {
     autocompleteLongTail?: string[];
     frequentQuestions?: string[];
     top10Urls?: { title: string; url: string; snippet?: string; }[];
-    top15Urls?: { title: string; url: string; snippet?: string; }[];
+    top20Urls?: { title: string; url: string; snippet?: string; }[];
     lsiKeywords?: { keyword: string; count: string; }[];
     recommendedWords?: string[];
     recommendedWordCount?: string;
