@@ -36,10 +36,10 @@ export const OutlineEngine = {
         
         // Model Rotation Matrix (Safe-guards for both phases)
         const fallbackModels = [
-            "gemini-1.5-flash-lite-001", // Hyper-fast
-            "gemini-1.5-flash",          // Fast & Capable
-            "gemma-2-27b-it",            // Technical fallback
-            "llama-3.3-70b-versatile"    // Robust fallback
+            "gemini-3.1-flash-lite-preview", // Hyper-fast
+            "gemini-3.1-flash-preview",      // Fast & Capable
+            "gemma-4-31b-it",                // Technical fallback
+            "llama-3.3-70b-versatile"        // Robust fallback
         ];
 
         try {

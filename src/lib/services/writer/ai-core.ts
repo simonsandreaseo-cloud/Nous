@@ -227,7 +227,7 @@ export const executeWithKeyRotation = async <T>(
         const isResearch = label.toLowerCase().includes('seo') || label.toLowerCase().includes('investigación') || label.toLowerCase().includes('research');
         const isWriting = label.toLowerCase().includes('redacción') || label.toLowerCase().includes('humanización') || label.toLowerCase().includes('writing') || label.toLowerCase().includes('artículo');
 
-        const isTechnical = label.toLowerCase().includes('json') || label.toLowerCase().includes('técnico') || label.toLowerCase().includes('schema') || label.toLowerCase().includes('extracción');
+        const isTechnical = label.toLowerCase().includes('json') || label.toLowerCase().includes('técnico') || label.toLowerCase().includes('técnica') || label.toLowerCase().includes('technical') || label.toLowerCase().includes('schema') || label.toLowerCase().includes('extracción');
         const isExtraction = label.toLowerCase().includes('helios') || label.toLowerCase().includes('limpieza') || label.toLowerCase().includes('cleaner');
         const isUI = label.toLowerCase().includes('ui') || label.toLowerCase().includes('html') || label.toLowerCase().includes('chat') || label.toLowerCase().includes('interfaz');
         const isReasoning = label.toLowerCase().includes('razonamiento') || label.toLowerCase().includes('pensamiento') || label.toLowerCase().includes('reasoning') || label.toLowerCase().includes('lógica');

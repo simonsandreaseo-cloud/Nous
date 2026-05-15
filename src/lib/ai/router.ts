@@ -35,7 +35,7 @@ class AIRouter {
                             systemInstruction: isGemma ? undefined : systemPrompt,
                             temperature,
                             maxOutputTokens: maxTokens,
-                            responseMimeType: jsonMode ? 'application/json' : 'text/plain',
+                            responseMimeType: jsonMode ? 'application/json' : undefined,
                         }
                     });
                     return response.text ?? '';
@@ -48,7 +48,7 @@ class AIRouter {
                         generationConfig: {
                             temperature,
                             maxOutputTokens: maxTokens,
-                            responseMimeType: jsonMode ? 'application/json' : 'text/plain',
+                            responseMimeType: jsonMode ? 'application/json' : undefined,
                         }
                     });
                     const res = await modelObj.generateContent(prompt);

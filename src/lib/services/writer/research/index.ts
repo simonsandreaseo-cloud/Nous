@@ -98,12 +98,14 @@ export const ResearchOrchestrator = {
         let searchSeed = keyword;
         if (keyword.split(/\s+/).length > 7) {
             const seedRes = await aiRouter.generate({
-                prompt: `Extrae la "Core Keyword" (máximo 4 palabras) de este título: "${keyword}". Responde solo con la keyword limpia.`,
+                prompt: `Extrae la "Core Keyword" (máximo 4 palabras) de este título: "${keyword}". Responde ÚNICAMENTE con JSON: {"keyword": "la keyword limpia"}`,
                 model: "gemma-4-31b-it",
                 systemPrompt: "Experto SEO.",
+                jsonMode: true,
                 label: "Sanitización Técnica"
             });
-            if (seedRes.text) searchSeed = seedRes.text.trim().replace(/"/g, '');
+            const extracted = safeJsonExtract<{keyword: string}>(seedRes.text, {keyword: ''});
+            if (extracted.keyword) searchSeed = extracted.keyword.trim().replace(/"/g, '');
         }
 
         const intentPrompt = `Genera 5 variaciones de búsqueda derivadas de: "${searchSeed}".
