@@ -166,16 +166,20 @@ FORMATO:
                 const calculatedWordCount = Math.floor((weight / totalWeight) * goal);
 
                 return {
-                    level: level,
+                    type: `H${level}`,
                     text: section.text,
-                    instructions: enrichment.instructions || "Desarrolla esta sección basándote en la intención de búsqueda y el contexto de la competencia.",
+                    notes: enrichment.instructions || "Desarrolla esta sección basándote en la intención de búsqueda y el contexto de la competencia.",
                     keywords: Array.isArray(enrichment.keywords) ? enrichment.keywords : [],
                     wordCount: String(calculatedWordCount),
                     currentWordCount: 0
                 };
             });
 
-            return finalOutline;
+            // Return in the format the Studio expects: an object with headers
+            return {
+                headers: finalOutline,
+                totalWordCount: goal
+            };
 
         } catch (error) {
             console.error("[OutlineEngine] Critical Failure:", error);
