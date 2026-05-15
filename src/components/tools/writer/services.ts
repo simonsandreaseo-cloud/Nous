@@ -197,7 +197,7 @@ Entrada: "Sugerir imágenes para: Receta de tarta"
 Salida: [{"id": "body_1", "prompt": "Tarta de chocolate deliciosa"}]
 `;
 
-export const generateArticleStream = async (model: string, prompt: string) => {
+export const generateArticleStream = async (model: string, prompt: string, hierarchy?: string[]) => {
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
@@ -218,7 +218,7 @@ ${FEW_SHOT_HTML}`,
                 yield { text: chunk.text() };
             }
         })();
-    }, model || 'default', undefined, undefined, undefined, false, 'Redacción Artículo');
+    }, model || 'default', hierarchy, undefined, undefined, false, 'Redacción Artículo');
 };
 
 export const refineArticleContent = async (

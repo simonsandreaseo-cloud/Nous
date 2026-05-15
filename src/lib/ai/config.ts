@@ -69,8 +69,8 @@ export const AI_CONFIG = {
                 'gemma-4-26b-a4b-it'           // Fallback 5: Deep Logic
             ],
             writing: [
-                'gemini-3.1-flash-lite-preview', // Priority 1: Editorial 3.1
-                'gemma-4-31b-it',               // Fallback 1: Calidad Premium
+                'gemma-4-31b-it',               // Priority 1: Calidad Premium (Gemma 4)
+                'gemini-3.1-flash-lite-preview', // Fallback 1: Editorial 3.1
                 'gemma-4-26b-a4b-it',           // Fallback 2: Editorial Dense
                 'gemini-3-flash-preview',       // Fallback 3: High Impact
                 'gemini-2.5-flash',              // Fallback 4: Flow Stable

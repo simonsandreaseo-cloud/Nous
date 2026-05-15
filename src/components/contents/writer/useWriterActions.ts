@@ -19,6 +19,7 @@ import { OutlineEngine } from '@/lib/services/writer/research/outline-engine';
 import { LinkPatcherService } from '@/lib/services/link-patcher';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 
+import { AI_CONFIG } from '@/lib/ai/config';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -247,8 +248,9 @@ export function useWriterActions() {
             store.setStatus('Redactando artículo (1 Token usado)…');
             if (activeProject) await consumeTokens(1);
 
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-4-31b-it';
-            const stream = await generateArticleStream(modelToUse, prompt);
+            const writingHierarchy = AI_CONFIG.gemini.hierarchies.writing;
+            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : writingHierarchy[0];
+            const stream = await generateArticleStream(modelToUse, prompt, writingHierarchy);
             let buffer = '';
             for await (const chunk of stream) {
                 if (chunk.text) {
