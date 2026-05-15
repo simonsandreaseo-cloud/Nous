@@ -627,8 +627,12 @@ Retorna ÚNICAMENTE este formato JSON válido:
 
         // Final persistence
         if (config.taskId) {
-            if (onLog) onLog("Finalizando", `Guardando investigación completa. Outline: ${dossier.outline_structure?.length || 0} secciones.`);
+            const sectionsCount = dossier.outline_structure?.headers?.length || dossier.outline_structure?.length || 0;
+            if (onLog) onLog("Finalizando", `Guardando investigación completa. Outline: ${sectionsCount} secciones.`);
             console.log("✅ [INVESTIGACIÓN] Dossier Final:", dossier);
+
+            // Studio Compatibility: Ensure outline_structure is a flat array if possible
+            const flatOutline = dossier.outline_structure?.headers || dossier.outline_structure || [];
 
             await supabase.from('tasks').update({
                 h1: dossier.h1 || dossier.seoMetadata?.h1,
@@ -637,12 +641,13 @@ Retorna ÚNICAMENTE este formato JSON válido:
                 excerpt: dossier.excerpt || dossier.seoMetadata?.excerpt,
                 target_url_slug: dossier.target_url_slug || dossier.seoMetadata?.target_url_slug,
                 target_word_count: dossier.recommendedWordCount || dossier.wordCountGoal,
+                outline_structure: flatOutline, // Save flat array for UI compatibility
                 status: "por_redactar"
             }).eq('id', config.taskId);
 
             await supabase.from('task_research').upsert({
                 id: config.taskId,
-                outline_structure: dossier.outline_structure,
+                outline_structure: flatOutline,
                 research_dossier: dossier
             });
         }
