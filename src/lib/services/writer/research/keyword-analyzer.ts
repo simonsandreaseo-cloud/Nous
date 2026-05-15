@@ -42,7 +42,7 @@ FORMATO OBLIGATORIO:
 
         const lsiRes = await aiRouter.generate({
             prompt: lsiPrompt,
-            model: "gemma-2-27b-it", // Technical Main
+            model: "gemma-4-31b-it", // Technical Main
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios LSI. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "LSI Technical"
@@ -187,7 +187,7 @@ FORMATO OBLIGATORIO:
 
         const filterRes = await aiRouter.generate({
             prompt: filterPrompt,
-            model: "gemma-2-27b-it",
+            model: "gemma-4-31b-it",
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios SEO. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "Golden Keywords Filter"

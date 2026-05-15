@@ -99,7 +99,7 @@ export const ResearchOrchestrator = {
         if (keyword.split(/\s+/).length > 7) {
             const seedRes = await aiRouter.generate({
                 prompt: `Extrae la "Core Keyword" (máximo 4 palabras) de este título: "${keyword}". Responde ÚNICAMENTE con JSON: {"keyword": "la keyword limpia"}`,
-                model: "gemini-1.5-flash-8b",
+                model: "gemini-3.1-flash-lite-preview",
                 forceModel: true,
                 systemPrompt: "Experto SEO.",
                 jsonMode: true,
@@ -115,7 +115,7 @@ Responde ÚNICAMENTE con este formato JSON:
 {"queries": ["variacion 1", "variacion 2", "variacion 3", "variacion 4", "variacion 5"]}`;
         const multiplexRes = await aiRouter.generate({
             prompt: intentPrompt,
-            model: "gemini-1.5-flash-8b",
+            model: "gemini-3.1-flash-lite-preview",
             systemPrompt: "Eres un SEO Multiplexer. Tu única función es devolver el objeto JSON solicitado, sin markdown ni explicaciones.",
             jsonMode: true,
             label: "Multiplexing Research"
@@ -148,7 +148,7 @@ Responde ÚNICAMENTE con este JSON:
 
         const strategyRes = await aiRouter.generate({
             prompt: masterStrategyPrompt,
-            model: "gemini-1.5-flash-8b",
+            model: "gemini-3.1-flash-lite-preview",
             systemPrompt: "Director de Estrategia SEO. Devuelves SOLO JSON.",
             jsonMode: true,
             label: "Estrategia de Intención"
@@ -179,7 +179,7 @@ Responde ÚNICAMENTE con este JSON:
             
             const profileRes = await aiRouter.generate({
                 prompt: profilePrompt,
-                model: "gemini-1.5-flash-8b",
+                model: "gemini-3.1-flash-lite-preview",
                 systemPrompt: "Arquitecto de Silos SEO y Experto en UX de Conversión.",
                 jsonMode: true,
                 label: "Linking Profile"
@@ -287,7 +287,7 @@ Responde ÚNICAMENTE con este JSON:
             const sniperPrompt = `OBJETIVO: Eres un Francotirador SEO. Tienes que elegir los 3 competidores cuyo H1/Título se parezca más a nuestra intención.\n\nNUESTRO H1: ${keyword}\n\nCANDIDATOS:\n${top5Candidates.map((c, i) => `[ID: ${i}] Título: ${c.title}`).join('\n')}\n\nRESPONDE ÚNICAMENTE CON UN ARRAY JSON ESTRICTO con los 3 IDs elegidos: [0, 2, 4]`;
             const sniperRes = await aiRouter.generate({
                 prompt: sniperPrompt,
-                model: "gemini-1.5-flash-8b",
+                model: "gemini-3.1-flash-lite-preview",
                 systemPrompt: "Eres un Francotirador SEO estricto. Devuelves SOLO un array JSON con números.",
                 jsonMode: true,
                 label: "Sniper Mode"
@@ -405,7 +405,7 @@ Retorna ÚNICAMENTE este formato JSON válido:
 
             const linkRes = await aiRouter.generate({
                 prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${units.length} artículos):\n${JSON.stringify(units)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${maxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,
-                model: "gemini-1.5-flash-8b",
+                model: "gemini-3.1-flash-lite-preview",
                 systemPrompt: "Arquitecto de Silos SEO.",
                 jsonMode: true,
                 label: "Optimización Interlinking",
