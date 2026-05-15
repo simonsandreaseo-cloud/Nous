@@ -64,26 +64,29 @@ export const AI_CONFIG = {
                 'gemini-3.1-flash-lite-preview', // Priority 1: Editorial 3.1
                 'gemini-3-flash-preview',      // Fallback 1: Stability 3.0
                 'gemini-2.5-flash',            // Fallback 2: Versatility 2.5
-                'gemma-4-26b-a4b-it'           // Fallback 3: Deep Logic
+                'gemini-2.5-flash-lite',       // Fallback 3: Efficiency 2.5
+                'gemma-4-31b-it',              // Fallback 4: Reasoning
+                'gemma-4-26b-a4b-it'           // Fallback 5: Deep Logic
             ],
             writing: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Editorial 3.1
                 'gemma-4-31b-it',               // Fallback 1: Calidad Premium
                 'gemma-4-26b-a4b-it',           // Fallback 2: Editorial Dense
                 'gemini-3-flash-preview',       // Fallback 3: High Impact
-                'gemini-2.5-flash'              // Fallback 4: Flow Stable
+                'gemini-2.5-flash',              // Fallback 4: Flow Stable
+                'gemini-2.5-flash-lite'          // Fallback 5: Lightweight
             ],
             technical: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Técnico estable
                 'gemma-4-31b-it',                // Fallback 1: Estructura JSON
                 'gemma-4-26b-a4b-it',            // Fallback 2: JSON Strict
-                'gemini-2.5-flash'               // Fallback 3: Logic 2.5
+                'gemini-2.5-flash',               // Fallback 3: Logic 2.5
+                'gemini-2.5-flash-lite'           // Fallback 4: JSON Fast
             ],
             extraction: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Volumen técnico
                 'gemma-4-31b-it',                // Fallback 1: Estabilidad JSON
-                'gemini-2.5-flash-lite',         // Fallback 2: Speed Extraction
-                'gemini-3-flash-preview'         // Fallback 3: Context Heavy
+                'gemini-2.5-flash-lite'          // Fallback 2: Extraction Fast
             ],
             ui: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: UI Reactiva

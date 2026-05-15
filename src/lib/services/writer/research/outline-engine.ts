@@ -40,7 +40,9 @@ export const OutlineEngine = {
             "gemini-3.1-flash-lite-preview", // Priority 1: Editorial 3.1
             "gemini-3-flash-preview",      // Fallback 1: Stability 3.0
             "gemini-2.5-flash",            // Fallback 2: Versatility 2.5
-            "gemma-4-31b-it"               // Fallback 3: Deep Logic
+            "gemini-2.5-flash-lite",       // Fallback 3: Speed 2.5
+            "gemma-4-31b-it",              // Fallback 4: Reasoning
+            "gemma-4-26b-a4b-it"           // Fallback 5: Deep Logic
         ];
 
         try {
