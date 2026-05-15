@@ -74,19 +74,82 @@ REGLAS PARA EL ESQUELETO:
 FORMATO:
 [{"level": 2, "text": "Título de Sección"}]`;
 
+        const robustParseOutline = (text: string): any[] => {
+            // 1. Try clean JSON first
+            const json = safeJsonExtract<any[]>(text, []);
+            if (json && json.length > 0) return json;
+
+            // 2. Fallback to Regex-based Markdown/List Parsing
+            const lines = text.split('\n');
+            const structure: any[] = [];
+            
+            for (const line of lines) {
+                const clean = line.trim();
+                if (!clean) continue;
+
+                // Match H2/H3 markers: "H2: Title", "## Title", "2. Title", "### Title"
+                const hMatch = clean.match(/^(?:#+\s*|H([23])[:.\s]+|([23])[:.\s]+)(.*)/i);
+                if (hMatch) {
+                    const levelStr = hMatch[1] || hMatch[2] || (clean.startsWith('###') ? '3' : '2');
+                    const level = parseInt(levelStr);
+                    const titleText = hMatch[3].trim();
+                    if (titleText) structure.push({ level, text: titleText });
+                    continue;
+                }
+
+                // Match numbered list items if they don't have level markers (default to H2)
+                const listMatch = clean.match(/^\d+[\s.)]+(.*)/);
+                if (listMatch) {
+                    const titleText = listMatch[1].trim();
+                    if (titleText && titleText.length > 3) structure.push({ level: 2, text: titleText });
+                }
+            }
+            return structure;
+        };
+
+        try {
+            // PHASE 1: Structural Synthesis (H2/H3 Skeleton)
+            const faqsText = faqs.slice(0, 5).map(f => `- ${f.question || f.title || JSON.stringify(f)}`).join('\n');
+            
+            const phase1Prompt = `ESTRATEGIA PROFUNDA DE ESTRUCTURA PARA: "${keyword}"
+OBJETIVO: Crear el mejor esqueleto de H2/H3 del nicho superando a la competencia.
+
+METADATOS PROPUESTOS:
+H1: "${seoMetadata.h1}"
+INTENCIÓN MAESTRA: "${masterIntent}"
+TIPO DE SERP DETECTADO: "${serpReport.type || 'mixed'}"
+
+ESTRATEGIA RECOMENDADA: ${serpReport.type === 'transactional' ? 'Enfoque directo a solución/producto.' : 'Guía informativa profunda y autoritativa.'}
+
+ESTRUCTURA DE COMPETIDORES RELEVANTES:
+${competitorHeaders.substring(0, 3000)}
+
+PREGUNTAS FRECUENTES (FAQs):
+${faqsText || "Ninguna FAQ específica detectada."}
+
+REGLAS PARA EL ESQUELETO:
+1. Diseña una estructura lógica y fluida de H2s y H3s.
+2. Si el SERP es informativo, prioritiza el valor educativo. Si es transaccional, prioritiza los beneficios y la comparativa.
+3. Asegúrate de responder las FAQs de manera natural.
+4. Devuelve un Array de objetos con "level" (2 o 3) y "text" (título).
+
+FORMATO PREFERIDO:
+[{"level": 2, "text": "Título"}]`;
+
             let skeleton: any[] = [];
             for (const model of fallbackModels) {
                 try {
                     const phase1Res = await aiRouter.generate({
                         prompt: phase1Prompt,
                         model: model,
-                        systemPrompt: "Eres un Arquitecto de Contenidos. Devuelves el array JSON con el esqueleto H2/H3. Sin explicaciones.",
+                        systemPrompt: "Eres un Arquitecto de Contenidos. Devuelves el esqueleto H2/H3 de forma estructurada. Prefiere JSON, pero puedes usar Markdown si es necesario.",
                         jsonMode: true,
                         label: `Outline P1 (${model})`,
                         temperature: 0.2,
                         timeoutMs
                     });
-                    skeleton = safeJsonExtract<any[]>(phase1Res.text, []);
+                    
+                    skeleton = robustParseOutline(phase1Res.text);
                     if (skeleton.length > 0) {
                         console.log(`🚀 [OutlineEngine] P1 Exitosa con ${model}. Esqueleto: ${skeleton.length} secciones.`);
                         break;
