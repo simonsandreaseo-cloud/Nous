@@ -67,7 +67,8 @@ export const SerpProvider = {
         const uniqueUrls = new Set<string>();
         const uniqueFaqs = new Set<string>();
 
-        for (const q of queries.slice(0, 4)) {
+        const activeQueries = queries.filter(q => q && q.trim().length > 0).slice(0, 4);
+        for (const q of activeQueries) {
             if (onLog) onLog("Buscando Serper", `Query: ${q}`);
             
             // Sequential search with delay for proxy resiliency

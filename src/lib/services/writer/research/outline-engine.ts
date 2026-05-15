@@ -35,11 +35,10 @@ export const OutlineEngine = {
             return `### FUENTE: ${v.title}\n${headersText}`;
         }).join('\n\n');
         
-        // Model Rotation Matrix (Safe-guards for both phases)
         const fallbackModels = [
-            "gemini-3.1-flash-lite-preview", // Hyper-fast
-            "gemini-3.1-flash-preview",      // Fast & Capable
-            "gemma-4-31b-it",                // Technical fallback
+            "gemini-1.5-flash-8b", // Hyper-fast
+            "gemini-1.5-flash",      // Fast & Capable
+            "gemma-2-27b-it",                // Technical fallback
             "llama-3.3-70b-versatile"        // Robust fallback
         ];
 
