@@ -56,11 +56,12 @@ class AIRouter {
                 }
             },
             model,
-            undefined,
-            undefined,
-            forceModel,
-            resolvedLabel,
-            timeoutMs
+            undefined,      // explicitHierarchy
+            undefined,      // keys
+            undefined,      // onRotation
+            forceModel,     // isStrictModel
+            resolvedLabel,  // label
+            timeoutMs       // timeoutMs
         );
 
         return {
