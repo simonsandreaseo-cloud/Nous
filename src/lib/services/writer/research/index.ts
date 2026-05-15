@@ -93,72 +93,72 @@ export const ResearchOrchestrator = {
 
     /**
      * Phase 1: Rapid SEO Analysis (SERP + Intent)
-     */
-    async runInitialAnalysis(keyword: string, projectId?: string, onLog?: (p: string, m: string, r?: string) => void): Promise<any> {
-        let searchSeed = keyword;
-        if (keyword.split(/\s+/).length > 7) {
-            const seedRes = await aiRouter.generate({
-                prompt: `Extrae la "Core Keyword" (máximo 4 palabras) de este título: "${keyword}". Responde ÚNICAMENTE con JSON: {"keyword": "la keyword limpia"}`,
-                model: "gemini-3.1-flash-lite-preview",
-                forceModel: true,
-                systemPrompt: "Experto SEO.",
-                jsonMode: true,
-                label: "Sanitización Técnica"
-            });
-            const extracted = safeJsonExtract<{keyword: string}>(seedRes.text, {keyword: ''});
-            if (extracted.keyword) searchSeed = extracted.keyword.trim().replace(/"/g, '');
-        }
-
-        const intentPrompt = `Genera 5 variaciones de búsqueda derivadas de: "${searchSeed}".
-Áreas a cubrir: Informativo, Comparativo, FAQs, Tendencias y Guía.
-Responde ÚNICAMENTE con este formato JSON:
-{"queries": ["variacion 1", "variacion 2", "variacion 3", "variacion 4", "variacion 5"]}`;
-        const multiplexRes = await aiRouter.generate({
-            prompt: intentPrompt,
-            model: "gemini-3.1-flash-lite-preview",
-            systemPrompt: "Eres un SEO Multiplexer. Tu única función es devolver el objeto JSON solicitado, sin markdown ni explicaciones.",
-            jsonMode: true,
-            label: "Multiplexing Research"
-        });
+     */    async runInitialAnalysis(keyword: string, projectId?: string, onLog?: (p: string, m: string, r?: string) => void): Promise<any> {
+        if (onLog) onLog("Serper", "Buscando SERP", `Query directa: ${keyword}`);
         
-        const extractedQueries = safeJsonExtract<{queries: string[]}>(multiplexRes.text, {queries: []});
-        const cleanQueries = (extractedQueries.queries || []).filter(q => typeof q === 'string');
-        const queries = [searchSeed, ...cleanQueries].slice(0, 4);
+        // Single direct search instead of multiplexing
+        const serpData = await SerpProvider.fetchSerperSearch(keyword);
+        const rawResults = serpData.results;
+        const faqs = serpData.faqs;
 
-        const multiplexData = await SerpProvider.multiplexSearch(queries, onLog);
-        const rawResults = multiplexData.results;
-        const faqs = multiplexData.faqs;
         if (rawResults.length === 0) throw new Error("No organic search results found.");
 
-        if (onLog) onLog("IA", "Estratega Nous", "Sintetizando H1 Maestro e Intención de Búsqueda desde ecosistema SERP...");
+        if (onLog) onLog("IA", "Analista SERP", "Analizando ecosistema de resultados y seleccionando mejores referencias...");
         
-        const masterStrategyPrompt = `Analiza estas fuentes orgánicas para la keyword principal: "${keyword}".
-Tu tarea es definir la dirección técnica del artículo:
-1. Genera un "masterH1": El título más potente y optimizado (Atractivo, curiosidad + SEO).
-2. Define la "searchIntent": Explica exactamente qué está buscando el usuario y qué necesita resolver (Intención de búsqueda refinada).
+        const serpAnalysisPrompt = `Analiza este SERP para la búsqueda: "${keyword}".
+Snippet de los resultados:
+${rawResults.slice(0, 15).map((r, i) => `[${i+1}] Título: ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet}`).join('\n\n')}
 
-Fuentes:
-${rawResults.slice(0, 15).map((r, i) => `[${i}] ${r.title} | ${r.snippet}`).join('\n')}
+Tu tarea:
+1. Determina el TIPO de SERP (Informativa, Transaccional, Ecommerce, Redes Sociales, Mixta).
+2. Identifica en qué posiciones (números del 1 al 15) están los contenidos de tipo "Blog", Guías o Artículos.
+3. Define la "searchIntent" (¿Qué busca resolver el usuario?).
+4. Genera un "masterH1" potente para nuestro artículo.
+5. Selecciona las 3 a 5 URLs más ricas en contenido (Blogs de autoridad, guías detalladas) que debemos scrapear para tener la mejor base técnica.
 
-Responde ÚNICAMENTE con este JSON:
+Responde ÚNICAMENTE en JSON:
 {
-  "masterH1": "...",
-  "searchIntent": "..."
+  "serpType": "...",
+  "blogPositions": [1, 3, 5],
+  "searchIntent": "...",
+  "selectedUrls": ["url1", "url2", "url3"],
+  "masterH1": "..."
 }`;
 
-        const strategyRes = await aiRouter.generate({
-            prompt: masterStrategyPrompt,
+        const analysisRes = await aiRouter.generate({
+            prompt: serpAnalysisPrompt,
             model: "gemini-3.1-flash-lite-preview",
-            systemPrompt: "Director de Estrategia SEO. Devuelves SOLO JSON.",
+            systemPrompt: "Analista SEO Senior. Tu objetivo es diseccionar el SERP y elegir las fuentes de mayor calidad para investigación profunda. Devuelves SOLO JSON.",
             jsonMode: true,
-            label: "Estrategia de Intención"
+            label: "Análisis de SERP"
         });
 
-        const masterStrategy = safeJsonExtract<{ masterH1: string, searchIntent: string }>(strategyRes.text, { masterH1: keyword, searchIntent: keyword });
+        const analysis = safeJsonExtract<{ 
+            serpType: string, 
+            blogPositions: number[], 
+            searchIntent: string, 
+            selectedUrls: string[],
+            masterH1: string 
+        }>(analysisRes.text, { 
+            serpType: 'mixed', 
+            blogPositions: [], 
+            searchIntent: keyword, 
+            selectedUrls: rawResults.slice(0, 3).map(r => r.url),
+            masterH1: keyword 
+        });
+
+        // Map the selected URL strings back to full competitor objects from rawResults
+        const selectedCompetitors = analysis.selectedUrls.map(url => {
+            const original = rawResults.find(r => r.url === url || r.link === url);
+            return original || { url, title: 'Referencia Seleccionada', snippet: '' };
+        });
 
         if (onLog) {
-            onLog("OK", "🎯 H1 Maestro", masterStrategy.masterH1);
-            onLog("OK", "🔍 Intención", masterStrategy.searchIntent);
+            onLog("OK", "📊 Reporte SERP", `Tipo: ${analysis.serpType} | Blogs en: ${analysis.blogPositions.join(', ')}`);
+            onLog("OK", "🔍 Intención", analysis.searchIntent);
+            onLog("OK", "🎯 H1 Maestro", analysis.masterH1);
+            onLog("INFO", "📑 Fuentes seleccionadas", `${selectedCompetitors.length} URLs para scraping profundo.`);
+            selectedCompetitors.forEach(c => onLog("INFO", "->", c.url));
         }
 
         let linkingProfile = { profile: 'informational_mixed', reasoning: 'Default (No Project)' };
@@ -192,11 +192,16 @@ Responde ÚNICAMENTE con este JSON:
             top10Urls: rawResults.slice(0, 10), 
             top20Urls: rawResults.slice(0, 20), 
             rankedPool: rawResults.slice(0, 30),
-            masterH1: masterStrategy.masterH1,
-            masterIntent: masterStrategy.searchIntent,
+            selectedUrls: selectedCompetitors,
+            serpReport: {
+                type: analysis.serpType,
+                blogPositions: analysis.blogPositions
+            },
+            masterH1: analysis.masterH1,
+            masterIntent: analysis.searchIntent,
             linkingProfile,
             faqs,
-            searchAngles: queries
+            searchAngles: [keyword]
         };
     },
 
@@ -209,7 +214,13 @@ Responde ÚNICAMENTE con este JSON:
 
     async runScrapingPhase(config: DeepSEOConfig, baseResult: any, onLog?: any): Promise<any[]> {
         const { isFastMode = false } = config;
-        const rankedPool: any[] = baseResult.rankedPool || baseResult.top10Urls || [];
+        
+        // Priority: Use AI-selected URLs if available, otherwise fallback to top results
+        const rawPool: any[] = (baseResult.selectedUrls && baseResult.selectedUrls.length > 0) 
+            ? baseResult.selectedUrls 
+            : (baseResult.rankedPool || baseResult.top10Urls || []);
+        
+        const rankedPool = rawPool.slice(0, 10); // Final safety limit to avoid over-scraping
         
         if (!isFastMode && rankedPool.length > 0) {
             let taskContext = { 
