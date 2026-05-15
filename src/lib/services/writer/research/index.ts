@@ -474,6 +474,24 @@ Retorna ÚNICAMENTE este formato JSON válido:
         if (taskId && !forceRestart) {
             const { data: taskData } = await supabase.from('task_research').select('research_dossier').eq('id', taskId).maybeSingle();
             dossier = taskData?.research_dossier || {};
+            
+            // SELF-HEAL: Convert legacy outline format to Studio-compatible format
+            if (dossier.outline_structure && Array.isArray(dossier.outline_structure)) {
+                console.log("🛠️ [Self-Heal] Detectado formato de outline viejo. Convirtiendo...");
+                const legacy = dossier.outline_structure as any[];
+                const fixedHeaders = legacy.map(s => ({
+                    type: s.type || (s.level ? `H${s.level}` : 'H2'),
+                    text: s.text,
+                    notes: s.notes || s.instructions || "",
+                    keywords: s.keywords || [],
+                    wordCount: String(s.wordCount || 500),
+                    currentWordCount: 0
+                }));
+                dossier.outline_structure = {
+                    headers: fixedHeaders,
+                    totalWordCount: dossier.wordCountGoal || 1500
+                };
+            }
         }
         
         // Initialize State Machine Cache
