@@ -74,8 +74,8 @@ export const AI_CONFIG = {
                 'llama-3.3-70b-versatile' // Fallback 4: Refined Tone
             ],
             technical: [
-                'gemma-4-31b-it',         // Priority 1: Estructura JSON
-                'gemini-3.1-flash-lite-preview', // Fallback 1: Técnico estable
+                'gemini-3.1-flash-lite-preview', // Priority 1: Técnico estable
+                'gemma-4-31b-it',         // Fallback 1: Estructura JSON
                 'meta-llama/llama-4-scout-17b-16e-instruct', // Fallback 2: Lógica pura (Groq)
                 'qwen/qwen3-32b'         // Fallback 3: Razonamiento código
             ],
@@ -92,15 +92,15 @@ export const AI_CONFIG = {
                 'kimi-k2-instruct'       // Fallback 3: Creatividad (Moonshot)
             ],
             cognitive_filter: [
-                'gemma-4-31b-it',       // Priority 1: Análisis Riguroso
-                'gemini-3.1-flash-preview', // Fallback 1: Estabilidad
+                'gemini-3.1-flash-preview', // Priority 1: Estabilidad (Reemplazo Temporal Gemma 4)
+                'gemma-4-31b-it',       // Fallback 1: Análisis Riguroso (Broken 500)
                 'gemini-3.1-flash-lite-preview', // Fallback 2: Velocidad
                 'gpt-oss-120b',         // Fallback 3: Cerebras Balanceado
                 'qwen-3-235b-a22b-instruct-2507' // Fallback 4: Cerebras Ultra
             ],
             reasoning: [
-                'gemma-4-31b-it',       // Priority 1: Razonamiento Superior
-                'gemini-3.1-flash-preview',      // Fallback 1: Strategic
+                'gemini-3.1-flash-preview',      // Priority 1: Strategic (Reemplazo Temporal Gemma 4)
+                'gemma-4-31b-it',       // Fallback 1: Razonamiento Superior (Broken 500)
                 'qwen-3-235b-a22b-instruct-2507', // Fallback 2: Cerebras Ultra
                 'zai-glm-4.7'            // Fallback 3: Cerebras Máximo (Botón Nuclear)
             ]
