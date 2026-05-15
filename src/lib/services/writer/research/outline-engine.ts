@@ -19,9 +19,10 @@ export const OutlineEngine = {
         faqs?: any[],
         askKeywords?: any[],
         realKeywords?: any[],
-        masterIntent?: string
+        masterIntent?: string,
+        timeoutMs?: number
     }): Promise<any[]> {
-        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors, wordCountGoal, faqs = [], askKeywords = [], realKeywords = [], masterIntent = "" } = params;
+        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors, wordCountGoal, faqs = [], askKeywords = [], realKeywords = [], masterIntent = "", timeoutMs = 120000 } = params;
         
         // Build competitor headers string safely to avoid token explosion
         const competitorHeaders = validCompetitors.slice(0, 6).map(v => {
@@ -76,7 +77,8 @@ FORMATO:
                         systemPrompt: "Eres un Arquitecto de Contenidos. Devuelves el array JSON con el esqueleto H2/H3. Sin explicaciones.",
                         jsonMode: true,
                         label: `Outline P1 (${model})`,
-                        temperature: 0.2
+                        temperature: 0.2,
+                        timeoutMs
                     });
                     skeleton = safeJsonExtract<any[]>(phase1Res.text, []);
                     if (skeleton.length > 0) break;
@@ -132,7 +134,8 @@ FORMATO:
                         systemPrompt: "Eres un Editor Senior E-E-A-T. Devuelves el JSON exacto con las pautas por sección.",
                         jsonMode: true,
                         label: `Outline P2 (${model})`,
-                        temperature: 0.3
+                        temperature: 0.3,
+                        timeoutMs
                     });
                     enrichmentData = safeJsonExtract<Record<string, any>>(enrichRes.text, {});
                     if (Object.keys(enrichmentData).length > 0) break;

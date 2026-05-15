@@ -44,6 +44,7 @@ FORMATO OBLIGATORIO:
             prompt: lsiPrompt,
             model: "gemma-4-31b-it", // Technical Main
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios LSI. Solo devuelves JSON válido, sin explicaciones.",
+            jsonMode: true,
             label: "LSI Technical"
         });
         
@@ -188,6 +189,7 @@ FORMATO OBLIGATORIO:
             prompt: filterPrompt,
             model: "gemma-4-31b-it",
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios SEO. Solo devuelves JSON válido, sin explicaciones.",
+            jsonMode: true,
             label: "Golden Keywords Filter"
         });
 

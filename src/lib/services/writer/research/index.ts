@@ -349,7 +349,8 @@ Retorna ÚNICAMENTE este formato JSON válido:
             model: "llama-3.3-70b-versatile",
             systemPrompt: "Eres el Director de Estrategia SEO de más alto nivel. Tu única función es devolver objetos JSON estables respetando escrupulosamente los límites de caracteres (60 para title, 155 para meta).",
             jsonMode: true,
-            label: "Estrategia Writing"
+            label: "Estrategia Writing",
+            timeoutMs: 60000
         });
         return { seoMetadata: safeJsonExtract<any>(metaRes.text, {}), wordCountGoal };
     },
@@ -407,7 +408,8 @@ Retorna ÚNICAMENTE este formato JSON válido:
                 model: "gemini-3.1-flash-lite-preview",
                 systemPrompt: "Arquitecto de Silos SEO.",
                 jsonMode: true,
-                label: "Optimización Interlinking"
+                label: "Optimización Interlinking",
+                timeoutMs: 90000
             });
             
             const linkData = safeJsonExtract<any>(linkRes.text, { links: [] });
@@ -425,7 +427,8 @@ Retorna ÚNICAMENTE este formato JSON válido:
             faqs: baseResult.faqs,
             askKeywords,
             realKeywords,
-            masterIntent: baseResult.masterIntent
+            masterIntent: baseResult.masterIntent,
+            timeoutMs: 150000 // 2.5 minutes for deep outline
         });
     },
 

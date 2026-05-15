@@ -4,7 +4,7 @@ import { AIRequest, AIResponse } from './types';
 
 class AIRouter {
     async generate(request: AIRequest): Promise<AIResponse> {
-        const { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode, label: callerLabel, forceModel = false } = request;
+        const { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode, label: callerLabel, forceModel = false, timeoutMs } = request;
 
         // CRITICAL: Use the caller's label to activate the correct hierarchy.
         // Fall back to intent-based detection only if no label is provided.
@@ -59,7 +59,8 @@ class AIRouter {
             undefined,
             undefined,
             forceModel,
-            resolvedLabel
+            resolvedLabel,
+            timeoutMs
         );
 
         return {
