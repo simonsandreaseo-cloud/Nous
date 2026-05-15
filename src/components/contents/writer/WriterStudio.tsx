@@ -291,10 +291,16 @@ export default function WriterStudio() {
                 if (contentBody) useWriterStore.getState().setContent(contentBody);
                 if (researchData) {
                     const { research_dossier, outline_structure, seo_data, schemas } = researchData;
+                    
+                    // Manejar formato antiguo (objeto con headers) o nuevo (array plano)
+                    const parsedOutline = Array.isArray(outline_structure) 
+                        ? outline_structure 
+                        : (outline_structure?.headers || []);
+
                     // Sync to writer store
                     useWriterStore.setState({
                         rawSeoData: research_dossier || {},
-                        strategyOutline: outline_structure?.headers || [],
+                        strategyOutline: parsedOutline,
                         // Merge other research data if needed
                     } as any);
                 }
