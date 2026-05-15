@@ -20,9 +20,10 @@ export const OutlineEngine = {
         askKeywords?: any[],
         realKeywords?: any[],
         masterIntent?: string,
+        serpReport?: any,
         timeoutMs?: number
     }): Promise<any[]> {
-        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors, wordCountGoal, faqs = [], askKeywords = [], realKeywords = [], masterIntent = "", timeoutMs = 120000 } = params;
+        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors, wordCountGoal, faqs = [], askKeywords = [], realKeywords = [], masterIntent = "", serpReport = {}, timeoutMs = 120000 } = params;
         
         // Build competitor headers string safely to avoid token explosion
         const competitorHeaders = validCompetitors.slice(0, 6).map(v => {
@@ -52,6 +53,9 @@ OBJETIVO: Crear el mejor esqueleto de H2/H3 del nicho superando a la competencia
 METADATOS PROPUESTOS:
 H1: "${seoMetadata.h1}"
 INTENCIÓN MAESTRA: "${masterIntent}"
+TIPO DE SERP DETECTADO: "${serpReport.type || 'mixed'}"
+
+ESTRATEGIA RECOMENDADA: ${serpReport.type === 'transactional' ? 'Enfoque directo a solución/producto.' : 'Guía informativa profunda y autoritativa.'}
 
 ESTRUCTURA DE COMPETIDORES RELEVANTES:
 ${competitorHeaders.substring(0, 3000)}
@@ -61,8 +65,9 @@ ${faqsText || "Ninguna FAQ específica detectada."}
 
 REGLAS PARA EL ESQUELETO:
 1. Diseña una estructura lógica y fluida de H2s y H3s.
-2. Asegúrate de responder las FAQs de manera natural.
-3. Devuelve UN ARRAY JSON de objetos con "level" (2 o 3) y "text" (título).
+2. Si el SERP es informativo, prioritiza el valor educativo. Si es transaccional, prioritiza los beneficios y la comparativa.
+3. Asegúrate de responder las FAQs de manera natural.
+4. Devuelve UN ARRAY JSON de objetos con "level" (2 o 3) y "text" (título).
 
 FORMATO:
 [{"level": 2, "text": "Título de Sección"}]`;

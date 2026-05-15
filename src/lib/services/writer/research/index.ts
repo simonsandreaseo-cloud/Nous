@@ -328,7 +328,7 @@ Responde ÚNICAMENTE en JSON:
         return { realKeywords, sniperUrls };
     },
 
-    async runMetadataPhase(keyword: string, cleanedLSI: any[], validSEO: any[], onLog?: any): Promise<{ seoMetadata: any, wordCountGoal: number }> {
+    async runMetadataPhase(keyword: string, cleanedLSI: any[], validSEO: any[], onLog?: any, masterH1?: string, masterIntent?: string): Promise<{ seoMetadata: any, wordCountGoal: number }> {
         if (onLog) onLog("Fase 5 (Metadata)", "Diseñando arquitectura de metadatos y estrategia E-E-A-T...");
         let wordCountGoal = 1500;
         const validTop3 = validSEO.slice(0, 3).filter(s => s.wordCount > 200);
@@ -338,6 +338,9 @@ Responde ÚNICAMENTE en JSON:
         }
 
         const metadataPrompt = `Crea la estrategia SEO final y optimizada para el tema: "${keyword}".
+Intención de búsqueda detectada: ${masterIntent || keyword}
+H1 Maestro sugerido: ${masterH1 || keyword}
+
 Términos Semánticos (LSI) relevantes encontrados: ${cleanedLSI.slice(0, 15).map((l: any) => l.keyword).join(", ")}.
 
 INSTRUCCIONES Y RESTRICCIONES ESTRICTAS:
@@ -439,6 +442,7 @@ Retorna ÚNICAMENTE este formato JSON válido:
             askKeywords,
             realKeywords,
             masterIntent: baseResult.masterIntent,
+            serpReport: baseResult.serpReport,
             timeoutMs: 150000 // 2.5 minutes for deep outline
         });
     },
@@ -576,7 +580,7 @@ Retorna ÚNICAMENTE este formato JSON válido:
         // Phase 4: Metadata
         if (startIndex <= 5) {
             if (onProgress) onProgress("metadata");
-            const { seoMetadata, wordCountGoal } = await this.runMetadataPhase(keyword, dossier.cleanedLSI || [], dossier.validSEO || [], onLog);
+            const { seoMetadata, wordCountGoal } = await this.runMetadataPhase(keyword, dossier.cleanedLSI || [], dossier.validSEO || [], onLog, dossier.masterH1, dossier.masterIntent);
             dossier = await saveCheckpoint('metadata_done', { ...seoMetadata, recommendedWordCount: wordCountGoal });
             dossier.seoMetadata = seoMetadata;
             dossier.wordCountGoal = wordCountGoal;
