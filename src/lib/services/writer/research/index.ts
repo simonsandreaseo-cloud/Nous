@@ -637,14 +637,8 @@ Retorna ÚNICAMENTE este formato JSON válido:
             try {
                 console.log("📤 [Supabase] Iniciando persistencia final para:", config.taskId);
                 
-                // ONLY update valid columns in 'tasks'
+                // ONLY update valid columns in 'tasks' (strictly status to avoid 400 errors)
                 const { error: taskError } = await supabase.from('tasks').update({
-                    h1: dossier.h1 || dossier.seoMetadata?.h1,
-                    seo_title: dossier.seo_title || dossier.seoMetadata?.seo_title,
-                    meta_description: dossier.meta_description || dossier.seoMetadata?.meta_description,
-                    excerpt: dossier.excerpt || dossier.seoMetadata?.excerpt,
-                    target_url_slug: dossier.target_url_slug || dossier.seoMetadata?.target_url_slug,
-                    target_word_count: dossier.recommendedWordCount || dossier.wordCountGoal,
                     status: "por_redactar"
                 }).eq('id', config.taskId);
 
