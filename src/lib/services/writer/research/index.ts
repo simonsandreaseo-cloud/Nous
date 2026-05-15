@@ -634,22 +634,43 @@ Retorna ÚNICAMENTE este formato JSON válido:
             // Studio Compatibility: Ensure outline_structure is a flat array if possible
             const flatOutline = dossier.outline_structure?.headers || dossier.outline_structure || [];
 
-            await supabase.from('tasks').update({
-                h1: dossier.h1 || dossier.seoMetadata?.h1,
-                seo_title: dossier.seo_title || dossier.seoMetadata?.seo_title,
-                meta_description: dossier.meta_description || dossier.seoMetadata?.meta_description,
-                excerpt: dossier.excerpt || dossier.seoMetadata?.excerpt,
-                target_url_slug: dossier.target_url_slug || dossier.seoMetadata?.target_url_slug,
-                target_word_count: dossier.recommendedWordCount || dossier.wordCountGoal,
-                outline_structure: flatOutline, // Save flat array for UI compatibility
-                status: "por_redactar"
-            }).eq('id', config.taskId);
+            try {
+                console.log("📤 [Supabase] Iniciando persistencia final para:", config.taskId);
+                
+                // ONLY update valid columns in 'tasks'
+                const { error: taskError } = await supabase.from('tasks').update({
+                    h1: dossier.h1 || dossier.seoMetadata?.h1,
+                    seo_title: dossier.seo_title || dossier.seoMetadata?.seo_title,
+                    meta_description: dossier.meta_description || dossier.seoMetadata?.meta_description,
+                    excerpt: dossier.excerpt || dossier.seoMetadata?.excerpt,
+                    target_url_slug: dossier.target_url_slug || dossier.seoMetadata?.target_url_slug,
+                    target_word_count: dossier.recommendedWordCount || dossier.wordCountGoal,
+                    status: "por_redactar"
+                }).eq('id', config.taskId);
 
-            await supabase.from('task_research').upsert({
-                id: config.taskId,
-                outline_structure: flatOutline,
-                research_dossier: dossier
-            });
+                if (taskError) {
+                    console.error("❌ [Supabase] Error actualizando tabla tasks:", taskError);
+                } else {
+                    console.log("✅ [Supabase] Tabla 'tasks' actualizada (Estado: por_redactar)");
+                }
+
+                // ALWAYS save the outline in 'task_research' (where the column EXISTS)
+                const { error: researchError } = await supabase.from('task_research').upsert({
+                    id: config.taskId,
+                    outline_structure: flatOutline,
+                    research_dossier: dossier
+                });
+
+                if (researchError) console.error("❌ [Supabase] Error actualizando tabla task_research:", researchError);
+
+                if (!taskError && !researchError) {
+                    console.log("✨ [Supabase] Persistencia completada con éxito.");
+                }
+
+            } catch (e) {
+                console.error("🔥 [Supabase] Error crítico en el bloque final de guardado:", e);
+                if (onLog) onLog("ERROR", "Fallo crítico al guardar en Base de Datos.");
+            }
         }
 
         return dossier;
