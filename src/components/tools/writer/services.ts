@@ -958,7 +958,7 @@ export const runHumanizerPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus: (msg: string) => void,
-    modelName: string = 'gemma-3-27b-it'
+    modelName: string = 'gemma-4-31b-it'
 ): Promise<{ html: string; metadata?: any }> => {
     // ---------------------------------------------
     // FASE 0: PREPARACIÓN Y CHUNKING

@@ -105,7 +105,7 @@ Cuerpo:
 ${activeTask.content_body || ''}`;
 
                 const response = await aiRouter.generate({
-                    model: 'gemma-3-27b-it',
+                    model: 'gemma-4-31b-it',
                     systemPrompt,
                     prompt,
                     jsonMode: true,

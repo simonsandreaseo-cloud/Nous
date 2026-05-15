@@ -18,7 +18,7 @@ Retorna ÚNICAMENTE un objeto JSON: {"schemas": [...aquí los objetos de schema.
         try {
             const aiRes = await aiRouter.generate({
                 prompt,
-                model: "gemma-3-27b-it", // Technical Main
+                model: "gemma-4-31b-it", // Technical Main
                 systemPrompt: "Experto en Datos Estructurados y Schema.org. Devuelve SOLO JSON válido sin formato markdown.",
                 label: "Schema Technical"
             });
