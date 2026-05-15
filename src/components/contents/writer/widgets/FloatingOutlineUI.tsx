@@ -12,7 +12,13 @@ export default function FloatingOutlineUI() {
 
     const handleInsert = (item: any) => {
         if (!editor) return;
-        const level = item.type === 'H1' ? 1 : item.type === 'H3' ? 3 : item.type === 'H4' ? 4 : 2;
+        
+        let level = 2;
+        if (item.level) level = item.level;
+        else if (item.type === 'H1') level = 1;
+        else if (item.type === 'H3') level = 3;
+        else if (item.type === 'H4') level = 4;
+        
         editor.chain().focus().insertContent([
             { type: 'heading', attrs: { level }, content: [{ type: 'text', text: item.text }] },
             { type: 'paragraph' }
@@ -53,7 +59,7 @@ export default function FloatingOutlineUI() {
                                 <div key={idx} className="snap-center shrink-0 w-[240px] bg-white border border-slate-200 rounded-[16px] p-4 flex flex-col shadow-sm">
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="text-[10px] font-black px-2 py-0.5 bg-orange-50 text-orange-600 rounded">
-                                            {item.type}
+                                            {item.type || (item.level ? `H${item.level}` : 'H2')}
                                         </span>
                                         <span className="text-[10px] font-bold text-slate-400">Pautas: {item.wordCount || 0} p</span>
                                     </div>
