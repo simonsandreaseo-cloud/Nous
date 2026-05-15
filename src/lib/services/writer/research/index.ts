@@ -190,8 +190,8 @@ Responde ÚNICAMENTE con este JSON:
 
         return { 
             top10Urls: rawResults.slice(0, 10), 
-            top20Urls: rawResults.slice(0, 20), 
-            rankedPool: rawResults.slice(0, 30),
+            top15Urls: rawResults.slice(0, 15), 
+            rankedPool: rawResults.slice(0, 15),
             masterH1: masterStrategy.masterH1,
             masterIntent: masterStrategy.searchIntent,
             linkingProfile,
