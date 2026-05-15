@@ -57,13 +57,13 @@ import { parseDocx, parseHtml } from "@/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
 import NousOrb from "./NousOrb";
+import { processTaskVisualsAction } from '@/lib/actions/batchActions';
 import { 
     processTaskOutlineAction, 
     processTaskDraftAction, 
     processTaskHumanizationAction, 
-    processTaskVisualsAction, 
     processTaskTranslationAction 
-} from '@/lib/actions/batchActions';
+} from '@/lib/actions/clientActions';
 import { formatTasksToTSV, formatTasksToCSV } from "@/utils/exportUtils";
 
 import { ProjectBadge } from "@/components/ui/ProjectBadge";

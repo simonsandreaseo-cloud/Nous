@@ -17,38 +17,35 @@ export const ScraperService = {
         if (onLog) onLog("INFO", "Despliegue de Rastreadores Nous", `Escaneando la web profunda: procesando ${urls.length} fuentes en paralelo...`);
 
         try {
-            const responseData = await scrapeMassiveAction(urls, {
-                contentType: taskContext.contentType || "Blog Post",
-                searchIntent: taskContext.searchIntent || "",
-                targetH1: taskContext.h1 || ""
+            const { data, error } = await supabase.functions.invoke('research-engine', {
+                body: { 
+                    urls, 
+                    isSingleExtraction: false,
+                    contentType: taskContext.contentType || "Blog Post",
+                    searchIntent: taskContext.searchIntent || "",
+                    targetH1: taskContext.h1 || ""
+                }
             });
 
-            const isSuccess = responseData && responseData.success === true;
+            if (error) throw error;
+            if (!data || !data.success) throw new Error(data?.error || "Error desconocido");
 
-            if (!isSuccess) {
-                console.error("[ScraperService] Mass Extraction failed:", responseData.error || "Unknown error");
-                if (onLog) onLog("WARN", "Aviso de Sistema", `Ajustando estrategia. Error subyacente: ${responseData?.error || 'Desconocido'}`);
-                
-                throw new Error(`Fallo en la extracción masiva: ${responseData?.error || 'Error desconocido'}`);
-            }
-
-            const survivors = responseData.survivors || [];
+            const survivors = data.survivors || [];
             
             if (survivors.length === 0) {
                 if (onLog) {
                     onLog("WARN", "Aviso de Sistema", "Filtro Cognitivo estricto: Ningún competidor superó el análisis de calidad. Abortando investigación.");
                 }
-                
-                throw new Error("Filtro Cognitivo estricto: Ningún competidor superó el análisis de calidad. Abortando investigación.");
+                throw new Error("Filtro Cognitivo estricto: Ningún competidor superó el análisis de calidad.");
             }
 
             if (onLog) {
-                onLog("OK", "Auditoria de Calidad", `Se descartaron contenidos de bajo valor. ${responseData.surviving_pureza} fuentes superaron el estandar de calidad estricto.`);
-                onLog("IA", "Analisis Cognitivo Nous", `Se seleccionaron ${responseData.final_useful_count} referencias de alto valor estrategico para la redaccion.`);
+                onLog("OK", "Auditoria de Calidad", `Se descartaron contenidos de bajo valor. ${data.surviving_pureza} fuentes superaron el estandar de calidad estricto.`);
+                onLog("IA", "Analisis Cognitivo Nous", `Se seleccionaron ${data.final_useful_count} referencias de alto valor estrategico para la redaccion.`);
             }
 
             if (typeof window !== 'undefined') {
-                (window as any)._lastCognitiveReport = responseData.cognitive_report;
+                (window as any)._lastCognitiveReport = data.cognitive_report;
             }
 
             return survivors.map((survivor: any) => {
