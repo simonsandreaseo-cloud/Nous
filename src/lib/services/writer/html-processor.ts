@@ -96,11 +96,17 @@ export const autoInterlinkAsync = async (
         if (item.title.length < 3) continue;
         if (alreadyLinked.has(item.url)) continue;
 
+        // FAST-PATH: Si el título no está en el HTML plano, ni nos molestamos en entrar al DOM
+        if (!html.toLowerCase().includes(item.title.toLowerCase().split(' ')[0])) continue;
+
         const variations = [
             item.title,
             item.title.split(' - ')[0],
             item.title.split(' | ')[0]
         ].filter((v, i, self) => v && v.length >= 4 && self.indexOf(v) === i);
+
+        // Obtenemos los nodos una sola vez por candidato, no por variación
+        const nodes = getTextNodes(doc.body);
 
         for (const variation of variations) {
             if (linkCount >= MAX_LINKS) break;
@@ -108,8 +114,6 @@ export const autoInterlinkAsync = async (
             const safeTitle = escapeRegExp(variation);
             const titleRegex = new RegExp(`\\b${safeTitle}\\b`, 'i');
 
-            // Find all valid text nodes and try to replace
-            const nodes = getTextNodes(doc.body);
             let replacedInItem = false;
 
             for (const node of nodes) {
