@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
+export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s hobby limit
 
 const inter = Inter({
   subsets: ["latin"],

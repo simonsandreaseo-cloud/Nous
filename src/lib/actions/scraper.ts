@@ -1,7 +1,5 @@
 "use server";
 
-export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s hobby limit
-
 import { aiRouter } from "@/lib/ai/router";
 import * as cheerio from "cheerio";
 
