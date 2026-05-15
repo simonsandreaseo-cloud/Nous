@@ -436,10 +436,18 @@ Retorna ÚNICAMENTE este formato JSON válido:
         const { keyword, projectId, taskId, onProgress, onLog, isFastMode = false, forceRestart = false, cascade = true } = config;
 
         const saveCheckpoint = async (phase: string, data: any) => {
-            if (!taskId) return data;
+            if (!taskId) return { ...data, context_cache: dossier.context_cache || {} };
             const { data: current } = await supabase.from('task_research').select('research_dossier').eq('id', taskId).maybeSingle();
             const existing = current?.research_dossier || {};
-            const updated = { ...existing, ...data, _checkpoint: phase, _checkpoints_at: { ...(existing._checkpoints_at || {}), [phase]: new Date().toISOString() } };
+            // CRITICAL: always carry context_cache forward — it's an in-memory state machine
+            // that is never explicitly included in checkpoint data payloads.
+            const updated = { 
+                ...existing, 
+                ...data, 
+                context_cache: { ...(existing.context_cache || {}), ...(dossier.context_cache || {}), ...(data.context_cache || {}) },
+                _checkpoint: phase, 
+                _checkpoints_at: { ...(existing._checkpoints_at || {}), [phase]: new Date().toISOString() } 
+            };
             await supabase.from('task_research').upsert({ id: taskId, research_dossier: updated });
             return updated;
         };
@@ -542,7 +550,9 @@ Retorna ÚNICAMENTE este formato JSON válido:
         // Phase 3.8: Golden Keywords
         if (startIndex <= 4) {
             if (onProgress) onProgress("keywords");
-            const { realKeywords, sniperUrls } = await this.runGoldenKeywordsPhase(dossier.validSEO || [], keyword, onLog, dossier.context_cache.sniperUrls);
+            // Belt-and-suspenders: ensure context_cache is always an object before accessing it
+            dossier.context_cache = dossier.context_cache || {};
+            const { realKeywords, sniperUrls } = await this.runGoldenKeywordsPhase(dossier.validSEO || [], keyword, onLog, dossier.context_cache?.sniperUrls);
             dossier.context_cache.sniperUrls = sniperUrls;
             dossier = await saveCheckpoint('real_kws_done', { realKeywords, context_cache: dossier.context_cache });
             dossier.realKeywords = realKeywords;
