@@ -61,48 +61,45 @@ export const AI_CONFIG = {
         },
         hierarchies: {
             research: [
-                'gemini-3.1-flash-lite-preview', // Priority 1: Redacción Premium
-                'gemini-3.1-flash-preview',      // Fallback 1: Stability
-                'groq/compound',         // Fallback 2: Quality Reasoning
-                'llama-3.3-70b-versatile' // Fallback 3: Robustness
+                'gemini-3.1-flash-lite-preview', // Priority 1: Editorial 3.1
+                'gemini-3-flash-preview',      // Fallback 1: Stability 3.0
+                'gemini-2.5-flash',            // Fallback 2: Versatility 2.5
+                'gemma-4-26b-a4b-it'           // Fallback 3: Deep Logic
             ],
             writing: [
-                'gemini-3.1-flash-lite-preview', // Priority 1: Editorial
+                'gemini-3.1-flash-lite-preview', // Priority 1: Editorial 3.1
                 'gemma-4-31b-it',               // Fallback 1: Calidad Premium
-                'gemini-3.1-flash-preview',      // Fallback 2: High Impact
-                'groq/compound',         // Fallback 3: Deep Reasoning
-                'llama-3.3-70b-versatile' // Fallback 4: Refined Tone
+                'gemma-4-26b-a4b-it',           // Fallback 2: Editorial Dense
+                'gemini-3-flash-preview',       // Fallback 3: High Impact
+                'gemini-2.5-flash'              // Fallback 4: Flow Stable
             ],
             technical: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Técnico estable
-                'gemma-4-31b-it',         // Fallback 1: Estructura JSON
-                'meta-llama/llama-4-scout-17b-16e-instruct', // Fallback 2: Lógica pura (Groq)
-                'qwen/qwen3-32b'         // Fallback 3: Razonamiento código
+                'gemma-4-31b-it',                // Fallback 1: Estructura JSON
+                'gemma-4-26b-a4b-it',            // Fallback 2: JSON Strict
+                'gemini-2.5-flash'               // Fallback 3: Logic 2.5
             ],
             extraction: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Volumen técnico
-                'gemma-4-31b-it',         // Fallback 1: Estabilidad JSON
-                'meta-llama/llama-4-scout-17b-16e-instruct', // Fallback 2: Técnico HTML
-                'groq/compound'          // Fallback 3: Clasificación
+                'gemma-4-31b-it',                // Fallback 1: Estabilidad JSON
+                'gemini-2.5-flash-lite',         // Fallback 2: Speed Extraction
+                'gemini-3-flash-preview'         // Fallback 3: Context Heavy
             ],
             ui: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: UI Reactiva
-                'gemma-4-31b-it',         // Fallback 1: Estabilidad
-                'meta-llama/llama-4-scout-17b-16e-instruct', // Fallback 2: Velocidad Extrema
-                'kimi-k2-instruct'       // Fallback 3: Creatividad (Moonshot)
+                'gemma-4-26b-a4b-it',            // Fallback 1: Estabilidad
+                'gemini-2.5-flash-lite',         // Fallback 2: Velocidad Extrema
+                'gemini-3-flash-preview'         // Fallback 3: Creatividad
             ],
             cognitive_filter: [
-                'gemini-3.1-flash-preview', // Priority 1: Estabilidad (Reemplazo Temporal Gemma 4)
-                'gemma-4-31b-it',       // Fallback 1: Análisis Riguroso (Broken 500)
-                'gemini-3.1-flash-lite-preview', // Fallback 2: Velocidad
-                'gpt-oss-120b',         // Fallback 3: Cerebras Balanceado
-                'qwen-3-235b-a22b-instruct-2507' // Fallback 4: Cerebras Ultra
+                'gemini-3.1-flash-lite-preview', // Priority 1: Reasoning 3.1
+                'gemini-3-flash-preview',        // Fallback 1: Filter 3.0
+                'gemma-4-31b-it'                 // Fallback 2: Deep Analysis
             ],
             reasoning: [
-                'gemini-3.1-flash-preview',      // Priority 1: Strategic (Reemplazo Temporal Gemma 4)
-                'gemma-4-31b-it',       // Fallback 1: Razonamiento Superior (Broken 500)
-                'qwen-3-235b-a22b-instruct-2507', // Fallback 2: Cerebras Ultra
-                'zai-glm-4.7'            // Fallback 3: Cerebras Máximo (Botón Nuclear)
+                'gemini-3.1-flash-lite-preview', // Priority 1: Direct Reasoning
+                'gemma-4-31b-it',                // Fallback 1: Dense Thought
+                'gemini-3-flash-preview'         // Fallback 2: Fast Reasoning
             ]
         }
     },
