@@ -45,35 +45,6 @@ export const OutlineEngine = {
             "gemma-4-26b-a4b-it"           // Fallback 5: Deep Logic
         ];
 
-        try {
-            // PHASE 1: Structural Synthesis (H2/H3 Skeleton)
-            const faqsText = faqs.slice(0, 5).map(f => `- ${f.question || f.title || JSON.stringify(f)}`).join('\n');
-            
-            const phase1Prompt = `ESTRATEGIA PROFUNDA DE ESTRUCTURA PARA: "${keyword}"
-OBJETIVO: Crear el mejor esqueleto de H2/H3 del nicho superando a la competencia.
-
-METADATOS PROPUESTOS:
-H1: "${seoMetadata.h1}"
-INTENCIÓN MAESTRA: "${masterIntent}"
-TIPO DE SERP DETECTADO: "${serpReport.type || 'mixed'}"
-
-ESTRATEGIA RECOMENDADA: ${serpReport.type === 'transactional' ? 'Enfoque directo a solución/producto.' : 'Guía informativa profunda y autoritativa.'}
-
-ESTRUCTURA DE COMPETIDORES RELEVANTES:
-${competitorHeaders.substring(0, 3000)}
-
-PREGUNTAS FRECUENTES (FAQs):
-${faqsText || "Ninguna FAQ específica detectada."}
-
-REGLAS PARA EL ESQUELETO:
-1. Diseña una estructura lógica y fluida de H2s y H3s.
-2. Si el SERP es informativo, prioritiza el valor educativo. Si es transaccional, prioritiza los beneficios y la comparativa.
-3. Asegúrate de responder las FAQs de manera natural.
-4. Devuelve UN ARRAY JSON de objetos con "level" (2 o 3) y "text" (título).
-
-FORMATO:
-[{"level": 2, "text": "Título de Sección"}]`;
-
         const robustParseOutline = (text: string): any[] => {
             // 1. Try clean JSON first
             const json = safeJsonExtract<any[]>(text, []);
