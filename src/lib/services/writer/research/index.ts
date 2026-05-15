@@ -99,7 +99,8 @@ export const ResearchOrchestrator = {
         if (keyword.split(/\s+/).length > 7) {
             const seedRes = await aiRouter.generate({
                 prompt: `Extrae la "Core Keyword" (máximo 4 palabras) de este título: "${keyword}". Responde ÚNICAMENTE con JSON: {"keyword": "la keyword limpia"}`,
-                model: "gemma-4-31b-it",
+                model: "gemini-3.1-flash-lite-preview",
+                forceModel: true,
                 systemPrompt: "Experto SEO.",
                 jsonMode: true,
                 label: "Sanitización Técnica"
