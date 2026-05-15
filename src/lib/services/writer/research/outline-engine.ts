@@ -87,7 +87,10 @@ FORMATO:
                         timeoutMs
                     });
                     skeleton = safeJsonExtract<any[]>(phase1Res.text, []);
-                    if (skeleton.length > 0) break;
+                    if (skeleton.length > 0) {
+                        console.log(`🚀 [OutlineEngine] P1 Exitosa con ${model}. Esqueleto: ${skeleton.length} secciones.`);
+                        break;
+                    }
                 } catch (e) {
                     console.warn(`[OutlineEngine] P1 Fallback: ${model} failed`, e);
                 }

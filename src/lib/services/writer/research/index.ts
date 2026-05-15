@@ -486,8 +486,10 @@ Retorna ÚNICAMENTE este formato JSON válido:
         if (phaseToRun) {
             startIndex = PHASES.indexOf(phaseToRun);
         } else if (!forceRestart && dossier._checkpoint) {
-            startIndex = PHASES.indexOf(dossier._checkpoint as ResearchPhase);
-            if (startIndex === -1) startIndex = 0;
+            const lastIndex = PHASES.indexOf(dossier._checkpoint as ResearchPhase);
+            if (lastIndex !== -1) {
+                startIndex = lastIndex + 1; // Start at the NEXT phase
+            }
         }
 
         // Ensure we don't start at the very end
@@ -607,13 +609,16 @@ Retorna ÚNICAMENTE este formato JSON válido:
 
         // Final persistence
         if (config.taskId) {
+            if (onLog) onLog("Finalizando", `Guardando investigación completa. Outline: ${dossier.outline_structure?.length || 0} secciones.`);
+            console.log("✅ [INVESTIGACIÓN] Dossier Final:", dossier);
+
             await supabase.from('tasks').update({
-                h1: dossier.h1,
-                seo_title: dossier.seo_title,
-                meta_description: dossier.meta_description,
-                excerpt: dossier.excerpt,
-                target_url_slug: dossier.target_url_slug,
-                target_word_count: dossier.recommendedWordCount,
+                h1: dossier.h1 || dossier.seoMetadata?.h1,
+                seo_title: dossier.seo_title || dossier.seoMetadata?.seo_title,
+                meta_description: dossier.meta_description || dossier.seoMetadata?.meta_description,
+                excerpt: dossier.excerpt || dossier.seoMetadata?.excerpt,
+                target_url_slug: dossier.target_url_slug || dossier.seoMetadata?.target_url_slug,
+                target_word_count: dossier.recommendedWordCount || dossier.wordCountGoal,
                 status: "por_redactar"
             }).eq('id', config.taskId);
 
