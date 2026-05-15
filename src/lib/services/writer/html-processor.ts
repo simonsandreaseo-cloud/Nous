@@ -129,7 +129,16 @@ export const autoInterlinkAsync = async (
                         const span = document.createElement('span');
                         
                         // APPLY PATCHING BEFORE INSERTION
-                        let finalUrl = sanitizeUrl(item.url);
+                        let finalUrl = item.url;
+                        
+                        // Si la URL es relativa, forzamos el dominio del proyecto para evitar
+                        // que el navegador la resuelva contra nous-production.vercel.app
+                        if (finalUrl.startsWith('/')) {
+                            const baseUrl = project?.domain ? `https://${project.domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')}` : '';
+                            finalUrl = baseUrl + finalUrl;
+                        }
+
+                        finalUrl = sanitizeUrl(finalUrl);
                         if (project) {
                             finalUrl = LinkPatcherService.patchUrlForProcess(finalUrl, project, 'internal_linking');
                         }
@@ -143,7 +152,8 @@ export const autoInterlinkAsync = async (
                         const after = parts.slice(1).join(matchedText);
 
                         const link = document.createElement('a');
-                        link.href = finalUrl;
+                        // IMPORTANT: Usar setAttribute evita que el DOM resuelva la URL al dominio actual
+                        link.setAttribute('href', finalUrl);
                         link.target = "_blank";
                         link.rel = "noopener";
                         link.tabIndex = 0;
