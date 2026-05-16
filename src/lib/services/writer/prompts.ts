@@ -100,9 +100,10 @@ ${strictModeInstruction}
     - Responde: [${questions?.join(', ') || 'N/A'}]
 
 ESTILO Y FORMATO HTML (CRÍTICO):
-1. **RESPUESTA DIRECTA (ANTI-LEAKAGE):**
-    - Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el contenido HTML y terminar con la etiqueta de cierre.
-    - Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea el resultado final.
+1. **RESPUESTA DIRECTA Y RAZONAMIENTO (ANTI-LEAKAGE):**
+    - Si necesitas razonar o planificar antes de generar el texto, DEBES hacerlo EXCLUSIVAMENTE dentro de etiquetas <thinking> ... </thinking>.
+    - Después de pensar, tu respuesta final DEBE comenzar directamente con la primera etiqueta HTML (e.g. <h1>) y terminar con la etiqueta de cierre.
+    - Queda estrictamente prohibido incluir prefacios, comentarios sobre la tarea o cualquier texto fuera del bloque de <thinking> o del HTML final.
     - RETORNA SOLO EL CONTENIDO DENTRO DEL BODY. No incluyas <head>, <html>, ni markdown (\`\`\`).
 2. **NEGRILLAS:** Usa negrillas de forma natural para resaltar términos clave. (Serán optimizadas después).
 3. **LISTAS/TABLAS:** Usa etiquetas HTML estándar.

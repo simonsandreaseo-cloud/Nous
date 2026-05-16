@@ -212,10 +212,32 @@ ${FEW_SHOT_HTML}`,
             contents: [{ role: 'user', parts: [{ text: prompt + "\n\nRESULTADO DIRECTO (SIN PREFACIOS):" }] }],
         });
 
-        // Unified stream wrapper
+        // Unified stream wrapper with Chain-of-Thought filtering
         return (async function* () {
+            let buffer = "";
+            let isGeneratingHtml = false;
+
             for await (const chunk of result.stream) {
-                yield { text: chunk.text() };
+                const text = chunk.text();
+                
+                if (!isGeneratingHtml) {
+                    buffer += text;
+                    // Check if we hit the start of the HTML content (typically <h1 or <h2)
+                    const matchMatch = buffer.match(/(<h[1-6]|<p)/i);
+                    if (matchMatch) {
+                        isGeneratingHtml = true;
+                        // Yield only from the match onwards
+                        yield { text: buffer.substring(matchMatch.index!) };
+                        buffer = ""; // Free buffer
+                    }
+                } else {
+                    yield { text };
+                }
+            }
+            
+            // Fallback: if we never found HTML, just yield the buffer to avoid returning nothing
+            if (!isGeneratingHtml && buffer.length > 0) {
+                yield { text: buffer };
             }
         })();
     }, model || 'default', hierarchy, undefined, undefined, false, 'Redacción Artículo');
