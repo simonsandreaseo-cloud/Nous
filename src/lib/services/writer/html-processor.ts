@@ -16,7 +16,7 @@ export const autoInterlinkAsync = async (
 ): Promise<string> => {
     if (!inventory || inventory.length === 0) return html;
 
-    // 1. Enrich inventory with categories if missing using rules
+    // 1. Enrich inventory and prepare candidate map
     const enrichedInventory = inventory.map(item => {
         if (item.category) return item;
         if (architectureRules) {
@@ -33,157 +33,141 @@ export const autoInterlinkAsync = async (
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    // 2. Simple Intent Detection: Extract headers from HTML to find current topics
+    // 2. Intent Detection
     const headers = Array.from(doc.querySelectorAll('h1, h2, h3'))
         .map(h => h.textContent?.toLowerCase() || '')
         .filter(t => t.length > 5);
     
-    // 3. Scoring & Sorting Pipeline
+    // 3. Scoring & Sorting
     const candidates = enrichedInventory
         .filter(i => i.type === 'product' || i.type === 'collection' || i.type === 'static' || i.type === 'blog')
         .map(item => {
             let score = 0;
-            // Type Boost (Transactional first)
             if (item.type === 'product') score += 500;
             if (item.type === 'collection') score += 300;
-            
-            // Category Context Boost
             if (item.category) {
                 const catLower = item.category.toLowerCase();
                 if (headers.some(h => h.includes(catLower) || catLower.includes(h))) score += 400;
             }
-
-            // Title Length Tie-breaker (more specific is usually better)
             score += item.title.length;
-
             return { ...item, _score: score };
         });
 
     candidates.sort((a, b) => b._score - a._score);
-
-    const alreadyLinked = new Set<string>();
-    let linkCount = 0;
-    const MAX_LINKS = 15;
-
-    // Use only top candidates to keep regex processing fast
     const topCandidates = candidates.slice(0, 400);
 
-    // HELPER: Find all valid text nodes (not inside headers or links)
-    const getTextNodes = (node: Node): Text[] => {
-        const textNodes: Text[] = [];
-        const walk = (n: Node) => {
-            if (n.nodeType === Node.ELEMENT_NODE) {
-                const el = n as Element;
-                const tag = el.tagName.toLowerCase();
-                if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'button', 'script', 'style'].includes(tag)) return;
-                n.childNodes.forEach(walk);
-            } else if (n.nodeType === Node.TEXT_NODE) {
-                textNodes.push(n as Text);
-            }
-        };
-        walk(node);
-        return textNodes;
-    };
+    // 4. PRE-FLIGHT: Gather all possible anchor variations and map them to candidates
+    const variationMap = new Map<string, typeof topCandidates[0]>();
+    const variations: string[] = [];
 
-    for (let i = 0; i < topCandidates.length; i++) {
-        // Yield to prevent UI freeze
-        if (i > 0 && i % 20 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 0));
-        }
-
-        const item = topCandidates[i];
-        if (linkCount >= MAX_LINKS) break;
-        if (item.title.length < 3) continue;
-        if (alreadyLinked.has(item.url)) continue;
-
-        // FAST-PATH: Si el título no está en el HTML plano, ni nos molestamos en entrar al DOM
-        if (!html.toLowerCase().includes(item.title.toLowerCase().split(' ')[0])) continue;
-
-        const variations = [
+    for (const item of topCandidates) {
+        const itemVariations = [
             item.title,
             item.title.split(' - ')[0],
             item.title.split(' | ')[0]
         ].filter((v, i, self) => v && v.length >= 4 && self.indexOf(v) === i);
 
-        // Obtenemos los nodos una sola vez por candidato, no por variación
-        const nodes = getTextNodes(doc.body);
-
-        for (const variation of variations) {
-            if (linkCount >= MAX_LINKS) break;
-
-            const safeTitle = escapeRegExp(variation);
-            const titleRegex = new RegExp(`\\b${safeTitle}\\b`, 'i');
-
-            let replacedInItem = false;
-
-            for (const node of nodes) {
-                if (linkCount >= MAX_LINKS || replacedInItem) break;
-
-                const text = node.textContent || '';
-                if (titleRegex.test(text)) {
-                    // Check if URL is already linked in the WHOLE document to avoid duplicates
-                    if (doc.querySelector(`a[href="${item.url}"], a[href='${item.url}']`)) {
-                        alreadyLinked.add(item.url);
-                        replacedInItem = true;
-                        continue;
-                    }
-
-                    const match = text.match(titleRegex);
-                    if (match) {
-                        const span = document.createElement('span');
-                        
-                        // APPLY PATCHING BEFORE INSERTION
-                        let finalUrl = item.url;
-                        
-                        // Si la URL NO es absoluta (no empieza con http), forzamos el dominio del proyecto.
-                        // Esto previene que el navegador la resuelva contra nous-production.vercel.app
-                        if (finalUrl && !finalUrl.startsWith('http')) {
-                            const cleanPath = finalUrl.startsWith('/') ? finalUrl : `/${finalUrl}`;
-                            const domain = project?.domain || 'www.opticabassol.com'; // Fallback seguro
-                            const baseUrl = `https://${domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')}`;
-                            finalUrl = baseUrl + cleanPath;
-                        }
-
-                        finalUrl = sanitizeUrl(finalUrl);
-                        if (project) {
-                            finalUrl = LinkPatcherService.patchUrlForProcess(finalUrl, project, 'internal_linking');
-                        }
-
-                        const parts = text.split(titleRegex);
-                        
-                        // Note: split can return multiple parts if there are multiple matches, 
-                        // but we only want to replace the FIRST one to avoid over-linking.
-                        const before = parts[0];
-                        const matchedText = match[0];
-                        const after = parts.slice(1).join(matchedText);
-
-                        const link = document.createElement('a');
-                        // IMPORTANT: Usar setAttribute evita que el DOM resuelva la URL al dominio actual
-                        link.setAttribute('href', finalUrl);
-                        link.target = "_blank";
-                        link.rel = "noopener";
-                        link.tabIndex = 0;
-                        link.title = `Ver ${matchedText}`;
-                        link.textContent = matchedText;
-
-                        node.parentNode?.replaceChild(span, node);
-                        span.appendChild(document.createTextNode(before));
-                        span.appendChild(link);
-                        span.appendChild(document.createTextNode(after));
-                        
-                        // Unwrap the span
-                        const frag = document.createDocumentFragment();
-                        while (span.firstChild) frag.appendChild(span.firstChild);
-                        span.parentNode?.replaceChild(frag, span);
-
-                        alreadyLinked.add(item.url);
-                        replacedInItem = true;
-                        linkCount++;
-                    }
-                }
+        for (const v of itemVariations) {
+            if (!variationMap.has(v.toLowerCase())) {
+                variationMap.set(v.toLowerCase(), item);
+                variations.push(v);
             }
         }
     }
+
+    // Sort variations by length descending to match longest possible anchor first
+    variations.sort((a, b) => b.length - a.length);
+    
+    // Create one massive regex for all variations
+    // This is much faster than running 1000s of small regexes
+    const megaRegex = new RegExp(`\\b(${variations.map(escapeRegExp).join('|')})\\b`, 'gi');
+
+    const alreadyLinkedUrls = new Set<string>();
+    // Pre-populate alreadyLinkedUrls from existing links in HTML
+    Array.from(doc.querySelectorAll('a')).forEach(a => {
+        const href = a.getAttribute('href');
+        if (href) alreadyLinkedUrls.add(href);
+    });
+
+    let linkCount = 0;
+    const MAX_LINKS = 15;
+
+    // 5. SINGLE PASS DOM TRAVERSAL
+    const walk = (node: Node) => {
+        if (linkCount >= MAX_LINKS) return;
+
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as Element;
+            const tag = el.tagName.toLowerCase();
+            // Do not link inside these tags
+            if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'button', 'script', 'style'].includes(tag)) return;
+            
+            // Process children
+            const children = Array.from(node.childNodes);
+            for (const child of children) {
+                walk(child);
+            }
+        } else if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent || '';
+            if (text.length < 10) return; // Skip very short nodes
+
+            // Optimization: check if anything matches at all before complex processing
+            if (!megaRegex.test(text)) return;
+            megaRegex.lastIndex = 0; // Reset after test()
+
+            let lastIndex = 0;
+            let match;
+            const fragments = document.createDocumentFragment();
+            let hasMatches = false;
+
+            while ((match = megaRegex.exec(text)) !== null && linkCount < MAX_LINKS) {
+                const matchedText = match[0];
+                const item = variationMap.get(matchedText.toLowerCase());
+
+                if (item && !alreadyLinkedUrls.has(item.url)) {
+                    hasMatches = true;
+                    // Add text before match
+                    fragments.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+
+                    // Create link
+                    let finalUrl = item.url;
+                    if (finalUrl && !finalUrl.startsWith('http')) {
+                        const cleanPath = finalUrl.startsWith('/') ? finalUrl : `/${finalUrl}`;
+                        const domain = project?.domain || 'www.opticabassol.com';
+                        const baseUrl = `https://${domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')}`;
+                        finalUrl = baseUrl + cleanPath;
+                    }
+
+                    finalUrl = sanitizeUrl(finalUrl);
+                    if (project) {
+                        finalUrl = LinkPatcherService.patchUrlForProcess(finalUrl, project, 'internal_linking');
+                    }
+
+                    const link = document.createElement('a');
+                    link.setAttribute('href', finalUrl);
+                    link.target = "_blank";
+                    link.rel = "noopener";
+                    link.tabIndex = 0;
+                    link.title = `Ver ${matchedText}`;
+                    link.textContent = matchedText;
+
+                    fragments.appendChild(link);
+                    
+                    alreadyLinkedUrls.add(item.url);
+                    linkCount++;
+                    lastIndex = megaRegex.lastIndex;
+                }
+            }
+
+            if (hasMatches) {
+                // Add remaining text
+                fragments.appendChild(document.createTextNode(text.substring(lastIndex)));
+                node.parentNode?.replaceChild(fragments, node);
+            }
+        }
+    };
+
+    walk(doc.body);
 
     return doc.body.innerHTML;
 };

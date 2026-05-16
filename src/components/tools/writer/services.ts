@@ -1001,6 +1001,7 @@ export const runHumanizerPipeline = async (
 
         --- PERSONA: REDACTOR HUMANO AUTÉNTICO ---
         Escribe de forma natural. IMPORTANTE: El texto humanizado DEBE tener la misma longitud que el original o similar. PROHIBIDO RESUMIR O ELIMINAR SECCIONES.
+        Si necesitas razonar o planificar, hazlo dentro de etiquetas <thinking> ... </thinking> antes del HTML.
 
         --- CONTEXTO ---
         Nicho/Tópico: ${config.niche}
@@ -1030,7 +1031,10 @@ export const runHumanizerPipeline = async (
     // Elimina razonamiento interleaved del modelo antes de que llegue al DOM parser.
     // Captura: bullets (* ), numerados (1. ), frases de opening, notas, etc.
     const stripReasoningLines = (text: string): string => {
-        return text
+        // First handle <thinking> tags if present
+        let cleanText = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+
+        return cleanText
             .split('\n')
             .filter(line => {
                 const trimmed = line.trim();
@@ -1114,6 +1118,7 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
         Estás revisando un fragmento de un artículo ya humanizado. Tu trabajo es:
         1.  TAREA SEO: Inserta los enlaces y keywords LSI de forma natural si el contexto lo permite.
         2.  TAREA REVISIÓN: Corrige ÚNICAMENTE errores gramaticales graves.
+        Si necesitas razonar o planificar, hazlo dentro de etiquetas <thinking> ... </thinking> antes del HTML.
 
         --- REGLAS CRÍTICAS ---
         * NO RESUMAS. El texto de salida debe ser íntegro.
@@ -1210,6 +1215,7 @@ export const runSmartEditor = async (
     ${strictInstructions}
     
     REGLA DE ORO: Mantén intacta la estructura HTML (enlaces, imágenes, listas).
+    Si necesitas razonar o planificar, hazlo dentro de etiquetas <thinking> ... </thinking> antes del HTML.
     Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea la respuesta final. NO uses markdown.
     HTML:
     ${html}
@@ -1218,7 +1224,16 @@ export const runSmartEditor = async (
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({ model: currentModel });
         const response = await model.generateContent(prompt);
-        return response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+        let raw = response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+        
+        // Use reasoning strip
+        raw = raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+        const firstTag = raw.indexOf('<');
+        const lastTag = raw.lastIndexOf('>');
+        if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+            raw = raw.substring(firstTag, lastTag + 1);
+        }
+        return raw;
     }, 'default', undefined, undefined, false, 'Edición Inteligente');
 };
 
@@ -1233,43 +1248,74 @@ export const runSEOPostProcessor = async (
 ): Promise<string> => {
     onStatus("Optimizando densidad SEO y estilos de negritas...");
     
+    // Helper to strip reasoning from chunks
+    const stripReasoning = (text: string): string => {
+        let cleanText = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+        const firstTag = cleanText.indexOf('<');
+        const lastTag = cleanText.lastIndexOf('>');
+        if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+            cleanText = cleanText.substring(firstTag, lastTag + 1);
+        }
+        return cleanText;
+    };
+
     const approvedLinks = config.approvedLinks || [];
     const linkList = approvedLinks.map(l => `- URL: ${l.url} | Anchor ideal: ${l.title}`).join('\n');
     
-    const prompt = `
-    TASK: As a Senior SEO Editor, perform a final polish on this article HTML.
-    
-    CRITICAL RULES PARA NEGRILLAS (<strong>):
-    1. Las negritas deben resaltar frases clave de entre 4 y 8 palabras.
-    2. Máximo 1 bloque de negritas por párrafo de 40-60 palabras.
-    3. Nunca pongas negritas en la primera ni última palabra de un párrafo.
-    4. NO pongas negritas en encabezados (H2, H3), blockquotes ni listas.
-    5. Prioriza resaltar conceptos con las palabras clave objetivo.
-    
-    CRITICAL RULES PARA SEO & LSI:
-    1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer y último párrafo si no está ya.
-    2. Inserta o refuerza las siguientes palabras clave LSI y semánticas si es posible sin forzar: [${config.lsiKeywords?.join(', ') || 'N/A'}]
-    3. Mantén la densidad alta pero legible.
-    
-    INTEGRIDAD ESTRUCTURAL Y ENLACES (VITAL):
-    1. MANTÉN INTACTOS TODOS LOS ENLACES <a> PRESENTES. No cambies sus URLs ni los elimines.
-    2. PROHIBIDO: NO inventes nuevos enlaces. NO uses enlaces que empiecen por "#".
-    3. Si ves un enlace que NO estaba en la versión original o que usa "#", ELIMÍNALO y deja solo el texto plano. 
-    4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia, no añadas nuevos si no están fuera del HTML ya):
-       ${linkList}
-    5. Mantén todas las imágenes e IDs de elementos.
-    6. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea la respuesta final. NO uses markdown.
-    
-    HTML A PULIR:
-    ${html}
-    `;
+    // Chunk processing to avoid "canging" or timeouts on long articles
+    const CHUNK_SIZE = 8;
+    const htmlChunks = chunkHtml(html, CHUNK_SIZE);
+    onStatus(`Procesando optimización SEO en ${htmlChunks.length} bloques...`);
 
+    const finalizedChunks: string[] = [];
 
-    return executeWithKeyRotation(async (ai, currentModel) => {
-        const model = ai.getGenerativeModel({ model: currentModel });
-        const response = await model.generateContent(prompt);
-        return response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-    }, 'default', undefined, undefined, false, 'SEO Post-Procesado');
+    for (let i = 0; i < htmlChunks.length; i++) {
+        onStatus(`Optimizando bloque SEO ${i + 1}/${htmlChunks.length}...`);
+        
+        const chunkResult = await executeWithKeyRotation(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({ 
+                model: currentModel,
+                generationConfig: { temperature: 0.2 }
+            });
+
+            const prompt = `
+            TASK: As a Senior SEO Editor, perform a final polish on this article HTML chunk.
+            
+            CRITICAL RULES PARA NEGRILLAS (<strong>):
+            1. Las negritas deben resaltar frases clave de entre 4 y 8 palabras.
+            2. Máximo 1 bloque de negritas por párrafo de 40-60 palabras.
+            3. Nunca pongas negritas en la primera ni última palabra de un párrafo.
+            4. NO pongas negritas en encabezados (H2, H3), blockquotes ni listas.
+            5. Prioriza resaltar conceptos con las palabras clave objetivo.
+            
+            CRITICAL RULES PARA SEO & LSI:
+            1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer y último párrafo si no está ya.
+            2. Inserta o refuerza las siguientes palabras clave LSI y semánticas si es posible sin forzar: [${config.lsiKeywords?.join(', ') || 'N/A'}]
+            3. Mantén la densidad alta pero legible.
+            
+            INTEGRIDAD ESTRUCTURAL Y ENLACES (VITAL):
+            1. MANTÉN INTACTOS TODOS LOS ENLACES <a> PRESENTES. No cambies sus URLs ni los elimines.
+            2. PROHIBIDO: NO inventes nuevos enlaces. NO uses enlaces que empiecen por "#".
+            3. Si ves un enlace que NO estaba en la versión original o que usa "#", ELIMÍNALO y deja solo el texto plano. 
+            4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia, no añadas nuevos si no están fuera del HTML ya):
+               ${linkList}
+            5. Mantén todas las imágenes e IDs de elementos.
+            6. Sáltate todo razonamiento interno. Si necesitas planificar, usa <thinking> ... </thinking>.
+            7. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios o markdown (\`\`\`).
+            
+            HTML A PULIR (BLOQUE ${i + 1}/${htmlChunks.length}):
+            ${htmlChunks[i]}
+            `;
+
+            const response = await model.generateContent(prompt);
+            let raw = response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            return stripReasoning(raw);
+        }, 'default', undefined, undefined, false, 'SEO Post-Procesado');
+
+        finalizedChunks.push(chunkResult);
+    }
+
+    return finalizedChunks.join('\n');
 };
 
 /**
