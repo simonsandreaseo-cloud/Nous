@@ -131,11 +131,20 @@ export const autoInterlinkAsync = async (
 
                     // Create link
                     let finalUrl = item.url;
+                    
+                    // NORMALIZE DOMAIN: Ensure internal links are absolute
                     if (finalUrl && !finalUrl.startsWith('http')) {
+                        // Ensure it starts with a single slash
                         const cleanPath = finalUrl.startsWith('/') ? finalUrl : `/${finalUrl}`;
-                        const domain = project?.domain || 'www.opticabassol.com';
-                        const baseUrl = `https://${domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '')}`;
-                        finalUrl = baseUrl + cleanPath;
+                        
+                        // Detect domain: Project Domain > Environment Default > Hardcoded Fallback
+                        let domain = project?.domain || process.env.NEXT_PUBLIC_SITE_DOMAIN || 'www.opticabassol.com';
+                        
+                        // Clean domain (remove protocol and trailing slashes)
+                        domain = domain.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+                        
+                        // Reconstruct absolute URL
+                        finalUrl = `https://${domain}${cleanPath}`;
                     }
 
                     finalUrl = sanitizeUrl(finalUrl);
