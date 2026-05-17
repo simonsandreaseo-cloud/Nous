@@ -54,45 +54,52 @@ export const AI_CONFIG = {
     gemini: {
         apiKeys: geminiKeys,
         models: {
-            flash3_1: 'gemini-3.1-flash-preview',
             flash3_1_lite: 'gemini-3.1-flash-lite-preview',
-            flash2_5_lite: 'gemini-2.5-flash-lite',
-            gemma4_31b: 'gemma-4-31b-it'
+            flash3: 'gemini-3-flash-preview',
+            gemma4_31b: 'gemma-4-31b-it',
+            gemma4_26b: 'gemma-4-26b-it',
+            gemma4_26b_a4b: 'gemma-4-26b-a4b-it',
+            flash2_5: 'gemini-2.5-flash',
+            flash2_5_lite: 'gemini-2.5-flash-lite'
         },
         hierarchies: {
             research: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Editorial 3.1
                 'gemini-3-flash-preview',      // Fallback 1: Stability 3.0
-                'gemini-2.5-flash',            // Fallback 2: Versatility 2.5
-                'gemini-2.5-flash-lite',       // Fallback 3: Efficiency 2.5
-                'gemma-4-31b-it',              // Fallback 4: Reasoning
-                'gemma-4-26b-a4b-it'           // Fallback 5: Deep Logic
+                'gemma-4-31b-it',              // Fallback 2: Reasoning
+                'gemma-4-26b-it',              // Fallback 3: Balanced
+                'gemma-4-26b-a4b-it',           // Fallback 4: Deep Logic
+                'gemini-2.5-flash',            // Fallback 5: Versatility 2.5
+                'gemini-2.5-flash-lite'        // Fallback 6: Efficiency 2.5
             ],
             writing: [
-                'gemma-4-31b-it',               // Priority 1: Calidad Premium (Gemma 4)
-                'gemini-3.1-flash-lite-preview', // Fallback 1: Editorial 3.1
-                'gemma-4-26b-a4b-it',           // Fallback 2: Editorial Dense
-                'gemini-3-flash-preview',       // Fallback 3: High Impact
-                'gemini-2.5-flash',              // Fallback 4: Flow Stable
-                'gemini-2.5-flash-lite'          // Fallback 5: Lightweight
+                'gemini-3.1-flash-lite-preview', // Priority 1: Editorial 3.1
+                'gemini-3-flash-preview',      // Fallback 1: Editorial 3.0
+                'gemma-4-31b-it',               // Fallback 2: Calidad Premium (Gemma 4)
+                'gemma-4-26b-it',               // Fallback 3: Balanced
+                'gemma-4-26b-a4b-it',           // Fallback 4: Editorial Dense
+                'gemini-2.5-flash',              // Fallback 5: Flow Stable
+                'gemini-2.5-flash-lite'          // Fallback 6: Lightweight
             ],
             technical: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Técnico estable
-                'gemma-4-31b-it',                // Fallback 1: Estructura JSON
-                'gemma-4-26b-a4b-it',            // Fallback 2: JSON Strict
-                'gemini-2.5-flash',               // Fallback 3: Logic 2.5
-                'gemini-2.5-flash-lite'           // Fallback 4: JSON Fast
+                'gemini-3-flash-preview',        // Fallback 1: Technical 3.0
+                'gemma-4-31b-it',                // Fallback 2: Estructura JSON
+                'gemma-4-26b-a4b-it',            // Fallback 3: JSON Strict
+                'gemini-2.5-flash',               // Fallback 4: Logic 2.5
+                'gemini-2.5-flash-lite'           // Fallback 5: JSON Fast
             ],
             extraction: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Volumen técnico
-                'gemma-4-31b-it',                // Fallback 1: Estabilidad JSON
-                'gemini-2.5-flash-lite'          // Fallback 2: Extraction Fast
+                'gemini-3-flash-preview',        // Fallback 1: Fast Extraction 3.0
+                'gemma-4-31b-it',                // Fallback 2: Estabilidad JSON
+                'gemini-2.5-flash-lite'          // Fallback 3: Extraction Fast
             ],
             ui: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: UI Reactiva
-                'gemma-4-26b-a4b-it',            // Fallback 1: Estabilidad
-                'gemini-2.5-flash-lite',         // Fallback 2: Velocidad Extrema
-                'gemini-3-flash-preview'         // Fallback 3: Creatividad
+                'gemini-3-flash-preview',        // Fallback 1: Fast UI 3.0
+                'gemma-4-26b-a4b-it',            // Fallback 2: Estabilidad
+                'gemini-2.5-flash-lite'          // Fallback 3: Velocidad Extrema
             ],
             cognitive_filter: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Reasoning 3.1
@@ -101,8 +108,8 @@ export const AI_CONFIG = {
             ],
             reasoning: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Direct Reasoning
-                'gemma-4-31b-it',                // Fallback 1: Dense Thought
-                'gemini-3-flash-preview'         // Fallback 2: Fast Reasoning
+                'gemini-3-flash-preview',        // Fallback 1: Fast Reasoning 3.0
+                'gemma-4-31b-it'                 // Fallback 2: Dense Thought
             ]
         }
     },

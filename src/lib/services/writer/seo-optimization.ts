@@ -1,18 +1,16 @@
-import { countOccurrences, getWordCount } from './seo-scoring';
+import { executeWithKeyRotation } from './ai-core';
 
 export interface OptimizationRequest {
     currentContent: string;
     h1: string;
     missingLSI: string[];
     missingASK: string[];
-    // We only need to optimize if the density is extremely low or high, 
-    // but the main job is injecting missing elements gracefully.
 }
 
 export interface ParagraphEdit {
-    originalTextExtract: string; // The exact text or a substantial portion to find in the editor
-    newOptimizedText: string;    // The replacement text (HTML or plain text depending on input)
-    addedKeywords: string[];     // Which keywords were solved in this edit
+    originalTextExtract: string; 
+    newOptimizedText: string;    
+    addedKeywords: string[];     
 }
 
 export interface OptimizationResult {
@@ -61,33 +59,22 @@ ${req.currentContent}
 
 Procesa la solicitud y devuelve únicamente el JSON requerido.`;
 
-    const response = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            prompt: userPrompt,
-            model: 'gemini-3.1-pro-preview', // Un modelo inteligente de reasoning (o Gemini)
-            systemPrompt: systemPrompt,
-            maxTokens: 4000,
-            jsonMode: false
-        })
-    });
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const modelObj = ai.getGenerativeModel({ 
+            model: currentModel,
+            systemInstruction: systemPrompt
+        });
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Error en la API de optimización');
-    }
-
-    const data = await response.json();
-    let parsed: OptimizationResult;
-    try {
-        // En caso de que el modelo devuelva markdown a pesar de jsonMode
-        const text = data.text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        parsed = JSON.parse(text);
-    } catch (e) {
-        console.error("Error parseando JSON del optimizador:", e, data.text);
-        throw new Error('El modelo no devolvió un JSON válido.');
-    }
-
-    return parsed;
+        const response = await modelObj.generateContent(userPrompt);
+        const resText = response.response.text();
+        
+        try {
+            const cleanText = resText.replace(/```json/gi, '').replace(/```/g, '').trim();
+            return JSON.parse(cleanText) as OptimizationResult;
+        } catch (e) {
+            console.error("Error parseando JSON del optimizador:", e, resText);
+            throw new Error('El modelo no devolvió un JSON válido.');
+        }
+    }, 'gemini-3.1-flash-lite-preview', undefined, undefined, undefined, false, 'Batch SEO Optimization');
 }
+
