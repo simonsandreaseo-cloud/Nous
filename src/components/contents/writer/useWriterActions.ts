@@ -252,11 +252,51 @@ export function useWriterActions() {
             const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : writingHierarchy[0];
             const stream = await generateArticleStream(modelToUse, prompt, writingHierarchy);
             let buffer = '';
+            let streamErrorDetected = false;
+
             for await (const chunk of stream) {
                 if (chunk.text) {
+                    if (chunk.text.includes('⚠️ Error de Redacción')) {
+                        streamErrorDetected = true;
+                        break;
+                    }
                     buffer += chunk.text;
                     store.setContent(buffer);
                 }
+            }
+
+            // Auto-Continuation Fallback System
+            if (streamErrorDetected) {
+                store.setStatus('⚠️ Interrupción detectada. Aplicando Fallback de continuación...');
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause for UX
+
+                const fallbackModel = writingHierarchy.length > 1 ? writingHierarchy[1] : writingHierarchy[0]; // Rotate to next model
+                const contextLen = Math.min(buffer.length, 1500);
+                const lastContext = buffer.slice(-contextLen);
+
+                const continuationPrompt = `
+### INSTRUCCIÓN DE EMERGENCIA: CONTINUACIÓN DE ARTÍCULO ###
+El siguiente artículo HTML se interrumpió de forma abrupta por un error de red.
+Tu tarea es CONTINUAR EXACTAMENTE DONDE SE CORTÓ. 
+- NO repitas NADA del texto que ya se generó.
+- Continúa la oración o etiqueta HTML que quedó a medias, o empieza el siguiente párrafo si estaba completo.
+- MANTÉN EXACTAMENTE EL MISMO TONO, ESTRUCTURA Y FORMATO.
+- NO ESCRIBAS PREFACIOS COMO "Aquí tienes la continuación" O "Claro". SOLO HTML.
+
+### TEXTO GENERADO HASTA AHORA (Últimos caracteres para darte contexto):
+${lastContext}
+
+### CONTINUACIÓN DIRECTA (Comienza a escribir SOLO lo que sigue a partir de aquí):
+`;
+
+                const continueStream = await generateArticleStream(fallbackModel, continuationPrompt, writingHierarchy);
+                for await (const chunk of continueStream) {
+                    if (chunk.text && !chunk.text.includes('⚠️ Error de Redacción')) {
+                        buffer += chunk.text;
+                        store.setContent(buffer);
+                    }
+                }
+                store.setStatus('✅ Redacción continuada exitosamente.');
             }
 
             const finalBuffer = cleanAndFormatHtml(buffer);
