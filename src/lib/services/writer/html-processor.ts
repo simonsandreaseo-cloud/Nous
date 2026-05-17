@@ -69,39 +69,8 @@ export const refineStyling = (html: string): string => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    // Remove legacy strong/b from paragraphs to re-apply them if needed
-    doc.querySelectorAll('p strong, p b').forEach(el => {
-        const text = document.createTextNode(el.textContent || '');
-        el.parentNode?.replaceChild(text, el);
-    });
-
     const paragraphs = doc.querySelectorAll('p');
-    paragraphs.forEach(p => {
-        if (p.closest('blockquote') || p.querySelector('a')) return;
-
-        const text = p.textContent || "";
-        const words = text.split(/\s+/);
-        if (words.length < 25) return;
-
-        const seed = text.length % 10;
-        if (seed > 3) { 
-            const safeStartMin = Math.floor(words.length * 0.15);
-            const safeStartMax = Math.floor(words.length * 0.70);
-
-            if (safeStartMax > safeStartMin) {
-                const startIdx = safeStartMin + ((text.charCodeAt(0) + text.length) % (safeStartMax - safeStartMin));
-                const length = 4 + (text.charCodeAt(1) % 5);
-
-                const pre = words.slice(0, startIdx).join(' ');
-                const target = words.slice(startIdx, startIdx + length).join(' ');
-                const post = words.slice(startIdx + length).join(' ');
-
-                if (target.trim().length > 0) {
-                    p.innerHTML = `${pre} <strong>${target}</strong> ${post}`;
-                }
-            }
-        }
-    });
+    // Random bolding removed to preserve AI-generated semantic bold tags.
 
     doc.querySelectorAll('h2, h3, h4').forEach(h => {
         if (!h.textContent?.trim()) h.remove();

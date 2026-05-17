@@ -178,7 +178,8 @@ export class NousExtractorService {
                     return urlClauses.some(clause => {
                         const regexSource = clause.value.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
                         const regex = new RegExp(`^${regexSource}$`, 'i');
-                        return regex.test(url);
+                        const regexPermissive = new RegExp(clause.value.replace(/\*/g, '.*'), 'i');
+                        return regex.test(url) || regexPermissive.test(url);
                     });
                 } catch (_) { return false; }
             });

@@ -110,6 +110,7 @@ ESTILO Y FORMATO HTML (CRÍTICO):
 4. **ENLACES HTML:** Usa <a href="..." target="_blank">Anchor</a>.
     - **REGLA DE VIDA O MUERTE:** La lista de "ESTRATEGIA DE ENLAZADO INTERNO" contiene los enlaces que DEBEN aparecer en el artículo. 
     - Siempre que el "Anchor ideal" o un concepto muy similar aparezca en el texto, conviértelo en el enlace correspondiente.
+    - **NUNCA REPITAS UN ENLACE.** Cada enlace debe insertarse UNA SOLA VEZ en todo el artículo.
     - Si un enlace es muy importante pero no encaja, fuerza una mención natural al final de un párrafo (ej: "Puedes ver más en nuestra colección de [Título](URL)").
     - NO uses Markdown para enlaces, usa solo HTML.
     - **PROHIBIDO colocar enlaces dentro de etiquetas de encabezado (H1-H6).** Los enlaces solo deben integrarse en el cuerpo de los párrafos o listas.
