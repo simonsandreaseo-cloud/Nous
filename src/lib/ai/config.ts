@@ -73,13 +73,13 @@ export const AI_CONFIG = {
                 'gemini-2.5-flash-lite'        // Fallback 6: Efficiency 2.5
             ],
             writing: [
-                'gemini-3.1-flash-lite-preview', // Priority 1: Editorial 3.1
-                'gemini-3-flash-preview',      // Fallback 1: Editorial 3.0
-                'gemma-4-31b-it',               // Fallback 2: Calidad Premium (Gemma 4)
-                'gemma-4-26b-it',               // Fallback 3: Balanced
-                'gemma-4-26b-a4b-it',           // Fallback 4: Editorial Dense
-                'gemini-2.5-flash',              // Fallback 5: Flow Stable
-                'gemini-2.5-flash-lite'          // Fallback 6: Lightweight
+                'gemma-4-31b-it',               // Priority 1: Calidad Premium (Gemma 4)
+                'gemma-4-26b-it',               // Priority 2: Balanced
+                'gemma-4-26b-a4b-it',           // Priority 3: Editorial Dense
+                'gemini-3.1-flash-lite-preview', // Fallback 1: Editorial 3.1
+                'gemini-3-flash-preview',      // Fallback 2: Editorial 3.0
+                'gemini-2.5-flash',              // Fallback 3: Flow Stable
+                'gemini-2.5-flash-lite'          // Fallback 4: Lightweight
             ],
             technical: [
                 'gemini-3.1-flash-lite-preview', // Priority 1: Técnico estable
