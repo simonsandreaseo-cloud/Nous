@@ -1248,12 +1248,18 @@ export const runSEOPostProcessor = async (
 ): Promise<string> => {
     onStatus("Optimizando densidad SEO y estilos de negritas (Pase único)...");
 
-    // Helper to strip reasoning
+    // Optimized stripReasoning helper
     const stripReasoning = (text: string): string => {
+        if (!text) return "";
+        // Use a more efficient way to strip thinking tags if possible, or just stay with regex but be careful
         let cleanText = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+        
+        // Find first and last HTML tags to ensure we only get the content
         const firstTag = cleanText.indexOf('<');
+        if (firstTag === -1) return cleanText; // No tags found, return as is
+
         const lastTag = cleanText.lastIndexOf('>');
-        if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+        if (lastTag !== -1 && lastTag > firstTag) {
             cleanText = cleanText.substring(firstTag, lastTag + 1);
         }
         return cleanText;
@@ -1262,10 +1268,10 @@ export const runSEOPostProcessor = async (
     const approvedLinks = config.approvedLinks || [];
     const linkList = approvedLinks.map(l => `- URL: ${l.url} | Anchor ideal: ${l.title}`).join('\n');
 
-    return executeWithKeyRotation(async (ai, currentModel) => {
+    const result = await executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({
             model: currentModel,
-            generationConfig: { temperature: 0.15 } // Lower temperature for higher consistency in single pass
+            generationConfig: { temperature: 0.15 } 
         });
 
         const prompt = `
@@ -1298,9 +1304,16 @@ export const runSEOPostProcessor = async (
         `;
 
         const response = await model.generateContent(prompt);
-        let raw = response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-        return stripReasoning(raw);
+        let raw = response.response.text();
+        
+        // Minor "yield" to allow UI to breathe before heavy regex/string work
+        await new Promise(resolve => setTimeout(resolve, 0));
+        
+        const textOnly = raw.replace(/```html/g, '').replace(/```/g, '').trim();
+        return stripReasoning(textOnly);
     }, 'default', undefined, undefined, false, 'SEO Post-Procesado');
+
+    return result;
 };
 
 /**

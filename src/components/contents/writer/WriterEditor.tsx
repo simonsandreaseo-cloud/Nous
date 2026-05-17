@@ -282,7 +282,7 @@ export default function WriterEditor() {
     // Real-time section word count tracker (Sync with strategyOutline)
     // Batched update to avoid infinite loop / maximum update depth
     useEffect(() => {
-        if (!editor || strategyOutline.length === 0) return;
+        if (!editor || strategyOutline.length === 0 || isGenerating) return;
 
         const text = editor.getText();
         let lastHeaderIdx = 0;
@@ -331,7 +331,7 @@ export default function WriterEditor() {
         if (hasChanges) {
             useWriterStore.getState().setStrategyOutline(newOutline);
         }
-    }, [content, editor, strategyOutline]);
+    }, [content, editor, strategyOutline, isGenerating]);
 
     // Handle Slash Commands
     const handleSlashCommand = (commandId: string) => {

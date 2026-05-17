@@ -106,7 +106,7 @@ export class LinkPatcherService {
 
     /**
      * Executes the patcher on the editor content.
-     * This is designed to be called from the UI.
+     * Optimized to use a single Tiptap transaction for all updates.
      */
     static async processEditorLinks(
         editor: any, 
@@ -121,7 +121,7 @@ export class LinkPatcherService {
         const results: PatcherResult[] = [];
 
         try {
-            const links: { url: string; text: string; pos: number; node: any }[] = [];
+            const links: { url: string; originalUrl: string; text: string; pos: number; node: any }[] = [];
 
             // 1. Collect all links from the editor
             editor.state.doc.descendants((node: any, pos: number) => {
@@ -138,32 +138,51 @@ export class LinkPatcherService {
                 return true;
             });
 
-            // 2. Process each link
-            for (const link of links) {
-                const patchedUrl = this.patchUrl(link.url, rules);
-                const isModified = patchedUrl !== link.url;
+            if (mode === 'apply') {
+                // Use a single chain for all updates to avoid multiple re-renders
+                let chain = editor.chain().focus();
+                let hasChanges = false;
 
-                results.push({
-                    originalUrl: link.url,
-                    patchedUrl: patchedUrl,
-                    text: link.text,
-                    pos: link.pos,
-                    success: true,
-                    isModified: isModified
-                });
+                for (const link of links) {
+                    const patchedUrl = this.patchUrl(link.url, rules);
+                    const isModified = patchedUrl !== link.url;
 
-                // 3. Apply changes if requested
-                if (mode === 'apply' && isModified) {
-                    // We use the editor's command to update the link
-                    editor.chain().focus()
-                        .setTextSelection({ from: link.pos, to: link.pos + link.text.length })
-                        .extendMarkRange('link')
-                        .setLink({ 
-                            href: patchedUrl, 
-                            // PERSISTENCE: Keep the original URL if it already exists, otherwise set current
-                            'data-original-url': link.originalUrl || link.url 
-                        } as any)
-                        .run();
+                    results.push({
+                        originalUrl: link.url,
+                        patchedUrl: patchedUrl,
+                        text: link.text,
+                        pos: link.pos,
+                        success: true,
+                        isModified: isModified
+                    });
+
+                    if (isModified) {
+                        hasChanges = true;
+                        chain = chain
+                            .setTextSelection({ from: link.pos, to: link.pos + link.text.length })
+                            .extendMarkRange('link')
+                            .setLink({ 
+                                href: patchedUrl, 
+                                'data-original-url': link.originalUrl || link.url 
+                            } as any);
+                    }
+                }
+
+                if (hasChanges) {
+                    chain.run();
+                }
+            } else {
+                // Simulation mode: only collect results
+                for (const link of links) {
+                    const patchedUrl = this.patchUrl(link.url, rules);
+                    results.push({
+                        originalUrl: link.url,
+                        patchedUrl: patchedUrl,
+                        text: link.text,
+                        pos: link.pos,
+                        success: true,
+                        isModified: patchedUrl !== link.url
+                    });
                 }
             }
 

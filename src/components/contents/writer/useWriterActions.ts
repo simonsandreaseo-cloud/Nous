@@ -273,7 +273,10 @@ export function useWriterActions() {
                 } catch (_) { }
             }
 
+            // --- PHASE 3: SEO POST-PROCESSING & POLISHING ---
             store.setStatus('Generando vínculos interlinking...');
+            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+            
             const linked = await autoInterlinkAsync(
                 cleanHtml, 
                 finalApprovedLinks,
@@ -281,30 +284,44 @@ export function useWriterActions() {
                 activeProject?.architecture_instructions,
                 activeProject
             );
-            store.setAnalyzingSEO(true);
-            // Log Phase 2 context for debugging
-            store.addDebugPrompt('Fase 2: Refinamiento SEO', `Optimizando con keywords: ${config.topic}, LSI: ${config.lsiKeywords?.join(', ')}. Enlaces aprobados: ${finalApprovedLinks.length}`);
-            const refinedSEO = await runSEOPostProcessor(linked, config, (msg) => store.setStatus(msg));
-            store.setAnalyzingSEO(false);
             
-            const formatted = cleanAndFormatHtml(refinedSEO);
-            store.setContent(formatted);
-            store.addDebugPrompt('Refinamiento Finalizado', `Limpieza y SEO post-procesamiento completados`, formatted.substring(0, 1000));
-            store.setHasGenerated(true);
-            store.setStatus('✅ Artículo generado con éxito.');
+            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+            
+            store.setAnalyzingSEO(true);
+            store.addDebugPrompt('Fase 2: Refinamiento SEO', `Optimizando con keywords: ${config.topic}, LSI: ${config.lsiKeywords?.join(', ')}. Enlaces aprobados: ${finalApprovedLinks.length}`);
+            
+            const refinedSEO = await runSEOPostProcessor(linked, config, (msg) => store.setStatus(msg));
+            
+            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
             
             // --- AUTOMATIC EXTRACTION (IF ACTIVE) ---
+            let finalContent = refinedSEO;
             const activeExtractorRules = NousExtractorService.getActiveRulesForPhase(activeProject, 'writer');
             if (activeExtractorRules.length > 0) {
                 store.setStatus('Ejecutando extractores de datos...');
-                const extractedHtml = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
-                store.setContent(cleanAndFormatHtml(extractedHtml));
+                await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+                finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
             }
 
+            // --- FINAL CLEANUP & STORE SYNC (BATCHED) ---
+            const formatted = cleanAndFormatHtml(finalContent);
+            
+            // Batch final state update to avoid multiple re-renders
+            useWriterStore.setState({
+                content: formatted,
+                isAnalyzingSEO: false,
+                hasGenerated: true,
+                statusMessage: '✅ Artículo generado con éxito.',
+                sidebarTab: 'assistant'
+            } as any);
+
+            store.addDebugPrompt('Refinamiento Finalizado', `SEO Post-Procesado y Extractores aplicados con éxito`, formatted.substring(0, 1000));
+            
             // --- AUTO-PATCHER ORCHESTRATION ---
             const patchers = LinkPatcherService.getPatchersForProcess(activeProject, 'writer');
             if (patchers.length > 0 && store.editor) {
                 store.setStatus('Normalizando URLs con Nous Patcher...');
+                await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
                 try {
                     for (const patcher of patchers) {
                         await LinkPatcherService.processEditorLinks(store.editor, patcher, 'apply');
@@ -315,10 +332,14 @@ export function useWriterActions() {
                 }
             }
 
-            store.setSidebarTab('assistant');
+            setTimeout(() => store.setStatus(''), 5000);
         } catch (e: any) {
             console.error(e);
-            store.setStatus('❌ Error: ' + e.message);
+            useWriterStore.setState({
+                statusMessage: '❌ Error: ' + e.message,
+                isGenerating: false,
+                isAnalyzingSEO: false
+            } as any);
         } finally {
             store.setGenerating(false);
         }
@@ -375,14 +396,20 @@ export function useWriterActions() {
                 modelToUse
             ) as any;
 
+            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+
             // result now contains { html, metadata }
             const refined = refineStyling(result.html);
-            store.setContent(refined);
+            
+            // Batch updates
+            useWriterStore.setState({
+                content: refined,
+                hasHumanized: true,
+                humanizerStatus: '✅ ¡Humanización completada!'
+            } as any);
+
             store.addDebugPrompt('Humanización Finalizada', `Contenido humanizado con éxito`, refined.substring(0, 1000));
             
-
-            store.setHasHumanized(true);
-
             // Update humanization metadata in DB
             if (store.draftId) {
                 const { error: humanizeError } = await supabase
@@ -396,7 +423,6 @@ export function useWriterActions() {
                 if (humanizeError) console.error("[useWriterActions] Error updating humanization metadata:", humanizeError.message);
             }
 
-            store.setHumanizerStatus('✅ ¡Humanización completada!');
             setTimeout(() => store.setHumanizerStatus(''), 3000);
         } catch (e: any) {
             console.error(e);
@@ -415,11 +441,19 @@ export function useWriterActions() {
         try {
             const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-4-31b-it';
             const refined = await refineArticleContent(store.content, store.refinementInstructions, modelToUse);
+            
+            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+            
             const styled = refineStyling(refined);
-            store.setContent(styled);
+            
+            // Batch updates
+            useWriterStore.setState({
+                content: styled,
+                statusMessage: '✅ Refinamiento completado.',
+                refinementInstructions: ''
+            } as any);
+
             store.addDebugPrompt('Refinamiento Completado', `Instrucciones aplicadas: ${store.refinementInstructions}`, styled.substring(0, 1000));
-            store.setRefinementInstructions('');
-            store.setStatus('✅ Refinamiento completado.');
         } catch (e: any) {
             console.error(e);
             store.setStatus('❌ Error: ' + e.message);

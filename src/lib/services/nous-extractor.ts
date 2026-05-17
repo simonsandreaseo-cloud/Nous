@@ -152,6 +152,7 @@ export class NousExtractorService {
 
     /**
      * Scans an HTML string, extracts information from all links, and injects the results back into the HTML.
+     * Optimized to process links in parallel.
      */
     static async applyExtractionToHtml(html: string, project: Project | null, phase: 'research' | 'planner' | 'writer'): Promise<string> {
         if (!html || !project) return html;
@@ -164,9 +165,10 @@ export class NousExtractorService {
 
         if (links.length === 0) return html;
 
-        for (const link of links) {
+        // Process extractions in parallel
+        await Promise.all(links.map(async (link) => {
             const url = link.getAttribute('data-original-url') || link.getAttribute('href');
-            if (!url) continue;
+            if (!url) return;
 
             // Find matching rules for this specific URL
             const matchingRules = rules.filter(rule => {
@@ -194,9 +196,6 @@ export class NousExtractorService {
 
                 const extraction = await this.extract(patchedUrl, matchingRules);
                 if (extraction.success && extraction.results.length > 0) {
-                    // Inclusion strategy: Append the formatted value after the link text
-                    // or replace depending on what the user expects.
-                    // Common pattern in this repo: Append [ID: xxx]
                     const result = extraction.results[0];
                     if (result.success) {
                         const placement = matchingRules[0].placement_mode || 'inline';
@@ -228,7 +227,7 @@ export class NousExtractorService {
                     }
                 }
             }
-        }
+        }));
 
         return doc.body.innerHTML;
     }
