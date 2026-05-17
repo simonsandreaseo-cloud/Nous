@@ -212,6 +212,9 @@ ${FEW_SHOT_HTML}`,
             contents: [{ role: 'user', parts: [{ text: prompt + "\n\nRESULTADO DIRECTO (SIN PREFACIOS):" }] }],
         });
 
+        // Silence Uncaught Promise Rejection if the stream fails midway or at start
+        result.response.catch(() => {});
+
         // Peek the first chunk to catch "Failed to parse stream" (e.g. 404 HTML) early so rotation can handle it
         const iterator = result.stream[Symbol.asyncIterator]();
         const firstChunk = await iterator.next();
@@ -235,16 +238,22 @@ ${FEW_SHOT_HTML}`,
                 }
             };
 
-            if (!firstChunk.done && firstChunk.value) {
-                yield* processText(firstChunk.value.text());
-            }
-
-            while (true) {
-                const nextChunk = await iterator.next();
-                if (nextChunk.done) break;
-                if (nextChunk.value) {
-                    yield* processText(nextChunk.value.text());
+            try {
+                if (!firstChunk.done && firstChunk.value) {
+                    yield* processText(firstChunk.value.text());
                 }
+
+                while (true) {
+                    const nextChunk = await iterator.next();
+                    if (nextChunk.done) break;
+                    if (nextChunk.value) {
+                        yield* processText(nextChunk.value.text());
+                    }
+                }
+            } catch (e: any) {
+                console.error("[STREAM ERROR]", e);
+                const errMsg = `<br><br><div style="padding: 15px; border-left: 4px solid #ef4444; background: #fee2e2; color: #991b1b; border-radius: 4px; margin: 20px 0; font-family: system-ui;"><strong>⚠️ Error de Redacción:</strong> La generación se interrumpió de forma abrupta (Fallo del modelo: ${e.message}). <br><em>Consejo: Intenta regenerar o cambia el modelo en la configuración.</em></div>`;
+                yield { text: errMsg };
             }
             
             // Fallback: if we never found HTML, just yield the buffer to avoid returning nothing
