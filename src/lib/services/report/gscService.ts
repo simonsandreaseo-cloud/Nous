@@ -180,16 +180,15 @@ export const GscService = {
 
                 for (const row of resPage.data.rows) {
                     const rawUrl = row.keys![0];
-                    const pagePath = '/' + normalizeUrl(rawUrl);
                     const normUrl = normalizeUrl(rawUrl);
-                    let derivedTitle = pagePath.replace(/\/$/, '').split('/').pop()?.replace(/-/g, ' ') || 'Página Indexada';
+                    let derivedTitle = rawUrl.replace(/\/$/, '').split('/').pop()?.replace(/-/g, ' ') || 'Página Indexada';
                     if (derivedTitle.length < 3) derivedTitle = "Home";
 
                     const langCode = I18nService.detectLanguage(rawUrl, project.i18n_settings);
 
                     uniqueUrls.set(normUrl, {
                         project_id: projectId,
-                        url: pagePath,
+                        url: rawUrl,
                         title: derivedTitle.charAt(0).toUpperCase() + derivedTitle.slice(1),
                         language_code: langCode,
                         impressions_gsc: row.impressions || 0,
