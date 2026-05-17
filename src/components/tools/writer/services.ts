@@ -212,26 +212,38 @@ ${FEW_SHOT_HTML}`,
             contents: [{ role: 'user', parts: [{ text: prompt + "\n\nRESULTADO DIRECTO (SIN PREFACIOS):" }] }],
         });
 
+        // Peek the first chunk to catch "Failed to parse stream" (e.g. 404 HTML) early so rotation can handle it
+        const iterator = result.stream[Symbol.asyncIterator]();
+        const firstChunk = await iterator.next();
+
         // Unified stream wrapper with Chain-of-Thought filtering
         return (async function* () {
             let buffer = "";
             let isGeneratingHtml = false;
 
-            for await (const chunk of result.stream) {
-                const text = chunk.text();
-                
+            const processText = function*(text: string) {
                 if (!isGeneratingHtml) {
                     buffer += text;
-                    // Check if we hit the start of the HTML content (typically <h1 or <h2)
                     const matchMatch = buffer.match(/(<h[1-6]|<p)/i);
                     if (matchMatch) {
                         isGeneratingHtml = true;
-                        // Yield only from the match onwards
                         yield { text: buffer.substring(matchMatch.index!) };
-                        buffer = ""; // Free buffer
+                        buffer = ""; 
                     }
                 } else {
                     yield { text };
+                }
+            };
+
+            if (!firstChunk.done && firstChunk.value) {
+                yield* processText(firstChunk.value.text());
+            }
+
+            while (true) {
+                const nextChunk = await iterator.next();
+                if (nextChunk.done) break;
+                if (nextChunk.value) {
+                    yield* processText(nextChunk.value.text());
                 }
             }
             
