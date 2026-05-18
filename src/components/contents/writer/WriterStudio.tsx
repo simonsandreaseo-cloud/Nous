@@ -705,7 +705,7 @@ export default function WriterStudio() {
                                   options: { sourceModel: 'flux' }
                               });
                               (useWriterStore.getState() as any).loadTaskImages(draftId!);
-                          }} : 
+                          }} /> : 
                          activeSidebarTab === 'tools' ? <ToolsTab /> : 
                          activeSidebarTab === 'translate' ? <TranslationSidebarPanel /> : 
                           activeSidebarTab === 'nous' ? (
