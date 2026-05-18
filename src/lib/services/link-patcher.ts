@@ -84,24 +84,63 @@ export class LinkPatcherService {
 
         let patchedContent = content;
         
-        // Match both Markdown [text](url) and HTML <a href="url">
-        // Regression notice: this is a simple regex approach, may need DOM parsing for complex cases
-        
-        // 1. Markdown Links
+        // 1. Markdown Links (Regex seguro por su linealidad)
         patchedContent = patchedContent.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, (match, text, url) => {
             let pUrl = url;
             patchers.forEach(p => pUrl = this.patchUrl(pUrl, p.config?.rules || []));
             return `[${text}](${pUrl})`;
         });
 
-        // 2. HTML Links
-        patchedContent = patchedContent.replace(/<a\s+(?:[^>]*?\s+)?href=(["'])(https?:\/\/[^\1]+?)\1/gi, (match, quote, url) => {
-            let pUrl = url;
-            patchers.forEach(p => pUrl = this.patchUrl(pUrl, p.config?.rules || []));
-            return match.replace(url, pUrl);
-        });
+        // 2. HTML Links (DOMParser en Cliente para máxima seguridad, Regex Blindado en Servidor/Edge)
+        if (typeof DOMParser !== 'undefined') {
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(patchedContent, 'text/html');
+                const links = doc.querySelectorAll('a');
+                let hasChanges = false;
+                
+                links.forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href && /^https?:\/\//i.test(href)) {
+                        let pUrl = href;
+                        patchers.forEach(p => pUrl = this.patchUrl(pUrl, p.config?.rules || []));
+                        if (pUrl !== href) {
+                            link.setAttribute('href', pUrl);
+                            const origUrl = link.getAttribute('data-original-url');
+                            if (!origUrl) {
+                                link.setAttribute('data-original-url', href);
+                            }
+                            hasChanges = true;
+                        }
+                    }
+                });
+
+                if (hasChanges) {
+                    patchedContent = doc.body.innerHTML;
+                }
+            } catch (e) {
+                console.error('[LinkPatcherService] DOMParser parsing error, falling back to Regex:', e);
+                patchedContent = this.patchHtmlUsingRegex(patchedContent, patchers);
+            }
+        } else {
+            patchedContent = this.patchHtmlUsingRegex(patchedContent, patchers);
+        }
 
         return patchedContent;
+    }
+
+    /**
+     * Resilient Regex HTML patching fallback for Server-side environments (Node.js/Edge) where DOMParser is undefined.
+     * Prevents truncation and replacement collisions by matching full href attributes with quotation backreferences.
+     */
+    private static patchHtmlUsingRegex(content: string, patchers: CustomWidget[]): string {
+        return content.replace(/<a\s+([^>]*?\s+)?href=(["'])(https?:\/\/[^\2]+?)\2/gi, (match, before, quote, url) => {
+            let pUrl = url;
+            patchers.forEach(p => pUrl = this.patchUrl(pUrl, p.config?.rules || []));
+            const hrefAttr = `href=${quote}${url}${quote}`;
+            const patchedHrefAttr = `href=${quote}${pUrl}${quote}`;
+            return match.replace(hrefAttr, patchedHrefAttr);
+        });
     }
 
     /**

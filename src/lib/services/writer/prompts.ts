@@ -10,7 +10,7 @@ export const buildPrompt = (config: ArticleConfig): string => {
 
     let linkingInstructions = "";
     if (approvedLinks && approvedLinks.length > 0) {
-        const formatList = (items: ContentItem[]) => items.map(i => `- URL: ${i.url} | Anchor ideal: ${i.title}${i.category ? ` [Categoría: ${i.category}]` : ''}`).join('\n');
+        const formatList = (items: ContentItem[]) => items.map(i => `- Tema/Producto: "${i.title}${i.category ? ` (${i.category})` : ''}" | URL: ${i.url}`).join('\n');
         
         const products = approvedLinks.filter(l => l.type === 'product');
         const collections = approvedLinks.filter(l => l.type === 'collection');
@@ -19,8 +19,10 @@ export const buildPrompt = (config: ArticleConfig): string => {
         linkingInstructions = `
 ### ESTRATEGIA DE ENLAZADO INTERNO (OBLIGATORIO)
 **INSTRUCCIÓN CRÍTICA DE SEO:** Debes integrar tantos enlaces de esta lista como sea posible de forma NATURAL dentro del cuerpo del texto. 
-**PROHIBIDO INVENTAR URLs.** Solo usa estas URLs y sus respectivos Anchor Text. 
+**PROHIBIDO INVENTAR URLs.** Solo usa estas URLs.
 **REGLA DE SEGURIDAD:** No uses enlaces que empiecen por "#". Si no encuentras un enlace en la lista, NO crees el enlace.
+
+**ANCHOR TEXT SEMÁNTICO (CRÍTICO):** NO uses el "Tema/Producto" de forma literal y robótica. Construye frases semánticas naturales alrededor del tema y enlaza la palabra o frase que mejor fluya en el contexto. (Ejemplo MAL: "Mira este [Lente Ray-Ban Aviator](url)". Ejemplo BIEN: "Para los amantes del estilo clásico, [estos icónicos modelos de aviador](url) son la opción perfecta.")
 
 ${collections.length > 0 ? `COLECCIONES RELEVANTES (Prioridad Alta):\n${formatList(collections)}\n` : ''}
 ${products.length > 0 ? `PRODUCTOS RELEVANTES:\n${formatList(products)}\n` : ''}

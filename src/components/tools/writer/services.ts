@@ -227,7 +227,8 @@ ${FEW_SHOT_HTML}`,
             const processText = function*(text: string) {
                 if (!isGeneratingHtml) {
                     buffer += text;
-                    const matchMatch = buffer.match(/(<h[1-6]|<p)/i);
+                    // Busca la primera etiqueta de encabezado bien cerrada para descartar todo el razonamiento o ejemplos mal cerrados previos.
+                    const matchMatch = buffer.match(/(<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>)/i);
                     if (matchMatch) {
                         isGeneratingHtml = true;
                         yield { text: buffer.substring(matchMatch.index!) };
@@ -1074,46 +1075,56 @@ export const runHumanizerPipeline = async (
             .trim();
     };
 
-    const humanizedChunks: string[] = [];
-    for (let i = 0; i < htmlChunks.length; i++) {
-        onStatus(`Fase 1: Humanizando bloque ${i + 1}/${htmlChunks.length}...`);
+    const BATCH_SIZE = 3;
+    const humanizedChunks: string[] = new Array(htmlChunks.length);
 
-        // BYPASS: chunks triviales (solo <br>, separadores) van directo sin pasar por el modelo
-        if (isTrivialChunk(htmlChunks[i])) {
-            humanizedChunks.push(htmlChunks[i]);
-            continue;
+    for (let i = 0; i < htmlChunks.length; i += BATCH_SIZE) {
+        const batchIndices = [];
+        for (let j = i; j < Math.min(i + BATCH_SIZE, htmlChunks.length); j++) {
+            batchIndices.push(j);
         }
 
-        const chunkResult = await executeWithKeyRotation(async (ai, currentModel) => {
-            const model = ai.getGenerativeModel({ model: currentModel });
-            const phase1Instructions = buildPhase1Prompt();
-            const userPrompt = `
+        onStatus(`Fase 1: Humanizando bloques ${batchIndices.map(idx => idx + 1).join(', ')} de ${htmlChunks.length}...`);
+
+        await Promise.all(batchIndices.map(async (idx) => {
+            // BYPASS: chunks triviales (solo <br>, separadores) van directo sin pasar por el modelo
+            if (isTrivialChunk(htmlChunks[idx])) {
+                humanizedChunks[idx] = htmlChunks[idx];
+                return;
+            }
+
+            const chunkResult = await executeWithKeyRotation(async (ai, currentModel) => {
+                const model = ai.getGenerativeModel({ model: currentModel });
+                const phase1Instructions = buildPhase1Prompt();
+                const userPrompt = `
 ${phase1Instructions}
 
 ### EJECUCIÓN:
 Procesa el siguiente bloque HTML siguiendo estrictamente las instrucciones anteriores.
 
 <<<HTML_INPUT>>>
-${htmlChunks[i]}
+${htmlChunks[idx]}
 <<<HTML_INPUT>>>
 
 SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacios ni resúmenes):`;
 
-            const res = await model.generateContent(userPrompt);
-            let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+                const res = await model.generateContent(userPrompt);
+                let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
-            // Capa 1: Strip reasoning lines interleaved
-            raw = stripReasoningLines(raw);
-            // Capa 2: Poda por código (firstTag/lastTag)
-            const firstTag = raw.indexOf('<');
-            const lastTag = raw.lastIndexOf('>');
-            if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
-                raw = raw.substring(firstTag, lastTag + 1);
-            }
+                // Capa 1: Strip reasoning lines interleaved
+                raw = stripReasoningLines(raw);
+                // Capa 2: Poda por código (firstTag/lastTag)
+                const firstTag = raw.indexOf('<');
+                const lastTag = raw.lastIndexOf('>');
+                if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+                    raw = raw.substring(firstTag, lastTag + 1);
+                }
 
-            return cleanAndFormatHtml(raw);
-        }, modelName, undefined, undefined, undefined, false, 'Redacción Humanización');
-        humanizedChunks.push(chunkResult);
+                return cleanAndFormatHtml(raw);
+            }, modelName, undefined, undefined, undefined, false, 'Redacción Humanización');
+            
+            humanizedChunks[idx] = chunkResult;
+        }));
     }
 
     const humanizedHtml = humanizedChunks.join('\n');
@@ -1125,12 +1136,11 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
     const seoChunks = chunkHtml(humanizedHtml, PHASE2_CHUNK_SIZE);
     onStatus(`Iniciando Fase 2 (SEO & Revisión) en ${seoChunks.length} bloques...`);
 
-    // Inventario de enlaces para evitar duplicidad entres bloques
-    let remainingLinks = [...(config.links || [])];
-    const finalizedChunks: string[] = [];
+    const finalizedChunks: string[] = new Array(seoChunks.length);
+    const BATCH_SIZE_SEO = 3;
 
     const buildPhase2Prompt = (iterationLinks: any[]) => {
-        const linksTextList = iterationLinks.map(l => l.anchor_text ? `[${l.anchor_text}](${l.url})` : `[${l.title}](${l.url})`).join(', ');
+        const linksTextList = iterationLinks.map(l => `- Tema/Producto: "${l.title || l.anchor_text}" | URL: ${l.url}`).join('\n        ');
         return `
         ${SYSTEM_PROMPT_BASE}
         ${HTML_RULE}
@@ -1144,59 +1154,67 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
         --- REGLAS CRÍTICAS ---
         * NO RESUMAS. El texto de salida debe ser íntegro.
         * NO "MEJORES" EL ESTILO HUMANO: Mantén el tono simple y cotidiano que ya tiene.
-        * ENLACES: Aquí tienes los enlaces que PUEDES usar en este bloque (si son pertinentes): ${linksTextList || 'Ninguno'}.
+        * ENLACES DISPONIBLES: 
+        ${linksTextList || 'Ninguno'}
+        * ANCHOR TEXT SEMÁNTICO: Construye frases naturales alrededor del "Tema/Producto". NUNCA insertes el tema literalmente como un bloque robótico. NUNCA REPITAS UN ENLACE QUE YA EXISTA EN EL TEXTO. Usa <a href="url">texto semántico que fluya orgánicamente</a>.
         * LSI: Keywords a integrar si es posible: [${config.lsiKeywords?.join(', ') || 'Ninguna'}]
         `.trim();
     };
 
-    for (let j = 0; j < seoChunks.length; j++) {
-        onStatus(`Fase 2: Procesando bloque ${j + 1}/${seoChunks.length}...`);
-
-        // BYPASS: chunks triviales van directo, el modelo no tiene nada que optimizar en ellos
-        const blockLinks = remainingLinks.slice(0, 2);
-        if (isTrivialChunk(seoChunks[j])) {
-            finalizedChunks.push(seoChunks[j]);
-            remainingLinks = remainingLinks.slice(2);
-            continue;
+    for (let j = 0; j < seoChunks.length; j += BATCH_SIZE_SEO) {
+        const batchIndices = [];
+        for (let k = j; k < Math.min(j + BATCH_SIZE_SEO, seoChunks.length); k++) {
+            batchIndices.push(k);
         }
 
-        const finalizedChunk = await executeWithKeyRotation(async (ai, currentModel) => {
-            const model = ai.getGenerativeModel({ 
-                model: currentModel,
-                generationConfig: {
-                    temperature: 0.3
-                }
-            });
-            const phase2Instructions = buildPhase2Prompt(blockLinks);
-            const userPrompt = `
+        onStatus(`Fase 2: Procesando bloques ${batchIndices.map(idx => idx + 1).join(', ')} de ${seoChunks.length}...`);
+
+        await Promise.all(batchIndices.map(async (idx) => {
+            const blockLinks = (config.links || []).slice(idx * 2, (idx + 1) * 2);
+
+            // BYPASS: chunks triviales van directo, el modelo no tiene nada que optimizar en ellos
+            if (isTrivialChunk(seoChunks[idx])) {
+                finalizedChunks[idx] = seoChunks[idx];
+                return;
+            }
+
+            const finalizedChunk = await executeWithKeyRotation(async (ai, currentModel) => {
+                const model = ai.getGenerativeModel({ 
+                    model: currentModel,
+                    generationConfig: {
+                        temperature: 0.3
+                    }
+                });
+                const phase2Instructions = buildPhase2Prompt(blockLinks);
+                const userPrompt = `
 ${phase2Instructions}
 
 ### EJECUCIÓN:
 Procesa el siguiente bloque HTML siguiendo estrictamente las instrucciones anteriores.
 
 <<<HTML_INPUT>>>
-${seoChunks[j]}
+${seoChunks[idx]}
 <<<HTML_INPUT>>>
 
 SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacios ni resúmenes):`;
 
-            const res = await model.generateContent(userPrompt);
-            let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+                const res = await model.generateContent(userPrompt);
+                let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
-            // Capa 1: Strip reasoning lines interleaved
-            raw = stripReasoningLines(raw);
-            // Capa 2: Poda por código (firstTag/lastTag)
-            const firstTag = raw.indexOf('<');
-            const lastTag = raw.lastIndexOf('>');
-            if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
-                raw = raw.substring(firstTag, lastTag + 1);
-            }
+                // Capa 1: Strip reasoning lines interleaved
+                raw = stripReasoningLines(raw);
+                // Capa 2: Poda por código (firstTag/lastTag)
+                const firstTag = raw.indexOf('<');
+                const lastTag = raw.lastIndexOf('>');
+                if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+                    raw = raw.substring(firstTag, lastTag + 1);
+                }
 
-            return cleanAndFormatHtml(raw);
-        }, modelName, undefined, undefined, undefined, false, 'Redacción SEO Revisión');
+                return cleanAndFormatHtml(raw);
+            }, modelName, undefined, undefined, undefined, false, 'Redacción SEO Revisión');
 
-        finalizedChunks.push(finalizedChunk);
-        remainingLinks = remainingLinks.slice(2);
+            finalizedChunks[idx] = finalizedChunk;
+        }));
     }
 
     const finalizedHtml = finalizedChunks.join('\n');

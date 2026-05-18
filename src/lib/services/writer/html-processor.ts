@@ -28,17 +28,18 @@ export const processHtmlLinks = (html: string): string => {
 };
 
 export const cleanAndFormatHtml = (html: string): string => {
-    if (typeof window === 'undefined' || !html) return html;
+    if (!html) return html;
+    
+    // 1. Limpieza inicial segura de Markdown a HTML sobre la cadena cruda antes de parsear
+    let processedHtml = html
+        .replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^###\s+(.*$)/gim, '<h3>$1</h3>')
+        .replace(/^##\s+(.*$)/gim, '<h2>$1</h2>');
+
+    if (typeof window === 'undefined') return processedHtml;
     
     const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
-    // 1. Initial cleanup via regex on current HTML structure
-    let cleanString = doc.body.innerHTML;
-    cleanString = cleanString.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
-    cleanString = cleanString.replace(/^### (.*$)/gm, '<h3>$1</h3>');
-    cleanString = cleanString.replace(/^## (.*$)/gm, '<h2>$1</h2>');
-    doc.body.innerHTML = cleanString;
+    const doc = parser.parseFromString(processedHtml, 'text/html');
 
     // 2. Process list items in the same doc
     const listItems = doc.querySelectorAll('li');
