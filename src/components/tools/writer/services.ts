@@ -1113,11 +1113,14 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
 
                 // Capa 1: Strip reasoning lines interleaved
                 raw = stripReasoningLines(raw);
-                // Capa 2: Poda por código (firstTag/lastTag)
-                const firstTag = raw.indexOf('<');
-                const lastTag = raw.lastIndexOf('>');
-                if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
-                    raw = raw.substring(firstTag, lastTag + 1);
+                // Capa 2: Poda inteligente (primer tag bien formado)
+                const firstValidTag = raw.match(/<[a-z1-6]+(\s+[^>]*)?>/i);
+                if (firstValidTag) {
+                    const firstTag = firstValidTag.index!;
+                    const lastTag = raw.lastIndexOf('>');
+                    if (lastTag !== -1 && lastTag > firstTag) {
+                        raw = raw.substring(firstTag, lastTag + 1);
+                    }
                 }
 
                 return cleanAndFormatHtml(raw);
@@ -1203,11 +1206,14 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
 
                 // Capa 1: Strip reasoning lines interleaved
                 raw = stripReasoningLines(raw);
-                // Capa 2: Poda por código (firstTag/lastTag)
-                const firstTag = raw.indexOf('<');
-                const lastTag = raw.lastIndexOf('>');
-                if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
-                    raw = raw.substring(firstTag, lastTag + 1);
+                // Capa 2: Poda inteligente (primer tag bien formado)
+                const firstValidTag = raw.match(/<[a-z1-6]+(\s+[^>]*)?>/i);
+                if (firstValidTag) {
+                    const firstTag = firstValidTag.index!;
+                    const lastTag = raw.lastIndexOf('>');
+                    if (lastTag !== -1 && lastTag > firstTag) {
+                        raw = raw.substring(firstTag, lastTag + 1);
+                    }
                 }
 
                 return cleanAndFormatHtml(raw);
