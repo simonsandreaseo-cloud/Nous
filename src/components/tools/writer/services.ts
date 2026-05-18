@@ -1075,7 +1075,7 @@ export const runHumanizerPipeline = async (
             .trim();
     };
 
-    const BATCH_SIZE = 3;
+    const BATCH_SIZE = 2;
     const humanizedChunks: string[] = new Array(htmlChunks.length);
 
     for (let i = 0; i < htmlChunks.length; i += BATCH_SIZE) {
@@ -1137,7 +1137,7 @@ SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacio
     onStatus(`Iniciando Fase 2 (SEO & Revisión) en ${seoChunks.length} bloques...`);
 
     const finalizedChunks: string[] = new Array(seoChunks.length);
-    const BATCH_SIZE_SEO = 3;
+    const BATCH_SIZE_SEO = 2;
 
     const buildPhase2Prompt = (iterationLinks: any[]) => {
         const linksTextList = iterationLinks.map(l => `- Tema/Producto: "${l.title || l.anchor_text}" | URL: ${l.url}`).join('\n        ');
