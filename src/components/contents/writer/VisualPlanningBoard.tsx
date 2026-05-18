@@ -194,7 +194,6 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
                                     <option value="product_showcase">Product Showcase</option>
                                     <option value="trust_signal">Trust Signal</option>
                                     <option value="feature_highlight">Feature Highlight</option>
-                                </C>
                                 </select>
                             </div>
                         </div>
