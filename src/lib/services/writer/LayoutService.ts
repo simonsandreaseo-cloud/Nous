@@ -1,4 +1,4 @@
-import { ImageAsset } from '@/types/images';
+import { ImageAsset, LayoutRole } from '@/types/images';
 import { SemanticAnchorManager } from '../images/SemanticAnchorManager';
 import { PatcherMaster } from '../images/PatcherMaster';
 import { JSDOM } from 'jsdom';
@@ -30,6 +30,9 @@ export class LayoutService {
             figure.setAttribute('data-nous-asset', 'true');
             figure.setAttribute('data-id', asset.id);
             figure.setAttribute('data-role', asset.role);
+            
+            // Apply specific classes based on role for CSS targeting
+            figure.classList.add(`nous-asset-${asset.role}`);
 
             const img = document.createElement('img');
             img.setAttribute('src', finalUrl);
@@ -43,11 +46,11 @@ export class LayoutService {
             let inserted = false;
             
             if (asset.positioning?.semanticAnchor) {
-                const match = SemanticAnchorManager.findBestPosition(document.body, asset.positioning.semanticAnchor);
-                if (match.pos !== -1) {
-                    // Find the actual node at that position and insert
-                    const node = this.findNodeAtPos(document.body, match.pos);
-                    if (node && node.parentElement) {
+                const match = SemanticAnchorManager.findBestPosition(document.body as HTMLElement, asset.positioning.semanticAnchor);
+                if (match.node) {
+                    const node = match.node;
+                    if (node.parentElement) {
+                        // We insert the figure after the text node containing the anchor
                         node.parentElement.insertBefore(figure, node.nextSibling);
                         inserted = true;
                     }
@@ -70,16 +73,5 @@ export class LayoutService {
             .replace(/<html><head><\/head><body>/g, '')
             .replace(/<\/body><\/html>/g, '');
     }
-
-    private static findNodeAtPos(root: any, targetPos: number): any {
-        let currentPos = 0;
-        const walker = root.ownerDocument.createTreeWalker(root, 4); // SHOW_TEXT
-        let node;
-        while ((node = walker.nextNode())) {
-            const len = node.textContent.length;
-            if (currentPos + len >= targetPos) return node;
-            currentPos += len;
-        }
-        return null;
-    }
 }
+

@@ -116,11 +116,9 @@ ESTILO Y FORMATO HTML (CRÍTICO):
     - Si un enlace es muy importante pero no encaja, fuerza una mención natural al final de un párrafo (ej: "Puedes ver más en nuestra colección de [Título](URL)").
     - NO uses Markdown para enlaces, usa solo HTML.
     - **PROHIBIDO colocar enlaces dentro de etiquetas de encabezado (H1-H6).** Los enlaces solo deben integrarse en el cuerpo de los párrafos o listas.
-4. **IMÁGENES Y MULTIMEDIA (CRÍTICO):**
-    - Debes indicar la ubicación ideal de las imágenes usando marcadores de texto EXACTOS.
-    - El primer marcador debe ser \`[[image: featured]]\` justo después del H1.
-    - Distribuye marcadores numerados \`[[image: 1]]\`, \`[[image: 2]]\`, etc., a lo largo del texto (aprox. uno cada 3-4 párrafos) para romper la monotonía visual.
-    - El contenido de estos marcadores será sustituido automáticamente por Nous.
+4. **IMÁGENES Y MULTIMEDIA:**
+     - NO insertes marcadores de imagen ni etiquetas <img>. 
+     - El diseño visual y la ubicación de los activos se gestionan mediante un sistema de planificación semántica externo. Concentrate exclusivamente en el flujo y la calidad del texto.
 
 
 ${refUrls ? `### COMPETENCIA DIRECTA (REFERENCIAS RAÍZ):\n${refUrls}` : ''}

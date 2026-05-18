@@ -3,9 +3,39 @@
 import { createClient } from '@supabase/supabase-js';
 import { PostProcessingService } from '@/lib/services/images/PostProcessingService';
 import { VisualEngine } from '@/lib/services/writer/VisualEngine';
+import { ImagePlanningService } from '@/lib/services/imagePlanningService';
+
+// ... (existing imports)
+
+/**
+ * Server Action: Generates only the visual plan without producing images.
+ * Allows the user to review and edit the strategy before execution.
+ */
+export async function generateVisualPlanAction(params: {
+    paragraphs: string[];
+    instructions: string;
+    language: 'es' | 'en';
+    inlineImageCount?: 'auto' | number;
+    realismMode?: 'standard' | 'hyperrealistic';
+}) {
+    try {
+        const plan = await ImagePlanningService.planImages(
+            params.paragraphs,
+            params.instructions,
+            params.language,
+            params.inlineImageCount || 'auto',
+            params.realismMode || 'standard'
+        );
+        return { success: true, plan };
+    } catch (error: any) {
+        console.error("[Action] Planning Error:", error);
+        return { success: false, error: error.message };
+    }
+}
 
 /**
  * Server Action: Executes the full image generation pipeline.
+// ... (rest of the file)
  * Decouples Sharp and DB Admin logic from the client.
  */
 export async function executeImagePipelineAction(params: {

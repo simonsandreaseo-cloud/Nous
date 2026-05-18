@@ -10,7 +10,7 @@ import WriterDashboard from '@/components/contents/writer/WriterDashboard';
 import WriterSetupBoard from '@/components/contents/writer/WriterSetupBoard';
 import { 
     LayoutTemplate, 
-    ChevronLeft, 
+    ChevronLeft, ChevronDown, 
     LayoutDashboard, 
     Settings2, 
     PenTool, 
@@ -56,7 +56,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import NousOrb from '@/components/dashboard/NousOrb';
 import NousAssistantMenu from '@/components/dashboard/NousAssistantMenu';
 import { useWriterActions } from './useWriterActions';
-import { deleteImageAction, uploadGeneratedImage } from '@/lib/actions/imageActions';
+import { deleteImageAction, uploadGeneratedImage, regenerateImageAction } from '@/lib/actions/imageActions';
+import VisualPlanningBoard from './VisualPlanningBoard';
 import { saveAs } from 'file-saver';
 import { PollinationsService } from '@/lib/services/pollinationsService';
 import { NousLogo } from '@/components/dom/NousLogo';
@@ -120,28 +121,16 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
         if (isRegenerating) return;
         setIsRegenerating(true);
         try {
-            const prompt = asset.prompt || strategyH1 || keyword || "Imagen de portada profesional";
-            const preset = activeProject?.settings?.images?.portada_preset;
-            
-            const newUrl = PollinationsService.generateImageUrl(prompt, {
-                model: preset?.model || 'flux',
-                width: 1280,
-                height: 720,
-                enhance: true
+            const res = await regenerateImageAction({
+                asset: asset,
+                taskId: taskId!,
+                options: {
+                    sourceModel: activeProject?.settings?.images?.portada_preset?.model || 'flux',
+                },
+                refinement: "" // Optional refinement could be added here
             });
             
-            const res = await uploadGeneratedImage({
-                url: newUrl,
-                taskId: taskId,
-                imageId: asset.id,
-                prompt: prompt,
-                altText: asset.alt || "Portada",
-                title: asset.title || "Portada",
-                type: 'featured',
-                projectId: projectId
-            });
-
-            if (res.success) await loadTaskImages(taskId);
+            if (res.success) await loadTaskImages(taskId!);
         } catch (err) {
             console.error("Failed to regenerate portada", err);
         } finally {
@@ -196,6 +185,14 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
 
 const EMPTY_ARRAY: any[] = [];
 
+const STATUS_OPTIONS = [
+    { value: 'por_redactar', label: 'Por Redactar', color: 'bg-slate-50 text-slate-700 border-slate-200/80 hover:bg-slate-100/80', dot: 'bg-slate-400' },
+    { value: 'en_redaccion', label: 'En Redacción', color: 'bg-indigo-50 text-indigo-700 border-indigo-200/80 hover:bg-indigo-100/80', dot: 'bg-indigo-500' },
+    { value: 'por_corregir', label: 'Por Corregir', color: 'bg-amber-50 text-amber-800 border-amber-200/80 hover:bg-amber-100/80', dot: 'bg-amber-500' },
+    { value: 'por_maquetar', label: 'Por Maquetar', color: 'bg-purple-50 text-purple-700 border-purple-200/80 hover:bg-purple-100/80', dot: 'bg-purple-500' },
+    { value: 'publicado', label: 'Publicado', color: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 hover:bg-emerald-100/80', dot: 'bg-emerald-500' },
+];
+
 export default function WriterStudio() {
     const {
         isSidebarOpen, toggleSidebar, isSaving, lastSaved,
@@ -209,7 +206,7 @@ export default function WriterStudio() {
         projectId, csvData, loadProjectInventory, loadContentById,
         redactorUI, setRedactorUI, leftSidebarWidth, setLeftSidebarWidth, 
         rightSidebarWidth, setRightSidebarWidth, isToolboxOpen, toggleToolbox,
-        deleteVersion, parentTaskId, statusMessage, hasGenerated
+        deleteVersion, parentTaskId, statusMessage, hasGenerated, status, updateTaskStatus
     } = useWriterStore(useShallow(state => ({
         isSidebarOpen: state.isSidebarOpen,
         toggleSidebar: state.toggleSidebar,
@@ -264,8 +261,12 @@ export default function WriterStudio() {
         deleteVersion: state.deleteVersion,
         parentTaskId: state.parentTaskId,
         statusMessage: state.statusMessage,
-        hasGenerated: state.hasGenerated
+        hasGenerated: state.hasGenerated,
+        status: (state as any).status,
+        updateTaskStatus: (state as any).updateTaskStatus
     })));
+
+    const [isStatusOpen, setIsStatusOpen] = useState(false);
 
     const { tasks, isLoading: isProjectLoading, activeProject, fetchTaskContent, fetchTaskResearch } = useProjectStore(useShallow(state => ({
         tasks: state.tasks,
@@ -506,7 +507,73 @@ export default function WriterStudio() {
                                 <div className="hidden md:block w-[1px] h-5 bg-slate-200/50" />
                             </>
                         )}
-                        <h1 className="text-[12px] md:text-[14px] font-black text-slate-900 tracking-tight truncate max-w-[200px] md:max-w-[500px] leading-tight italic">{strategyH1 || keyword || "Sin Título"}</h1>
+                        <div className="flex items-center gap-4 min-w-0">
+                            <h1 className="text-[12px] md:text-[14px] font-black text-slate-900 tracking-tight truncate max-w-[150px] md:max-w-[380px] leading-tight italic shrink-0" title={strategyH1 || keyword || "Sin Título"}>
+                                {strategyH1 || keyword || "Sin Título"}
+                            </h1>
+                            
+                            {draftId && (
+                                <div className="relative shrink-0">
+                                    <button 
+                                        onClick={() => setIsStatusOpen(!isStatusOpen)}
+                                        className={cn(
+                                            "flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider border shadow-sm transition-all duration-300 active:scale-95",
+                                            (STATUS_OPTIONS.find(opt => opt.value === status) || STATUS_OPTIONS[0]).color
+                                        )}
+                                    >
+                                        <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", (STATUS_OPTIONS.find(opt => opt.value === status) || STATUS_OPTIONS[0]).dot)} />
+                                        {(STATUS_OPTIONS.find(opt => opt.value === status) || STATUS_OPTIONS[0]).label}
+                                        <ChevronDown size={10} className={cn("transition-transform duration-300 text-slate-400", isStatusOpen && "rotate-180")} />
+                                    </button>
+                                    
+                                    <AnimatePresence>
+                                        {isStatusOpen && (
+                                            <>
+                                                {/* Backdrop invisible */}
+                                                <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsStatusOpen(false)} />
+                                                <motion.div 
+                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                    transition={{ duration: 0.15 }}
+                                                    className="absolute left-0 mt-2 w-44 bg-white/95 backdrop-blur-xl border border-slate-200/60 rounded-2xl shadow-2xl p-1 z-50 flex flex-col gap-0.5"
+                                                >
+                                                    <div className="px-2.5 py-1 text-[7px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100/60 mb-1">
+                                                        Cambiar Estado
+                                                    </div>
+                                                    {STATUS_OPTIONS.map((opt) => {
+                                                        const isSelected = opt.value === status;
+                                                        return (
+                                                            <button
+                                                                key={opt.value}
+                                                                onClick={async () => {
+                                                                    setIsStatusOpen(false);
+                                                                    if (updateTaskStatus) {
+                                                                        await updateTaskStatus(opt.value);
+                                                                    }
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all duration-200 text-left hover:scale-[1.02]",
+                                                                    isSelected 
+                                                                        ? "bg-slate-900 text-white font-black shadow-md" 
+                                                                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                                                )}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-white" : opt.dot)} />
+                                                                    {opt.label}
+                                                                </div>
+                                                                {isSelected && <span className="text-[7px] font-black text-indigo-400">Activo</span>}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </motion.div>
+                                            </>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </header>
 
@@ -540,19 +607,66 @@ export default function WriterStudio() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                            <div className="min-w-0 max-w-[280px] flex items-center gap-1 bg-transparent group/gallery">
+                            <div className="min-w-0 max-w-[220px] sm:max-w-[320px] md:max-w-[420px] flex items-center gap-1.5 bg-transparent group/gallery relative">
                                 <div className="flex items-center gap-1.5 px-1 shrink-0">
                                     <button onClick={async () => { if (window.confirm(draftId === parentTaskId ? "¿Borrar proyecto?" : "¿Borrar versión?")) await deleteVersion(draftId!); }} className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"><Trash2 size={11} /></button>
                                     <Languages size={12} className="text-slate-400" />
                                 </div>
-                                <div className="relative flex-1 flex items-center overflow-hidden">
-                                    <div ref={galleryRef} onScroll={checkScroll} className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 px-1 scroll-smooth">
+                                <div className="relative flex-1 flex items-center overflow-hidden">{canScrollLeft && ( <button onClick={() => handleGalleryScroll('left')} className="absolute left-0 z-30 p-1 bg-white/95 backdrop-blur-md rounded-full shadow-md text-slate-600 hover:text-slate-900 transition-all border border-slate-200/60" ><ChevronLeft size={10} /></button> )}
+                                    <div ref={galleryRef} onScroll={checkScroll} className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1 scroll-smooth w-full">
                                         {Array.from(new Set([...Object.keys(contentVersions), ...targetLanguages])).map((langCode: string) => {
                                             const isGenerated = !!contentVersions[langCode];
                                             const isActive = currentLanguage === langCode;
-                                            return <button key={langCode} onClick={() => isGenerated && switchLanguage(langCode)} disabled={!isGenerated && !isActive} className={cn("px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase transition-all shrink-0 select-none border", isActive ? "bg-slate-900 text-white shadow-sm border-slate-800" : isGenerated ? "bg-transparent text-slate-500 hover:bg-slate-50 hover:shadow-sm border-transparent" : "text-slate-300 opacity-40 border-transparent")}>{langCode}</button>;
+                                            return (() => {
+                                                const langToCountry: Record<string, string> = {
+                                                    es: 'es', en: 'gb', no: 'no', pl: 'pl', nl: 'nl', sv: 'se',
+                                                    de: 'de', pt: 'pt', ro: 'ro', fr: 'fr', it: 'it', da: 'dk',
+                                                    fi: 'fi', ru: 'ru', zh: 'cn', ja: 'jp', ko: 'kr'
+                                                };
+                                                const countryCode = langToCountry[langCode.toLowerCase()] || langCode.toLowerCase();
+                                                const flagUrl = `https://flagcdn.com/w80/${countryCode}.png`;
+                                                return (
+                                                    <button 
+                                                        key={langCode} 
+                                                        onClick={() => isGenerated && switchLanguage(langCode)} 
+                                                        disabled={!isGenerated && !isActive} 
+                                                        className={cn(
+                                                            "relative w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-300 shrink-0 select-none border",
+                                                            isActive 
+                                                                ? "border-indigo-600 shadow-md ring-2 ring-indigo-500/20 scale-105" 
+                                                                : isGenerated 
+                                                                    ? "border-slate-200 hover:border-slate-300 hover:scale-105 hover:shadow-sm" 
+                                                                    : "border-slate-100 opacity-40 grayscale"
+                                                        )}
+                                                        title={isGenerated ? `Versión en ${langCode.toUpperCase()}` : `Traducción no generada en ${langCode.toUpperCase()}`}
+                                                    >
+                                                        <img 
+                                                            src={flagUrl} 
+                                                            alt={`Bandera de ${countryCode}`}
+                                                            className="w-full h-full object-cover absolute inset-0 z-0 select-none pointer-events-none"
+                                                            loading="lazy"
+                                                            onError={(e) => {
+                                                                e.currentTarget.style.display = 'none';
+                                                            }}
+                                                        />
+                                                        <div className={cn(
+                                                            "absolute inset-0 z-10 transition-all duration-300",
+                                                            isActive 
+                                                                ? "bg-slate-900/65 backdrop-blur-[1px]" 
+                                                                : "bg-white/70 backdrop-blur-[1px] hover:bg-white/50"
+                                                        )} />
+                                                        <span className={cn(
+                                                            "relative z-20 text-[9px] font-black uppercase tracking-wider select-none pointer-events-none transition-colors",
+                                                            isActive ? "text-white drop-shadow-md" : "text-slate-800"
+                                                        )}>
+                                                            {langCode}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })()
                                         })}
                                     </div>
+                                    {canScrollRight && ( <button onClick={() => handleGalleryScroll('right')} className="absolute right-0 z-30 p-1 bg-white/95 backdrop-blur-md rounded-full shadow-md text-slate-600 hover:text-slate-900 transition-all border border-slate-200/60" ><ChevronRight size={10} /></button> )}
                                 </div>
                             </div>
 
@@ -570,7 +684,7 @@ export default function WriterStudio() {
             {redactorUI === 'standard' && (
                 <div className="h-full bg-slate-50 flex flex-col overflow-hidden border-l border-slate-200/50 relative" style={{ width: `${rightSidebarWidth}%` }}>
                     <div onMouseDown={handleRightResizeDown} className={cn("absolute top-0 left-0 w-1 h-full cursor-col-resize transition-all z-30", isResizingRight ? "bg-indigo-500 w-1" : "hover:bg-indigo-300/50 hover:w-1")} />
-                    <div className="p-4 bg-white border-b border-slate-200/50 shadow-sm z-20">
+                    <div className="hidden">
                         <button onClick={() => (useWriterStore.getState() as any).finishContent()} className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group">
                             <Send size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /> Finalizar Artículo
                         </button>
@@ -584,7 +698,14 @@ export default function WriterStudio() {
                     </div>
                     <div className="flex-1 flex flex-col min-h-0 bg-slate-50/20">
                         {activeSidebarTab === 'seo' ? <SEODataTab seoData={rawSeoData} currentContent={content} /> : 
-                         activeSidebarTab === 'media' ? <MediaTab /> : 
+                          activeSidebarTab === 'media' ? <VisualPlanningBoard onRegenerate={async (id) => {
+                              await regenerateImageAction({
+                                  asset: { id, prompt: '...', url: '...' } as any,
+                                  taskId: draftId!,
+                                  options: { sourceModel: 'flux' }
+                              });
+                              (useWriterStore.getState() as any).loadTaskImages(draftId!);
+                          }} : 
                          activeSidebarTab === 'tools' ? <ToolsTab /> : 
                          activeSidebarTab === 'translate' ? <TranslationSidebarPanel /> : 
                           activeSidebarTab === 'nous' ? (

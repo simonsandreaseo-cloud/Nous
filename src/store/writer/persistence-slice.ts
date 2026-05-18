@@ -11,6 +11,7 @@ export interface PersistenceActions {
     loadProjectInventory: (projectId: string) => Promise<void>;
     loadTaskImages: (taskId: string) => Promise<void>;
     finishContent: () => Promise<void>;
+    updateTaskStatus: (newStatus: string) => Promise<void>;
     switchLanguage: (langCode: string) => Promise<void>;
     deleteVersion: (taskId: string) => Promise<void>;
     setVersionStatus: (langCode: string, taskId: string | null) => void;
@@ -220,7 +221,8 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
             strategyLinks: dossier?.suggestedInternalLinks || dossier?.suggested_links || dossier?.suggestedLinks || (task as any).suggested_links || [],
             projectId: project?.id || task.project_id || null,
             currentLanguage: task.language || 'es',
-            viewMode: 'workspace'
+            viewMode: 'workspace',
+            status: task.status || 'por_redactar'
         } as any;
     }),
     
@@ -273,22 +275,56 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         }
     },
 
+    setVisualBlueprint: (blueprint: any) => set({ visualBlueprint: blueprint }),
+
+
     finishContent: async () => {
-        const { draftId, setStatus, setViewMode } = get() as any;
+        const { draftId, projectId, setStatus, setViewMode } = get() as any;
         if (!draftId) return;
 
-        const { supabase } = require('@/lib/supabase');
-        const { error } = await supabase
-            .from('tasks')
-            .update({ status: 'publicado' })
-            .eq('id', draftId);
+        setStatus('Maquetando diseño final...');
+        try {
+            const { finalizeContentAction } = await import('@/lib/actions/writerActions');
+            const res = await finalizeContentAction({ taskId: draftId, projectId });
 
-        if (!error) {
-            if (setStatus) setStatus('✅ Contenido marcado como Publicado');
+            if (!res.success) throw new Error(res.error);
+
+            setStatus('✅ Contenido Publicado y Maquetado');
             setTimeout(() => {
                 if (setStatus) setStatus('');
                 if (setViewMode) setViewMode('dashboard');
             }, 2000);
+        } catch (error: any) {
+            setStatus('❌ Error: ' + error.message);
+        }
+    },
+
+    updateTaskStatus: async (newStatus: string) => {
+        const { draftId, setStatus, loadProjectContents } = get() as any;
+        if (!draftId) return;
+
+        const { supabase } = require('@/lib/supabase');
+        
+        // Optimistic local state update
+        set({ status: newStatus } as any);
+
+        const { error } = await supabase
+            .from('tasks')
+            .update({ status: newStatus })
+            .eq('id', draftId);
+
+        if (!error) {
+            if (setStatus) setStatus(`✅ Estado: ${newStatus.replace('_', ' ').toUpperCase()}`);
+            setTimeout(() => {
+                if (setStatus) setStatus('');
+            }, 2000);
+
+            // Refrescar el panel lateral con las tareas del proyecto activo
+            const { useProjectStore } = require('@/store/useProjectStore');
+            const activeProjectId = useProjectStore.getState().projectId;
+            if (activeProjectId && loadProjectContents) {
+                await loadProjectContents(activeProjectId);
+            }
         } else {
             if (setStatus) setStatus('❌ Error: ' + error.message);
         }

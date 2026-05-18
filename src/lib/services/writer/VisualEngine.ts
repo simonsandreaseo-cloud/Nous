@@ -77,7 +77,7 @@ export const VisualEngine = {
 
             // 3. GENERATION & PERSISTENCE
             onStatusChange(ProcessingStatus.GENERATING_IMAGES, `Renderizando ${pendingAssets.length} activos editoriales...`);
-            const finalAssets = await this.persistAssets(pendingAssets, taskId);
+            const finalAssets = await this.persistAssets(pendingAssets, taskId, options.projectId);
             
             onStatusChange(ProcessingStatus.COMPLETED, "Maquetación visual finalizada con éxito.");
             return { success: true, assets: finalAssets };
@@ -128,19 +128,33 @@ export const VisualEngine = {
         };
     },
 
-    async persistAssets(assets: ImageAsset[], taskId: string): Promise<ImageAsset[]> {
+    async persistAssets(assets: ImageAsset[], taskId: string, projectId?: string): Promise<ImageAsset[]> {
         const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+        
+        let maxKb = 300; // Default limit
+        if (projectId) {
+            const { data: project } = await supabaseAdmin
+                .from('projects')
+                .select('settings')
+                .eq('id', projectId)
+                .single();
+            if (project?.settings?.images?.max_kb) {
+                maxKb = project.settings.images.max_kb;
+            }
+        }
         
         const processPromises = assets.map(async (asset) => {
             try {
-                // Optimization to WebP via Sharp
-                const result = await (PostProcessingService as any).processAndUpload({
+                // Optimization to WebP via Sharp with size limit
+                const processingParams = {
                     url: asset.url,
                     fileName: `${taskId}/${asset.id}.webp`,
                     width: 1024,
                     bucket: 'content-images',
-                });
+                };
 
+                const result = await PostProcessingService.optimizeToLimit(processingParams, maxKb);
+                
                 if (result.success && result.url) {
                     // Record in Database
                     await supabaseAdmin.from('task_images').insert({
@@ -154,7 +168,7 @@ export const VisualEngine = {
                         type: asset.role,
                         paragraph_index: asset.positioning.paragraphIndex
                     });
-
+                
                     return { ...asset, url: result.url, storagePath: result.storage_path };
                 }
                 return asset;
@@ -163,6 +177,7 @@ export const VisualEngine = {
                 return asset; 
             }
         });
+
 
         const results = await Promise.allSettled(processPromises);
         return results.map(res => res.status === 'fulfilled' ? res.value : {}) as ImageAsset[];

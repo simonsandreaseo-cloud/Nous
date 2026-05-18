@@ -4,7 +4,7 @@
  */
 
 export type AssetStatus = 'pending' | 'ghost' | 'final' | 'error';
-export type LayoutRole = 'hero' | 'feature' | 'icon' | 'info';
+export type LayoutRole = 'hero' | 'feature' | 'icon' | 'info' | 'product_showcase' | 'trust_signal' | 'feature_highlight' | 'cta_background';
 export type AssetAlignment = 'left' | 'center' | 'right' | 'full';
 export type AssetWrapping = 'inline' | 'wrap' | 'break' | 'behind' | 'front';
 export type SupportedLanguage = 'en' | 'es';

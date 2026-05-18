@@ -20,19 +20,21 @@ export class ImagePlanningService {
     const fullText = paragraphs.join("\n\n");
     
     const countInstruction = inlineImageCount === 'auto' 
-      ? "Sugiere entre 2 y 3 imágenes para romper el texto visualmente."
-      : `Sugiere exactamente ${inlineImageCount} imágenes para romper el texto visualmente.`;
+      ? "Sugiere entre 2 y 4 imágenes estratégicas para romper el texto y maximizar la conversión."
+      : `Sugiere exactamente ${inlineImageCount} imágenes estratégicas para romper el texto y maximizar la conversión.`;
 
-    const systemPrompt = `Eres un Director de Arte y Maquetador Editorial Senior. 
-Tu misión es planificar una estrategia visual de alto impacto para un artículo premium.
+    const systemPrompt = `Eres un Director de Arte y Estratega de Conversión (CRO) Senior. 
+Tu misión es planificar una estrategia visual de alto impacto para un artículo premium o Landing Page transaccional.
 
 REGLAS DE ORO:
 1. SEMANTIC ANCHOR: Para cada imagen, identifica una frase corta (5-8 palabras) del texto donde la imagen agrega valor conceptual. Esta frase DEBE existir tal cual en el texto.
-2. ROLES EDITORIALES:
-   - HERO: Portada magistral (16:9). El "vibe" general del artículo.
-   - FEATURE: Apoyo visual descriptivo para secciones clave.
-   - INFO: Visualización de conceptos o datos.
-   - ICON: Minimalismo simbólico para detalles específicos.
+2. ROLES ESTRATÉGICOS:
+   - HERO: Portada magistral (16:9). El "vibe" general y la propuesta de valor.
+   - PRODUCT_SHOWCASE: Zoom detallado al producto o servicio. Enfoque en calidad y deseo.
+   - TRUST_SIGNAL: Visualización de autoridad, logos, certificaciones o prueba social.
+   - FEATURE_HIGHLIGHT: Resalta una característica técnica o beneficio clave.
+   - CTA_BACKGROUND: Imagen atmosférica diseñada para acompañar un llamado a la acción.
+   - INFO/ICON: Minimalismo simbólico para datos o conceptos rápidos.
 3. PROMPTS: Deben ser en INGLÉS, altamente descriptivos, incluyendo iluminación (cinematic lighting), estilo de cámara (f/1.8, 35mm) y composición.
 4. COHERENCIA: Todas las imágenes deben compartir una estética visual común basada en el estilo solicitado.
 
@@ -49,7 +51,7 @@ DEBES RESPONDER EXCLUSIVAMENTE EN JSON:
   "inlineImages": [
     {
       "semanticAnchor": "frase exacta del cuerpo",
-      "role": "feature",
+      "role": "product_showcase",
       "prompt": "Specific prompt in English...",
       "alt": "...",
       "title": "...",

@@ -66,17 +66,19 @@ export class PatcherMaster {
 
     /**
      * Generates standard "Screaming HTML" styles based on design attributes.
+     * Enhanced for transactional landing pages.
      */
     static getScreamingStyles(align: string, wrapping: string, width: string = '100%'): string {
         const styles: Record<string, string> = {};
-
+        
         styles['width'] = width;
-        styles['max-width'] = '100%';
+        styles['max-width'] = '1200px'; // Prevents oversized images on desktop
+        styles['margin-left'] = 'auto';
+        styles['margin-right'] = 'auto';
+        styles['transition'] = 'transform 0.3s ease, box-shadow 0.3s ease';
 
         if (align === 'center') {
             styles['display'] = 'block';
-            styles['margin-left'] = 'auto';
-            styles['margin-right'] = 'auto';
         } else if (align === 'full') {
             styles['width'] = '100%';
             styles['display'] = 'block';
@@ -85,10 +87,11 @@ export class PatcherMaster {
             styles['float'] = align;
             styles['margin'] = align === 'left' ? '0 1.5rem 1rem 0' : '0 0 1rem 1.5rem';
         }
-
+        
         if (wrapping === 'break') {
             styles['display'] = 'block';
             styles['clear'] = 'both';
+            styles['margin-bottom'] = '2rem';
         } else if (wrapping === 'inline') {
             styles['display'] = 'inline-block';
             styles['vertical-align'] = 'middle';

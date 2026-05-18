@@ -59,7 +59,7 @@ export default function WriterEditor() {
         setWordCountReal, deleteVersion, parentTaskId, draftId,
         currentLanguage, contentVersions, switchLanguage,
         redactorUI, setRedactorUI, setViewMode,
-        isSaving, lastSaved, activeUsers, finishContent
+        isSaving, lastSaved, activeUsers
     } = useWriterStore(useShallow(state => ({
         content: state.content,
         setContent: state.setContent,
@@ -98,8 +98,7 @@ export default function WriterEditor() {
         setViewMode: state.setViewMode,
         isSaving: state.isSaving,
         lastSaved: state.lastSaved,
-        activeUsers: state.activeUsers,
-        finishContent: state.finishContent
+        activeUsers: state.activeUsers
     })));
     const [fullscreenImage, setFullscreenImage] = useState<any>(null);
 

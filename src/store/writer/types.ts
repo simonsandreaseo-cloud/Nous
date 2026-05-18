@@ -1,4 +1,4 @@
-import { ContentItem, SEOAnalysisResult } from '@/lib/services/writer/types';
+import { ContentItem, SEOAnalysisResult, ImagePlan } from '@/lib/services/writer/types';
 
 export type WriterViewMode = 'dashboard' | 'setup' | 'workspace' | 'seo-review' | 'structure-review';
 export type SidebarTab = 'assistant' | 'generate' | 'seo' | 'research' | 'humanize' | 'media' | 'history' | 'export' | 'tools' | 'translate';
@@ -37,6 +37,7 @@ export interface WriterStoreState {
     linkedTaskId: string | null;
     linkedTaskTitle: string | null;
     projectId: string | null;
+    status: string;
     isRefreshingLinks: boolean;
 
     // UI
@@ -124,6 +125,7 @@ export interface WriterStoreState {
 
     // IMAGENESIA 
     taskImages: any[];
+    visualBlueprint: ImagePlan | null;
 
     // MULTI-LANGUAGE VERSIONS
     currentLanguage: string;
