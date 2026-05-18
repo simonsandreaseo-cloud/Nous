@@ -403,7 +403,21 @@ export default function WriterStudio() {
             filter: `id=eq.${draftId}` 
         }, (payload) => {
             const newContent = payload.new.content_body;
-            if (newContent !== undefined && newContent !== useWriterStore.getState().content) {
+            if (newContent === undefined) return;
+
+            // Si el editor local está enfocado o estamos generando con IA, ignoramos los cambios remotos
+            const editor = useWriterStore.getState().editor;
+            if (editor?.isFocused || useWriterStore.getState().isGenerating) {
+                return;
+            }
+
+            const currentLocal = useWriterStore.getState().content || '';
+            
+            // Normalización para evitar falsos positivos por espacios o saltos de línea diferentes
+            const cleanLocal = currentLocal.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
+            const cleanRemote = newContent.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
+
+            if (cleanLocal !== cleanRemote) {
                 setIsRemoteUpdate(true);
                 useWriterStore.getState().setContent(newContent);
             }
@@ -414,7 +428,6 @@ export default function WriterStudio() {
     const { updateTask } = useProjectStore();
     useEffect(() => {
         if (!draftId || isGenerating) return;
-        if (!isSaving) setSaving(true);
         const timer = setTimeout(async () => {
             const latestState = useWriterStore.getState() as any;
             if (latestState.draftId !== draftId) return;
@@ -429,8 +442,15 @@ export default function WriterStudio() {
                 research_dossier: { ...latestState.rawSeoData, briefing: latestState.strategyNotes, suggested_links: latestState.strategyLinks, nous_extractor_findings: latestState.nousExtractorFindings },
                 outline_structure: { headers: latestState.strategyOutline },
             };
-            if (!payload.content_body) { setSaving(false); return; }
-            try { await updateTask(draftId, payload); } catch (e) { setStatus('❌ Error al guardar'); } finally { setSaving(false); }
+            if (!payload.content_body) return;
+            setSaving(true);
+            try { 
+                await updateTask(draftId, payload); 
+            } catch (e) { 
+                setStatus('❌ Error al guardar'); 
+            } finally { 
+                setSaving(false); 
+            }
         }, 10000);
         return () => clearTimeout(timer);
     }, [draftId, content, strategyH1, strategyTitle, strategySlug, strategyDesc, strategyOutline, rawSeoData, strategyLinks, strategyNotes, nousExtractorFindings, isGenerating, setSaving, setStatus, wordCountReal, updateTask]);
@@ -631,7 +651,7 @@ export default function WriterStudio() {
                                                         onClick={() => isGenerated && switchLanguage(langCode)} 
                                                         disabled={!isGenerated && !isActive} 
                                                         className={cn(
-                                                            "relative w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-300 shrink-0 select-none border",
+                                                            "relative w-[34px] h-[22px] rounded-md overflow-hidden flex items-center justify-center transition-all duration-300 shrink-0 select-none border",
                                                             isActive 
                                                                 ? "border-indigo-600 shadow-md ring-2 ring-indigo-500/20 scale-105" 
                                                                 : isGenerated 

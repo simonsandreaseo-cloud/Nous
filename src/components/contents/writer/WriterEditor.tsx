@@ -266,8 +266,11 @@ export default function WriterEditor() {
             const words = hasCharacterCount ? editor.storage.characterCount.words() : 0;
             
             if (hasCharacterCount && words > 0) {
-                console.log(`[WRITER] Syncing word count to store: ${words}`);
-                setWordCountReal(words);
+                const currentCount = useWriterStore.getState().wordCountReal;
+                if (words !== currentCount) {
+                    console.log(`[WRITER] Syncing word count to store: ${words}`);
+                    setWordCountReal(words);
+                }
             } else if (hasCharacterCount && words === 0 && editor.getText().trim().length > 0) {
                 // If there is text but words() returns 0, it might be a temporary state or a different method name
                 // Fallback to simple regex count if needed, or just skip to avoid overwriting with 0
