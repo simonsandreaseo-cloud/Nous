@@ -44,12 +44,6 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
         useWriterStore.getState().setVisualBlueprint?.(updatedPlan);
     };
 
-
-    const updateBlueprint = (updatedPlan: any) => {
-        (useWriterStore.getState() as any).setVisualBlueprint(updatedPlan);
-    };
-
-
     if (!visualBlueprint) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-12 text-center space-y-4">
