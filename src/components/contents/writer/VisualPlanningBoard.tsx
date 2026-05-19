@@ -40,6 +40,31 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
 
     const [isPlanning, setIsPlanning] = useState(false);
 
+    const handleGeneratePlan = async () => {
+        if (!content) return;
+        setIsPlanning(true);
+        try {
+            // Split content into paragraphs for the planning service
+            const paragraphs = content.split(/<(p|div|h[1-6])>/).filter(p => p.trim().length > 0);
+            
+            const res = await generateVisualPlanAction({
+                paragraphs,
+                instructions: "Estética moderna y profesional",
+                language: currentLanguage as any,
+            });
+
+            if (res.success) {
+                (useWriterStore.getState() as any).setVisualBlueprint(res.plan);
+            } else {
+                alert("Error al generar plan visual: " + res.error);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsPlanning(false);
+        }
+    };
+
     const updateBlueprint = (updatedPlan: any) => {
         useWriterStore.getState().setVisualBlueprint?.(updatedPlan);
     };
