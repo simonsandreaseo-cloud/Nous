@@ -70,7 +70,7 @@ export default function ReportGeneratorView() {
                 setGoogleToken(data.session.provider_token);
             }
         });
-    }, [fetchProjects]);
+    }, []); // Removed fetchProjects from dependencies to prevent loops
 
     useEffect(() => {
         if (mainTab === 'history' && userId) {

@@ -27,7 +27,7 @@ export default function ProjectSettingsLayout({
             console.log("🚀 [SettingsLayout] No projects in store, fetching...");
             fetchProjects();
         }
-    }, [projects.length, fetchProjects]);
+    }, []); // Removed projects.length and fetchProjects from dependencies to prevent loops
 
     // 2. Sincronizar el proyecto activo con el ID de la URL
     useEffect(() => {

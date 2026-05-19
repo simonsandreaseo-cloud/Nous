@@ -82,7 +82,7 @@ export class PollinationsService {
     
     // Add default options if not provided
     const params: any = {
-      model: options.model || 'flux',
+      model: options.model || 'zimage',
       width: options.width || 1024,
       height: options.height || 576,
       nologo: options.nologo !== false,

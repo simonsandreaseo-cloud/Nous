@@ -31,43 +31,19 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
         projectId, 
         content,
         currentLanguage,
-        setVisualBlueprint,
-        setStatus
     } = useWriterStore(useShallow(state => ({
         visualBlueprint: state.visualBlueprint,
         projectId: state.projectId,
         content: state.content,
         currentLanguage: state.currentLanguage,
-        setVisualBlueprint: (state: any) => state.setVisualBlueprint,
-        setStatus: (state: any) => state.setStatus
     })));
 
     const [isPlanning, setIsPlanning] = useState(false);
 
-    const handleGeneratePlan = async () => {
-        if (!content) return;
-        setIsPlanning(true);
-        try {
-            // Split content into paragraphs for the planning service
-            const paragraphs = content.split(/<(p|div|h[1-6])>/).filter(p => p.trim().length > 0);
-            
-            const res = await generateVisualPlanAction({
-                paragraphs,
-                instructions: "Estética moderna y profesional",
-                language: currentLanguage as any,
-            });
-
-            if (res.success) {
-                (useWriterStore.getState() as any).setVisualBlueprint(res.plan);
-            } else {
-                alert("Error al generar plan visual: " + res.error);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsPlanning(false);
-        }
+    const updateBlueprint = (updatedPlan: any) => {
+        useWriterStore.getState().setVisualBlueprint?.(updatedPlan);
     };
+
 
     const updateBlueprint = (updatedPlan: any) => {
         (useWriterStore.getState() as any).setVisualBlueprint(updatedPlan);
@@ -102,12 +78,12 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
         );
     }
 
-    const { featuredImage, inlineImages } = visualBlueprint;
+    const { featuredImage = {}, inlineImages = [] } = visualBlueprint || {};
 
     return (
         <div className="h-full flex flex-col gap-8 p-6 overflow-y-auto custom-scrollbar">
             {/* Header */}
-            <div className="flex items-center justify-between shrink-0">
+            <div className="flex items-center justify-between shrink-to-0">
                 <div>
                     <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter italic">Visual Blueprint</h2>
                     <p className="text-xs text-slate-500 font-medium">Estrategia de activos editoriales y conversión</p>
@@ -128,7 +104,7 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
                 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 rounded-[2rem] bg-white border border-slate-200 shadow-sm ring-1 ring-slate-100">
                     <div className="lg:col-span-5 relative aspect-[16/9] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 group">
-                        {featuredImage.url ? (
+                        {featuredImage?.url ? (
                             <img src={featuredImage.url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="Hero" />
                         ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 gap-2">
@@ -141,7 +117,7 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
                                 variant="ghost" 
                                 size="sm" 
                                 className="bg-white text-slate-900 rounded-full shadow-xl hover:bg-indigo-50 transition-all"
-                                onClick={() => onRegenerate?.(featuredImage.id || 'hero')}
+                                onClick={() => onRegenerate?.(featuredImage?.id || 'hero')}
                             >
                                 <RefreshCcw size={14} className="mr-2" /> Regenerar
                             </Button>
@@ -156,7 +132,7 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
                             <textarea 
                                 className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all outline-none resize-none"
                                 rows={3}
-                                value={featuredImage.prompt}
+                                value={featuredImage?.prompt || ''}
                                 onChange={(e) => {
                                     const newPlan = { ...visualBlueprint, featuredImage: { ...featuredImage, prompt: e.target.value } };
                                     updateBlueprint(newPlan);
@@ -171,7 +147,7 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
                                 </label>
                                 <input 
                                     className="w-full p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium outline-none"
-                                    value={featuredImage.semanticAnchor}
+                                    value={featuredImage?.semanticAnchor || ''}
                                     onChange={(e) => {
                                         const newPlan = { ...visualBlueprint, featuredImage: { ...featuredImage, semanticAnchor: e.target.value } };
                                         updateBlueprint(newPlan);
@@ -184,7 +160,7 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
                                 </label>
                                 <select 
                                     className="w-full p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium outline-none"
-                                    value={featuredImage.role}
+                                    value={featuredImage?.role || 'hero'}
                                     onChange={(e) => {
                                         const newPlan = { ...visualBlueprint, featuredImage: { ...featuredImage, role: e.target.value } };
                                         updateBlueprint(newPlan);
@@ -194,12 +170,15 @@ export default function VisualPlanningBoard({ onRegenerate }: VisualPlanningBoar
                                     <option value="product_showcase">Product Showcase</option>
                                     <option value="trust_signal">Trust Signal</option>
                                     <option value="feature_highlight">Feature Highlight</option>
+                                    <option value="cta_background">CTA Background</option>
+                                    <option value="info">Info / Icon</option>
                                 </select>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
+
 
             {/* Body Assets */}
             <section className="space-y-4">
