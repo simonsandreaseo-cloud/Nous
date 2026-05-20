@@ -149,6 +149,7 @@ export interface HumanizerConfig {
     isStrictMode?: boolean;
     strictFrequency?: number;
     questions?: string[];
+    mode?: 'no_chunks' | 'unified' | 'duplicate_detection';
 }
 
 // --- Research Pipeline Config ---

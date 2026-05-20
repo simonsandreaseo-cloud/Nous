@@ -99,7 +99,7 @@ export function GenerateTab({
 
 
             {/* Actions */}
-            <div className="flex flex-col gap-3 pt-4">
+            <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
                 <button
                     disabled={isLoading || store.isHumanizing}
                     onClick={onGenerate}
@@ -116,23 +116,90 @@ export function GenerateTab({
                 </button>
 
                 {store.content && !isLoading && (
-                    <button
-                        disabled={store.isHumanizing}
-                        onClick={onHumanize}
-                        className="group flex items-center justify-center gap-2 w-full h-11 bg-black hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
-                    >
-                        {store.isHumanizing ? (
-                            <>
-                                <Wand2 size={14} className="animate-pulse text-indigo-400" />
-                                <span>Humanizando...</span>
-                            </>
-                        ) : (
-                            <>
-                                <Wand2 size={14} className="group-hover:rotate-12 transition-transform" />
-                                <span>Humanizar IA Content</span>
-                            </>
-                        )}
-                    </button>
+                    <div className="space-y-3 pt-3 mt-1 border-t border-slate-100/80">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                                Configuración del Humanizador
+                            </label>
+                            
+                            <div className="grid grid-cols-1 gap-2">
+                                {/* Modo Pipeline Unificado */}
+                                <button
+                                    type="button"
+                                    onClick={() => store.updateHumanizerConfig({ mode: 'unified' })}
+                                    className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all duration-200 active:scale-[0.99] ${
+                                        store.humanizerConfig.mode === 'unified' || !store.humanizerConfig.mode
+                                            ? 'border-indigo-600 bg-indigo-50/40 shadow-sm shadow-indigo-100/30'
+                                            : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1.5">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${(store.humanizerConfig.mode === 'unified' || !store.humanizerConfig.mode) ? 'bg-indigo-600 animate-pulse' : 'bg-slate-400'}`} />
+                                        <span className="text-[10px] font-black text-slate-800 uppercase tracking-wide">Pipeline Unificado (Chunks)</span>
+                                    </div>
+                                    <p className="text-[9.5px] text-slate-400 font-medium mt-1 leading-relaxed">
+                                        Procesa por bloques combinando humanización y SEO LSI de forma dinámica.
+                                    </p>
+                                </button>
+
+                                {/* Modo Detección de Duplicados */}
+                                <button
+                                    type="button"
+                                    onClick={() => store.updateHumanizerConfig({ mode: 'duplicate_detection' })}
+                                    className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all duration-200 active:scale-[0.99] ${
+                                        store.humanizerConfig.mode === 'duplicate_detection'
+                                            ? 'border-indigo-600 bg-indigo-50/40 shadow-sm shadow-indigo-100/30'
+                                            : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1.5">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${store.humanizerConfig.mode === 'duplicate_detection' ? 'bg-indigo-600 animate-pulse' : 'bg-slate-400'}`} />
+                                        <span className="text-[10px] font-black text-slate-800 uppercase tracking-wide">Detección de Duplicados</span>
+                                    </div>
+                                    <p className="text-[9.5px] text-slate-400 font-medium mt-1 leading-relaxed">
+                                        Humaniza en bloques primero. Luego aplica optimización SEO de forma global.
+                                    </p>
+                                </button>
+
+                                {/* Modo Sin Chunks */}
+                                <button
+                                    type="button"
+                                    onClick={() => store.updateHumanizerConfig({ mode: 'no_chunks' })}
+                                    className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all duration-200 active:scale-[0.99] ${
+                                        store.humanizerConfig.mode === 'no_chunks'
+                                            ? 'border-indigo-600 bg-indigo-50/40 shadow-sm shadow-indigo-100/30'
+                                            : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1.5">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${store.humanizerConfig.mode === 'no_chunks' ? 'bg-indigo-600 animate-pulse' : 'bg-slate-400'}`} />
+                                        <span className="text-[10px] font-black text-slate-800 uppercase tracking-wide">Sin Chunks (Petición Única)</span>
+                                    </div>
+                                    <p className="text-[9.5px] text-slate-400 font-medium mt-1 leading-relaxed">
+                                        Procesa el contenido entero de una sola vez. Cohesión absoluta en todo el texto.
+                                    </p>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            disabled={store.isHumanizing}
+                            onClick={onHumanize}
+                            className="group flex items-center justify-center gap-2 w-full h-11 bg-black hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 mt-2"
+                        >
+                            {store.isHumanizing ? (
+                                <>
+                                    <Wand2 size={14} className="animate-pulse text-indigo-400" />
+                                    <span>Humanizando...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Wand2 size={14} className="group-hover:rotate-12 transition-transform" />
+                                    <span>Humanizar IA Content</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
                 )}
             </div>
         </div>

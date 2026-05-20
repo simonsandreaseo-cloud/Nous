@@ -424,10 +424,11 @@ ${lastContext}
                 notes: store.humanizerConfig.notes || '',
                 lsiKeywords: store.strategyLSI.map(l => l.keyword).concat(store.strategyLongTail),
                 links: unifiedLinks, 
-                questions: store.strategyQuestions
+                questions: store.strategyQuestions,
+                mode: store.humanizerConfig.mode || 'unified'
             };
 
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-4-31b-it';
+            const modelToUse = 'gemma-4-31b-it';
             const result = await runHumanizerPipeline(
                 store.content,
                 config,

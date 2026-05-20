@@ -23,6 +23,7 @@ export const createConfigSlice: StateCreator<ConfigSlice, [], [], ConfigSlice> =
         niche: 'General',
         audience: 'General',
         notes: '',
+        mode: 'unified',
     },
     humanizerStatus: '',
     refinementInstructions: '',

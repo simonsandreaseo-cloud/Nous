@@ -22,6 +22,7 @@ export interface HumanizerConfig {
     niche?: string;
     audience?: string;
     notes?: string;
+    mode?: 'no_chunks' | 'unified' | 'duplicate_detection';
 }
 
 /**
