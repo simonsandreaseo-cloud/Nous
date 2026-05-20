@@ -5,14 +5,7 @@ const groqKeysRaw = (
     process.env.GROQ_API_KEY || 
     ""
 );
-const geminiKeysRaw = (
-    process.env.NEXT_PUBLIC_GEMINI_API_KEYS || 
-    process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY || 
-    process.env.GEMINI_API_KEYS || 
-    process.env.GEMINI_API_KEY || 
-    ""
-);
+const geminiKeysRaw = (process.env.NOUS_API_KEYS || "");
 
 const groqKeys = groqKeysRaw.split(',').map(key => key.trim()).filter(k => k && k.length > 10);
 const geminiKeys = geminiKeysRaw.split(',').map(key => key.trim()).filter(k => k && k.length > 10);
