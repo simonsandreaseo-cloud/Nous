@@ -283,7 +283,13 @@ export const executeWithKeyRotation = async <T>(
     // Unify all hierarchy to avoid duplicates
     const finalHierarchy = Array.from(new Set(hierarchy.map(s => JSON.stringify(s)))).map(s => JSON.parse(s) as Step);
 
-    const googleKeys = AI_CONFIG.gemini.apiKeys || [];
+    const envKeys = process.env.NOUS_API_KEYS || "";
+    const allKeys = envKeys ? envKeys.split(',').map(k => k.trim()).filter(isValidKey) : [];
+    
+    // We categorize them based on prefix or just treat them as a unified pool if the user manages provider-specific keys elsewhere.
+    // For now, to keep it simple and safe, we treat all keys in NOUS_API_KEYS as Google keys for the Google provider.
+    // Adjust if you have different variables for Groq/OpenRouter.
+    const googleKeys = allKeys;
     const groqKeys = AI_CONFIG.groq.apiKeys || [];
     const openRouterKeys = AI_CONFIG.openrouter.apiKey ? [AI_CONFIG.openrouter.apiKey] : [];
     const cerebrasKeys = AI_CONFIG.cerebras.apiKey ? [AI_CONFIG.cerebras.apiKey] : [];
