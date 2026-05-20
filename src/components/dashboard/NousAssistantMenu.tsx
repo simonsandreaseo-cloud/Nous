@@ -39,9 +39,11 @@ export default function NousAssistantMenu({
     
     const { 
         strategyOutline,
-        isAnalyzingSEO, isPlanningStructure, isGenerating, isHumanizing,
+        isAnalyzingSEO, isPlanningStructure, isGenerating, isHumanizing, isRefining,
         statusMessage, humanizerStatus,
         researchTopic,
+        humanizerConfig,
+        updateHumanizerConfig
     } = useWriterStore();
 
     // Pipeline States (Local to the menu)
@@ -54,11 +56,11 @@ export default function NousAssistantMenu({
     const { activeProject } = useProjectStore();
     const i18nLanguages = activeProject?.i18n_settings?.languages || [];
 
-    const effectiveProgress = (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing) 
+    const effectiveProgress = (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining) 
         ? processingProgress 
         : processingProgress; // This is a simplification, the actual logic was in NousOrb
         
-    const effectiveIsProcessing = (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isProcessing);
+    const effectiveIsProcessing = (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining || isProcessing);
     const effectiveStatus = (isHumanizing ? humanizerStatus : statusMessage || "Procesando...");
 
     const stats = useMemo(() => {
@@ -92,6 +94,8 @@ export default function NousAssistantMenu({
 
     const effectiveSelectedCount = selectedCount || 0;
 
+    const [isHumanizerExpanded, setIsHumanizerExpanded] = useState(false);
+
     return (
         <div className="w-full max-h-[60vh] overflow-y-auto custom-scrollbar p-4 space-y-4">
             {viewMode === 'writer' && (
@@ -115,13 +119,85 @@ export default function NousAssistantMenu({
                                 disabled={effectiveIsProcessing}
                             />
                         )}
-                        <ActionButton 
-                            icon={Zap} 
-                            label="Humanizar" 
-                            color="emerald"
-                            onClick={() => onWriterAction?.('humanize')}
-                            disabled={effectiveIsProcessing}
-                        />
+                        
+                        <div className={cn(
+                            "group border rounded-2xl transition-all overflow-hidden",
+                            isHumanizerExpanded ? "border-emerald-200 bg-emerald-50/10 shadow-lg shadow-emerald-500/5" : "border-slate-100 bg-white"
+                        )}>
+                            <div className="flex items-center justify-between p-1">
+                                <ActionButton 
+                                    icon={Zap} 
+                                    label="Humanizar" 
+                                    color="emerald"
+                                    onClick={() => onWriterAction?.('humanize')}
+                                    disabled={effectiveIsProcessing}
+                                />
+                                <button 
+                                    onClick={() => setIsHumanizerExpanded(!isHumanizerExpanded)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 transition-colors mr-2"
+                                >
+                                    {isHumanizerExpanded ? <ChevronDown size={14} className="rotate-180 transition-transform" /> : <ChevronDown size={14} className="transition-transform" />}
+                                </button>
+                            </div>
+
+                            <AnimatePresence>
+                                {isHumanizerExpanded && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="border-t border-emerald-50 bg-white/50"
+                                    >
+                                        <div className="p-4 space-y-4">
+                                            <div className="space-y-2">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 px-1">Modos de Humanización</p>
+                                                <div className="grid grid-cols-1 gap-1.5">
+                                                    {[
+                                                        { id: 'unified', label: 'Pipeline Unificado', desc: 'Chunks + SEO LSI dinámico' },
+                                                        { id: 'duplicate_detection', label: 'Detección de Duplicados', desc: 'Chunks -> SEO Global' },
+                                                        { id: 'no_chunks', label: 'Sin Chunks', desc: 'Petición única (Cohesión)' },
+                                                    ].map((mode) => (
+                                                        <button
+                                                            key={mode.id}
+                                                            onClick={() => updateHumanizerConfig({ mode: mode.id as any })}
+                                                            className={cn(
+                                                                "flex flex-col items-start p-3 rounded-xl border text-left transition-all",
+                                                                (humanizerConfig.mode === mode.id || (!humanizerConfig.mode && mode.id === 'unified'))
+                                                                    ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                                                                    : "border-slate-100 hover:border-slate-200 bg-white"
+                                                            )}
+                                                        >
+                                                            <span className="text-[10px] font-black uppercase tracking-tight text-slate-800">{mode.label}</span>
+                                                            <span className="text-[9px] text-slate-400 font-medium leading-tight mt-0.5">{mode.desc}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2 pt-2 border-t border-slate-100">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Instrucciones Especiales</label>
+                                                <textarea 
+                                                    className="w-full text-[10px] p-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-emerald-400 font-medium min-h-[80px] resize-none transition-all shadow-sm placeholder:text-slate-300"
+                                                    placeholder="Ej: Mantén un tono más informal, usa más analogías..."
+                                                    value={humanizerConfig.notes || ''}
+                                                    onChange={(e) => updateHumanizerConfig({ notes: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
+                            <ActionButton 
+                                icon={BrainCircuit} 
+                                label="Refinamiento Inteligente" 
+                                color="purple"
+                                onClick={() => onWriterAction?.('refine')}
+                                disabled={effectiveIsProcessing}
+                            />
+                        </div>
                     </div>
                 </>
             )}
