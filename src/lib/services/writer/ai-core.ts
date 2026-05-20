@@ -288,6 +288,8 @@ export const executeWithKeyRotation = async <T>(
     const openRouterKeys = AI_CONFIG.openrouter.apiKey ? [AI_CONFIG.openrouter.apiKey] : [];
     const cerebrasKeys = AI_CONFIG.cerebras.apiKey ? [AI_CONFIG.cerebras.apiKey] : [];
 
+    console.log(`[AI-ORCHESTRATOR] Llaves cargadas: Google(${googleKeys.length}), Groq(${groqKeys.length}), OpenRouter(${openRouterKeys.length}), Cerebras(${cerebrasKeys.length})`);
+
     if (googleKeys.length === 0 && groqKeys.length === 0 && cerebrasKeys.length === 0) {
         console.error("[AI-ORCHESTRATOR] ❌ NO SE ENCONTRARON API KEYS (Check .env.local)");
     }
@@ -364,11 +366,12 @@ export const executeWithKeyRotation = async <T>(
 
                 const isQuota = e.status === 429 || errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('rate limit');
                 const isServerErr = e.status >= 500 || errorMsg.includes('500') || errorMsg.includes('502') || errorMsg.includes('503') || errorMsg.includes('504') || errorMsg.includes('timeout') || errorMsg.includes('deadline');
+                const isInvalid = e.status === 400 || errorMsg.includes('400') || errorMsg.includes('invalid') || errorMsg.includes('not found');
                 const isSize = e.status === 413 || errorMsg.includes('413') || errorMsg.includes('too large') || errorMsg.includes('context_length_exceeded');
 
-                if (isQuota || isServerErr || isSize) {
+                if (isQuota || isServerErr || isInvalid || isSize) {
                     errorLog.push(`${step.provider}/${step.model}: ${e.status || 'ERR'}`);
-                    if (onRotation) onRotation(apiKey.slice(-5), isQuota ? "Quota" : (isServerErr ? "Server" : "Size"), totalAttempts, MAX_TOTAL_ATTEMPTS);
+                    if (onRotation) onRotation(apiKey.slice(-5), isQuota ? "Quota" : (isServerErr ? "Server" : "Invalid"), totalAttempts, MAX_TOTAL_ATTEMPTS);
                     if (isQuota || isServerErr) await sleep(500 * (kIndex + 1));
                     if (!isQuota) allKeysFailedQuota = false;
                     continue; 
