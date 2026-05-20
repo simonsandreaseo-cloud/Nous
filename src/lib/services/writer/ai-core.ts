@@ -424,7 +424,7 @@ export const executeWithImagenRotation = async <T>(
     if (keys) {
         currentPool = (Array.isArray(keys) ? keys : [keys]).filter(isValidKey);
     } else {
-        const envKeys = process.env.NEXT_PUBLIC_GEMINI_API_KEYS || process.env.GEMINI_API_KEYS || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+        const envKeys = process.env.NOUS_API_KEYS || "";
         if (envKeys) {
             currentPool = envKeys.split(',').map(k => k.trim()).filter(isValidKey);
         }
