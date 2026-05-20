@@ -284,6 +284,7 @@ export const executeWithKeyRotation = async <T>(
     const finalHierarchy = Array.from(new Set(hierarchy.map(s => JSON.stringify(s)))).map(s => JSON.parse(s) as Step);
 
     const envKeys = process.env.NOUS_API_KEYS || "";
+    console.log(`[AI-ORCHESTRATOR-DEBUG] NOUS_API_KEYS value length: ${envKeys.length}, starts with: ${envKeys.substring(0, 5)}`);
     const allKeys = envKeys ? envKeys.split(',').map(k => k.trim()).filter(isValidKey) : [];
     
     // We categorize them based on prefix or just treat them as a unified pool if the user manages provider-specific keys elsewhere.
