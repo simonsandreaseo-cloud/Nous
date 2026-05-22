@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { runHumanizerPipeline } from '@/components/tools/writer/services';
+import { runHumanizerPipeline } from '@/lib/actions/aiActions';
 
 export async function POST(req: Request) {
     try {

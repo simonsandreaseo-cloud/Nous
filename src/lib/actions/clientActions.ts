@@ -8,7 +8,7 @@ import {
     runHumanizerPipeline,
     buildPrompt,
     ArticleConfig
-} from '@/components/tools/writer/services';
+} from '@/lib/actions/aiActions';
 import { executeTranslation } from '@/lib/services/writer/ai-core';
 import { mdToHtml } from '@/utils/markdown';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';

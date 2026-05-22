@@ -54,6 +54,9 @@ TEXTO HUMANIZADO:
 <<<EJEMPLO_HUMANIZACION>>>
 `;
 
+const HTML_RULE_INTERNAL = "ERES UN REDACTOR HUMANO. REGLA CRÍTICA: NO RESUMAS. NO OMITAS NADA. El bloque de salida debe tener el mismo número de elementos que la entrada.";
+
+
 const stripReasoningLines = (text: string): string => {
     let cleanText = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
     return cleanText

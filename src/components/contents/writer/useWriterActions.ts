@@ -4,15 +4,17 @@ import {
     runHumanizerPipeline, 
     generateOutlineStrategy, 
     generateArticleStream, 
+    runSEOPostProcessor,
+    refineArticleContent, 
+    ArticleConfig 
+} from '@/lib/actions/aiActions';
+import { 
     generateBriefingText, 
     buildPrompt, 
     autoInterlinkAsync, 
     cleanAndFormatHtml, 
     refineStyling, 
-    runSEOPostProcessor,
-    selectTopRelevantLinks,
-    refineArticleContent, 
-    ArticleConfig 
+    selectTopRelevantLinks 
 } from '@/components/tools/writer/services';
 import { ResearchOrchestrator } from '@/lib/services/writer/research';
 import { OutlineEngine } from '@/lib/services/writer/research/outline-engine';
