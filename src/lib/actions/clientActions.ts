@@ -1,3 +1,5 @@
+'use server';
+
 import { Task } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 import { 

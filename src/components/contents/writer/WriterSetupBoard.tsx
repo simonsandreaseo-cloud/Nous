@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { Button } from '@/components/dom/Button';
-import { runDeepSEOAnalysis } from '@/components/tools/writer/services';
+import { runDeepSEOAnalysis } from '@/lib/actions/aiActions';
 
 import { 
     Target, X, Sparkles, Hash, Link2, 
