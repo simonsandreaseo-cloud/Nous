@@ -509,16 +509,15 @@ export const runHumanizerPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus?: (msg: string) => void,
-    modelName: string = 'gemma-4-31b-it'
+    modelName: string = 'gemini-2.5-flash-lite' // Changed from gemma-4-31b-it
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    // ALWAYS CHUNK to prevent 504s on large content
     const chunks = chunkHtml(html, 3);
-    safeStatus(`Iniciando pipeline en ${chunks.length} bloques (procesamiento secuencial)...`);
+    safeStatus(`Iniciando pipeline en ${chunks.length} bloques con modelo flash-lite...`);
     
     const finalizedChunks: string[] = [];
     
@@ -529,19 +528,23 @@ export const runHumanizerPipeline = async (
             continue;
         }
         
+        const start = Date.now();
         safeStatus(`Procesando bloque ${i + 1}/${chunks.length}...`);
         
         try {
             const processed = await executeHumanizerWithRetry(async (ai) => {
-                const model = ai.getGenerativeModel({ model: 'gemma-4-31b-it' });
+                const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash-lite' }); // Faster model
                 const prompt = `Humaniza este fragmento HTML manteniendo etiquetas: ${chunk}`;
                 const response = await model.generateContent(prompt);
                 return cleanAndFormatHtml(response.response.text());
             }, safeStatus, `Humanización Bloque ${i + 1}`);
+            
+            const duration = (Date.now() - start) / 1000;
+            console.log(`[Humanizer-Perf] Bloque ${i + 1} completado en ${duration}s`);
+            
             finalizedChunks.push(processed);
         } catch (e: any) {
             safeStatus(`Error procesando bloque ${i + 1}: ${e.message}`);
-            // If one block fails, return what we have to avoid total loss or throw
             throw e; 
         }
     }
