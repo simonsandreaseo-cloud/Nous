@@ -1,5 +1,6 @@
 'use server';
 
+import { aiRouter } from "@/lib/ai/router";
 import { 
     ArticleConfig, 
     SEOAnalysisResult, 
@@ -94,7 +95,7 @@ const isTrivialChunk = (chunk: string): boolean => {
 
 // --- WRAPPERS ---
 
-export const executeWithKeyRotation = async <T>(
+export const executeWithKeyRotation = async <T extends unknown>(
     operation: (client: any, currentModel: string) => Promise<T>,
     modelName: string = 'default',
     explicitHierarchy?: string[],
@@ -108,7 +109,7 @@ export const executeWithKeyRotation = async <T>(
     }, modelName, explicitHierarchy, keys, onRotation, isStrictModel, label);
 };
 
-export const executeHumanizerWithRetry = async <T>(
+export const executeHumanizerWithRetry = async <T extends unknown>(
     operation: (client: any, currentModel: string) => Promise<T>,
     onStatus: (msg: string) => void,
     label: string = 'Redacción Humanización'
@@ -568,11 +569,9 @@ export const runHumanizerPipeline = async (
                 return cleanAndFormatHtml(response.response.text());
             }, onStatus, 'Redacción Humanización Unificada');
         }));
-        return { html: finalizedChunks.join('\\n') };
+        return { html: finalizedChunks.join('\n') };
     }
 };
-
-const HTML_RULE_INTERNAL = "ERES UN REDACTOR HUMANO. REGLA CRÍTICA: NO RESUMAS. NO OMITAS NADA. El bloque de salida debe tener el mismo número de elementos que la entrada.";
 
 export const runSmartEditor = async (
     html: string,
@@ -672,4 +671,21 @@ export const runSEOPostProcessor = async (
         }
         return cleanText;
     }, 'default', undefined, undefined, false, 'SEO Post-Procesado');
+};
+
+export const runTranslationAction = async (
+    systemPrompt: string,
+    prompt: string,
+    modelName: string = 'gemma-4-31b-it'
+): Promise<string> => {
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const response = await aiRouter.generate({
+            model: currentModel || modelName,
+            systemPrompt,
+            prompt,
+            jsonMode: true,
+            temperature: 0.3
+        });
+        return response.text;
+    }, modelName, undefined, undefined, undefined, false, 'Traducción AI');
 };

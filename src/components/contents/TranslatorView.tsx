@@ -22,7 +22,7 @@ import { mdToHtml } from "@/utils/markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
 import { useProjectStore, Task } from "@/store/useProjectStore";
-import { aiRouter } from "@/lib/ai/router";
+import { runTranslationAction } from "@/lib/actions/aiActions";
 import { NotificationService } from "@/lib/services/notifications";
 import { AVAILABLE_LANGUAGES } from "@/constants/languages";
 
@@ -104,15 +104,9 @@ Resumen: ${activeTask.excerpt || ''}
 Cuerpo:
 ${activeTask.content_body || ''}`;
 
-                const response = await aiRouter.generate({
-                    model: 'gemma-4-31b-it',
-                    systemPrompt,
-                    prompt,
-                    jsonMode: true,
-                    temperature: 0.3
-                });
+                const responseText = await runTranslationAction(systemPrompt, prompt, 'gemma-4-31b-it');
 
-                const translatedData = JSON.parse(response.text);
+                const translatedData = JSON.parse(responseText);
 
                 // --- NATIVE CONVERSION: MD TO HTML ---
                 const htmlContent = mdToHtml(translatedData.content_body);

@@ -120,43 +120,44 @@ export const compositeWatermark = (base64Image: string, base64Watermark: string)
 export function generateBriefingText(seoData: SEOAnalysisResult): string {
     const { top10Urls, lsiKeywords, frequentQuestions, competitors } = seoData;
     
-    let brief = \`# Briefing Estratégico de Investigación SEO\\n\\n\`;
+    let brief = `# Briefing Estratégico de Investigación SEO\n\n`;
     
     if (top10Urls && top10Urls.length > 0) {
-        brief += \`## Análisis de Competidores (Top 10)\\n\`;
+        brief += `## Análisis de Competidores (Top 10)\n`;
         top10Urls.forEach((comp: any, i: number) => {
-            brief += \`${i + 1}. [\${comp.title}](\${comp.url})\\n\`;
+            brief += `${i + 1}. [${comp.title}](${comp.url})\n`;
         });
-        brief += \`\\n\`;
+        brief += `\n`;
     }
     
     if (competitors && competitors.length > 0) {
-        brief += \`## Inteligencia Competitiva (Snippets Seleccionados)\\n\`;
+        brief += `## Inteligencia Competitiva (Snippets Seleccionados)\n`;
         competitors.slice(0, 5).forEach((comp, idx) => {
             if (comp.content) {
                 const snippet = comp.content.substring(0, 800) + '...';
-                brief += \`### [\${idx + 1}] \${comp.title}\\n\${snippet}\\n\\n\`;
+                brief += `### [${idx + 1}] ${comp.title}\n${snippet}\n\n`;
             }
         });
-        brief += \`\\n\`;
+        brief += `\n`;
     }
     
     if (lsiKeywords && lsiKeywords.length > 0) {
-        brief += \`## Palabras Clave LSI & Semánticas\\n\`;
+        brief += `## Palabras Clave LSI & Semánticas\n`;
         lsiKeywords.forEach((k: any) => {
-            brief += \`- \${k.keyword}\\n\`;
+            brief += `- ${k.keyword}\n`;
         });
-        brief += \`\\n\`;
+        brief += `\n`;
     }
     
     if (frequentQuestions && frequentQuestions.length > 0) {
-        brief += \`## Preguntas Frecuentes (PAA)\\n\`;
+        brief += `## Preguntas Frecuentes (PAA)\n`;
         frequentQuestions.forEach((q: string) => {
-            brief += \`- \${q}\\n\`;
+            brief += `- ${q}\n`;
         });
-        brief += \`\\n\`;
+        brief += `\n`;
     }
     
-    brief += \`\\n---\\n*Generado automáticamente por Nous Research Engine.*\`;
+    brief += `\n---\n*Generado automáticamente por Nous Research Engine.*`;
     return brief.trim();
 }
+
