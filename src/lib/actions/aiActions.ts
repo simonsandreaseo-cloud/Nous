@@ -516,72 +516,22 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    const mode = config.mode || 'unified';
-    safeStatus(`Iniciando pipeline de humanización en modo "${mode}"...`);
-
-    if (mode === 'no_chunks') {
-        const linksTextList = (config.links || []).map(l => `- Tema/Producto: "${l.title || l.anchor_text}" | URL: ${l.url}`).join('\n        ');
-        const prompt = `
-            ${ANTI_LEAKAGE_SYSTEM_BASE}
-            ${HTML_RULE_INTERNAL}
-            --- PERSONA: REDACTOR HUMANO AUTÉNTICO ---
-            Escribe de forma natural. IMPORTANTE: El texto humanizado DEBE tener la misma longitud que el original o similar. PROHIBIDO RESUMIR O ELIMINAR SECCIONES.
-            Si necesitas razonar o planificar, hazlo dentro de etiquetas <thinking> ... </thinking> antes del HTML.
-
-            --- CONTEXTO ---
-            Nicho/Tópico: ${config.niche}
-            Público Objetivo: ${config.audience}
-            Notas Adicionales: ${config.notes || 'N/A'}
-
-            --- REGLAS DE HUMANIZACIÓN ---
-            1. ESTLO "REDACTOR COTIDIANO": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria excesiva.
-            2. COHERENCIA NATURAL: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo para que se sienta humano.
-            3. CONECTORES ORGÁNICOS: Evita conectores robóticos como "En consecuencia", "Por añadidura". Usa "Entonces", "Así que", "Además".
-            4. MORFOSINTAXIS: Mezcla oraciones cortas con algunas oraciones largas. La longitud de las frases debe ser variable. Prefiere la voz activa.
-            5. PUNTUACIÓN HUMANA: No abuses del punto y seguido. Usa comas para dar fluidez cuando las ideas estén conectadas.
-
-            ${FEW_SHOT_HUMANIZER_EXAMPLE}
-
-            --- TAREA (HUMANIZACIÓN Y OPTIMIZACIÓN SEO) ---
-            1. Humaniza el texto DENTRO de las etiquetas HTML de todo el contenido.
-            2. Mantén intacta la estructura de etiquetas (h2, h3, p, ul, li, etc.).
-            3. Inserta los enlaces y keywords LSI disponibles de forma natural si el contexto lo permite.
-
-            * ENLACES DISPONIBLES: 
-            ${linksTextList || 'Ninguno'}
-            * ANCHOR TEXT SEMÁNTICO: Construye frases naturales alrededor del Tema/Producto. Usa <a href="url">texto semántico</a>. NUNCA repitas enlaces.
-            * LSI: Keywords a integrar si es posible: [${config.lsiKeywords?.join(', ') || 'Ninguna'}]
-        `.trim();
-        
-        const finalizedHtml = await executeHumanizerWithRetry(async (ai) => {
+    // ALWAYS CHUNK to prevent 504s on large content
+    const chunks = chunkHtml(html, 3); // Smaller chunks
+    safeStatus(`Iniciando pipeline en ${chunks.length} bloques...`);
+    
+    const finalizedChunks = await Promise.all(chunks.map(async (chunk, index) => {
+        if (isTrivialChunk(chunk)) return chunk;
+        safeStatus(`Procesando bloque ${index + 1}/${chunks.length}...`);
+        return executeHumanizerWithRetry(async (ai) => {
             const model = ai.getGenerativeModel({ model: 'gemma-4-31b-it' });
-            const userPrompt = `
-            ${prompt}
-            ### EJECUCIÓN (MODO COMPLETO):
-            Procesa el siguiente contenido HTML completo siguiendo estrictamente las instrucciones.
-            <<<HTML_INPUT>>>
-            ${html}
-            <<<HTML_INPUT>>>
-            SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacios ni resúmenes):`;
-            const res = await model.generateContent(userPrompt);
-            let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-            raw = stripReasoningLines(raw);
-            return cleanAndFormatHtml(raw);
-        }, safeStatus, 'Redacción Humanización Completa');
-
-        return { html: finalizedHtml };
-    } else {
-        const chunks = chunkHtml(html, 5);
-        const finalizedChunks = await Promise.all(chunks.map(async (chunk) => {
-            if (isTrivialChunk(chunk)) return chunk;
-            return executeHumanizerWithRetry(async (ai) => {
-                const model = ai.getGenerativeModel({ model: 'gemma-4-31b-it' });
-                const response = await model.generateContent(`Humaniza este fragmento HTML: ${chunk}`);
-                return cleanAndFormatHtml(response.response.text());
-            }, safeStatus, 'Redacción Humanización Unificada');
-        }));
-        return { html: finalizedChunks.join('\n') };
-    }
+            const prompt = `Humaniza este fragmento HTML manteniendo etiquetas: ${chunk}`;
+            const response = await model.generateContent(prompt);
+            return cleanAndFormatHtml(response.response.text());
+        }, safeStatus, `Humanización Bloque ${index + 1}`);
+    }));
+    
+    return { html: finalizedChunks.join('\n') };
 };
 
 export const runSmartEditor = async (
