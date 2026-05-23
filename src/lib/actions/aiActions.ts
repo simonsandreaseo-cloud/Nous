@@ -127,10 +127,10 @@ export async function executeHumanizerWithRetry<T>(
                 label
             );
         } catch (e: any) {
-            console.error(\`[Humanizer-Retry] Error en ejecución de humanizador:\`, e);
-            onStatus(\`⚠️ Todas las API Keys han fallado o agotado su cuota. Esperando 2 minutos antes de reintentar...\`);
+            console.error(`[Humanizer-Retry] Error en ejecución de humanizador:`, e);
+            onStatus(`⚠️ Todas las API Keys han fallado o agotado su cuota. Esperando 2 minutos antes de reintentar...`);
             await new Promise(resolve => setTimeout(resolve, 120000));
-            onStatus(\`Reanudando proceso de humanización (Intento \${++attempt})...\`);
+            onStatus(`Reanudando proceso de humanización (Intento ${++attempt})...`);
         }
     }
 };
@@ -140,7 +140,7 @@ export async function executeHumanizerWithRetry<T>(
 export const retrieveContext = async (keyword: string, projectId: string): Promise<{ products: any[], collections: any[], others: any[] }> => {
     if (!projectId) return { products: [], collections: [], others: [] };
     
-    const rawTerms = (keyword || '').split(/\\s+/).filter(w => w && w.length > 3).map(w => w.toLowerCase().replace(/[.*+?^${}()|[\\]\\/g, '\\$&'));
+    const rawTerms = (keyword || '').split(/\s+/).filter(w => w && w.length > 3).map(w => w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     const allTerms = Array.from(new Set(rawTerms)).slice(0, 15);
     const searchRegex = allTerms.join('|');
 
@@ -164,7 +164,7 @@ export const retrieveContext = async (keyword: string, projectId: string): Promi
 };
 
 export const searchMoreLinks = async (keyword: string, projectId: string): Promise<ContentItem[]> => {
-    const prompt = \`Give me 5 search terms to find relevant products in a database for the topic "\${keyword}". Return CSV only. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el CSV y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios o cualquier texto explicativo.\`;
+    const prompt = `Give me 5 search terms to find relevant products in a database for the topic "${keyword}". Return CSV only. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el CSV y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios o cualquier texto explicativo.`;
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         try {
@@ -200,15 +200,15 @@ export const generateArticleStream = async (model: string, prompt: string, hiera
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
-            systemInstruction: \`\${ANTI_LEAKAGE_SYSTEM_BASE}
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
 Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]) ni etiquetas de imagen <img>. Generas HTML impecable. Nous procesará los enlaces e imágenes automáticamente.
-\${FEW_SHOT_HTML}\`,
+${FEW_SHOT_HTML}`,
             generationConfig: {
                 temperature: 0.7,
             }
         });
         const result = await modelObj.generateContentStream({
-            contents: [{ role: 'user', parts: [{ text: prompt + "\\n\\nRESULTADO DIRECTO (SIN PREFACIOS):" }] }],
+            contents: [{ role: 'user', parts: [{ text: prompt + "\n\nRESULTADO DIRECTO (SIN PREFACIOS):" }] }],
         });
         return result;
     }, model || 'default', hierarchy, undefined, undefined, false, 'Redacción Artículo');
@@ -223,39 +223,39 @@ export const refineArticleContent = async (
 ): Promise<string> => {
     const isSelection = !!selectedText && selectedText.trim().length > 0;
     const target = isSelection 
-        ? \`TEXT TO REFINE (SPECIFIC SECTION):\\n"\${selectedText}"\` 
-        : \`FULL ARTICLE TO REFINE:\\n\${currentHtml}\`;
+        ? `TEXT TO REFINE (SPECIFIC SECTION):\n"${selectedText}"` 
+        : `FULL ARTICLE TO REFINE:\n${currentHtml}`;
         
     const context = isSelection 
-        ? \`\\nFULL ARTICLE CONTEXT (FOR REFERENCE ONLY):\\n\${currentHtml.substring(0, 3000)}\` 
+        ? `\nFULL ARTICLE CONTEXT (FOR REFERENCE ONLY):\n${currentHtml.substring(0, 3000)}` 
         : '';
   
-    const prompt = \`
-    \${ANTI_LEAKAGE_SYSTEM_BASE}
+    const prompt = `
+    ${ANTI_LEAKAGE_SYSTEM_BASE}
     Role: Content Editor. Refine HTML content strictly following instructions.
-    \${FEW_SHOT_HTML}
+    ${FEW_SHOT_HTML}
 
     USER INSTRUCTIONS:
-    "\${instructions}"
+    "${instructions}"
 
     OUTPUT RULES:
-    1. \${isSelection ? 'Return ONLY the refined version of the specific text provided. Do NOT return the whole article.' : 'Return valid HTML content for the whole article (inside body).'}
+    1. ${isSelection ? 'Return ONLY the refined version of the specific text provided. Do NOT return the whole article.' : 'Return valid HTML content for the whole article (inside body).'}
     2. Do NOT strip existing images or links unless instructed.
     3. Apply requested changes while maintaining tone and style.
     4. Return WITHOUT markdown blocks.
 
     <<<HTML_INPUT>>>
-    \${target}
-    \${context}
+    ${target}
+    ${context}
     <<<HTML_INPUT>>>
 
-    SALIDA HTML DIRECTA (sin prefacios ni resúmenes):\`;
+    SALIDA HTML DIRECTA (sin prefacios ni resúmenes):`;
   
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({ model: currentModel });
         const response = await modelObj.generateContent(prompt);
         let resText = response.response.text() || (isSelection ? selectedText : currentHtml);
-        resText = resText.replace(/\\\`\`\`html/g, '').replace(/\\\`\`\`/g, '').trim();
+        resText = resText.replace(/```html/g, '').replace(/```/g, '').trim();
         const firstTag = resText.indexOf('<');
         const lastTag = resText.lastIndexOf('>');
         if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
@@ -267,26 +267,26 @@ export const refineArticleContent = async (
 
 export const findCampaignAssets = async (query: string, projectName: string, csvData?: ContentItem[], modelName?: string): Promise<VisualResource[]> => {
     const safeProjectName = projectName || "mysite";
-    const excludeTerms = \`-site:\${safeProjectName.replace(/\\s+/g, '').toLowerCase()}.com -site:\${safeProjectName.replace(/\\s+/g, '').toLowerCase()}.es -inurl:\${safeProjectName.replace(/\\s+/g, '').toLowerCase()}\`;
+    const excludeTerms = `-site:${safeProjectName.replace(/\s+/g, '').toLowerCase()}.com -site:${safeProjectName.replace(/\s+/g, '').toLowerCase()}.es -inurl:${safeProjectName.replace(/\s+/g, '').toLowerCase()}`;
   
-    const prompt = \`
-    Find OFFICIAL brand assets (Press kits, Lookbooks, Campaign pages) for: "\${query}".
-    CRITICAL: Exclude any URL from the project "\${projectName}". We need EXTERNAL official sources.
-    Query Modifier: \${excludeTerms}
+    const prompt = `
+    Find OFFICIAL brand assets (Press kits, Lookbooks, Campaign pages) for: "${query}".
+    CRITICAL: Exclude any URL from the project "${projectName}". We need EXTERNAL official sources.
+    Query Modifier: ${excludeTerms}
     Return a JSON Array: [{"brand": "Brand Name", "description": "Page Title", "url": "URL", "isImage": false}]
     Only return valid, reachable URLs.
-    \`;
+    `;
   
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({ 
             model: currentModel || AI_CONFIG.groq.models.balanced,
-            systemInstruction: \`\${ANTI_LEAKAGE_SYSTEM_BASE}
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
 Task: Find official brand assets and return them as a JSON array.
-\${FEW_SHOT_JSON}\`
+${FEW_SHOT_JSON}`
         });
-        const response = await modelObj.generateContent(prompt + "\\n\\nRESULTADO JSON DIRECTO:");
+        const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
         let text = response.response.text() || "[]";
-        text = text.replace(/\\\`\`\`json/g, '').replace(/\\\`\`\`/g, '').trim();
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         const start = text.indexOf('[');
         const end = text.lastIndexOf(']');
         if (start !== -1 && end !== -1) {
@@ -299,17 +299,17 @@ Task: Find official brand assets and return them as a JSON array.
 };
 
 export const generateSchemaMarkup = async (metadata: any, articleHtml: string, type: 'Article' | 'Product' = 'Article'): Promise<string> => {
-    const prompt = \`Genera JSON-LD Schema.org para este artículo. Metadata: \${JSON.stringify(metadata)}. Content Sample: \${articleHtml.substring(0, 500)}. Include 'image' placeholder.\`;
+    const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0, 500)}. Include 'image' placeholder.`;
   
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({
             model: currentModel || AI_CONFIG.groq.models.balanced,
-            systemInstruction: \`\${ANTI_LEAKAGE_SYSTEM_BASE}
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
 Task: Generate JSON-LD Schema.org markup. Return JSON ONLY.
-\${FEW_SHOT_JSON}\`,
+${FEW_SHOT_JSON}`,
             generationConfig: { responseMimeType: "application/json" }
         });
-        const response = await model.generateContent(prompt + "\\n\\nRESULTADO JSON DIRECTO:");
+        const response = await model.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
         return response.response.text() || "{}";
     }, modelName);
 };
@@ -332,8 +332,8 @@ export const runSEOAnalysis = async (
         p_limit: 50
     });
     
-    const productContext = (units as any[] || []).filter((u: any) => u.category === 'product').slice(0, 30).map(p => \`- \${p.title} (\${p.url})\`).join('\\n');
-    const collectionContext = (units as any[] || []).filter((u: any) => u.category === 'collection').slice(0, 15).map(c => \`- \${c.title} (\${c.url})\`).join('\\n');
+    const productContext = (units as any[] || []).filter((u: any) => u.category === 'product').slice(0, 30).map(p => `- ${p.title} (${p.url})`).join('\n');
+    const collectionContext = (units as any[] || []).filter((u: any) => u.category === 'collection').slice(0, 15).map(c => `- ${c.title} (${c.url})`).join('\n');
 
     let serpContext = "No External data available. Rely on internal knowledge.";
 
@@ -371,14 +371,14 @@ export const runSEOAnalysis = async (
         required: ["nicheDetected", "keywordIdeas", "autocompleteLongTail", "frequentQuestions", "top10Urls", "recommendedWords", "recommendedWordCount", "recommendedSchemas"]
     };
 
-    const systemPrompt = \`Eres un estratega SEO experto.
-        PROYECTO: \${projectName || 'Desconocido'}.
-        \${isIdea ? 'LA ENTRADA ES UNA IDEA/CONCEPTO, NO UN TÍTULO FINAL. DEBES GENERAR UN TÍTULO SEO OPTIMIZADO.' : 'KEYWORD/TÍTULO OBJETIVO: "' + keyword + '"'}
+    const systemPrompt = `Eres un estratega SEO experto.
+        PROYECTO: ${projectName || 'Desconocido'}.
+        ${isIdea ? 'LA ENTRADA ES UNA IDEA/CONCEPTO, NO UN TÍTULO FINAL. DEBES GENERAR UN TÍTULO SEO OPTIMIZADO.' : 'KEYWORD/TÍTULO OBJETIVO: "' + keyword + '"'}
         === EXTERNAL INTELLIGENCE ===
-        \${serpContext}
+        ${serpContext}
         === INTERNAL DATABASE ===
-        \${productContext}
-        \${collectionContext}
+        ${productContext}
+        ${collectionContext}
         
         Tu tarea es:
         1. Analizar el nicho y la intención.
@@ -386,21 +386,21 @@ export const runSEOAnalysis = async (
         3. Identificar competidores y PRIORIZAR las preguntas extraídas de REAL SERP DATA (People Also Ask) para la sección de FAQs.
         
         TAREA: Analiza y extrae solo los datos brutos de investigación SEO. No generes estructuras de contenido ni metadatos en este paso.
-        Retorna JSON válido.\`;
+        Retorna JSON válido.`;
   
     return executeWithKeyRotation(async (ai) => {
         const model = ai.getGenerativeModel({
             model: modelName || 'gemini-2.5-flash',
-            systemInstruction: \`\${ANTI_LEAKAGE_SYSTEM_BASE}
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
 Task: Analyze SEO data and return it as a structured JSON object.
-\${FEW_SHOT_JSON}\`,
+${FEW_SHOT_JSON}`,
             generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: schema as any
             }
         });
   
-        const response = await model.generateContent(systemPrompt + "\\n\\nRESULTADO JSON DIRECTO:");
+        const response = await model.generateContent(systemPrompt + "\n\nRESULTADO JSON DIRECTO:");
         const result = response.response;
         let json = JSON.parse(result.text() || "{}");
         
@@ -417,14 +417,14 @@ Task: Analyze SEO data and return it as a structured JSON object.
 };
 
 export const generateOutlineStrategy = async (config: ArticleConfig, keyword: string, rawSeoData: SEOAnalysisResult, modelName?: string) => {
-    const prompt = \`
+    const prompt = `
     Act as a Master SEO Content Strategist.
-    Project: \${config.projectName}. Niche: \${config.niche}.
-    Topic/Keyword: "\${keyword}".
+    Project: ${config.projectName}. Niche: ${config.niche}.
+    Topic/Keyword: "${keyword}".
     
     ### ESTRATEGIA DE ENLAZADO INTERNO (15 Enlaces Sugeridos):
     Estos son los enlaces que HEMOS INVESTIGADO y que deben ser el eje del artículo:
-    \${config.approvedLinks?.map(l => \`- [\${l.title}](\${l.url})\${l.category ? \` (Categoría: \${l.category})\` : ''}\`).join('\\n') || 'N/A'}
+    ${config.approvedLinks?.map(l => `- [${l.title}](${l.url})${l.category ? ` (Categoría: ${l.category})` : ''}`).join('\n') || 'N/A'}
     
     INSTRUCCIÓN DE DISEÑO:
     Crea un Outline (Estructura de Encabezados) que esté optimizado para que estos enlaces encajen de forma orgánica y lógica. 
@@ -436,7 +436,7 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
     3. Slug: Short, URL-friendly.
     4. Meta Description: Compelling, < 160 chars.
     5. Outline: Array of headers (H2, H3).
-    \`;
+    `;
   
     const schema = {
         type: Type.OBJECT,
@@ -478,16 +478,16 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
     return executeWithKeyRotation(async (ai) => {
         const modelObj = ai.getGenerativeModel({ 
             model: 'gemini-2.5-flash',
-            systemInstruction: \`\${ANTI_LEAKAGE_SYSTEM_BASE}
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
 Task: Generate an SEO Content Strategy and Outline as JSON.
-\${FEW_SHOT_JSON}\`,
+${FEW_SHOT_JSON}`,
             generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: schema as any
             }
         });
   
-        const response = await modelObj.generateContent(prompt + "\\n\\nRESULTADO JSON DIRECTO:");
+        const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
         let rawText = response.response.text() || "{}";
         const start = rawText.indexOf('{');
         const end = rawText.lastIndexOf('}');
@@ -506,21 +506,21 @@ export const runHumanizerPipeline = async (
     modelName: string = 'gemma-4-31b-it'
 ): Promise<{ html: string; metadata?: any }> => {
     const mode = config.mode || 'unified';
-    onStatus(\`Iniciando pipeline de humanización en modo "\${mode}"...\`);
+    onStatus(`Iniciando pipeline de humanización en modo "${mode}"...`);
 
     if (mode === 'no_chunks') {
-        const linksTextList = (config.links || []).map(l => \`- Tema/Producto: "\${l.title || l.anchor_text}" | URL: \${l.url}\`).join('\\n        ');
-        const prompt = \`
-            \${ANTI_LEAKAGE_SYSTEM_BASE}
-            \${HTML_RULE_INTERNAL}
+        const linksTextList = (config.links || []).map(l => `- Tema/Producto: "${l.title || l.anchor_text}" | URL: ${l.url}`).join('\n        ');
+        const prompt = `
+            ${ANTI_LEAKAGE_SYSTEM_BASE}
+            ${HTML_RULE_INTERNAL}
             --- PERSONA: REDACTOR HUMANO AUTÉNTICO ---
             Escribe de forma natural. IMPORTANTE: El texto humanizado DEBE tener la misma longitud que el original o similar. PROHIBIDO RESUMIR O ELIMINAR SECCIONES.
             Si necesitas razonar o planificar, hazlo dentro de etiquetas <thinking> ... </thinking> antes del HTML.
 
             --- CONTEXTO ---
-            Nicho/Tópico: \${config.niche}
-            Público Objetivo: \${config.audience}
-            Notas Adicionales: \${config.notes || 'N/A'}
+            Nicho/Tópico: ${config.niche}
+            Público Objetivo: ${config.audience}
+            Notas Adicionales: ${config.notes || 'N/A'}
 
             --- REGLAS DE HUMANIZACIÓN ---
             1. ESTLO "REDACTOR COTIDIANO": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria excesiva.
@@ -529,7 +529,7 @@ export const runHumanizerPipeline = async (
             4. MORFOSINTAXIS: Mezcla oraciones cortas con algunas oraciones largas. La longitud de las frases debe ser variable. Prefiere la voz activa.
             5. PUNTUACIÓN HUMANA: No abuses del punto y seguido. Usa comas para dar fluidez cuando las ideas estén conectadas.
 
-            \${FEW_SHOT_HUMANIZER_EXAMPLE}
+            ${FEW_SHOT_HUMANIZER_EXAMPLE}
 
             --- TAREA (HUMANIZACIÓN Y OPTIMIZACIÓN SEO) ---
             1. Humaniza el texto DENTRO de las etiquetas HTML de todo el contenido.
@@ -537,23 +537,23 @@ export const runHumanizerPipeline = async (
             3. Inserta los enlaces y keywords LSI disponibles de forma natural si el contexto lo permite.
 
             * ENLACES DISPONIBLES: 
-            \${linksTextList || 'Ninguno'}
+            ${linksTextList || 'Ninguno'}
             * ANCHOR TEXT SEMÁNTICO: Construye frases naturales alrededor del Tema/Producto. Usa <a href="url">texto semántico</a>. NUNCA repitas enlaces.
-            * LSI: Keywords a integrar si es posible: [\${config.lsiKeywords?.join(', ') || 'Ninguna'}]
-        \`.trim();
+            * LSI: Keywords a integrar si es posible: [${config.lsiKeywords?.join(', ') || 'Ninguna'}]
+        `.trim();
         
         const finalizedHtml = await executeHumanizerWithRetry(async (ai) => {
             const model = ai.getGenerativeModel({ model: 'gemma-4-31b-it' });
-            const userPrompt = \`
-            \${prompt}
+            const userPrompt = `
+            ${prompt}
             ### EJECUCIÓN (MODO COMPLETO):
             Procesa el siguiente contenido HTML completo siguiendo estrictamente las instrucciones.
             <<<HTML_INPUT>>>
-            \${html}
+            ${html}
             <<<HTML_INPUT>>>
-            SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacios ni resúmenes):\`;
+            SALIDA HTML DIRECTA (iniciando exactamente con la primera etiqueta, sin prefacios ni resúmenes):`;
             const res = await model.generateContent(userPrompt);
-            let raw = res.response.text().replace(/\\\`\`\`html/g, '').replace(/\\\`\`\`/g, '').trim();
+            let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
             raw = stripReasoningLines(raw);
             return cleanAndFormatHtml(raw);
         }, onStatus, 'Redacción Humanización Completa');
@@ -565,7 +565,7 @@ export const runHumanizerPipeline = async (
             if (isTrivialChunk(chunk)) return chunk;
             return executeHumanizerWithRetry(async (ai) => {
                 const model = ai.getGenerativeModel({ model: 'gemma-4-31b-it' });
-                const response = await model.generateContent(\`Humaniza este fragmento HTML: \${chunk}\`);
+                const response = await model.generateContent(`Humaniza este fragmento HTML: ${chunk}`);
                 return cleanAndFormatHtml(response.response.text());
             }, onStatus, 'Redacción Humanización Unificada');
         }));
@@ -586,29 +586,29 @@ export const runSmartEditor = async (
     let strictInstructions = "";
     if (isStrictMode) {
         const freq = strictFrequency || 30;
-        strictInstructions = \`
-        MODO ESTRICTO ACTIVO (\${freq}%):
-        - Asegura densidad de keywords LSI: [\${lsiKeywords?.join(', ')}]
-        - Incluye respuestas a FAQs: [\${questions?.join(', '}]
+        strictInstructions = `
+        MODO ESTRICTO ACTIVO (${freq}%):
+        - Asegura densidad de keywords LSI: [${lsiKeywords?.join(', ')}]
+        - Incluye respuestas a FAQs: [${questions?.join(', ')}]
         - Si la intensidad es > 80, prioriza la densidad sobre la fluidez.
-        \`;
+        `;
     }
-    const prompt = \`
+    const prompt = `
     Eres un Editor Senior. Tu tarea es mejorar este artículo HTML.
-    Intensidad de edición: \${percentage}%
-    Instrucciones específicas: \${notes}
-    \${strictInstructions}
+    Intensidad de edición: ${percentage}%
+    Instrucciones específicas: ${notes}
+    ${strictInstructions}
     
     REGLA DE ORO: Mantén intacta la estructura HTML (enlaces, imágenes, listas).
     Si necesitas razonar o planificar, hazlo dentro de etiquetas <thinking> ... </thinking> antes del HTML.
     Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea la respuesta final. NO uses markdown.
     HTML:
-    \${html}
-    \`;
+    ${html}
+    `;
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({ model: currentModel });
         const response = await model.generateContent(prompt);
-        let raw = response.response.text().replace(/\\\`\`\`html/g, '').replace(/\\\`\`\`/g, '').trim();
+        let raw = response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
         raw = raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
         const firstTag = raw.indexOf('<');
         const lastTag = raw.lastIndexOf('>');
@@ -625,13 +625,13 @@ export const runSEOPostProcessor = async (
     onStatus: (msg: string) => void
 ): Promise<string> => {
     const approvedLinks = config.approvedLinks || [];
-    const linkList = approvedLinks.map(l => \`- URL: \${l.url} | Anchor ideal: \${l.title}\`).join('\\n');
+    const linkList = approvedLinks.map(l => `- URL: ${l.url} | Anchor ideal: ${l.title}`).join('\n');
     return executeWithKeyRotation(async (ai, currentModel) => {
         const model = ai.getGenerativeModel({
             model: currentModel,
             generationConfig: { temperature: 0.15 } 
         });
-        const prompt = \`
+        const prompt = `
         TASK: As a Senior SEO Editor, perform a final polish on this FULL article.
         
         CRITICAL RULES PARA NEGRILLAS (<strong>):
@@ -642,8 +642,8 @@ export const runSEOPostProcessor = async (
         5. Prioriza resaltar conceptos con las palabras clave objetivo.
         
         CRITICAL RULES PARA SEO & LSI:
-        1. Asegura que la palabra clave principal ("\${config.topic}") aparezca de forma natural en el primer y último párrafo si no está ya.
-        2. Inserta o refuerza las siguientes palabras clave LSI y semánticas si es posible sin forzar: [\${config.lsiKeywords?.join(', ') || 'N/A'}]
+        1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer y último párrafo si no está ya.
+        2. Inserta o refuerza las siguientes palabras clave LSI y semánticas si es posible sin forzar: [${config.lsiKeywords?.join(', ') || 'N/A'}]
         3. Mantén la densidad alta pero legible.
         
         INTEGRIDAD ESTRUCTURAL Y ENLACES (VITAL):
@@ -651,17 +651,17 @@ export const runSEOPostProcessor = async (
         2. PROHIBIDO: NO inventes nuevos enlaces. NO uses enlaces que empiecen por "#".
         3. Si ves un enlace que NO estaba en la versión original o que usa "#", ELIMÍNALO y deja solo el texto plano. 
         4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia, no añadas nuevos si no están fuera del HTML ya):
-           \${linkList}
+           ${linkList}
         5. Mantén todas las imágenes e IDs de elementos.
         6. Sáltate todo razonamiento interno. Si necesitas razonar o planificar, usa <thinking> ... </thinking>.
         7. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios o markdown (\`\`\`).
         
         FULL ARTICLE HTML TO POLISH:
-        \${html}
-        \`;
+        ${html}
+        `;
         const response = await model.generateContent(prompt);
         let raw = response.response.text();
-        const textOnly = raw.replace(/\\\`\`\`html/g, '').replace(/\\\`\`\`/g, '').trim();
+        const textOnly = raw.replace(/```html/g, '').replace(/```/g, '').trim();
         let cleanText = textOnly.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
         const firstTag = cleanText.indexOf('<');
         if (firstTag === -1) return cleanText;

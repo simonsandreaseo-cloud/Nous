@@ -67,8 +67,7 @@ if (content.includes("ArticleDetailDrawer")) {
                             <div className={\`flex-1 h-[2px] mx-2 rounded-full \${hasBriefing ? 'bg-emerald-200' : 'bg-slate-200'}\`} />
                             <TrafficLightItem active={article.status === 'ready' || article.status === 'published'} icon={<PenLine size={14} />} label="Texto" />
                             <div className={\`flex-1 h-[2px] mx-2 rounded-full \${article.status === 'ready' || article.status === 'published' ? 'bg-emerald-200' : 'bg-slate-200'}\`} />
-                            <TrafficLightItem active={false} icon={<Image size={14} />} label="Imágenes" />
-                        </div>
+                            <TrafficLightItem active={false} icon={<Image size={14} />} label="Imágenes" />                        </div>
                     </div>
 
                     {/* Acciones */}
