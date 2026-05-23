@@ -332,7 +332,8 @@ ${lastContext}
             store.setAnalyzingSEO(true);
             store.addDebugPrompt('Fase 2: Refinamiento SEO', `Optimizando con keywords: ${config.topic}, LSI: ${config.lsiKeywords?.join(', ')}. Enlaces aprobados: ${finalApprovedLinks.length}`);
             
-            const refinedSEO = await runSEOPostProcessor(linked, config, (msg) => store.setStatus(msg));
+            // Remove callback to prevent Server Action serialization error
+            const refinedSEO = await runSEOPostProcessor(linked, config);
             
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
             
@@ -430,14 +431,22 @@ ${lastContext}
                 mode: store.humanizerConfig.mode || 'unified'
             };
 
-            const modelToUse = 'gemma-4-31b-it';
-            const result = await runHumanizerPipeline(
-                store.content,
-                config,
-                50, // Intensity
-                (msg: string) => store.setHumanizerStatus(msg),
-                modelToUse
-            ) as any;
+            const response = await fetch('/api/humanize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: store.content,
+                    config,
+                    intensity: 50
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
 
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
 

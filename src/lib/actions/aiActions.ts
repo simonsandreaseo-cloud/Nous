@@ -113,9 +113,14 @@ export async function executeWithKeyRotation<T>(
 
 export async function executeHumanizerWithRetry<T>(
     operation: (client: any, currentModel: string) => Promise<T>,
-    onStatus: (msg: string) => void,
+    onStatus?: (msg: string) => void,
     label: string = 'Redacción Humanización'
 ): Promise<T> {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else console.log(`[Humanizer-Status] ${msg}`);
+    };
+
     let attempt = 1;
     while (true) {
         try {
@@ -130,9 +135,9 @@ export async function executeHumanizerWithRetry<T>(
             );
         } catch (e: any) {
             console.error(`[Humanizer-Retry] Error en ejecución de humanizador:`, e);
-            onStatus(`⚠️ Todas las API Keys han fallado o agotado su cuota. Esperando 2 minutos antes de reintentar...`);
+            safeStatus(`⚠️ Todas las API Keys han fallado o agotado su cuota. Esperando 2 minutos antes de reintentar...`);
             await new Promise(resolve => setTimeout(resolve, 120000));
-            onStatus(`Reanudando proceso de humanización (Intento ${++attempt})...`);
+            safeStatus(`Reanudando proceso de humanización (Intento ${++attempt})...`);
         }
     }
 };
@@ -166,7 +171,7 @@ export const retrieveContext = async (keyword: string, projectId: string): Promi
 };
 
 export const searchMoreLinks = async (keyword: string, projectId: string): Promise<ContentItem[]> => {
-    const prompt = `Give me 5 search terms to find relevant products in a database for the topic "${keyword}". Return CSV only. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el CSV y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios o cualquier texto explicativo.`;
+    const prompt = `Give me 5 search terms to find relevant products in a database for the topic "${keyword}". Return CSV only. Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el CSV and terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios o cualquier texto explicativo.`;
 
     return executeWithKeyRotation(async (ai, currentModel) => {
         try {
@@ -217,7 +222,6 @@ ${FEW_SHOT_HTML}`,
 };
 
 export const refineArticleContent = async (
-    apiKeys: string[] | string, 
     currentHtml: string, 
     instructions: string, 
     modelName?: string, 
@@ -504,11 +508,16 @@ export const runHumanizerPipeline = async (
     html: string,
     config: HumanizerConfig,
     intensity: number,
-    onStatus: (msg: string) => void,
+    onStatus?: (msg: string) => void,
     modelName: string = 'gemma-4-31b-it'
 ): Promise<{ html: string; metadata?: any }> => {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else console.log(`[Humanizer-Status] ${msg}`);
+    };
+
     const mode = config.mode || 'unified';
-    onStatus(`Iniciando pipeline de humanización en modo "${mode}"...`);
+    safeStatus(`Iniciando pipeline de humanización en modo "${mode}"...`);
 
     if (mode === 'no_chunks') {
         const linksTextList = (config.links || []).map(l => `- Tema/Producto: "${l.title || l.anchor_text}" | URL: ${l.url}`).join('\n        ');
@@ -558,7 +567,7 @@ export const runHumanizerPipeline = async (
             let raw = res.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
             raw = stripReasoningLines(raw);
             return cleanAndFormatHtml(raw);
-        }, onStatus, 'Redacción Humanización Completa');
+        }, safeStatus, 'Redacción Humanización Completa');
 
         return { html: finalizedHtml };
     } else {
@@ -569,7 +578,7 @@ export const runHumanizerPipeline = async (
                 const model = ai.getGenerativeModel({ model: 'gemma-4-31b-it' });
                 const response = await model.generateContent(`Humaniza este fragmento HTML: ${chunk}`);
                 return cleanAndFormatHtml(response.response.text());
-            }, onStatus, 'Redacción Humanización Unificada');
+            }, safeStatus, 'Redacción Humanización Unificada');
         }));
         return { html: finalizedChunks.join('\n') };
     }
@@ -579,12 +588,17 @@ export const runSmartEditor = async (
     html: string,
     percentage: number,
     notes: string,
-    onStatus: (msg: string) => void,
+    onStatus?: (msg: string) => void,
     isStrictMode?: boolean,
     strictFrequency?: number,
     lsiKeywords?: string[],
     questions?: string[]
 ): Promise<string> => {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else console.log(`[SmartEditor-Status] ${msg}`);
+    };
+
     let strictInstructions = "";
     if (isStrictMode) {
         const freq = strictFrequency || 30;
@@ -624,8 +638,13 @@ export const runSmartEditor = async (
 export const runSEOPostProcessor = async (
     html: string,
     config: ArticleConfig,
-    onStatus: (msg: string) => void
+    onStatus?: (msg: string) => void
 ): Promise<string> => {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else console.log(`[SEO-PostProcessor-Status] ${msg}`);
+    };
+
     const approvedLinks = config.approvedLinks || [];
     const linkList = approvedLinks.map(l => `- URL: ${l.url} | Anchor ideal: ${l.title}`).join('\n');
     return executeWithKeyRotation(async (ai, currentModel) => {
