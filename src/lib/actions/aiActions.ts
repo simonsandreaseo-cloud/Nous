@@ -517,19 +517,34 @@ export const runHumanizerPipeline = async (
     };
 
     // ALWAYS CHUNK to prevent 504s on large content
-    const chunks = chunkHtml(html, 3); // Smaller chunks
-    safeStatus(`Iniciando pipeline en ${chunks.length} bloques...`);
+    const chunks = chunkHtml(html, 3);
+    safeStatus(`Iniciando pipeline en ${chunks.length} bloques (procesamiento secuencial)...`);
     
-    const finalizedChunks = await Promise.all(chunks.map(async (chunk, index) => {
-        if (isTrivialChunk(chunk)) return chunk;
-        safeStatus(`Procesando bloque ${index + 1}/${chunks.length}...`);
-        return executeHumanizerWithRetry(async (ai) => {
-            const model = ai.getGenerativeModel({ model: 'gemma-4-31b-it' });
-            const prompt = `Humaniza este fragmento HTML manteniendo etiquetas: ${chunk}`;
-            const response = await model.generateContent(prompt);
-            return cleanAndFormatHtml(response.response.text());
-        }, safeStatus, `Humanización Bloque ${index + 1}`);
-    }));
+    const finalizedChunks: string[] = [];
+    
+    for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        if (isTrivialChunk(chunk)) {
+            finalizedChunks.push(chunk);
+            continue;
+        }
+        
+        safeStatus(`Procesando bloque ${i + 1}/${chunks.length}...`);
+        
+        try {
+            const processed = await executeHumanizerWithRetry(async (ai) => {
+                const model = ai.getGenerativeModel({ model: 'gemma-4-31b-it' });
+                const prompt = `Humaniza este fragmento HTML manteniendo etiquetas: ${chunk}`;
+                const response = await model.generateContent(prompt);
+                return cleanAndFormatHtml(response.response.text());
+            }, safeStatus, `Humanización Bloque ${i + 1}`);
+            finalizedChunks.push(processed);
+        } catch (e: any) {
+            safeStatus(`Error procesando bloque ${i + 1}: ${e.message}`);
+            // If one block fails, return what we have to avoid total loss or throw
+            throw e; 
+        }
+    }
     
     return { html: finalizedChunks.join('\n') };
 };
