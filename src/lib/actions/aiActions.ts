@@ -95,7 +95,7 @@ const isTrivialChunk = (chunk: string): boolean => {
 
 // --- WRAPPERS ---
 
-export const executeWithKeyRotation = async <T extends unknown>(
+export async function executeWithKeyRotation<T>(
     operation: (client: any, currentModel: string) => Promise<T>,
     modelName: string = 'default',
     explicitHierarchy?: string[],
@@ -103,17 +103,17 @@ export const executeWithKeyRotation = async <T extends unknown>(
     onRotation?: any,
     isStrictModel: boolean = false,
     label: string = 'Operación AI'
-): Promise<T> => {
+): Promise<T> {
     return libExecuteWithKeyRotation(async (client, m) => {
         return operation(client, m);
     }, modelName, explicitHierarchy, keys, onRotation, isStrictModel, label);
-};
+}
 
-export const executeHumanizerWithRetry = async <T extends unknown>(
+export async function executeHumanizerWithRetry<T>(
     operation: (client: any, currentModel: string) => Promise<T>,
     onStatus: (msg: string) => void,
     label: string = 'Redacción Humanización'
-): Promise<T> => {
+): Promise<T> {
     let attempt = 1;
     while (true) {
         try {

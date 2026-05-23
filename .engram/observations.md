@@ -39,20 +39,23 @@ Update 2: Set maxDuration=300 to scrapeMassiveAction to prevent Vercel Hobby 10s
 ## [2026-05-23] Solución a Errores de Compilación en Next.js (Turbopack) y Fuga de Node-only Libraries al Cliente
 
 ### Problema
-El build de Next.js fallaba con 18 errores debido a:
+El build de Next.js fallaba con errores debido a:
 1. Errores de parseo de sintaxis de tipos genéricos en arrow functions (`aiActions.ts`) por conflicto con la sintaxis de JSX.
 2. Error de sintaxis en `services.ts` por el escape innecesario de backticks en la función `generateBriefingText`.
 3. Error de duplicidad en la declaración de `HTML_RULE_INTERNAL` en `aiActions.ts`.
 4. Módulos Node-only (`child_process`, `fs`, `net`, `http2`, etc.) de `googleapis` y `google-auth-library` siendo empaquetados para el cliente porque `report-actions.ts` no tenía `"use server"` y porque `TranslatorView.tsx` (un componente de cliente) importaba `aiRouter` directamente.
+5. Error de exportación ausente de `selectTopRelevantLinks` en `services.ts` necesario para `useWriterActions.ts`.
 
 ### Causa Raíz
-- Turbopack interpretó los genéricos de las arrow functions `<T>` en archivos `.ts` como etiquetas JSX sin cerrar, requiriendo desambiguación (`<T extends unknown>` o `<T,>`).
+- Turbopack interpretó los genéricos de las arrow functions `<T>` o incluso `<T extends unknown>` en archivos `.ts` como etiquetas JSX sin cerrar, requiriendo desambiguar declarándolas como `async function` regulares.
 - Se removió `"use server"` de `report-actions.ts` por una supuesta compatibilidad con exportaciones estáticas, provocando que se importara en el bundle del browser junto con todas sus dependencias del lado del servidor.
 - La vista de cliente `TranslatorView.tsx` usaba `aiRouter` directamente en lugar de delegar a una Server Action.
+- Un refactor anterior borró la función `selectTopRelevantLinks` de `services.ts` por error.
 
 ### Solución
-1. **Desambiguación de Genéricos:** Cambiado `<T>` a `<T extends unknown>` en `executeWithKeyRotation` y `executeHumanizerWithRetry`.
+1. **Desambiguación de Genéricos:** Cambiado `<T>` a declaraciones de `async function` estándar en `executeWithKeyRotation` y `executeHumanizerWithRetry` en `aiActions.ts` para evitar la confusión de JSX.
 2. **Corrección de Backticks:** Limpiado y removido escapes innecesarios de backticks en `generateBriefingText` (`services.ts`).
-3. **Remoción de Duplicado:** Eliminada la segunda declaración de `HTML_RULE_INTERNAL`.
+3. **Remoción de Duplicado:** Eliminada la segunda declaración de `HTML_RULE_INTERNAL` en `aiActions.ts`.
 4. **Recuperación de use server:** Restaurada la directiva `"use server";` en `report-actions.ts`.
 5. **Acción de Traducción:** Creada la Server Action `runTranslationAction` en `aiActions.ts` y refactorizada `TranslatorView.tsx` para consumirla, eliminando por completo la importación directa de `aiRouter` en el cliente.
+6. **Restauración de selectTopRelevantLinks:** Re-agregada la función `selectTopRelevantLinks` a `services.ts` para que `useWriterActions.ts` compile.

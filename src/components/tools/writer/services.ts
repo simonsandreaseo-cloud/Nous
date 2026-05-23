@@ -161,3 +161,21 @@ export function generateBriefingText(seoData: SEOAnalysisResult): string {
     return brief.trim();
 }
 
+export function selectTopRelevantLinks(topic: string, csvData: ContentItem[], count: number = 20): ContentItem[] {
+    if (!csvData || csvData.length === 0) return [];
+    const terms = topic.toLowerCase().split(/\s+/).filter(t => t.length > 3);
+    
+    return csvData
+        .map(item => {
+            let score = 0;
+            const fullText = (item.title + ' ' + (item.url || '')).toLowerCase();
+            terms.forEach(term => { if (fullText.includes(term)) score += 1; });
+            // Small bonus for collection types
+            if (item.type === 'collection') score += 0.5;
+            return { ...item, _score: score };
+        })
+        .filter(item => item._score > 0 || (item.type === 'collection'))
+        .sort((a, b) => (b._score || 0) - (a._score || 0))
+        .slice(0, count)
+        .map(({ _score, ...rest }: any) => rest as ContentItem);
+}
