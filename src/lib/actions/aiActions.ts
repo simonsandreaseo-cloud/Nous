@@ -1,7 +1,7 @@
 'use server';
 
 import { aiRouter } from "@/lib/ai/router";
-import { 
+export type { 
     ArticleConfig, 
     SEOAnalysisResult, 
     DeepSEOAnalysisResult, 
@@ -14,12 +14,14 @@ import {
     DeepSEOConfig
 } from "@/lib/services/writer/types";
 import { executeWithKeyRotation as libExecuteWithKeyRotation } from "@/lib/services/writer/ai-core";
+import { buildPrompt as libBuildPrompt } from "@/lib/services/writer/prompts";
 import { ResearchOrchestrator } from "@/lib/services/writer/research";
 import { AI_CONFIG } from "@/lib/ai/config";
 import { Type } from "@google/genai";
 import { supabase } from "@/lib/supabase";
 
 // --- UTILS & CONSTANTS ---
+export const buildPrompt = libBuildPrompt;
 const ANTI_LEAKAGE_SYSTEM_BASE = `Eres un Transformador Determinista. Tu única función es procesar la entrada y devolver la salida en el formato exacto solicitado.
 Sáltate todo razonamiento interno, análisis de constraints, prefacios, comentarios o pasos de verificación. 
 Tu respuesta DEBE comenzar directamente con el primer carácter del resultado final y terminar inmediatamente después del último carácter del resultado. 
