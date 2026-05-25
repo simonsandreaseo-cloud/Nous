@@ -25,7 +25,7 @@ import ImageLightbox from './modals/ImageLightbox';
 import { EditorView } from '@tiptap/pm/view';
 import PresenceAvatars from './PresenceAvatars';
 
-
+let updateContentTimeout: NodeJS.Timeout | null = null;
 
 const StepIcon = ({ active, done, icon: Icon, label }: any) => (
     <div className="flex flex-col items-center gap-1 group/step relative">
@@ -227,7 +227,10 @@ export default function WriterEditor() {
         onUpdate: ({ editor }) => {
             // Only update store from editor if NOT generating
             if (!isGenerating) {
-                setContent(editor.getHTML());
+                if (updateContentTimeout) clearTimeout(updateContentTimeout);
+                updateContentTimeout = setTimeout(() => {
+                    setContent(editor.getHTML());
+                }, 800);
             }
 
             // Simple Slash Detection optimizing Keystroke performance
