@@ -12,24 +12,50 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Content is required' }, { status: 400 });
         }
 
-        console.log(`[Humanizer-API] Processing ${content.length} chars`);
+        console.log(`[Humanizer-API] Processing ${content.length} chars (Streaming)`);
 
-        // status callback (simplified for server logs)
-        const onStatus = (msg: string) => console.log(`[Humanizer-API] ${msg}`);
+        const encoder = new TextEncoder();
+        
+        const stream = new ReadableStream({
+            async start(controller) {
+                const onStatus = (msg: string) => {
+                    console.log(`[Humanizer-API] ${msg}`);
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'status', message: msg }) + '\n'));
+                };
 
-        // Call the service (this now runs server-side)
-        const result = await runHumanizerPipeline(
-            content,
-            config,
-            intensity || 50,
-            onStatus,
-            'gemma-4-31b-it'
-        );
+                const onChunk = (chunkHtml: string) => {
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'chunk', html: chunkHtml }) + '\n'));
+                };
 
-        return NextResponse.json(result);
+                try {
+                    const result = await runHumanizerPipeline(
+                        content,
+                        config,
+                        intensity || 50,
+                        onStatus,
+                        'gemini-2.5-flash-lite',
+                        onChunk
+                    );
+
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', result }) + '\n'));
+                    controller.close();
+                } catch (err: any) {
+                    console.error('[Humanizer-API] Pipeline Error:', err);
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', error: err.message || 'Internal error' }) + '\n'));
+                    controller.close();
+                }
+            }
+        });
+
+        return new Response(stream, {
+            headers: {
+                'Content-Type': 'application/x-ndjson',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+            },
+        });
     } catch (error: any) {
-        console.error('[Humanizer-API] Error:', error);
-        // Ensure strictly JSON response
+        console.error('[Humanizer-API] Outer Error:', error);
         return NextResponse.json({ 
             error: error.message || 'Internal Server Error',
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 

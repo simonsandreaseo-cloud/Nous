@@ -509,7 +509,8 @@ export const runHumanizerPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus?: (msg: string) => void,
-    modelName: string = 'gemini-2.5-flash-lite' // Changed from gemma-4-31b-it
+    modelName: string = 'gemini-2.5-flash-lite', // Changed from gemma-4-31b-it
+    onChunk?: (chunkHtml: string) => void
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -543,6 +544,7 @@ export const runHumanizerPipeline = async (
             console.log(`[Humanizer-Perf] Bloque ${i + 1} completado en ${duration}s`);
             
             finalizedChunks.push(processed);
+            if (onChunk) onChunk(processed);
         } catch (e: any) {
             safeStatus(`Error procesando bloque ${i + 1}: ${e.message}`);
             throw e; 

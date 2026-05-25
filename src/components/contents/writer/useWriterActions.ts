@@ -456,16 +456,52 @@ ${lastContext}
                 }
             }
 
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error("La respuesta del servidor no es un JSON válido. Revisa los logs.");
+            if (!response.body) throw new Error("No se pudo iniciar el stream del servidor.");
+
+            store.setContent(''); // Empezar de cero para mostrar el stream
+            let newContent = '';
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let finalResult = null;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // El último puede estar incompleto
+                
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const parsed = JSON.parse(line);
+                        if (parsed.type === 'status') {
+                            store.setHumanizerStatus(parsed.message);
+                        } else if (parsed.type === 'chunk') {
+                            newContent += parsed.html + '\n';
+                            store.setContent(newContent);
+                        } else if (parsed.type === 'error') {
+                            throw new Error(parsed.error);
+                        } else if (parsed.type === 'done') {
+                            finalResult = parsed.result;
+                        }
+                    } catch (e) {
+                        console.warn("Error parseando chunk del stream:", line);
+                    }
+                }
             }
 
-            const result = await response.json();
+            if (!finalResult) {
+                finalResult = { html: newContent };
+            }
 
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
 
             // result now contains { html, metadata }
-            const refined = refineStyling(result.html);
+            const refined = refineStyling(finalResult.html);
             
             // Batch updates
             useWriterStore.setState({
