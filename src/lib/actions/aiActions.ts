@@ -535,7 +535,7 @@ export const runHumanizerPipeline = async (
         try {
             const processed = await executeHumanizerWithRetry(async (ai) => {
                 const model = ai.getGenerativeModel({ 
-                    model: 'gemini-2.5-flash', // Switched back to flash for better instruction adherence
+                    model: 'gemma-4-31b-it', // Usuario requiere estrictamente Gemma por calidad humana
                     systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE el código HTML modificado, sin explicaciones ni markdown. Si necesitas razonar, hazlo dentro de <thinking>...</thinking>.`
                 });
                 
