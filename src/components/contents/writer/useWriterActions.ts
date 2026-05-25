@@ -252,18 +252,49 @@ export function useWriterActions() {
 
             const writingHierarchy = AI_CONFIG.gemini.hierarchies.writing;
             const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : writingHierarchy[0];
-            const stream = await generateArticleStream(modelToUse, prompt, writingHierarchy);
+            const response = await fetch('/api/writer/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, model: modelToUse, hierarchy: writingHierarchy })
+            });
+
+            if (!response.ok || !response.body) throw new Error('Error al conectar con la API de redacción');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
             let buffer = '';
+            let rawData = '';
             let streamErrorDetected = false;
 
-            for await (const chunk of stream) {
-                if (chunk.text) {
-                    if (chunk.text.includes('⚠️ Error de Redacción')) {
-                        streamErrorDetected = true;
-                        break;
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                rawData += decoder.decode(value, { stream: true });
+                const lines = rawData.split('\n');
+                rawData = lines.pop() || ''; // Keep incomplete line
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.type === 'error') {
+                            console.error('[Generate] API Error:', data.text);
+                            streamErrorDetected = true;
+                            break;
+                        }
+                        if (data.type === 'chunk' && data.text) {
+                            if (data.text.includes('⚠️ Error de Redacción')) {
+                                streamErrorDetected = true;
+                                break;
+                            }
+                            buffer += data.text;
+                            store.setContent(buffer);
+                        }
+                    } catch (e) {
+                        // ignore parse errors for partial chunks
                     }
-                    buffer += chunk.text;
-                    store.setContent(buffer);
                 }
             }
 
@@ -291,11 +322,35 @@ ${lastContext}
 ### CONTINUACIÓN DIRECTA (Comienza a escribir SOLO lo que sigue a partir de aquí):
 `;
 
-                const continueStream = await generateArticleStream(fallbackModel, continuationPrompt, writingHierarchy);
-                for await (const chunk of continueStream) {
-                    if (chunk.text && !chunk.text.includes('⚠️ Error de Redacción')) {
-                        buffer += chunk.text;
-                        store.setContent(buffer);
+                const continueRes = await fetch('/api/writer/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: continuationPrompt, model: fallbackModel, hierarchy: writingHierarchy })
+                });
+
+                if (continueRes.ok && continueRes.body) {
+                    const contReader = continueRes.body.getReader();
+                    const contDecoder = new TextDecoder();
+                    let contRawData = '';
+                    
+                    while (true) {
+                        const { done, value } = await contReader.read();
+                        if (done) break;
+                        
+                        contRawData += contDecoder.decode(value, { stream: true });
+                        const lines = contRawData.split('\n');
+                        contRawData = lines.pop() || '';
+                        
+                        for (const line of lines) {
+                            if (!line.trim()) continue;
+                            try {
+                                const data = JSON.parse(line);
+                                if (data.type === 'chunk' && data.text && !data.text.includes('⚠️ Error de Redacción')) {
+                                    buffer += data.text;
+                                    store.setContent(buffer);
+                                }
+                            } catch (e) { }
+                        }
                     }
                 }
                 store.setStatus('✅ Redacción continuada exitosamente.');
