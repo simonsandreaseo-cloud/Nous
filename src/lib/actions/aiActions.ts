@@ -22,10 +22,7 @@ import { supabase } from "@/lib/supabase";
 
 // --- UTILS & CONSTANTS ---
 export const buildPrompt = libBuildPrompt;
-const ANTI_LEAKAGE_SYSTEM_BASE = `Eres un Transformador Determinista. Tu única función es procesar la entrada y devolver la salida en el formato exacto solicitado.
-Sáltate todo razonamiento interno, análisis de constraints, prefacios, comentarios o pasos de verificación. 
-Tu respuesta DEBE comenzar directamente con el primer carácter del resultado final y terminar inmediatamente después del último carácter del resultado. 
-Cualquier texto fuera del formato solicitado es un error crítico. NO uses markdown.`;
+const ANTI_LEAKAGE_SYSTEM_BASE = `Eres un Transformador Determinista. Tu única función es procesar la entrada y devolver la salida en el formato exacto solicitado. No uses markdown fuera de lo estrictamente solicitado. Si necesitas planificar, razonar o verificar constraints, utiliza campos específicos como 'razonamiento_interno' dentro de estructuras JSON si el prompt te lo requiere.`;
 
 const FEW_SHOT_HTML = `
 Ejemplo 1:
@@ -48,34 +45,20 @@ Salida: [{"id": "body_1", "prompt": "Tarta de chocolate deliciosa"}]
 `;
 
 const FEW_SHOT_HUMANIZER_EXAMPLE = `
-<<<EJEMPLO_HUMANIZACION>>>
-TEXTO ORIGINAL:
-<p>Por consiguiente, el uso de calzado deportivo adecuado resulta de vital importancia para prevenir lesiones podológicas. Adicionalmente, se recomienda realizar estiramientos musculares de forma previa al inicio del entrenamiento físico.</p>
+<<<EJEMPLO_HUMANIZACION_JSON>>>
+Entrada:
+"<p>Por consiguiente, el uso de calzado deportivo adecuado resulta de vital importancia para prevenir lesiones podológicas. Adicionalmente, se recomienda realizar estiramientos musculares de forma previa al inicio del entrenamiento físico.</p>"
 
-TEXTO HUMANIZADO:
-<p>Usar unas zapatillas correctas es clave si no querés terminar con dolor de pies o alguna lesión que te pare. Así que ponete las pilas con eso y, además, no te olvides de estirar un poco antes de empezar a correr, que te va a salvar la vida.</p>
-<<<EJEMPLO_HUMANIZACION>>>
+Salida Esperada:
+{
+  "razonamiento_interno": "El texto es muy académico. 'Por consiguiente' y 'vital importancia' suenan robóticos. Lo pasaré a un tono más cercano e informal.",
+  "html": "<p>Usar unas zapatillas correctas es clave si no querés terminar con dolor de pies o alguna lesión que te pare. Así que ponete las pilas con eso y, además, no te olvides de estirar un poco antes de empezar a correr, que te va a salvar la vida.</p>"
+}
+<<<FIN_EJEMPLO>>>
 `;
 
 const HTML_RULE_INTERNAL = "ERES UN REDACTOR HUMANO. REGLA CRÍTICA: NO RESUMAS. NO OMITAS NADA. El bloque de salida debe tener el mismo número de elementos que la entrada.";
 
-
-const stripReasoningLines = (text: string): string => {
-    let cleanText = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
-    return cleanText
-        .split('\n')
-        .filter(line => {
-            const trimmed = line.trim();
-            if (!trimmed) return true;
-            if (/^\*\s+\S/.test(trimmed) && !trimmed.startsWith('*<')) return false;
-            if (/^\d+\.\s+(analysis|input|output|task|constraint|note|revision|preservation|seo|para\s)/i.test(trimmed)) return false;
-            if (/^(note|here'?s|aquí|el siguiente|the following|as requested|como solicitado|result|resultado|salida|output)[:]/i.test(trimmed)) return false;
-            if (/^(seo|task|input|output|constraints?|revision|preservation|no\s+links|no\s+lsi|no\s+keywords|no\s+markdown)\s*:/i.test(trimmed)) return false;
-            return true;
-        })
-        .join('\n')
-        .trim();
-};
 
 const cleanAndFormatHtml = (html: string) => {
     return html.trim();
@@ -536,17 +519,33 @@ export const runHumanizerPipeline = async (
             const processed = await executeHumanizerWithRetry(async (ai) => {
                 const model = ai.getGenerativeModel({ 
                     model: 'gemma-4-31b-it', // Usuario requiere estrictamente Gemma por calidad humana
-                    systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE el código HTML modificado, sin explicaciones ni markdown. Si necesitas razonar, hazlo dentro de <thinking>...</thinking>.`
+                    systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                    generationConfig: {
+                        responseMimeType: "application/json"
+                    }
                 });
                 
-                const prompt = `Humaniza este fragmento HTML: ${chunk}\n\nIMPORTANTE: NO incluyas el texto original en tu respuesta, no hagas comparaciones, no uses viñetas. Devuelve ÚNICAMENTE la versión final humanizada en código HTML.\n\nRESULTADO HTML DIRECTO (SIN MARKDOWN NI PREFACIOS):`;
+                const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este fragmento HTML: ${chunk}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación) y 'html' (la versión final humanizada en crudo).`;
                 const response = await model.generateContent(prompt);
                 
                 let raw = response.response.text();
-                raw = raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
-                raw = raw.replace(/```html/gi, '').replace(/```/g, '').trim();
+                // Extraer solo la parte JSON en caso de que el modelo haya añadido prefacios a pesar del jsonMode
+                const jsonStart = raw.indexOf('{');
+                const jsonEnd = raw.lastIndexOf('}');
+                if (jsonStart !== -1 && jsonEnd !== -1) {
+                    raw = raw.substring(jsonStart, jsonEnd + 1);
+                }
                 
-                return cleanAndFormatHtml(raw);
+                let htmlOutput = "";
+                try {
+                    const parsed = JSON.parse(raw);
+                    htmlOutput = parsed.html || chunk; // Si falla la clave, devolvemos el chunk por seguridad
+                } catch (err) {
+                    console.error("[Humanizer] Failed to parse JSON:", raw);
+                    htmlOutput = chunk; // Fallback ante error de parseo crítico
+                }
+                
+                return cleanAndFormatHtml(htmlOutput);
             }, safeStatus, `Humanización Bloque ${i + 1}`);
             
             const duration = (Date.now() - start) / 1000;
@@ -595,8 +594,7 @@ export const runSmartEditor = async (
     ${strictInstructions}
     
     REGLA DE ORO: Mantén intacta la estructura HTML (enlaces, imágenes, listas).
-    Si necesitas razonar o planificar, hazlo dentro de etiquetas <thinking> ... </thinking> antes del HTML.
-    Sáltate todo razonamiento interno. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios, análisis de constraints, comentarios sobre la tarea o cualquier texto que no sea la respuesta final. NO uses markdown.
+    Es CRÍTICO que devuelvas ÚNICAMENTE el código HTML resultante. NO INCLUYAS razonamiento, análisis, listas de cambios ni prefacios. La salida debe ser HTML crudo listo para insertar. No uses markdown.
     HTML:
     ${html}
     `;
@@ -653,8 +651,7 @@ export const runSEOPostProcessor = async (
         4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia, no añadas nuevos si no están fuera del HTML ya):
            ${linkList}
         5. Mantén todas las imágenes e IDs de elementos.
-        6. Sáltate todo razonamiento interno. Si necesitas razonar o planificar, usa <thinking> ... </thinking>.
-        7. Tu respuesta debe comenzar directamente con el código HTML y terminar inmediatamente después. Queda estrictamente prohibido incluir prefacios o markdown (\`\`\`).
+        6. Devuelve ÚNICAMENTE HTML crudo. Prohibido incluir razonamiento, análisis, listas de cambios o prefacios. No uses markdown.
         
         FULL ARTICLE HTML TO POLISH:
         ${html}
