@@ -17,40 +17,13 @@ export async function POST(req: Request) {
                 try {
                     const result = await generateArticleStream(model, prompt, hierarchy);
                     // Gemini returns an object with [Symbol.asyncIterator] or stream property
+                    // Now that we mocked it to return [{ text: htmlOutput }], we just iterate over it
                     const streamIterable = result.stream || result;
                     
-                    let inHtml = false;
-                    let fullBuffer = '';
-
                     for await (const chunk of streamIterable) {
                         const text = chunk.text ? (typeof chunk.text === 'function' ? chunk.text() : chunk.text) : '';
-                        if (!text) continue;
-                        
-                        fullBuffer += text;
-                        
-                        if (!inHtml) {
-                            const matchIndex = fullBuffer.indexOf('<articulo_html>');
-                            if (matchIndex !== -1) {
-                                inHtml = true;
-                                const contentAfterTag = fullBuffer.slice(matchIndex + '<articulo_html>'.length);
-                                const cleanText = contentAfterTag.replace(/<\/articulo_html>/g, '');
-                                if (cleanText) {
-                                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'chunk', text: cleanText }) + '\n'));
-                                }
-                            }
-                        } else {
-                            const cleanText = text.replace(/<\/articulo_html>/g, '');
-                            if (cleanText) {
-                                controller.enqueue(encoder.encode(JSON.stringify({ type: 'chunk', text: cleanText }) + '\n'));
-                            }
-                        }
-                    }
-                    
-                    // Fallback: Si el modelo desobedeció por completo y nunca abrió la etiqueta, devolvemos todo lo capturado para que no quede en blanco
-                    if (!inHtml && fullBuffer.trim().length > 0) {
-                        const cleanFallback = fullBuffer.replace(/<razonamiento_interno>[\s\S]*?<\/razonamiento_interno>/g, '').trim();
-                        if (cleanFallback) {
-                            controller.enqueue(encoder.encode(JSON.stringify({ type: 'chunk', text: cleanFallback }) + '\n'));
+                        if (text) {
+                            controller.enqueue(encoder.encode(JSON.stringify({ type: 'chunk', text }) + '\n'));
                         }
                     }
                     controller.close();

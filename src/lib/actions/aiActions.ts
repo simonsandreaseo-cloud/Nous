@@ -190,19 +190,33 @@ export const generateArticleStream = async (model: string, prompt: string, hiera
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
-            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
-Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]) ni etiquetas de imagen <img>. Generas HTML impecable. Nous procesará los enlaces e imágenes automáticamente.
-REGLA DE ORO: DEBES incluir tu planificación y análisis obligatoriamente dentro de etiquetas <razonamiento_interno>...</razonamiento_interno>. LUEGO, debes devolver el resultado HTML FINAL, encerrado OBLIGATORIAMENTE dentro de etiquetas <articulo_html>...</articulo_html>.
-${FEW_SHOT_HTML}`,
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown ni etiquetas de imagen <img>. Generas HTML impecable.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
             generationConfig: {
+                responseMimeType: "application/json",
                 temperature: 0.7,
             }
         });
-        const result = await modelObj.generateContentStream({
-            contents: [{ role: 'user', parts: [{ text: prompt + "\n\nRESULTADO DIRECTO (SIN PREFACIOS):" }] }],
-        });
-        return result;
-    }, model || 'default', hierarchy, undefined, undefined, false, 'Redacción Artículo');
+        const finalPrompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nINSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu planificación) y 'html' (el artículo completo finalizado).`;
+        const response = await modelObj.generateContent(finalPrompt);
+        
+        let raw = response.response.text();
+        const jsonStart = raw.indexOf('{');
+        const jsonEnd = raw.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+            raw = raw.substring(jsonStart, jsonEnd + 1);
+        }
+        
+        let htmlOutput = "";
+        try {
+            const parsed = JSON.parse(raw);
+            htmlOutput = parsed.html || raw;
+        } catch (err) {
+            htmlOutput = raw;
+        }
+        
+        // Mock stream result for backwards compatibility
+        return [{ text: htmlOutput }];
+    }, model || 'default', hierarchy, undefined, undefined, false, 'Redacción Artículo JSON');
 };
 
 export const refineArticleContent = async (
