@@ -9,33 +9,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const setUser = useAuthStore((state) => state.setUser);
 
     useEffect(() => {
-        // Safety check: ensure supabase.auth exists before calling methods
-        // This prevents crashes if env vars are missing during build/init
+        // Safety check: ensure supabase auth exists
         if (!supabase || !supabase.auth) {
             console.warn("Supabase auth is not initialized. Check your environment variables.");
             return;
         }
 
+        let isFetching = false;
+
+        const triggerFetch = () => {
+            if (isFetching) return;
+            isFetching = true;
+            import('@/store/useProjectStore').then(mod => {
+                mod.useProjectStore.getState().fetchTeams();
+                setTimeout(() => { isFetching = false; }, 1000); // Debounce initial fetch
+            });
+        };
+
         // Check current session
         supabase.auth.getSession().then(({ data: { session } }) => {
             const user = session?.user ?? null;
             setUser(user);
-            if (user) {
-                // Proactively fetch teams (which fetches projects automatically)
-                import('@/store/useProjectStore').then(mod => {
-                    mod.useProjectStore.getState().fetchTeams();
-                });
-            }
+            if (user) triggerFetch();
         });
 
         // Listen for changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             const user = session?.user ?? null;
             setUser(user);
-            if (user) {
-                import('@/store/useProjectStore').then(mod => {
-                    mod.useProjectStore.getState().fetchTeams();
-                });
+            // Only trigger on SIGNED_IN or INITIAL_SESSION to avoid redundant calls
+            if (user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+                triggerFetch();
             }
         });
 

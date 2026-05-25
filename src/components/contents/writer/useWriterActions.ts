@@ -514,12 +514,21 @@ ${lastContext}
             
             // Update humanization metadata in DB
             if (store.draftId) {
+                const { data: taskData } = await supabase
+                    .from('tasks')
+                    .select('metadata')
+                    .eq('id', store.draftId)
+                    .single();
+
+                const newMetadata = { 
+                    ...(taskData?.metadata || {}), 
+                    is_humanized: true, 
+                    humanized_at: new Date().toISOString() 
+                };
+
                 const { error: humanizeError } = await supabase
                     .from('tasks')
-                    .update({
-                        is_humanized: true,
-                        humanized_at: new Date().toISOString(),
-                    })
+                    .update({ metadata: newMetadata })
                     .eq('id', store.draftId);
                 
                 if (humanizeError) console.error("[useWriterActions] Error updating humanization metadata:", humanizeError.message);
