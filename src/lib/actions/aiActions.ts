@@ -192,7 +192,6 @@ export const generateArticleJSON = async (model: string, prompt: string, hierarc
             model: currentModel,
             systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Generas el artículo basándote en la estructura indicada. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>) y NUNCA usas markdown ni etiquetas de imagen <img>. Generas HTML impecable para la web.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
             generationConfig: {
-                responseMimeType: "application/json",
                 temperature: 0.7,
             }
         });
@@ -312,7 +311,7 @@ export const generateSchemaMarkup = async (metadata: any, articleHtml: string, t
             systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
 Task: Generate JSON-LD Schema.org markup. Return JSON ONLY.
 ${FEW_SHOT_JSON}`,
-            generationConfig: { responseMimeType: "application/json" }
+            generationConfig: {}
         });
         const response = await model.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
         return response.response.text() || "{}";
@@ -400,7 +399,6 @@ export const runSEOAnalysis = async (
 Task: Analyze SEO data and return it as a structured JSON object.
 ${FEW_SHOT_JSON}`,
             generationConfig: {
-                responseMimeType: "application/json",
                 responseSchema: schema as any
             }
         });
@@ -484,9 +482,7 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
         const modelObj = ai.getGenerativeModel({ 
             model: 'gemma-4-31b-it',
             systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nTask: Generate an SEO Content Strategy and Outline as JSON.\n${FEW_SHOT_JSON}`,
-            generationConfig: {
-                responseMimeType: "application/json"
-            }
+            generationConfig: {}
         });
   
         const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
@@ -533,9 +529,7 @@ export const runHumanizerPipeline = async (
                 const model = ai.getGenerativeModel({ 
                     model: 'gemma-4-31b-it', // Usuario requiere estrictamente Gemma por calidad humana
                     systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
-                    generationConfig: {
-                        responseMimeType: "application/json"
-                    }
+                    generationConfig: {}
                 });
                 
                 const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este fragmento HTML: ${chunk}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación) y 'html' (la versión final humanizada en crudo).`;
@@ -574,9 +568,7 @@ export const runHumanizerPipeline = async (
                     const model = ai.getGenerativeModel({ 
                         model: 'gemma-4-31b-it', // Fallback model
                         systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
-                        generationConfig: {
-                            responseMimeType: "application/json"
-                        }
+                        generationConfig: {}
                     });
                     
                     const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este fragmento HTML: ${chunk}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación) y 'html' (la versión final humanizada en crudo).`;
@@ -662,9 +654,7 @@ export const runSmartEditor = async (
                 const model = ai.getGenerativeModel({
                     model: currentModel,
                     systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Senior experto en HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
-                    generationConfig: {
-                        responseMimeType: "application/json"
-                    }
+                    generationConfig: {}
                 });
                 
                 const prompt = `
@@ -740,16 +730,14 @@ export const runSEOPostProcessor = async (
         
         try {
             const processed = await executeWithKeyRotation(async (ai, currentModel) => {
+                let positionalRule = "";
                 const model = ai.getGenerativeModel({
                     model: currentModel,
                     systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor SEO Senior experto en HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
                     generationConfig: { 
-                        temperature: 0.15,
-                        responseMimeType: "application/json"
+                        temperature: 0.15
                     } 
                 });
-                
-                let positionalRule = "";
                 if (i === 0) {
                     positionalRule = `1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer párrafo si no está ya.`;
                 } else if (i === chunks.length - 1) {
