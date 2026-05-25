@@ -2,6 +2,7 @@ import { ContentItem } from "./types";
 import { Project } from "@/types/project";
 import { sanitizeUrl } from "@/utils/domain";
 import { LinkPatcherService } from "../link-patcher";
+import { escapeRegExp } from "@/utils/html-parser";
 
 /**
  * Ensures all links in the document have the required attributes for security and accessibility.

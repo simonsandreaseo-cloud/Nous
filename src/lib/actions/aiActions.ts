@@ -192,6 +192,7 @@ export const generateArticleStream = async (model: string, prompt: string, hiera
             model: currentModel,
             systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
 Eres un redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown (**, #, [link]) ni etiquetas de imagen <img>. Generas HTML impecable. Nous procesará los enlaces e imágenes automáticamente.
+REGLA DE ORO: DEBES incluir tu planificación y análisis obligatoriamente dentro de etiquetas <razonamiento_interno>...</razonamiento_interno>. LUEGO, debes devolver el resultado HTML FINAL, encerrado OBLIGATORIAMENTE dentro de etiquetas <articulo_html>...</articulo_html>.
 ${FEW_SHOT_HTML}`,
             generationConfig: {
                 temperature: 0.7,
@@ -554,8 +555,13 @@ export const runHumanizerPipeline = async (
             finalizedChunks.push(processed);
             if (onChunk) onChunk(processed);
         } catch (e: any) {
-            safeStatus(`Error procesando bloque ${i + 1}: ${e.message}`);
-            throw e; 
+            safeStatus(`Error procesando bloque ${i + 1}: ${e.message}. Aplicando fallback de rescate...`);
+            // Fallback: Append the remaining unprocessed chunks so data is not lost
+            for (let j = i; j < chunks.length; j++) {
+                finalizedChunks.push(chunks[j]);
+                if (onChunk) onChunk(chunks[j]);
+            }
+            break; // Break the loop but complete the pipeline successfully
         }
     }
     

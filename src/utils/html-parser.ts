@@ -1,6 +1,6 @@
 import { ContentItem } from '../types/content';
 
-function escapeRegExp(string: string) {
+export function escapeRegExp(string: string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
