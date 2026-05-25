@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { runHumanizerPipeline } from '@/lib/actions/aiActions';
 
+export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s limit
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
