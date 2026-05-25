@@ -607,29 +607,73 @@ export const runSmartEditor = async (
         - Si la intensidad es > 80, prioriza la densidad sobre la fluidez.
         `;
     }
-    const prompt = `
-    Eres un Editor Senior. Tu tarea es mejorar este artículo HTML.
-    Intensidad de edición: ${percentage}%
-    Instrucciones específicas: ${notes}
-    ${strictInstructions}
     
-    REGLA DE ORO: Mantén intacta la estructura HTML (enlaces, imágenes, listas).
-    Es CRÍTICO que devuelvas ÚNICAMENTE el código HTML resultante. NO INCLUYAS razonamiento, análisis, listas de cambios ni prefacios. La salida debe ser HTML crudo listo para insertar. No uses markdown.
-    HTML:
-    ${html}
-    `;
-    return executeWithKeyRotation(async (ai, currentModel) => {
-        const model = ai.getGenerativeModel({ model: currentModel });
-        const response = await model.generateContent(prompt);
-        let raw = response.response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-        raw = raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
-        const firstTag = raw.indexOf('<');
-        const lastTag = raw.lastIndexOf('>');
-        if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
-            raw = raw.substring(firstTag, lastTag + 1);
+    const chunks = chunkHtml(html, 3);
+    const finalizedChunks: string[] = [];
+    
+    safeStatus(`Iniciando Edición Inteligente en ${chunks.length} bloques...`);
+    
+    for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        if (isTrivialChunk(chunk)) {
+            finalizedChunks.push(chunk);
+            continue;
         }
-        return raw;
-    }, 'default', undefined, undefined, false, 'Edición Inteligente');
+        
+        safeStatus(`Editando bloque ${i + 1}/${chunks.length}...`);
+        
+        try {
+            const processed = await executeWithKeyRotation(async (ai, currentModel) => {
+                const model = ai.getGenerativeModel({
+                    model: currentModel,
+                    systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Senior experto en HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                    generationConfig: {
+                        responseMimeType: "application/json"
+                    }
+                });
+                
+                const prompt = `
+                TASK: Eres un Editor Senior. Tu tarea es mejorar este fragmento HTML de un artículo mayor.
+                
+                Intensidad de edición: ${percentage}%
+                Instrucciones específicas: ${notes}
+                ${strictInstructions}
+                
+                REGLA DE ORO: Mantén intacta la estructura HTML (enlaces, imágenes, listas).
+                IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis) y 'html' (el chunk editado).
+                
+                CHUNK HTML A EDITAR:
+                ${chunk}
+                `;
+                
+                const response = await model.generateContent(prompt);
+                let raw = response.response.text();
+                
+                const jsonStart = raw.indexOf('{');
+                const jsonEnd = raw.lastIndexOf('}');
+                if (jsonStart !== -1 && jsonEnd !== -1) {
+                    raw = raw.substring(jsonStart, jsonEnd + 1);
+                }
+                
+                try {
+                    const parsed = JSON.parse(raw);
+                    return parsed.html || chunk;
+                } catch (e) {
+                    return chunk;
+                }
+            }, 'default', undefined, undefined, false, `Edición Inteligente Bloque ${i+1}`);
+            
+            finalizedChunks.push(processed);
+        } catch (e: any) {
+            safeStatus(`Error en edición bloque ${i + 1}: ${e.message}. Aplicando fallback de rescate...`);
+            for (let j = i; j < chunks.length; j++) {
+                finalizedChunks.push(chunks[j]);
+            }
+            break;
+        }
+    }
+    
+    return finalizedChunks.join('\n');
 };
 
 export const runSEOPostProcessor = async (
@@ -644,50 +688,96 @@ export const runSEOPostProcessor = async (
 
     const approvedLinks = config.approvedLinks || [];
     const linkList = approvedLinks.map(l => `- URL: ${l.url} | Anchor ideal: ${l.title}`).join('\n');
-    return executeWithKeyRotation(async (ai, currentModel) => {
-        const model = ai.getGenerativeModel({
-            model: currentModel,
-            generationConfig: { temperature: 0.15 } 
-        });
-        const prompt = `
-        TASK: As a Senior SEO Editor, perform a final polish on this FULL article.
-        
-        CRITICAL RULES PARA NEGRILLAS (<strong>):
-        1. Las negritas deben resaltar frases clave de entre 4 y 8 palabras.
-        2. Máximo 1 bloque de negritas por párrafo de 40-60 palabras.
-        3. Nunca pongas negritas en la primera ni última palabra de un párrafo.
-        4. NO pongas negritas en encabezados (H2, H3), blockquotes ni listas.
-        5. Prioriza resaltar conceptos con las palabras clave objetivo.
-        
-        CRITICAL RULES PARA SEO & LSI:
-        1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer y último párrafo si no está ya.
-        2. Inserta o refuerza las siguientes palabras clave LSI y semánticas si es posible sin forzar: [${config.lsiKeywords?.join(', ') || 'N/A'}]
-        3. Mantén la densidad alta pero legible.
-        
-        INTEGRIDAD ESTRUCTURAL Y ENLACES (VITAL):
-        1. MANTÉN INTACTOS TODOS LOS ENLACES <a> PRESENTES. No cambies sus URLs ni los elimines.
-        2. PROHIBIDO: NO inventes nuevos enlaces. NO uses enlaces que empiecen por "#".
-        3. Si ves un enlace que NO estaba en la versión original o que usa "#", ELIMÍNALO y deja solo el texto plano. 
-        4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia, no añadas nuevos si no están fuera del HTML ya):
-           ${linkList}
-        5. Mantén todas las imágenes e IDs de elementos.
-        6. Devuelve ÚNICAMENTE HTML crudo. Prohibido incluir razonamiento, análisis, listas de cambios o prefacios. No uses markdown.
-        
-        FULL ARTICLE HTML TO POLISH:
-        ${html}
-        `;
-        const response = await model.generateContent(prompt);
-        let raw = response.response.text();
-        const textOnly = raw.replace(/```html/g, '').replace(/```/g, '').trim();
-        let cleanText = textOnly.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
-        const firstTag = cleanText.indexOf('<');
-        if (firstTag === -1) return cleanText;
-        const lastTag = cleanText.lastIndexOf('>');
-        if (lastTag !== -1 && lastTag > firstTag) {
-            cleanText = cleanText.substring(firstTag, lastTag + 1);
+    
+    const chunks = chunkHtml(html, 3);
+    const finalizedChunks: string[] = [];
+    
+    safeStatus(`Iniciando post-procesado SEO en ${chunks.length} bloques...`);
+    
+    for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        if (isTrivialChunk(chunk)) {
+            finalizedChunks.push(chunk);
+            continue;
         }
-        return cleanText;
-    }, 'default', undefined, undefined, false, 'SEO Post-Procesado');
+        
+        safeStatus(`Post-procesando bloque ${i + 1}/${chunks.length}...`);
+        
+        try {
+            const processed = await executeWithKeyRotation(async (ai, currentModel) => {
+                const model = ai.getGenerativeModel({
+                    model: currentModel,
+                    systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor SEO Senior experto en HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                    generationConfig: { 
+                        temperature: 0.15,
+                        responseMimeType: "application/json"
+                    } 
+                });
+                
+                let positionalRule = "";
+                if (i === 0) {
+                    positionalRule = `1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer párrafo si no está ya.`;
+                } else if (i === chunks.length - 1) {
+                    positionalRule = `1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el último párrafo si no está ya.`;
+                }
+                
+                const prompt = `
+                TASK: As a Senior SEO Editor, perform a final polish on this specific HTML chunk of an article.
+                
+                CRITICAL RULES PARA NEGRILLAS (<strong>):
+                1. Las negritas deben resaltar frases clave de entre 4 y 8 palabras.
+                2. Máximo 1 bloque de negritas por párrafo de 40-60 palabras.
+                3. Nunca pongas negritas en la primera ni última palabra de un párrafo.
+                4. NO pongas negritas en encabezados (H2, H3), blockquotes ni listas.
+                5. Prioriza resaltar conceptos con las palabras clave objetivo.
+                
+                CRITICAL RULES PARA SEO & LSI:
+                ${positionalRule}
+                2. Inserta o refuerza las siguientes palabras clave LSI y semánticas si es posible sin forzar: [${config.lsiKeywords?.join(', ') || 'N/A'}]
+                3. Mantén la densidad alta pero legible.
+                
+                INTEGRIDAD ESTRUCTURAL Y ENLACES (VITAL):
+                1. MANTÉN INTACTOS TODOS LOS ENLACES <a> PRESENTES. No cambies sus URLs ni los elimines.
+                2. PROHIBIDO: NO inventes nuevos enlaces. NO uses enlaces que empiecen por "#".
+                3. Si ves un enlace que NO estaba en la versión original o que usa "#", ELIMÍNALO y deja solo el texto plano. 
+                4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia):
+                   ${linkList}
+                5. Mantén todas las imágenes e IDs de elementos.
+                
+                IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis SEO) y 'html' (el chunk optimizado).
+                
+                CHUNK HTML TO POLISH:
+                ${chunk}
+                `;
+                const response = await model.generateContent(prompt);
+                let raw = response.response.text();
+                
+                const jsonStart = raw.indexOf('{');
+                const jsonEnd = raw.lastIndexOf('}');
+                if (jsonStart !== -1 && jsonEnd !== -1) {
+                    raw = raw.substring(jsonStart, jsonEnd + 1);
+                }
+                
+                try {
+                    const parsed = JSON.parse(raw);
+                    return parsed.html || chunk;
+                } catch (e) {
+                    return chunk;
+                }
+            }, 'default', undefined, undefined, false, `SEO Post-Procesado Bloque ${i+1}`);
+            
+            finalizedChunks.push(processed);
+        } catch (e: any) {
+            safeStatus(`Error en post-proceso bloque ${i + 1}: ${e.message}. Aplicando fallback de rescate...`);
+            // Fallback para evitar pérdida de datos si el modelo falla por límite de tiempo/tokens
+            for (let j = i; j < chunks.length; j++) {
+                finalizedChunks.push(chunks[j]);
+            }
+            break;
+        }
+    }
+    
+    return finalizedChunks.join('\n');
 };
 
 export const runTranslationAction = async (
