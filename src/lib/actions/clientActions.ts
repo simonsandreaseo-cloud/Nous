@@ -4,7 +4,7 @@ import { Task } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 import { 
     generateOutlineStrategy, 
-    generateArticleStream,
+    generateArticleJSON,
     runHumanizerPipeline,
     buildPrompt,
     ArticleConfig
@@ -71,12 +71,8 @@ export async function processTaskDraftAction(task: Task) {
         };
 
         const prompt = buildPrompt(config);
-        const stream = await generateArticleStream('gemini-3.1-flash-preview', prompt);
-        let fullContent = '';
-        for await (const chunk of (stream as any)) {
-            if (chunk.text) fullContent += chunk.text;
-        }
-
+        const fullContent = await generateArticleJSON('gemma-4-31b-it', prompt);
+        
         if (!fullContent || fullContent.length < 100) throw new Error("Contenido vacío.");
 
         const updates: Partial<Task> = { content_body: fullContent, status: 'por_corregir' };
