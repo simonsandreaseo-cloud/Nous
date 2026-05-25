@@ -3,7 +3,7 @@
 import { 
     runHumanizerPipeline, 
     generateOutlineStrategy, 
-    generateArticleStream, 
+    generateArticleJSON, 
     runSEOPostProcessor,
     refineArticleContent, 
     ArticleConfig 
@@ -46,7 +46,7 @@ export function useWriterActions() {
         store.setAnalyzingSEO(true);
         store.setStatus('Realizando análisis profundo de SEO...');
         try {
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-4-31b-it';
+            const modelToUse = store.researchMode === 'rapid' ? 'gemma-4-31b-it' : 'gemma-4-31b-it';
             const res = await ResearchOrchestrator.runDeepAnalysis({
                 keyword: store.keyword,
                 projectId: activeProject?.id,
@@ -251,115 +251,29 @@ export function useWriterActions() {
             if (activeProject) await consumeTokens(1);
 
             const writingHierarchy = AI_CONFIG.gemini.hierarchies.writing;
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : writingHierarchy[0];
-            const response = await fetch('/api/writer/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, model: modelToUse, hierarchy: writingHierarchy })
-            });
-
-            if (!response.ok || !response.body) throw new Error('Error al conectar con la API de redacción');
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
+            const modelToUse = store.researchMode === 'rapid' ? 'gemma-4-31b-it' : writingHierarchy[0];
             
-            let buffer = '';
-            let rawData = '';
-            let streamErrorDetected = false;
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                rawData += decoder.decode(value, { stream: true });
-                const lines = rawData.split('\n');
-                rawData = lines.pop() || ''; // Keep incomplete line
-
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                        const data = JSON.parse(line);
-                        if (data.type === 'error') {
-                            console.error('[Generate] API Error:', data.text);
-                            streamErrorDetected = true;
-                            break;
-                        }
-                        if (data.type === 'chunk' && data.text) {
-                            if (data.text.includes('⚠️ Error de Redacción')) {
-                                streamErrorDetected = true;
-                                break;
-                            }
-                            buffer += data.text;
-                            store.setContent(buffer);
-                        }
-                    } catch (e) {
-                        // ignore parse errors for partial chunks
-                    }
-                }
-            }
-
-            // Auto-Continuation Fallback System
-            if (streamErrorDetected) {
+            // Replaced streaming loop with direct JSON Server Action
+            store.setStatus('Redactando contenido base... (Espere unos segundos)');
+            
+            let finalHtml = "";
+            try {
+                // Remove fallback to Server Actions for direct execution 
+                finalHtml = await generateArticleJSON(modelToUse, prompt, writingHierarchy);
+            } catch (err) {
+                console.error('[Generate] Fallback triggered', err);
                 store.setStatus('⚠️ Interrupción detectada. Aplicando Fallback de continuación...');
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause for UX
-
-                const fallbackModel = writingHierarchy.length > 1 ? writingHierarchy[1] : writingHierarchy[0]; // Rotate to next model
-                const contextLen = Math.min(buffer.length, 1500);
-                const lastContext = buffer.slice(-contextLen);
-
-                const continuationPrompt = `
-### INSTRUCCIÓN DE EMERGENCIA: CONTINUACIÓN DE ARTÍCULO ###
-El siguiente artículo HTML se interrumpió de forma abrupta por un error de red.
-Tu tarea es CONTINUAR EXACTAMENTE DONDE SE CORTÓ. 
-- NO repitas NADA del texto que ya se generó.
-- Continúa la oración o etiqueta HTML que quedó a medias, o empieza el siguiente párrafo si estaba completo.
-- MANTÉN EXACTAMENTE EL MISMO TONO, ESTRUCTURA Y FORMATO.
-- NO ESCRIBAS PREFACIOS COMO "Aquí tienes la continuación" O "Claro". SOLO HTML.
-
-### TEXTO GENERADO HASTA AHORA (Últimos caracteres para darte contexto):
-${lastContext}
-
-### CONTINUACIÓN DIRECTA (Comienza a escribir SOLO lo que sigue a partir de aquí):
-`;
-
-                const continueRes = await fetch('/api/writer/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: continuationPrompt, model: fallbackModel, hierarchy: writingHierarchy })
-                });
-
-                if (continueRes.ok && continueRes.body) {
-                    const contReader = continueRes.body.getReader();
-                    const contDecoder = new TextDecoder();
-                    let contRawData = '';
-                    
-                    while (true) {
-                        const { done, value } = await contReader.read();
-                        if (done) break;
-                        
-                        contRawData += contDecoder.decode(value, { stream: true });
-                        const lines = contRawData.split('\n');
-                        contRawData = lines.pop() || '';
-                        
-                        for (const line of lines) {
-                            if (!line.trim()) continue;
-                            try {
-                                const data = JSON.parse(line);
-                                if (data.type === 'chunk' && data.text && !data.text.includes('⚠️ Error de Redacción')) {
-                                    buffer += data.text;
-                                    store.setContent(buffer);
-                                }
-                            } catch (e) { }
-                        }
-                    }
-                }
-                store.setStatus('✅ Redacción continuada exitosamente.');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const fallbackModel = writingHierarchy.length > 1 ? writingHierarchy[1] : writingHierarchy[0];
+                finalHtml = await generateArticleJSON(fallbackModel, prompt, writingHierarchy);
             }
 
-            const finalBuffer = cleanAndFormatHtml(buffer);
-            store.setContent(finalBuffer);
+            store.setStatus('Procesando y limpiando HTML...');
+            let cleanHtml = cleanAndFormatHtml(finalHtml);
+            
+            store.setContent(cleanHtml);
 
-            let cleanHtml = finalBuffer;
             if (cleanHtml.includes('<!-- METADATA_START -->')) {
                 const parts = cleanHtml.split('<!-- METADATA_START -->');
                 cleanHtml = parts[0];
@@ -605,7 +519,7 @@ ${lastContext}
         store.setRefining(true);
         store.setStatus('Refinando artículo…');
         try {
-            const modelToUse = store.researchMode === 'rapid' ? 'gemini-3.1-flash-lite-preview' : 'gemma-4-31b-it';
+            const modelToUse = store.researchMode === 'rapid' ? 'gemma-4-31b-it' : 'gemma-4-31b-it';
             const refined = await refineArticleContent(store.content, store.refinementInstructions, modelToUse);
             
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI

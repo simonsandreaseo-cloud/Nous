@@ -220,7 +220,6 @@ export default function WriterStudio() {
         rawSeoData: state.rawSeoData,
         editorTab: state.editorTab,
         setEditorTab: state.setEditorTab,
-        content: state.content,
         activeUsers: state.activeUsers,
         setActiveUsers: state.setActiveUsers,
         strategyOutline: state.strategyOutline,
@@ -239,7 +238,6 @@ export default function WriterStudio() {
         isHumanizing: state.isHumanizing,
         isRefining: state.isRefining,
         nousExtractorFindings: state.nousExtractorFindings,
-        wordCountReal: state.wordCountReal,
         activeSidebarTab: state.activeSidebarTab,
         setSidebarTab: state.setSidebarTab,
         currentLanguage: state.currentLanguage,
@@ -427,10 +425,18 @@ export default function WriterStudio() {
 
     const { updateTask } = useProjectStore();
     useEffect(() => {
-        if (!draftId || isGenerating) return;
-        const timer = setTimeout(async () => {
+        if (!draftId) return;
+        
+        let lastSavedContent = useWriterStore.getState().content;
+        
+        const interval = setInterval(async () => {
             const latestState = useWriterStore.getState() as any;
-            if (latestState.draftId !== draftId) return;
+            if (latestState.draftId !== draftId || latestState.isGenerating) return;
+            
+            // Only save if content or other major fields have changed
+            // For now, we mainly rely on content checks to avoid over-saving
+            if (!latestState.content || latestState.content === lastSavedContent) return;
+            
             const payload = {
                 content_body: latestState.content,
                 word_count_real: latestState.wordCountReal,
@@ -442,18 +448,19 @@ export default function WriterStudio() {
                 research_dossier: { ...latestState.rawSeoData, briefing: latestState.strategyNotes, suggested_links: latestState.strategyLinks, nous_extractor_findings: latestState.nousExtractorFindings },
                 outline_structure: { headers: latestState.strategyOutline },
             };
-            if (!payload.content_body) return;
+            
             setSaving(true);
             try { 
                 await updateTask(draftId, payload); 
+                lastSavedContent = latestState.content;
             } catch (e) { 
                 setStatus('❌ Error al guardar'); 
             } finally { 
                 setSaving(false); 
             }
         }, 10000);
-        return () => clearTimeout(timer);
-    }, [draftId, content, strategyH1, strategyTitle, strategySlug, strategyDesc, strategyOutline, rawSeoData, strategyLinks, strategyNotes, nousExtractorFindings, isGenerating, setSaving, setStatus, wordCountReal, updateTask]);
+        return () => clearInterval(interval);
+    }, [draftId, setSaving, setStatus, updateTask]);
 
     /* 
     // DISABLED: Loading full inventory (250k+ URLs) into the browser kills egress and performance.
@@ -717,7 +724,7 @@ export default function WriterStudio() {
                         </div>
                     </div>
                     <div className="flex-1 flex flex-col min-h-0 bg-slate-50/20">
-                        {activeSidebarTab === 'seo' ? <SEODataTab seoData={rawSeoData} currentContent={content} /> : 
+                        {activeSidebarTab === 'seo' ? <SEODataTab seoData={rawSeoData} currentContent={useWriterStore.getState().content || ''} /> : 
                           activeSidebarTab === 'media' ? <VisualPlanningBoard onRegenerate={async (id) => {
                               await regenerateImageAction({
                                   asset: { id, prompt: '...', url: '...' } as any,

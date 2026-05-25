@@ -186,17 +186,19 @@ export const runDeepSEOAnalysis = async (config: DeepSEOConfig) => {
     return ResearchOrchestrator.runDeepAnalysis(config);
 };
 
-export const generateArticleStream = async (model: string, prompt: string, hierarchy?: string[]) => {
+export const generateArticleJSON = async (model: string, prompt: string, hierarchy?: string[]) => {
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
-            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Eliges siempre etiquetas HTML (<strong>, <a>, <h2>) y NUNCA usas markdown ni etiquetas de imagen <img>. Generas HTML impecable.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Generas el artículo basándote en la estructura indicada. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>) y NUNCA usas markdown ni etiquetas de imagen <img>. Generas HTML impecable para la web.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
             generationConfig: {
                 responseMimeType: "application/json",
                 temperature: 0.7,
             }
         });
-        const finalPrompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nINSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu planificación) y 'html' (el artículo completo finalizado).`;
+        
+        const finalPrompt = `INSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el artículo de cero siguiendo la estructura dada. NO repitas instrucciones, NO uses prefacios. Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu planificación) y 'html' (el artículo completo finalizado).`;
+        
         const response = await modelObj.generateContent(finalPrompt);
         
         let raw = response.response.text();
@@ -210,12 +212,11 @@ export const generateArticleStream = async (model: string, prompt: string, hiera
         try {
             const parsed = JSON.parse(raw);
             htmlOutput = parsed.html || raw;
-        } catch (err) {
+        } catch(e) {
             htmlOutput = raw;
         }
         
-        // Mock stream result for backwards compatibility
-        return [{ text: htmlOutput }];
+        return htmlOutput;
     }, model || 'default', hierarchy, undefined, undefined, false, 'Redacción Artículo JSON');
 };
 
@@ -394,7 +395,7 @@ export const runSEOAnalysis = async (
   
     return executeWithKeyRotation(async (ai) => {
         const model = ai.getGenerativeModel({
-            model: modelName || 'gemini-2.5-flash',
+            model: modelName || 'gemma-4-31b-it',
             systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
 Task: Analyze SEO data and return it as a structured JSON object.
 ${FEW_SHOT_JSON}`,
@@ -481,13 +482,10 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
   
     return executeWithKeyRotation(async (ai) => {
         const modelObj = ai.getGenerativeModel({ 
-            model: 'gemini-2.5-flash',
-            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
-Task: Generate an SEO Content Strategy and Outline as JSON.
-${FEW_SHOT_JSON}`,
+            model: 'gemma-4-31b-it',
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nTask: Generate an SEO Content Strategy and Outline as JSON.\n${FEW_SHOT_JSON}`,
             generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: schema as any
+                responseMimeType: "application/json"
             }
         });
   
@@ -507,7 +505,7 @@ export const runHumanizerPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus?: (msg: string) => void,
-    modelName: string = 'gemini-2.5-flash-lite', // Changed from gemma-4-31b-it
+    modelName: string = 'gemma-4-31b-it', 
     onChunk?: (chunkHtml: string) => void
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
@@ -569,13 +567,50 @@ export const runHumanizerPipeline = async (
             finalizedChunks.push(processed);
             if (onChunk) onChunk(processed);
         } catch (e: any) {
-            safeStatus(`Error procesando bloque ${i + 1}: ${e.message}. Aplicando fallback de rescate...`);
-            // Fallback: Append the remaining unprocessed chunks so data is not lost
-            for (let j = i; j < chunks.length; j++) {
-                finalizedChunks.push(chunks[j]);
-                if (onChunk) onChunk(chunks[j]);
+            safeStatus(`Error procesando bloque ${i + 1}: ${e.message}. Aplicando fallback de rescate con modelo alternativo...`);
+            try {
+                // FALLBACK: Resume where it left off using a lighter/different model (flash-lite)
+                const processedFallback = await executeHumanizerWithRetry(async (ai) => {
+                    const model = ai.getGenerativeModel({ 
+                        model: 'gemma-4-31b-it', // Fallback model
+                        systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                        generationConfig: {
+                            responseMimeType: "application/json"
+                        }
+                    });
+                    
+                    const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este fragmento HTML: ${chunk}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación) y 'html' (la versión final humanizada en crudo).`;
+                    const response = await model.generateContent(prompt);
+                    
+                    let raw = response.response.text();
+                    const jsonStart = raw.indexOf('{');
+                    const jsonEnd = raw.lastIndexOf('}');
+                    if (jsonStart !== -1 && jsonEnd !== -1) {
+                        raw = raw.substring(jsonStart, jsonEnd + 1);
+                    }
+                    
+                    let htmlOutput = "";
+                    try {
+                        const parsed = JSON.parse(raw);
+                        htmlOutput = parsed.html || chunk; 
+                    } catch (err) {
+                        htmlOutput = chunk; 
+                    }
+                    
+                    return cleanAndFormatHtml(htmlOutput);
+                }, safeStatus, `Humanización Fallback Bloque ${i + 1}`);
+                
+                finalizedChunks.push(processedFallback);
+                if (onChunk) onChunk(processedFallback);
+            } catch (fallbackError) {
+                safeStatus(`Fallback también falló en bloque ${i + 1}. Conservando original y abortando...`);
+                // If fallback also fails, then we append the remaining unprocessed chunks so data is not lost
+                for (let j = i; j < chunks.length; j++) {
+                    finalizedChunks.push(chunks[j]);
+                    if (onChunk) onChunk(chunks[j]);
+                }
+                break; // Break the loop but complete the pipeline successfully
             }
-            break; // Break the loop but complete the pipeline successfully
         }
     }
     
