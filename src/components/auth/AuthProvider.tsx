@@ -21,9 +21,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const user = session?.user ?? null;
             setUser(user);
             if (user) {
-                // Proactively fetch projects for the user
+                // Proactively fetch teams (which fetches projects automatically)
                 import('@/store/useProjectStore').then(mod => {
-                    mod.useProjectStore.getState().fetchProjects();
+                    mod.useProjectStore.getState().fetchTeams();
                 });
             }
         });
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(user);
             if (user) {
                 import('@/store/useProjectStore').then(mod => {
-                    mod.useProjectStore.getState().fetchProjects();
+                    mod.useProjectStore.getState().fetchTeams();
                 });
             }
         });

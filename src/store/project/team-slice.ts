@@ -126,6 +126,8 @@ export const createTeamSlice: StateCreator<ProjectStore, [], [], TeamActions> = 
             
             set({ activeTeam: targetTeam as any });
             get().fetchProjects((targetTeam as any).id);
+        } else {
+            get().fetchProjects();
         }
     },
 

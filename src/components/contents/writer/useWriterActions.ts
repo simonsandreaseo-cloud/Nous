@@ -441,9 +441,23 @@ ${lastContext}
                 })
             });
 
+            const contentType = response.headers.get('content-type');
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                if (response.status === 504) {
+                    throw new Error("El servidor tardó demasiado en responder (Error 504: Timeout). El texto es muy largo para procesarlo de una vez.");
+                }
+                
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                } else {
+                    const textError = await response.text();
+                    throw new Error(`Error del servidor (${response.status}): La respuesta no es JSON válido.`);
+                }
+            }
+
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error("La respuesta del servidor no es un JSON válido. Revisa los logs.");
             }
 
             const result = await response.json();

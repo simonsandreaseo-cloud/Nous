@@ -9,17 +9,20 @@ export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s hobby
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  preload: false,
 });
 
 const michroma = Michroma({
   weight: "400",
   subsets: ["latin"],
   variable: "--font-michroma",
+  preload: false,
 });
 
 const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains",
+  preload: false,
 });
 
 export const viewport: Viewport = {
