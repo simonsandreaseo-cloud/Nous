@@ -539,7 +539,7 @@ export const runHumanizerPipeline = async (
                     systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE el código HTML modificado, sin explicaciones ni markdown. Si necesitas razonar, hazlo dentro de <thinking>...</thinking>.`
                 });
                 
-                const prompt = `Humaniza este fragmento HTML: ${chunk}\n\nRESULTADO HTML DIRECTO (SIN MARKDOWN NI PREFACIOS):`;
+                const prompt = `Humaniza este fragmento HTML: ${chunk}\n\nIMPORTANTE: NO incluyas el texto original en tu respuesta, no hagas comparaciones, no uses viñetas. Devuelve ÚNICAMENTE la versión final humanizada en código HTML.\n\nRESULTADO HTML DIRECTO (SIN MARKDOWN NI PREFACIOS):`;
                 const response = await model.generateContent(prompt);
                 
                 let raw = response.response.text();
