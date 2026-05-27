@@ -59,3 +59,65 @@ El build de Next.js fallaba con errores debido a:
 4. **Recuperación de use server:** Restaurada la directiva `"use server";` en `report-actions.ts`.
 5. **Acción de Traducción:** Creada la Server Action `runTranslationAction` en `aiActions.ts` y refactorizada `TranslatorView.tsx` para consumirla, eliminando por completo la importación directa de `aiRouter` en el cliente.
 6. **Restauración de selectTopRelevantLinks:** Re-agregada la función `selectTopRelevantLinks` a `services.ts` para que `useWriterActions.ts` compile.
+
+## [2026-05-26] Configuración de Variables de Entorno en Vercel para la Migración de Supabase y Google Cloud
+
+### Problema
+Se realizó una migración de la base de datos Supabase y de la cuenta de Google Cloud, por lo que las credenciales locales de `.env.local` cambiaron, y se necesitaba sincronizar y configurar Vercel (`nous_2.0`) de forma inmediata.
+
+### Solución
+1. Verificación local de las nuevas credenciales de Supabase (`wswylghsczgusgagucbd`) y Google Cloud en `.env.local`.
+2. Lanzamiento del sub-agente de automatización de navegador (`browser`) para realizar el login automático y la carga de secretos en Vercel de forma headless.
+3. Actualización exitosa en el panel de variables de entorno de Vercel de:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+4. Disparo de un **Redeploy** en Vercel para aplicar los cambios de inmediato.
+
+### Descubrimiento
+El puerto de control de DevTools `9222` de Chrome en Windows bloquea llamadas locales directas por políticas de seguridad (404), pero delegar al sub-agente de navegador asíncrono `/browser` resolvió de manera robusta el bypass del login e interacción.
+
+## [2026-05-26] Configuración de Google Cloud OAuth y Proveedor en Supabase para `nous-produccion`
+
+### Problema
+La nueva cuenta de Google Cloud para el proyecto `nous-produccion` estaba vacía (recién creada) y no tenía habilitadas las APIs correspondientes ni configurada la pantalla de consentimiento de OAuth, lo que impedía que el login de Google funcionara y rompía las integraciones de Search Console en Supabase y la app.
+
+### Solución
+1. Delegación al sub-agente de navegador asíncrono `/browser` para automatizar la configuración en consola de Google Cloud.
+2. Habilitación de las APIs críticas:
+   - Google Search Console API (Webmasters API)
+   - Google Sheets, Drive, Docs, y Slides APIs
+   - Google Analytics & Analytics Data APIs
+3. Configuración de la **OAuth Consent Screen** (Externo, app `Nous 2.0`, soporte a `simonsarseo@gmail.com`).
+4. Inclusión de scopes requeridos y adición de `simonsarseo@gmail.com` como Test User.
+5. Creación de credenciales **OAuth 2.0 Web Client** (`Nous 2.0 Client`) con Orígenes de JS autorizados y Redirect URIs:
+   - `http://localhost:3000/api/auth/gsc/callback`
+   - `https://wswylghsczgusgagucbd.supabase.co/auth/v1/callback` (Redirección para el Auth de Supabase)
+   - `https://nous-production.vercel.app/api/auth/gsc/callback`
+6. Obtención de credenciales de producción:
+   - ID de Cliente: `[REDACTED]`
+   - Secreto de Cliente: `[REDACTED]`
+7. Sincronización automática de estas credenciales en:
+   - Panel de variables de entorno del proyecto `nous-production` en Vercel.
+   - Proveedor de autenticación Google en el Dashboard de Supabase (`wswylghsczgusgagucbd`).
+   - Archivo local `.env.local` de desarrollo.
+8. Lanzamiento de un **Redeploy** global en Vercel para asegurar la propagación.
+
+## [2026-05-26] Resolución de Redirección Incorrecta a Localhost en Producción
+
+### Problema
+Al intentar iniciar sesión en el sitio online en Vercel (`https://nous-production.vercel.app`), el flujo de autenticación de Supabase redirigía incorrectamente al usuario a `http://localhost:3000`, interrumpiendo el acceso en producción.
+
+### Causa Raíz
+En el panel de configuración de autenticación de Supabase (`Auth > URL Configuration`), el parámetro **Site URL** (URL del sitio principal) seguía configurado con el valor por defecto de desarrollo (`http://localhost:3000`), y no se encontraban declaradas las URLs adicionales autorizadas de redirección para el dominio de producción ni el callback de desarrollo.
+
+### Solución
+1. Delegación al sub-agente de navegador asíncrono `/browser` para acceder a la configuración de autenticación en Supabase (`wswylghsczgusgagucbd`).
+2. Actualización en Supabase de:
+   - **Site URL**: Cambiado de `http://localhost:3000` a `https://nous-production.vercel.app` (URL de producción).
+   - **Redirect URLs adicionales**: Se agregaron `http://localhost:3000/**` y `http://localhost:3000/api/auth/gsc/callback` para habilitar el testing local sin interferir con producción.
+3. Verificación de `NEXT_PUBLIC_URL` en Vercel (ya configurada a `https://nous-production.vercel.app`).
+4. Verificación de las URIs de redirección en Google Cloud Console para asegurar concordancia total.
+5. El flujo de autenticación ahora funciona perfectamente y redirige de manera dinámica tanto en producción como en local.

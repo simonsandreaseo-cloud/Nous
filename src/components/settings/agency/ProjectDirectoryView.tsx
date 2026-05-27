@@ -10,9 +10,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/utils/cn";
+import { useState } from "react";
+import ProjectCreationModal from "./ProjectCreationModal";
 
 export default function ProjectDirectoryView() {
     const { projects, isLoading } = useProjectStore();
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     return (
         <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -94,13 +97,21 @@ export default function ProjectDirectoryView() {
                 ))}
 
                 {/* Empty State / Add Placeholder */}
-                <div className="bg-slate-50/50 rounded-xl border-2 border-dashed border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 hover:border-indigo-200 transition-all cursor-pointer group">
+                <div 
+                    onClick={() => setIsModalOpen(true)}
+                    className="bg-slate-50/50 rounded-xl border-2 border-dashed border-slate-200 p-8 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 hover:border-indigo-200 transition-all cursor-pointer group"
+                >
                     <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                         <Plus size={24} />
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-[0.2em]">Nuevo Proyecto de Marca</p>
                 </div>
             </div>
+
+            <ProjectCreationModal 
+                isOpen={isModalOpen} 
+                onClose={() => setIsModalOpen(false)} 
+            />
         </div>
     );
 }

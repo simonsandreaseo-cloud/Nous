@@ -30,8 +30,8 @@ CREATE TABLE IF NOT EXISTS project_urls (
 CREATE INDEX IF NOT EXISTS idx_project_urls_project_id ON project_urls(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_urls_strategic_score ON project_urls(strategic_score DESC);
 
--- 3. Update tasks table with JSONB fields for rich content data
-ALTER TABLE tasks 
+-- 3. Update content_tasks table with JSONB fields for rich content data
+ALTER TABLE content_tasks 
 ADD COLUMN IF NOT EXISTS research_dossier JSONB DEFAULT '{}'::jsonb,
 ADD COLUMN IF NOT EXISTS outline_structure JSONB DEFAULT '[]'::jsonb,
 ADD COLUMN IF NOT EXISTS quality_checklist JSONB DEFAULT '{}'::jsonb,
