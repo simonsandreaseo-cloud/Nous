@@ -85,17 +85,6 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
         setMounted(true);
     }, []);
 
-    useEffect(() => {
-        const cleanup = initialize();
-        
-        // Auto-fetch if user just logged in
-        if (user && teams.length === 0) {
-            fetchTeams();
-        }
-
-        return cleanup;
-    }, [initialize, user]);
-
     return (
         <motion.aside 
             animate={{ width: isCollapsed ? 72 : 240 }}
