@@ -41,7 +41,12 @@ export function usePermissions(projectId?: string) {
             try {
                 let userRole: any = null;
 
-                if (targetProject?.id && targetProject?.team_id) {
+                // 1. Direct Ownership (User created the project)
+                if (targetProject?.user_id === session.user.id) {
+                    userRole = 'owner';
+                }
+
+                if (!userRole && targetProject?.id && targetProject?.team_id) {
                     // Check project-specific team member role
                     const { data: memberData } = await supabase
                         .from('team_members')
@@ -50,7 +55,9 @@ export function usePermissions(projectId?: string) {
                         .eq('user_id', session.user.id)
                         .maybeSingle();
                     userRole = memberData?.role;
-                } else {
+                }
+                
+                if (!userRole) {
                     // Fallback: Check role in the globally active team
                     const activeTeam = useProjectStore.getState().activeTeam;
                     if (activeTeam) {
