@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { supabase } from "@/lib/supabase";
+import { GscSyncProgress } from "@/components/dashboard/GscSyncProgress";
 import { 
     Zap, 
     Link as LinkIcon, 
@@ -172,6 +173,13 @@ export default function ProjectConnectivityView() {
                                     <option key={site.url} value={site.url}>{site.url}</option>
                                 ))}
                             </select>
+                            
+                            {/* Sync Button UI */}
+                            {activeProject.gsc_site_url && (
+                                <div className="mt-4">
+                                    <GscSyncProgress />
+                                </div>
+                            )}
                         </div>
 
                         {/* GA4 Selection */}
