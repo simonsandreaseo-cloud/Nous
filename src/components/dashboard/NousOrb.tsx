@@ -30,6 +30,7 @@ import {
 import { cn } from '@/utils/cn';
 import { Task } from '@/types/project';
 import { NousOrbLite } from '@/components/canvas/NousOrbLite';
+import NousAssistantMenu from '@/components/dashboard/NousAssistantMenu';
 import { useAppStore } from '@/store/useAppStore';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -85,6 +86,8 @@ export default function NousOrb({
         researchTopic,
         researchPhaseId
     } = useWriterStore();
+
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const { activeProject } = useProjectStore();
     const i18nLanguages = activeProject?.i18n_settings?.languages || [];
@@ -251,6 +254,7 @@ export default function NousOrb({
                 )} />
                 
                 <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
                     className={cn(
                         "relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500",
                         "hover:scale-105 active:scale-95",
@@ -279,12 +283,57 @@ export default function NousOrb({
                 </button>
                 
                 {/* Minimal Notification Badge (Cyan Tech with Number) */}
-                {hasActions && !effectiveIsProcessing && (
-                    <div className="absolute top-2 right-2 bg-cyan-400 text-indigo-950 text-[10px] font-black rounded-full shadow-[0_0_15px_rgba(34,211,238,0.8)] pointer-events-none h-6 min-w-[24px] flex items-center justify-center px-1.5 ring-2 ring-white/20 z-50 tabular-nums animate-pulse">
-                        {effectiveSelectedCount > 0 ? effectiveSelectedCount : (stats.ideas + stats.needOutline + stats.needDraft + stats.needHuman)}
                     </div>
                 )}
             </div>
+
+            {/* Menu Popover for Batch Actions / Assistant */}
+            <AnimatePresence>
+                {isMenuOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="absolute bottom-[110%] right-0 w-[380px] bg-white/90 backdrop-blur-2xl border border-white/50 rounded-[32px] shadow-[0_32px_128px_rgba(79,70,229,0.15)] overflow-hidden flex flex-col z-[310] ring-1 ring-black/[0.03]"
+                    >
+                        {/* Header Elegante */}
+                        <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-indigo-50/20 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="relative w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-purple-500/10" />
+                                    <Sparkles size={20} className="text-indigo-500 relative z-10" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-black uppercase tracking-[0.15em] text-slate-800">Nous Assistant</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Acciones en Lote</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setIsMenuOpen(false)} className="p-2 bg-slate-100/50 hover:bg-slate-200/50 rounded-xl text-slate-500 hover:text-slate-800 transition-all">
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <NousAssistantMenu 
+                            viewMode={viewMode}
+                            tasks={tasks}
+                            onAction={(action, config) => {
+                                setIsMenuOpen(false); // Close menu when action starts
+                                onAction?.(action, config);
+                            }}
+                            onWriterAction={(action) => {
+                                setIsMenuOpen(false);
+                                onWriterAction?.(action);
+                            }}
+                            isProcessing={effectiveIsProcessing}
+                            processingProgress={effectiveProgress}
+                            selectedCount={selectedCount}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
