@@ -283,7 +283,7 @@ export const executeWithKeyRotation = async <T>(
     // Unify all hierarchy to avoid duplicates
     const finalHierarchy = Array.from(new Set(hierarchy.map(s => JSON.stringify(s)))).map(s => JSON.parse(s) as Step);
 
-    const envKeys = process.env.NOUS_API_KEYS || "";
+    const envKeys = process.env.NEXT_PUBLIC_NOUS_API_KEYS || process.env.NOUS_API_KEYS || "";
     console.log(`[AI-ORCHESTRATOR-DEBUG] NOUS_API_KEYS value length: ${envKeys.length}, starts with: ${envKeys.substring(0, 5)}`);
     const allKeys = envKeys ? envKeys.split(',').map(k => k.trim()).filter(isValidKey) : [];
     
@@ -425,7 +425,7 @@ export const executeWithImagenRotation = async <T>(
     if (keys) {
         currentPool = (Array.isArray(keys) ? keys : [keys]).filter(isValidKey);
     } else {
-        const envKeys = process.env.NOUS_API_KEYS || "";
+        const envKeys = process.env.NEXT_PUBLIC_NOUS_API_KEYS || process.env.NOUS_API_KEYS || "";
         if (envKeys) {
             currentPool = envKeys.split(',').map(k => k.trim()).filter(isValidKey);
         }

@@ -1,0 +1,2 @@
+ALTER TABLE public.tasks DROP CONSTRAINT IF EXISTS tasks_status_check;
+ALTER TABLE public.tasks ADD CONSTRAINT tasks_status_check CHECK (status IN ('idea', 'en_investigacion', 'investigacion_proceso', 'por_redactar', 'en_redaccion', 'por_corregir', 'por_maquetar', 'publicado', 'todo', 'drafting', 'review', 'done'));
