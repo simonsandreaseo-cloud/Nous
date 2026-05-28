@@ -283,8 +283,6 @@ export default function NousOrb({
                 </button>
                 
                 {/* Minimal Notification Badge (Cyan Tech with Number) */}
-                    </div>
-                )}
             </div>
 
             {/* Menu Popover for Batch Actions / Assistant */}
