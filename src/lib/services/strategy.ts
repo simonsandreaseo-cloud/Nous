@@ -135,7 +135,7 @@ Keyword: ${keyword || 'N/A'}`;
                     lsiKeywords: [],
                     top10Urls: []
                 },
-                status: 'en_investigacion'
+                status: 'idea'
             };
         }
     }
