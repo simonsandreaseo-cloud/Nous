@@ -52,7 +52,7 @@ export default function WriterEditor() {
         content, setContent, isGenerating, editorTab,
         strategyOutline, setEditor,
         statusMessage, linkedTaskId, isRemoteUpdate,
-        setWordCountReal, draftId
+        setWordCountReal, draftId, currentLanguage, contentVersions
     } = useWriterStore(useShallow(state => ({
         content: state.content,
         setContent: state.setContent,
@@ -64,7 +64,9 @@ export default function WriterEditor() {
         linkedTaskId: state.linkedTaskId,
         isRemoteUpdate: state.isRemoteUpdate,
         setWordCountReal: state.setWordCountReal,
-        draftId: state.draftId
+        draftId: state.draftId,
+        currentLanguage: state.currentLanguage,
+        contentVersions: state.contentVersions
     })));
     const [fullscreenImage, setFullscreenImage] = useState<any>(null);
 
