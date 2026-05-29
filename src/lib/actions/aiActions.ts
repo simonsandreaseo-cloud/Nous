@@ -1,5 +1,8 @@
 'use server';
 
+export const maxDuration = 300;
+export const runtime = 'edge';
+
 import { aiRouter } from "@/lib/ai/router";
 export type { 
     ArticleConfig, 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { generateArticleJSON } from '@/lib/actions/aiActions';
 
 export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s limit
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
     try {

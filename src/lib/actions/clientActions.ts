@@ -1,5 +1,8 @@
 'use server';
 
+export const maxDuration = 300;
+export const runtime = 'edge';
+
 import { Task } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 import { 
