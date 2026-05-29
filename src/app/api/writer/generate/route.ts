@@ -11,10 +11,40 @@ export async function POST(req: Request) {
 
         if (!prompt) return NextResponse.json({ error: 'Prompt required' }, { status: 400 });
 
-        const result = await generateArticleJSON(model, prompt, hierarchy);
+        const encoder = new TextEncoder();
         
-        return NextResponse.json({ text: result });
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        const stream = new ReadableStream({
+            async start(controller) {
+                // Enqueue an initial byte to start the stream immediately
+                controller.enqueue(encoder.encode(JSON.stringify({ type: 'status', message: 'Iniciando redacción...' }) + '\n'));
+                
+                // Set up a keep-alive interval to prevent Vercel from timing out
+                const keepAlive = setInterval(() => {
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'keep-alive' }) + '\n'));
+                }, 5000);
+
+                try {
+                    const result = await generateArticleJSON(model, prompt, hierarchy);
+                    clearInterval(keepAlive);
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', text: result }) + '\n'));
+                    controller.close();
+                } catch (err: any) {
+                    clearInterval(keepAlive);
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'error', error: err.message }) + '\n'));
+                    controller.close();
+                }
+            }
+        });
+
+        return new Response(stream, {
+            headers: {
+                'Content-Type': 'application/x-ndjson',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+            },
+        });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+

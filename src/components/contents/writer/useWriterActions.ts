@@ -253,20 +253,82 @@ export function useWriterActions() {
             const writingHierarchy = AI_CONFIG.gemini.hierarchies.writing;
             const modelToUse = store.researchMode === 'rapid' ? 'gemma-4-31b-it' : writingHierarchy[0];
             
-            // Replaced streaming loop with direct JSON Server Action
+            // Replaced streaming loop with direct JSON Server Action -> Now using Edge API Route to bypass 60s limit
             store.setStatus('Redactando contenido base... (Espere unos segundos)');
             
             let finalHtml = "";
             try {
-                // Remove fallback to Server Actions for direct execution 
-                finalHtml = await generateArticleJSON(modelToUse, prompt, writingHierarchy);
+                const response = await fetch('/api/writer/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, model: modelToUse, hierarchy: writingHierarchy })
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.body) throw new Error("No se pudo iniciar el stream del servidor.");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const parsed = JSON.parse(line);
+                            if (parsed.type === 'error') throw new Error(parsed.error);
+                            if (parsed.type === 'done') finalHtml = parsed.text;
+                        } catch (e) {
+                            // Ignorar errores de parseo de chunks incompletos
+                        }
+                    }
+                }
+                
+                if (!finalHtml) throw new Error("No se generó contenido válido.");
             } catch (err) {
                 console.error('[Generate] Fallback triggered', err);
                 store.setStatus('⚠️ Interrupción detectada. Aplicando Fallback de continuación...');
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
                 const fallbackModel = writingHierarchy.length > 1 ? writingHierarchy[1] : writingHierarchy[0];
-                finalHtml = await generateArticleJSON(fallbackModel, prompt, writingHierarchy);
+                const fallbackResponse = await fetch('/api/writer/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, model: fallbackModel, hierarchy: writingHierarchy })
+                });
+                
+                if (!fallbackResponse.ok || !fallbackResponse.body) throw new Error("Fallback falló al iniciar stream.");
+                
+                const fallbackReader = fallbackResponse.body.getReader();
+                const fallbackDecoder = new TextDecoder();
+                let fallbackBuffer = '';
+
+                while (true) {
+                    const { done, value } = await fallbackReader.read();
+                    if (done) break;
+                    
+                    fallbackBuffer += fallbackDecoder.decode(value, { stream: true });
+                    const lines = fallbackBuffer.split('\n');
+                    fallbackBuffer = lines.pop() || '';
+                    
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const parsed = JSON.parse(line);
+                            if (parsed.type === 'error') throw new Error(parsed.error);
+                            if (parsed.type === 'done') finalHtml = parsed.text;
+                        } catch (e) {}
+                    }
+                }
+                
+                if (!finalHtml) throw new Error("Fallback no generó contenido válido.");
             }
 
             store.setStatus('Procesando y limpiando HTML...');
