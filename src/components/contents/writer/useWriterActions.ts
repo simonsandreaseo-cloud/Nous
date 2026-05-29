@@ -348,7 +348,7 @@ export function useWriterActions() {
 
             // --- PHASE 3: SEO POST-PROCESSING & POLISHING ---
             store.setStatus('Generando vínculos interlinking...');
-            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+            await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
             
             const linked = await autoInterlinkAsync(
                 cleanHtml, 
@@ -358,7 +358,7 @@ export function useWriterActions() {
                 activeProject
             );
             
-            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+            await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
             
             store.setAnalyzingSEO(true);
             store.addDebugPrompt('Fase 2: Refinamiento SEO', `Optimizando con keywords: ${config.topic}, LSI: ${config.lsiKeywords?.join(', ')}. Enlaces aprobados: ${finalApprovedLinks.length}`);
@@ -373,7 +373,7 @@ export function useWriterActions() {
             const activeExtractorRules = NousExtractorService.getActiveRulesForPhase(activeProject, 'writer');
             if (activeExtractorRules.length > 0) {
                 store.setStatus('Ejecutando extractores de datos...');
-                await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+                await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
                 finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
             }
 
@@ -395,7 +395,7 @@ export function useWriterActions() {
             const patchers = LinkPatcherService.getPatchersForProcess(activeProject, 'writer');
             if (patchers.length > 0 && store.editor) {
                 store.setStatus('Normalizando URLs con Nous Patcher...');
-                await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+                await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
                 try {
                     for (const patcher of patchers) {
                         await LinkPatcherService.processEditorLinks(store.editor, patcher, 'apply');

@@ -164,9 +164,15 @@ export const autoInterlinkAsync = async (
 
     let linkCount = 0;
     const MAX_LINKS = 12; // Reduced slightly for better quality/performance balance
+    let nodeCount = 0;
 
-    const walk = (node: Node) => {
+    const walk = async (node: Node) => {
         if (linkCount >= MAX_LINKS) return;
+
+        nodeCount++;
+        if (nodeCount % 30 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0)); // Yield to unblock main thread
+        }
 
         if (node.nodeType === Node.ELEMENT_NODE) {
             const el = node as Element;
@@ -176,7 +182,7 @@ export const autoInterlinkAsync = async (
             
             const children = Array.from(node.childNodes);
             for (const child of children) {
-                walk(child);
+                await walk(child);
             }
         } else if (node.nodeType === Node.TEXT_NODE) {
             const text = node.textContent || '';
@@ -235,6 +241,6 @@ export const autoInterlinkAsync = async (
         }
     };
 
-    walk(doc.body);
+    await walk(doc.body);
     return doc.body.innerHTML;
 };
