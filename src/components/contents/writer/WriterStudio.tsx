@@ -197,11 +197,11 @@ export default function WriterStudio() {
     const {
         isSidebarOpen, toggleSidebar, isSaving, lastSaved,
         keyword, strategyH1, draftId, viewMode, setViewMode, rawSeoData,
-        editorTab, setEditorTab, content, activeUsers, setActiveUsers,
-        strategyOutline, strategyTitle, strategySlug, strategyDesc, strategyExcerpt, strategyLinks,
+        editorTab, setEditorTab, activeUsers, setActiveUsers,
+        strategyTitle, strategySlug, strategyDesc, strategyExcerpt, strategyLinks,
         strategyNotes, setIsRemoteUpdate, setStatus, setSaving, isGenerating,
         isAnalyzingSEO, isPlanningStructure, isHumanizing, isRefining, nousExtractorFindings,
-        wordCountReal, activeSidebarTab, setSidebarTab,
+        activeSidebarTab, setSidebarTab,
         currentLanguage, contentVersions, switchLanguage,
         projectId, csvData, loadProjectInventory, loadContentById,
         redactorUI, setRedactorUI, leftSidebarWidth, setLeftSidebarWidth, 
@@ -222,7 +222,6 @@ export default function WriterStudio() {
         setEditorTab: state.setEditorTab,
         activeUsers: state.activeUsers,
         setActiveUsers: state.setActiveUsers,
-        strategyOutline: state.strategyOutline,
         strategyTitle: state.strategyTitle,
         strategySlug: state.strategySlug,
         strategyDesc: state.strategyDesc,
@@ -263,6 +262,8 @@ export default function WriterStudio() {
         status: (state as any).status,
         updateTaskStatus: (state as any).updateTaskStatus
     })));
+
+    const hasOutline = useWriterStore(state => state.strategyOutline.length > 0);
 
     const [isStatusOpen, setIsStatusOpen] = useState(false);
 
@@ -620,7 +621,7 @@ export default function WriterStudio() {
                                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="hidden xl:flex items-center gap-4 px-3 py-1 bg-slate-50/50 rounded-xl border border-slate-200/40">
                                         <div className="flex items-center gap-1.5 pr-3 border-r border-slate-200/50">
                                             <StepIcon active={isAnalyzingSEO} done={!!rawSeoData && !isAnalyzingSEO} icon={Search} label="SEO" />
-                                            <StepIcon active={isPlanningStructure} done={strategyOutline.length > 0 && !isPlanningStructure} icon={Layout} label="OUTLINE" />
+                                            <StepIcon active={isPlanningStructure} done={hasOutline && !isPlanningStructure} icon={Layout} label="OUTLINE" />
                                             <StepIcon active={isDrafting} done={(hasGenerated || isPostProd) && !isDrafting} icon={FileText} label="DRAFT" />
                                             <StepIcon active={isPostProd} done={hasGenerated && !isPostProd} icon={Zap} label="FINAL" />
                                         </div>
