@@ -462,11 +462,6 @@ export default function WriterStudio() {
         return () => clearInterval(interval);
     }, [draftId, setSaving, setStatus, updateTask]);
 
-    useEffect(() => {
-        if (projectId && (!projects || projects.length === 0)) {
-            loadProjects();
-        }
-    }, [projectId, projects?.length, loadProjects]); 
 
     useEffect(() => { if (redactorUI === 'standard' && viewMode === 'dashboard') setViewMode('workspace'); }, [redactorUI, viewMode, setViewMode]);
 
