@@ -70,23 +70,6 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
                 .ProseMirror strong { font-weight: 900 !important; color: #0f172a; }
                 .ProseMirror a { 
                     color: #2563eb !important; 
-                    text-decoration: underline !important; 
-                    text-underline-offset: 4px !important;
-                    text-decoration-thickness: 2px !important;
-                    font-weight: 700 !important;
-                    transition: all 0.2s ease;
-                }
-                .ProseMirror a:hover { 
-                    color: #1d4ed8 !important; 
-                    background-color: #eff6ff;
-                    text-decoration-thickness: 3px !important;
-                }
-            `}</style>
-
-            {/* Toolbar */}
-            <div className="flex items-center justify-between p-2 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center gap-1">
-                    <button
                         onClick={() => editor.chain().focus().toggleBold().run()}
                         className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('bold') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
                     >

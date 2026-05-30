@@ -591,6 +591,37 @@ export default function WriterEditor() {
                         outline: 4px solid #6366f1;
                         outline-offset: 4px;
                     }
+                    .ProseMirror table {
+                        border-collapse: collapse;
+                        table-layout: fixed;
+                        width: 100%;
+                        margin: 2rem 0;
+                        overflow: hidden;
+                    }
+                    .ProseMirror table td,
+                    .ProseMirror table th {
+                        min-width: 1em;
+                        border: 1px solid #cbd5e1;
+                        padding: 8px 12px;
+                        vertical-align: top;
+                        box-sizing: border-box;
+                        position: relative;
+                    }
+                    .ProseMirror table th {
+                        font-weight: 700;
+                        text-align: left;
+                        background-color: #f8fafc;
+                        color: #1e293b;
+                    }
+                    .ProseMirror table .column-resize-handle {
+                        position: absolute;
+                        right: -2px;
+                        top: 0;
+                        bottom: 0;
+                        width: 4px;
+                        background-color: #cbd5e1;
+                        pointer-events: none;
+                    }
                 `}</style>
                  <EditorContent editor={editor} className="relative" />
 

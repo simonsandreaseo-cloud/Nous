@@ -15,6 +15,10 @@ import { FontFamily } from '@tiptap/extension-font-family';
 import { CharacterCount } from '@tiptap/extension-character-count';
 import { NousAsset } from './tiptap-nous-asset';
 import { ImageSlot } from './tiptap-image-slot';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
 
 // Custom FontSize Extension
 declare module '@tiptap/core' {
@@ -103,4 +107,10 @@ export const getSharedExtensions = (placeholder: string) => [
   CharacterCount,
   NousAsset,
   ImageSlot,
+  Table.configure({
+    resizable: true,
+  }),
+  TableRow,
+  TableHeader,
+  TableCell,
 ];
