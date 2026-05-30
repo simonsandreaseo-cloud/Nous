@@ -37,11 +37,16 @@ export class NousExtractorService {
                 }))
             };
 
-            const { data, error } = await supabase.functions.invoke('logic-bridge-extractor', {
-                body: payload
+            // Llama a la ruta de API de Next.js en lugar de la Edge Function para evitar dependencias de Docker/CLI
+            const response = await fetch('/api/tools/extractor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
-
-            if (error) throw error;
+            
+            const data = await response.json();
+            if (!response.ok || data.error) throw new Error(data.error || 'Error en la extracción');
+            
             return data as NousExtractorResponse;
         } catch (e: any) {
             console.error('[NousExtractorService] Extraction error:', e);
