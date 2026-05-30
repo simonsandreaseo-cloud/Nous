@@ -510,34 +510,60 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    const chunks = chunkHtml(html, 3);
-    safeStatus(`Iniciando pipeline en ${chunks.length} bloques con modelo flash-lite...`);
+    safeStatus(`Iniciando pipeline de humanización (Documento completo) con modelo ${modelName}...`);
+    const start = Date.now();
     
-    const finalizedChunks: string[] = [];
-    
-    for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        if (isTrivialChunk(chunk)) {
-            finalizedChunks.push(chunk);
-            continue;
-        }
+    try {
+        const processed = await executeHumanizerWithRetry(async (ai) => {
+            const model = ai.getGenerativeModel({ 
+                model: modelName, 
+                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                generationConfig: {}
+            });
+            
+            const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este ARTÍCULO HTML COMPLETO: ${html}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación global) y 'html' (el artículo completo humanizado en crudo).`;
+            const response = await model.generateContent(prompt);
+            
+            let raw = response.response.text();
+            const jsonStart = raw.indexOf('{');
+            const jsonEnd = raw.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                raw = raw.substring(jsonStart, jsonEnd + 1);
+            }
+            
+            let htmlOutput = "";
+            try {
+                const parsed = JSON.parse(raw);
+                htmlOutput = parsed.html || html; 
+            } catch (err) {
+                console.error("[Humanizer] Failed to parse JSON:", raw);
+                htmlOutput = html; 
+            }
+            
+            return cleanAndFormatHtml(htmlOutput);
+        }, safeStatus, `Humanización Full`);
         
-        const start = Date.now();
-        safeStatus(`Procesando bloque ${i + 1}/${chunks.length}...`);
+        const duration = (Date.now() - start) / 1000;
+        console.log(`[Humanizer-Perf] Completado en ${duration}s`);
         
+        if (onChunk) onChunk(processed);
+        return { html: processed };
+        
+    } catch (e: any) {
+        safeStatus(`Error en humanización: ${e.message}. Aplicando fallback de rescate con modelo alternativo...`);
         try {
-            const processed = await executeHumanizerWithRetry(async (ai) => {
+            // FALLBACK: Resume using a lighter/different model
+            const processedFallback = await executeHumanizerWithRetry(async (ai) => {
                 const model = ai.getGenerativeModel({ 
-                    model: 'gemma-4-31b-it', // Usuario requiere estrictamente Gemma por calidad humana
+                    model: 'gemma-4-31b-it', // Fallback model
                     systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
                     generationConfig: {}
                 });
                 
-                const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este fragmento HTML: ${chunk}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación) y 'html' (la versión final humanizada en crudo).`;
+                const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este ARTÍCULO HTML COMPLETO: ${html}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación) y 'html' (la versión final humanizada en crudo).`;
                 const response = await model.generateContent(prompt);
                 
                 let raw = response.response.text();
-                // Extraer solo la parte JSON en caso de que el modelo haya añadido prefacios a pesar del jsonMode
                 const jsonStart = raw.indexOf('{');
                 const jsonEnd = raw.lastIndexOf('}');
                 if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -547,67 +573,22 @@ export const runHumanizerPipeline = async (
                 let htmlOutput = "";
                 try {
                     const parsed = JSON.parse(raw);
-                    htmlOutput = parsed.html || chunk; // Si falla la clave, devolvemos el chunk por seguridad
+                    htmlOutput = parsed.html || html; 
                 } catch (err) {
-                    console.error("[Humanizer] Failed to parse JSON:", raw);
-                    htmlOutput = chunk; // Fallback ante error de parseo crítico
+                    htmlOutput = html; 
                 }
                 
                 return cleanAndFormatHtml(htmlOutput);
-            }, safeStatus, `Humanización Bloque ${i + 1}`);
+            }, safeStatus, `Humanización Fallback Full`);
             
-            const duration = (Date.now() - start) / 1000;
-            console.log(`[Humanizer-Perf] Bloque ${i + 1} completado en ${duration}s`);
+            if (onChunk) onChunk(processedFallback);
+            return { html: processedFallback };
             
-            finalizedChunks.push(processed);
-            if (onChunk) onChunk(processed);
-        } catch (e: any) {
-            safeStatus(`Error procesando bloque ${i + 1}: ${e.message}. Aplicando fallback de rescate con modelo alternativo...`);
-            try {
-                // FALLBACK: Resume where it left off using a lighter/different model (flash-lite)
-                const processedFallback = await executeHumanizerWithRetry(async (ai) => {
-                    const model = ai.getGenerativeModel({ 
-                        model: 'gemma-4-31b-it', // Fallback model
-                        systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
-                        generationConfig: {}
-                    });
-                    
-                    const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este fragmento HTML: ${chunk}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación) y 'html' (la versión final humanizada en crudo).`;
-                    const response = await model.generateContent(prompt);
-                    
-                    let raw = response.response.text();
-                    const jsonStart = raw.indexOf('{');
-                    const jsonEnd = raw.lastIndexOf('}');
-                    if (jsonStart !== -1 && jsonEnd !== -1) {
-                        raw = raw.substring(jsonStart, jsonEnd + 1);
-                    }
-                    
-                    let htmlOutput = "";
-                    try {
-                        const parsed = JSON.parse(raw);
-                        htmlOutput = parsed.html || chunk; 
-                    } catch (err) {
-                        htmlOutput = chunk; 
-                    }
-                    
-                    return cleanAndFormatHtml(htmlOutput);
-                }, safeStatus, `Humanización Fallback Bloque ${i + 1}`);
-                
-                finalizedChunks.push(processedFallback);
-                if (onChunk) onChunk(processedFallback);
-            } catch (fallbackError) {
-                safeStatus(`Fallback también falló en bloque ${i + 1}. Conservando original y abortando...`);
-                // If fallback also fails, then we append the remaining unprocessed chunks so data is not lost
-                for (let j = i; j < chunks.length; j++) {
-                    finalizedChunks.push(chunks[j]);
-                    if (onChunk) onChunk(chunks[j]);
-                }
-                break; // Break the loop but complete the pipeline successfully
-            }
+        } catch (fallbackError) {
+            safeStatus(`Fallback también falló. Conservando original y abortando...`);
+            return { html: html };
         }
     }
-    
-    return { html: finalizedChunks.join('\n') };
 };
 
 export const runSmartEditor = async (
@@ -615,7 +596,7 @@ export const runSmartEditor = async (
     percentage: number,
     notes: string,
     onStatus?: (msg: string) => void,
-    isStrictMode?: boolean,
+    isStrictMode: boolean = false,
     strictFrequency?: number,
     lsiKeywords?: string[],
     questions?: string[]
@@ -636,70 +617,52 @@ export const runSmartEditor = async (
         `;
     }
     
-    const chunks = chunkHtml(html, 3);
-    const finalizedChunks: string[] = [];
+    safeStatus(`Iniciando Edición Inteligente (Documento completo)...`);
     
-    safeStatus(`Iniciando Edición Inteligente en ${chunks.length} bloques...`);
-    
-    for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        if (isTrivialChunk(chunk)) {
-            finalizedChunks.push(chunk);
-            continue;
-        }
-        
-        safeStatus(`Editando bloque ${i + 1}/${chunks.length}...`);
-        
-        try {
-            const processed = await executeWithKeyRotation(async (ai, currentModel) => {
-                const model = ai.getGenerativeModel({
-                    model: currentModel,
-                    systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Senior experto en HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
-                    generationConfig: {}
-                });
-                
-                const prompt = `
-                TASK: Eres un Editor Senior. Tu tarea es mejorar este fragmento HTML de un artículo mayor.
-                
-                Intensidad de edición: ${percentage}%
-                Instrucciones específicas: ${notes}
-                ${strictInstructions}
-                
-                REGLA DE ORO: Mantén intacta la estructura HTML (enlaces, imágenes, listas).
-                IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis) y 'html' (el chunk editado).
-                
-                CHUNK HTML A EDITAR:
-                ${chunk}
-                `;
-                
-                const response = await model.generateContent(prompt);
-                let raw = response.response.text();
-                
-                const jsonStart = raw.indexOf('{');
-                const jsonEnd = raw.lastIndexOf('}');
-                if (jsonStart !== -1 && jsonEnd !== -1) {
-                    raw = raw.substring(jsonStart, jsonEnd + 1);
-                }
-                
-                try {
-                    const parsed = JSON.parse(raw);
-                    return parsed.html || chunk;
-                } catch (e) {
-                    return chunk;
-                }
-            }, 'default', undefined, undefined, false, `Edición Inteligente Bloque ${i+1}`);
+    try {
+        const processed = await executeWithKeyRotation(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({
+                model: currentModel,
+                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Senior experto en HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                generationConfig: {}
+            });
             
-            finalizedChunks.push(processed);
-        } catch (e: any) {
-            safeStatus(`Error en edición bloque ${i + 1}: ${e.message}. Aplicando fallback de rescate...`);
-            for (let j = i; j < chunks.length; j++) {
-                finalizedChunks.push(chunks[j]);
+            const prompt = `
+            TASK: Eres un Editor Senior. Tu tarea es mejorar este ARTÍCULO HTML COMPLETO.
+            
+            Intensidad de edición: ${percentage}%
+            Instrucciones específicas: ${notes}
+            ${strictInstructions}
+            
+            REGLA DE ORO: Mantén intacta la estructura HTML (enlaces, imágenes, listas).
+            IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis) y 'html' (el artículo editado).
+            
+            ARTÍCULO HTML A EDITAR:
+            ${html}
+            `;
+            
+            const response = await model.generateContent(prompt);
+            let raw = response.response.text();
+            
+            const jsonStart = raw.indexOf('{');
+            const jsonEnd = raw.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                raw = raw.substring(jsonStart, jsonEnd + 1);
             }
-            break;
-        }
+            
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed.html || html;
+            } catch (e) {
+                return html;
+            }
+        }, 'default', undefined, undefined, false, `Edición Inteligente Full`);
+        
+        return processed;
+    } catch (e: any) {
+        safeStatus(`Error en edición: ${e.message}. Devolviendo original por seguridad.`);
+        return html;
     }
-    
-    return finalizedChunks.join('\n');
 };
 
 export const runSEOPostProcessor = async (
@@ -715,93 +678,70 @@ export const runSEOPostProcessor = async (
     const approvedLinks = config.approvedLinks || [];
     const linkList = approvedLinks.map(l => `- URL: ${l.url} | Anchor ideal: ${l.title}`).join('\n');
     
-    const chunks = chunkHtml(html, 3);
-    const finalizedChunks: string[] = [];
+    safeStatus(`Iniciando post-procesado SEO (Documento completo)...`);
     
-    safeStatus(`Iniciando post-procesado SEO en ${chunks.length} bloques...`);
-    
-    for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        if (isTrivialChunk(chunk)) {
-            finalizedChunks.push(chunk);
-            continue;
-        }
-        
-        safeStatus(`Post-procesando bloque ${i + 1}/${chunks.length}...`);
-        
-        try {
-            const processed = await executeWithKeyRotation(async (ai, currentModel) => {
-                let positionalRule = "";
-                const model = ai.getGenerativeModel({
-                    model: currentModel,
-                    systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor SEO Senior experto en HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
-                    generationConfig: { 
-                        temperature: 0.15
-                    } 
-                });
-                if (i === 0) {
-                    positionalRule = `1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer párrafo si no está ya.`;
-                } else if (i === chunks.length - 1) {
-                    positionalRule = `1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el último párrafo si no está ya.`;
-                }
-                
-                const prompt = `
-                TASK: As a Senior SEO Editor, perform a final polish on this specific HTML chunk of an article.
-                
-                CRITICAL RULES PARA NEGRILLAS (<strong>):
-                1. Las negritas deben resaltar frases clave de entre 4 y 8 palabras.
-                2. Máximo 1 bloque de negritas por párrafo de 40-60 palabras.
-                3. Nunca pongas negritas en la primera ni última palabra de un párrafo.
-                4. NO pongas negritas en encabezados (H2, H3), blockquotes ni listas.
-                5. Prioriza resaltar conceptos con las palabras clave objetivo.
-                
-                CRITICAL RULES PARA SEO & LSI:
-                ${positionalRule}
-                2. Inserta o refuerza las siguientes palabras clave LSI y semánticas si es posible sin forzar: [${config.lsiKeywords?.join(', ') || 'N/A'}]
-                3. Mantén la densidad alta pero legible.
-                
-                INTEGRIDAD ESTRUCTURAL Y ENLACES (VITAL):
-                1. MANTÉN INTACTOS TODOS LOS ENLACES <a> PRESENTES. No cambies sus URLs ni los elimines.
-                2. PROHIBIDO: NO inventes nuevos enlaces. NO uses enlaces que empiecen por "#".
-                3. Si ves un enlace que NO estaba en la versión original o que usa "#", ELIMÍNALO y deja solo el texto plano. 
-                4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia):
-                   ${linkList}
-                5. Mantén todas las imágenes e IDs de elementos.
-                
-                IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis SEO) y 'html' (el chunk optimizado).
-                
-                CHUNK HTML TO POLISH:
-                ${chunk}
-                `;
-                const response = await model.generateContent(prompt);
-                let raw = response.response.text();
-                
-                const jsonStart = raw.indexOf('{');
-                const jsonEnd = raw.lastIndexOf('}');
-                if (jsonStart !== -1 && jsonEnd !== -1) {
-                    raw = raw.substring(jsonStart, jsonEnd + 1);
-                }
-                
-                try {
-                    const parsed = JSON.parse(raw);
-                    return parsed.html || chunk;
-                } catch (e) {
-                    return chunk;
-                }
-            }, 'default', undefined, undefined, false, `SEO Post-Procesado Bloque ${i+1}`);
+    try {
+        const processed = await executeWithKeyRotation(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({
+                model: currentModel,
+                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor SEO Senior experto en HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                generationConfig: { 
+                    temperature: 0.15
+                } 
+            });
             
-            finalizedChunks.push(processed);
-        } catch (e: any) {
-            safeStatus(`Error en post-proceso bloque ${i + 1}: ${e.message}. Aplicando fallback de rescate...`);
-            // Fallback para evitar pérdida de datos si el modelo falla por límite de tiempo/tokens
-            for (let j = i; j < chunks.length; j++) {
-                finalizedChunks.push(chunks[j]);
+            const positionalRule = `1. Asegura que la palabra clave principal ("${config.topic}") aparezca de forma natural en el primer párrafo (introducción) y en el último párrafo (conclusión) si no está ya presente.`;
+            
+            const prompt = `
+            TASK: As a Senior SEO Editor, perform a final polish on this entire HTML article.
+            
+            CRITICAL RULES PARA NEGRILLAS (<strong>):
+            1. Las negritas deben resaltar frases clave de entre 4 y 8 palabras.
+            2. Máximo 1 bloque de negritas por párrafo de 40-60 palabras.
+            3. Nunca pongas negritas en la primera ni última palabra de un párrafo.
+            4. NO pongas negritas en encabezados (H2, H3), blockquotes ni listas.
+            5. Prioriza resaltar conceptos con las palabras clave objetivo.
+            
+            CRITICAL RULES PARA SEO & LSI:
+            ${positionalRule}
+            2. Inserta o refuerza las siguientes palabras clave LSI y semánticas a lo largo del texto sin forzar: [${config.lsiKeywords?.join(', ') || 'N/A'}]
+            3. Mantén la densidad alta pero legible.
+            
+            INTEGRIDAD ESTRUCTURAL Y ENLACES (VITAL):
+            1. MANTÉN INTACTOS TODOS LOS ENLACES <a> PRESENTES. No cambies sus URLs ni los elimines.
+            2. PROHIBIDO: NO inventes nuevos enlaces. NO uses enlaces que empiecen por "#".
+            3. Si ves un enlace que NO estaba en la versión original o que usa "#", ELIMÍNALO y deja solo el texto plano. 
+            4. ESTOS SON LOS ÚNICOS ENLACES VÁLIDOS (Solo para referencia):
+               ${linkList}
+            5. Mantén todas las imágenes e IDs de elementos.
+            
+            IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis SEO global) y 'html' (el artículo completo optimizado).
+            
+            ARTÍCULO HTML TO POLISH:
+            ${html}
+            `;
+            const response = await model.generateContent(prompt);
+            let raw = response.response.text();
+            
+            const jsonStart = raw.indexOf('{');
+            const jsonEnd = raw.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                raw = raw.substring(jsonStart, jsonEnd + 1);
             }
-            break;
-        }
+            
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed.html || html;
+            } catch (e) {
+                return html;
+            }
+        }, 'default', undefined, undefined, false, `SEO Post-Procesado Full`);
+        
+        return processed;
+    } catch (e: any) {
+        safeStatus(`Error en post-proceso: ${e.message}. Devolviendo original por seguridad.`);
+        return html;
     }
-    
-    return finalizedChunks.join('\n');
 };
 
 export const runTranslationAction = async (
