@@ -224,9 +224,16 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
             return;
         }
 
-        // Optimistic update: merging locally
+        const lightUpdates = { ...finalUpdates };
+        delete lightUpdates.content_body;
+        delete lightUpdates.research_dossier;
+        delete lightUpdates.outline_structure;
+        delete lightUpdates.seo_data;
+        delete lightUpdates.schemas;
+
+        // Optimistic update: merging locally with LIGHT data only to prevent UI freezes
         set(state => ({
-            tasks: state.tasks.map(t => t.id === taskId ? { ...t, ...finalUpdates } as Task : t)
+            tasks: state.tasks.map(t => t.id === taskId ? { ...t, ...lightUpdates } as Task : t)
         }));
     },
 

@@ -410,6 +410,7 @@ export default function WriterStudio() {
             }
 
             const currentLocal = useWriterStore.getState().content || '';
+            if (currentLocal === newContent) return; // Fast-path para evitar regex lenta
             
             // Normalización para evitar falsos positivos por espacios o saltos de línea diferentes
             const cleanLocal = currentLocal.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
@@ -450,11 +451,12 @@ export default function WriterStudio() {
             };
             
             setSaving(true);
+            lastSavedContent = latestState.content; // Assign early to prevent overlapping timers from sending twice
             try { 
                 await updateTask(draftId, payload); 
-                lastSavedContent = latestState.content;
             } catch (e) { 
                 setStatus('❌ Error al guardar'); 
+                lastSavedContent = ''; // Reset on error so it tries again
             } finally { 
                 setSaving(false); 
             }
