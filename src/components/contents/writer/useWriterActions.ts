@@ -205,13 +205,7 @@ export function useWriterActions() {
             });
 
             // Ensure we have at least 15-20 relevant links to provide the AI
-            const topInventoryLinks = selectTopRelevantLinks(h1, store.csvData, 25);
-            const combinedLinksMap = new Map();
-            researchLinks.forEach(l => combinedLinksMap.set(l.url, l));
-            topInventoryLinks.forEach(l => {
-                if (!combinedLinksMap.has(l.url)) combinedLinksMap.set(l.url, l);
-            });
-            const finalApprovedLinks = Array.from(combinedLinksMap.values()).slice(0, 20);
+            const finalApprovedLinks = researchLinks.slice(0, 20);
 
             const config: ArticleConfig = {
                 projectName: store.projectName, niche: store.detectedNiche, topic: h1,
@@ -220,7 +214,7 @@ export function useWriterActions() {
                 tone: store.strategyTone || 'Profesional',
                 wordCount: store.strategyWordCount,
                 refUrls: store.strategyCompetitors, refContent: store.strategyNotes,
-                csvData: store.csvData, outlineStructure: store.strategyOutline,
+                csvData: [], outlineStructure: store.strategyOutline,
                 approvedLinks: finalApprovedLinks,
                 questions: store.strategyQuestions,
                 lsiKeywords: store.strategyLSI.map((l) => l.keyword).concat(store.strategyLongTail),

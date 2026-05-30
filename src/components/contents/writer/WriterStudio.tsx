@@ -203,7 +203,7 @@ export default function WriterStudio() {
         isAnalyzingSEO, isPlanningStructure, isHumanizing, isRefining, nousExtractorFindings,
         activeSidebarTab, setSidebarTab,
         currentLanguage, contentVersions, switchLanguage,
-        projectId, csvData, loadProjectInventory, loadContentById,
+        projectId, loadContentById,
         redactorUI, setRedactorUI, leftSidebarWidth, setLeftSidebarWidth, 
         rightSidebarWidth, setRightSidebarWidth, isToolboxOpen, toggleToolbox,
         deleteVersion, parentTaskId, statusMessage, hasGenerated, status, updateTaskStatus
@@ -244,7 +244,6 @@ export default function WriterStudio() {
         switchLanguage: state.switchLanguage,
         projectId: state.projectId,
         csvData: state.csvData,
-        loadProjectInventory: state.loadProjectInventory,
         loadContentById: state.loadContentById,
         
         redactorUI: state.redactorUI,
@@ -463,15 +462,11 @@ export default function WriterStudio() {
         return () => clearInterval(interval);
     }, [draftId, setSaving, setStatus, updateTask]);
 
-    /* 
-    // DISABLED: Loading full inventory (250k+ URLs) into the browser kills egress and performance.
-    // We now use the optimized RPC get_semantic_inventory_matches_v3 for interlinking.
-    useEffect(() => { 
-        if (projectId && (!csvData || csvData.length === 0)) {
-            loadProjectInventory(projectId); 
+    useEffect(() => {
+        if (projectId && (!projects || projects.length === 0)) {
+            loadProjects();
         }
-    }, [projectId, csvData?.length, loadProjectInventory]); 
-    */
+    }, [projectId, projects?.length, loadProjects]); 
 
     useEffect(() => { if (redactorUI === 'standard' && viewMode === 'dashboard') setViewMode('workspace'); }, [redactorUI, viewMode, setViewMode]);
 
