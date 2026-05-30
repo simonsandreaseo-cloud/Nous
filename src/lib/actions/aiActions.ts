@@ -98,7 +98,8 @@ export async function executeWithKeyRotation<T>(
 export async function executeHumanizerWithRetry<T>(
     operation: (client: any, currentModel: string) => Promise<T>,
     onStatus?: (msg: string) => void,
-    label: string = 'Redacción Humanización'
+    label: string = 'Redacción Humanización',
+    modelName: string = 'gemini-3.5-flash'
 ): Promise<T> {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -110,7 +111,7 @@ export async function executeHumanizerWithRetry<T>(
         try {
             return await executeWithKeyRotation(
                 operation,
-                'gemma-4-31b-it',
+                modelName,
                 undefined,
                 undefined,
                 undefined,
@@ -502,7 +503,7 @@ export const runHumanizerPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus?: (msg: string) => void,
-    modelName: string = 'gemma-4-31b-it', 
+    modelName: string = 'gemini-3.5-flash', 
     onChunk?: (chunkHtml: string) => void
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
@@ -541,7 +542,7 @@ export const runHumanizerPipeline = async (
             }
             
             return cleanAndFormatHtml(htmlOutput);
-        }, safeStatus, `Humanización Full`);
+        }, safeStatus, `Humanización Full`, modelName);
         
         const duration = (Date.now() - start) / 1000;
         console.log(`[Humanizer-Perf] Completado en ${duration}s`);
@@ -555,7 +556,7 @@ export const runHumanizerPipeline = async (
             // FALLBACK: Resume using a lighter/different model
             const processedFallback = await executeHumanizerWithRetry(async (ai) => {
                 const model = ai.getGenerativeModel({ 
-                    model: 'gemma-4-31b-it', // Fallback model
+                    model: 'gemini-3.5-flash', // Fallback model
                     systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
                     generationConfig: {}
                 });
@@ -579,7 +580,7 @@ export const runHumanizerPipeline = async (
                 }
                 
                 return cleanAndFormatHtml(htmlOutput);
-            }, safeStatus, `Humanización Fallback Full`);
+            }, safeStatus, `Humanización Fallback Full`, 'gemini-3.5-flash');
             
             if (onChunk) onChunk(processedFallback);
             return { html: processedFallback };
