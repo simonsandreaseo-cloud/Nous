@@ -49,7 +49,7 @@ const StepIcon = ({ active, done, icon: Icon, label }: any) => (
 
 export default function WriterEditor() {
     const { 
-        content, setContent, isGenerating, editorTab,
+        content, setContent, isGenerating, isHumanizing, isRefining, editorTab,
         strategyOutline, setEditor,
         statusMessage, linkedTaskId, isRemoteUpdate,
         setWordCountReal, draftId, currentLanguage, contentVersions
@@ -57,6 +57,8 @@ export default function WriterEditor() {
         content: state.content,
         setContent: state.setContent,
         isGenerating: state.isGenerating,
+        isHumanizing: state.isHumanizing,
+        isRefining: state.isRefining,
         editorTab: state.editorTab,
         strategyOutline: state.strategyOutline,
         setEditor: state.setEditor,
@@ -337,18 +339,17 @@ export default function WriterEditor() {
         
         const currentHtml = editor.getHTML();
         if (content !== currentHtml) {
-            // Solo actualizamos si:
-            // 1. Estamos generando (streaming)
-            // 2. Es una actualización remota (colaboración)
-            // 3. El editor NO tiene el foco
-            // 4. O el editor está vacío (caso carga inicial demorada)
+            // Solo actualizamos el editor si:
+            // 1. Estamos generando (streaming IA) o humanizando/refinando
+            // 2. Es una actualización remota (colaboración o comando forzado)
+            // 3. El editor está vacío (caso carga inicial demorada)
+            // 4. Estamos en modo código (el textarea text es la fuente de verdad y Tiptap está background)
             const isEmpty = currentHtml === '<p></p>' || currentHtml === '';
 
-            if (isGenerating || isRemoteUpdate || !editor.isFocused || isEmpty) {
+            if (isGenerating || isHumanizing || isRefining || isRemoteUpdate || isEmpty || editorTab === 'code') {
                const { from, to } = editor.state.selection;
                editor.commands.setContent(content, { emitUpdate: false });
 
-               
                // Restore selection if focused to avoid cursor jump
                if (editor.isFocused && !isEmpty) {
                    try {
@@ -364,7 +365,7 @@ export default function WriterEditor() {
                }
             }
         }
-    }, [content, editor, isGenerating, isRemoteUpdate]);
+    }, [content, editor, isGenerating, isHumanizing, isRefining, isRemoteUpdate, editorTab]);
 
     if (!editor) return null;
 
