@@ -94,19 +94,28 @@ export const autoInterlinkAsync = async (
 ): Promise<string> => {
     if (!inventory || inventory.length === 0 || !html) return html;
 
+    // Pre-compile architecture rules to avoid recompiling inside a massive loop
+    const compiledRules = (architectureRules || []).map(r => {
+        try {
+            return { name: r.name, reg: new RegExp(r.regex, 'i') };
+        } catch (_) {
+            return null;
+        }
+    }).filter(r => r !== null) as { name: string, reg: RegExp }[];
+
     // 1. Enrich inventory (Cached/pre-processed if possible)
     const enrichedInventory = inventory.map(item => {
         if (item.category) return item;
-        if (architectureRules) {
-            for (const rule of architectureRules) {
-                try {
-                    const reg = new RegExp(rule.regex, 'i');
-                    if (reg.test(item.url)) return { ...item, category: rule.name };
-                } catch (_) { }
+        if (compiledRules.length > 0) {
+            for (const rule of compiledRules) {
+                if (rule.reg.test(item.url)) return { ...item, category: rule.name };
             }
         }
         return item;
     });
+
+    // Yield to allow UI to breathe after a potentially large map operation
+    await new Promise(resolve => setTimeout(resolve, 0));
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
