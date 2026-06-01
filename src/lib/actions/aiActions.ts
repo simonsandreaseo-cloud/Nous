@@ -53,7 +53,7 @@ Entrada:
 Salida Esperada:
 {
   "razonamiento_interno": "El texto es muy académico. 'Por consiguiente' y 'vital importancia' suenan robóticos. Lo pasaré a un tono más cercano e informal.",
-  "html": "<p>Usar unas zapatillas correctas es clave si no querés terminar con dolor de pies o alguna lesión que te pare. Así que ponete las pilas con eso y, además, no te olvides de estirar un poco antes de empezar a correr, que te va a salvar la vida.</p>"
+  "html": "<p>Usar unas zapatillas correctas es clave si no quieres terminar con dolor de pies o alguna lesión que te detenga. Así que presta atención a eso y, además, no olvides estirar un poco antes de empezar a correr, que te va a salvar la vida.</p>"
 }
 <<<FIN_EJEMPLO>>>
 `;
