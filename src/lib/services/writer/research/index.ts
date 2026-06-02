@@ -385,6 +385,10 @@ Retorna ÚNICAMENTE este formato JSON válido:
 
         // if (!inventoryCount || inventoryCount === 0) return []; // BYPASSED FOR TEST
 
+        // Optimized: Fetch unique categories via RPC instead of downloading thousands of rows
+        const { data: distinctCategoriesData } = await supabase.rpc('get_unique_categories', { p_project_id: projectId });
+        const distinctCategories = (distinctCategoriesData || []).map((c: any) => c.category || c).filter(Boolean);
+
         let p_base_regex = '';
         let p_ask_regex = '';
         let aiProductCodes: string[] = [];
@@ -397,11 +401,13 @@ dame una lista extensa de códigos alfanuméricos de modelos exactos de fabrican
 Por ejemplo, si es "Gafas retro Miu Miu", quiero que devuelvas códigos como "mu-04uv", "mu-a03s", "mu-09ws".
 Si es otro rubro, devuelve códigos de modelo típicos de ese rubro.
 
+CATEGORÍAS DISPONIBLES EN EL SITIO:
+${distinctCategories.join(', ')}
+
 REGLAS:
-- Devuelve SOLO una lista de códigos o palabras clave ultra-específicas separadas por comas.
-- NO uses descripciones genéricas como "gafas retro" o "lentes de sol".
-- SOLO códigos alfanuméricos o identificadores de modelo únicos.
-- Formato esperado: código1, código2, código3`;
+- Devuelve SOLO una lista separada por comas de: (1) códigos de fabricante/modelo exactos, y (2) categorías del sitio relevantes al tema (ej. si ves "collections" o "blogs" en la lista de categorías y son útiles para el tema, inclúyelas).
+- NO uses descripciones genéricas inventadas como "gafas retro". Solo usa códigos reales o las categorías exactas provistas.
+- Formato esperado: código1, código2, categoriaX`;
 
             try {
                 const productRes = await aiRouter.generate({
@@ -458,9 +464,6 @@ REGLAS:
         }
 
         if (units && units.length > 0) {
-            // Optimized: Fetch unique categories via RPC instead of downloading thousands of rows
-            const { data: distinctCategoriesData } = await supabase.rpc('get_unique_categories', { p_project_id: projectId });
-            const distinctCategories = (distinctCategoriesData || []).map((c: any) => c.category || c).filter(Boolean);
             
             const argotRule = askSet.size > 0 ? `\n\nREGLA DE PUNTAJE DE ARGOT: prioritiza x5 palabras ASK: ${Array.from(askSet).join(', ')}` : '';
 
