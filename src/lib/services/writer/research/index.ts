@@ -383,8 +383,49 @@ Retorna ÚNICAMENTE este formato JSON válido:
 
         const { count: inventoryCount } = await supabase.from('project_urls').select('*', { count: 'exact', head: true }).eq('project_id', projectId);
 
-        if (!inventoryCount || inventoryCount === 0) return [];
+        // if (!inventoryCount || inventoryCount === 0) return []; // BYPASSED FOR TEST
 
+        let p_base_regex = '';
+        let p_ask_regex = '';
+        let aiProductCodes: string[] = [];
+
+        if (lProfile.profile === 'ecommerce_heavy' || lProfile.profile === 'informational_mixed') {
+            if (onLog) onLog("IA", "Product Hunter", "Invocando a Gemini para deducir códigos de modelo de producto...");
+            
+            const productPrompt = `Basado en la keyword principal "${config.keyword}" y la intención "${baseResult.masterIntent || seoMetadata?.h1 || ''}", 
+dame una lista extensa de códigos alfanuméricos de modelos exactos de fabricante que encajen con este tema para buscar en el catálogo. 
+Por ejemplo, si es "Gafas retro Miu Miu", quiero que devuelvas códigos como "mu-04uv", "mu-a03s", "mu-09ws".
+Si es otro rubro, devuelve códigos de modelo típicos de ese rubro.
+
+REGLAS:
+- Devuelve SOLO una lista de códigos o palabras clave ultra-específicas separadas por comas.
+- NO uses descripciones genéricas como "gafas retro" o "lentes de sol".
+- SOLO códigos alfanuméricos o identificadores de modelo únicos.
+- Formato esperado: código1, código2, código3`;
+
+            try {
+                const productRes = await aiRouter.generate({
+                    prompt: productPrompt,
+                    model: "gemini-3.1-flash-lite-preview",
+                    systemPrompt: "Eres un experto en catálogos de e-commerce. Tu única función es deducir modelos y códigos de fabricante exactos.",
+                    jsonMode: false,
+                    label: "Product Hunter AI",
+                    timeoutMs: 60000
+                });
+                
+                const rawCodes = productRes.text.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 2);
+                aiProductCodes = rawCodes;
+                
+                if (aiProductCodes.length > 0) {
+                    if (onLog) onLog("SUCCESS", "Product Hunter", `Se infirieron ${aiProductCodes.length} códigos posibles: ${aiProductCodes.slice(0, 5).join(', ')}...`);
+                    p_base_regex = aiProductCodes.join('|');
+                }
+            } catch (e) {
+                if (onLog) onLog("WARN", "Product Hunter", "Fallo al deducir productos. Haciendo fallback a NLP estático.");
+            }
+        }
+
+        // NLP: Computamos los términos semánticos (LSI, ASKs, Keywords) para combinarlos con los productos
         const stopWords = new Set(['para', 'como', 'sobre', 'desde', 'entre', 'hacia', 'hasta', 'segun', 'cual', 'quien', 'donde', 'cuando', 'porque', 'este', 'esta', 'estos', 'estas', 'aquel', 'aquella', 'todo', 'toda', 'todos', 'todas', 'mucho', 'mucha', 'poco', 'poca', 'nada', 'algo', 'otro', 'otra', 'unos', 'unas', 'cada', 'cualquier', 'mismo', 'misma', 'propio', 'propia', 'mejor', 'peor', 'mayor', 'menor', 'gran', 'mas', 'menos', 'muy', 'tan', 'siempre', 'nunca', 'jamas', 'tambien', 'tampoco', 'solo', 'solamente', 'incluso', 'aun', 'ademas', 'sino', 'pero', 'aunque', 'pues', 'entonces', 'luego', 'asi', 'como', 'si', 'no', 'tal', 'vez', 'quizas', 'acaso', 'tiene', 'tienen', 'hacer', 'puede', 'pueden', 'hace', 'debe', 'deben']);
         const tokenize = (text: string) => (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !stopWords.has(w));
         
@@ -395,9 +436,16 @@ Retorna ÚNICAMENTE este formato JSON válido:
         const baseSet = filterStructuralNoise(new Set(tokenize(baseStr)));
         for (const askWord of askSet) baseSet.delete(askWord);
         
-        const p_ask_regex = Array.from(askSet).join('|') || '';
+        p_ask_regex = Array.from(askSet).join('|') || '';
         const fallbackKeyword = tokenize(config.keyword).join('|');
-        const p_base_regex = Array.from(baseSet).join('|') || fallbackKeyword || '';
+        const nlpBaseRegex = Array.from(baseSet).join('|') || fallbackKeyword || '';
+
+        // Combinamos el regex de los productos (prioridad 1) con el regex semántico (prioridad 2)
+        if (aiProductCodes.length > 0) {
+            p_base_regex = nlpBaseRegex ? `${aiProductCodes.join('|')}|${nlpBaseRegex}` : aiProductCodes.join('|');
+        } else {
+            p_base_regex = nlpBaseRegex;
+        }
         
         const resV3 = await supabase.rpc('get_semantic_inventory_matches_v3', {
             p_project_id: projectId, p_base_regex, p_ask_regex, p_limit: 120

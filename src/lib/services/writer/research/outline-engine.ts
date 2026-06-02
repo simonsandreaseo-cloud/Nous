@@ -81,6 +81,9 @@ export const OutlineEngine = {
         try {
             // PHASE 1: Structural Synthesis (H2/H3 Skeleton)
             const faqsText = faqs.slice(0, 5).map(f => `- ${f.question || f.title || JSON.stringify(f)}`).join('\n');
+            const linksContext = suggestedLinks && suggestedLinks.length > 0 
+                ? suggestedLinks.map(l => `- ${l.title || l.url}`).join('\n') 
+                : "Ninguno.";
             
             const phase1Prompt = `ESTRATEGIA PROFUNDA DE ESTRUCTURA PARA: "${keyword}"
 OBJETIVO: Crear el mejor esqueleto de H2/H3 del nicho superando a la competencia.
@@ -92,6 +95,9 @@ TIPO DE SERP DETECTADO: "${serpReport.type || 'mixed'}"
 
 ESTRATEGIA RECOMENDADA: ${serpReport.type === 'transactional' ? 'Enfoque directo a solución/producto.' : 'Guía informativa profunda y autoritativa.'}
 
+PRODUCTOS/ENLACES INTERNOS SUGERIDOS (CATÁLOGO):
+${linksContext}
+
 ESTRUCTURA DE COMPETIDORES RELEVANTES:
 ${competitorHeaders.substring(0, 3000)}
 
@@ -100,9 +106,10 @@ ${faqsText || "Ninguna FAQ específica detectada."}
 
 REGLAS PARA EL ESQUELETO:
 1. Diseña una estructura lógica y fluida de H2s y H3s.
-2. Si el SERP es informativo, prioritiza el valor educativo. Si es transaccional, prioritiza los beneficios y la comparativa.
-3. Asegúrate de responder las FAQs de manera natural.
-4. Devuelve un Array de objetos con "level" (2 o 3) y "text" (título).
+2. REGLA E-COMMERCE ESTRICTA: Si hay PRODUCTOS/ENLACES INTERNOS en la lista anterior, DEBES crear un H2 por cada producto (o agruparlos en H3 dentro de un H2 categorizador). Usa el nombre o modelo exacto del producto en el encabezado.
+3. Si el SERP es informativo, prioritiza el valor educativo. Si es transaccional, prioritiza los beneficios y la comparativa.
+4. Asegúrate de responder las FAQs de manera natural.
+5. Devuelve un Array de objetos con "level" (2 o 3) y "text" (título).
 
 FORMATO PREFERIDO:
 [{"level": 2, "text": "Título"}]`;
