@@ -136,7 +136,6 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
                         Código
                     </button>
                 </div>
-            </div>
 
             {/* Selection Bubble Menu */}
             <BubbleMenu 
