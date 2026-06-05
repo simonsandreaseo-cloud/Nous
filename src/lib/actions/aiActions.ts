@@ -221,6 +221,30 @@ export const generateArticleJSON = async (model: string, prompt: string, hierarc
     }, model || 'default', hierarchy, undefined, undefined, false, 'Redacción Artículo JSON');
 };
 
+export const generateArticleStream = async (model: string, prompt: string, hierarchy?: string[], onChunk?: (text: string) => void) => {
+    return executeWithKeyRotation(async (ai, currentModel) => {
+        const modelObj = ai.getGenerativeModel({
+            model: currentModel,
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Escribe el artículo en formato HTML directo. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>). NO USES JSON, devuelve únicamente el código HTML resultante.`,
+            generationConfig: {
+                temperature: 0.7,
+            }
+        });
+        
+        const finalPrompt = `INSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el artículo de cero siguiendo la estructura dada. NO repitas instrucciones, NO uses prefacios. Devuelve SOLAMENTE el texto en HTML final.`;
+        
+        const response = await modelObj.generateContentStream(finalPrompt);
+        let fullHtml = '';
+        for await (const chunk of response.stream) {
+            const chunkText = chunk.text();
+            fullHtml += chunkText;
+            if (onChunk) onChunk(chunkText);
+        }
+        
+        return fullHtml;
+    }, model || 'default', hierarchy, undefined, undefined, false, 'Redacción Artículo Stream');
+};
+
 export const refineArticleContent = async (
     currentHtml: string, 
     instructions: string, 

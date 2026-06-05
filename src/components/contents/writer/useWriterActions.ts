@@ -280,6 +280,11 @@ export function useWriterActions() {
                         try {
                             const parsed = JSON.parse(line);
                             if (parsed.type === 'error') throw new Error(parsed.error);
+                            if (parsed.type === 'status') store.setStatus(parsed.message);
+                            if (parsed.type === 'chunk') {
+                                finalHtml += parsed.html;
+                                store.setContent(finalHtml);
+                            }
                             if (parsed.type === 'done') finalHtml = parsed.text;
                         } catch (e) {
                             // Ignorar errores de parseo de chunks incompletos
@@ -319,6 +324,11 @@ export function useWriterActions() {
                         try {
                             const parsed = JSON.parse(line);
                             if (parsed.type === 'error') throw new Error(parsed.error);
+                            if (parsed.type === 'status') store.setStatus(parsed.message);
+                            if (parsed.type === 'chunk') {
+                                finalHtml += parsed.html;
+                                store.setContent(finalHtml);
+                            }
                             if (parsed.type === 'done') finalHtml = parsed.text;
                         } catch (e) {}
                     }

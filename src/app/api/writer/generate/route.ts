@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { generateArticleJSON } from '@/lib/actions/aiActions';
+import { generateArticleStream } from '@/lib/actions/aiActions';
 
 export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s limit
 
@@ -15,16 +15,18 @@ export async function POST(req: Request) {
         
         const stream = new ReadableStream({
             async start(controller) {
-                // Enqueue an initial byte to start the stream immediately
                 controller.enqueue(encoder.encode(JSON.stringify({ type: 'status', message: 'Iniciando redacción...' }) + '\n'));
                 
-                // Set up a keep-alive interval to prevent Vercel from timing out
                 const keepAlive = setInterval(() => {
                     controller.enqueue(encoder.encode(JSON.stringify({ type: 'keep-alive' }) + '\n'));
                 }, 5000);
 
+                const onChunk = (chunkHtml: string) => {
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'chunk', html: chunkHtml }) + '\n'));
+                };
+
                 try {
-                    const result = await generateArticleJSON(model, prompt, hierarchy);
+                    const result = await generateArticleStream(model, prompt, hierarchy, onChunk);
                     clearInterval(keepAlive);
                     controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', text: result }) + '\n'));
                     controller.close();
