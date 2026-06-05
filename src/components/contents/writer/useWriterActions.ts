@@ -266,6 +266,7 @@ export function useWriterActions() {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
+                let lastUpdateTime = 0;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -283,7 +284,6 @@ export function useWriterActions() {
                             if (parsed.type === 'status') store.setStatus(parsed.message);
                             if (parsed.type === 'chunk') {
                                 finalHtml += parsed.html;
-                                store.setContent(finalHtml);
                             }
                             if (parsed.type === 'done') finalHtml = parsed.text;
                         } catch (e) {
@@ -310,6 +310,7 @@ export function useWriterActions() {
                 const fallbackReader = fallbackResponse.body.getReader();
                 const fallbackDecoder = new TextDecoder();
                 let fallbackBuffer = '';
+                let fbLastUpdateTime = 0;
 
                 while (true) {
                     const { done, value } = await fallbackReader.read();
@@ -327,7 +328,6 @@ export function useWriterActions() {
                             if (parsed.type === 'status') store.setStatus(parsed.message);
                             if (parsed.type === 'chunk') {
                                 finalHtml += parsed.html;
-                                store.setContent(finalHtml);
                             }
                             if (parsed.type === 'done') finalHtml = parsed.text;
                         } catch (e) {}
@@ -337,8 +337,8 @@ export function useWriterActions() {
                 if (!finalHtml) throw new Error("Fallback no generó contenido válido.");
             }
 
-            store.setStatus('Procesando y limpiando HTML...');
-            let cleanHtml = cleanAndFormatHtml(finalHtml);
+            store.setStatus('Procesando HTML final...');
+            const cleanHtml = cleanAndFormatHtml(finalHtml);
             
             store.setContent(cleanHtml);
 
@@ -503,6 +503,7 @@ export function useWriterActions() {
             const decoder = new TextDecoder();
             let buffer = '';
             let finalResult = null;
+            let humLastUpdateTime = 0;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -520,7 +521,11 @@ export function useWriterActions() {
                             store.setHumanizerStatus(parsed.message);
                         } else if (parsed.type === 'chunk') {
                             newContent += parsed.html + '\n';
-                            store.setContent(newContent);
+                            const now = Date.now();
+                            if (now - humLastUpdateTime > 300) {
+                                store.setContent(newContent);
+                                humLastUpdateTime = now;
+                            }
                         } else if (parsed.type === 'error') {
                             throw new Error(parsed.error);
                         } else if (parsed.type === 'done') {

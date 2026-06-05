@@ -161,6 +161,8 @@ export const autoInterlinkAsync = async (
     }
 
     variations.sort((a, b) => b.length - a.length);
+    if (variations.length === 0) return html; // Prevent infinite loop when no valid variations
+
     // Construct megaRegex in small batches if variations > 100 to avoid regex stack issues in some engines, 
     // although Modern V8 handles it, we keep it tight.
     const megaRegex = new RegExp(`\\b(${variations.map(escapeRegExp).join('|')})\\b`, 'gi');
@@ -207,6 +209,11 @@ export const autoInterlinkAsync = async (
             let hasMatches = false;
 
             while ((match = megaRegex.exec(text)) !== null && linkCount < MAX_LINKS) {
+                if (match[0].length === 0) {
+                    megaRegex.lastIndex++;
+                    continue;
+                }
+
                 const matchedText = match[0];
                 const item = variationMap.get(matchedText.toLowerCase());
 
