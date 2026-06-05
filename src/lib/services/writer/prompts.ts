@@ -81,7 +81,7 @@ DATOS TÉCNICOS:
 - Keywords Short Tail: ${keywords}
 - Tono: ${tone || 'Profesional'}
 - Extensión Objetivo: ${wordCount || '1500'}
-- Idioma: Español de España (Neutro, profesional).
+- Idioma: ${config.language ? (config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español de España (Neutro, profesional)' : config.language) : 'Español de España (Neutro, profesional)'}.
 
 ${contextInstructions ? `### INSTRUCCIONES DE CONTEXTO GLOBAL (MUY IMPORTANTE):\n${contextInstructions}\n` : ''}
 

@@ -25,10 +25,10 @@ export const SerpProvider = {
      * Fetches search results via Serper.dev.
      * Includes resiliency and basic filtering.
      */
-    async fetchSerperSearch(query: string): Promise<{ results: any[], faqs: any[] }> {
+    async fetchSerperSearch(query: string, gl = "es", hl = "es"): Promise<{ results: any[], faqs: any[] }> {
         try {
             // Reverted to 20 results as requested
-            const res = await fetchSerperSearch(query, "es", "es", 15);
+            const res = await fetchSerperSearch(query, gl, hl, 15);
             
             if (res && res.organic && Array.isArray(res.organic)) {
                 const results = res.organic.map((r: any) => ({

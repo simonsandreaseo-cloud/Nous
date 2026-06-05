@@ -35,6 +35,7 @@ export interface ArticleConfig {
     isStrictMode?: boolean;
     strictFrequency?: number;
     extractorInstructions?: string;
+    language?: string; // New: Content and SERP language
 }
 
 export interface VisualResource {
@@ -150,6 +151,7 @@ export interface HumanizerConfig {
     strictFrequency?: number;
     questions?: string[];
     mode?: 'no_chunks' | 'unified' | 'duplicate_detection';
+    language?: string;
 }
 
 // --- Research Pipeline Config ---
@@ -164,4 +166,5 @@ export interface DeepSEOConfig {
     cascade?: boolean;
     /** If true, ignores any existing checkpoint and restarts research from scratch */
     forceRestart?: boolean;
+    language?: string;
 }

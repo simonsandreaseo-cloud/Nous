@@ -68,19 +68,23 @@ export function CorrectionEditor({ content, onChange }: CorrectionEditorProps) {
                 .ProseMirror li { margin-bottom: 0.75rem !important; line-height: 1.7 !important; color: #475569; }
                 .ProseMirror li strong { color: #0f172a; font-weight: 800; }
                 .ProseMirror strong { font-weight: 900 !important; color: #0f172a; }
-                .ProseMirror a { 
-                    color: #2563eb !important; 
-                        onClick={() => editor.chain().focus().toggleBold().run()}
-                        className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('bold') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
-                    >
-                        <Bold size={16} />
-                    </button>
-                    <button
-                        onClick={() => editor.chain().focus().toggleItalic().run()}
-                        className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('italic') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
-                    >
-                        <Italic size={16} />
-                    </button>
+                .ProseMirror a { color: #2563eb !important; text-decoration: underline; font-weight: 600; }
+                .ProseMirror a:hover { color: #1d4ed8 !important; }
+            `}</style>
+            
+            <div className="flex items-center gap-1 p-2 bg-slate-50 border-b border-slate-100">
+                <button
+                    onClick={() => editor.chain().focus().toggleBold().run()}
+                    className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('bold') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
+                >
+                    <Bold size={16} />
+                </button>
+                <button
+                    onClick={() => editor.chain().focus().toggleItalic().run()}
+                    className={cn("p-2 rounded-lg hover:bg-white transition-all", editor.isActive('italic') ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400")}
+                >
+                    <Italic size={16} />
+                </button>
                     <div className="w-[1px] h-4 bg-slate-200 mx-1" />
                     <button
                         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}

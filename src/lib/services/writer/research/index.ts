@@ -93,11 +93,16 @@ export const ResearchOrchestrator = {
 
     /**
      * Phase 1: Rapid SEO Analysis (SERP + Intent)
-     */    async runInitialAnalysis(keyword: string, projectId?: string, onLog?: (p: string, m: string, r?: string) => void): Promise<any> {
-        if (onLog) onLog("Serper", "Buscando SERP", `Query directa: ${keyword}`);
+     */
+    async runInitialAnalysis(keyword: string, projectId?: string, onLog?: (p: string, m: string, r?: string) => void, language: string = 'es'): Promise<any> {
+        if (onLog) onLog("Serper", "Buscando SERP", `Query directa: ${keyword} (Idioma: ${language})`);
+        
+        let gl = language;
+        if (language === 'en') gl = 'us';
+        else if (language === 'ca') gl = 'es';
         
         // Single direct search instead of multiplexing
-        const serpData = await SerpProvider.fetchSerperSearch(keyword);
+        const serpData = await SerpProvider.fetchSerperSearch(keyword, gl, language);
         const rawResults = serpData.results;
         const faqs = serpData.faqs;
 
@@ -209,7 +214,7 @@ Responde ÚNICAMENTE en JSON:
      * Phase Logic Methods (Decoupled)
      */
     async runSerpPhase(config: DeepSEOConfig, onLog?: any): Promise<any> {
-        return await this.runInitialAnalysis(config.keyword, config.projectId, onLog);
+        return await this.runInitialAnalysis(config.keyword, config.projectId, onLog, config.language);
     },
 
     async runScrapingPhase(config: DeepSEOConfig, baseResult: any, onLog?: any): Promise<any[]> {
@@ -470,7 +475,7 @@ REGLAS:
 
             const linkRes = await aiRouter.generate({
                 prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${units.length} artículos):\n${JSON.stringify(units)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${maxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,
-                model: "gemini-3.1-flash-lite-preview",
+                model: "gemini-2.0-flash-lite-preview-02-05",
                 systemPrompt: "Arquitecto de Silos SEO.",
                 jsonMode: true,
                 label: "Optimización Interlinking",

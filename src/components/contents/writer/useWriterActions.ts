@@ -51,7 +51,8 @@ export function useWriterActions() {
                 keyword: store.keyword,
                 projectId: activeProject?.id,
                 onProgress: (phase) => store.setStatus(phase),
-                modelName: modelToUse
+                modelName: modelToUse,
+                language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
             });
 
 
@@ -231,7 +232,8 @@ export function useWriterActions() {
                         else placementText = "Coloca el dato extraído inmediatamente después del enlace (inline).";
                         
                         return `- Para reglas "${r.name}": ${placementText} (Pattern: ${r.extraction_value})`;
-                    }).join('\n')
+                    }).join('\n'),
+                language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
             };
 
             if (activeProject && !hasTokens(1)) {
@@ -453,7 +455,8 @@ export function useWriterActions() {
                 lsiKeywords: store.strategyLSI.map(l => l.keyword).concat(store.strategyLongTail),
                 links: unifiedLinks, 
                 questions: store.strategyQuestions,
-                mode: store.humanizerConfig.mode || 'unified'
+                mode: store.humanizerConfig.mode || 'unified',
+                language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
             };
 
             const response = await fetch('/api/humanize', {

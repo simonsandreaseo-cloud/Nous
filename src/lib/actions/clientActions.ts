@@ -27,7 +27,8 @@ export async function processTaskOutlineAction(task: Task, csvData: any[]) {
             refUrls: '',
             refContent: task.research_dossier?.brief || '',
             approvedLinks: task.research_dossier?.suggestedInternalLinks || [],
-            csvData: csvData || []
+            csvData: csvData || [],
+            language: task.language || 'es'
         };
 
         const res = await generateOutlineStrategy(config, task.target_keyword || task.title, task.research_dossier);
@@ -68,7 +69,8 @@ export async function processTaskDraftAction(task: Task) {
             refContent: task.research_dossier?.brief || '',
             csvData: [],
             outlineStructure: outlineArray,
-            approvedLinks: task.research_dossier?.suggestedInternalLinks || []
+            approvedLinks: task.research_dossier?.suggestedInternalLinks || [],
+            language: task.language || 'es'
         };
 
         const prompt = buildPrompt(config);
@@ -92,7 +94,12 @@ export async function processTaskHumanizationAction(task: Task) {
         
         const res = await runHumanizerPipeline(
             task.content_body,
-            { niche: 'General', audience: 'General', keywords: task.target_keyword || '' },
+            { 
+                niche: 'General', 
+                audience: 'General', 
+                keywords: task.target_keyword || '', 
+                language: task.language || 'es' 
+            },
             0.7, () => {}, 'gemini-3.1-flash-preview'
         );
 

@@ -22,6 +22,7 @@ export default function ProjectContentPreferencesView() {
     const [maxLinks, setMaxLinks] = useState(12);
     const [strategy, setStrategy] = useState<'auto' | 'ecommerce' | 'informational'>('auto');
     const [defaultLangs, setDefaultLangs] = useState<string[]>([]);
+    const [defaultContentLang, setDefaultContentLang] = useState<string>('es');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -31,6 +32,7 @@ export default function ProjectContentPreferencesView() {
             setMaxLinks(prefs.max_internal_links || 12);
             setStrategy(prefs.default_strategy || 'auto');
             setDefaultLangs(prefs.default_translator_languages || []);
+            setDefaultContentLang(prefs.default_content_language || 'es');
         }
     }, [activeProject]);
 
@@ -44,7 +46,8 @@ export default function ProjectContentPreferencesView() {
                     min_internal_links: minLinks,
                     max_internal_links: maxLinks,
                     default_strategy: strategy,
-                    default_translator_languages: defaultLangs
+                    default_translator_languages: defaultLangs,
+                    default_content_language: defaultContentLang
                 }
             };
 
@@ -139,6 +142,61 @@ export default function ProjectContentPreferencesView() {
                                 {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
                                 Guardar Preferencias
                             </button>
+                        </div>
+                    </section>
+
+                    {/* Content Creation Default Language */}
+                    <section className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm space-y-8 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+                            <Languages size={120} />
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500 shadow-sm">
+                                <Languages size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-black text-slate-900 uppercase italic">Idioma de Redacción y SERP</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Idioma principal para investigar y redactar contenido</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <label className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                Idioma Principal
+                            </label>
+                            
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                {AVAILABLE_LANGUAGES.map(lang => {
+                                    const isSelected = defaultContentLang === lang.code;
+                                    return (
+                                        <button
+                                            key={`content-lang-${lang.code}`}
+                                            onClick={() => setDefaultContentLang(lang.code)}
+                                            className={cn(
+                                                "p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 relative group",
+                                                isSelected
+                                                    ? "bg-blue-50 border-blue-200 shadow-md shadow-blue-500/5 ring-2 ring-blue-500/10"
+                                                    : "bg-white border-slate-100 hover:border-slate-300 text-slate-400"
+                                            )}
+                                        >
+                                            <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">{lang.flag}</span>
+                                            <span className="text-[9px] font-black uppercase tracking-widest leading-none text-center">
+                                                {lang.name}
+                                            </span>
+                                            {isSelected && (
+                                                <div className="absolute top-2 right-2 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                                                    <div className="w-1 h-1 bg-white rounded-full" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <p className="text-[9px] text-slate-400 font-medium leading-tight p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                Este idioma se utilizará para consultar los resultados en Google (SERP) de este proyecto y para generar la redacción y humanización de los contenidos.
+                            </p>
                         </div>
                     </section>
 
