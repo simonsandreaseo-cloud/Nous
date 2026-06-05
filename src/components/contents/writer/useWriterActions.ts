@@ -338,7 +338,7 @@ export function useWriterActions() {
             }
 
             store.setStatus('Procesando HTML final...');
-            const cleanHtml = cleanAndFormatHtml(finalHtml);
+            let cleanHtml = cleanAndFormatHtml(finalHtml);
             
             store.setContent(cleanHtml);
 
