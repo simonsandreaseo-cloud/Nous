@@ -28,12 +28,18 @@ import { LayoutService } from '@/lib/services/writer/LayoutService';
 
 // ... (previous actions)
 
-export async function processTaskVisualsAction(task: Task) {
+export async function processTaskVisualsAction(taskId: string) {
     try {
+        const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+        if (taskError || !task) throw new Error("Task not found");
+
+        const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', taskId).maybeSingle();
+        const contentBody = taskContent?.content_body || task.content_body || "";
+
         const { data: project } = await supabase.from('projects').select('settings').eq('id', task.project_id).single();
         const imgSettings = project?.settings?.images;
         const patcherRules = project?.settings?.patcher_rules || [];
-        const paragraphs = (task.content_body || "").split(/<p>|<\/p>|\n\n/).filter(p => p.trim() !== "");
+        const paragraphs = contentBody.split(/<p>|<\/p>|\n\n/).filter(p => p.trim() !== "");
         
         // 1. Unified Visual Engine Execution
         const result = await VisualEngine.executeFullPipeline(
@@ -53,17 +59,19 @@ export async function processTaskVisualsAction(task: Task) {
 
         // 2. Consistent HTML Injection via LayoutService
         const updatedHtml = LayoutService.injectAssets(
-            task.content_body || "", 
+            contentBody, 
             result.assets || [], 
             patcherRules
         );
 
         const updates: Partial<Task> = {
-            content_body: updatedHtml,
             metadata: { ...task.metadata, visuals_completed: true }
         };
         
-        const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
+        const { error } = await supabase.from('tasks').update(updates).eq('id', taskId);
+        if (error) throw error;
+        
+        await supabase.from('task_contents').update({ content_body: updatedHtml }).eq('id', taskId);
         if (error) throw error;
 
         return { success: true, updates, msg: `✅ Estrategia visual (V3) aplicada.` };

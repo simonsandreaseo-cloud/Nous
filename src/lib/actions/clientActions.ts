@@ -16,8 +16,14 @@ import { mdToHtml } from '@/utils/markdown';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 
-export async function processTaskOutlineAction(task: Task, csvData: any[]) {
+export async function processTaskOutlineAction(taskId: string, csvData: any[]) {
     try {
+        const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+        if (taskError || !task) throw new Error("Task not found");
+
+        const { data: taskResearch } = await supabase.from('task_research').select('*').eq('id', taskId).maybeSingle();
+        const research_dossier = taskResearch?.research_dossier || {};
+
         const config: ArticleConfig = {
             projectName: 'Nous Project',
             niche: task.metadata?.niche || 'General',
@@ -27,13 +33,13 @@ export async function processTaskOutlineAction(task: Task, csvData: any[]) {
             tone: 'Profesional',
             wordCount: '1500',
             refUrls: '',
-            refContent: task.research_dossier?.brief || '',
-            approvedLinks: task.research_dossier?.suggestedInternalLinks || [],
+            refContent: research_dossier?.brief || '',
+            approvedLinks: research_dossier?.suggestedInternalLinks || [],
             csvData: csvData || [],
             language: task.language || 'es'
         };
 
-        const res = await generateOutlineStrategy(config, task.target_keyword || task.title, task.research_dossier);
+        const res = await generateOutlineStrategy(config, task.target_keyword || task.title, research_dossier);
         const headers = res.outline?.headers || [];
         
         const updates: Partial<Task> = {
@@ -54,9 +60,15 @@ export async function processTaskOutlineAction(task: Task, csvData: any[]) {
     }
 }
 
-export async function prepareTaskDraftAction(task: Task) {
+export async function prepareTaskDraftAction(taskId: string) {
     try {
-        const rawOutline = task.outline_structure;
+        const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+        if (taskError || !task) throw new Error("Task not found");
+
+        const { data: taskResearch } = await supabase.from('task_research').select('*').eq('id', taskId).maybeSingle();
+        const research_dossier = taskResearch?.research_dossier || {};
+        
+        const rawOutline = taskResearch?.outline_structure || {};
         const outlineArray = Array.isArray(rawOutline) ? rawOutline : (rawOutline?.headers || []);
 
         // Fetch active project for pipeline configurations
@@ -71,10 +83,10 @@ export async function prepareTaskDraftAction(task: Task) {
             tone: 'Profesional',
             wordCount: '1500',
             refUrls: '',
-            refContent: task.research_dossier?.brief || '',
+            refContent: research_dossier?.brief || '',
             csvData: [],
             outlineStructure: outlineArray,
-            approvedLinks: task.research_dossier?.suggestedInternalLinks || [],
+            approvedLinks: research_dossier?.suggestedInternalLinks || [],
             language: task.language || 'es',
             architectureInstructions: activeProject?.architecture_instructions,
             architectureRules: activeProject?.architecture_rules,
@@ -90,9 +102,9 @@ export async function prepareTaskDraftAction(task: Task) {
 
         const prompt = buildPrompt(config);
         
-        return { success: true, prompt, config, activeProject };
+        return { success: true, prompt, config };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        return { success: false, error: error.stack || error.message || String(error) };
     }
 }
 
@@ -108,12 +120,18 @@ export async function saveTaskDraftAction(taskId: string, formattedContent: stri
     }
 }
 
-export async function processTaskHumanizationAction(task: Task) {
+export async function processTaskHumanizationAction(taskId: string) {
     try {
-        if (!task.content_body) throw new Error("No hay contenido.");
+        const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+        if (taskError || !task) throw new Error("Task not found");
+
+        const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', taskId).maybeSingle();
+        const content = taskContent?.content_body || task.content_body;
+
+        if (!content) throw new Error("No hay contenido.");
         
         const res = await runHumanizerPipeline(
-            task.content_body,
+            content,
             { 
                 niche: 'General', 
                 audience: 'General', 
@@ -124,21 +142,25 @@ export async function processTaskHumanizationAction(task: Task) {
         );
 
         const updates: Partial<Task> = {
-            content_body: res.html,
             metadata: { ...task.metadata, is_humanized: true, humanized_at: new Date().toISOString() }
         };
 
-        const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
+        const { error } = await supabase.from('tasks').update(updates).eq('id', taskId);
         if (error) throw error;
+        
+        await supabase.from('task_contents').update({ content_body: res.html }).eq('id', taskId);
 
-        return { success: true, updates, msg: `✅ Humanización completada.` };
+        return { success: true, updates: { ...updates, content_body: res.html }, msg: `✅ Humanización completada.` };
     } catch (error: any) {
         return { success: false, error: error.message };
     }
 }
 
-export async function processTaskTranslationAction(task: Task, langCode: string) {
+export async function processTaskTranslationAction(taskId: string, langCode: string) {
     try {
+        const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+        if (taskError || !task) throw new Error("Task not found");
+
         const langName = AVAILABLE_LANGUAGES.find(l => l.code === langCode)?.name || langCode;
         const metadataPrompt = `Translate to ${langName}. Return JSON: {h1, seo_title, meta_description, excerpt, target_url_slug}`;
         const metadataRaw = await executeTranslation(metadataPrompt, langName);
@@ -150,7 +172,10 @@ export async function processTaskTranslationAction(task: Task, langCode: string)
             translatedData = { h1: task.h1, seo_title: task.seo_title, meta_description: task.meta_description, excerpt: task.excerpt, target_url_slug: task.target_url_slug };
         }
 
-        const translatedBody = await executeTranslation(task.content_body || '', langName);
+        const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', taskId).maybeSingle();
+        const contentBody = taskContent?.content_body || task.content_body || '';
+
+        const translatedBody = await executeTranslation(contentBody, langName);
         const htmlContent = mdToHtml(translatedBody);
         
         const newTask: Partial<Task> = {

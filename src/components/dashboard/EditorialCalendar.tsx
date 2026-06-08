@@ -359,7 +359,7 @@ export function EditorialCalendar() {
                     });
                 }
             } else if (action === 'outline') {
-                const res = await processTaskOutlineAction(task, useWriterStore.getState().csvData);
+                const res = await processTaskOutlineAction(task.id, useWriterStore.getState().csvData);
                 if (res.success && res.updates) {
                     updateTask(taskId, res.updates);
                     onLog(taskId, 'Outline', res.msg!);
@@ -370,7 +370,7 @@ export function EditorialCalendar() {
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 10 }));
                 onLog(taskId, 'Redacción', 'Generando prompt y estructura...');
                 
-                const prepRes = await prepareTaskDraftAction(task);
+                const prepRes = await prepareTaskDraftAction(task.id);
                 if (!prepRes.success || !prepRes.prompt) throw new Error(prepRes.error || "Fallo en preparación");
 
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 30 }));
@@ -417,18 +417,18 @@ export function EditorialCalendar() {
                 const linked = await autoInterlinkAsync(
                     cleanHtml, 
                     prepRes.config.approvedLinks || [],
-                    prepRes.activeProject?.architecture_rules,
-                    prepRes.activeProject?.architecture_instructions,
-                    prepRes.activeProject
+                    activeProject?.architecture_rules,
+                    activeProject?.architecture_instructions,
+                    activeProject
                 );
 
                 const refinedSEO = await runSEOPostProcessor(linked, prepRes.config);
 
                 let finalContent = refinedSEO;
-                const activeExtractorRules = prepRes.activeProject ? NousExtractorService.getActiveRulesForPhase(prepRes.activeProject, 'writer') : [];
+                const activeExtractorRules = activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer') : [];
                 if (activeExtractorRules.length > 0) {
                     onLog(taskId, 'Redacción', 'Ejecutando extractores de datos...');
-                    finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, prepRes.activeProject, 'writer');
+                    finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
                 }
 
                 const formatted = cleanAndFormatHtml(finalContent);
@@ -442,7 +442,7 @@ export function EditorialCalendar() {
                 } else {
                     throw new Error(saveRes.error);
                 }
-                const res = await processTaskHumanizationAction(task);
+                const res = await processTaskHumanizationAction(task.id);
                 if (res.success && res.updates) {
                     updateTask(taskId, res.updates);
                     onLog(taskId, 'Humanización', res.msg!);
@@ -450,7 +450,7 @@ export function EditorialCalendar() {
                     throw new Error(res.error);
                 }
             } else if (action === 'visuals') {
-                const res = await processTaskVisualsAction(task);
+                const res = await processTaskVisualsAction(task.id);
                 if (res.success && res.updates) {
                     updateTask(taskId, res.updates);
                     onLog(taskId, 'Visuals', res.msg!);
