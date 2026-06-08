@@ -21,7 +21,7 @@ const NOUS_FIELDS = [
     { value: 'refs', label: 'Referencias (URLs a scrapear/investigar)' },
     { value: 'status', label: 'Estado (e.g. idea, en_redaccion)' },
     { value: 'volume', label: 'Volumen de Búsqueda' },
-    { value: 'target_word_count', label: 'Nº de Palabras ideal / Extensión' },
+    { value: 'word_count', label: 'Nº de Palabras ideal / Extensión' },
     { value: 'brief', label: 'Brief / Intención / Resumen' },
     { value: 'scheduled_date', label: 'Fecha de Publicación' },
     { value: 'ignore', label: '-- Ignorar esta columna --' }
@@ -162,10 +162,14 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                         let value = row[header];
                         if (!value) continue;
 
-                        // Transformaciones de limpieza básicas
-                        if (targetField === 'volume' || targetField === 'target_word_count') {
-                            const parsedNum = parseInt(String(value).replace(/\D/g, ''), 10);
-                            task[targetField] = parsedNum || 0;
+                        // Transformaciones de limpieza y Consolidación
+                        if (targetField === 'volume' || targetField === 'word_count') {
+                            const parsedNum = parseInt(String(value).replace(/\D/g, ''), 10) || 0;
+                            if (task[targetField] !== undefined) {
+                                task[targetField] += parsedNum; // Consolidar sumando
+                            } else {
+                                task[targetField] = parsedNum;
+                            }
                         } else if (targetField === 'refs') {
                             const refsArray = String(value).split(/[\r\n,]+/).map(v => v.trim()).filter(v => v);
                             if (!task.refs) task.refs = [];
@@ -180,8 +184,8 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                             const rawStatus = String(value).toLowerCase().trim().replace(/ /g, '_');
                             const validStatuses = ['idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'];
                             task[targetField] = validStatuses.includes(rawStatus) ? rawStatus : 'idea';
-                        } else if (targetField === 'associated_url' || targetField === 'secondary_url') {
-                            // Concatenar URLs si múltiples columnas apuntan al mismo campo
+                        } else if (['associated_url', 'secondary_url', 'brief', 'title', 'target_keyword'].includes(targetField)) {
+                            // Consolidar concatenando para campos de texto clave
                             if (task[targetField]) {
                                 task[targetField] = `${task[targetField]}\n${String(value).trim()}`;
                             } else {

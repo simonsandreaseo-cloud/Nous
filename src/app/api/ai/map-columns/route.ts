@@ -19,8 +19,9 @@ ESQUEMA DE BASE DE DATOS (NOUS TASK TABLE):
 - "refs": Referencias o URLs de competidores para scrapear/investigar.
 - "status": Estado del contenido (e.g., 'idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'). Si no estás seguro, asigna null.
 - "volume": Volumen de búsqueda mensual (generalmente un número).
-- "target_word_count": Número de palabras ideal o extensión deseada del contenido (ej: 1500, 2000).
+- "word_count": Número de palabras ideal o extensión deseada del contenido (ej: 1500, 2000).
 - "brief": Resumen, intención de búsqueda o notas adicionales.
+- "project_name": Nombre del proyecto al que pertenece la fila (útil para archivos multi-proyecto).
 - "scheduled_date": Fecha programada de publicación (YYYY-MM-DD o similar).
 
 INSTRUCCIONES:
