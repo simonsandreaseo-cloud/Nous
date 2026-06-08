@@ -370,7 +370,9 @@ export function EditorialCalendar() {
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 10 }));
                 onLog(taskId, 'Redacción', 'Generando prompt y estructura...');
                 
+                console.log("[EditorialCalendar] 🚀 Calling prepareTaskDraftAction for taskId:", task.id);
                 const prepRes = await prepareTaskDraftAction(task.id);
+                console.log("[EditorialCalendar] ✅ prepareTaskDraftAction returned:", prepRes);
                 if (!prepRes.success || !prepRes.prompt) throw new Error(prepRes.error || "Fallo en preparación");
 
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 30 }));

@@ -61,6 +61,7 @@ export async function processTaskOutlineAction(taskId: string, csvData: any[]) {
 }
 
 export async function prepareTaskDraftAction(taskId: string) {
+    console.log("[SERVER] prepareTaskDraftAction START for taskId:", taskId);
     try {
         const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
         if (taskError || !task) throw new Error("Task not found");
@@ -102,8 +103,10 @@ export async function prepareTaskDraftAction(taskId: string) {
 
         const prompt = buildPrompt(config);
         
+        console.log("[SERVER] prepareTaskDraftAction SUCCESS");
         return { success: true, prompt, configStr: JSON.stringify(config) };
     } catch (error: any) {
+        console.error("[SERVER] prepareTaskDraftAction ERROR:", error);
         return { success: false, error: error.stack || error.message || String(error) };
     }
 }
