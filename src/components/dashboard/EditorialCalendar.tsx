@@ -413,16 +413,18 @@ export function EditorialCalendar() {
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 70 }));
                 onLog(taskId, 'Redacción', 'Procesando vínculos y SEO...');
                 
+                const taskConfig = JSON.parse(prepRes.configStr);
+
                 let cleanHtml = cleanAndFormatHtml(finalHtml);
                 const linked = await autoInterlinkAsync(
                     cleanHtml, 
-                    prepRes.config.approvedLinks || [],
+                    taskConfig.approvedLinks || [],
                     activeProject?.architecture_rules,
                     activeProject?.architecture_instructions,
                     activeProject
                 );
 
-                const refinedSEO = await runSEOPostProcessor(linked, prepRes.config);
+                const refinedSEO = await runSEOPostProcessor(linked, taskConfig);
 
                 let finalContent = refinedSEO;
                 const activeExtractorRules = activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer') : [];

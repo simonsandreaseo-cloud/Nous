@@ -102,7 +102,7 @@ export async function prepareTaskDraftAction(taskId: string) {
 
         const prompt = buildPrompt(config);
         
-        return { success: true, prompt, config };
+        return { success: true, prompt, configStr: JSON.stringify(config) };
     } catch (error: any) {
         return { success: false, error: error.stack || error.message || String(error) };
     }
