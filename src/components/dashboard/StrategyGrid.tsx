@@ -935,27 +935,35 @@ export default function StrategyGrid({
                                     {columnVisibility['competitors'] && (
                                         <td className="px-3 py-2">
                                             <div className="flex items-center gap-1.5 overflow-hidden group/comprow">
-                                                {task.research_dossier?.top10Urls?.slice(0, 3).map((comp: any, i: number) => {
-                                                    const match = task.research_dossier?.competitors?.find((c: any) => c.url === comp.url);
-                                                    return (
-                                                        <button 
-                                                            key={i} 
-                                                            onClick={(e) => { 
-                                                                e.stopPropagation(); 
-                                                                setSelectedCompetitor({ task, comp: match || comp, index: i }); 
-                                                                setCompContent(match?.content || comp.content || "");
-                                                                setIsEditingComp(false);
-                                                            }}
-                                                            className={cn(
-                                                                "flex items-center gap-1 truncate transition-colors shrink-0",
-                                                                match ? "text-indigo-500 hover:text-indigo-700" : "text-slate-300 hover:text-indigo-400"
-                                                            )}
-                                                            title={comp.url}
-                                                        >
-                                                            <Globe size={11} className={match ? "animate-pulse" : ""} />
-                                                        </button>
-                                                    );
-                                                }) || <span className="text-[9px] text-slate-300 italic">--</span>}
+                                                {(() => {
+                                                    const manualRefs = (task.refs || []).map(url => ({ url, title: 'Referencia Manual', isManual: true }));
+                                                    const scrapedRefs = task.research_dossier?.top10Urls || [];
+                                                    const combinedRefs = [...manualRefs, ...scrapedRefs].slice(0, 3);
+                                                    
+                                                    if (combinedRefs.length === 0) return <span className="text-[9px] text-slate-300 italic">--</span>;
+                                                    
+                                                    return combinedRefs.map((comp: any, i: number) => {
+                                                        const match = task.research_dossier?.competitors?.find((c: any) => c.url === comp.url);
+                                                        return (
+                                                            <button 
+                                                                key={i} 
+                                                                onClick={(e) => { 
+                                                                    e.stopPropagation(); 
+                                                                    setSelectedCompetitor({ task, comp: match || comp, index: i }); 
+                                                                    setCompContent(match?.content || comp.content || "");
+                                                                    setIsEditingComp(false);
+                                                                }}
+                                                                className={cn(
+                                                                    "flex items-center gap-1 truncate transition-colors shrink-0",
+                                                                    match ? "text-indigo-500 hover:text-indigo-700" : comp.isManual ? "text-emerald-400 hover:text-emerald-600" : "text-slate-300 hover:text-indigo-400"
+                                                                )}
+                                                                title={comp.url}
+                                                            >
+                                                                <Globe size={11} className={match ? "animate-pulse" : ""} />
+                                                            </button>
+                                                        );
+                                                    });
+                                                })()}
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); setCompetitorModalTask(task.id); }}
                                                     className="p-1 hover:bg-slate-100 rounded-lg text-slate-300 hover:text-indigo-600 transition-all"
