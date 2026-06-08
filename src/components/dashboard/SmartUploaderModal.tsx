@@ -109,7 +109,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                             value = parseInt(String(value).replace(/\D/g, ''), 10) || 0;
                         }
                         if (targetField === 'refs' && value) {
-                            value = String(value).split(',').map(v => v.trim()).filter(v => v);
+                            value = String(value).split(/[\r\n,]+/).map(v => v.trim()).filter(v => v);
                         }
                         if (targetField === 'status' && value) {
                             const rawStatus = String(value).toLowerCase().trim().replace(/ /g, '_');

@@ -405,8 +405,16 @@ Retorna ÚNICAMENTE este formato JSON válido:
         const isStrict = taskCtx.metadata?.strict_linking === true;
         const manualLinks: any[] = [];
         
-        if (taskCtx.associated_url) manualLinks.push({ url: taskCtx.associated_url, title: "Enlace Principal (Manual)", anchor_text: "Ver más", type: "manual" });
-        if (taskCtx.secondary_url) manualLinks.push({ url: taskCtx.secondary_url, title: "Enlace Secundario (Manual)", anchor_text: "Saber más", type: "manual" });
+        const parseUrls = (input: string) => {
+            if (!input) return [];
+            return input.split(/[\r\n,]+/).map(u => u.trim()).filter(u => u && (u.startsWith('http') || u.startsWith('/')));
+        };
+
+        const assocUrls = parseUrls(taskCtx.associated_url);
+        assocUrls.forEach((u, i) => manualLinks.push({ url: u, title: `Enlace Principal ${i+1} (Manual)`, anchor_text: "Ver más", type: "manual" }));
+
+        const secUrls = parseUrls(taskCtx.secondary_url);
+        secUrls.forEach((u, i) => manualLinks.push({ url: u, title: `Enlace Secundario ${i+1} (Manual)`, anchor_text: "Saber más", type: "manual" }));
 
         if (isStrict && manualLinks.length > 0) {
             if (onLog) onLog("INFO", "Interlinking", "Modo estricto activado. Solo se usarán los enlaces manuales.");
