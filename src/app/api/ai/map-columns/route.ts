@@ -15,7 +15,6 @@ ESQUEMA DE BASE DE DATOS (NOUS TASK TABLE):
 - "title": El título o H1 del artículo.
 - "target_keyword": La palabra clave principal a posicionar (Keyword SEO).
 - "associated_url": URLs o enlaces de Interlinking (Enlazado interno) manual para añadir al contenido.
-- "secondary_url": Enlace secundario manual (URL de apoyo).
 - "refs": Referencias o URLs de competidores para scrapear/investigar.
 - "status": Estado del contenido (e.g., 'idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'). Si no estás seguro, asigna null.
 - "volume": Volumen de búsqueda mensual (generalmente un número).

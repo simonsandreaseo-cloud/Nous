@@ -16,8 +16,7 @@ const NOUS_FIELDS = [
     { value: 'title', label: 'Título del Artículo (H1)' },
     { value: 'project_name', label: 'Proyecto al que pertenece' },
     { value: 'target_keyword', label: 'Keyword Principal' },
-    { value: 'associated_url', label: 'Enlazado Interno (URL 1)' },
-    { value: 'secondary_url', label: 'Enlazado Interno (URL 2)' },
+    { value: 'associated_url', label: 'Interlinking' },
     { value: 'refs', label: 'Referencias (URLs a scrapear/investigar)' },
     { value: 'status', label: 'Estado (e.g. idea, en_redaccion)' },
     { value: 'volume', label: 'Volumen de Búsqueda' },
@@ -184,7 +183,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                             const rawStatus = String(value).toLowerCase().trim().replace(/ /g, '_');
                             const validStatuses = ['idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'];
                             task[targetField] = validStatuses.includes(rawStatus) ? rawStatus : 'idea';
-                        } else if (['associated_url', 'secondary_url', 'brief', 'title', 'target_keyword'].includes(targetField)) {
+                        } else if (['associated_url', 'brief', 'title', 'target_keyword'].includes(targetField)) {
                             // Consolidar concatenando para campos de texto clave
                             if (task[targetField]) {
                                 task[targetField] = `${task[targetField]}\n${String(value).trim()}`;

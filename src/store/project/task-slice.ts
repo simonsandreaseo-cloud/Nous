@@ -10,7 +10,7 @@ const LIGHT_TASK_COLUMNS = `
     word_count, target_word_count, word_count_real, ai_percentage, docs_url, layout_status,
     creator_id, researcher_id, writer_id, corrector_id, assigned_to, 
     assigned_at, completed_at, created_at,
-    seo_title, meta_description, h1, excerpt, language
+    seo_title, meta_description, h1, excerpt, language, associated_url
 `;
 
 export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = (set, get) => ({
