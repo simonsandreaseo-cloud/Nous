@@ -40,7 +40,8 @@ import {
     Layout,
     ChevronRight,
     ChevronDown,
-    Zap
+    Zap,
+    UploadCloud
 } from "lucide-react";
 import { useProjectStore, Task, STATUS_LABELS } from "@/store/useProjectStore";
 import { usePermissions } from '@/hooks/usePermissions';
@@ -57,6 +58,7 @@ import { parseDocx, parseHtml } from "@/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
 import NousOrb from "./NousOrb";
+import { SmartUploaderModal } from "./SmartUploaderModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
 import { 
     processTaskOutlineAction, 
@@ -81,6 +83,7 @@ export function EditorialCalendar() {
     const router = useRouter();
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [isSmartUploadModalOpen, setIsSmartUploadModalOpen] = useState(false);
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
     const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
@@ -998,6 +1001,13 @@ export function EditorialCalendar() {
                         <span className="text-[9px] font-black uppercase tracking-widest">Copiar Tabla</span>
                     </button>
                     <button 
+                        onClick={() => setIsSmartUploadModalOpen(true)}
+                        className="flex items-center gap-2.5 px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all group"
+                    >
+                        <UploadCloud size={12} className="group-hover:-translate-y-0.5 transition-transform" />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Cargar Inteligente</span>
+                    </button>
+                    <button 
                         onClick={handleDownloadCSV}
                         disabled={isExporting || filteredTasks.length === 0}
                         className="flex items-center gap-2.5 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white hover:bg-slate-800 transition-all disabled:opacity-50 group shadow-lg shadow-slate-200"
@@ -1030,7 +1040,20 @@ export function EditorialCalendar() {
                 selectedCount={selectedTaskIds.length}
             />
 
-            {/* Modals & Overlays */}
+            {/* Modals and Overlays */}
+
+            <SmartUploaderModal 
+                isOpen={isSmartUploadModalOpen} 
+                onClose={() => setIsSmartUploadModalOpen(false)}
+                projectId={activeProject?.id || ''}
+                onImportComplete={async (importedTasks) => {
+                    for (const task of importedTasks) {
+                        await addTask(task);
+                    }
+                    fetchProjectTasks(activeProject?.id || '');
+                }}
+            />
+
             <AnimatePresence>
                 {/* Content Detail View */}
                 {selectedTask && (

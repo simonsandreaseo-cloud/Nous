@@ -85,6 +85,7 @@
     "three": "^0.182.0",
     "three-custom-shader-material": "^6.4.0",
     "tsx": "^4.21.0",
+    "xlsx": "^0.18.5",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
