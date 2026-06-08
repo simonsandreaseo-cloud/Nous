@@ -138,7 +138,7 @@ export async function processTaskHumanizationAction(taskId: string) {
                 keywords: task.target_keyword || '', 
                 language: task.language || 'es' 
             },
-            0.7, undefined, 'gemini-3.1-flash-preview'
+            0.7, undefined, 'gemma-4-31b-it'
         );
 
         const updates: Partial<Task> = {

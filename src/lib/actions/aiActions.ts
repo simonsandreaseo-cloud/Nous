@@ -106,24 +106,29 @@ export async function executeHumanizerWithRetry<T>(
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    let attempt = 1;
-    while (true) {
-        try {
-            return await executeWithKeyRotation(
-                operation,
-                modelName,
-                undefined,
-                undefined,
-                undefined,
-                true,
-                label
-            );
-        } catch (e: any) {
-            console.error(`[Humanizer-Retry] Error en ejecución de humanizador:`, e);
-            safeStatus(`⚠️ Todas las API Keys han fallado o agotado su cuota. Esperando 2 minutos antes de reintentar...`);
-            await new Promise(resolve => setTimeout(resolve, 120000));
-            safeStatus(`Reanudando proceso de humanización (Intento ${++attempt})...`);
-        }
+    try {
+        return await executeWithKeyRotation(
+            operation,
+            modelName,
+            undefined,
+            undefined,
+            undefined,
+            true,
+            label
+        );
+    } catch (e: any) {
+        console.error(`[Humanizer-Retry] Error en ejecución de humanizador:`, e);
+        safeStatus(`⚠️ Error con ${modelName}. Reintentando una vez con modelo alternativo...`);
+        // Fallback to a safe known model instead of infinite loop
+        return await executeWithKeyRotation(
+            operation,
+            'gemma-4-31b-it',
+            undefined,
+            undefined,
+            undefined,
+            true,
+            label
+        );
     }
 };
 
