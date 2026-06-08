@@ -120,7 +120,7 @@ export function EditorialCalendar() {
             { id: 'strategy', label: 'Estrategia', defaultVisible: false },
             { id: 'assigned', label: 'Responsable', defaultVisible: false },
             { id: 'total_volume', label: 'Vol.', defaultVisible: false },
-            { id: 'word_count', label: 'Palabras (Obj)', defaultVisible: false },
+            { id: 'target_word_count', label: 'Palabras (Obj)', defaultVisible: false },
             { id: 'word_count_real', label: 'Palabras (Reales)', defaultVisible: false },
             { id: 'lsi', label: 'LSI', defaultVisible: false },
             { id: 'competitors', label: 'Fuentes', defaultVisible: false },
@@ -1208,7 +1208,7 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
                     volume: task.volume,
                     viability: task.viability,
                     refs: task.refs,
-                    word_count: task.word_count,
+                    target_word_count: task.target_word_count,
                     ai_percentage: task.ai_percentage,
                     docs_url: task.docs_url,
                     layout_status: task.layout_status

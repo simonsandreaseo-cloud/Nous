@@ -21,7 +21,7 @@ const NOUS_FIELDS = [
     { value: 'refs', label: 'Referencias (URLs a scrapear/investigar)' },
     { value: 'status', label: 'Estado (e.g. idea, en_redaccion)' },
     { value: 'volume', label: 'Volumen de Búsqueda' },
-    { value: 'word_count', label: 'Nº de Palabras ideal / Extensión' },
+    { value: 'target_word_count', label: 'Nº de Palabras ideal / Extensión' },
     { value: 'brief', label: 'Brief / Intención / Resumen' },
     { value: 'scheduled_date', label: 'Fecha de Publicación' },
     { value: 'ignore', label: '-- Ignorar esta columna --' }
@@ -163,7 +163,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                         if (!value) continue;
 
                         // Transformaciones de limpieza y Consolidación
-                        if (targetField === 'volume' || targetField === 'word_count') {
+                        if (targetField === 'volume' || targetField === 'target_word_count') {
                             const parsedNum = parseInt(String(value).replace(/\D/g, ''), 10) || 0;
                             if (task[targetField] !== undefined) {
                                 task[targetField] += parsedNum; // Consolidar sumando
