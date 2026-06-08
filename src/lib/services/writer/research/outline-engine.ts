@@ -59,10 +59,10 @@ export const OutlineEngine = {
                 const clean = line.trim();
                 if (!clean) continue;
 
-                // Match H2/H3 markers: "H2: Title", "## Title", "2. Title", "### Title"
-                const hMatch = clean.match(/^(?:#+\s*|H([23])[:.\s]+|([23])[:.\s]+)(.*)/i);
+                // Match H2/H3/H4 markers: "H2: Title", "## Title", "2. Title", "### Title", "#### Title"
+                const hMatch = clean.match(/^(?:#+\s*|H([234])[:.\s]+|([234])[:.\s]+)(.*)/i);
                 if (hMatch) {
-                    const levelStr = hMatch[1] || hMatch[2] || (clean.startsWith('###') ? '3' : '2');
+                    const levelStr = hMatch[1] || hMatch[2] || (clean.startsWith('####') ? '4' : clean.startsWith('###') ? '3' : '2');
                     const level = parseInt(levelStr);
                     const titleText = hMatch[3].trim();
                     if (titleText) structure.push({ level, text: titleText });
@@ -100,7 +100,7 @@ export const OutlineEngine = {
             }
 
             const phase1Prompt = `ESTRATEGIA PROFUNDA DE ESTRUCTURA PARA: "${keyword}"
-OBJETIVO: Crear el mejor esqueleto de H2/H3 del nicho superando a la competencia.
+OBJETIVO: Crear el mejor esqueleto de H2/H3/H4 del nicho superando a la competencia.
 
 METADATOS PROPUESTOS:
 H1: "${seoMetadata.h1}"
@@ -119,11 +119,11 @@ PREGUNTAS FRECUENTES (FAQs):
 ${faqsText || "Ninguna FAQ específica detectada."}
 
 REGLAS PARA EL ESQUELETO:
-1. Diseña una estructura lógica y fluida de H2s y H3s.
+1. Diseña una estructura lógica y fluida de H2s, H3s y H4s (si los H4s son necesarios para profundidad).
 2. REGLA E-COMMERCE ESTRICTA: Si hay PRODUCTOS/ENLACES INTERNOS en la lista anterior, DEBES crear un H2 por cada producto (o agruparlos en H3 dentro de un H2 categorizador). Usa el nombre o modelo exacto del producto en el encabezado.
 3. Si el SERP es informativo, prioritiza el valor educativo. Si es transaccional, prioritiza los beneficios y la comparativa.
 4. Asegúrate de responder las FAQs de manera natural.
-5. Devuelve un Array de objetos con "level" (2 o 3) y "text" (título).
+5. Devuelve un Array de objetos con "level" (2, 3 o 4) y "text" (título).
 
 FORMATO PREFERIDO:
 [{"level": 2, "text": "Título"}]`;
@@ -134,7 +134,7 @@ FORMATO PREFERIDO:
                     const phase1Res = await aiRouter.generate({
                         prompt: phase1Prompt,
                         model: model,
-                        systemPrompt: "Eres un Arquitecto de Contenidos. Devuelves el esqueleto H2/H3 de forma estructurada. Prefiere JSON, pero puedes usar Markdown si es necesario.",
+                        systemPrompt: "Eres un Arquitecto de Contenidos. Devuelves el esqueleto H2/H3/H4 de forma estructurada. Prefiere JSON, pero puedes usar Markdown si es necesario.",
                         jsonMode: true,
                         label: `Outline P1 (${model})`,
                         temperature: 0.2,

@@ -18,6 +18,7 @@ const NOUS_FIELDS = [
     { value: 'secondary_url', label: 'URL Secundaria (Enlace Manual)' },
     { value: 'status', label: 'Estado (e.g. idea, en_redaccion)' },
     { value: 'volume', label: 'Volumen de Búsqueda' },
+    { value: 'target_word_count', label: 'Nº de Palabras ideal / Extensión' },
     { value: 'brief', label: 'Brief / Intención / Resumen' },
     { value: 'scheduled_date', label: 'Fecha de Publicación' },
     { value: 'ignore', label: '-- Ignorar esta columna --' }
@@ -103,7 +104,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                     if (targetField && targetField !== 'ignore') {
                         let value = row[header];
                         // Transformaciones de limpieza básicas
-                        if (targetField === 'volume' && value) {
+                        if ((targetField === 'volume' || targetField === 'target_word_count') && value) {
                             value = parseInt(String(value).replace(/\D/g, ''), 10) || 0;
                         }
                         if (targetField === 'status' && value) {

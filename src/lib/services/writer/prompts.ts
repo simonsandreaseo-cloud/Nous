@@ -36,7 +36,7 @@ ${others.length > 0 ? `OTROS ENLACES DE CALIDAD (BLOG/ESTRATEGIA):\n${formatList
 ### ESTRUCTURA OBLIGATORIA (Sigue este orden)
 El H1 del artículo es: "${topic}" (Debe ser el título visible).
 Luego sigue este esquema:
-${outlineStructure.map(h => `${h.type}: ${h.text} (Objetivo: ${h.wordCount}) [Instrucción: ${h.notes || 'Normal'}]`).join('\n')}
+${outlineStructure.map(h => `${h.type}: ${h.text} (Referencia: ~${h.wordCount} palabras) [Instrucción: ${h.notes || 'Normal'}]`).join('\n')}
 `;
     }    const formatRules = `
         - Usa un formato HTML semántico enriquecido (tablas, listas, citas) cuando aporte valor.
@@ -80,7 +80,7 @@ DATOS TÉCNICOS:
 - H1 (Header Principal): ${topic}
 - Keywords Short Tail: ${keywords}
 - Tono: ${tone || 'Profesional'}
-- Extensión Objetivo: ${wordCount || '1500'}
+- Extensión TOTAL OBLIGATORIA: Mínimo ${wordCount || '1500'} palabras. [CRÍTICO: No escatimes en texto. Escribe con profundidad para superar la cuota total.]
 - Idioma: ${config.language ? (config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español de España (Neutro, profesional)' : config.language) : 'Español de España (Neutro, profesional)'}.
 
 ${contextInstructions ? `### INSTRUCCIONES DE CONTEXTO GLOBAL (MUY IMPORTANTE):\n${contextInstructions}\n` : ''}

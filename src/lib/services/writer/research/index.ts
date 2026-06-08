@@ -336,10 +336,15 @@ Responde ÚNICAMENTE en JSON:
     async runMetadataPhase(keyword: string, cleanedLSI: any[], validSEO: any[], onLog?: any, masterH1?: string, masterIntent?: string, taskContext?: any): Promise<{ seoMetadata: any, wordCountGoal: number }> {
         if (onLog) onLog("Fase 5 (Metadata)", "Diseñando arquitectura de metadatos y estrategia E-E-A-T...");
         let wordCountGoal = 1500;
-        const validTop3 = validSEO.slice(0, 3).filter(s => s.wordCount > 200);
-        if (validTop3.length > 0) {
-            const avgWC = validTop3.reduce((acc, curr) => acc + curr.wordCount, 0) / validTop3.length;
-            wordCountGoal = Math.round(avgWC * 1.2);
+        
+        if (taskContext?.target_word_count && parseInt(taskContext.target_word_count) > 0) {
+            wordCountGoal = parseInt(taskContext.target_word_count);
+        } else {
+            const validTop3 = validSEO.slice(0, 3).filter(s => s.wordCount > 200);
+            if (validTop3.length > 0) {
+                const avgWC = validTop3.reduce((acc, curr) => acc + curr.wordCount, 0) / validTop3.length;
+                wordCountGoal = Math.round(avgWC * 1.2);
+            }
         }
 
         const userTitle = taskContext?.title || '';
