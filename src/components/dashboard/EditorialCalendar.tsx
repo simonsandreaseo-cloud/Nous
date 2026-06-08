@@ -124,6 +124,7 @@ export function EditorialCalendar() {
             { id: 'word_count_real', label: 'Palabras (Reales)', defaultVisible: false },
             { id: 'lsi', label: 'LSI', defaultVisible: false },
             { id: 'competitors', label: 'Fuentes', defaultVisible: false },
+            { id: 'links', label: 'Interlinking', defaultVisible: true },
             { id: 'content', label: 'Cuerpo', defaultVisible: true },
             { id: 'Acciones Nous', label: 'Acciones Nous', defaultVisible: true }
         ].reduce((acc, col) => ({ ...acc, [col.id]: col.defaultVisible }), {});

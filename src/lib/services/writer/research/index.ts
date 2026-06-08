@@ -742,9 +742,10 @@ REGLAS:
             try {
                 console.log("📤 [Supabase] Iniciando persistencia final para:", config.taskId);
                 
-                // ONLY update valid columns in 'tasks' (strictly status to avoid 400 errors)
+                // ONLY update valid columns in 'tasks' (strictly status and target_word_count to avoid 400 errors)
                 const { error: taskError } = await supabase.from('tasks').update({
-                    status: "por_redactar"
+                    status: "por_redactar",
+                    target_word_count: dossier.wordCountGoal
                 }).eq('id', config.taskId);
 
                 if (taskError) {
