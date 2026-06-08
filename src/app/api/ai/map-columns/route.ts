@@ -16,8 +16,10 @@ ESQUEMA DE BASE DE DATOS (NOUS TASK TABLE):
 - "target_keyword": La palabra clave principal a posicionar (Keyword SEO).
 - "associated_url": Enlace principal manual (URL interlinking objetivo).
 - "secondary_url": Enlace secundario manual (URL de apoyo).
+- "refs": Referencias o URLs de competidores para scrapear/investigar.
 - "status": Estado del contenido (e.g., 'idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'). Si no estás seguro, asigna null.
 - "volume": Volumen de búsqueda mensual (generalmente un número).
+- "target_word_count": Número de palabras ideal o extensión deseada del contenido (ej: 1500, 2000).
 - "brief": Resumen, intención de búsqueda o notas adicionales.
 - "scheduled_date": Fecha programada de publicación (YYYY-MM-DD o similar).
 
