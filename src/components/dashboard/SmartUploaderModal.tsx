@@ -3,6 +3,7 @@ import { Upload, Loader2, X, FileSpreadsheet, Check, ArrowRight, AlertTriangle }
 import { parseSpreadsheet, ParsedData } from '@/lib/utils/excel-parser';
 import { NotificationService } from '@/lib/services/notifications';
 import { Task } from '@/types/project';
+import { supabase } from '@/lib/supabase';
 
 interface SmartUploaderModalProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ interface SmartUploaderModalProps {
 
 const NOUS_FIELDS = [
     { value: 'title', label: 'Título del Artículo (H1)' },
+    { value: 'project_name', label: 'Proyecto al que pertenece' },
     { value: 'target_keyword', label: 'Keyword Principal' },
     { value: 'associated_url', label: 'Enlazado Interno (URL 1)' },
     { value: 'secondary_url', label: 'Enlazado Interno (URL 2)' },
@@ -30,7 +32,17 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
     const [parsedData, setParsedData] = useState<ParsedData | null>(null);
     const [mapping, setMapping] = useState<Record<string, string>>({});
     const [isImporting, setIsImporting] = useState(false);
+    const [autoCreateProjects, setAutoCreateProjects] = useState(true);
+    const [userProjects, setUserProjects] = useState<any[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    React.useEffect(() => {
+        if (isOpen) {
+            supabase.from('projects').select('id, name').then(({ data }) => {
+                if (data) setUserProjects(data);
+            });
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -91,11 +103,55 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
         setIsImporting(true);
 
         try {
+            // Check if user mapped a column to project_name
+            const projectCol = Object.keys(mapping).find(k => mapping[k] === 'project_name');
+            let resolvedProjectsMapping: Record<string, string> = {};
+
+            if (projectCol) {
+                NotificationService.success("Analizando proyectos", "La IA está emparejando los proyectos del archivo con tu base de datos...");
+                const uniqueCsvProjects = [...new Set(parsedData.rows.map(r => String(r[projectCol]).trim()).filter(Boolean))];
+                
+                try {
+                    const res = await fetch('/api/ai/match-projects', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ csvProjects: uniqueCsvProjects, existingProjects: userProjects })
+                    });
+                    const responseData = await res.json();
+                    if (res.ok && responseData.mapping) {
+                        resolvedProjectsMapping = responseData.mapping;
+                        
+                        // Create missing projects if autoCreate is ON
+                        if (autoCreateProjects) {
+                            const { data: { session } } = await supabase.auth.getSession();
+                            const userId = session?.user?.id;
+                            
+                            for (const csvName of Object.keys(resolvedProjectsMapping)) {
+                                if (resolvedProjectsMapping[csvName] === 'NEW') {
+                                    if (userId) {
+                                        const { data: newProj } = await supabase.from('projects').insert({
+                                            name: csvName,
+                                            user_id: userId
+                                        }).select('id').single();
+                                        
+                                        if (newProj) {
+                                            resolvedProjectsMapping[csvName] = newProj.id;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error matching projects via AI:", e);
+                }
+            }
+
             // Transformar filas crudas en objetos de tarea de Nous
             const tasksToImport = parsedData.rows.map(row => {
                 const task: any = {
                     id: crypto.randomUUID(),
-                    project_id: projectId,
+                    project_id: projectId, // Default fallback
                     status: 'idea', // default
                     created_at: new Date().toISOString()
                 };
@@ -114,6 +170,12 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                             const refsArray = String(value).split(/[\r\n,]+/).map(v => v.trim()).filter(v => v);
                             if (!task.refs) task.refs = [];
                             task.refs.push(...refsArray);
+                        } else if (targetField === 'project_name') {
+                            const pName = String(value).trim();
+                            const matchedId = resolvedProjectsMapping[pName];
+                            if (matchedId && matchedId !== 'NEW') {
+                                task.project_id = matchedId;
+                            }
                         } else if (targetField === 'status') {
                             const rawStatus = String(value).toLowerCase().trim().replace(/ /g, '_');
                             const validStatuses = ['idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'];
