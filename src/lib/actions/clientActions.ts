@@ -8,11 +8,14 @@ import {
     generateArticleJSON,
     runHumanizerPipeline,
     buildPrompt,
-    ArticleConfig
+    ArticleConfig,
+    runSEOPostProcessor
 } from '@/lib/actions/aiActions';
 import { executeTranslation } from '@/lib/services/writer/ai-core';
 import { mdToHtml } from '@/utils/markdown';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';
+import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
+import { NousExtractorService } from '@/lib/services/nous-extractor';
 
 export async function processTaskOutlineAction(task: Task, csvData: any[]) {
     try {
@@ -51,14 +54,18 @@ export async function processTaskOutlineAction(task: Task, csvData: any[]) {
         return { success: false, error: error.message };
     }
 }
+export const maxDuration = 300;
 
 export async function processTaskDraftAction(task: Task) {
     try {
         const rawOutline = task.outline_structure;
         const outlineArray = Array.isArray(rawOutline) ? rawOutline : (rawOutline?.headers || []);
 
+        // Fetch active project for pipeline configurations
+        const { data: activeProject } = await supabase.from('projects').select('*').eq('id', task.project_id).single();
+
         const config: ArticleConfig = {
-            projectName: 'Nous Project',
+            projectName: activeProject?.name || 'Nous Project',
             niche: task.metadata?.niche || 'General',
             topic: task.h1 || task.title,
             metaTitle: task.seo_title || task.title,
@@ -70,7 +77,17 @@ export async function processTaskDraftAction(task: Task) {
             csvData: [],
             outlineStructure: outlineArray,
             approvedLinks: task.research_dossier?.suggestedInternalLinks || [],
-            language: task.language || 'es'
+            language: task.language || 'es',
+            architectureInstructions: activeProject?.architecture_instructions,
+            architectureRules: activeProject?.architecture_rules,
+            extractorInstructions: activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer')
+                    .map(r => {
+                        let placementText = "";
+                        if (r.placement_mode === 'new_paragraph') placementText = "OBLIGATORIO: Coloca el dato extraído en un párrafo INDEPENDIENTE.";
+                        else if (r.placement_mode === 'new_line') placementText = "Coloca el dato extraído en una nueva línea (br).";
+                        else placementText = "Coloca el dato extraído inmediatamente después del enlace (inline).";
+                        return `- Para reglas "${r.name}": ${placementText} (Pattern: ${r.extraction_value})`;
+                    }).join('\n') : ''
         };
 
         const prompt = buildPrompt(config);
@@ -78,11 +95,32 @@ export async function processTaskDraftAction(task: Task) {
         
         if (!fullContent || fullContent.length < 100) throw new Error("Contenido vacío.");
 
-        const updates: Partial<Task> = { content_body: fullContent, status: 'por_corregir' };
+        let cleanHtml = cleanAndFormatHtml(fullContent);
+
+        // --- Post processing Pipeline (Same as Studio) ---
+        const linked = await autoInterlinkAsync(
+            cleanHtml, 
+            config.approvedLinks || [],
+            activeProject?.architecture_rules,
+            activeProject?.architecture_instructions,
+            activeProject
+        );
+
+        const refinedSEO = await runSEOPostProcessor(linked, config);
+
+        let finalContent = refinedSEO;
+        const activeExtractorRules = activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer') : [];
+        if (activeExtractorRules.length > 0) {
+            finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
+        }
+
+        const formatted = cleanAndFormatHtml(finalContent);
+
+        const updates: Partial<Task> = { content_body: formatted, status: 'por_corregir' };
         const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
         if (error) throw error;
 
-        return { success: true, updates, msg: `✅ Artículo redactado.` };
+        return { success: true, updates, msg: `✅ Artículo redactado y optimizado.` };
     } catch (error: any) {
         return { success: false, error: error.message };
     }
