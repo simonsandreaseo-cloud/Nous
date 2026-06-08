@@ -21,9 +21,10 @@ export const OutlineEngine = {
         realKeywords?: any[],
         masterIntent?: string,
         serpReport?: any,
+        taskContext?: any,
         timeoutMs?: number
     }): Promise<any[]> {
-        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors, wordCountGoal, faqs = [], askKeywords = [], realKeywords = [], masterIntent = "", serpReport = {}, timeoutMs = 120000 } = params;
+        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors, wordCountGoal, faqs = [], askKeywords = [], realKeywords = [], masterIntent = "", serpReport = {}, taskContext = {}, timeoutMs = 120000 } = params;
         
         // Build competitor headers string safely to avoid token explosion
         const competitorHeaders = validCompetitors.slice(0, 6).map(v => {
@@ -85,15 +86,28 @@ export const OutlineEngine = {
                 ? suggestedLinks.map(l => `- ${l.title || l.url}`).join('\n') 
                 : "Ninguno.";
             
+            // User injected rules
+            const userBrief = taskContext?.brief ? `\n\n[INSTRUCCIÓN MAESTRA DEL USUARIO]:\n${taskContext.brief}\nDEBES ADAPTAR TODA LA ESTRUCTURA A ESTA REGLA.` : '';
+            const contentType = taskContext?.content_type || 'Blog Post';
+            let strategyRec = serpReport.type === 'transactional' ? 'Enfoque directo a solución/producto.' : 'Guía informativa profunda y autoritativa.';
+            
+            if (contentType === 'Landing Transaccional') {
+                strategyRec = 'ESTO ES UNA LANDING PAGE PURA. Usa estructura de copy de ventas (Problema, Solución, Beneficios, Testimonios, CTA). No la hagas como un blog largo.';
+            } else if (contentType === 'Review / Reseña') {
+                strategyRec = 'ESTO ES UNA RESEÑA. Enfócate en Pros, Contras, Comparativas y Veredicto Final.';
+            } else if (contentType === 'Pilar Page') {
+                strategyRec = 'ESTO ES UNA PILLAR PAGE. Estructura inmensa y categorizada para enlazar a clusters.';
+            }
+
             const phase1Prompt = `ESTRATEGIA PROFUNDA DE ESTRUCTURA PARA: "${keyword}"
 OBJETIVO: Crear el mejor esqueleto de H2/H3 del nicho superando a la competencia.
 
 METADATOS PROPUESTOS:
 H1: "${seoMetadata.h1}"
-INTENCIÓN MAESTRA: "${masterIntent}"
-TIPO DE SERP DETECTADO: "${serpReport.type || 'mixed'}"
+INTENCIÓN INFERIDA: "${masterIntent}"
+TIPO DE CONTENIDO: "${contentType}"
 
-ESTRATEGIA RECOMENDADA: ${serpReport.type === 'transactional' ? 'Enfoque directo a solución/producto.' : 'Guía informativa profunda y autoritativa.'}
+ESTRATEGIA RECOMENDADA: ${strategyRec}${userBrief}
 
 PRODUCTOS/ENLACES INTERNOS SUGERIDOS (CATÁLOGO):
 ${linksContext}

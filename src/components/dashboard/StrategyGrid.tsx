@@ -32,6 +32,7 @@ export const ALL_COLUMNS = [
     { id: 'lsi', label: 'LSI', width: 'min-w-[120px] w-[12%]', defaultVisible: true },
     { id: 'competitors', label: 'Fuentes', width: 'min-w-[100px] w-[8%]', defaultVisible: true },
     { id: 'content', label: 'Cuerpo', width: 'min-w-[60px] w-[5%]', defaultVisible: true },
+    { id: 'links', label: 'Enlaces (Manual)', width: 'min-w-[120px] w-[8%]', defaultVisible: true },
     { id: 'Acciones Nous', label: 'Acciones Nous', width: 'min-w-[140px] w-[9%]', defaultVisible: true },
 ];
 
@@ -983,6 +984,37 @@ export default function StrategyGrid({
                                             >
                                                 <FileText size={14} />
                                             </button>
+                                        </td>
+                                    )}
+                                    {columnVisibility['links'] && (
+                                        <td className="px-3 py-2">
+                                            {task.associated_url ? (
+                                                <div className="flex flex-col gap-1.5">
+                                                    <span className="text-[9px] text-slate-500 font-medium truncate max-w-[100px]" title={task.associated_url}>
+                                                        {task.associated_url.replace(/^https?:\/\//, '')}
+                                                    </span>
+                                                    <button 
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            const isStrict = task.metadata?.strict_linking || false;
+                                                            const newMetadata = { ...(task.metadata || {}), strict_linking: !isStrict };
+                                                            await updateTask(task.id, { metadata: newMetadata });
+                                                        }}
+                                                        className={cn(
+                                                            "flex items-center gap-1.5 px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest transition-all w-fit",
+                                                            task.metadata?.strict_linking 
+                                                                ? "bg-rose-50 text-rose-600 border border-rose-100" 
+                                                                : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                                        )}
+                                                        title={task.metadata?.strict_linking ? "Modo Estricto: La IA NO agregará más enlaces." : "Modo Mixto: La IA agregará más enlaces además de este."}
+                                                    >
+                                                        {task.metadata?.strict_linking ? <Lock size={9} /> : <Wand2 size={9} />}
+                                                        {task.metadata?.strict_linking ? "Estricto" : "Mixto"}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[9px] text-slate-300 italic">Automático</span>
+                                            )}
                                         </td>
                                     )}
                                      {columnVisibility['Acciones Nous'] && (

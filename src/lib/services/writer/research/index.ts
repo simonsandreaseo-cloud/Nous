@@ -333,7 +333,7 @@ Responde ÚNICAMENTE en JSON:
         return { realKeywords, sniperUrls };
     },
 
-    async runMetadataPhase(keyword: string, cleanedLSI: any[], validSEO: any[], onLog?: any, masterH1?: string, masterIntent?: string): Promise<{ seoMetadata: any, wordCountGoal: number }> {
+    async runMetadataPhase(keyword: string, cleanedLSI: any[], validSEO: any[], onLog?: any, masterH1?: string, masterIntent?: string, taskContext?: any): Promise<{ seoMetadata: any, wordCountGoal: number }> {
         if (onLog) onLog("Fase 5 (Metadata)", "Diseñando arquitectura de metadatos y estrategia E-E-A-T...");
         let wordCountGoal = 1500;
         const validTop3 = validSEO.slice(0, 3).filter(s => s.wordCount > 200);
@@ -342,6 +342,9 @@ Responde ÚNICAMENTE en JSON:
             wordCountGoal = Math.round(avgWC * 1.2);
         }
 
+        const userTitle = taskContext?.title || '';
+        const titleRule = userTitle ? `\n¡IMPORTANTE!: El usuario ha proporcionado este título exacto: "${userTitle}". DEBES usar este título EXACTO como el H1. NO LO ALTERES.` : '';
+
         const metadataPrompt = `Crea la estrategia SEO final y optimizada para el tema: "${keyword}".
 Intención de búsqueda detectada: ${masterIntent || keyword}
 H1 Maestro sugerido: ${masterH1 || keyword}
@@ -349,7 +352,7 @@ H1 Maestro sugerido: ${masterH1 || keyword}
 Términos Semánticos (LSI) relevantes encontrados: ${cleanedLSI.slice(0, 15).map((l: any) => l.keyword).join(", ")}.
 
 INSTRUCCIONES Y RESTRICCIONES ESTRICTAS:
-1. "h1": Título principal del artículo (Atractivo y natural).
+1. "h1": Título principal del artículo.${titleRule}
 2. "seo_title": Título para Google. MÁXIMO 60 caracteres. Debe incluir la keyword principal o una variación fuerte al principio.
 3. "meta_description": Descripción para el SERP. MÁXIMO 155 caracteres. Incluye un Call to Action (CTA) al final.
 4. "target_url_slug": URL limpia, solo en minúsculas y con guiones (ej. "mi-keyword-principal").
@@ -385,6 +388,20 @@ Retorna ÚNICAMENTE este formato JSON válido:
         const minLinks = prefs.min_internal_links || 5;
         const maxLinks = prefs.max_internal_links || 12;
         const lProfile = baseResult.linkingProfile || { profile: 'auto' };
+
+        const taskCtx = baseResult.task_context || {};
+        const isStrict = taskCtx.metadata?.strict_linking === true;
+        const manualLinks: any[] = [];
+        
+        if (taskCtx.associated_url) manualLinks.push({ url: taskCtx.associated_url, title: "Enlace Principal (Manual)", anchor_text: "Ver más", type: "manual" });
+        if (taskCtx.secondary_url) manualLinks.push({ url: taskCtx.secondary_url, title: "Enlace Secundario (Manual)", anchor_text: "Saber más", type: "manual" });
+
+        if (isStrict && manualLinks.length > 0) {
+            if (onLog) onLog("INFO", "Interlinking", "Modo estricto activado. Solo se usarán los enlaces manuales.");
+            return manualLinks;
+        }
+
+        const finalMaxLinks = Math.max(1, maxLinks - manualLinks.length);
 
         const { count: inventoryCount } = await supabase.from('project_urls').select('*', { count: 'exact', head: true }).eq('project_id', projectId);
 
@@ -472,21 +489,18 @@ REGLAS:
             
             const argotRule = askSet.size > 0 ? `\n\nREGLA DE PUNTAJE DE ARGOT: prioritiza x5 palabras ASK: ${Array.from(askSet).join(', ')}` : '';
 
-
             const linkRes = await aiRouter.generate({
-                prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${units.length} artículos):\n${JSON.stringify(units)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${maxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,
+                prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${units.length} artículos):\n${JSON.stringify(units)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${finalMaxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,
                 model: "gemini-2.0-flash-lite-preview-02-05",
                 systemPrompt: "Arquitecto de Silos SEO.",
                 jsonMode: true,
                 label: "Optimización Interlinking",
-                timeoutMs: 90000
+                timeoutMs: 40000
             });
-            
-            const linkData = safeJsonExtract<any>(linkRes.text, { links: [] });
-            const rawLinks = (linkData.links || []).slice(0, maxLinks);
-            return await NousExtractorService.processLinks(rawLinks, projectData as any, 'research');
+            const extracted = safeJsonExtract<any>(linkRes.text, { links: [] });
+            return [...manualLinks, ...(extracted.links || [])].slice(0, maxLinks);
         }
-        return [];
+        return manualLinks;
     },
 
     async runOutlinePhase(config: DeepSEOConfig, baseResult: any, seoMetadata: any, cleanedLSI: any[], askKeywords: any[], realKeywords: any[], suggestedLinks: any[], validSEO: any[], wordCountGoal: number, onLog?: any): Promise<any> {
@@ -499,6 +513,7 @@ REGLAS:
             realKeywords,
             masterIntent: baseResult.masterIntent,
             serpReport: baseResult.serpReport,
+            taskContext: baseResult.task_context,
             timeoutMs: 150000 // 2.5 minutes for deep outline
         });
     },
@@ -529,7 +544,21 @@ REGLAS:
         let dossier: any = {};
         if (taskId && !forceRestart) {
             const { data: taskData } = await supabase.from('task_research').select('research_dossier').eq('id', taskId).maybeSingle();
+            const { data: mainTaskData } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
+            
             dossier = taskData?.research_dossier || {};
+            
+            if (mainTaskData) {
+                dossier.task_context = {
+                    title: mainTaskData.title,
+                    brief: mainTaskData.brief,
+                    content_type: mainTaskData.content_type,
+                    associated_url: mainTaskData.associated_url,
+                    secondary_url: mainTaskData.secondary_url,
+                    volume: mainTaskData.volume,
+                    metadata: mainTaskData.metadata || {}
+                };
+            }
             
             // SELF-HEAL: Convert legacy outline format to Studio-compatible format
             if (dossier.outline_structure && Array.isArray(dossier.outline_structure)) {
@@ -654,10 +683,10 @@ REGLAS:
         }
 
         // Phase 4: Metadata
-        if (startIndex <= 5) {
+        if (startIndex <= 5 && !['metadata_done', 'interlinking_done', 'outline_done'].includes(phaseToRun || '')) {
             if (onProgress) onProgress("metadata");
-            const { seoMetadata, wordCountGoal } = await this.runMetadataPhase(keyword, dossier.cleanedLSI || [], dossier.validSEO || [], onLog, dossier.masterH1, dossier.masterIntent);
-            dossier = await saveCheckpoint('metadata_done', { ...seoMetadata, recommendedWordCount: wordCountGoal });
+            const { seoMetadata, wordCountGoal } = await this.runMetadataPhase(config.keyword, dossier.cleanedLSI || [], dossier.validSEO || [], onLog, dossier.masterH1, dossier.masterIntent, dossier.task_context);
+            dossier = await saveCheckpoint('metadata_done', { seoMetadata, wordCountGoal });
             dossier.seoMetadata = seoMetadata;
             dossier.wordCountGoal = wordCountGoal;
             if (phaseToRun === 'metadata_done' && !cascade) return dossier;
