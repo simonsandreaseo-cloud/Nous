@@ -14,8 +14,9 @@ interface SmartUploaderModalProps {
 const NOUS_FIELDS = [
     { value: 'title', label: 'Título del Artículo (H1)' },
     { value: 'target_keyword', label: 'Keyword Principal' },
-    { value: 'associated_url', label: 'URL Objetivo (Enlace Manual)' },
-    { value: 'secondary_url', label: 'URL Secundaria (Enlace Manual)' },
+    { value: 'associated_url', label: 'Enlazado Interno (URL 1)' },
+    { value: 'secondary_url', label: 'Enlazado Interno (URL 2)' },
+    { value: 'refs', label: 'Referencias (URLs a scrapear/investigar)' },
     { value: 'status', label: 'Estado (e.g. idea, en_redaccion)' },
     { value: 'volume', label: 'Volumen de Búsqueda' },
     { value: 'target_word_count', label: 'Nº de Palabras ideal / Extensión' },
@@ -106,6 +107,9 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                         // Transformaciones de limpieza básicas
                         if ((targetField === 'volume' || targetField === 'target_word_count') && value) {
                             value = parseInt(String(value).replace(/\D/g, ''), 10) || 0;
+                        }
+                        if (targetField === 'refs' && value) {
+                            value = String(value).split(',').map(v => v.trim()).filter(v => v);
                         }
                         if (targetField === 'status' && value) {
                             const rawStatus = String(value).toLowerCase().trim().replace(/ /g, '_');

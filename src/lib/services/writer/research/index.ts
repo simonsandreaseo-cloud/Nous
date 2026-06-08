@@ -221,9 +221,16 @@ Responde ÚNICAMENTE en JSON:
         const { isFastMode = false } = config;
         
         // Priority: Use AI-selected URLs if available, otherwise fallback to top results
-        const rawPool: any[] = (baseResult.selectedUrls && baseResult.selectedUrls.length > 0) 
+        let rawPool: any[] = (baseResult.selectedUrls && baseResult.selectedUrls.length > 0) 
             ? baseResult.selectedUrls 
             : (baseResult.rankedPool || baseResult.top10Urls || []);
+            
+        // Inyectar referencias explícitas del usuario si existen en el task_context
+        if (baseResult.task_context?.refs && Array.isArray(baseResult.task_context.refs)) {
+            const userRefs = baseResult.task_context.refs.map((url: string) => ({ url, title: 'Referencia del Usuario (Manual)' }));
+            // Prepend user refs to ensure they are at the top of the pool
+            rawPool = [...userRefs, ...rawPool];
+        }
         
         const rankedPool = rawPool.slice(0, 10); // Final safety limit to avoid over-scraping
         
