@@ -104,24 +104,30 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                     const targetField = mapping[header];
                     if (targetField && targetField !== 'ignore') {
                         let value = row[header];
+                        if (!value) continue;
+
                         // Transformaciones de limpieza básicas
-                        if ((targetField === 'volume' || targetField === 'target_word_count') && value) {
-                            value = parseInt(String(value).replace(/\D/g, ''), 10) || 0;
-                        }
-                        if (targetField === 'refs' && value) {
-                            value = String(value).split(/[\r\n,]+/).map(v => v.trim()).filter(v => v);
-                        }
-                        if (targetField === 'status' && value) {
+                        if (targetField === 'volume' || targetField === 'target_word_count') {
+                            const parsedNum = parseInt(String(value).replace(/\D/g, ''), 10);
+                            task[targetField] = parsedNum || 0;
+                        } else if (targetField === 'refs') {
+                            const refsArray = String(value).split(/[\r\n,]+/).map(v => v.trim()).filter(v => v);
+                            if (!task.refs) task.refs = [];
+                            task.refs.push(...refsArray);
+                        } else if (targetField === 'status') {
                             const rawStatus = String(value).toLowerCase().trim().replace(/ /g, '_');
-                            // Fallback validación de estatus (muy básico, el backend hace más)
                             const validStatuses = ['idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'];
-                            if (validStatuses.includes(rawStatus)) {
-                                value = rawStatus;
+                            task[targetField] = validStatuses.includes(rawStatus) ? rawStatus : 'idea';
+                        } else if (targetField === 'associated_url' || targetField === 'secondary_url') {
+                            // Concatenar URLs si múltiples columnas apuntan al mismo campo
+                            if (task[targetField]) {
+                                task[targetField] = `${task[targetField]}\n${String(value).trim()}`;
                             } else {
-                                value = 'idea';
+                                task[targetField] = String(value).trim();
                             }
+                        } else {
+                            task[targetField] = value;
                         }
-                        task[targetField] = value;
                     }
                 }
 
