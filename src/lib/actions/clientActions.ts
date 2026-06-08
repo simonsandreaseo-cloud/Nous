@@ -14,7 +14,6 @@ import {
 import { executeTranslation } from '@/lib/services/writer/ai-core';
 import { mdToHtml } from '@/utils/markdown';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';
-import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 
 export async function processTaskOutlineAction(task: Task, csvData: any[]) {
