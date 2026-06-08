@@ -27,8 +27,8 @@ export const AI_CONFIG = {
         apiKeys: groqKeys,
         models: {
             fast: 'meta-llama/llama-4-scout-17b-16e-instruct',
-            brute: 'llama-3.1-8b-instant',
-            quality: 'llama-3.3-70b-versatile',
+            brute: 'gemini-3.5-flash',
+            quality: 'gemini-3.5-flash',
             balanced: 'qwen/qwen3-32b',
             reasoning: 'groq/compound',
             heavy: 'openai/gpt-oss-120b',
@@ -36,7 +36,7 @@ export const AI_CONFIG = {
         },
         rotation: [
             'meta-llama/llama-4-scout-17b-16e-instruct',
-            'llama-3.3-70b-versatile',
+            'gemini-3.5-flash',
             'groq/compound',
             'qwen/qwen3-32b',
             'openai/gpt-oss-120b',

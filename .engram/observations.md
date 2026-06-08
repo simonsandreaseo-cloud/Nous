@@ -121,3 +121,19 @@ En el panel de configuración de autenticación de Supabase (`Auth > URL Configu
 3. Verificación de `NEXT_PUBLIC_URL` en Vercel (ya configurada a `https://nous-production.vercel.app`).
 4. Verificación de las URIs de redirección en Google Cloud Console para asegurar concordancia total.
 5. El flujo de autenticación ahora funciona perfectamente y redirige de manera dinámica tanto en producción como en local.
+
+## [2026-06-05] Fixed UI hang in Tiptap editor during LLM stream
+**Type**: bugfix
+**Topic Key**: project/streaming-performance
+
+### What
+Throttled `store.setContent` to update at most every 300ms during streaming in `useWriterActions.ts`.
+
+### Why
+Receiving small chunks every few milliseconds and updating Tiptap via `editor.commands.setContent` triggered complete DOM reparses of the full text each time, creating a 100% CPU lock that crashed the browser tab.
+
+### Where
+`src/components/contents/writer/useWriterActions.ts` (handleGenerate and handleHumanize)
+
+### Learned
+Never feed raw streaming chunks synchronously to heavy rich-text editors (like Tiptap/ProseMirror) at high frequency. Always debounce or throttle the state update to ~300ms so the DOM only reconstructs a few times per second.

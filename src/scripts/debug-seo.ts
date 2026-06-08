@@ -39,7 +39,7 @@ Retorna ÚNICAMENTE un array JSON de índices seleccionados: [0, 2, 5, ...]`;
     try {
         const response = await aiRouter.generate({
             prompt: qualityPrompt,
-            model: "llama-3.1-8b-instant",
+            model: "gemini-3.5-flash",
             systemPrompt: "Eres un experto en curación de contenido.",
             jsonMode: true
         });
@@ -78,7 +78,7 @@ Retorna ÚNICAMENTE un array JSON de índices seleccionados: [0, 2, 5, ...]`;
 
                 console.log(`   - Limpiando con Groq (Llama 8B)...`);
                 const cleanRes = await aiRouter.generate({
-                    model: "llama-3.1-8b-instant",
+                    model: "gemini-3.5-flash",
                     prompt: `Eres un experto en limpieza de datos. Toma el siguiente contenido bruto y devuelve SOLO el artículo limpio en Markdown:\n\n${content.substring(0, 20000)}`,
                     systemPrompt: "Extraes el contenido principal eliminando basura."
                 });

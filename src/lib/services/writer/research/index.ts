@@ -365,7 +365,7 @@ Retorna ÚNICAMENTE este formato JSON válido:
 }`;
         const metaRes = await aiRouter.generate({
             prompt: metadataPrompt,
-            model: "llama-3.3-70b-versatile",
+            model: "gemini-3.5-flash",
             systemPrompt: "Eres el Director de Estrategia SEO de más alto nivel. Tu única función es devolver objetos JSON estables respetando escrupulosamente los límites de caracteres (60 para title, 155 para meta).",
             jsonMode: true,
             label: "Estrategia Writing",

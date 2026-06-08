@@ -154,7 +154,9 @@ export type TaskStatus =
     | 'en_investigacion' 
     | 'por_redactar' 
     | 'en_redaccion' 
+    | 'por_humanizar'
     | 'por_corregir' 
+    | 'por_revisar'
     | 'por_maquetar' 
     | 'publicado';
 

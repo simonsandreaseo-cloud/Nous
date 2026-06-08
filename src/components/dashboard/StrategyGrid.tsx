@@ -382,8 +382,29 @@ export default function StrategyGrid({
                                     )}
 
                                     {columnVisibility['status'] && (
-                                        <td className="px-3 py-2">
-                                            {batchProgress[task.id] && batchProgress[task.id] < 100 ? (
+                                        <td className="px-3 py-2 cursor-pointer relative" onClick={(e) => handleCellClick(task, 'status', e)}>
+                                            {editingCell?.id === task.id && editingCell?.field === 'status' ? (
+                                                <select
+                                                    autoFocus
+                                                    value={tempValue}
+                                                    onChange={async (e) => {
+                                                        const val = e.target.value;
+                                                        setTempValue(val);
+                                                        await updateTask(task.id, { status: val });
+                                                        setEditingCell(null);
+                                                    }}
+                                                    onBlur={() => setEditingCell(null)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Escape') setEditingCell(null);
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-full bg-white border border-indigo-200 rounded-md p-1.5 text-[10px] font-bold text-slate-700 outline-none shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                                >
+                                                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                                                        <option key={value} value={value}>{label}</option>
+                                                    ))}
+                                                </select>
+                                            ) : batchProgress[task.id] && batchProgress[task.id] < 100 ? (
                                                 <div className="flex items-center gap-2.5 py-1">
                                                     <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
                                                         <svg className="w-full h-full -rotate-90">
@@ -424,7 +445,7 @@ export default function StrategyGrid({
                                                 </div>
                                             ) : (
                                                 <div className={cn(
-                                                    "px-1.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border transition-colors",
+                                                    "px-1.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border transition-colors hover:border-indigo-300",
                                                     STATUS_COLORS[task.status]?.bg || 'bg-slate-50',
                                                     STATUS_COLORS[task.status]?.text || 'text-slate-600',
                                                     STATUS_COLORS[task.status]?.border || 'border-slate-100'

@@ -168,7 +168,7 @@ REGLAS:
 2. ${mode === 'overwrite' ? 'Ignora los enlaces actuales y genera una lista totalmente nueva.' : 'Busca enlaces complementarios a los que ya existen.'}
 3. Retorna ÚNICAMENTE un array JSON válido: [{"url": "...", "title": "...", "anchor_text": "..."}]`;
 
-            const linkRes = await executeWithGroq(linkPrompt, "Arquitecto de Interlinking SEO.", "llama-3.1-8b-instant", true);
+            const linkRes = await executeWithGroq(linkPrompt, "Arquitecto de Interlinking SEO.", "gemini-3.5-flash", true);
             const newLinks = safeJsonExtract(linkRes, []);
 
             const { useProjectStore } = require('@/store/useProjectStore');

@@ -24,7 +24,7 @@ export async function POST(req: Request) {
                 { role: "system", content: systemPrompt || "Eres un experto en SEO." },
                 { role: "user", content: prompt }
             ],
-            model: model || "llama-3.1-8b-instant",
+            model: model || "gemini-3.5-flash",
             temperature: 0.2,
             max_tokens: 4096,
             response_format: jsonResponse ? { type: "json_object" } : undefined,
