@@ -52,6 +52,7 @@ export async function processTaskOutlineAction(task: Task, csvData: any[]) {
         return { success: true, updates, msg: `✅ Estructura de ${headers.length} secciones generada.` };
     } catch (error: any) {
         return { success: false, error: error.message };
+    }
 }
 
 export async function processTaskDraftAction(task: Task) {
