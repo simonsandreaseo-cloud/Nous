@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Loader2, X, FileSpreadsheet, Check, ArrowRight, AlertTriangle } from 'lucide-react';
 import { parseSpreadsheet, ParsedData } from '@/lib/utils/excel-parser';
-import { NotificationService } from '@/lib/services/notification';
+import { NotificationService } from '@/lib/services/notifications';
 import { Task } from '@/types/project';
-import { v4 as uuidv4 } from 'uuid';
 
 interface SmartUploaderModalProps {
     isOpen: boolean;
@@ -93,7 +92,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
             // Transformar filas crudas en objetos de tarea de Nous
             const tasksToImport = parsedData.rows.map(row => {
                 const task: any = {
-                    id: uuidv4(),
+                    id: crypto.randomUUID(),
                     project_id: projectId,
                     status: 'idea', // default
                     created_at: new Date().toISOString()

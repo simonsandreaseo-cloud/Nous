@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { aiRouter } from '@/lib/services/writer/ai-core';
+import { aiRouter } from '@/lib/ai/router';
 
 export async function POST(req: Request) {
     try {
