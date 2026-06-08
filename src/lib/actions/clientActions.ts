@@ -55,7 +55,7 @@ export async function processTaskOutlineAction(task: Task, csvData: any[]) {
     }
 }
 
-export async function processTaskDraftAction(task: Task) {
+export async function prepareTaskDraftAction(task: Task) {
     try {
         const rawOutline = task.outline_structure;
         const outlineArray = Array.isArray(rawOutline) ? rawOutline : (rawOutline?.headers || []);
@@ -90,33 +90,17 @@ export async function processTaskDraftAction(task: Task) {
         };
 
         const prompt = buildPrompt(config);
-        const fullContent = await generateArticleJSON('gemma-4-31b-it', prompt);
         
-        if (!fullContent || fullContent.length < 100) throw new Error("Contenido vacío.");
+        return { success: true, prompt, config, activeProject };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
 
-        let cleanHtml = cleanAndFormatHtml(fullContent);
-
-        // --- Post processing Pipeline (Same as Studio) ---
-        const linked = await autoInterlinkAsync(
-            cleanHtml, 
-            config.approvedLinks || [],
-            activeProject?.architecture_rules,
-            activeProject?.architecture_instructions,
-            activeProject
-        );
-
-        const refinedSEO = await runSEOPostProcessor(linked, config);
-
-        let finalContent = refinedSEO;
-        const activeExtractorRules = activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer') : [];
-        if (activeExtractorRules.length > 0) {
-            finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
-        }
-
-        const formatted = cleanAndFormatHtml(finalContent);
-
-        const updates: Partial<Task> = { content_body: formatted, status: 'por_corregir' };
-        const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
+export async function saveTaskDraftAction(taskId: string, formattedContent: string) {
+    try {
+        const updates: Partial<Task> = { content_body: formattedContent, status: 'por_corregir' };
+        const { error } = await supabase.from('tasks').update(updates).eq('id', taskId);
         if (error) throw error;
 
         return { success: true, updates, msg: `✅ Artículo redactado y optimizado.` };

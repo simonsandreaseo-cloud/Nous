@@ -62,10 +62,14 @@ import { SmartUploaderModal } from "./SmartUploaderModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
 import { 
     processTaskOutlineAction, 
-    processTaskDraftAction, 
     processTaskHumanizationAction, 
-    processTaskTranslationAction 
+    processTaskTranslationAction,
+    prepareTaskDraftAction,
+    saveTaskDraftAction
 } from '@/lib/actions/clientActions';
+import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
+import { runSEOPostProcessor } from '@/lib/actions/aiActions';
+import { NousExtractorService } from '@/lib/services/nous-extractor';
 import { formatTasksToTSV, formatTasksToCSV } from "@/utils/exportUtils";
 
 import { ProjectBadge } from "@/components/ui/ProjectBadge";
@@ -363,14 +367,81 @@ export function EditorialCalendar() {
                     throw new Error(res.error);
                 }
             } else if (action === 'draft') {
-                const res = await processTaskDraftAction(task);
-                if (res.success && res.updates) {
-                    updateTask(taskId, res.updates);
-                    onLog(taskId, 'Redacción', res.msg!);
-                } else {
-                    throw new Error(res.error);
+                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 10 }));
+                onLog(taskId, 'Redacción', 'Generando prompt y estructura...');
+                
+                const prepRes = await prepareTaskDraftAction(task);
+                if (!prepRes.success || !prepRes.prompt) throw new Error(prepRes.error || "Fallo en preparación");
+
+                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 30 }));
+                onLog(taskId, 'Redacción', 'Redactando contenido base (streaming)...');
+                
+                const response = await fetch('/api/writer/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prepRes.prompt, model: 'gemma-4-31b-it', hierarchy: ['gemma-4-31b-it'] })
+                });
+
+                if (!response.ok || !response.body) throw new Error("No se pudo iniciar el stream.");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let finalHtml = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const parsed = JSON.parse(line);
+                            if (parsed.type === 'error') throw new Error(parsed.error);
+                            if (parsed.type === 'chunk') finalHtml += parsed.html;
+                            if (parsed.type === 'done') finalHtml = parsed.text;
+                        } catch (e) {}
+                    }
                 }
-            } else if (action === 'humanize') {
+
+                if (!finalHtml) throw new Error("Contenido vacío generado.");
+                
+                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 70 }));
+                onLog(taskId, 'Redacción', 'Procesando vínculos y SEO...');
+                
+                let cleanHtml = cleanAndFormatHtml(finalHtml);
+                const linked = await autoInterlinkAsync(
+                    cleanHtml, 
+                    prepRes.config.approvedLinks || [],
+                    prepRes.activeProject?.architecture_rules,
+                    prepRes.activeProject?.architecture_instructions,
+                    prepRes.activeProject
+                );
+
+                const refinedSEO = await runSEOPostProcessor(linked, prepRes.config);
+
+                let finalContent = refinedSEO;
+                const activeExtractorRules = prepRes.activeProject ? NousExtractorService.getActiveRulesForPhase(prepRes.activeProject, 'writer') : [];
+                if (activeExtractorRules.length > 0) {
+                    onLog(taskId, 'Redacción', 'Ejecutando extractores de datos...');
+                    finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, prepRes.activeProject, 'writer');
+                }
+
+                const formatted = cleanAndFormatHtml(finalContent);
+                
+                onLog(taskId, 'Redacción', 'Guardando artículo...');
+                const saveRes = await saveTaskDraftAction(task.id, formatted);
+
+                if (saveRes.success && saveRes.updates) {
+                    updateTask(taskId, saveRes.updates);
+                    onLog(taskId, 'Redacción', saveRes.msg!);
+                } else {
+                    throw new Error(saveRes.error);
+                }
                 const res = await processTaskHumanizationAction(task);
                 if (res.success && res.updates) {
                     updateTask(taskId, res.updates);
@@ -531,12 +602,84 @@ export function EditorialCalendar() {
                         const phaseBase = currentPhaseIndex * phaseWeight;
                         let pCount = 0;
                         for (const t of toDraft) {
-                            const res = await processTaskDraftAction(t);
-                            if (res.success && res.updates) {
-                                updateTask(t.id, res.updates);
-                                onLog(t.id, 'Redacción', res.msg!);
-                            } else {
-                                onLog(t.id, 'Error', `❌ Error: ${res.error}`);
+                            try {
+                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: 10 }));
+                                onLog(t.id, 'Redacción', 'Generando prompt y estructura...');
+                                
+                                const prepRes = await prepareTaskDraftAction(t);
+                                if (!prepRes.success || !prepRes.prompt) throw new Error(prepRes.error || "Fallo en preparación");
+
+                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: 30 }));
+                                onLog(t.id, 'Redacción', 'Redactando contenido base (streaming)...');
+                                
+                                const response = await fetch('/api/writer/generate', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ prompt: prepRes.prompt, model: 'gemma-4-31b-it', hierarchy: ['gemma-4-31b-it'] })
+                                });
+
+                                if (!response.ok || !response.body) throw new Error("No se pudo iniciar el stream.");
+
+                                const reader = response.body.getReader();
+                                const decoder = new TextDecoder();
+                                let buffer = '';
+                                let finalHtml = '';
+
+                                while (true) {
+                                    const { done, value } = await reader.read();
+                                    if (done) break;
+                                    
+                                    buffer += decoder.decode(value, { stream: true });
+                                    const lines = buffer.split('\n');
+                                    buffer = lines.pop() || '';
+                                    
+                                    for (const line of lines) {
+                                        if (!line.trim()) continue;
+                                        try {
+                                            const parsed = JSON.parse(line);
+                                            if (parsed.type === 'error') throw new Error(parsed.error);
+                                            if (parsed.type === 'chunk') finalHtml += parsed.html;
+                                            if (parsed.type === 'done') finalHtml = parsed.text;
+                                        } catch (e) {}
+                                    }
+                                }
+
+                                if (!finalHtml) throw new Error("Contenido vacío generado.");
+                                
+                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: 70 }));
+                                onLog(t.id, 'Redacción', 'Procesando vínculos y SEO...');
+                                
+                                let cleanHtml = cleanAndFormatHtml(finalHtml);
+                                const linked = await autoInterlinkAsync(
+                                    cleanHtml, 
+                                    prepRes.config.approvedLinks || [],
+                                    prepRes.activeProject?.architecture_rules,
+                                    prepRes.activeProject?.architecture_instructions,
+                                    prepRes.activeProject
+                                );
+
+                                const refinedSEO = await runSEOPostProcessor(linked, prepRes.config);
+
+                                let finalContent = refinedSEO;
+                                const activeExtractorRules = prepRes.activeProject ? NousExtractorService.getActiveRulesForPhase(prepRes.activeProject, 'writer') : [];
+                                if (activeExtractorRules.length > 0) {
+                                    onLog(t.id, 'Redacción', 'Ejecutando extractores de datos...');
+                                    finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, prepRes.activeProject, 'writer');
+                                }
+
+                                const formatted = cleanAndFormatHtml(finalContent);
+                                
+                                onLog(t.id, 'Redacción', 'Guardando artículo...');
+                                const res = await saveTaskDraftAction(t.id, formatted);
+
+                                if (res.success && res.updates) {
+                                    updateTask(t.id, res.updates);
+                                    onLog(t.id, 'Redacción', res.msg!);
+                                } else {
+                                    onLog(t.id, 'Error', `❌ Error: ${res.error}`);
+                                }
+                            } catch (e: any) {
+                                onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                             }
                             pCount++;
                             setResearchProgress(phaseBase + ((pCount / toDraft.length) * phaseWeight));
