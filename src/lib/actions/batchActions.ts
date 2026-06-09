@@ -13,7 +13,6 @@ import { executeTranslation } from '@/lib/services/writer/ai-core';
 import { mdToHtml } from '@/utils/markdown';
 import { HeadlessLayoutService } from '@/lib/services/images/HeadlessLayoutService';
 import { PatcherMaster } from '@/lib/services/images/PatcherMaster';
-import { JSDOM } from 'jsdom';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';
 
 /**
@@ -58,8 +57,8 @@ export async function processTaskVisualsAction(taskId: string) {
         if (!result.success) throw new Error("Failed to execute visual engine");
 
         // 2. Consistent HTML Injection via LayoutService
-        const updatedHtml = LayoutService.injectAssets(
-            contentBody, 
+        const updatedHtml = await LayoutService.injectAssets(
+            result.htmlWithAnchors, 
             result.assets || [], 
             patcherRules
         );

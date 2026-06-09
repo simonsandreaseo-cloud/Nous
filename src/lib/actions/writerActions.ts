@@ -69,7 +69,8 @@ export async function finalizeContentAction(params: {
             }
         }));
 
-        const finalHtml = LayoutService.injectAssets(task.content_body || '', formattedAssets, patcherRules);
+        // 6. Inject layout using generic HTML structure based on role
+        const finalHtml = await LayoutService.injectAssets(task.content_body || '', formattedAssets, patcherRules);
 
         // 5. Update Task status and save final HTML
         const { error: updateError } = await supabaseAdmin

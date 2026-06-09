@@ -1,8 +1,6 @@
 import { ImageAsset, LayoutRole } from '@/types/images';
 import { SemanticAnchorManager } from '../images/SemanticAnchorManager';
 import { PatcherMaster } from '../images/PatcherMaster';
-import { JSDOM } from 'jsdom';
-
 /**
  * LayoutService
  * Handles the injection of visual assets into HTML content using Semantic Anchors.
@@ -11,7 +9,9 @@ export class LayoutService {
     /**
      * Injects a list of assets into HTML content.
      */
-    static injectAssets(html: string, assets: ImageAsset[], patcherRules: any[] = []): string {
+    static async injectAssets(html: string, assets: ImageAsset[], patcherRules: any[] = []): Promise<string> {
+        const jsdom = await import('jsdom');
+        const JSDOM = jsdom.JSDOM || jsdom.default.JSDOM;
         const dom = new JSDOM(html);
         const document = dom.window.document;
         const patcher = new PatcherMaster(patcherRules);
