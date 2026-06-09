@@ -381,7 +381,7 @@ export function EditorialCalendar() {
                 const response = await fetch('/api/writer/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prepRes.prompt, model: 'gemma-4-31b-it', hierarchy: ['gemma-4-31b-it'] })
+                    body: JSON.stringify({ prompt: prepRes.prompt, model: 'gemma-4-31b-it', hierarchy: undefined })
                 });
 
                 if (!response.ok || !response.body) throw new Error("No se pudo iniciar el stream.");
@@ -619,7 +619,7 @@ export function EditorialCalendar() {
                                 const response = await fetch('/api/writer/generate', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ prompt: prepRes.prompt, model: 'gemma-4-31b-it', hierarchy: ['gemma-4-31b-it'] })
+                                    body: JSON.stringify({ prompt: prepRes.prompt, model: 'gemma-4-31b-it', hierarchy: undefined })
                                 });
 
                                 if (!response.ok || !response.body) throw new Error("No se pudo iniciar el stream.");
