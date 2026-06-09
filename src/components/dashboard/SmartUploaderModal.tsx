@@ -147,7 +147,10 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
             }
 
             // Transformar filas crudas en objetos de tarea de Nous
-            const tasksToImport = parsedData.rows.map(row => {
+            // Consolidate rows by title/keyword
+            const tasksMap = new Map();
+
+            parsedData.rows.forEach(row => {
                 const task: any = {
                     id: crypto.randomUUID(),
                     project_id: projectId, // Default fallback
@@ -165,12 +168,12 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                         if (targetField === 'volume' || targetField === 'target_word_count') {
                             const parsedNum = parseInt(String(value).replace(/\D/g, ''), 10) || 0;
                             if (task[targetField] !== undefined) {
-                                task[targetField] += parsedNum; // Consolidar sumando
+                                task[targetField] = Math.max(task[targetField], parsedNum); // Usar el mayor en vez de sumar para no distorsionar
                             } else {
                                 task[targetField] = parsedNum;
                             }
                         } else if (targetField === 'refs') {
-                            const refsArray = String(value).split(/[\r\n,]+/).map(v => v.trim()).filter(v => v);
+                            const refsArray = String(value).split(/[\r\n,]+/).map((v: string) => v.trim()).filter((v: string) => v);
                             if (!task.refs) task.refs = [];
                             task.refs.push(...refsArray);
                         } else if (targetField === 'project_name') {
@@ -203,8 +206,27 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                     task.title = "Nuevo Contenido Importado";
                 }
 
-                return task;
+                const key = (task.title || '').toLowerCase().trim();
+                if (tasksMap.has(key)) {
+                    const existing = tasksMap.get(key);
+                    // Consolidate with existing row
+                    if (task.target_word_count) existing.target_word_count = Math.max(existing.target_word_count || 0, task.target_word_count);
+                    if (task.volume) existing.volume = Math.max(existing.volume || 0, task.volume);
+                    if (task.refs) {
+                        existing.refs = existing.refs || [];
+                        existing.refs.push(...task.refs);
+                        existing.refs = Array.from(new Set(existing.refs));
+                    }
+                    if (task.associated_url) existing.associated_url = existing.associated_url ? `${existing.associated_url}\n${task.associated_url}` : task.associated_url;
+                    if (task.target_keyword && !existing.target_keyword?.includes(task.target_keyword)) {
+                         existing.target_keyword = existing.target_keyword ? `${existing.target_keyword}, ${task.target_keyword}` : task.target_keyword;
+                    }
+                } else {
+                    tasksMap.set(key, task);
+                }
             });
+
+            const tasksToImport = Array.from(tasksMap.values());
 
             onImportComplete(tasksToImport);
             NotificationService.success("Importación exitosa", `Se procesaron ${tasksToImport.length} filas.`);

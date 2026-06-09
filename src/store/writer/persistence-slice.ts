@@ -218,7 +218,17 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
                 niche: project?.settings?.niche || project?.description || 'General',
                 audience: project?.settings?.audience || 'General',
             },
-            strategyLinks: dossier?.suggestedInternalLinks || dossier?.suggested_links || dossier?.suggestedLinks || (task as any).suggested_links || [],
+            strategyLinks: (() => {
+                const rawAssocUrls = task.associated_url ? (typeof task.associated_url === 'string' ? task.associated_url.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) : Array.isArray(task.associated_url) ? task.associated_url : []) : [];
+                const manualLinks = rawAssocUrls.map((u: string, i: number) => ({ url: u, title: `Enlace Principal ${i+1} (Manual)`, anchor_text: "Ver más", type: "manual" }));
+                const suggestedLinks = dossier?.suggestedInternalLinks || dossier?.suggested_links || dossier?.suggestedLinks || (task as any).suggested_links || [];
+                const allLinksMap = new Map();
+                [...manualLinks, ...suggestedLinks].forEach((l: any) => {
+                    const url = l.url || l.link;
+                    if (url && !allLinksMap.has(url)) allLinksMap.set(url, l);
+                });
+                return Array.from(allLinksMap.values());
+            })(),
             projectId: project?.id || task.project_id || null,
             currentLanguage: task.language || 'es',
             viewMode: 'workspace',

@@ -575,7 +575,9 @@ REGLAS:
                     content_type: mainTaskData.content_type,
                     associated_url: mainTaskData.associated_url,
                     secondary_url: mainTaskData.secondary_url,
+                    refs: mainTaskData.refs,
                     volume: mainTaskData.volume,
+                    target_word_count: mainTaskData.target_word_count,
                     metadata: mainTaskData.metadata || {}
                 };
             }
@@ -743,9 +745,17 @@ REGLAS:
                 console.log("📤 [Supabase] Iniciando persistencia final para:", config.taskId);
                 
                 // ONLY update valid columns in 'tasks' (strictly status and target_word_count to avoid 400 errors)
+                const links = dossier.suggestedInternalLinks || [];
+                const urls = links.map((l: any) => l.url || l.link).filter(Boolean);
+                
+                // Si había URLs previas en task_context, las unimos
+                const previousUrls = (dossier.task_context?.associated_url || '').split(/[\n,]+/).map((u: string) => u.trim()).filter(Boolean);
+                const uniqueUrls = Array.from(new Set([...previousUrls, ...urls])).join('\n');
+
                 const { error: taskError } = await supabase.from('tasks').update({
                     status: "por_redactar",
-                    target_word_count: dossier.wordCountGoal
+                    target_word_count: dossier.wordCountGoal,
+                    associated_url: uniqueUrls || null
                 }).eq('id', config.taskId);
 
                 if (taskError) {
