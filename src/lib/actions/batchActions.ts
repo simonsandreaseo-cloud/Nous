@@ -10,10 +10,6 @@ import {
     ArticleConfig
 } from '@/components/tools/writer/services';
 import { executeTranslation } from '@/lib/services/writer/ai-core';
-import { mdToHtml } from '@/utils/markdown';
-import { HeadlessLayoutService } from '@/lib/services/images/HeadlessLayoutService';
-import { PatcherMaster } from '@/lib/services/images/PatcherMaster';
-import { AVAILABLE_LANGUAGES } from '@/constants/languages';
 
 /**
  * Server Actions for Batch Processing
