@@ -99,7 +99,7 @@ export async function executeHumanizerWithRetry<T>(
     operation: (client: any, currentModel: string) => Promise<T>,
     onStatus?: (msg: string) => void,
     label: string = 'Redacción Humanización',
-    modelName: string = 'gemini-3.5-flash'
+    modelName: string = 'gemma-4-31b-it'
 ): Promise<T> {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -532,7 +532,7 @@ export const runHumanizerPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus?: (msg: string) => void,
-    modelName: string = 'gemini-3.5-flash', 
+    modelName: string = 'gemma-4-31b-it', 
     onChunk?: (chunkHtml: string) => void
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
@@ -585,7 +585,7 @@ export const runHumanizerPipeline = async (
             // FALLBACK: Resume using a lighter/different model
             const processedFallback = await executeHumanizerWithRetry(async (ai) => {
                 const model = ai.getGenerativeModel({ 
-                    model: 'gemini-3.5-flash', // Fallback model
+                    model: 'gemma-4-31b-it', // Fallback model
                     systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
                     generationConfig: {}
                 });
@@ -609,7 +609,7 @@ export const runHumanizerPipeline = async (
                 }
                 
                 return cleanAndFormatHtml(htmlOutput);
-            }, safeStatus, `Humanización Fallback Full`, 'gemini-3.5-flash');
+            }, safeStatus, `Humanización Fallback Full`, 'gemma-4-31b-it');
             
             if (onChunk) onChunk(processedFallback);
             return { html: processedFallback };

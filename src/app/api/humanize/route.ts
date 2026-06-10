@@ -33,7 +33,7 @@ export async function POST(req: Request) {
                         config,
                         intensity || 50,
                         onStatus,
-                        'gemini-3.5-flash',
+                        'gemma-4-31b-it',
                         onChunk
                     );
 
