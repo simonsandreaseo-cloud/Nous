@@ -3,7 +3,7 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react';
 
 import { useWriterStore } from '@/store/useWriterStore';
-import { useProjectStore } from '@/store/useProjectStore';
+import { useProjectStore, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
 import { useShallow } from 'zustand/react/shallow';
 import WriterEditor from '@/components/contents/writer/WriterEditor';
 import WriterDashboard from '@/components/contents/writer/WriterDashboard';
@@ -185,13 +185,15 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
 
 const EMPTY_ARRAY: any[] = [];
 
-const STATUS_OPTIONS = [
-    { value: 'por_redactar', label: 'Por Redactar', color: 'bg-slate-50 text-slate-700 border-slate-200/80 hover:bg-slate-100/80', dot: 'bg-slate-400' },
-    { value: 'en_redaccion', label: 'En Redacción', color: 'bg-indigo-50 text-indigo-700 border-indigo-200/80 hover:bg-indigo-100/80', dot: 'bg-indigo-500' },
-    { value: 'por_corregir', label: 'Por Corregir', color: 'bg-amber-50 text-amber-800 border-amber-200/80 hover:bg-amber-100/80', dot: 'bg-amber-500' },
-    { value: 'por_maquetar', label: 'Por Maquetar', color: 'bg-purple-50 text-purple-700 border-purple-200/80 hover:bg-purple-100/80', dot: 'bg-purple-500' },
-    { value: 'publicado', label: 'Publicado', color: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 hover:bg-emerald-100/80', dot: 'bg-emerald-500' },
-];
+const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([value, label]) => {
+    const colors = STATUS_COLORS[value] || STATUS_COLORS['idea'];
+    return {
+        value,
+        label,
+        color: `${colors.bg} ${colors.text} ${colors.border} hover:opacity-80`,
+        dot: colors.dot
+    };
+});
 
 export default function WriterStudio() {
     const {
