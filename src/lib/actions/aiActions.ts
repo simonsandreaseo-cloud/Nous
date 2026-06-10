@@ -547,11 +547,24 @@ export const runHumanizerPipeline = async (
         const processed = await executeHumanizerWithRetry(async (ai) => {
             const model = ai.getGenerativeModel({ 
                 model: modelName, 
-                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+--- PERSONA: REDACTOR MEDIOCRE ---
+Actúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.
+
+--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---
+1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.
+2. COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.
+3. CONECTORES PROHIBIDOS: Prohíbe conectores formales y clichés de IA: "Sin embargo", "Por lo tanto", "Por otro lado", "En resumen", "En conclusión", etc.
+4. MORFOSINTAXIS: Usa oraciones predominantemente cortas. CRÍTICO: Mezcla frases cortas con algunas oraciones largas de baja frecuencia.
+5. PROHIBICIÓN DE VOZ PASIVA: Reescribe frases en voz pasiva a voz activa.
+6. PUNTUACIÓN: Prefiere comas (,) para enlazar ideas cortas en lugar de separarlas con punto y seguido constantemente.
+
+REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas HTML (como <h1>, <h2>, <p>, <table>, <tr>, <td>, <strong>, <a>). Reescribe ÚNICAMENTE el texto que está DENTRO de estas etiquetas.
+REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
                 generationConfig: {}
             });
             
-            const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este ARTÍCULO HTML COMPLETO: ${html}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación global) y 'html' (el artículo completo humanizado en crudo).`;
+            const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nAplica TODAS las reglas de humanización del REDACTOR MEDIOCRE al siguiente ARTÍCULO HTML COMPLETO: ${html}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación de los defectos agregados) y 'html' (el artículo completo humanizado en crudo).`;
             const response = await model.generateContent(prompt);
             
             let raw = response.response.text();
@@ -586,11 +599,24 @@ export const runHumanizerPipeline = async (
             const processedFallback = await executeHumanizerWithRetry(async (ai) => {
                 const model = ai.getGenerativeModel({ 
                     model: 'gemma-4-31b-it', // Fallback model
-                    systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor Humano experto. Transforma el HTML para que suene natural, conversacional y fluido. Mantén intactos los enlaces <a> y resto de etiquetas. REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                    systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}
+--- PERSONA: REDACTOR MEDIOCRE ---
+Actúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.
+
+--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---
+1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.
+2. COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.
+3. CONECTORES PROHIBIDOS: Prohíbe conectores formales y clichés de IA: "Sin embargo", "Por lo tanto", "Por otro lado", "En resumen", "En conclusión", etc.
+4. MORFOSINTAXIS: Usa oraciones predominantemente cortas. CRÍTICO: Mezcla frases cortas con algunas oraciones largas de baja frecuencia.
+5. PROHIBICIÓN DE VOZ PASIVA: Reescribe frases en voz pasiva a voz activa.
+6. PUNTUACIÓN: Prefiere comas (,) para enlazar ideas cortas en lugar de separarlas con punto y seguido constantemente.
+
+REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas HTML (como <h1>, <h2>, <p>, <table>, <tr>, <td>, <strong>, <a>). Reescribe ÚNICAMENTE el texto que está DENTRO de estas etiquetas.
+REGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
                     generationConfig: {}
                 });
                 
-                const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nHumaniza este ARTÍCULO HTML COMPLETO: ${html}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación) y 'html' (la versión final humanizada en crudo).`;
+                const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nAplica TODAS las reglas de humanización del REDACTOR MEDIOCRE al siguiente ARTÍCULO HTML COMPLETO: ${html}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación de los defectos agregados) y 'html' (el artículo completo humanizado en crudo).`;
                 const response = await model.generateContent(prompt);
                 
                 let raw = response.response.text();
