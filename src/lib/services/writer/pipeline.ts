@@ -120,7 +120,7 @@ export async function executeDraftPipeline(
 
     // Save to task_contents
     const { error: tcErr } = await supabase.from('task_contents')
-        .upsert({ id: task.id, content_body: formatted, updated_at: new Date().toISOString() });
+        .upsert({ id: task.id, content_body: formatted });
     if (tcErr) throw tcErr;
 
     onLog('✅ Artículo redactado y optimizado.');
@@ -167,7 +167,7 @@ export async function executeHumanizePipeline(
 
     // Save to task_contents
     const { error: tcErr } = await supabase.from('task_contents')
-        .upsert({ id: task.id, content_body: newContent, updated_at: new Date().toISOString() });
+        .upsert({ id: task.id, content_body: newContent });
     if (tcErr) throw tcErr;
 
     onLog('✅ Humanización completada.');
