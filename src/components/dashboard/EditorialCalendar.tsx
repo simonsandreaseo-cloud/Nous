@@ -64,6 +64,7 @@ import {
     processTaskOutlineAction
 } from '@/lib/actions/clientActions';
 import { executeDraftPipeline, executeHumanizePipeline } from '@/lib/services/writer/pipeline';
+import OrbConfirmationModal, { OrbPipelinePlan } from './OrbConfirmationModal';
 import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
 import { streamGenerate, streamSEOPostProcess, streamHumanize } from '@/lib/services/writer/ai-streaming';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
@@ -150,6 +151,12 @@ export function EditorialCalendar() {
     const [reinvestigateTask, setReinvestigateTask] = useState<{ id: string, keyword: string } | null>(null);
     const [isReinvestigating, setIsReinvestigating] = useState(false);
     const [isCascadeMode, setIsCascadeMode] = useState(true);
+
+    // Orb pre-flight modal
+    const [orbPlan, setOrbPlan] = useState<OrbPipelinePlan | null>(null);
+    const [isOrbPlanOpen, setIsOrbPlanOpen] = useState(false);
+    const [isOrbPlanLoading, setIsOrbPlanLoading] = useState(false);
+    const [pendingOrbConfig, setPendingOrbConfig] = useState<{ action: string; config?: any } | null>(null);
 
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -485,38 +492,87 @@ export function EditorialCalendar() {
         try {
             if (action === 'batch_pipeline') {
                 const { research, draft, humanize, translate, finalStatus } = config || {};
-                const targetTasks = (selectedTaskIds && selectedTaskIds.length > 0) ? tasks.filter(t => selectedTaskIds.includes(t.id)) : tasks;
+                const isManualSelection = selectedTaskIds && selectedTaskIds.length > 0;
+                const targetTasks = isManualSelection
+                    ? tasks.filter(t => selectedTaskIds.includes(t.id))
+                    : tasks;
 
                 if (!targetTasks || targetTasks.length === 0) {
                     NotificationService.notify("Información", "No hay contenidos seleccionados para procesar.");
                     return;
                 }
 
+                // ── DB pre-check: fetch which tasks actually have content ──
+                setIsOrbPlanLoading(true);
+                setIsOrbPlanOpen(true);
+
+                const { data: existingContents } = await supabase
+                    .from('task_contents')
+                    .select('id, content_body')
+                    .in('id', targetTasks.map(t => t.id));
+
+                const tasksWithContent = new Set(
+                    (existingContents || [])
+                        .filter((c: any) => c.content_body && c.content_body.trim().length > 0)
+                        .map((c: any) => c.id)
+                );
+
+                const RESEARCHED_STATUSES = ['por_redactar', 'por_corregir', 'redactado', 'publicado', 'humanizado', 'en_revision', 'en_investigacion'];
+                const translateLanguages = activeProject?.i18n_settings?.languages?.length ?? 0;
+
+                // Build plan buckets
+                // If manual selection: all go to draft/rewrite/humanize regardless of state
+                const planToResearch = research && !isManualSelection
+                    ? targetTasks.filter(t => !RESEARCHED_STATUSES.includes(t.status))
+                    : [];
+                const planToOutline = (draft || research) && !isManualSelection
+                    ? targetTasks.filter(t => t.status === 'en_investigacion')
+                    : [];
+                const planToDraft = draft
+                    ? targetTasks.filter(t => !tasksWithContent.has(t.id))
+                    : [];
+                // rewrite = manual selection + has existing content
+                const planToRewrite = draft && isManualSelection
+                    ? targetTasks.filter(t => tasksWithContent.has(t.id))
+                    : [];
+                const planToHumanize = humanize
+                    ? targetTasks.filter(t => tasksWithContent.has(t.id) || isManualSelection)
+                    : [];
+                const planToTranslate = translate ? targetTasks : [];
+
+                const plan: OrbPipelinePlan = {
+                    toResearch: planToResearch.map(t => ({ id: t.id, title: t.title })),
+                    toOutline: planToOutline.map(t => ({ id: t.id, title: t.title })),
+                    toDraft: planToDraft.map(t => ({ id: t.id, title: t.title })),
+                    toRewrite: planToRewrite.map(t => ({ id: t.id, title: t.title })),
+                    toHumanize: planToHumanize.map(t => ({ id: t.id, title: t.title })),
+                    toTranslate: planToTranslate.map(t => ({ id: t.id, title: t.title })),
+                    translateLanguages,
+                    generateImages: false,
+                };
+
+                setOrbPlan(plan);
+                setIsOrbPlanLoading(false);
+                // Store config for when user confirms
+                setPendingOrbConfig({ action, config: { ...config, _plan: plan, _targetTasks: targetTasks, _tasksWithContent: Array.from(tasksWithContent) } });
+
+                // Execution will resume in executeOrbPipeline() after modal confirm
+                setResearching(false);
+                return;
+            }
+
+            // ── Actual pipeline execution (called after modal confirm) ──
+            if (action === '__execute_batch_pipeline__') {
+                const { research, draft, humanize, translate, finalStatus, _plan, _targetTasks, _tasksWithContent } = config || {};
+                const tasksWithContent = new Set(_tasksWithContent || []);
+                const targetTasks = _targetTasks || [];
+
                 const activePhases = [research, draft || research, draft, humanize, translate].filter(Boolean).length;
                 const phaseWeight = 100 / (activePhases || 1);
                 let currentPhaseIndex = 0;
 
-                // STATUS WORKFLOW:
-                // idea -> en_investigacion -> por_redactar -> por_corregir/redactado -> humanizado
-                const WRITTEN_STATUSES = ['por_corregir', 'redactado', 'publicado', 'humanizado', 'en_revision'];
-                const RESEARCHED_STATUSES = ['por_redactar', 'por_corregir', 'redactado', 'publicado', 'humanizado', 'en_revision', 'en_investigacion'];
-
-                // 🔍 DIAGNOSTIC — remove after confirming fix
-                console.group('[Orb Pipeline] Diagnostic');
-                console.log('Config:', { research, draft, humanize, translate, finalStatus });
-                console.log('targetTasks count:', targetTasks.length);
-                console.table(targetTasks.map(t => ({ id: t.id.slice(0,8), title: t.title?.slice(0,30), status: t.status })));
-                console.log('RESEARCHED_STATUSES:', RESEARCHED_STATUSES);
-                const _toResearch = targetTasks.filter(t => !RESEARCHED_STATUSES.includes(t.status));
-                const _toOutline = targetTasks.filter(t => t.status === 'en_investigacion');
-                const _toDraft = targetTasks.filter(t => t.status === 'por_redactar');
-                const _toHuman = targetTasks.filter(t => t.status === 'por_corregir' || t.status === 'redactado');
-                console.log('→ toResearch:', _toResearch.length, '| toOutline:', _toOutline.length, '| toDraft:', _toDraft.length, '| toHuman:', _toHuman.length);
-                console.groupEnd();
-
                 if (research) {
-                    // Needs research = status is 'idea' or not yet in a researched state
-                    const toResearch = targetTasks.filter(t => !RESEARCHED_STATUSES.includes(t.status));
+                    const toResearch = (_plan?.toResearch || []).map((p: any) => targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
                     if (toResearch.length > 0) {
                         NotificationService.notify("Nous Global", `Fase 1/5: Investigando ${toResearch.length} contenidos...`);
                         let pCount = 0;
@@ -554,9 +610,8 @@ export function EditorialCalendar() {
                 }
 
                 if (draft || research) {
-                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
-                    // Needs outline = investigated (en_investigacion) but not yet ready-to-draft (por_redactar+)
-                    const toOutline = latestTasks.filter(t => t.status === 'en_investigacion');
+                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
+                    const toOutline = (_plan?.toOutline || []).map((p: any) => latestTasks.find(t => t.id === p.id)).filter(Boolean) as Task[];
                     if (toOutline.length > 0) {
                         NotificationService.notify("Nous Global", `Fase 2/5: Generando arquitectura (Outlines) para ${toOutline.length} artículos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
@@ -578,14 +633,17 @@ export function EditorialCalendar() {
                 }
 
                 if (draft) {
-                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
-                    // Needs drafting = status is 'por_redactar' (outline done but no content yet)
-                    const toDraft = latestTasks.filter(t => t.status === 'por_redactar');
-                    if (toDraft.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase 3/5: Redactando ${toDraft.length} contenidos completos...`);
+                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
+                    // toDraft = no content in DB (confirmed by pre-check)
+                    const toDraft = (_plan?.toDraft || []).map((p: any) => latestTasks.find(t => t.id === p.id) || targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
+                    // toRewrite = had content, manual override
+                    const toRewrite = (_plan?.toRewrite || []).map((p: any) => latestTasks.find(t => t.id === p.id) || targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
+                    const allToDraft = [...toDraft, ...toRewrite];
+                    if (allToDraft.length > 0) {
+                        NotificationService.notify("Nous Global", `Fase 3/5: Redactando ${toDraft.length} + Reescribiendo ${toRewrite.length} contenidos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
                         let pCount = 0;
-                        for (const t of toDraft) {
+                        for (const t of allToDraft) {
                             try {
                                 await runTaskDraftPipeline(t, onLog);
                             } catch (e: any) {
@@ -593,16 +651,15 @@ export function EditorialCalendar() {
                                 onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                             }
                             pCount++;
-                            setResearchProgress(phaseBase + ((pCount / toDraft.length) * phaseWeight));
+                            setResearchProgress(phaseBase + ((pCount / allToDraft.length) * phaseWeight));
                         }
                     }
                     currentPhaseIndex++;
                 }
 
                 if (humanize) {
-                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
-                    // Needs humanizing = written (por_corregir or redactado) but not yet humanized
-                    const toHumanize = latestTasks.filter(t => t.status === 'por_corregir' || t.status === 'redactado');
+                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
+                    const toHumanize = (_plan?.toHumanize || []).map((p: any) => latestTasks.find(t => t.id === p.id) || targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
                     if (toHumanize.length > 0) {
                         NotificationService.notify("Nous Global", `Fase 4/5: Humanizando ${toHumanize.length} artículos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
@@ -763,6 +820,28 @@ export function EditorialCalendar() {
     const handleGenerateStrategy = async () => {
         // Implementation for strategy generation
     };
+
+    // Called when user confirms the pre-flight modal
+    const executeOrbPipeline = () => {
+        if (!pendingOrbConfig) return;
+        setIsOrbPlanOpen(false);
+        setOrbPlan(null);
+        setResearching(true);
+        setResearchProgress(0);
+        if (!isConsoleOpen) setIsConsoleOpen(true);
+        // Trigger the actual execution path
+        handleOrbAction('__execute_batch_pipeline__', pendingOrbConfig.config);
+        setPendingOrbConfig(null);
+    };
+
+    const cancelOrbPipeline = () => {
+        setIsOrbPlanOpen(false);
+        setOrbPlan(null);
+        setPendingOrbConfig(null);
+        setIsOrbPlanLoading(false);
+        setResearching(false);
+    };
+
 
     return (
         <div className="flex flex-col h-screen bg-white">
@@ -1146,6 +1225,15 @@ export function EditorialCalendar() {
                     }
                     fetchProjectTasks(activeProject?.id || '');
                 }}
+            />
+
+            {/* Orb Pre-flight Confirmation Modal */}
+            <OrbConfirmationModal
+                isOpen={isOrbPlanOpen}
+                plan={orbPlan}
+                isLoading={isOrbPlanLoading}
+                onConfirm={executeOrbPipeline}
+                onCancel={cancelOrbPipeline}
             />
 
             <AnimatePresence>

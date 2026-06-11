@@ -84,3 +84,18 @@ agent-teams-lite-main/
 .env
 supabase/backups_data/
 supabase/.temp/
+
+# Scratch & temp scripts at project root (contain secrets, not for VCS)
+scratch_*.js
+scratch_*.ts
+scratch_*.sql
+sync_*.js
+push_*.js
+check_*.js
+test_*.js
+test_*.ts
+test-*.mjs
+test_*.mjs
+openapi.json
+add_*.js
+push_*.mjs
