@@ -4,6 +4,8 @@ import { parseSpreadsheet, ParsedData } from '@/lib/utils/excel-parser';
 import { NotificationService } from '@/lib/services/notifications';
 import { Task } from '@/types/project';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useProjectStore } from '@/store/useProjectStore';
 
 interface SmartUploaderModalProps {
     isOpen: boolean;
@@ -12,7 +14,7 @@ interface SmartUploaderModalProps {
     onImportComplete: (tasks: any[]) => void;
 }
 
-const parseSmartDate = (val: any): string | null => {
+const parseSmartDate = (val: any): { date: string, mode: 'exact' | 'month' } | null => {
     if (!val) return null;
     let str = String(val).toLowerCase().trim();
     
@@ -43,7 +45,7 @@ const parseSmartDate = (val: any): string | null => {
         if (monthIndex !== undefined) {
             // Asignamos el día 1 del mes para mantener el formato válido en la BD (YYYY-MM-DD)
             const d = new Date(Date.UTC(year, monthIndex, 1));
-            return d.toISOString().split('T')[0];
+            return { date: d.toISOString().split('T')[0], mode: 'month' };
         }
     }
 
@@ -55,7 +57,7 @@ const parseSmartDate = (val: any): string | null => {
         const year = parseInt(mmMatch[2], 10);
         if (monthIndex >= 0 && monthIndex <= 11) {
             const d = new Date(Date.UTC(year, monthIndex, 1));
-            return d.toISOString().split('T')[0];
+            return { date: d.toISOString().split('T')[0], mode: 'month' };
         }
     }
     
@@ -68,7 +70,7 @@ const parseSmartDate = (val: any): string | null => {
         const year = parseInt(ddMmMatch[3], 10);
         if (monthIndex >= 0 && monthIndex <= 11) {
             const d = new Date(Date.UTC(year, monthIndex, day));
-            return d.toISOString().split('T')[0];
+            return { date: d.toISOString().split('T')[0], mode: 'exact' };
         }
     }
 
@@ -78,13 +80,13 @@ const parseSmartDate = (val: any): string | null => {
          // Excel's epoch is Dec 30, 1899
          const excelEpoch = new Date(Date.UTC(1899, 11, 30));
          const parsedDate = new Date(excelEpoch.getTime() + serial * 86400000);
-         return parsedDate.toISOString().split('T')[0];
+         return { date: parsedDate.toISOString().split('T')[0], mode: 'exact' };
     }
     
     // 5. Standard JS parse (YYYY-MM-DD, ISO, etc)
     const d = new Date(val);
     if (!isNaN(d.getTime())) {
-        return d.toISOString().split('T')[0];
+        return { date: d.toISOString().split('T')[0], mode: 'exact' };
     }
     
     return null;
@@ -127,6 +129,12 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
     const [autoCreateMembers, setAutoCreateMembers] = useState(true);
     const [userProjects, setUserProjects] = useState<any[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const { user } = useAuthStore();
+    const { teamMembers } = useProjectStore();
+    
+    const currentUserRole = teamMembers.find(m => m.user_id === user?.id)?.role;
+    const canManageStatuses = currentUserRole === 'owner' || currentUserRole === 'partner' || currentUserRole === 'manager';
 
     React.useEffect(() => {
         if (isOpen) {
@@ -294,9 +302,26 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                 }
             }
 
+            // Fetch project settings earlier to get custom statuses
+            let projectCustomStatuses: string[] = [];
+            let projectCustomContentTypes: string[] = [];
+            let projectSettingsData: any = null;
+            try {
+                const { data: pData } = await supabase.from('projects').select('settings').eq('id', projectId).single();
+                if (pData) {
+                    projectSettingsData = pData.settings || {};
+                    projectCustomStatuses = pData.settings?.content_preferences?.custom_statuses || [];
+                    projectCustomContentTypes = pData.settings?.content_preferences?.custom_content_types || [];
+                }
+            } catch(e) {
+                console.error("Error fetching project settings:", e);
+            }
+
             // Transformar filas crudas en objetos de tarea de Nous
             // Consolidate rows by title/keyword
             const tasksMap = new Map();
+            const validNativeStatuses = ['idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'];
+            const newlyDiscoveredStatuses = new Set<string>();
 
             parsedData.rows.forEach(row => {
                 const task: any = {
@@ -331,9 +356,40 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                                 task.project_id = matchedId;
                             }
                         } else if (targetField === 'status') {
-                            const rawStatus = String(value).toLowerCase().trim().replace(/ /g, '_');
-                            const validStatuses = ['idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'];
-                            task[targetField] = validStatuses.includes(rawStatus) ? rawStatus : 'idea';
+                            const rawStr = String(value).trim();
+                            const normalizedRaw = rawStr.toLowerCase().replace(/\s+/g, '_');
+                            // Helper to calculate basic similarity or just check includes
+                            // Since we have a small set, we do direct checks
+                            let matchedStatus = 'idea';
+                            
+                            // Check native
+                            if (validNativeStatuses.includes(normalizedRaw)) {
+                                matchedStatus = normalizedRaw;
+                            } 
+                            // Check custom
+                            else if (projectCustomStatuses.includes(normalizedRaw)) {
+                                matchedStatus = normalizedRaw;
+                            }
+                            // Fuzzy matching for native
+                            else if (validNativeStatuses.find(s => s.replace(/_/g, '') === normalizedRaw.replace(/_/g, '') || s.includes(normalizedRaw) || normalizedRaw.includes(s))) {
+                                matchedStatus = validNativeStatuses.find(s => s.replace(/_/g, '') === normalizedRaw.replace(/_/g, '') || s.includes(normalizedRaw) || normalizedRaw.includes(s)) || 'idea';
+                            }
+                            // Fuzzy matching for custom
+                            else if (projectCustomStatuses.find(s => s.replace(/_/g, '') === normalizedRaw.replace(/_/g, '') || s.includes(normalizedRaw) || normalizedRaw.includes(s))) {
+                                matchedStatus = projectCustomStatuses.find(s => s.replace(/_/g, '') === normalizedRaw.replace(/_/g, '') || s.includes(normalizedRaw) || normalizedRaw.includes(s)) || 'idea';
+                            } 
+                            // It's completely new
+                            else if (normalizedRaw.length > 0) {
+                                if (canManageStatuses) {
+                                    matchedStatus = normalizedRaw;
+                                    newlyDiscoveredStatuses.add(normalizedRaw);
+                                } else {
+                                    matchedStatus = 'idea';
+                                    console.warn(`Usuario sin permisos intentó crear el estatus "${normalizedRaw}". Se usó 'idea' como fallback.`);
+                                }
+                            }
+                            
+                            task[targetField] = matchedStatus;
                         } else if (targetField === 'assigned_to') {
                             const memberNameOrEmail = String(value).trim();
                             if (resolvedMembersMapping[memberNameOrEmail]) {
@@ -352,7 +408,11 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                                 task[targetField] = String(value).trim();
                             }
                         } else if (targetField === 'scheduled_date') {
-                            task[targetField] = parseSmartDate(value);
+                            const parsed = parseSmartDate(value);
+                            if (parsed) {
+                                task[targetField] = parsed.date;
+                                task.date_mode = parsed.mode;
+                            }
                         } else {
                             task[targetField] = value;
                         }
@@ -388,33 +448,32 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
 
             const tasksToImport = Array.from(tasksMap.values());
 
-            // --- AUTO CREATE CUSTOM CONTENT TYPES ---
+            // --- AUTO CREATE CUSTOM CONTENT TYPES AND STATUSES ---
             try {
                 const importedTypes = [...new Set(tasksToImport.map(t => typeof t.content_type === 'string' ? t.content_type.trim() : null).filter(Boolean))] as string[];
                 const defaultTypes = ['Blog Post', 'Landing Transaccional', 'Review / Reseña', 'Guía Definitiva', 'Pilar Page'];
                 
-                if (importedTypes.length > 0) {
-                    const { data: projectData } = await supabase.from('projects').select('settings').eq('id', projectId).single();
-                    if (projectData) {
-                        const currentCustomTypes: string[] = projectData.settings?.content_preferences?.custom_content_types || [];
-                        const newTypes = importedTypes.filter(t => !defaultTypes.includes(t) && !currentCustomTypes.includes(t));
-                        
-                        if (newTypes.length > 0) {
-                            const updatedCustomTypes = [...currentCustomTypes, ...newTypes];
-                            const updatedSettings = {
-                                ...(projectData.settings || {}),
-                                content_preferences: {
-                                    ...(projectData.settings?.content_preferences || {}),
-                                    custom_content_types: updatedCustomTypes
-                                }
-                            };
-                            await supabase.from('projects').update({ settings: updatedSettings }).eq('id', projectId);
-                            console.log("Añadidos nuevos tipos de contenido desde CSV:", newTypes);
+                const newTypes = importedTypes.filter(t => !defaultTypes.includes(t) && !projectCustomContentTypes.includes(t));
+                const newStatuses = canManageStatuses ? Array.from(newlyDiscoveredStatuses) : [];
+                
+                if (newTypes.length > 0 || newStatuses.length > 0) {
+                    const updatedCustomTypes = [...projectCustomContentTypes, ...newTypes];
+                    const updatedCustomStatuses = [...projectCustomStatuses, ...newStatuses];
+                    
+                    const updatedSettings = {
+                        ...(projectSettingsData || {}),
+                        content_preferences: {
+                            ...(projectSettingsData?.content_preferences || {}),
+                            custom_content_types: updatedCustomTypes,
+                            custom_statuses: updatedCustomStatuses
                         }
-                    }
+                    };
+                    await supabase.from('projects').update({ settings: updatedSettings }).eq('id', projectId);
+                    if (newTypes.length > 0) console.log("Añadidos nuevos tipos de contenido desde CSV:", newTypes);
+                    if (newStatuses.length > 0) console.log("Añadidos nuevos estatus desde CSV:", newStatuses);
                 }
             } catch (err) {
-                console.error("Error auto-creando content types:", err);
+                console.error("Error auto-creando content types / statuses:", err);
             }
             // ----------------------------------------
 

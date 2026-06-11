@@ -407,6 +407,9 @@ export default function StrategyGrid({
                                                     {Object.entries(STATUS_LABELS).map(([value, label]) => (
                                                         <option key={value} value={value}>{label}</option>
                                                     ))}
+                                                    {activeProject?.settings?.content_preferences?.custom_statuses?.map((status: string) => (
+                                                        <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
+                                                    ))}
                                                 </select>
                                             ) : batchProgress[task.id] && batchProgress[task.id] < 100 ? (
                                                 <div className="flex items-center gap-2.5 py-1">
@@ -479,7 +482,7 @@ export default function StrategyGrid({
                                             ) : (
                                                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 tabular-nums">
                                                     <Calendar size={10} className="opacity-40" />
-                                                    {task.scheduled_date ? format(new Date(task.scheduled_date), "dd MMM, yyyy", { locale: es }) : 'Programar...'}
+                                                    {task.scheduled_date ? format(new Date(task.scheduled_date), task.date_mode === 'month' ? "MMMM yyyy" : "dd MMM, yyyy", { locale: es }).replace(/^\w/, c => c.toUpperCase()) : 'Programar...'}
                                                 </div>
                                             )}
                                         </td>

@@ -540,11 +540,11 @@ export default function WriterStudio() {
                                         onClick={() => setIsStatusOpen(!isStatusOpen)}
                                         className={cn(
                                             "flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider border shadow-sm transition-all duration-300 active:scale-95",
-                                            (STATUS_OPTIONS.find(opt => opt.value === status) || STATUS_OPTIONS[0]).color
+                                            (STATUS_OPTIONS.find(opt => opt.value === status))?.color || "bg-rose-50 text-rose-600 border-rose-100 hover:opacity-80"
                                         )}
                                     >
-                                        <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", (STATUS_OPTIONS.find(opt => opt.value === status) || STATUS_OPTIONS[0]).dot)} />
-                                        {(STATUS_OPTIONS.find(opt => opt.value === status) || STATUS_OPTIONS[0]).label}
+                                        <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", (STATUS_OPTIONS.find(opt => opt.value === status))?.dot || "bg-rose-500")} />
+                                        {(STATUS_OPTIONS.find(opt => opt.value === status))?.label || (status ? status.replace(/_/g, ' ') : 'Idea')}
                                         <ChevronDown size={10} className={cn("transition-transform duration-300 text-slate-400", isStatusOpen && "rotate-180")} />
                                     </button>
                                     
@@ -586,6 +586,32 @@ export default function WriterStudio() {
                                                                     {opt.label}
                                                                 </div>
                                                                 {isSelected && <span className="text-[7px] font-black text-indigo-400">Activo</span>}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                    {activeProject?.settings?.content_preferences?.custom_statuses?.map((customStatus: string) => {
+                                                        const isSelected = customStatus === status;
+                                                        return (
+                                                            <button
+                                                                key={customStatus}
+                                                                onClick={async () => {
+                                                                    setIsStatusOpen(false);
+                                                                    if (updateTaskStatus) {
+                                                                        await updateTaskStatus(customStatus);
+                                                                    }
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all duration-200 text-left hover:scale-[1.02]",
+                                                                    isSelected 
+                                                                        ? "bg-slate-900 text-white font-black shadow-md" 
+                                                                        : "text-rose-600 hover:bg-rose-50 hover:text-rose-900"
+                                                                )}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-white" : "bg-rose-500")} />
+                                                                    {customStatus.replace(/_/g, ' ')}
+                                                                </div>
+                                                                {isSelected && <span className="text-[7px] font-black text-rose-400">Activo</span>}
                                                             </button>
                                                         );
                                                     })}

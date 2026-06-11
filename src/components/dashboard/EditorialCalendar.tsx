@@ -62,13 +62,12 @@ import { SmartUploaderModal } from "./SmartUploaderModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
 import { 
     processTaskOutlineAction, 
-    processTaskHumanizationAction, 
     processTaskTranslationAction,
     prepareTaskDraftAction,
     saveTaskDraftAction
 } from '@/lib/actions/clientActions';
 import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
-import { runSEOPostProcessor } from '@/lib/actions/aiActions';
+import { streamGenerate, streamSEOPostProcess, streamHumanize } from '@/lib/services/writer/ai-streaming';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 import { formatTasksToTSV, formatTasksToCSV } from "@/utils/exportUtils";
 
@@ -281,6 +280,99 @@ export function EditorialCalendar() {
         }
     };
 
+    const runTaskDraftPipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
+        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 10 }));
+        onLog(task.id, 'Redacción', 'Generando prompt y estructura...');
+        
+        const prepRes = await prepareTaskDraftAction(task.id);
+        if (!prepRes.success || !prepRes.prompt) throw new Error(prepRes.error || "Fallo en preparación");
+
+        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 30 }));
+        onLog(task.id, 'Redacción', 'Redactando contenido base (streaming)...');
+        
+        let finalHtml = '';
+        await streamGenerate(
+            prepRes.prompt,
+            'gemma-4-31b-it',
+            undefined,
+            (chunk) => { finalHtml = chunk; },
+            (msg) => onLog(task.id, 'Redacción', msg)
+        );
+
+        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 70 }));
+        onLog(task.id, 'Redacción', 'Procesando vínculos y SEO...');
+        
+        const taskConfig = JSON.parse(prepRes.configStr);
+        let cleanHtml = cleanAndFormatHtml(finalHtml);
+        
+        const linked = await autoInterlinkAsync(
+            cleanHtml, 
+            taskConfig.approvedLinks || [],
+            activeProject?.architecture_rules,
+            activeProject?.architecture_instructions,
+            activeProject
+        );
+
+        const refinedSEO = await streamSEOPostProcess(
+            linked, 
+            taskConfig, 
+            (msg) => onLog(task.id, 'Redacción', msg)
+        );
+
+        let finalContent = refinedSEO;
+        const activeExtractorRules = activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer') : [];
+        if (activeExtractorRules.length > 0) {
+            onLog(task.id, 'Redacción', 'Ejecutando extractores de datos...');
+            finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
+        }
+
+        const formatted = cleanAndFormatHtml(finalContent);
+        onLog(task.id, 'Redacción', 'Guardando artículo...');
+        const saveRes = await saveTaskDraftAction(task.id, formatted);
+
+        if (saveRes.success && saveRes.updates) {
+            updateTask(task.id, saveRes.updates);
+            onLog(task.id, 'Redacción', saveRes.msg!);
+        } else {
+            throw new Error(saveRes.error);
+        }
+    };
+
+    const runTaskHumanizePipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
+        onLog(task.id, 'Humanización', 'Iniciando humanización (streaming)...');
+        
+        const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+        const content = taskContent?.content_body || task.content_body;
+        if (!content) throw new Error("No hay contenido para humanizar.");
+
+        const config = {
+            niche: 'General', 
+            audience: 'General', 
+            keywords: task.target_keyword || '', 
+            language: task.language || 'es' 
+        };
+
+        let htmlRes = '';
+        await streamHumanize(
+            content,
+            config,
+            50,
+            (chunk) => { htmlRes = chunk; },
+            (msg) => onLog(task.id, 'Humanización', msg)
+        );
+
+        const updates: Partial<Task> = {
+            metadata: { ...task.metadata, is_humanized: true, humanized_at: new Date().toISOString() }
+        };
+        const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
+        if (error) throw error;
+        await supabase.from('task_contents').update({ content_body: htmlRes }).eq('id', task.id);
+        
+        updateTask(task.id, updates);
+        onLog(task.id, 'Humanización', '✅ Humanización completada.');
+        return { success: true };
+    };
+
     const handleUnitAction = async (taskId: string, action: string) => {
         if (!activeProject) return;
         const task = tasks.find(t => t.id === taskId);
@@ -367,92 +459,10 @@ export function EditorialCalendar() {
                     throw new Error(res.error);
                 }
             } else if (action === 'draft') {
-                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 10 }));
-                onLog(taskId, 'Redacción', 'Generando prompt y estructura...');
-                
-                console.log("[EditorialCalendar] 🚀 Calling prepareTaskDraftAction for taskId:", task.id);
-                const prepRes = await prepareTaskDraftAction(task.id);
-                console.log("[EditorialCalendar] ✅ prepareTaskDraftAction returned:", prepRes);
-                if (!prepRes.success || !prepRes.prompt) throw new Error(prepRes.error || "Fallo en preparación");
-
-                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 30 }));
-                onLog(taskId, 'Redacción', 'Redactando contenido base (streaming)...');
-                
-                const response = await fetch('/api/writer/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prepRes.prompt, model: 'gemma-4-31b-it', hierarchy: undefined })
-                });
-
-                if (!response.ok || !response.body) throw new Error("No se pudo iniciar el stream.");
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                let finalHtml = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || '';
-                    
-                    for (const line of lines) {
-                        if (!line.trim()) continue;
-                        try {
-                            const parsed = JSON.parse(line);
-                            if (parsed.type === 'error') throw new Error(parsed.error);
-                            if (parsed.type === 'chunk') finalHtml += parsed.html;
-                            if (parsed.type === 'done') finalHtml = parsed.text;
-                        } catch (e) {}
-                    }
-                }
-
-                if (!finalHtml) throw new Error("Contenido vacío generado.");
-                
-                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 70 }));
-                onLog(taskId, 'Redacción', 'Procesando vínculos y SEO...');
-                
-                const taskConfig = JSON.parse(prepRes.configStr);
-
-                let cleanHtml = cleanAndFormatHtml(finalHtml);
-                const linked = await autoInterlinkAsync(
-                    cleanHtml, 
-                    taskConfig.approvedLinks || [],
-                    activeProject?.architecture_rules,
-                    activeProject?.architecture_instructions,
-                    activeProject
-                );
-
-                const refinedSEO = await runSEOPostProcessor(linked, taskConfig);
-
-                let finalContent = refinedSEO;
-                const activeExtractorRules = activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer') : [];
-                if (activeExtractorRules.length > 0) {
-                    onLog(taskId, 'Redacción', 'Ejecutando extractores de datos...');
-                    finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
-                }
-
-                const formatted = cleanAndFormatHtml(finalContent);
-                
-                onLog(taskId, 'Redacción', 'Guardando artículo...');
-                const saveRes = await saveTaskDraftAction(task.id, formatted);
-
-                if (saveRes.success && saveRes.updates) {
-                    updateTask(taskId, saveRes.updates);
-                    onLog(taskId, 'Redacción', saveRes.msg!);
-                } else {
-                    throw new Error(saveRes.error);
-                }
-                const res = await processTaskHumanizationAction(task.id);
-                if (res.success && res.updates) {
-                    updateTask(taskId, res.updates);
-                    onLog(taskId, 'Humanización', res.msg!);
-                } else {
-                    throw new Error(res.error);
-                }
+                await runTaskDraftPipeline(task, onLog);
+                await runTaskHumanizePipeline(task, onLog);
+            } else if (action === 'humanize') {
+                await runTaskHumanizePipeline(task, onLog);
             } else if (action === 'visuals') {
                 const res = await processTaskVisualsAction(task.id);
                 if (res.success && res.updates) {
@@ -608,81 +618,7 @@ export function EditorialCalendar() {
                         let pCount = 0;
                         for (const t of toDraft) {
                             try {
-                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: 10 }));
-                                onLog(t.id, 'Redacción', 'Generando prompt y estructura...');
-                                
-                                const prepRes = await prepareTaskDraftAction(t);
-                                if (!prepRes.success || !prepRes.prompt) throw new Error(prepRes.error || "Fallo en preparación");
-
-                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: 30 }));
-                                onLog(t.id, 'Redacción', 'Redactando contenido base (streaming)...');
-                                
-                                const response = await fetch('/api/writer/generate', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ prompt: prepRes.prompt, model: 'gemma-4-31b-it', hierarchy: undefined })
-                                });
-
-                                if (!response.ok || !response.body) throw new Error("No se pudo iniciar el stream.");
-
-                                const reader = response.body.getReader();
-                                const decoder = new TextDecoder();
-                                let buffer = '';
-                                let finalHtml = '';
-
-                                while (true) {
-                                    const { done, value } = await reader.read();
-                                    if (done) break;
-                                    
-                                    buffer += decoder.decode(value, { stream: true });
-                                    const lines = buffer.split('\n');
-                                    buffer = lines.pop() || '';
-                                    
-                                    for (const line of lines) {
-                                        if (!line.trim()) continue;
-                                        try {
-                                            const parsed = JSON.parse(line);
-                                            if (parsed.type === 'error') throw new Error(parsed.error);
-                                            if (parsed.type === 'chunk') finalHtml += parsed.html;
-                                            if (parsed.type === 'done') finalHtml = parsed.text;
-                                        } catch (e) {}
-                                    }
-                                }
-
-                                if (!finalHtml) throw new Error("Contenido vacío generado.");
-                                
-                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: 70 }));
-                                onLog(t.id, 'Redacción', 'Procesando vínculos y SEO...');
-                                
-                                let cleanHtml = cleanAndFormatHtml(finalHtml);
-                                const linked = await autoInterlinkAsync(
-                                    cleanHtml, 
-                                    prepRes.config.approvedLinks || [],
-                                    prepRes.activeProject?.architecture_rules,
-                                    prepRes.activeProject?.architecture_instructions,
-                                    prepRes.activeProject
-                                );
-
-                                const refinedSEO = await runSEOPostProcessor(linked, prepRes.config);
-
-                                let finalContent = refinedSEO;
-                                const activeExtractorRules = prepRes.activeProject ? NousExtractorService.getActiveRulesForPhase(prepRes.activeProject, 'writer') : [];
-                                if (activeExtractorRules.length > 0) {
-                                    onLog(t.id, 'Redacción', 'Ejecutando extractores de datos...');
-                                    finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, prepRes.activeProject, 'writer');
-                                }
-
-                                const formatted = cleanAndFormatHtml(finalContent);
-                                
-                                onLog(t.id, 'Redacción', 'Guardando artículo...');
-                                const res = await saveTaskDraftAction(t.id, formatted);
-
-                                if (res.success && res.updates) {
-                                    updateTask(t.id, res.updates);
-                                    onLog(t.id, 'Redacción', res.msg!);
-                                } else {
-                                    onLog(t.id, 'Error', `❌ Error: ${res.error}`);
-                                }
+                                await runTaskDraftPipeline(t, onLog);
                             } catch (e: any) {
                                 onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                             }
@@ -702,12 +638,10 @@ export function EditorialCalendar() {
                         const phaseBase = currentPhaseIndex * phaseWeight;
                         let pCount = 0;
                         for (const t of toHumanize) {
-                            const res = await processTaskHumanizationAction(t);
-                            if (res.success && res.updates) {
-                                updateTask(t.id, res.updates);
-                                onLog(t.id, 'Humanización', res.msg!);
-                            } else {
-                                onLog(t.id, 'Error', `❌ Error: ${res.error}`);
+                            try {
+                                await runTaskHumanizePipeline(t, onLog);
+                            } catch (e: any) {
+                                onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                             }
                             pCount++;
                             setResearchProgress(phaseBase + ((pCount / toHumanize.length) * phaseWeight));
@@ -805,10 +739,10 @@ export function EditorialCalendar() {
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay outlines listos para redactar.'); return; }
                 let pCount = 0;
                 for (const t of filtered) {
-                    const res = await processTaskDraftAction(t);
-                    if (res.success && res.updates) {
-                        updateTask(t.id, res.updates);
-                        onLog(t.id, 'Redacción', res.msg!);
+                    try {
+                        await runTaskDraftPipeline(t, onLog);
+                    } catch (e: any) {
+                        onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                     }
                     pCount++;
                     setResearchProgress((pCount / filtered.length) * 100);
@@ -820,10 +754,10 @@ export function EditorialCalendar() {
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay artículos redactados que necesiten humanización.'); return; }
                 let pCount = 0;
                 for (const t of filtered) {
-                    const res = await processTaskHumanizationAction(t);
-                    if (res.success && res.updates) {
-                        updateTask(t.id, res.updates);
-                        onLog(t.id, 'Humanización', res.msg!);
+                    try {
+                        await runTaskHumanizePipeline(t, onLog);
+                    } catch (e: any) {
+                        onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                     }
                     pCount++;
                     setResearchProgress((pCount / filtered.length) * 100);
@@ -1088,6 +1022,27 @@ export function EditorialCalendar() {
                                                         {isActive && <Check size={10} strokeWidth={4} />}
                                                     </div>
                                                     <span className="text-[10px] font-bold uppercase tracking-tight">{label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                        {activeProject?.settings?.content_preferences?.custom_statuses?.map((status: string) => {
+                                            const isActive = statusFilter.includes(status);
+                                            return (
+                                                <button 
+                                                    key={status}
+                                                    onClick={() => toggleStatusFilter(status)}
+                                                    className={cn(
+                                                        "flex items-center gap-3 p-2 rounded-lg transition-all text-left",
+                                                        isActive ? "bg-rose-50 text-rose-700" : "hover:bg-slate-50 text-slate-600"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
+                                                        isActive ? "bg-rose-500 border-rose-500 text-white" : "border-slate-300 bg-white"
+                                                    )}>
+                                                        {isActive && <Check size={10} strokeWidth={4} />}
+                                                    </div>
+                                                    <span className="text-[10px] font-bold uppercase tracking-tight">{status.replace(/_/g, ' ')}</span>
                                                 </button>
                                             );
                                         })}

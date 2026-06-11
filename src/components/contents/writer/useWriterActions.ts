@@ -20,6 +20,7 @@ import { ResearchOrchestrator } from '@/lib/services/writer/research';
 import { OutlineEngine } from '@/lib/services/writer/research/outline-engine';
 import { LinkPatcherService } from '@/lib/services/link-patcher';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
+import { streamGenerate, streamSEOPostProcess, streamHumanize } from '@/lib/services/writer/ai-streaming';
 
 import { AI_CONFIG } from '@/lib/ai/config';
 import { useWriterStore } from '@/store/useWriterStore';
@@ -249,92 +250,31 @@ export function useWriterActions() {
             const writingHierarchy = AI_CONFIG.gemini.hierarchies.writing;
             const modelToUse = store.researchMode === 'rapid' ? 'gemma-4-31b-it' : writingHierarchy[0];
             
-            // Replaced streaming loop with direct JSON Server Action -> Now using Edge API Route to bypass 60s limit
+            // Replaced streaming loop with shared ai-streaming utility
             store.setStatus('Redactando contenido base... (Espere unos segundos)');
             
             let finalHtml = "";
             try {
-                const response = await fetch('/api/writer/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, model: modelToUse, hierarchy: writingHierarchy })
-                });
-                
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                if (!response.body) throw new Error("No se pudo iniciar el stream del servidor.");
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                let lastUpdateTime = 0;
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || '';
-                    
-                    for (const line of lines) {
-                        if (!line.trim()) continue;
-                        try {
-                            const parsed = JSON.parse(line);
-                            if (parsed.type === 'error') throw new Error(parsed.error);
-                            if (parsed.type === 'status') store.setStatus(parsed.message);
-                            if (parsed.type === 'chunk') {
-                                finalHtml += parsed.html;
-                            }
-                            if (parsed.type === 'done') finalHtml = parsed.text;
-                        } catch (e) {
-                            // Ignorar errores de parseo de chunks incompletos
-                        }
-                    }
-                }
-                
-                if (!finalHtml) throw new Error("No se generó contenido válido.");
+                finalHtml = await streamGenerate(
+                    prompt, 
+                    modelToUse, 
+                    writingHierarchy,
+                    (html) => { finalHtml = html; },
+                    (msg) => store.setStatus(msg)
+                );
             } catch (err) {
                 console.error('[Generate] Fallback triggered', err);
                 store.setStatus('⚠️ Interrupción detectada. Aplicando Fallback de continuación...');
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
                 const fallbackModel = writingHierarchy.length > 1 ? writingHierarchy[1] : writingHierarchy[0];
-                const fallbackResponse = await fetch('/api/writer/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, model: fallbackModel, hierarchy: writingHierarchy })
-                });
-                
-                if (!fallbackResponse.ok || !fallbackResponse.body) throw new Error("Fallback falló al iniciar stream.");
-                
-                const fallbackReader = fallbackResponse.body.getReader();
-                const fallbackDecoder = new TextDecoder();
-                let fallbackBuffer = '';
-                let fbLastUpdateTime = 0;
-
-                while (true) {
-                    const { done, value } = await fallbackReader.read();
-                    if (done) break;
-                    
-                    fallbackBuffer += fallbackDecoder.decode(value, { stream: true });
-                    const lines = fallbackBuffer.split('\n');
-                    fallbackBuffer = lines.pop() || '';
-                    
-                    for (const line of lines) {
-                        if (!line.trim()) continue;
-                        try {
-                            const parsed = JSON.parse(line);
-                            if (parsed.type === 'error') throw new Error(parsed.error);
-                            if (parsed.type === 'status') store.setStatus(parsed.message);
-                            if (parsed.type === 'chunk') {
-                                finalHtml += parsed.html;
-                            }
-                            if (parsed.type === 'done') finalHtml = parsed.text;
-                        } catch (e) {}
-                    }
-                }
-                
-                if (!finalHtml) throw new Error("Fallback no generó contenido válido.");
+                finalHtml = await streamGenerate(
+                    prompt, 
+                    fallbackModel, 
+                    writingHierarchy,
+                    (html) => { finalHtml = html; },
+                    (msg) => store.setStatus(msg)
+                );
             }
 
             store.setStatus('Procesando HTML final...');
@@ -372,37 +312,11 @@ export function useWriterActions() {
             // --- API ROUTE REPLACEMENT FOR SEO POSTPROCESSOR ---
             let refinedSEO = linked;
             try {
-                const seoResponse = await fetch('/api/writer/seo-postprocess', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ html: linked, config })
-                });
-
-                if (!seoResponse.ok) throw new Error(`HTTP error! status: ${seoResponse.status}`);
-                if (seoResponse.body) {
-                    const reader = seoResponse.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\\n');
-                        buffer = lines.pop() || '';
-                        
-                        for (const line of lines) {
-                            if (!line.trim()) continue;
-                            try {
-                                const parsed = JSON.parse(line);
-                                if (parsed.type === 'error') throw new Error(parsed.error);
-                                if (parsed.type === 'status') store.setStatus(parsed.message);
-                                if (parsed.type === 'done') refinedSEO = parsed.text;
-                            } catch (e) {}
-                        }
-                    }
-                }
+                refinedSEO = await streamSEOPostProcess(
+                    linked, 
+                    config, 
+                    (msg) => store.setStatus(msg)
+                );
             } catch (seoErr) {
                 console.error('[SEO PostProcess] Fallback triggered due to API error:', seoErr);
                 refinedSEO = linked; // Fallback to original
@@ -505,77 +419,22 @@ export function useWriterActions() {
                 language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
             };
 
-            const response = await fetch('/api/humanize', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    content: store.content,
-                    config,
-                    intensity: 50
-                })
-            });
-
-            const contentType = response.headers.get('content-type');
-            if (!response.ok) {
-                if (response.status === 504) {
-                    throw new Error("El servidor tardó demasiado en responder (Error 504: Timeout). El texto es muy largo para procesarlo de una vez.");
-                }
-                
-                if (contentType && contentType.includes('application/json')) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                } else {
-                    const textError = await response.text();
-                    throw new Error(`Error del servidor (${response.status}): La respuesta no es JSON válido.`);
-                }
-            }
-
-            if (!response.body) throw new Error("No se pudo iniciar el stream del servidor.");
-
             store.setContent(''); // Empezar de cero para mostrar el stream
-            let newContent = '';
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let finalResult = null;
             let humLastUpdateTime = 0;
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || ''; // El último puede estar incompleto
-                
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                        const parsed = JSON.parse(line);
-                        if (parsed.type === 'status') {
-                            store.setHumanizerStatus(parsed.message);
-                        } else if (parsed.type === 'chunk') {
-                            newContent += parsed.html + '\n';
-                            const now = Date.now();
-                            if (now - humLastUpdateTime > 300) {
-                                store.setContent(newContent);
-                                humLastUpdateTime = now;
-                            }
-                        } else if (parsed.type === 'error') {
-                            throw new Error(parsed.error);
-                        } else if (parsed.type === 'done') {
-                            finalResult = parsed.result;
-                        }
-                    } catch (e) {
-                        console.warn("Error parseando chunk del stream:", line);
+            const finalResult = await streamHumanize(
+                store.content,
+                config,
+                50,
+                (html) => {
+                    const now = Date.now();
+                    if (now - humLastUpdateTime > 300) {
+                        store.setContent(html);
+                        humLastUpdateTime = now;
                     }
-                }
-            }
-
-            if (!finalResult) {
-                finalResult = { html: newContent };
-            }
+                },
+                (msg) => store.setHumanizerStatus(msg)
+            );
 
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
 

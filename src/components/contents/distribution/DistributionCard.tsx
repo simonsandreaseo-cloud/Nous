@@ -41,7 +41,7 @@ export function DistributionCard({ task, onClick }: DistributionCardProps) {
                 <div className="flex items-center gap-2 text-slate-300">
                     <Calendar size={12} />
                     <span className="text-[10px] font-bold uppercase tracking-widest">
-                        {task.scheduled_date ? format(new Date(task.scheduled_date), 'dd MMM yyyy', { locale: es }) : 'Sin fecha'}
+                        {task.scheduled_date ? format(new Date(task.scheduled_date), task.date_mode === 'month' ? 'MMMM yyyy' : 'dd MMM yyyy', { locale: es }).replace(/^\w/, c => c.toUpperCase()) : 'Sin fecha'}
                     </span>
                 </div>
                 <h3 className="text-sm font-black text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors line-clamp-2 uppercase italic tracking-tight">

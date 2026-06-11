@@ -123,42 +123,6 @@ export async function saveTaskDraftAction(taskId: string, formattedContent: stri
     }
 }
 
-export async function processTaskHumanizationAction(taskId: string) {
-    try {
-        const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
-        if (taskError || !task) throw new Error("Task not found");
-
-        const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', taskId).maybeSingle();
-        const content = taskContent?.content_body || task.content_body;
-
-        if (!content) throw new Error("No hay contenido.");
-        
-        const res = await runHumanizerPipeline(
-            content,
-            { 
-                niche: 'General', 
-                audience: 'General', 
-                keywords: task.target_keyword || '', 
-                language: task.language || 'es' 
-            },
-            0.7, undefined, 'gemma-4-31b-it'
-        );
-
-        const updates: Partial<Task> = {
-            metadata: { ...task.metadata, is_humanized: true, humanized_at: new Date().toISOString() }
-        };
-
-        const { error } = await supabase.from('tasks').update(updates).eq('id', taskId);
-        if (error) throw error;
-        
-        await supabase.from('task_contents').update({ content_body: res.html }).eq('id', taskId);
-
-        return { success: true, updates: { ...updates, content_body: res.html }, msg: `✅ Humanización completada.` };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-}
-
 export async function processTaskTranslationAction(taskId: string, langCode: string) {
     try {
         const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();

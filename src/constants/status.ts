@@ -22,4 +22,4 @@ export const STATUS_COLORS: Record<string, { bg: string, text: string, border: s
     'publicado': { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', dot: 'bg-emerald-500' }
 };
 
-export type TaskStatus = keyof typeof STATUS_LABELS;
+export type TaskStatus = keyof typeof STATUS_LABELS | string;

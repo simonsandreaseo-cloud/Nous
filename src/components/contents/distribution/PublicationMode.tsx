@@ -171,7 +171,7 @@ export function PublicationMode() {
                                     <div className="flex items-center gap-2">
                                         <Calendar size={12} className={cn(activeTaskId === task.id ? "text-emerald-500" : "text-slate-300")} />
                                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                                            {task.scheduled_date ? new Date(task.scheduled_date).toLocaleDateString() : "S/F"}
+                                            {task.scheduled_date ? new Date(task.scheduled_date).toLocaleDateString('es-ES', task.date_mode === 'month' ? { month: 'long', year: 'numeric' } : undefined).replace(/^\w/, c => c.toUpperCase()) : "S/F"}
                                         </span>
                                     </div>
                                 </div>

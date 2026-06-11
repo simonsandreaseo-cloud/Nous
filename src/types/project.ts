@@ -27,6 +27,7 @@ export interface Project {
             default_translator_languages?: string[];
             default_content_language?: string;
             custom_content_types?: string[];
+            custom_statuses?: string[];
         };
         images?: {
             watermark_enabled: boolean;
@@ -159,7 +160,8 @@ export type TaskStatus =
     | 'por_corregir' 
     | 'por_revisar'
     | 'por_maquetar' 
-    | 'publicado';
+    | 'publicado'
+    | string;
 
 
 export interface Task {
@@ -168,6 +170,7 @@ export interface Task {
     title: string;
     brief?: string;
     scheduled_date: string;
+    date_mode?: 'exact' | 'month';
     status: TaskStatus;
     content_type?: string;
     priority?: 'low' | 'medium' | 'high' | 'critical';

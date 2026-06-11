@@ -191,7 +191,7 @@ export function CorrectionMode() {
                             <div className="flex items-center gap-2 mb-2">
                                 <Calendar size={10} className={cn(activeTaskId === task.id ? "text-indigo-500" : "text-slate-300")} />
                                 <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
-                                    {task.scheduled_date ? new Date(task.scheduled_date).toLocaleDateString() : "S/F"}
+                                    {task.scheduled_date ? new Date(task.scheduled_date).toLocaleDateString('es-ES', task.date_mode === 'month' ? { month: 'long', year: 'numeric' } : undefined).replace(/^\w/, c => c.toUpperCase()) : "S/F"}
                                 </span>
                             </div>
                             <h4 className={cn(

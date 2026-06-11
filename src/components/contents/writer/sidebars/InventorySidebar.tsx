@@ -175,7 +175,7 @@ export function InventorySidebar() {
                                     </span>
                                 </div>
                                 <span className="text-[7px] font-bold text-slate-300 uppercase tracking-widest">
-                                    {task.scheduled_date ? new Date(task.scheduled_date).toLocaleDateString() : "Draft"}
+                                    {task.scheduled_date ? new Date(task.scheduled_date).toLocaleDateString('es-ES', task.date_mode === 'month' ? { month: 'long', year: 'numeric' } : undefined).replace(/^\w/, c => c.toUpperCase()) : "Draft"}
                                 </span>
                             </div>
 
