@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
-import { createClient } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Network, Upload, FileText } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { LinkStrategyEditor, LinkStrategyConfig } from "./LinkStrategyEditor";
@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 export function ProjectLinkStrategyView() {
     const { activeProject, updateProject } = useProjectStore();
-    const supabase = createClient();
+    // Supabase client from shared instance
     
     const [categories, setCategories] = useState<string[]>([]);
     const [activeContentType, setActiveContentType] = useState<string>("");
