@@ -61,11 +61,9 @@ import NousOrb from "./NousOrb";
 import { SmartUploaderModal } from "./SmartUploaderModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
 import { 
-    processTaskOutlineAction, 
-    processTaskTranslationAction,
-    prepareTaskDraftAction,
-    saveTaskDraftAction
+    processTaskOutlineAction
 } from '@/lib/actions/clientActions';
+import { executeDraftPipeline, executeHumanizePipeline } from '@/lib/services/writer/pipeline';
 import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
 import { streamGenerate, streamSEOPostProcess, streamHumanize } from '@/lib/services/writer/ai-streaming';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
@@ -281,96 +279,41 @@ export function EditorialCalendar() {
     };
 
     const runTaskDraftPipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
-        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 10 }));
-        onLog(task.id, 'Redacción', 'Generando prompt y estructura...');
-        
-        const prepRes = await prepareTaskDraftAction(task.id);
-        if (!prepRes.success || !prepRes.prompt) throw new Error(prepRes.error || "Fallo en preparación");
-
-        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 30 }));
-        onLog(task.id, 'Redacción', 'Redactando contenido base (streaming)...');
-        
-        let finalHtml = '';
-        await streamGenerate(
-            prepRes.prompt,
-            'gemma-4-31b-it',
-            undefined,
-            (chunk) => { finalHtml = chunk; },
-            (msg) => onLog(task.id, 'Redacción', msg)
-        );
-
-        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 70 }));
-        onLog(task.id, 'Redacción', 'Procesando vínculos y SEO...');
-        
-        const taskConfig = JSON.parse(prepRes.configStr);
-        let cleanHtml = cleanAndFormatHtml(finalHtml);
-        
-        const linked = await autoInterlinkAsync(
-            cleanHtml, 
-            taskConfig.approvedLinks || [],
-            activeProject?.architecture_rules,
-            activeProject?.architecture_instructions,
-            activeProject
-        );
-
-        const refinedSEO = await streamSEOPostProcess(
-            linked, 
-            taskConfig, 
-            (msg) => onLog(task.id, 'Redacción', msg)
-        );
-
-        let finalContent = refinedSEO;
-        const activeExtractorRules = activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer') : [];
-        if (activeExtractorRules.length > 0) {
-            onLog(task.id, 'Redacción', 'Ejecutando extractores de datos...');
-            finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
-        }
-
-        const formatted = cleanAndFormatHtml(finalContent);
-        onLog(task.id, 'Redacción', 'Guardando artículo...');
-        const saveRes = await saveTaskDraftAction(task.id, formatted);
-
-        if (saveRes.success && saveRes.updates) {
-            updateTask(task.id, saveRes.updates);
-            onLog(task.id, 'Redacción', saveRes.msg!);
-        } else {
-            throw new Error(saveRes.error);
+        try {
+            const res = await executeDraftPipeline(
+                task, 
+                activeProject, 
+                (msg) => onLog(task.id, 'Redacción', msg),
+                (html) => {}
+            );
+            if (res.success && res.updates) {
+                updateTask(task.id, res.updates);
+            }
+        } catch (e: any) {
+            onLog(task.id, 'Error', `❌ Error en redacción: ${e.message}`);
+            throw e;
         }
     };
 
     const runTaskHumanizePipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
-        onLog(task.id, 'Humanización', 'Iniciando humanización (streaming)...');
-        
-        const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
-        const content = taskContent?.content_body || task.content_body;
-        if (!content) throw new Error("No hay contenido para humanizar.");
+        try {
+            const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+            const content = taskContent?.content_body || task.content_body;
+            if (!content) throw new Error("No hay contenido para humanizar.");
 
-        const config = {
-            niche: 'General', 
-            audience: 'General', 
-            keywords: task.target_keyword || '', 
-            language: task.language || 'es' 
-        };
-
-        let htmlRes = '';
-        await streamHumanize(
-            content,
-            config,
-            50,
-            (chunk) => { htmlRes = chunk; },
-            (msg) => onLog(task.id, 'Humanización', msg)
-        );
-
-        const updates: Partial<Task> = {
-            metadata: { ...task.metadata, is_humanized: true, humanized_at: new Date().toISOString() }
-        };
-        const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
-        if (error) throw error;
-        await supabase.from('task_contents').update({ content_body: htmlRes }).eq('id', task.id);
-        
-        updateTask(task.id, updates);
-        onLog(task.id, 'Humanización', '✅ Humanización completada.');
-        return { success: true };
+            const res = await executeHumanizePipeline(
+                task, 
+                content, 
+                (msg) => onLog(task.id, 'Humanización', msg),
+                (html) => {}
+            );
+            if (res.success && res.updates) {
+                updateTask(task.id, res.updates);
+            }
+        } catch (e: any) {
+            onLog(task.id, 'Error', `❌ Error en humanización: ${e.message}`);
+            throw e;
+        }
     };
 
     const handleUnitAction = async (taskId: string, action: string) => {
