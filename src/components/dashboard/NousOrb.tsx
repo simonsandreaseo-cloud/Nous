@@ -98,33 +98,23 @@ export default function NousOrb({
     const effectiveIsProcessing = viewMode === 'writer' ? (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isProcessing) : isProcessing;
     const effectiveStatus = viewMode === 'writer' ? (isHumanizing ? humanizerStatus : statusMessage || "Procesando...") : "Investigando...";
 
-    // Detección Inteligente de Procesos
+    // Detección Inteligente de Procesos — usando STATUS (campo liviano, siempre disponible)
+    // STATUS WORKFLOW: idea -> en_investigacion -> por_redactar -> por_corregir/redactado -> humanizado
     const stats = useMemo(() => {
         if (viewMode === 'writer') return { ideas: 0, needOutline: 0, needDraft: 0, needHuman: 0 };
         
-        // Filter tasks that need research
-        const ideas = tasks.filter(t => t.status === 'idea' || !t.research_dossier || Object.keys(t.research_dossier).length === 0);
+        // Needs research = status is 'idea' (haven't been investigated yet)
+        const ideas = tasks.filter(t => t.status === 'idea');
         
-        // Filter tasks that need outlines (have research, no outline structure)
-        const needOutline = tasks.filter(t => {
-            const hasResearch = t.research_dossier && Object.keys(t.research_dossier).length > 0;
-            const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || 
-                             (t.outline_structure?.headers?.length > 0);
-            return hasResearch && !hasOutline;
-        });
+        // Needs outline = status is 'en_investigacion' (researched, no outline yet)
+        const needOutline = tasks.filter(t => t.status === 'en_investigacion');
 
-        // Filter tasks that need drafting (have outline, no content)
-        const needDraft = tasks.filter(t => {
-            const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || 
-                             (t.outline_structure?.headers?.length > 0);
-            const hasContent = !!(t.content_body && t.content_body.trim() !== '');
-            return hasOutline && !hasContent;
-        });
+        // Needs drafting = status is 'por_redactar' (outline done, no content yet)
+        const needDraft = tasks.filter(t => t.status === 'por_redactar');
 
-        // Filter tasks that need humanization (have content)
+        // Needs humanization = status is 'por_corregir' or 'redactado' (written, not humanized)
         const needHuman = tasks.filter(t => 
-            t.content_body && t.content_body.trim() !== '' && 
-            (t.status === 'por_corregir' || t.status === 'por_maquetar')
+            t.status === 'por_corregir' || t.status === 'redactado'
         );
 
         return {
@@ -134,6 +124,7 @@ export default function NousOrb({
             needHuman: needHuman.length
         };
     }, [tasks, viewMode]);
+
 
     const effectiveSelectedCount = selectedCount || 0;
     const hasActions = viewMode === 'planner' && (stats.ideas > 0 || stats.needOutline > 0 || stats.needHuman > 0 || stats.needDraft > 0 || effectiveSelectedCount > 0);

@@ -496,8 +496,14 @@ export function EditorialCalendar() {
                 const phaseWeight = 100 / (activePhases || 1);
                 let currentPhaseIndex = 0;
 
+                // STATUS WORKFLOW:
+                // idea -> en_investigacion -> por_redactar -> por_corregir/redactado -> humanizado
+                const WRITTEN_STATUSES = ['por_corregir', 'redactado', 'publicado', 'humanizado', 'en_revision'];
+                const RESEARCHED_STATUSES = ['por_redactar', 'por_corregir', 'redactado', 'publicado', 'humanizado', 'en_revision', 'en_investigacion'];
+
                 if (research) {
-                    const toResearch = targetTasks.filter(t => t.status === 'idea' || !t.research_dossier || t.research_dossier._checkpoint !== 'outline_done');
+                    // Needs research = status is 'idea' or not yet in a researched state
+                    const toResearch = targetTasks.filter(t => !RESEARCHED_STATUSES.includes(t.status));
                     if (toResearch.length > 0) {
                         NotificationService.notify("Nous Global", `Fase 1/5: Investigando ${toResearch.length} contenidos...`);
                         let pCount = 0;
@@ -536,11 +542,8 @@ export function EditorialCalendar() {
 
                 if (draft || research) {
                     const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
-                    const toOutline = latestTasks.filter(t => {
-                        const hasResearch = t.research_dossier && Object.keys(t.research_dossier).length > 0;
-                        const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || (t.outline_structure?.headers?.length > 0);
-                        return hasResearch && !hasOutline;
-                    });
+                    // Needs outline = investigated (en_investigacion) but not yet ready-to-draft (por_redactar+)
+                    const toOutline = latestTasks.filter(t => t.status === 'en_investigacion');
                     if (toOutline.length > 0) {
                         NotificationService.notify("Nous Global", `Fase 2/5: Generando arquitectura (Outlines) para ${toOutline.length} artículos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
@@ -563,11 +566,8 @@ export function EditorialCalendar() {
 
                 if (draft) {
                     const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
-                    const toDraft = latestTasks.filter(t => {
-                        const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || (t.outline_structure?.headers?.length > 0);
-                        const hasContent = !!(t.content_body && t.content_body.trim() !== '');
-                        return hasOutline && !hasContent;
-                    });
+                    // Needs drafting = status is 'por_redactar' (outline done but no content yet)
+                    const toDraft = latestTasks.filter(t => t.status === 'por_redactar');
                     if (toDraft.length > 0) {
                         NotificationService.notify("Nous Global", `Fase 3/5: Redactando ${toDraft.length} contenidos completos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
@@ -588,7 +588,8 @@ export function EditorialCalendar() {
 
                 if (humanize) {
                     const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
-                    const toHumanize = latestTasks.filter(t => !!t.content_body);
+                    // Needs humanizing = written (por_corregir or redactado) but not yet humanized
+                    const toHumanize = latestTasks.filter(t => t.status === 'por_corregir' || t.status === 'redactado');
                     if (toHumanize.length > 0) {
                         NotificationService.notify("Nous Global", `Fase 4/5: Humanizando ${toHumanize.length} artículos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
@@ -675,7 +676,8 @@ export function EditorialCalendar() {
                     setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
                 }
             } else if (action === 'generar_outlines') {
-                let filtered = tasks.filter(t => (t.status === 'por_redactar' || t.status === 'en_investigacion' || t.status === 'idea') && t.research_dossier && (!t.outline_structure || !t.outline_structure.headers || t.outline_structure.headers.length === 0));
+                // Use status as proxy: en_investigacion = has research, needs outline
+                let filtered = tasks.filter(t => t.status === 'en_investigacion');
                 if (selectedTaskIds.length > 0) filtered = tasks.filter(t => selectedTaskIds.includes(t.id));
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay tareas investigadas que necesiten un outline.'); return; }
                 let pCount = 0;
@@ -690,7 +692,8 @@ export function EditorialCalendar() {
                     setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
                 }
             } else if (action === 'redaccion_masiva') {
-                let filtered = tasks.filter(t => t.outline_structure?.headers?.length > 0 && !t.content_body);
+                // Use status as proxy: por_redactar = outline done, no content yet
+                let filtered = tasks.filter(t => t.status === 'por_redactar');
                 if (selectedTaskIds.length > 0) filtered = tasks.filter(t => selectedTaskIds.includes(t.id));
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay outlines listos para redactar.'); return; }
                 let pCount = 0;
@@ -705,7 +708,8 @@ export function EditorialCalendar() {
                     setResearchProgress((pCount / filtered.length) * 100);
                 }
             } else if (action === 'humanizacion_masiva') {
-                let filtered = tasks.filter(t => !!t.content_body);
+                // Use status as proxy: por_corregir or redactado = written, needs humanization
+                let filtered = tasks.filter(t => t.status === 'por_corregir' || t.status === 'redactado');
                 if (selectedTaskIds.length > 0) filtered = tasks.filter(t => selectedTaskIds.includes(t.id));
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay artículos redactados que necesiten humanización.'); return; }
                 let pCount = 0;

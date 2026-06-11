@@ -63,25 +63,19 @@ export default function NousAssistantMenu({
     const effectiveIsProcessing = (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining || isProcessing);
     const effectiveStatus = (isHumanizing ? humanizerStatus : statusMessage || "Procesando...");
 
+    // STATUS WORKFLOW: idea -> en_investigacion -> por_redactar -> por_corregir/redactado -> humanizado
     const stats = useMemo(() => {
         if (viewMode === 'writer') return { ideas: 0, needOutline: 0, needDraft: 0, needHuman: 0 };
         
-        const ideas = tasks.filter(t => t.status === 'idea' || !t.research_dossier || Object.keys(t.research_dossier).length === 0);
-        const needOutline = tasks.filter(t => {
-            const hasResearch = t.research_dossier && Object.keys(t.research_dossier).length > 0;
-            const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || 
-                              (t.outline_structure?.headers?.length > 0);
-            return hasResearch && !hasOutline;
-        });
-        const needDraft = tasks.filter(t => {
-            const hasOutline = (Array.isArray(t.outline_structure) && t.outline_structure.length > 0) || 
-                              (t.outline_structure?.headers?.length > 0);
-            const hasContent = !!(t.content_body && t.content_body.trim() !== '');
-            return hasOutline && !hasContent;
-        });
+        // Needs research = status is 'idea'
+        const ideas = tasks.filter(t => t.status === 'idea');
+        // Needs outline = status is 'en_investigacion' (researched but no outline yet)
+        const needOutline = tasks.filter(t => t.status === 'en_investigacion');
+        // Needs drafting = status is 'por_redactar' (outline done, no content yet)
+        const needDraft = tasks.filter(t => t.status === 'por_redactar');
+        // Needs humanization = written but not yet humanized
         const needHuman = tasks.filter(t => 
-            t.content_body && t.content_body.trim() !== '' && 
-            (t.status === 'por_corregir' || t.status === 'por_maquetar')
+            t.status === 'por_corregir' || t.status === 'redactado'
         );
 
         return {
@@ -91,6 +85,7 @@ export default function NousAssistantMenu({
             needHuman: needHuman.length
         };
     }, [tasks, viewMode]);
+
 
     const effectiveSelectedCount = selectedCount || 0;
 
