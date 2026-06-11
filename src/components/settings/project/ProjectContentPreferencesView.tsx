@@ -13,6 +13,7 @@ import {
     LayoutGrid,
     Languages,
     Activity
+} from "lucide-react";
 import { AVAILABLE_LANGUAGES } from "@/constants/languages";
 import { cn } from "@/utils/cn";
 
