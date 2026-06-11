@@ -39,7 +39,7 @@ export interface OrbPipelinePlan {
 // ─── Credit Rates (informational only — no backend deduction yet) ────────────
 
 const CREDIT_RATES = {
-    research: 0,
+    research: 20,
     outline: 0,
     draft: 10,
     rewrite: 10,
@@ -50,6 +50,7 @@ const CREDIT_RATES = {
 
 function computeTotalCredits(plan: OrbPipelinePlan): number {
     return (
+        plan.toResearch.length * CREDIT_RATES.research +
         plan.toDraft.length * CREDIT_RATES.draft +
         plan.toRewrite.length * CREDIT_RATES.rewrite +
         plan.toHumanize.length * CREDIT_RATES.humanize +
