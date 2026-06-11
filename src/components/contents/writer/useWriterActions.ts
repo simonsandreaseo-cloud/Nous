@@ -369,8 +369,44 @@ export function useWriterActions() {
             store.setAnalyzingSEO(true);
             store.addDebugPrompt('Fase 2: Refinamiento SEO', `Optimizando con keywords: ${config.topic}, LSI: ${config.lsiKeywords?.join(', ')}. Enlaces aprobados: ${finalApprovedLinks.length}`);
             
-            // Remove callback to prevent Server Action serialization error
-            const refinedSEO = await runSEOPostProcessor(linked, config);
+            // --- API ROUTE REPLACEMENT FOR SEO POSTPROCESSOR ---
+            let refinedSEO = linked;
+            try {
+                const seoResponse = await fetch('/api/writer/seo-postprocess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ html: linked, config })
+                });
+
+                if (!seoResponse.ok) throw new Error(`HTTP error! status: ${seoResponse.status}`);
+                if (seoResponse.body) {
+                    const reader = seoResponse.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\\n');
+                        buffer = lines.pop() || '';
+                        
+                        for (const line of lines) {
+                            if (!line.trim()) continue;
+                            try {
+                                const parsed = JSON.parse(line);
+                                if (parsed.type === 'error') throw new Error(parsed.error);
+                                if (parsed.type === 'status') store.setStatus(parsed.message);
+                                if (parsed.type === 'done') refinedSEO = parsed.text;
+                            } catch (e) {}
+                        }
+                    }
+                }
+            } catch (seoErr) {
+                console.error('[SEO PostProcess] Fallback triggered due to API error:', seoErr);
+                refinedSEO = linked; // Fallback to original
+            }
             
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
             
