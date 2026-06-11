@@ -20,6 +20,20 @@ ESQUEMA DE BASE DE DATOS (NOUS TASK TABLE):
 - "volume": Volumen de búsqueda mensual (generalmente un número).
 - "target_word_count": Número de palabras ideal o extensión deseada del contenido (ej: 1500, 2000).
 - "brief": Resumen, intención de búsqueda o notas adicionales.
+- "target_url_slug": El Slug o sufijo de la URL deseada.
+- "content_type": El tipo de contenido (ej: Blog Post, Pilar Page, Landing Transaccional).
+- "priority": Prioridad del contenido (ej: alta, media, baja).
+- "viability": Nivel de viabilidad SEO (ej: alta, media, baja).
+- "docs_url": Enlace o URL externa hacia Google Docs / Google Drive.
+- "layout_status": Estado de maquetación (TRUE/FALSE, 1/0).
+- "assigned_to": Miembro asignado (Suele ser un Nombre o un Correo electrónico).
+- "lsi_keywords": Keywords secundarias o LSI separadas por comas.
+- "seo_title": SEO Title específico (Meta Title) para Google.
+- "meta_description": Meta Descripción específica para Google.
+- "h1": Etiqueta H1 específica (si es diferente al título general).
+- "excerpt": Extracto, resumen corto o excerpt.
+- "language": Idioma del contenido (ej: es, en).
+- "observaciones": Observaciones, enfoque particular, o directivas específicas para la IA.
 - "project_name": Nombre del proyecto al que pertenece la fila (útil para archivos multi-proyecto).
 - "scheduled_date": Fecha programada de publicación (YYYY-MM-DD o similar).
 
