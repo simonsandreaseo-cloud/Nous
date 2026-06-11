@@ -1,10 +1,10 @@
-schema:spec-driven
+schema: spec-driven
 
 context: |
-  Tech stack: Next.js 16.2.3, React 19.2.4, TypeScript, Tailwind 4.
-  Architecture: Clean Architecture, Atomic Design, Server Components/Actions.
-  Testing: Vitest (Unit/Integration), Playwright (E2E), Testing Library.
-  Style: ESLint, Strict Typing, Prettier.
+  Tech stack: Next.js 16, React 19, Supabase, TailwindCSS
+  Architecture: Clean Code, atomic design, container-presentational pattern
+  Testing: Vitest, Playwright
+  Style: ESLint, TypeScript
 
 strict_tdd: true
 
@@ -30,12 +30,7 @@ rules:
     - Compare implementation against every spec scenario
   archive:
     - Warn before merging destructive deltas (large removals)
-    - Summarize technical decisions and trade-offs
 
 testing:
   runner: vitest
-  command: npm run test
-  coverage: npm run test:coverage
-  e2e: npm run test:e2e
-  lint: npm run lint
-  typecheck: npx tsc --noEmit
+  e2e: playwright

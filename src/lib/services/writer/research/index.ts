@@ -413,6 +413,17 @@ Retorna ÚNICAMENTE este formato JSON válido:
         const isStrict = taskCtx.metadata?.strict_linking === true;
         const manualLinks: any[] = [];
         
+        // --- ADDED LINK STRATEGY MATRIX ---
+        const contentType = taskCtx.content_type || 'Blog Post';
+        const linkStrategy = settings?.link_strategy?.per_content_type?.[contentType] || {
+            strict_mode: false,
+            strict_category: null,
+            category_priorities: {},
+            planned_priorities: {},
+            vip_urls: []
+        };
+        // ----------------------------------
+        
         const parseUrls = (input: string) => {
             if (!input) return [];
             return input.split(/[\r\n,]+/).map(u => u.trim()).filter(u => u && (u.startsWith('http') || u.startsWith('/')));
@@ -441,7 +452,7 @@ Retorna ÚNICAMENTE este formato JSON válido:
             if (onLog) onLog("INFO", "Interlinking", "Incluyendo contenidos planificados en la curación...");
             const { data: plannedTasks } = await supabase
                 .from('tasks')
-                .select('id, title, target_url_slug')
+                .select('id, title, target_url_slug, content_type')
                 .eq('project_id', projectId)
                 .in('status', config.linkPlannedStatuses)
                 .not('target_url_slug', 'is', null)
@@ -455,13 +466,16 @@ Retorna ÚNICAMENTE este formato JSON válido:
                 plannedUnits = plannedTasks.map((t: any) => {
                     const cleanSlug = t.target_url_slug.startsWith('/') ? t.target_url_slug : `/${t.target_url_slug}`;
                     let pseudoUrl = `${cleanDomain}${cleanPrefix}${cleanSlug}`.replace(/([^:]\/)\/+/g, "$1");
+                    const priority = linkStrategy.planned_priorities?.[t.content_type] || 5;
                     return {
                         id: `planned_${t.id}`,
                         url: pseudoUrl,
                         title: t.title,
+                        type: t.content_type,
+                        score: 10 * (priority / 5),
                         isPlanned: true
                     };
-                });
+                }).sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
             }
         }
 
@@ -543,13 +557,36 @@ REGLAS:
             units = resV2.data;
         }
 
-        if ((units && units.length > 0) || plannedUnits.length > 0) {
+        if ((units && units.length > 0) || plannedUnits.length > 0 || (linkStrategy.vip_urls && linkStrategy.vip_urls.length > 0)) {
             
-            const combinedUnits = [...(units || []), ...plannedUnits];
+            // Apply Strict Mode filtering
+            let filteredUnits = units || [];
+            if (linkStrategy.strict_mode && linkStrategy.strict_category) {
+                if (onLog) onLog("INFO", "Interlinking", `Filtrando por categoría estricta: ${linkStrategy.strict_category}`);
+                filteredUnits = filteredUnits.filter((u: any) => u.category === linkStrategy.strict_category);
+            }
+
+            // Apply Priorities (multipliers)
+            if (!linkStrategy.strict_mode) {
+                filteredUnits = filteredUnits.map((u: any) => {
+                    const priority = linkStrategy.category_priorities?.[u.category] || 5;
+                    return { ...u, score: (u.score || 1) * (priority / 5) };
+                }).sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+            }
+
+            const vipUnits = (linkStrategy.vip_urls || []).map((url: string) => ({
+                id: `vip_${Math.random()}`,
+                url,
+                title: 'VIP / Alta Prioridad',
+                isVip: true
+            }));
+
+            const combinedUnits = [...vipUnits, ...filteredUnits, ...plannedUnits];
+            const vipRule = linkStrategy.vip_urls?.length > 0 ? `\n\nREGLA VIP: ES OBLIGATORIO incluir los enlaces VIP al inicio si contextualmente hacen sentido.` : '';
             const argotRule = askSet.size > 0 ? `\n\nREGLA DE PUNTAJE DE ARGOT: prioritiza x5 palabras ASK: ${Array.from(askSet).join(', ')}` : '';
 
             const linkRes = await aiRouter.generate({
-                prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${combinedUnits.length} artículos):\n${JSON.stringify(combinedUnits)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${finalMaxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,
+                prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${combinedUnits.length} artículos):\n${JSON.stringify(combinedUnits)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${finalMaxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${vipRule}${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,
                 model: "gemini-2.0-flash-lite-preview-02-05",
                 systemPrompt: "Arquitecto de Silos SEO.",
                 jsonMode: true,

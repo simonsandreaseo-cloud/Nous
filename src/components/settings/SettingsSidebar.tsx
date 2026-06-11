@@ -18,7 +18,8 @@ import {
     User,
     Settings,
     Home,
-    Palette
+    Palette,
+    Network
 } from "lucide-react";
 import { NousLogo } from "@/components/dom/NousLogo";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
@@ -35,6 +36,7 @@ export const PROJECT_SECTIONS = [
     { id: "general", label: "Identidad", icon: Globe, href: "/general" },
     { id: "connectivity", label: "Conectividad", icon: Zap, href: "/connectivity" },
     { id: "inventory", label: "Inventario", icon: Database, href: "/inventory" },
+    { id: "link-strategy", label: "Estrategia Links", icon: Network, href: "/link-strategy" },
     { id: "preferences", label: "Preferencias", icon: Settings, href: "/preferences" },
     { id: "images", label: "Imágenes", icon: Palette, href: "/images" },
     { id: "i18n", label: "I18n & Audit", icon: Globe, href: "/i18n" },
