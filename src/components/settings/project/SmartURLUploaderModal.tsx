@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, FileType, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
-import { toast } from "sonner";
+import { NotificationService } from "@/lib/services/notifications";
 
 interface SmartURLUploaderModalProps {
     isOpen: boolean;
@@ -38,11 +38,13 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (files.length > 0) processFile(files[0]);
+        e.target.value = '';
     };
 
     const processFile = async (file: File) => {
         try {
-            if (file.name.endsWith('.csv')) {
+            const fileName = file.name.toLowerCase();
+            if (fileName.endsWith('.csv')) {
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
@@ -50,27 +52,27 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
                         handleParsedData(results.data);
                     },
                     error: (error: any) => {
-                        toast.error(`Error procesando CSV: ${error.message}`);
+                        NotificationService.error("Error procesando CSV", error.message);
                     }
                 });
-            } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
                 const buffer = await file.arrayBuffer();
                 const workbook = XLSX.read(buffer, { type: 'array' });
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const data = XLSX.utils.sheet_to_json(firstSheet);
                 handleParsedData(data);
             } else {
-                toast.error("Formato no soportado. Usa CSV o Excel.");
+                NotificationService.error("Formato no soportado", "Usa CSV o Excel.");
             }
         } catch (error) {
             console.error(error);
-            toast.error("Error al leer el archivo");
+            NotificationService.error("Error al leer el archivo", "Verifica el formato e intenta nuevamente.");
         }
     };
 
     const handleParsedData = (data: any[]) => {
         if (!data || data.length === 0) {
-            toast.error("El archivo está vacío");
+            NotificationService.error("Archivo vacío", "El archivo no contiene datos legibles.");
             return;
         }
 
@@ -83,19 +85,19 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
             };
 
             return {
-                url: getVal(['url', 'link', 'enlace', 'target']),
+                url: getVal(['url', 'link', 'enlace', 'target', 'href', 'direccion', 'dirección']),
                 title: getVal(['title', 'titulo', 'título', 'name', 'nombre']),
                 category: getVal(['category', 'categoria', 'categoría', 'tag', 'tipo'])
             };
         }).filter(item => item.url); // Must have at least URL
 
         if (mappedData.length === 0) {
-            toast.error("No se detectó ninguna columna de URL válida.");
+            NotificationService.error("Columna URL faltante", "No se detectó ninguna columna con URLs válidas. Asegúrate de incluir una columna llamada 'url', 'enlace' o 'link'.");
             return;
         }
 
         if (mappedData.length > 5000) {
-            toast.warning(`El archivo tiene ${mappedData.length} filas. Se limitará a 5000.`);
+            NotificationService.warn("Límite superado", `El archivo tiene ${mappedData.length} filas. Se limitará a 5000.`);
         }
 
         setParsedData(mappedData.slice(0, 5000));
@@ -117,14 +119,14 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
 
             const result = await res.json();
             if (result.success) {
-                toast.success(`Carga completada: ${result.inserted} nuevas, ${result.updated} actualizadas.`);
+                NotificationService.success("Carga completada", `${result.inserted} nuevas, ${result.updated} actualizadas.`);
                 onUploadSuccess();
                 onClose();
             } else {
-                toast.error(result.error || "Error al subir las URLs");
+                NotificationService.error("Error al subir", result.error || "No se pudieron guardar las URLs");
             }
         } catch (error) {
-            toast.error("Error de red al intentar subir las URLs.");
+            NotificationService.error("Error de red", "No se pudo conectar con el servidor.");
         } finally {
             setIsUploading(false);
         }
