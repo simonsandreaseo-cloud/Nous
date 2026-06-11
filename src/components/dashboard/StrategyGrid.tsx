@@ -368,6 +368,9 @@ export default function StrategyGrid({
                                                         <option value="Review / Reseña" />
                                                         <option value="Guía Definitiva" />
                                                         <option value="Pilar Page" />
+                                                        {activeProject?.settings?.content_preferences?.custom_content_types?.map((type: string) => (
+                                                            <option key={type} value={type} />
+                                                        ))}
                                                     </datalist>
                                                 </>
                                             ) : (

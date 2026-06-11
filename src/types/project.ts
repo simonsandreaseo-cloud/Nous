@@ -26,6 +26,7 @@ export interface Project {
             default_strategy?: 'auto' | 'ecommerce' | 'informational';
             default_translator_languages?: string[];
             default_content_language?: string;
+            custom_content_types?: string[];
         };
         images?: {
             watermark_enabled: boolean;

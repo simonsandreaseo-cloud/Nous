@@ -308,6 +308,36 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
 
             const tasksToImport = Array.from(tasksMap.values());
 
+            // --- AUTO CREATE CUSTOM CONTENT TYPES ---
+            try {
+                const importedTypes = [...new Set(tasksToImport.map(t => typeof t.content_type === 'string' ? t.content_type.trim() : null).filter(Boolean))] as string[];
+                const defaultTypes = ['Blog Post', 'Landing Transaccional', 'Review / Reseña', 'Guía Definitiva', 'Pilar Page'];
+                
+                if (importedTypes.length > 0) {
+                    const { data: projectData } = await supabase.from('projects').select('settings').eq('id', projectId).single();
+                    if (projectData) {
+                        const currentCustomTypes: string[] = projectData.settings?.content_preferences?.custom_content_types || [];
+                        const newTypes = importedTypes.filter(t => !defaultTypes.includes(t) && !currentCustomTypes.includes(t));
+                        
+                        if (newTypes.length > 0) {
+                            const updatedCustomTypes = [...currentCustomTypes, ...newTypes];
+                            const updatedSettings = {
+                                ...(projectData.settings || {}),
+                                content_preferences: {
+                                    ...(projectData.settings?.content_preferences || {}),
+                                    custom_content_types: updatedCustomTypes
+                                }
+                            };
+                            await supabase.from('projects').update({ settings: updatedSettings }).eq('id', projectId);
+                            console.log("Añadidos nuevos tipos de contenido desde CSV:", newTypes);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Error auto-creando content types:", err);
+            }
+            // ----------------------------------------
+
             onImportComplete(tasksToImport);
             NotificationService.success("Importación exitosa", `Se procesaron ${tasksToImport.length} filas.`);
             onClose();

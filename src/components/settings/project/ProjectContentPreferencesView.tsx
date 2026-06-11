@@ -23,6 +23,8 @@ export default function ProjectContentPreferencesView() {
     const [strategy, setStrategy] = useState<'auto' | 'ecommerce' | 'informational'>('auto');
     const [defaultLangs, setDefaultLangs] = useState<string[]>([]);
     const [defaultContentLang, setDefaultContentLang] = useState<string>('es');
+    const [customContentTypes, setCustomContentTypes] = useState<string[]>([]);
+    const [newContentType, setNewContentType] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -33,6 +35,7 @@ export default function ProjectContentPreferencesView() {
             setStrategy(prefs.default_strategy || 'auto');
             setDefaultLangs(prefs.default_translator_languages || []);
             setDefaultContentLang(prefs.default_content_language || 'es');
+            setCustomContentTypes(prefs.custom_content_types || []);
         }
     }, [activeProject]);
 
@@ -47,7 +50,8 @@ export default function ProjectContentPreferencesView() {
                     max_internal_links: maxLinks,
                     default_strategy: strategy,
                     default_translator_languages: defaultLangs,
-                    default_content_language: defaultContentLang
+                    default_content_language: defaultContentLang,
+                    custom_content_types: customContentTypes
                 }
             };
 
@@ -258,6 +262,72 @@ export default function ProjectContentPreferencesView() {
                             <p className="text-[9px] text-slate-400 font-medium leading-tight p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                 Los idiomas marcados aquí aparecerán seleccionados automáticamente cada vez que abras la herramienta de traducción para un artículo de este proyecto.
                             </p>
+                        </div>
+                    </section>
+
+                    {/* Custom Content Types */}
+                    <section className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm space-y-8 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+                            <LayoutGrid size={120} />
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500 shadow-sm">
+                                <LayoutGrid size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-black text-slate-900 uppercase italic">Tipos de Contenido</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Añade o personaliza los formatos de contenido del proyecto</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="flex flex-wrap gap-2">
+                                {['Blog Post', 'Landing Transaccional', 'Review / Reseña', 'Guía Definitiva', 'Pilar Page'].map(type => (
+                                    <div key={type} className="px-3 py-1.5 bg-slate-50 border border-slate-100 text-slate-400 rounded-lg text-[10px] font-bold">
+                                        {type} (Por defecto)
+                                    </div>
+                                ))}
+                                {customContentTypes.map(type => (
+                                    <div key={type} className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-[10px] font-bold flex items-center gap-2 group">
+                                        {type}
+                                        <button 
+                                            onClick={() => setCustomContentTypes(prev => prev.filter(t => t !== type))}
+                                            className="opacity-50 hover:opacity-100 hover:text-red-500 transition-colors"
+                                        >
+                                            <span className="font-black">×</span>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newContentType}
+                                    onChange={e => setNewContentType(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && newContentType.trim()) {
+                                            if (!customContentTypes.includes(newContentType.trim())) {
+                                                setCustomContentTypes(prev => [...prev, newContentType.trim()]);
+                                            }
+                                            setNewContentType('');
+                                        }
+                                    }}
+                                    placeholder="Ej: Caso de Estudio (Presiona Enter)"
+                                    className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-600 outline-none focus:border-emerald-400"
+                                />
+                                <button
+                                    onClick={() => {
+                                        if (newContentType.trim() && !customContentTypes.includes(newContentType.trim())) {
+                                            setCustomContentTypes(prev => [...prev, newContentType.trim()]);
+                                            setNewContentType('');
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
+                                >
+                                    Agregar
+                                </button>
+                            </div>
                         </div>
                     </section>
                 </div>
