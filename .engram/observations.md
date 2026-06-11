@@ -137,3 +137,17 @@ Receiving small chunks every few milliseconds and updating Tiptap via `editor.co
 
 ### Learned
 Never feed raw streaming chunks synchronously to heavy rich-text editors (like Tiptap/ProseMirror) at high frequency. Always debounce or throttle the state update to ~300ms so the DOM only reconstructs a few times per second.
+
+## [2026-06-11] Solución a Errores Silenciosos en Acciones Masivas y Progreso Incorrecto en StrategyGrid
+
+### Problema
+Las acciones masivas (ej: redacción masiva, humanización masiva) se completaban de manera casi instantánea y mostraban un progreso de "100%" en el panel del planificador, pero el contenido de las tareas permanecía vacío en la base de datos.
+
+### Causa Raíz
+1. **Error en base de datos:** El pipeline intentaba hacer upsert en la tabla `task_contents` incluyendo la columna `updated_at`, la cual no existe en el esquema físico actual de la tabla, provocando una excepción de Supabase (PGRST204).
+2. **Defecto de Estado Estructural:** En `EditorialCalendar.tsx`, el bucle de las acciones masivas y los handlers de acciones individuales capturaban cualquier error de las tareas, pero la actualización del estado de progreso de cada tarea (`batchResearchStatus[task.id] = 100`) se ejecutaba incondicionalmente en bloques `finally` o después del bloque `catch`. Esto provocaba que cualquier fallo se pintase visualmente en la interfaz como un éxito al 100% (ocultando el error y la falta de contenido real).
+
+### Solución
+1. **Limpieza del Upsert:** Removido el campo `updated_at` en el upsert de `task_contents` dentro de `src/lib/services/writer/pipeline.ts`.
+2. **Control de Errores de Estado:** Refactorizado `EditorialCalendar.tsx` para que asigne un valor de `-1` (Error) en `batchResearchStatus` si ocurre un fallo en los pipelines de redacción o humanización, y se eliminaron las asignaciones incondicionales a `100` en los flujos excepcionales.
+3. **Indicador Visual de Error:** Modificado `StrategyGrid.tsx` para interceptar el progreso `-1` (Error), renderizar un indicador de advertencia ("Acción fallida") con color rojo, y resaltar la fila de la tabla afectada.
