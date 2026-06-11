@@ -308,6 +308,7 @@ export function EditorialCalendar() {
             const res = await executeHumanizePipeline(
                 task, 
                 content, 
+                activeProject,
                 (msg) => onLog(task.id, 'Humanización', msg),
                 (html) => {}
             );

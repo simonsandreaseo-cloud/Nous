@@ -596,7 +596,9 @@ export const runHumanizerPipeline = async (
                         generationConfig: {}
                     });
                     
-                    const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nAplica TODAS las reglas de humanización del REDACTOR MEDIOCRE al siguiente ARTÍCULO HTML: ${contentToProcess}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación de los defectos agregados) y 'html' (el contenido humanizado en crudo).`;
+                    const languageInstruction = config.language ? `\n\nIdioma OBLIGATORIO de salida: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español de España (Neutro, profesional)' : config.language}. Asegúrate de respetar este idioma estrictamente en el contenido generado.` : '';
+                    
+                    const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}${languageInstruction}\n\nAplica TODAS las reglas de humanización del REDACTOR MEDIOCRE al siguiente ARTÍCULO HTML: ${contentToProcess}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación de los defectos agregados) y 'html' (el contenido humanizado en crudo).`;
                     const response = await model.generateContent(prompt);
                     
                     let raw = response.response.text();

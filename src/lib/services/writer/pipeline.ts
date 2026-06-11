@@ -37,7 +37,7 @@ export async function executeDraftPipeline(
         csvData: [],
         outlineStructure: outlineArray,
         approvedLinks: approvedLinks,
-        language: task.language || 'es',
+        language: task.language || activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es',
         architectureInstructions: activeProject?.architecture_instructions,
         architectureRules: activeProject?.architecture_rules,
         extractorInstructions: activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer')
@@ -130,6 +130,7 @@ export async function executeDraftPipeline(
 export async function executeHumanizePipeline(
     task: Task, 
     content: string, 
+    activeProject: Project | null,
     onLog: (msg: string) => void,
     onChunk: (html: string) => void
 ) {
@@ -139,7 +140,7 @@ export async function executeHumanizePipeline(
         niche: task.metadata?.niche || 'General', 
         audience: 'General', 
         keywords: task.target_keyword || '', 
-        language: task.language || 'es' 
+        language: task.language || activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es' 
     };
 
     let htmlRes = '';

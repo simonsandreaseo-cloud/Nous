@@ -221,6 +221,7 @@ export function useWriterActions() {
                 questions: store.strategyQuestions,
                 lsiKeywords: store.strategyLSI.map((l) => l.keyword).concat(store.strategyLongTail),
                 contextInstructions: store.contextInstructions,
+                language: activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es',
                 architectureInstructions: activeProject?.architecture_instructions,
                 architectureRules: activeProject?.architecture_rules,
                 isStrictMode: store.isStrictMode, 
