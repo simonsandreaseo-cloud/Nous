@@ -23,6 +23,20 @@ const NOUS_FIELDS = [
     { value: 'target_word_count', label: 'Nº de Palabras ideal / Extensión' },
     { value: 'brief', label: 'Brief / Intención / Resumen' },
     { value: 'scheduled_date', label: 'Fecha de Publicación' },
+    { value: 'target_url_slug', label: 'Slug (URL)' },
+    { value: 'content_type', label: 'Tipo de Contenido' },
+    { value: 'priority', label: 'Prioridad' },
+    { value: 'viability', label: 'Viabilidad' },
+    { value: 'docs_url', label: 'URL de Google Docs/Drive' },
+    { value: 'layout_status', label: 'Status de Maquetación (TRUE/FALSE)' },
+    { value: 'assigned_to', label: 'Asignado a (Nombre o Correo)' },
+    { value: 'lsi_keywords', label: 'Keywords LSI' },
+    { value: 'seo_title', label: 'SEO Title (Meta)' },
+    { value: 'meta_description', label: 'Meta Descripción' },
+    { value: 'h1', label: 'H1 Específico' },
+    { value: 'excerpt', label: 'Extracto / Excerpt' },
+    { value: 'language', label: 'Idioma (ISO)' },
+    { value: 'observaciones', label: 'Observaciones / Enfoque' },
     { value: 'ignore', label: '-- Ignorar esta columna --' }
 ];
 
@@ -32,6 +46,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
     const [mapping, setMapping] = useState<Record<string, string>>({});
     const [isImporting, setIsImporting] = useState(false);
     const [autoCreateProjects, setAutoCreateProjects] = useState(true);
+    const [autoCreateMembers, setAutoCreateMembers] = useState(true);
     const [userProjects, setUserProjects] = useState<any[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -146,6 +161,61 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                 }
             }
 
+            // Check if user mapped a column to assigned_to
+            const assignedCol = Object.keys(mapping).find(k => mapping[k] === 'assigned_to');
+            let resolvedMembersMapping: Record<string, string> = {};
+
+            if (assignedCol) {
+                const uniqueCsvMembers = [...new Set(parsedData.rows.map(r => String(r[assignedCol]).trim()).filter(Boolean))];
+                
+                // Fetch current team members
+                const { data: teamMembersData } = await supabase
+                    .from('team_members')
+                    .select('user_id, profile:profiles(id, full_name, email)');
+
+                const existingMembers = teamMembersData || [];
+                
+                for (const csvMember of uniqueCsvMembers) {
+                    const match = existingMembers.find((m: any) => 
+                        m.profile?.full_name?.toLowerCase() === csvMember.toLowerCase() || 
+                        m.profile?.email?.toLowerCase() === csvMember.toLowerCase()
+                    );
+                    
+                    if (match) {
+                        resolvedMembersMapping[csvMember] = match.user_id;
+                    } else if (autoCreateMembers) {
+                        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(csvMember);
+                        if (isEmail) {
+                            try {
+                                // Buscamos el primer team id disponible para el usuario actual
+                                const { data: { session } } = await supabase.auth.getSession();
+                                if (session?.user?.id) {
+                                    const { data: teamData } = await supabase.from('team_members')
+                                        .select('team_id').eq('user_id', session.user.id).limit(1).single();
+                                    
+                                    if (teamData?.team_id) {
+                                        const { error: inviteError } = await supabase.rpc('invite_user_to_team', {
+                                            p_team_id: teamData.team_id,
+                                            p_email: csvMember,
+                                            p_role: 'specialist'
+                                        });
+                                        if (inviteError) {
+                                            console.error(`Error invitando a ${csvMember}:`, inviteError);
+                                        } else {
+                                            console.log(`Invitación enviada exitosamente a ${csvMember}`);
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                console.error(`Failed to invite member ${csvMember}:`, e);
+                            }
+                        } else {
+                            console.warn(`El miembro "${csvMember}" no es un correo electrónico. La invitación requiere un correo. Se ignoró.`);
+                        }
+                    }
+                }
+            }
+
             // Transformar filas crudas en objetos de tarea de Nous
             // Consolidate rows by title/keyword
             const tasksMap = new Map();
@@ -186,7 +256,17 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                             const rawStatus = String(value).toLowerCase().trim().replace(/ /g, '_');
                             const validStatuses = ['idea', 'en_investigacion', 'por_redactar', 'en_redaccion', 'por_humanizar', 'por_corregir', 'por_revisar', 'por_maquetar', 'publicado'];
                             task[targetField] = validStatuses.includes(rawStatus) ? rawStatus : 'idea';
-                        } else if (['associated_url', 'brief', 'title', 'target_keyword'].includes(targetField)) {
+                        } else if (targetField === 'assigned_to') {
+                            const memberNameOrEmail = String(value).trim();
+                            if (resolvedMembersMapping[memberNameOrEmail]) {
+                                task.assigned_to = resolvedMembersMapping[memberNameOrEmail];
+                            }
+                        } else if (targetField === 'layout_status') {
+                            const strVal = String(value).toLowerCase().trim();
+                            task[targetField] = ['true', 'yes', 'si', '1', 'verdadero'].includes(strVal);
+                        } else if (targetField === 'lsi_keywords') {
+                            task[targetField] = String(value).split(/[\r\n,]+/).map((v: string) => v.trim()).filter(Boolean);
+                        } else if (['associated_url', 'brief', 'title', 'target_keyword', 'observaciones'].includes(targetField)) {
                             // Consolidar concatenando para campos de texto clave
                             if (task[targetField]) {
                                 task[targetField] = `${task[targetField]}\n${String(value).trim()}`;
@@ -344,9 +424,20 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                 {/* Footer */}
                 {step === 'mapping' && (
                     <div className="p-6 border-t border-slate-100 bg-white flex items-center justify-between">
-                        <span className="text-sm text-slate-500 font-medium">
-                            {parsedData?.rows.length} filas listas para importar
-                        </span>
+                        <div className="flex flex-col gap-1">
+                            <span className="text-sm text-slate-500 font-medium">
+                                {parsedData?.rows.length} filas listas para importar
+                            </span>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={autoCreateMembers}
+                                    onChange={(e) => setAutoCreateMembers(e.target.checked)}
+                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-xs text-slate-600 font-medium">Crear miembros faltantes</span>
+                            </label>
+                        </div>
                         <div className="flex items-center gap-3">
                             <button 
                                 onClick={() => setStep('upload')}

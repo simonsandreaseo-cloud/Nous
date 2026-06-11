@@ -357,16 +357,24 @@ Responde ÚNICAMENTE en JSON:
         const userTitle = taskContext?.title || '';
         const titleRule = userTitle ? `\n¡IMPORTANTE!: El usuario ha proporcionado este título exacto: "${userTitle}". DEBES usar este título EXACTO como el H1. NO LO ALTERES.` : '';
 
+        const topCompetitorsInfo = validSEO.slice(0, 10).map((v: any, i: number) => `[${i+1}] Título: ${v.title}`).join('\n');
+        
+        const observaciones = taskContext?.metadata?.observaciones || taskContext?.observaciones || '';
+        const obsRule = observaciones ? `\nOBSERVACIONES DEL USUARIO (Prioridad Máxima):\n"${observaciones}"\nAsegúrate de que la estrategia y los metadatos reflejen este enfoque específico.\n` : '';
+
         const metadataPrompt = `Crea la estrategia SEO final y optimizada para el tema: "${keyword}".
 Intención de búsqueda detectada: ${masterIntent || keyword}
 H1 Maestro sugerido: ${masterH1 || keyword}
 
 Términos Semánticos (LSI) relevantes encontrados: ${cleanedLSI.slice(0, 15).map((l: any) => l.keyword).join(", ")}.
 
+TITULARES DE LOS PRINCIPALES COMPETIDORES EN EL SERP:
+${topCompetitorsInfo}
+${obsRule}
 INSTRUCCIONES Y RESTRICCIONES ESTRICTAS:
-1. "h1": Título principal del artículo.${titleRule}
-2. "seo_title": Título para Google. MÁXIMO 60 caracteres. Debe incluir la keyword principal o una variación fuerte al principio.
-3. "meta_description": Descripción para el SERP. MÁXIMO 155 caracteres. Incluye un Call to Action (CTA) al final.
+1. "h1": Título principal del artículo. Debe estar orientado al SEO, responder a la intención de búsqueda de forma clara y enfocada, e incluir palabras clave relevantes de forma natural.${titleRule}
+2. "seo_title": Título para Google. MÁXIMO 60 caracteres. Analiza los titulares de los competidores (arriba) y crea un título ÚNICO, muy competitivo, que destaque en el SERP (Click-through rate) y ataque la keyword principal.
+3. "meta_description": Descripción para el SERP. MÁXIMO 155 caracteres. Debe tener sus propias pautas enfocadas en persuasión, incluir keywords clave de forma natural e incluir un Call to Action (CTA) al final.
 4. "target_url_slug": URL limpia, solo en minúsculas y con guiones (ej. "mi-keyword-principal").
 5. "excerpt": Un párrafo corto de introducción (hook) que incite a leer el artículo.
 

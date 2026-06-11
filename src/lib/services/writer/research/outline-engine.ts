@@ -88,6 +88,8 @@ export const OutlineEngine = {
             
             // User injected rules
             const userBrief = taskContext?.brief ? `\n\n[INSTRUCCIÓN MAESTRA DEL USUARIO]:\n${taskContext.brief}\nDEBES ADAPTAR TODA LA ESTRUCTURA A ESTA REGLA.` : '';
+            const userObs = taskContext?.metadata?.observaciones || taskContext?.observaciones ? `\n\n[OBSERVACIONES ESPECÍFICAS]:\n${taskContext?.metadata?.observaciones || taskContext?.observaciones}\n` : '';
+            
             const contentType = taskContext?.content_type || 'Blog Post';
             let strategyRec = serpReport.type === 'transactional' ? 'Enfoque directo a solución/producto.' : 'Guía informativa profunda y autoritativa.';
             
@@ -107,7 +109,7 @@ H1: "${seoMetadata.h1}"
 INTENCIÓN INFERIDA: "${masterIntent}"
 TIPO DE CONTENIDO: "${contentType}"
 
-ESTRATEGIA RECOMENDADA: ${strategyRec}${userBrief}
+ESTRATEGIA RECOMENDADA: ${strategyRec}${userBrief}${userObs}
 
 PRODUCTOS/ENLACES INTERNOS SUGERIDOS (CATÁLOGO):
 ${linksContext}

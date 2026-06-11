@@ -99,7 +99,7 @@ export function EditorialCalendar() {
     const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
     const [researchTaskId, setResearchTaskId] = useState<string | undefined>(undefined);
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
-    const [improveTitleWithNous, setImproveTitleWithNous] = useState(true);
+    const [improveTitleWithNous, setImproveTitleWithNous] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const isResearching = useWriterStore(state => state.isResearching);
     const setResearching = useWriterStore(state => state.setResearching);
@@ -553,10 +553,11 @@ export function EditorialCalendar() {
                                 await updateTask(t.id, {
                                     title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title,
                                     research_dossier: result.research_dossier,
-                                    seo_title: result.seo_title,
-                                    meta_description: result.meta_description,
-                                    target_url_slug: result.target_url_slug,
-                                    status: result.status
+                                    seo_title: t.seo_title || result.seo_title,
+                                    meta_description: t.meta_description || result.meta_description,
+                                    target_url_slug: t.target_url_slug || result.target_url_slug,
+                                    status: result.status,
+                                    observaciones: t.observaciones || result.observaciones
                                 });
                             }
                             pCount++;
@@ -770,7 +771,15 @@ export function EditorialCalendar() {
                         },
                         onLog: (s, m, r) => onLog(t.id, s, m, r), taskId: t.id
                     });
-                    if (result) await updateTask(t.id, { title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title, research_dossier: result.research_dossier, seo_title: result.seo_title, meta_description: result.meta_description, target_url_slug: result.target_url_slug, status: result.status });
+                    if (result) await updateTask(t.id, { 
+                        title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title, 
+                        research_dossier: result.research_dossier, 
+                        seo_title: t.seo_title || result.seo_title, 
+                        meta_description: t.meta_description || result.meta_description, 
+                        target_url_slug: t.target_url_slug || result.target_url_slug, 
+                        status: result.status,
+                        observaciones: t.observaciones || result.observaciones
+                    });
                     processedCount++;
                     setResearchProgress((processedCount / candidates.length) * 100);
                     setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));

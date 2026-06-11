@@ -210,6 +210,7 @@ export interface Task {
     language?: string;         // ISO language code
     translation_parent_id?: string; // ID of the original task
     content_type?: string;     // Type of content (Blog, Landing, Review, etc.)
+    observaciones?: string;    // Custom focus/notes provided by user or AI
 }
 
 
