@@ -1163,6 +1163,15 @@ export function EditorialCalendar() {
                         {isExporting ? <Loader2 size={12} className="animate-spin" /> : <FileDown size={12} className="group-hover:-translate-y-0.5 transition-transform" />}
                         <span className="text-[9px] font-black uppercase tracking-widest">Descargar CSV</span>
                     </button>
+                    {selectedTaskIds.length > 0 && (
+                        <button 
+                            onClick={handleBatchDelete}
+                            className="flex items-center gap-2.5 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 hover:bg-rose-500 hover:text-white transition-all group"
+                        >
+                            <Trash2 size={12} className="group-hover:scale-110 transition-transform" />
+                            <span className="text-[9px] font-black uppercase tracking-widest">Eliminar ({selectedTaskIds.length})</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
