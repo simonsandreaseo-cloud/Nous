@@ -501,6 +501,19 @@ export function EditorialCalendar() {
                 const WRITTEN_STATUSES = ['por_corregir', 'redactado', 'publicado', 'humanizado', 'en_revision'];
                 const RESEARCHED_STATUSES = ['por_redactar', 'por_corregir', 'redactado', 'publicado', 'humanizado', 'en_revision', 'en_investigacion'];
 
+                // 🔍 DIAGNOSTIC — remove after confirming fix
+                console.group('[Orb Pipeline] Diagnostic');
+                console.log('Config:', { research, draft, humanize, translate, finalStatus });
+                console.log('targetTasks count:', targetTasks.length);
+                console.table(targetTasks.map(t => ({ id: t.id.slice(0,8), title: t.title?.slice(0,30), status: t.status })));
+                console.log('RESEARCHED_STATUSES:', RESEARCHED_STATUSES);
+                const _toResearch = targetTasks.filter(t => !RESEARCHED_STATUSES.includes(t.status));
+                const _toOutline = targetTasks.filter(t => t.status === 'en_investigacion');
+                const _toDraft = targetTasks.filter(t => t.status === 'por_redactar');
+                const _toHuman = targetTasks.filter(t => t.status === 'por_corregir' || t.status === 'redactado');
+                console.log('→ toResearch:', _toResearch.length, '| toOutline:', _toOutline.length, '| toDraft:', _toDraft.length, '| toHuman:', _toHuman.length);
+                console.groupEnd();
+
                 if (research) {
                     // Needs research = status is 'idea' or not yet in a researched state
                     const toResearch = targetTasks.filter(t => !RESEARCHED_STATUSES.includes(t.status));
