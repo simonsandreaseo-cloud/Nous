@@ -12,6 +12,84 @@ interface SmartUploaderModalProps {
     onImportComplete: (tasks: any[]) => void;
 }
 
+const parseSmartDate = (val: any): string | null => {
+    if (!val) return null;
+    let str = String(val).toLowerCase().trim();
+    
+    // 1. Try regex for "Mes Año" or "Mes de Año" (e.g. "junio 2026")
+    const monthNames: Record<string, number> = {
+        'enero': 0, 'january': 0, 'jan': 0,
+        'febrero': 1, 'february': 1, 'feb': 1,
+        'marzo': 2, 'march': 2, 'mar': 2,
+        'abril': 3, 'april': 3, 'apr': 3,
+        'mayo': 4, 'may': 4,
+        'junio': 5, 'june': 5, 'jun': 5,
+        'julio': 6, 'july': 6, 'jul': 6,
+        'agosto': 7, 'august': 7, 'aug': 7,
+        'septiembre': 8, 'setiembre': 8, 'september': 8, 'sep': 8,
+        'octubre': 9, 'october': 9, 'oct': 9,
+        'noviembre': 10, 'november': 10, 'nov': 10,
+        'diciembre': 11, 'december': 11, 'dec': 11
+    };
+
+    const monthYearRegex = /^([a-z]+)[\sde]+(\d{4}|\d{2})$/i;
+    const match = str.match(monthYearRegex);
+    if (match) {
+        const monthStr = match[1];
+        let year = parseInt(match[2], 10);
+        if (year < 100) year += 2000;
+        
+        const monthIndex = monthNames[monthStr];
+        if (monthIndex !== undefined) {
+            // Asignamos el día 1 del mes para mantener el formato válido en la BD (YYYY-MM-DD)
+            const d = new Date(Date.UTC(year, monthIndex, 1));
+            return d.toISOString().split('T')[0];
+        }
+    }
+
+    // 2. Try regex for MM/YYYY or MM-YYYY
+    const mmYyyyRegex = /^(\d{1,2})[\/\-](\d{4})$/;
+    const mmMatch = str.match(mmYyyyRegex);
+    if (mmMatch) {
+        const monthIndex = parseInt(mmMatch[1], 10) - 1;
+        const year = parseInt(mmMatch[2], 10);
+        if (monthIndex >= 0 && monthIndex <= 11) {
+            const d = new Date(Date.UTC(year, monthIndex, 1));
+            return d.toISOString().split('T')[0];
+        }
+    }
+    
+    // 3. Try regex for DD/MM/YYYY or DD-MM-YYYY
+    const ddMmYyyyRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
+    const ddMmMatch = str.match(ddMmYyyyRegex);
+    if (ddMmMatch) {
+        const day = parseInt(ddMmMatch[1], 10);
+        const monthIndex = parseInt(ddMmMatch[2], 10) - 1;
+        const year = parseInt(ddMmMatch[3], 10);
+        if (monthIndex >= 0 && monthIndex <= 11) {
+            const d = new Date(Date.UTC(year, monthIndex, day));
+            return d.toISOString().split('T')[0];
+        }
+    }
+
+    // 4. Excel numeric dates
+    if (!isNaN(Number(str)) && Number(str) > 30000) {
+         const serial = Number(str);
+         // Excel's epoch is Dec 30, 1899
+         const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+         const parsedDate = new Date(excelEpoch.getTime() + serial * 86400000);
+         return parsedDate.toISOString().split('T')[0];
+    }
+    
+    // 5. Standard JS parse (YYYY-MM-DD, ISO, etc)
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+        return d.toISOString().split('T')[0];
+    }
+    
+    return null;
+};
+
 const NOUS_FIELDS = [
     { value: 'title', label: 'Título del Artículo (H1)' },
     { value: 'project_name', label: 'Proyecto al que pertenece' },
@@ -273,6 +351,8 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                             } else {
                                 task[targetField] = String(value).trim();
                             }
+                        } else if (targetField === 'scheduled_date') {
+                            task[targetField] = parseSmartDate(value);
                         } else {
                             task[targetField] = value;
                         }
