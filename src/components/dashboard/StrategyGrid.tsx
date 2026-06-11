@@ -13,6 +13,7 @@ import { ProjectBadge } from '@/components/ui/ProjectBadge';
 import { useRouter } from 'next/navigation';
 import { useWriterStore } from '@/store/useWriterStore';
 import CompetitorModal from './CompetitorModal';
+import CascadingSlugModal from './CascadingSlugModal';
 
 export const ALL_COLUMNS = [
     { id: 'project', label: 'Proy.', width: 'min-w-[50px] w-[5%]', defaultVisible: true },
@@ -59,6 +60,8 @@ export default function StrategyGrid({
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
     const [deletePopupId, setDeletePopupId] = useState<string | null>(null);
     const [deleteOptions, setDeleteOptions] = useState({ research: false, writing: false, images: false, translations: false });
+    const [cascadingState, setCascadingState] = useState<{ id: string, oldSlug: string, newSlug: string } | null>(null);
+    const [isCascading, setIsCascading] = useState(false);
 
     const [editingCell, setEditingCell] = useState<{ id: string, field: string } | null>(null);
     const [tempValue, setTempValue] = useState("");
@@ -134,9 +137,53 @@ export default function StrategyGrid({
         const originalTask = tasksToUse.find(t => t.id === id);
         if (originalTask) {
             const actualField = (field as string) === 'date' ? 'scheduled_date' : field as keyof Task;
+            
+            // Check if target_url_slug was modified
+            if (actualField === 'target_url_slug' && originalTask.target_url_slug && originalTask.target_url_slug !== tempValue) {
+                setCascadingState({ id, oldSlug: originalTask.target_url_slug, newSlug: tempValue });
+                setEditingCell(null);
+                return;
+            }
+
             await updateTask(id, { [actualField]: tempValue });
         }
         setEditingCell(null);
+    };
+
+    const handleConfirmCascade = async () => {
+        if (!cascadingState || !activeProject) return;
+        setIsCascading(true);
+        try {
+            await updateTask(cascadingState.id, { target_url_slug: cascadingState.newSlug });
+            
+            const res = await fetch('/api/writer/cascade-slug', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectId: activeProject.id,
+                    oldSlug: cascadingState.oldSlug,
+                    newSlug: cascadingState.newSlug,
+                    domain: activeProject.settings?.domain || '',
+                    blogPrefix: activeProject.settings?.content_preferences?.blog_prefix || ''
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                NotificationService.success(`Actualizados ${data.linksReplaced || 0} enlaces en ${data.updatedContents || 0} contenidos.`);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (e: any) {
+            NotificationService.error("Error al reemplazar en cascada: " + e.message);
+        } finally {
+            setIsCascading(false);
+            setCascadingState(null);
+        }
+    };
+
+    const handleCancelCascade = async () => {
+        if (!cascadingState) return;
+        setCascadingState(null);
     };
 
     const handleRemoveCompetitor = async () => {
@@ -1197,6 +1244,15 @@ export default function StrategyGrid({
                 isOpen={!!competitorModalTask}
                 onClose={() => setCompetitorModalTask(null)}
                 taskId={competitorModalTask || ''}
+            />
+
+            <CascadingSlugModal
+                isOpen={cascadingState !== null}
+                oldSlug={cascadingState?.oldSlug || ''}
+                newSlug={cascadingState?.newSlug || ''}
+                isLoading={isCascading}
+                onConfirm={handleConfirmCascade}
+                onCancel={handleCancelCascade}
             />
 
             <AnimatePresence>

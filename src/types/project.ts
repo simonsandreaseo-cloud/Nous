@@ -23,6 +23,7 @@ export interface Project {
         content_preferences?: {
             min_internal_links: number;
             max_internal_links: number;
+            blog_prefix?: string;
             default_strategy?: 'auto' | 'ecommerce' | 'informational';
             default_translator_languages?: string[];
             default_content_language?: string;

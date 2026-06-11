@@ -435,6 +435,36 @@ Retorna ÚNICAMENTE este formato JSON válido:
 
         // if (!inventoryCount || inventoryCount === 0) return []; // BYPASSED FOR TEST
 
+        // Fetch planned contents if toggle is active
+        let plannedUnits: any[] = [];
+        if (config.linkPlannedContents && config.linkPlannedStatuses && config.linkPlannedStatuses.length > 0) {
+            if (onLog) onLog("INFO", "Interlinking", "Incluyendo contenidos planificados en la curación...");
+            const { data: plannedTasks } = await supabase
+                .from('tasks')
+                .select('id, title, target_url_slug')
+                .eq('project_id', projectId)
+                .in('status', config.linkPlannedStatuses)
+                .not('target_url_slug', 'is', null)
+                .neq('id', config.taskId);
+            
+            if (plannedTasks && plannedTasks.length > 0) {
+                const domainRaw = projectData?.domain || '';
+                const cleanDomain = domainRaw ? (domainRaw.startsWith('http') ? domainRaw : `https://${domainRaw}`) : '';
+                const cleanPrefix = prefs.blog_prefix ? (prefs.blog_prefix.startsWith('/') ? prefs.blog_prefix : `/${prefs.blog_prefix}`) : '';
+                
+                plannedUnits = plannedTasks.map((t: any) => {
+                    const cleanSlug = t.target_url_slug.startsWith('/') ? t.target_url_slug : `/${t.target_url_slug}`;
+                    let pseudoUrl = `${cleanDomain}${cleanPrefix}${cleanSlug}`.replace(/([^:]\/)\/+/g, "$1");
+                    return {
+                        id: `planned_${t.id}`,
+                        url: pseudoUrl,
+                        title: t.title,
+                        isPlanned: true
+                    };
+                });
+            }
+        }
+
         // Optimized: Fetch unique categories via RPC instead of downloading thousands of rows
         const { data: distinctCategoriesData } = await supabase.rpc('get_unique_categories', { p_project_id: projectId });
         const distinctCategories = (distinctCategoriesData || []).map((c: any) => c.category || c).filter(Boolean);
@@ -513,12 +543,13 @@ REGLAS:
             units = resV2.data;
         }
 
-        if (units && units.length > 0) {
+        if ((units && units.length > 0) || plannedUnits.length > 0) {
             
+            const combinedUnits = [...(units || []), ...plannedUnits];
             const argotRule = askSet.size > 0 ? `\n\nREGLA DE PUNTAJE DE ARGOT: prioritiza x5 palabras ASK: ${Array.from(askSet).join(', ')}` : '';
 
             const linkRes = await aiRouter.generate({
-                prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${units.length} artículos):\n${JSON.stringify(units)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${finalMaxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,
+                prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${combinedUnits.length} artículos):\n${JSON.stringify(combinedUnits)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${finalMaxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,
                 model: "gemini-2.0-flash-lite-preview-02-05",
                 systemPrompt: "Arquitecto de Silos SEO.",
                 jsonMode: true,
@@ -526,7 +557,17 @@ REGLAS:
                 timeoutMs: 40000
             });
             const extracted = safeJsonExtract<any>(linkRes.text, { links: [] });
-            return [...manualLinks, ...(extracted.links || [])].slice(0, maxLinks);
+            
+            // Tag planned links
+            const finalLinks = (extracted.links || []).map((link: any) => {
+                const isPlanned = plannedUnits.some(pu => pu.url === link.url);
+                if (isPlanned) {
+                    return { ...link, isPlanned: true, type: 'planned' };
+                }
+                return link;
+            });
+
+            return [...manualLinks, ...finalLinks].slice(0, maxLinks);
         }
         return manualLinks;
     },

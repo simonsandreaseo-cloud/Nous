@@ -41,7 +41,8 @@ import {
     ChevronRight,
     ChevronDown,
     Zap,
-    UploadCloud
+    UploadCloud,
+    Settings
 } from "lucide-react";
 import { useProjectStore, Task, STATUS_LABELS } from "@/store/useProjectStore";
 import { usePermissions } from '@/hooks/usePermissions';
@@ -59,6 +60,7 @@ import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
 import NousOrb from "./NousOrb";
 import { SmartUploaderModal } from "./SmartUploaderModal";
+import SmartSlugGeneratorModal from "./SmartSlugGeneratorModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
 import { 
     processTaskOutlineAction
@@ -162,6 +164,12 @@ export function EditorialCalendar() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
     const [batchDeleteOptions, setBatchDeleteOptions] = useState({ research: false, writing: false, images: false, translations: false });
+
+    // Planned Content Interlinking
+    const [linkPlannedContents, setLinkPlannedContents] = useState(false);
+    const [linkPlannedStatuses, setLinkPlannedStatuses] = useState<string[]>(["por_redactar", "por_corregir", "redactado", "en_revision", "publicado", "humanizado"]);
+    const [isPlannedSettingsOpen, setIsPlannedSettingsOpen] = useState(false);
+    const [isSlugGeneratorOpen, setIsSlugGeneratorOpen] = useState(false);
     
     // Advanced Filters State
     const [searchQuery, setSearchQuery] = useState("");
@@ -367,6 +375,8 @@ export function EditorialCalendar() {
                     },
                     onLog: (s, m, r) => onLog(taskId, s, m, r),
                     taskId: taskId,
+                    linkPlannedContents,
+                    linkPlannedStatuses
                 });
                 if (result) {
                     await updateTask(taskId, {
@@ -397,7 +407,9 @@ export function EditorialCalendar() {
                     },
                     onLog: (s, m, r) => onLog(taskId, s, m, r),
                     taskId: taskId,
-                    forceRestart
+                    forceRestart,
+                    linkPlannedContents,
+                    linkPlannedStatuses
                 });
                 if (result) {
                     await updateTask(taskId, {
@@ -429,8 +441,8 @@ export function EditorialCalendar() {
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 50 }));
                 const res = await processTaskVisualsAction(task.id);
                 if (res.success && res.updates) {
-                    updateTask(taskId, res.updates);
-                    onLog(taskId, 'Visuals', res.msg!);
+                    updateTask(task.id, res.updates);
+                    onLog(task.id, 'Visuals', res.msg!);
                 } else {
                     throw new Error(res.error);
                 }
@@ -588,7 +600,9 @@ export function EditorialCalendar() {
                                     setResearchTopic(t.target_keyword || t.title);
                                 },
                                 onLog: (s, m, r) => onLog(t.id, s, m, r),
-                                taskId: t.id
+                                taskId: t.id,
+                                linkPlannedContents,
+                                linkPlannedStatuses
                             });
                             if (result) {
                                 await updateTask(t.id, {
@@ -730,7 +744,10 @@ export function EditorialCalendar() {
                             setResearchPhaseId(p);
                             setResearchTopic(t.target_keyword || t.title);
                         },
-                        onLog: (s, m, r) => onLog(t.id, s, m, r), taskId: t.id
+                        onLog: (s, m, r) => onLog(t.id, s, m, r),
+                        taskId: t.id,
+                        linkPlannedContents,
+                        linkPlannedStatuses
                     });
                     if (result) await updateTask(t.id, { 
                         title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title, 
@@ -868,6 +885,73 @@ export function EditorialCalendar() {
                         </button>
                     </div>
 
+                    {/* Planned Content Interlinking Toggle & Settings */}
+                    <div className="flex items-center gap-2 border-l border-slate-100 pl-4 ml-2 relative">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Enlazar a Contenidos Planificados</span>
+                        <button 
+                            onClick={() => setLinkPlannedContents(!linkPlannedContents)}
+                            className={cn(
+                                "w-10 h-5 rounded-full transition-all duration-300 relative",
+                                linkPlannedContents ? "bg-indigo-500" : "bg-slate-200"
+                            )}
+                        >
+                            <div className={cn(
+                                "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300",
+                                linkPlannedContents ? "left-5.5" : "left-0.5"
+                            )} />
+                        </button>
+                        <button
+                            onClick={() => setIsPlannedSettingsOpen(!isPlannedSettingsOpen)}
+                            className={cn(
+                                "p-1.5 rounded-lg transition-colors ml-1",
+                                isPlannedSettingsOpen ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                            )}
+                        >
+                            <Settings size={14} />
+                        </button>
+
+                        {isPlannedSettingsOpen && (
+                            <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 z-50 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-900">Estatus Permitidos</h4>
+                                    <button onClick={() => setIsPlannedSettingsOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
+                                </div>
+                                <div className="space-y-2 mb-6">
+                                    {["por_redactar", "por_corregir", "redactado", "en_revision", "publicado", "humanizado", "en_investigacion"].map((status) => (
+                                        <label key={status} className="flex items-center gap-3 group cursor-pointer">
+                                            <input 
+                                                type="checkbox"
+                                                checked={linkPlannedStatuses.includes(status)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setLinkPlannedStatuses([...linkPlannedStatuses, status]);
+                                                    } else {
+                                                        setLinkPlannedStatuses(linkPlannedStatuses.filter(s => s !== status));
+                                                    }
+                                                }}
+                                                className="w-4 h-4 rounded text-indigo-500 border-slate-200 focus:ring-indigo-500"
+                                            />
+                                            <span className="text-xs font-medium text-slate-600 group-hover:text-slate-900 transition-colors uppercase tracking-wider">{status.replace(/_/g, ' ')}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                
+                                <div className="pt-4 border-t border-slate-100">
+                                    <button 
+                                        onClick={() => {
+                                            setIsPlannedSettingsOpen(false);
+                                            setIsSlugGeneratorOpen(true);
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
+                                    >
+                                        <Sparkles size={12} />
+                                        Generar Slugs Faltantes
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="flex items-center gap-2">
                         {/* Column Selector */}
                         <div className="relative">
@@ -969,6 +1053,8 @@ export function EditorialCalendar() {
                                                             cascade: isCascadeMode,
                                                             onLog: (s, m, r) => addStrategyLog(reinvestigateTask.id, s, m, r),
                                                             onProgress: (p) => setResearchPhaseId(p),
+                                                            linkPlannedContents,
+                                                            linkPlannedStatuses
                                                         });
                                                         if (result) {
                                                             await updateTask(reinvestigateTask.id, {

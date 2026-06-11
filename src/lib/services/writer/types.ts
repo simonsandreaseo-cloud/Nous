@@ -167,4 +167,6 @@ export interface DeepSEOConfig {
     /** If true, ignores any existing checkpoint and restarts research from scratch */
     forceRestart?: boolean;
     language?: string;
+    linkPlannedContents?: boolean;
+    linkPlannedStatuses?: string[];
 }

@@ -23,6 +23,8 @@ import { Task } from '@/types/project';
 import { useProjectStore } from '@/store/useProjectStore';
 import { supabase } from '@/lib/supabase';
 import { motion } from 'framer-motion';
+import CascadingSlugModal from '../CascadingSlugModal';
+import { NotificationService } from '@/lib/services/notifications';
 
 interface SEOTabProps {
     task: Task;
@@ -46,6 +48,8 @@ export default function SEOTab({ task }: SEOTabProps) {
     const [editableTask, setEditableTask] = useState<Partial<Task>>({});
     const [isSaving, setIsSaving] = useState(false);
     const [showWPModal, setShowWPModal] = useState(false);
+    const [cascadingState, setCascadingState] = useState<{ id: string, oldSlug: string, newSlug: string } | null>(null);
+    const [isCascading, setIsCascading] = useState(false);
 
     const dossier = (task as any).research_dossier || (task as any).seo_data || {};
     const competitors: any[] = dossier.fullCompetitorAnalysis || dossier.competitors || dossier.top10Urls || [];
@@ -73,10 +77,61 @@ export default function SEOTab({ task }: SEOTabProps) {
 
     const handleSave = async () => {
         if (Object.keys(editableTask).length === 0) return;
+        
+        const originalSlug = task.target_url_slug || dossier.seoMetadata?.slug || dossier.slug || '';
+        if ('target_url_slug' in editableTask) {
+            const newSlug = editableTask.target_url_slug as string;
+            if (newSlug !== originalSlug && originalSlug) {
+                setCascadingState({ id: task.id, oldSlug: originalSlug, newSlug });
+                return;
+            }
+        }
+
         setIsSaving(true);
         await updateTask(task.id, editableTask);
         setIsSaving(false);
         setEditableTask({});
+    };
+
+    const handleConfirmCascade = async () => {
+        if (!cascadingState || !activeProject) return;
+        setIsCascading(true);
+        try {
+            await updateTask(task.id, editableTask);
+            setEditableTask({});
+            
+            const res = await fetch('/api/writer/cascade-slug', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectId: activeProject.id,
+                    oldSlug: cascadingState.oldSlug,
+                    newSlug: cascadingState.newSlug,
+                    domain: activeProject.settings?.domain || '',
+                    blogPrefix: activeProject.settings?.content_preferences?.blog_prefix || ''
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                NotificationService.success(`Actualizados ${data.linksReplaced || 0} enlaces en ${data.updatedContents || 0} contenidos.`);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (e: any) {
+            NotificationService.error("Error al reemplazar en cascada: " + e.message);
+        } finally {
+            setIsCascading(false);
+            setCascadingState(null);
+        }
+    };
+
+    const handleCancelCascade = async () => {
+        if (!cascadingState) return;
+        setIsSaving(true);
+        await updateTask(task.id, editableTask);
+        setIsSaving(false);
+        setEditableTask({});
+        setCascadingState(null);
     };
 
     const handleChange = (key: keyof Task, value: any) => {
@@ -550,6 +605,15 @@ export default function SEOTab({ task }: SEOTabProps) {
                     </div>
                 </div>
             )}
+
+            <CascadingSlugModal
+                isOpen={cascadingState !== null}
+                oldSlug={cascadingState?.oldSlug || ''}
+                newSlug={cascadingState?.newSlug || ''}
+                isLoading={isCascading}
+                onConfirm={handleConfirmCascade}
+                onCancel={handleCancelCascade}
+            />
         </div>
     );
 }

@@ -121,7 +121,9 @@ Keyword: ${keyword || 'N/A'}`;
                 onLog,
                 isFastMode,
                 forceRestart,
-                cascade
+                cascade,
+                linkPlannedContents: config.linkPlannedContents,
+                linkPlannedStatuses: config.linkPlannedStatuses
             }, config.phaseToRun);
         } catch (e) {
             console.error("Deep SEO Analysis Error:", e);

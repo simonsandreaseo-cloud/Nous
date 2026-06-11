@@ -27,6 +27,7 @@ export default function ProjectContentPreferencesView() {
     
     const [minLinks, setMinLinks] = useState(5);
     const [maxLinks, setMaxLinks] = useState(12);
+    const [blogPrefix, setBlogPrefix] = useState("");
     const [strategy, setStrategy] = useState<'auto' | 'ecommerce' | 'informational'>('auto');
     const [defaultLangs, setDefaultLangs] = useState<string[]>([]);
     const [defaultContentLang, setDefaultContentLang] = useState<string>('es');
@@ -41,6 +42,7 @@ export default function ProjectContentPreferencesView() {
             const prefs = activeProject.settings.content_preferences;
             setMinLinks(prefs.min_internal_links || 5);
             setMaxLinks(prefs.max_internal_links || 12);
+            setBlogPrefix(prefs.blog_prefix || "");
             setStrategy(prefs.default_strategy || 'auto');
             setDefaultLangs(prefs.default_translator_languages || []);
             setDefaultContentLang(prefs.default_content_language || 'es');
@@ -58,6 +60,7 @@ export default function ProjectContentPreferencesView() {
                 content_preferences: {
                     min_internal_links: minLinks,
                     max_internal_links: maxLinks,
+                    blog_prefix: blogPrefix,
                     default_strategy: strategy,
                     default_translator_languages: defaultLangs,
                     default_content_language: defaultContentLang,
@@ -146,6 +149,23 @@ export default function ProjectContentPreferencesView() {
                                     Tope máximo de sugerencias. Un número alto permite más diversidad, pero satura la curación de IA.
                                 </p>
                             </div>
+                        </div>
+
+                        {/* Blog Prefix Input */}
+                        <div className="pt-4">
+                            <label className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">
+                                Prefijo del Blog para Enlaces Planificados
+                            </label>
+                            <input 
+                                type="text"
+                                value={blogPrefix}
+                                onChange={(e) => setBlogPrefix(e.target.value)}
+                                placeholder="Ej: /blog/ o /articulos/ (dejar vacío si es en la raíz)"
+                                className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder:text-slate-400"
+                            />
+                            <p className="text-[9px] text-slate-400 font-medium leading-tight mt-3 ml-1">
+                                Se usa para construir las URLs de los contenidos planificados (ej: https://tudominio.com<span className="font-bold text-slate-700">{blogPrefix || "/"}</span>mi-nuevo-slug).
+                            </p>
                         </div>
 
                         <div className="pt-8 border-t border-slate-50 flex justify-end">
