@@ -11,9 +11,9 @@ export async function POST(req: NextRequest) {
         }
 
         const response = await aiRouter.generate({
-            prompt: prompt,
-            model: model || 'gemini-2.0-flash',
-            systemPrompt: systemPrompt || 'Eres un asistente experto SEO.',
+            prompt,
+            model: model || 'gemini-3.5-flash',
+            systemPrompt: systemPrompt || 'Eres un experto redactor SEO y generador de HTML.',
             temperature: temperature || 0.7,
             maxTokens: maxTokens || 8000,
             jsonMode: jsonMode || false,

@@ -34,7 +34,7 @@ Ejemplo de salida:
 
         const response = await aiRouter.generate({
             prompt: promptText,
-            model: "gemini-2.0-flash",
+            model: "gemini-3.5-flash",
             systemPrompt: "Eres un ingeniero de datos experto. Devuelve estrictamente JSON validado.",
             jsonMode: true,
             label: "Emparejamiento de Proyectos",
