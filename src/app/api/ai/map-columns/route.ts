@@ -79,6 +79,6 @@ Ejemplo de salida:
     } catch (error: any) {
         console.error("Error en map-columns API:", error);
         const errorString = typeof error === 'object' ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : String(error);
-        return NextResponse.json({ error: \`Error interno: \${errorString}\` }, { status: 500 });
+        return NextResponse.json({ error: "Error interno: " + errorString }, { status: 500 });
     }
 }
