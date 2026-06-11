@@ -279,6 +279,7 @@ export function EditorialCalendar() {
     };
 
     const runTaskDraftPipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
+        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 50 }));
         try {
             const res = await executeDraftPipeline(
                 task, 
@@ -292,10 +293,13 @@ export function EditorialCalendar() {
         } catch (e: any) {
             onLog(task.id, 'Error', `❌ Error en redacción: ${e.message}`);
             throw e;
+        } finally {
+            setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
         }
     };
 
     const runTaskHumanizePipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
+        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 50 }));
         try {
             const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
             const content = taskContent?.content_body || task.content_body;
@@ -313,6 +317,8 @@ export function EditorialCalendar() {
         } catch (e: any) {
             onLog(task.id, 'Error', `❌ Error en humanización: ${e.message}`);
             throw e;
+        } finally {
+            setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
         }
     };
 
@@ -394,6 +400,7 @@ export function EditorialCalendar() {
                     });
                 }
             } else if (action === 'outline') {
+                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 50 }));
                 const res = await processTaskOutlineAction(task.id, useWriterStore.getState().csvData);
                 if (res.success && res.updates) {
                     updateTask(taskId, res.updates);
@@ -407,6 +414,7 @@ export function EditorialCalendar() {
             } else if (action === 'humanize') {
                 await runTaskHumanizePipeline(task, onLog);
             } else if (action === 'visuals') {
+                setBatchResearchStatus(prev => ({ ...prev, [taskId]: 50 }));
                 const res = await processTaskVisualsAction(task.id);
                 if (res.success && res.updates) {
                     updateTask(taskId, res.updates);
