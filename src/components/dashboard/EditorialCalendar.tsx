@@ -289,12 +289,14 @@ export function EditorialCalendar() {
             );
             if (res.success && res.updates) {
                 updateTask(task.id, res.updates);
+                setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
+            } else {
+                setBatchResearchStatus(prev => ({ ...prev, [task.id]: -1 }));
             }
         } catch (e: any) {
-            onLog(task.id, 'Error', `❌ Error en redacción: ${e.message}`);
+            setBatchResearchStatus(prev => ({ ...prev, [task.id]: -1 }));
+            onLog(task.id, 'Error', `🚨 Error en redacción: ${e.message}`);
             throw e;
-        } finally {
-            setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
         }
     };
 
@@ -314,12 +316,14 @@ export function EditorialCalendar() {
             );
             if (res.success && res.updates) {
                 updateTask(task.id, res.updates);
+                setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
+            } else {
+                setBatchResearchStatus(prev => ({ ...prev, [task.id]: -1 }));
             }
         } catch (e: any) {
+            setBatchResearchStatus(prev => ({ ...prev, [task.id]: -1 }));
             onLog(task.id, 'Error', `❌ Error en humanización: ${e.message}`);
             throw e;
-        } finally {
-            setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
         }
     };
 
@@ -427,9 +431,9 @@ export function EditorialCalendar() {
         } catch (e: any) {
             console.error(e);
             NotificationService.error("Error en acción individual", e.message);
+            setBatchResearchStatus(prev => ({ ...prev, [taskId]: -1 }));
         } finally {
             setResearching(false);
-            setBatchResearchStatus(prev => ({ ...prev, [taskId]: 100 }));
         }
     };
 
@@ -572,11 +576,11 @@ export function EditorialCalendar() {
                             try {
                                 await runTaskDraftPipeline(t, onLog);
                             } catch (e: any) {
+                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
                                 onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                             }
                             pCount++;
                             setResearchProgress(phaseBase + ((pCount / toDraft.length) * phaseWeight));
-                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
                         }
                     }
                     currentPhaseIndex++;
@@ -593,11 +597,11 @@ export function EditorialCalendar() {
                             try {
                                 await runTaskHumanizePipeline(t, onLog);
                             } catch (e: any) {
+                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
                                 onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                             }
                             pCount++;
                             setResearchProgress(phaseBase + ((pCount / toHumanize.length) * phaseWeight));
-                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
                         }
                     }
                     currentPhaseIndex++;
@@ -694,11 +698,11 @@ export function EditorialCalendar() {
                     try {
                         await runTaskDraftPipeline(t, onLog);
                     } catch (e: any) {
+                        setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
                         onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                     }
                     pCount++;
                     setResearchProgress((pCount / filtered.length) * 100);
-                    setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
                 }
             } else if (action === 'humanizacion_masiva') {
                 let filtered = tasks.filter(t => !!t.content_body);
@@ -709,11 +713,11 @@ export function EditorialCalendar() {
                     try {
                         await runTaskHumanizePipeline(t, onLog);
                     } catch (e: any) {
+                        setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
                         onLog(t.id, 'Error', `❌ Error: ${e.message}`);
                     }
                     pCount++;
                     setResearchProgress((pCount / filtered.length) * 100);
-                    setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
                 }
             } else if (action === 'traduccion_masiva') {
                 const targetLangs = activeProject.i18n_settings?.languages || [];

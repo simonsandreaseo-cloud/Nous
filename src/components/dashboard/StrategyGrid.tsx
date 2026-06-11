@@ -324,7 +324,8 @@ export default function StrategyGrid({
                                     className={cn(
                                         "group hover:bg-slate-50/30 even:bg-slate-50/10 transition-all cursor-pointer select-none border-b border-slate-50 last:border-none relative",
                                         selectedTaskIds.includes(task.id) && "bg-indigo-50/40 hover:bg-indigo-50/60",
-                                        batchProgress[task.id] && batchProgress[task.id] < 100 && "bg-indigo-50/20 tr-shimmer [&_*]:overflow-visible"
+                                        batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100 && "bg-indigo-50/20 tr-shimmer [&_*]:overflow-visible",
+                                        batchProgress[task.id] === -1 && "bg-red-50/20 hover:bg-red-50/30 border-red-200"
                                     )}
                                     onClick={() => onSelectTask?.(task)}
                                 >
@@ -411,7 +412,7 @@ export default function StrategyGrid({
                                                         <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
                                                     ))}
                                                 </select>
-                                            ) : batchProgress[task.id] && batchProgress[task.id] < 100 ? (
+                                            ) : batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100 ? (
                                                 <div className="flex items-center gap-2.5 py-1">
                                                     <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
                                                         <svg className="w-full h-full -rotate-90">
@@ -448,6 +449,18 @@ export default function StrategyGrid({
                                                              !task.content_body ? "Redactando" : "Humanizando"}
                                                         </span>
                                                         <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Nous en proceso</span>
+                                                    </div>
+                                                </div>
+                                            ) : batchProgress[task.id] === -1 ? (
+                                                <div className="flex items-center gap-2.5 py-1 text-red-500">
+                                                    <div className="w-7 h-7 flex items-center justify-center shrink-0 rounded-full bg-red-100 text-red-600 font-black text-xs">
+                                                        ⚠
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[8px] font-black uppercase text-red-600 tracking-tighter leading-none animate-pulse">
+                                                            Error
+                                                        </span>
+                                                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Acción fallida</span>
                                                     </div>
                                                 </div>
                                             ) : (
@@ -1036,7 +1049,7 @@ export default function StrategyGrid({
                                             <div className="flex items-center justify-end gap-2">
                                                 <IntelligentActionButton 
                                                     task={task} 
-                                                    isProcessing={!!batchProgress[task.id] && batchProgress[task.id] < 100}
+                                                    isProcessing={!!batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100}
                                                     onAction={async (action) => {
                                                         if (action === 'writer') {
                                                             initializeFromTask(task, activeProject);
