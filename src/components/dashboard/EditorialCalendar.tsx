@@ -63,8 +63,10 @@ import { SmartUploaderModal } from "./SmartUploaderModal";
 import SmartSlugGeneratorModal from "./SmartSlugGeneratorModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
 import { 
-    processTaskOutlineAction
-} from '@/lib/actions/clientActions';
+    processTaskOutlineAction,
+    prepareTaskDraftAction,
+    saveTaskDraftAction
+} from '@/lib/client/plannerActions';
 import { executeDraftPipeline, executeHumanizePipeline } from '@/lib/services/writer/pipeline';
 import OrbConfirmationModal, { OrbPipelinePlan } from './OrbConfirmationModal';
 import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';

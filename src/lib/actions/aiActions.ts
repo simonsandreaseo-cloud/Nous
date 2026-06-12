@@ -14,7 +14,7 @@ export type {
     AIImageRequest,
     DeepSEOConfig
 } from "@/lib/services/writer/types";
-import { executeWithKeyRotation as libExecuteWithKeyRotation } from "@/lib/services/writer/ai-core";
+import { executeWithKeyRotation as libExecuteWithKeyRotation, executeTranslation } from "@/lib/services/writer/ai-core";
 import { buildPrompt as libBuildPrompt } from "@/lib/services/writer/prompts";
 import { ResearchOrchestrator } from "@/lib/services/writer/research";
 import { AI_CONFIG } from "@/lib/ai/config";
@@ -828,4 +828,8 @@ export const runTranslationAction = async (
         });
         return response.text;
     }, modelName, undefined, undefined, undefined, false, 'Traducción AI');
+};
+
+export const executeTranslationAction = async (prompt: string, targetLanguageName: string): Promise<string> => {
+    return executeTranslation(prompt, targetLanguageName);
 };

@@ -1,17 +1,11 @@
-'use server';
-
-
 import { Task } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 import { 
     generateOutlineStrategy, 
-    generateArticleJSON,
-    runHumanizerPipeline,
     buildPrompt,
     ArticleConfig,
-    runSEOPostProcessor
+    executeTranslationAction
 } from '@/lib/actions/aiActions';
-import { executeTranslation } from '@/lib/services/writer/ai-core';
 import { mdToHtml } from '@/utils/markdown';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
@@ -61,7 +55,7 @@ export async function processTaskOutlineAction(taskId: string, csvData: any[]) {
 }
 
 export async function prepareTaskDraftAction(taskId: string) {
-    console.log("[SERVER] prepareTaskDraftAction START for taskId:", taskId);
+    console.log("[CLIENT] prepareTaskDraftAction START for taskId:", taskId);
     try {
         const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
         if (taskError || !task) throw new Error("Task not found");
@@ -103,10 +97,10 @@ export async function prepareTaskDraftAction(taskId: string) {
 
         const prompt = buildPrompt(config);
         
-        console.log("[SERVER] prepareTaskDraftAction SUCCESS");
+        console.log("[CLIENT] prepareTaskDraftAction SUCCESS");
         return { success: true, prompt, configStr: JSON.stringify(config) };
     } catch (error: any) {
-        console.error("[SERVER] prepareTaskDraftAction ERROR:", error);
+        console.error("[CLIENT] prepareTaskDraftAction ERROR:", error);
         return { success: false, error: error.stack || error.message || String(error) };
     }
 }
@@ -130,7 +124,9 @@ export async function processTaskTranslationAction(taskId: string, langCode: str
 
         const langName = AVAILABLE_LANGUAGES.find(l => l.code === langCode)?.name || langCode;
         const metadataPrompt = `Translate to ${langName}. Return JSON: {h1, seo_title, meta_description, excerpt, target_url_slug}`;
-        const metadataRaw = await executeTranslation(metadataPrompt, langName);
+        
+        // Use the Server Action wrapper instead of executing directly
+        const metadataRaw = await executeTranslationAction(metadataPrompt, langName);
         let translatedData;
         try {
             const jsonString = metadataRaw.replace(/```json|```/g, '').trim();
@@ -142,7 +138,7 @@ export async function processTaskTranslationAction(taskId: string, langCode: str
         const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', taskId).maybeSingle();
         const contentBody = taskContent?.content_body || task.content_body || '';
 
-        const translatedBody = await executeTranslation(contentBody, langName);
+        const translatedBody = await executeTranslationAction(contentBody, langName);
         const htmlContent = mdToHtml(translatedBody);
         
         const newTask: Partial<Task> = {
