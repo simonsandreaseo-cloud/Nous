@@ -4,13 +4,40 @@ import { aiRouter } from '@/lib/ai/router';
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { headers, sampleRows } = body;
+        const { headers, sampleRows, importType = 'planner' } = body;
 
         if (!headers || !Array.isArray(headers)) {
             return NextResponse.json({ error: "Faltan los encabezados (headers)." }, { status: 400 });
         }
 
-        const schemaDictionary = `
+        let schemaDictionary = "";
+
+        if (importType === 'urls') {
+            schemaDictionary = `
+ESQUEMA DE BASE DE DATOS (NOUS URL INVENTORY TABLE):
+- "url": La URL completa o enlace web (Ej: https://misitio.com/articulo).
+- "title": El título de la página o nombre del enlace.
+- "category": La categoría, tipo o tag al que pertenece el enlace.
+
+INSTRUCCIONES:
+El usuario subió un archivo con los siguientes encabezados: ${JSON.stringify(headers)}
+Y estas son las primeras filas de muestra para darte contexto sobre qué tipo de dato hay en cada columna:
+${JSON.stringify(sampleRows, null, 2)}
+
+Tu tarea es deducir qué encabezado de la tabla del usuario corresponde a cada campo de nuestra base de datos basándote TANTO en el nombre del encabezado como en su CONTENIDO REAL (si una columna se llama "Varios" pero tiene URLs, es una "url").
+
+Devuelve UNICAMENTE un objeto JSON donde las CLAVES sean los nombres exactos de los encabezados del usuario, y los VALORES sean el nombre del campo en nuestro esquema. 
+Si una columna del usuario no sirve o no se mapea a nada de nuestro esquema, su valor debe ser null.
+Ejemplo de salida:
+{
+  "Enlaces del cliente": "url",
+  "Nombres": "title",
+  "Tipo": "category",
+  "Mi Columna Rara": null
+}
+`;
+        } else {
+            schemaDictionary = `
 ESQUEMA DE BASE DE DATOS (NOUS TASK TABLE):
 - "title": El título o H1 del artículo.
 - "target_keyword": La palabra clave principal a posicionar (Keyword SEO).
@@ -53,6 +80,7 @@ Ejemplo de salida:
   "Mi Columna Rara": null
 }
 `;
+        }
 
         const response = await aiRouter.generate({
             prompt: schemaDictionary,

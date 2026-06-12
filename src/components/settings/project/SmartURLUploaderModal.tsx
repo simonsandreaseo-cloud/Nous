@@ -1,10 +1,9 @@
 "use client";
 import React, { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Upload, FileType, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
-import * as XLSX from "xlsx";
-import Papa from "papaparse";
+import { X, Upload, FileType, CheckCircle2, AlertTriangle, Loader2, FileSpreadsheet, ArrowRight } from "lucide-react";
 import { NotificationService } from "@/lib/services/notifications";
+import { parseSpreadsheet, ParsedData } from '@/lib/utils/excel-parser';
 
 interface SmartURLUploaderModalProps {
     isOpen: boolean;
@@ -13,10 +12,19 @@ interface SmartURLUploaderModalProps {
     onUploadSuccess: () => void;
 }
 
+const NOUS_URL_FIELDS = [
+    { value: 'url', label: 'URL / Enlace' },
+    { value: 'title', label: 'Título / Nombre' },
+    { value: 'category', label: 'Categoría / Tipo' },
+    { value: 'ignore', label: '-- Ignorar esta columna --' }
+];
+
 export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSuccess }: SmartURLUploaderModalProps) {
-    const [isDragging, setIsDragging] = useState(false);
-    const [parsedData, setParsedData] = useState<any[] | null>(null);
+    const [step, setStep] = useState<'upload' | 'analyzing' | 'mapping'>('upload');
+    const [parsedData, setParsedData] = useState<ParsedData | null>(null);
+    const [mapping, setMapping] = useState<Record<string, string>>({});
     const [isUploading, setIsUploading] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -42,78 +50,95 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
     };
 
     const processFile = async (file: File) => {
+        setStep('analyzing');
         try {
-            const fileName = file.name.toLowerCase();
-            if (fileName.endsWith('.csv')) {
-                Papa.parse(file, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: (results) => {
-                        handleParsedData(results.data);
-                    },
-                    error: (error: any) => {
-                        NotificationService.error("Error procesando CSV", error.message);
-                    }
-                });
-            } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-                const buffer = await file.arrayBuffer();
-                const workbook = XLSX.read(buffer, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const data = XLSX.utils.sheet_to_json(firstSheet);
-                handleParsedData(data);
-            } else {
-                NotificationService.error("Formato no soportado", "Usa CSV o Excel.");
+            const data = await parseSpreadsheet(file);
+            if (data.rows.length === 0) {
+                throw new Error("El archivo está vacío o no se pudo leer correctamente.");
             }
-        } catch (error) {
-            console.error(error);
-            NotificationService.error("Error al leer el archivo", "Verifica el formato e intenta nuevamente.");
+            setParsedData(data);
+
+            const sampleRows = data.rows.slice(0, 5);
+
+            const res = await fetch('/api/ai/map-columns', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    headers: data.headers,
+                    sampleRows,
+                    importType: 'urls'
+                })
+            });
+
+            const responseData = await res.json();
+            
+            if (!res.ok) {
+                throw new Error(responseData.error || "Error al analizar con la IA");
+            }
+
+            const initialMapping: Record<string, string> = {};
+            for (const header of data.headers) {
+                const aiSuggestion = responseData.mapping[header];
+                initialMapping[header] = aiSuggestion ? aiSuggestion : 'ignore';
+            }
+
+            setMapping(initialMapping);
+            setStep('mapping');
+            NotificationService.success("Análisis completado", "La IA ha sugerido un mapeo. Por favor, revísalo.");
+
+        } catch (error: any) {
+            console.error("Error upload:", error);
+            NotificationService.error("Error al procesar", error.message || "Error desconocido");
+            setStep('upload');
         }
     };
 
-    const handleParsedData = (data: any[]) => {
-        if (!data || data.length === 0) {
-            NotificationService.error("Archivo vacío", "El archivo no contiene datos legibles.");
-            return;
-        }
-
-        // Try to auto-map columns: url, title, category (case insensitive)
-        const mappedData = data.map((row: any) => {
-            const keys = Object.keys(row);
-            const getVal = (possibleNames: string[]) => {
-                const key = keys.find(k => possibleNames.includes(k.toLowerCase().trim()));
-                return key ? row[key] : null;
-            };
-
-            return {
-                url: getVal(['url', 'link', 'enlace', 'target', 'href', 'direccion', 'dirección']),
-                title: getVal(['title', 'titulo', 'título', 'name', 'nombre']),
-                category: getVal(['category', 'categoria', 'categoría', 'tag', 'tipo'])
-            };
-        }).filter(item => item.url); // Must have at least URL
-
-        if (mappedData.length === 0) {
-            NotificationService.error("Columna URL faltante", "No se detectó ninguna columna con URLs válidas. Asegúrate de incluir una columna llamada 'url', 'enlace' o 'link'.");
-            return;
-        }
-
-        if (mappedData.length > 5000) {
-            NotificationService.warn("Límite superado", `El archivo tiene ${mappedData.length} filas. Se limitará a 5000.`);
-        }
-
-        setParsedData(mappedData.slice(0, 5000));
+    const handleMappingChange = (header: string, internalField: string) => {
+        setMapping(prev => ({ ...prev, [header]: internalField }));
     };
 
-    const handleUpload = async () => {
-        if (!parsedData || parsedData.length === 0) return;
-
+    const handleConfirmImport = async () => {
+        if (!parsedData) return;
         setIsUploading(true);
+
         try {
+            const mappedData: any[] = [];
+            
+            parsedData.rows.forEach(row => {
+                const mappedRow: any = {};
+                for (const header of parsedData.headers) {
+                    const targetField = mapping[header];
+                    if (targetField && targetField !== 'ignore') {
+                        mappedRow[targetField] = row[header];
+                    }
+                }
+                if (mappedRow.url) {
+                    mappedData.push({
+                        url: String(mappedRow.url).trim(),
+                        title: mappedRow.title ? String(mappedRow.title).trim() : null,
+                        category: mappedRow.category ? String(mappedRow.category).trim() : null
+                    });
+                }
+            });
+
+            if (mappedData.length === 0) {
+                NotificationService.error("Sin URLs válidas", "Asegúrate de mapear correctamente la columna URL.");
+                setIsUploading(false);
+                return;
+            }
+
+            if (mappedData.length > 5000) {
+                NotificationService.warn("Límite superado", `Se importarán solo las primeras 5000 de ${mappedData.length} URLs.`);
+            }
+
+            const dataToUpload = mappedData.slice(0, 5000);
+
             const res = await fetch('/api/projects/urls/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     projectId,
-                    urls: parsedData
+                    urls: dataToUpload
                 })
             });
 
@@ -125,7 +150,7 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
             } else {
                 NotificationService.error("Error al subir", result.error || "No se pudieron guardar las URLs");
             }
-        } catch (error) {
+        } catch (error: any) {
             NotificationService.error("Error de red", "No se pudo conectar con el servidor.");
         } finally {
             setIsUploading(false);
@@ -146,34 +171,38 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
                     initial={{ scale: 0.95, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                    className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]"
+                    className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]"
                 >
                     {/* Header */}
-                    <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-white">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500">
-                                <Upload size={20} />
+                            <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500">
+                                <FileSpreadsheet size={20} />
                             </div>
                             <div>
-                                <h3 className="text-sm font-bold text-slate-800">Importar URLs Manuales</h3>
-                                <p className="text-[11px] font-medium text-slate-500">Agrega inventario de enlaces externo o no indexado (Max 5,000)</p>
+                                <h2 className="text-lg font-black text-slate-800">Carga Inteligente de URLs</h2>
+                                <p className="text-xs text-slate-500">La IA mapeará automáticamente tus columnas para el inventario de enlaces.</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
-                            <X size={18} />
+                        <button 
+                            onClick={onClose}
+                            className="h-8 w-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-colors"
+                        >
+                            <X size={16} />
                         </button>
                     </div>
 
-                    <div className="p-6 overflow-y-auto custom-scrollbar">
-                        {!parsedData ? (
+                    {/* Body */}
+                    <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 custom-scrollbar">
+                        {step === 'upload' && (
                             <div 
                                 onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
                                 onDrop={handleDrop}
                                 onClick={() => fileInputRef.current?.click()}
                                 className={`
-                                    border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-all
-                                    ${isDragging ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50/50'}
+                                    border-2 border-dashed rounded-3xl p-12 flex flex-col items-center justify-center text-center cursor-pointer transition-all
+                                    ${isDragging ? 'border-indigo-400 bg-indigo-50/50' : 'border-indigo-100 bg-white hover:border-indigo-300 hover:bg-indigo-50/50'}
                                 `}
                             >
                                 <input 
@@ -183,79 +212,95 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
                                     ref={fileInputRef}
                                     onChange={handleFileSelect}
                                 />
-                                <div className="w-16 h-16 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center mb-4">
-                                    <FileType size={28} className="text-slate-400" />
+                                <div className="h-16 w-16 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500 mb-4">
+                                    <Upload size={28} />
                                 </div>
-                                <h4 className="text-sm font-bold text-slate-800 mb-1">Arrastra tu CSV o Excel aquí</h4>
-                                <p className="text-xs text-slate-500 max-w-[250px] mb-4">
-                                    Columnas esperadas: URL, Título (Opcional), Categoría (Opcional)
-                                </p>
-                                <button className="px-5 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors">
-                                    Explorar Archivos
+                                <h3 className="text-lg font-bold text-slate-700 mb-2">Haz clic o arrastra un archivo</h3>
+                                <p className="text-sm text-slate-500 max-w-sm">Sube tu Excel o CSV. La Inteligencia Artificial detectará qué columna es la URL, el Título y la Categoría basándose en el contenido.</p>
+                            </div>
+                        )}
+
+                        {step === 'analyzing' && (
+                            <div className="py-20 flex flex-col items-center justify-center text-center">
+                                <Loader2 size={40} className="text-indigo-500 animate-spin mb-6" />
+                                <h3 className="text-xl font-bold text-slate-700 mb-2">Analizando la estructura...</h3>
+                                <p className="text-slate-500">Gemini 3.5 Flash está analizando tus encabezados para encontrar la mejor coincidencia.</p>
+                            </div>
+                        )}
+
+                        {step === 'mapping' && parsedData && (
+                            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                                <div className="p-4 border-b border-slate-100 bg-amber-50/50 flex items-start gap-3">
+                                    <AlertTriangle size={18} className="text-amber-500 mt-0.5 shrink-0" />
+                                    <div>
+                                        <h4 className="text-sm font-bold text-amber-800">Revisa la propuesta de la IA</h4>
+                                        <p className="text-xs text-amber-700">Asegúrate de que la columna con los enlaces apunte a "URL". Las duplicadas se sobrescribirán con el título y la categoría que indiques aquí.</p>
+                                    </div>
+                                </div>
+                                
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-medium">
+                                        <tr>
+                                            <th className="px-6 py-4 w-1/3">Tu Columna (Excel)</th>
+                                            <th className="px-6 py-4 w-1/6 text-center"></th>
+                                            <th className="px-6 py-4 w-1/2">Campo en Nous</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {parsedData.headers.map((header, idx) => (
+                                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <div className="font-semibold text-slate-800 mb-1">{header}</div>
+                                                    <div className="text-xs text-slate-400 font-mono truncate max-w-[200px]">
+                                                        Ej: {String(parsedData.rows[0]?.[header] || 'N/A').slice(0, 50)}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <ArrowRight size={16} className="text-slate-300 mx-auto" />
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <select 
+                                                        value={mapping[header] || 'ignore'}
+                                                        onChange={(e) => handleMappingChange(header, e.target.value)}
+                                                        className={`w-full p-2.5 rounded-xl border ${mapping[header] && mapping[header] !== 'ignore' ? 'border-indigo-300 bg-indigo-50/30 text-indigo-800 font-medium' : 'border-slate-200 bg-slate-50 text-slate-600'} text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all`}
+                                                    >
+                                                        {NOUS_URL_FIELDS.map(f => (
+                                                            <option key={f.value} value={f.value}>{f.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    {step === 'mapping' && (
+                        <div className="p-6 border-t border-slate-100 bg-white flex items-center justify-between">
+                            <span className="text-sm text-slate-500 font-medium">
+                                {parsedData?.rows.length} filas analizadas
+                            </span>
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setStep('upload')}
+                                    className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                                >
+                                    Atrás
+                                </button>
+                                <button 
+                                    onClick={handleConfirmImport}
+                                    disabled={isUploading}
+                                    className="px-6 py-2.5 bg-indigo-500 text-white text-xs font-bold rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {isUploading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                                    {isUploading ? "Importando..." : "Confirmar e Importar"}
                                 </button>
                             </div>
-                        ) : (
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 p-4 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                                    <CheckCircle2 size={24} className="shrink-0" />
-                                    <div>
-                                        <h4 className="text-sm font-bold">Archivo procesado con éxito</h4>
-                                        <p className="text-xs font-medium opacity-90">Se encontraron {parsedData.length} URLs válidas.</p>
-                                    </div>
-                                </div>
-
-                                <div className="p-4 bg-amber-50 text-amber-700 rounded-2xl border border-amber-100 flex gap-3">
-                                    <AlertTriangle size={20} className="shrink-0" />
-                                    <p className="text-xs font-medium">
-                                        Las URLs duplicadas que ya existen en el proyecto (incluso las detectadas por Google Search Console) serán sobrescritas con la Categoría y Título que hayas incluido en tu archivo.
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Previsualización (Primeros 5)</h4>
-                                    <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                                        <table className="w-full text-left text-xs">
-                                            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase">
-                                                <tr>
-                                                    <th className="px-4 py-3">URL</th>
-                                                    <th className="px-4 py-3">Título</th>
-                                                    <th className="px-4 py-3">Categoría</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 bg-white">
-                                                {parsedData.slice(0, 5).map((row, idx) => (
-                                                    <tr key={idx} className="hover:bg-slate-50/50">
-                                                        <td className="px-4 py-3 font-medium text-slate-800 truncate max-w-[200px]">{row.url}</td>
-                                                        <td className="px-4 py-3 text-slate-500 truncate max-w-[150px]">{row.title || '-'}</td>
-                                                        <td className="px-4 py-3 text-slate-500 truncate max-w-[100px]">{row.category || '-'}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
-                        <button 
-                            onClick={onClose}
-                            className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-200/50 rounded-xl transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        {parsedData && (
-                            <button 
-                                onClick={handleUpload}
-                                disabled={isUploading}
-                                className="px-5 py-2.5 bg-indigo-500 text-white text-xs font-bold rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                            >
-                                {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                                {isUploading ? "Importando..." : "Confirmar Importación"}
-                            </button>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </motion.div>
             </motion.div>
         </AnimatePresence>
