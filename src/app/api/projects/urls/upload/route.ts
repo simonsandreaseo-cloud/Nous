@@ -42,7 +42,6 @@ export async function POST(req: Request) {
                     id: existingId,
                     project_id: projectId,
                     url: item.url,
-                    title: item.title || null,
                     category: item.category || null,
                     type: 'manual_upload'
                 });
@@ -51,7 +50,6 @@ export async function POST(req: Request) {
                 toInsert.push({
                     project_id: projectId,
                     url: item.url,
-                    title: item.title || null,
                     category: item.category || null,
                     type: 'manual_upload'
                 });
