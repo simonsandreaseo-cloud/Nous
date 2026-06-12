@@ -42,16 +42,14 @@ export async function POST(req: Request) {
                     id: existingId,
                     project_id: projectId,
                     url: item.url,
-                    category: item.category || null,
-                    type: 'manual_upload'
+                    category: item.category || null
                 });
             } else {
                 // Prepare insert
                 toInsert.push({
                     project_id: projectId,
                     url: item.url,
-                    category: item.category || null,
-                    type: 'manual_upload'
+                    category: item.category || null
                 });
             }
         }
