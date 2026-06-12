@@ -642,7 +642,7 @@ export function EditorialCalendar() {
                         const phaseBase = currentPhaseIndex * phaseWeight;
                         let pCount = 0;
                         for (const t of toOutline) {
-                            const res = await processTaskOutlineAction(t, csvData);
+                            const res = await processTaskOutlineAction(t.id, csvData);
                             if (res.success && res.updates) {
                                 updateTask(t.id, res.updates);
                                 onLog(t.id, 'Outline', res.msg!);
@@ -712,7 +712,7 @@ export function EditorialCalendar() {
                         let pCount = 0;
                         for (const t of latestTasks) {
                             for (const lang of targetLangs) {
-                                const res = await processTaskTranslationAction(t, lang);
+                                const res = await processTaskTranslationAction(t.id, lang);
                                 if (res.success) {
                                     onLog(t.id, 'Traducción', res.msg!);
                                 } else {
@@ -780,7 +780,7 @@ export function EditorialCalendar() {
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay tareas investigadas que necesiten un outline.'); return; }
                 let pCount = 0;
                 for (const t of filtered) {
-                    const res = await processTaskOutlineAction(t, csvData);
+                    const res = await processTaskOutlineAction(t.id, csvData);
                     if (res.success && res.updates) {
                         updateTask(t.id, res.updates);
                         onLog(t.id, 'Outline', res.msg!);
@@ -829,7 +829,7 @@ export function EditorialCalendar() {
                 let pCount = 0;
                 for (const t of filtered) {
                     for (const lang of targetLangs) {
-                        const res = await processTaskTranslationAction(t, lang);
+                        const res = await processTaskTranslationAction(t.id, lang);
                         if (res.success) onLog(t.id, 'Traducción', res.msg!);
                     }
                     pCount++;
