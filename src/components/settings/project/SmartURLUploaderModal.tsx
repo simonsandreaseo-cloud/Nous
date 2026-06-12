@@ -14,7 +14,6 @@ interface SmartURLUploaderModalProps {
 
 const NOUS_URL_FIELDS = [
     { value: 'url', label: 'URL / Enlace' },
-    { value: 'title', label: 'Título / Nombre' },
     { value: 'category', label: 'Categoría / Tipo' },
     { value: 'ignore', label: '-- Ignorar esta columna --' }
 ];
@@ -29,19 +28,7 @@ function extractCategoryFromUrl(urlString: string) {
     }
 }
 
-function extractTitleFromSlug(urlString: string) {
-    try {
-        const url = new URL(urlString);
-        const segments = url.pathname.split('/').filter(Boolean);
-        if (segments.length === 0) return null;
-        const slug = segments[segments.length - 1];
-        const clean = slug.replace(/\.[^/.]+$/, "");
-        const title = clean.replace(/-/g, ' ');
-        return title.charAt(0).toUpperCase() + title.slice(1);
-    } catch {
-        return null;
-    }
-}
+
 
 interface CategorySummary {
     originalName: string;
@@ -52,7 +39,6 @@ interface CategorySummary {
 
 interface MappedUrlInternal {
     url: string;
-    title: string | null;
     originalCategory: string;
 }
 
@@ -66,7 +52,7 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
     // New states for review phase
     const [mappedUrls, setMappedUrls] = useState<MappedUrlInternal[]>([]);
     const [categoriesSummary, setCategoriesSummary] = useState<CategorySummary[]>([]);
-    const [extractTitles, setExtractTitles] = useState(true);
+
     const [progress, setProgress] = useState({ processed: 0, total: 0 });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -166,7 +152,6 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
 
                 extractedUrls.push({
                     url: rawUrl,
-                    title: mappedRow.title ? String(mappedRow.title).trim() : null,
                     originalCategory: cat
                 });
 
@@ -214,14 +199,8 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
             const catSummary = categoriesSummary.find(c => c.originalName === item.originalCategory);
             const finalCategory = catSummary ? catSummary.customName : item.originalCategory;
             
-            let finalTitle = item.title;
-            if (extractTitles && !finalTitle) {
-                finalTitle = extractTitleFromSlug(item.url);
-            }
-
             return {
                 url: item.url,
-                title: finalTitle,
                 category: finalCategory
             };
         });
@@ -326,7 +305,7 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
                                     <Upload size={28} />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-700 mb-2">Haz clic o arrastra un archivo</h3>
-                                <p className="text-sm text-slate-500 max-w-sm">Sube tu Excel o CSV. La Inteligencia Artificial detectará qué columna es la URL, el Título y la Categoría basándose en el contenido.</p>
+                                <p className="text-sm text-slate-500 max-w-sm">Sube tu Excel o CSV. La Inteligencia Artificial detectará qué columna es la URL y la Categoría basándose en el contenido.</p>
                             </div>
                         )}
 
@@ -344,7 +323,7 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
                                     <AlertTriangle size={18} className="text-amber-500 mt-0.5 shrink-0" />
                                     <div>
                                         <h4 className="text-sm font-bold text-amber-800">Revisa la propuesta de la IA</h4>
-                                        <p className="text-xs text-amber-700">Asegúrate de que la columna con los enlaces apunte a "URL". Las duplicadas se sobrescribirán con el título y la categoría que indiques aquí.</p>
+                                        <p className="text-xs text-amber-700">Asegúrate de que la columna con los enlaces apunte a "URL". Las duplicadas se sobrescribirán con la categoría que indiques aquí.</p>
                                     </div>
                                 </div>
                                 
@@ -420,33 +399,7 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
                                     </div>
                                 </div>
 
-                                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                                    <div className="flex items-start gap-4">
-                                        <div className="h-10 w-10 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center shrink-0">
-                                            <Wand2 size={20} />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <h3 className="font-bold text-slate-800">Autocompletado de Títulos</h3>
-                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        className="sr-only peer"
-                                                        checked={extractTitles}
-                                                        onChange={(e) => setExtractTitles(e.target.checked)}
-                                                        disabled={isUploading}
-                                                    />
-                                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                                                </label>
-                                            </div>
-                                            <p className="text-sm text-slate-500">
-                                                Si una URL no tiene título, lo extraeremos inteligentemente de su slug. 
-                                                <br/>
-                                                <span className="text-xs italic text-slate-400">Ej: /blog/mi-articulo-nuevo → "Mi articulo nuevo"</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
+
                             </div>
                         )}
 
