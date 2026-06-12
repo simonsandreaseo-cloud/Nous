@@ -40,7 +40,7 @@ export interface OrbPipelinePlan {
 
 const CREDIT_RATES = {
     research: 20,
-    outline: 0,
+    outline: 5,
     draft: 10,
     rewrite: 10,
     humanize: 15,
@@ -51,6 +51,7 @@ const CREDIT_RATES = {
 function computeTotalCredits(plan: OrbPipelinePlan): number {
     return (
         plan.toResearch.length * CREDIT_RATES.research +
+        plan.toOutline.length * CREDIT_RATES.outline +
         plan.toDraft.length * CREDIT_RATES.draft +
         plan.toRewrite.length * CREDIT_RATES.rewrite +
         plan.toHumanize.length * CREDIT_RATES.humanize +
@@ -215,7 +216,7 @@ export default function OrbConfirmationModal({
                                                         label="Investigar artículos"
                                                         count={plan.toResearch.length}
                                                         color="indigo"
-                                                        credits={0}
+                                                        credits={plan.toResearch.length * CREDIT_RATES.research}
                                                     />
                                                 )}
                                                 {plan.toOutline.length > 0 && (
@@ -224,7 +225,7 @@ export default function OrbConfirmationModal({
                                                         label="Generar outlines"
                                                         count={plan.toOutline.length}
                                                         color="cyan"
-                                                        credits={0}
+                                                        credits={plan.toOutline.length * CREDIT_RATES.outline}
                                                     />
                                                 )}
                                                 {plan.toDraft.length > 0 && (

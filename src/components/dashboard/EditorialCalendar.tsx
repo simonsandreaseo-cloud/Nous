@@ -533,24 +533,35 @@ export function EditorialCalendar() {
                 const translateLanguages = activeProject?.i18n_settings?.languages?.length ?? 0;
 
                 // Build plan buckets
-                // If manual selection: all go to draft/rewrite/humanize regardless of state
-                const planToResearch = research && !isManualSelection
-                    ? targetTasks.filter(t => !RESEARCHED_STATUSES.includes(t.status))
+                // If manual selection: force the phase for selected items if the option is checked.
+                const planToResearch = research
+                    ? targetTasks.filter(t => isManualSelection || !RESEARCHED_STATUSES.includes(t.status))
                     : [];
-                const planToOutline = (draft || research) && !isManualSelection
-                    ? targetTasks.filter(t => t.status === 'en_investigacion')
+                
+                // Cascade: Outline items if they are already researched or if they WILL be researched in this run.
+                const planToOutline = (draft || research)
+                    ? targetTasks.filter(t => isManualSelection || t.status === 'en_investigacion' || (research && !RESEARCHED_STATUSES.includes(t.status)))
                     : [];
+                
+                // Draft items that don't have content.
                 const planToDraft = draft
                     ? targetTasks.filter(t => !tasksWithContent.has(t.id))
                     : [];
-                // rewrite = manual selection + has existing content
+                
+                // Rewrite items only if explicitly selected and they already have content.
                 const planToRewrite = draft && isManualSelection
                     ? targetTasks.filter(t => tasksWithContent.has(t.id))
                     : [];
+                
+                // Cascade: Humanize items if they already have content, or if they WILL be drafted in this run.
                 const planToHumanize = humanize
-                    ? targetTasks.filter(t => tasksWithContent.has(t.id) || isManualSelection)
+                    ? targetTasks.filter(t => isManualSelection || tasksWithContent.has(t.id) || draft)
                     : [];
-                const planToTranslate = translate ? targetTasks : [];
+                
+                // Cascade: Translate items if they already have content, or if they WILL be drafted in this run.
+                const planToTranslate = translate
+                    ? targetTasks.filter(t => isManualSelection || tasksWithContent.has(t.id) || draft)
+                    : [];
 
                 const plan: OrbPipelinePlan = {
                     toResearch: planToResearch.map(t => ({ id: t.id, title: t.title })),
