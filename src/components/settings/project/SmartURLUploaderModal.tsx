@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Upload, FileType, CheckCircle2, AlertTriangle, Loader2, FileSpreadsheet, ArrowRight } from "lucide-react";
+import { X, Upload, FileType, CheckCircle2, AlertTriangle, Loader2, FileSpreadsheet, ArrowRight, FolderTree, Wand2 } from "lucide-react";
 import { NotificationService } from "@/lib/services/notifications";
 import { parseSpreadsheet, ParsedData } from '@/lib/utils/excel-parser';
 
@@ -19,12 +19,56 @@ const NOUS_URL_FIELDS = [
     { value: 'ignore', label: '-- Ignorar esta columna --' }
 ];
 
+function extractCategoryFromUrl(urlString: string) {
+    try {
+        const url = new URL(urlString);
+        const segments = url.pathname.split('/').filter(Boolean);
+        return segments.length > 0 ? segments[0] : 'general';
+    } catch {
+        return 'general';
+    }
+}
+
+function extractTitleFromSlug(urlString: string) {
+    try {
+        const url = new URL(urlString);
+        const segments = url.pathname.split('/').filter(Boolean);
+        if (segments.length === 0) return null;
+        const slug = segments[segments.length - 1];
+        const clean = slug.replace(/\.[^/.]+$/, "");
+        const title = clean.replace(/-/g, ' ');
+        return title.charAt(0).toUpperCase() + title.slice(1);
+    } catch {
+        return null;
+    }
+}
+
+interface CategorySummary {
+    originalName: string;
+    customName: string;
+    count: number;
+    sampleUrl: string;
+}
+
+interface MappedUrlInternal {
+    url: string;
+    title: string | null;
+    originalCategory: string;
+}
+
 export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSuccess }: SmartURLUploaderModalProps) {
-    const [step, setStep] = useState<'upload' | 'analyzing' | 'mapping'>('upload');
+    const [step, setStep] = useState<'upload' | 'analyzing' | 'mapping' | 'review'>('upload');
     const [parsedData, setParsedData] = useState<ParsedData | null>(null);
     const [mapping, setMapping] = useState<Record<string, string>>({});
     const [isUploading, setIsUploading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    
+    // New states for review phase
+    const [mappedUrls, setMappedUrls] = useState<MappedUrlInternal[]>([]);
+    const [categoriesSummary, setCategoriesSummary] = useState<CategorySummary[]>([]);
+    const [extractTitles, setExtractTitles] = useState(true);
+    const [progress, setProgress] = useState({ processed: 0, total: 0 });
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -97,61 +141,126 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
         setMapping(prev => ({ ...prev, [header]: internalField }));
     };
 
-    const handleConfirmImport = async () => {
+    const handleGoToReview = () => {
         if (!parsedData) return;
+        const extractedUrls: MappedUrlInternal[] = [];
+        const summaryMap = new Map<string, { count: number, sampleUrl: string }>();
+
+        parsedData.rows.forEach(row => {
+            const mappedRow: any = {};
+            for (const header of parsedData.headers) {
+                const targetField = mapping[header];
+                if (targetField && targetField !== 'ignore') {
+                    mappedRow[targetField] = row[header];
+                }
+            }
+            
+            if (mappedRow.url) {
+                const rawUrl = String(mappedRow.url).trim();
+                let cat = mappedRow.category ? String(mappedRow.category).trim() : null;
+                
+                // Autodetect category if missing
+                if (!cat) {
+                    cat = extractCategoryFromUrl(rawUrl);
+                }
+
+                extractedUrls.push({
+                    url: rawUrl,
+                    title: mappedRow.title ? String(mappedRow.title).trim() : null,
+                    originalCategory: cat
+                });
+
+                if (!summaryMap.has(cat)) {
+                    summaryMap.set(cat, { count: 1, sampleUrl: rawUrl });
+                } else {
+                    const curr = summaryMap.get(cat)!;
+                    curr.count += 1;
+                    summaryMap.set(cat, curr);
+                }
+            }
+        });
+
+        if (extractedUrls.length === 0) {
+            NotificationService.error("Sin URLs válidas", "Asegúrate de mapear correctamente la columna URL.");
+            return;
+        }
+
+        if (extractedUrls.length > 5000) {
+            NotificationService.warn("Límite de URLs", `Se limitará la importación a las primeras 5000 URLs de ${extractedUrls.length}.`);
+        }
+
+        const summaryArray = Array.from(summaryMap.entries()).map(([cat, data]) => ({
+            originalName: cat,
+            customName: cat,
+            count: data.count,
+            sampleUrl: data.sampleUrl
+        }));
+
+        setMappedUrls(extractedUrls.slice(0, 5000));
+        setCategoriesSummary(summaryArray);
+        setStep('review');
+    };
+
+    const handleCategoryRename = (originalName: string, newName: string) => {
+        setCategoriesSummary(prev => prev.map(c => 
+            c.originalName === originalName ? { ...c, customName: newName } : c
+        ));
+    };
+
+    const handleConfirmImport = async () => {
         setIsUploading(true);
 
-        try {
-            const mappedData: any[] = [];
+        const dataToUpload = mappedUrls.map(item => {
+            const catSummary = categoriesSummary.find(c => c.originalName === item.originalCategory);
+            const finalCategory = catSummary ? catSummary.customName : item.originalCategory;
             
-            parsedData.rows.forEach(row => {
-                const mappedRow: any = {};
-                for (const header of parsedData.headers) {
-                    const targetField = mapping[header];
-                    if (targetField && targetField !== 'ignore') {
-                        mappedRow[targetField] = row[header];
-                    }
+            let finalTitle = item.title;
+            if (extractTitles && !finalTitle) {
+                finalTitle = extractTitleFromSlug(item.url);
+            }
+
+            return {
+                url: item.url,
+                title: finalTitle,
+                category: finalCategory
+            };
+        });
+
+        const CHUNK_SIZE = 500;
+        let totalInserted = 0;
+        let totalUpdated = 0;
+
+        setProgress({ processed: 0, total: dataToUpload.length });
+
+        try {
+            for (let i = 0; i < dataToUpload.length; i += CHUNK_SIZE) {
+                const chunk = dataToUpload.slice(i, i + CHUNK_SIZE);
+                
+                const res = await fetch('/api/projects/urls/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectId,
+                        urls: chunk
+                    })
+                });
+
+                const result = await res.json();
+                if (!result.success) {
+                    throw new Error(result.error || "Error subiendo el lote.");
                 }
-                if (mappedRow.url) {
-                    mappedData.push({
-                        url: String(mappedRow.url).trim(),
-                        title: mappedRow.title ? String(mappedRow.title).trim() : null,
-                        category: mappedRow.category ? String(mappedRow.category).trim() : null
-                    });
-                }
-            });
-
-            if (mappedData.length === 0) {
-                NotificationService.error("Sin URLs válidas", "Asegúrate de mapear correctamente la columna URL.");
-                setIsUploading(false);
-                return;
+                
+                totalInserted += result.inserted || 0;
+                totalUpdated += result.updated || 0;
+                
+                setProgress({ processed: Math.min(i + CHUNK_SIZE, dataToUpload.length), total: dataToUpload.length });
             }
 
-            if (mappedData.length > 5000) {
-                NotificationService.warn("Límite superado", `Se importarán solo las primeras 5000 de ${mappedData.length} URLs.`);
-            }
-
-            const dataToUpload = mappedData.slice(0, 5000);
-
-            const res = await fetch('/api/projects/urls/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    projectId,
-                    urls: dataToUpload
-                })
-            });
-
-            const result = await res.json();
-            if (result.success) {
-                NotificationService.success("Carga completada", `${result.inserted} nuevas, ${result.updated} actualizadas.`);
-                onUploadSuccess();
-                onClose();
-            } else {
-                NotificationService.error("Error al subir", result.error || "No se pudieron guardar las URLs");
-            }
+            NotificationService.success("Carga completada", `${totalInserted} nuevas, ${totalUpdated} actualizadas.`);
+            onUploadSuccess();
+            onClose();
         } catch (error: any) {
-            NotificationService.error("Error de red", "No se pudo conectar con el servidor.");
+            NotificationService.error("Error al subir", error.message || "No se pudo conectar con el servidor.");
         } finally {
             setIsUploading(false);
         }
@@ -186,14 +295,15 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
                         </div>
                         <button 
                             onClick={onClose}
-                            className="h-8 w-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-colors"
+                            disabled={isUploading}
+                            className="h-8 w-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-colors disabled:opacity-50"
                         >
                             <X size={16} />
                         </button>
                     </div>
 
                     {/* Body */}
-                    <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 custom-scrollbar relative">
                         {step === 'upload' && (
                             <div 
                                 onDragOver={handleDragOver}
@@ -275,6 +385,89 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
                                 </table>
                             </div>
                         )}
+
+                        {step === 'review' && (
+                            <div className="space-y-6">
+                                <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-100 flex items-start gap-4">
+                                    <div className="h-10 w-10 bg-indigo-100 text-indigo-500 rounded-xl flex items-center justify-center shrink-0">
+                                        <FolderTree size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-indigo-900 mb-1">Detección de Categorías ({categoriesSummary.length})</h3>
+                                        <p className="text-sm text-indigo-700/80 mb-4">Hemos agrupado tus {mappedUrls.length} URLs según la ruta. Puedes renombrar las categorías aquí antes de importar.</p>
+                                        
+                                        <div className="space-y-3">
+                                            {categoriesSummary.map((cat, idx) => (
+                                                <div key={idx} className="bg-white rounded-xl p-3 border border-indigo-100/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                                                    <div className="flex-1 min-w-0">
+                                                        <input 
+                                                            type="text" 
+                                                            value={cat.customName}
+                                                            onChange={(e) => handleCategoryRename(cat.originalName, e.target.value)}
+                                                            className="font-bold text-slate-800 bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none px-1 py-0.5 w-48 transition-colors"
+                                                            placeholder="Nombre de categoría"
+                                                        />
+                                                        <div className="text-xs text-slate-400 font-mono truncate mt-1">
+                                                            Ej: {cat.sampleUrl}
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 text-xs font-semibold text-slate-500 shrink-0 text-center">
+                                                        {cat.count} URLs
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                                    <div className="flex items-start gap-4">
+                                        <div className="h-10 w-10 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center shrink-0">
+                                            <Wand2 size={20} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <h3 className="font-bold text-slate-800">Autocompletado de Títulos</h3>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="sr-only peer"
+                                                        checked={extractTitles}
+                                                        onChange={(e) => setExtractTitles(e.target.checked)}
+                                                        disabled={isUploading}
+                                                    />
+                                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                                                </label>
+                                            </div>
+                                            <p className="text-sm text-slate-500">
+                                                Si una URL no tiene título, lo extraeremos inteligentemente de su slug. 
+                                                <br/>
+                                                <span className="text-xs italic text-slate-400">Ej: /blog/mi-articulo-nuevo → "Mi articulo nuevo"</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Progress Overlay during upload */}
+                        {isUploading && step === 'review' && (
+                            <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center p-8 text-center rounded-b-3xl">
+                                <Loader2 size={40} className="text-indigo-500 animate-spin mb-4" />
+                                <h3 className="text-xl font-bold text-slate-800 mb-2">Importando URLs...</h3>
+                                <p className="text-sm text-slate-500 mb-6">Estamos inyectando los enlaces en la base de datos de tu proyecto.</p>
+                                
+                                <div className="w-full max-w-md bg-slate-100 h-3 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-indigo-500 transition-all duration-300 ease-out" 
+                                        style={{ width: `${Math.max(5, (progress.processed / progress.total) * 100)}%` }}
+                                    ></div>
+                                </div>
+                                <div className="mt-3 text-xs font-bold text-slate-400">
+                                    {progress.processed} / {progress.total} URLs
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -291,12 +484,36 @@ export function SmartURLUploaderModal({ isOpen, onClose, projectId, onUploadSucc
                                     Atrás
                                 </button>
                                 <button 
+                                    onClick={handleGoToReview}
+                                    className="px-6 py-2.5 bg-indigo-500 text-white text-xs font-bold rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20 flex items-center gap-2"
+                                >
+                                    Siguiente paso
+                                    <ArrowRight size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 'review' && (
+                        <div className="p-6 border-t border-slate-100 bg-white flex items-center justify-between relative z-0">
+                            <span className="text-sm text-slate-500 font-medium">
+                                {mappedUrls.length} URLs listas
+                            </span>
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setStep('mapping')}
+                                    disabled={isUploading}
+                                    className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50"
+                                >
+                                    Atrás
+                                </button>
+                                <button 
                                     onClick={handleConfirmImport}
                                     disabled={isUploading}
-                                    className="px-6 py-2.5 bg-indigo-500 text-white text-xs font-bold rounded-xl hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    className="px-6 py-2.5 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-2"
                                 >
                                     {isUploading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                                    {isUploading ? "Importando..." : "Confirmar e Importar"}
+                                    {isUploading ? "Procesando..." : "Confirmar e Importar"}
                                 </button>
                             </div>
                         </div>
