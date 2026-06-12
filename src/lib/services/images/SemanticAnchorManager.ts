@@ -1,3 +1,5 @@
+import { CheerioAPI, Element } from 'cheerio';
+
 /**
  * SemanticAnchorManager
  * High-precision engine for locating optimal injection points in HTML based on textual anchors.
@@ -5,29 +7,32 @@
 export class SemanticAnchorManager {
     /**
      * Finds the best character position in the DOM where the anchor phrase occurs.
-     * @param root The DOM element to search in (usually document.body).
+     * @param $ The Cheerio API loaded with HTML
      * @param anchor The exact phrase to look for.
-     * @returns { pos: number, node: Node | null }
+     * @returns { pos: number, node: Element | null }
      */
-    static findBestPosition(root: HTMLElement, anchor: string): { pos: number; node: Node | null } {
+    static findBestPosition($: CheerioAPI, anchor: string): { pos: number; node: Element | null } {
         if (!anchor || anchor.trim().length === 0) return { pos: -1, node: null };
 
-        const walker = root.ownerDocument.createTreeWalker(root, 4); // NodeFilter.SHOW_TEXT
+        let targetNode: Element | null = null;
         let currentPos = 0;
-        let node;
 
-        while ((node = walker.nextNode())) {
-            const text = node.textContent || "";
+        // Iterate over block elements that might contain the text
+        const elements = $('p, h1, h2, h3, h4, h5, h6, li, blockquote');
+        
+        elements.each((i, el) => {
+            const text = $(el).text() || "";
             const index = text.toLowerCase().indexOf(anchor.toLowerCase());
             
             if (index !== -1) {
-                // We return the position at the end of the anchor phrase
-                return { 
-                    pos: currentPos + index + anchor.length, 
-                    node: node 
-                };
+                targetNode = el;
+                currentPos = index + anchor.length;
+                return false; // Break loop
             }
-            currentPos += text.length;
+        });
+
+        if (targetNode) {
+            return { pos: currentPos, node: targetNode };
         }
 
         return { pos: -1, node: null };
