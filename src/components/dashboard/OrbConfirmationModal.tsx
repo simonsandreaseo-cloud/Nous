@@ -20,8 +20,6 @@ import { cn } from "@/utils/cn";
 export interface OrbPipelinePlan {
     /** Tasks that will be researched (status=idea, no research yet) */
     toResearch: { id: string; title: string }[];
-    /** Tasks that need an outline generated */
-    toOutline: { id: string; title: string }[];
     /** Tasks that will be drafted for the first time (no content in DB) */
     toDraft: { id: string; title: string }[];
     /** Tasks with existing content that will be REWRITTEN (manual override) */
@@ -40,7 +38,6 @@ export interface OrbPipelinePlan {
 
 const CREDIT_RATES = {
     research: 20,
-    outline: 5,
     draft: 10,
     rewrite: 10,
     humanize: 15,
@@ -51,7 +48,6 @@ const CREDIT_RATES = {
 function computeTotalCredits(plan: OrbPipelinePlan): number {
     return (
         plan.toResearch.length * CREDIT_RATES.research +
-        plan.toOutline.length * CREDIT_RATES.outline +
         plan.toDraft.length * CREDIT_RATES.draft +
         plan.toRewrite.length * CREDIT_RATES.rewrite +
         plan.toHumanize.length * CREDIT_RATES.humanize +
@@ -135,14 +131,12 @@ export default function OrbConfirmationModal({
     const totalCredits = plan ? computeTotalCredits(plan) : 0;
     const totalArticles =
         (plan?.toResearch.length ?? 0) +
-        (plan?.toOutline.length ?? 0) +
         (plan?.toDraft.length ?? 0) +
         (plan?.toRewrite.length ?? 0) +
         (plan?.toHumanize.length ?? 0);
 
     const hasAnything =
         (plan?.toResearch.length ?? 0) > 0 ||
-        (plan?.toOutline.length ?? 0) > 0 ||
         (plan?.toDraft.length ?? 0) > 0 ||
         (plan?.toRewrite.length ?? 0) > 0 ||
         (plan?.toHumanize.length ?? 0) > 0 ||
@@ -217,15 +211,6 @@ export default function OrbConfirmationModal({
                                                         count={plan.toResearch.length}
                                                         color="indigo"
                                                         credits={plan.toResearch.length * CREDIT_RATES.research}
-                                                    />
-                                                )}
-                                                {plan.toOutline.length > 0 && (
-                                                    <ActionRow
-                                                        icon={Sparkles}
-                                                        label="Generar outlines"
-                                                        count={plan.toOutline.length}
-                                                        color="cyan"
-                                                        credits={plan.toOutline.length * CREDIT_RATES.outline}
                                                     />
                                                 )}
                                                 {plan.toDraft.length > 0 && (

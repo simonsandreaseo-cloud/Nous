@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { ProjectStore, TaskActions } from './types';
 import { NotificationService } from '@/lib/services/notifications';
 import { Task } from '@/types/project';
+import { calculateSimilarity } from '@/utils/similarity';
 
 const LIGHT_TASK_COLUMNS = `
     id, project_id, title, brief, scheduled_date, status, content_type, priority, 
@@ -97,6 +98,32 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
         const taskId = (newTask as any).id || crypto.randomUUID();
+        
+        // --- DUPLICATE DETECTION FOR SINGLE TASKS ---
+        const existingTasks = get().tasks.filter(t => t.project_id === newTask.project_id);
+        const titleToCompare = newTask.title || '';
+        let hasExactMatch = false;
+        let hasSimilarMatch = false;
+
+        for (const existing of existingTasks) {
+            const similarity = calculateSimilarity(titleToCompare, existing.title || '');
+            if (similarity === 1) {
+                hasExactMatch = true;
+                break;
+            } else if (similarity >= 0.7) {
+                hasSimilarMatch = true;
+            }
+        }
+
+        if (hasExactMatch) {
+            NotificationService.error('Duplicado bloqueado', 'Ya existe un contenido con un título idéntico en este proyecto.');
+            return { data: null, error: new Error("Contenido duplicado bloqueado") };
+        }
+
+        if (hasSimilarMatch) {
+            NotificationService.warning('Posible duplicado', 'Has creado un contenido con un título muy similar a otro existente.');
+        }
+        // ----------------------------------------------
 
         // Prepare distributed data
         const taskData = {

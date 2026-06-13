@@ -6,6 +6,15 @@ import { Task } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectStore } from '@/store/useProjectStore';
+import { calculateSimilarity } from '@/utils/similarity';
+
+interface TaskConflict {
+    task: any;
+    type: 'exact' | 'similar';
+    similarToTitle: string;
+    similarityScore: number;
+    resolvedAction: 'keep' | 'discard';
+}
 
 interface SmartUploaderModalProps {
     isOpen: boolean;
@@ -121,7 +130,9 @@ const NOUS_FIELDS = [
 ];
 
 export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, onClose, projectId, onImportComplete }) => {
-    const [step, setStep] = useState<'upload' | 'analyzing' | 'mapping'>('upload');
+    const [step, setStep] = useState<'upload' | 'analyzing' | 'mapping' | 'conflict_resolution'>('upload');
+    const [conflicts, setConflicts] = useState<TaskConflict[]>([]);
+    const [validTasksToImport, setValidTasksToImport] = useState<any[]>([]);
     const [parsedData, setParsedData] = useState<ParsedData | null>(null);
     const [mapping, setMapping] = useState<Record<string, string>>({});
     const [isImporting, setIsImporting] = useState(false);
@@ -131,7 +142,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { user } = useAuthStore();
-    const { teamMembers } = useProjectStore();
+    const { teamMembers, tasks } = useProjectStore();
     
     const currentUserRole = teamMembers.find(m => m.user_id === user?.id)?.role;
     const canManageStatuses = currentUserRole === 'owner' || currentUserRole === 'partner' || currentUserRole === 'manager';
@@ -477,6 +488,57 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
             }
             // ----------------------------------------
 
+            // --- DUPLICATE DETECTION ---
+            const newConflicts: TaskConflict[] = [];
+            const safeTasks: any[] = [];
+            
+            tasksToImport.forEach(task => {
+                let exactMatch = null;
+                let similarMatch = null;
+                let highestSimilarity = 0;
+                
+                for (const existing of tasks) {
+                    const similarity = calculateSimilarity(task.title || '', existing.title || '');
+                    if (similarity === 1) {
+                        exactMatch = existing;
+                        break; // can't get higher
+                    }
+                    if (similarity >= 0.7 && similarity > highestSimilarity) {
+                        highestSimilarity = similarity;
+                        similarMatch = existing;
+                    }
+                }
+                
+                if (exactMatch) {
+                    newConflicts.push({
+                        task,
+                        type: 'exact',
+                        similarToTitle: exactMatch.title,
+                        similarityScore: 100,
+                        resolvedAction: 'discard'
+                    });
+                } else if (similarMatch) {
+                    newConflicts.push({
+                        task,
+                        type: 'similar',
+                        similarToTitle: similarMatch.title,
+                        similarityScore: Math.round(highestSimilarity * 100),
+                        resolvedAction: 'keep' // default warning behavior is to keep unless unchecked
+                    });
+                } else {
+                    safeTasks.push(task);
+                }
+            });
+            
+            if (newConflicts.length > 0) {
+                setConflicts(newConflicts);
+                setValidTasksToImport(safeTasks);
+                setStep('conflict_resolution');
+                setIsImporting(false);
+                return; // Stop here, wait for user resolution
+            }
+
+            // If no conflicts, proceed as normal
             onImportComplete(tasksToImport);
             NotificationService.success("Importación exitosa", `Se procesaron ${tasksToImport.length} filas.`);
             onClose();
@@ -588,6 +650,69 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                             </table>
                         </div>
                     )}
+
+                    {step === 'conflict_resolution' && (
+                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                            <div className="p-4 border-b border-slate-100 bg-red-50/50 flex items-start gap-3">
+                                <AlertTriangle size={18} className="text-red-500 mt-0.5 shrink-0" />
+                                <div>
+                                    <h4 className="text-sm font-bold text-red-800">Se detectaron posibles duplicados</h4>
+                                    <p className="text-xs text-red-700">Las tareas idénticas han sido bloqueadas automáticamente. Revisa las similares y decide si deseas importarlas de todos modos.</p>
+                                </div>
+                            </div>
+                            
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-medium">
+                                    <tr>
+                                        <th className="px-6 py-4 w-1/2">Tarea a Importar (CSV)</th>
+                                        <th className="px-6 py-4 w-1/3">Similitud / Conflicto</th>
+                                        <th className="px-6 py-4 w-1/6 text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {conflicts.map((conflict, idx) => (
+                                        <tr key={idx} className={`transition-colors ${conflict.type === 'exact' ? 'bg-red-50/30' : 'bg-amber-50/30'}`}>
+                                            <td className="px-6 py-4">
+                                                <div className="font-semibold text-slate-800 mb-1">{conflict.task.title}</div>
+                                                <div className="text-xs text-slate-500">
+                                                    Keyword: {conflict.task.target_keyword || 'N/A'}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${conflict.type === 'exact' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                        {conflict.type === 'exact' ? 'Exacto (100%)' : `Similar (${conflict.similarityScore}%)`}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-slate-600 truncate max-w-[250px]">
+                                                    vs: {conflict.similarToTitle}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {conflict.type === 'exact' ? (
+                                                    <span className="text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">Bloqueado</span>
+                                                ) : (
+                                                    <label className="flex items-center justify-center gap-2 cursor-pointer">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={conflict.resolvedAction === 'keep'}
+                                                            onChange={(e) => {
+                                                                const updated = [...conflicts];
+                                                                updated[idx].resolvedAction = e.target.checked ? 'keep' : 'discard';
+                                                                setConflicts(updated);
+                                                            }}
+                                                            className="rounded border-amber-300 text-amber-500 focus:ring-amber-500"
+                                                        />
+                                                        <span className="text-xs font-medium text-amber-700">Importar</span>
+                                                    </label>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -622,6 +747,49 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                             >
                                 {isImporting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                                 Confirmar e Importar
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {step === 'conflict_resolution' && (
+                    <div className="p-6 border-t border-slate-100 bg-white flex items-center justify-between">
+                        <div className="flex flex-col gap-1">
+                            <span className="text-sm text-slate-500 font-medium">
+                                {validTasksToImport.length + conflicts.filter(c => c.resolvedAction === 'keep').length} tareas finales a importar
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => {
+                                    setConflicts([]);
+                                    setValidTasksToImport([]);
+                                    setStep('mapping');
+                                }}
+                                disabled={isImporting}
+                                className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+                            >
+                                Volver al mapeo
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    const finalTasks = [
+                                        ...validTasksToImport,
+                                        ...conflicts.filter(c => c.resolvedAction === 'keep').map(c => c.task)
+                                    ];
+                                    if (finalTasks.length === 0) {
+                                        NotificationService.warning("No hay tareas para importar", "Todas las tareas fueron bloqueadas o descartadas.");
+                                        onClose();
+                                        return;
+                                    }
+                                    onImportComplete(finalTasks);
+                                    NotificationService.success("Importación exitosa", `Se procesaron ${finalTasks.length} filas.`);
+                                    onClose();
+                                }}
+                                disabled={isImporting}
+                                className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-200"
+                            >
+                                Continuar con la Importación
                             </button>
                         </div>
                     </div>

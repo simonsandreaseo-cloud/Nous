@@ -540,11 +540,6 @@ export function EditorialCalendar() {
                     ? targetTasks.filter(t => isManualSelection || !RESEARCHED_STATUSES.includes(t.status))
                     : [];
                 
-                // Cascade: Outline items if they are already researched or if they WILL be researched in this run.
-                const planToOutline = (draft || research)
-                    ? targetTasks.filter(t => isManualSelection || t.status === 'en_investigacion' || (research && !RESEARCHED_STATUSES.includes(t.status)))
-                    : [];
-                
                 // Draft items that don't have content.
                 const planToDraft = draft
                     ? targetTasks.filter(t => !tasksWithContent.has(t.id))
@@ -567,7 +562,6 @@ export function EditorialCalendar() {
 
                 const plan: OrbPipelinePlan = {
                     toResearch: planToResearch.map(t => ({ id: t.id, title: t.title })),
-                    toOutline: planToOutline.map(t => ({ id: t.id, title: t.title })),
                     toDraft: planToDraft.map(t => ({ id: t.id, title: t.title })),
                     toRewrite: planToRewrite.map(t => ({ id: t.id, title: t.title })),
                     toHumanize: planToHumanize.map(t => ({ id: t.id, title: t.title })),
@@ -592,14 +586,14 @@ export function EditorialCalendar() {
                 const tasksWithContent = new Set(_tasksWithContent || []);
                 const targetTasks = _targetTasks || [];
 
-                const activePhases = [research, draft || research, draft, humanize, translate].filter(Boolean).length;
+                const activePhases = [research, draft, humanize, translate].filter(Boolean).length;
                 const phaseWeight = 100 / (activePhases || 1);
                 let currentPhaseIndex = 0;
 
                 if (research) {
                     const toResearch = (_plan?.toResearch || []).map((p: any) => targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
                     if (toResearch.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase 1/5: Investigando ${toResearch.length} contenidos...`);
+                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Investigando ${toResearch.length} contenidos...`);
                         let pCount = 0;
                         for (const t of toResearch) {
                             setBatchResearchStatus(prev => ({ ...prev, [t.id]: 5 }));
@@ -636,29 +630,6 @@ export function EditorialCalendar() {
                     currentPhaseIndex++;
                 }
 
-                if (draft || research) {
-                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
-                    const toOutline = (_plan?.toOutline || []).map((p: any) => latestTasks.find(t => t.id === p.id)).filter(Boolean) as Task[];
-                    if (toOutline.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase 2/5: Generando arquitectura (Outlines) para ${toOutline.length} artículos...`);
-                        const phaseBase = currentPhaseIndex * phaseWeight;
-                        let pCount = 0;
-                        for (const t of toOutline) {
-                            const res = await processTaskOutlineAction(t.id, csvData);
-                            if (res.success && res.updates) {
-                                updateTask(t.id, res.updates);
-                                onLog(t.id, 'Outline', res.msg!);
-                            } else {
-                                onLog(t.id, 'Error', `❌ Error: ${res.error}`);
-                            }
-                            pCount++;
-                            setResearchProgress(phaseBase + ((pCount / toOutline.length) * phaseWeight));
-                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
-                        }
-                    }
-                    currentPhaseIndex++;
-                }
-
                 if (draft) {
                     const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
                     // toDraft = no content in DB (confirmed by pre-check)
@@ -667,7 +638,7 @@ export function EditorialCalendar() {
                     const toRewrite = (_plan?.toRewrite || []).map((p: any) => latestTasks.find(t => t.id === p.id) || targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
                     const allToDraft = [...toDraft, ...toRewrite];
                     if (allToDraft.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase 3/5: Redactando ${toDraft.length} + Reescribiendo ${toRewrite.length} contenidos...`);
+                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Redactando ${toDraft.length} + Reescribiendo ${toRewrite.length} contenidos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
                         let pCount = 0;
                         for (const t of allToDraft) {
@@ -688,7 +659,7 @@ export function EditorialCalendar() {
                     const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
                     const toHumanize = (_plan?.toHumanize || []).map((p: any) => latestTasks.find(t => t.id === p.id) || targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
                     if (toHumanize.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase 4/5: Humanizando ${toHumanize.length} artículos...`);
+                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Humanizando ${toHumanize.length} artículos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
                         let pCount = 0;
                         for (const t of toHumanize) {
@@ -709,7 +680,7 @@ export function EditorialCalendar() {
                     const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
                     const targetLangs = activeProject.i18n_settings?.languages || [];
                     if (targetLangs.length > 0 && latestTasks.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase 5/5: Traduciendo a ${targetLangs.length} idiomas...`);
+                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Traduciendo a ${targetLangs.length} idiomas...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;
                         let pCount = 0;
                         for (const t of latestTasks) {

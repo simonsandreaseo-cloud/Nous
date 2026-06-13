@@ -151,3 +151,10 @@ Las acciones masivas (ej: redacci贸n masiva, humanizaci贸n masiva) se completaba
 1. **Limpieza del Upsert:** Removido el campo `updated_at` en el upsert de `task_contents` dentro de `src/lib/services/writer/pipeline.ts`.
 2. **Control de Errores de Estado:** Refactorizado `EditorialCalendar.tsx` para que asigne un valor de `-1` (Error) en `batchResearchStatus` si ocurre un fallo en los pipelines de redacci贸n o humanizaci贸n, y se eliminaron las asignaciones incondicionales a `100` en los flujos excepcionales.
 3. **Indicador Visual de Error:** Modificado `StrategyGrid.tsx` para interceptar el progreso `-1` (Error), renderizar un indicador de advertencia ("Acci贸n fallida") con color rojo, y resaltar la fila de la tabla afectada.
+## Fixed Duplicate Detection in Tasks (Planner)
+
+- **Date:** 2026-06-13
+- **What:** Added duplicate detection during task creation (manual and CSV). Exact matches are blocked, and 70-99% matches are warned.
+- **Why:** To prevent overlapping topics and content cannibalization.
+- **How:** Used a local S鴕ensen-Dice coefficient algorithm (src/utils/similarity.ts) instead of semantic embeddings to keep it fast and token-free.
+- **Files changed:** SmartUploaderModal.tsx, task-slice.ts, similarity.ts
