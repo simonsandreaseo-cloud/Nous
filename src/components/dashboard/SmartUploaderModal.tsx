@@ -23,11 +23,10 @@ interface SmartUploaderModalProps {
     onImportComplete: (tasks: any[]) => void;
 }
 
-const parseSmartDate = (val: any): { date: string, mode: 'exact' | 'month' } | null => {
+const parseSmartDate = (val: any, customRegexStr?: string, customMode: 'auto' | 'exact' | 'month' = 'auto'): { date: string, mode: 'exact' | 'month' } | null => {
     if (!val) return null;
     let str = String(val).toLowerCase().trim();
     
-    // 1. Try regex for "Mes Año" or "Mes de Año" (e.g. "junio 2026")
     const monthNames: Record<string, number> = {
         'enero': 0, 'january': 0, 'jan': 0,
         'febrero': 1, 'february': 1, 'feb': 1,
@@ -42,6 +41,45 @@ const parseSmartDate = (val: any): { date: string, mode: 'exact' | 'month' } | n
         'noviembre': 10, 'november': 10, 'nov': 10,
         'diciembre': 11, 'december': 11, 'dec': 11
     };
+
+    if (customRegexStr) {
+        try {
+            const regex = new RegExp(customRegexStr, 'i');
+            const match = str.match(regex);
+            if (match && match.groups) {
+                let year = new Date().getFullYear();
+                const yearStr = match.groups.year || match.groups.ano || match.groups.anio;
+                if (yearStr) {
+                    year = parseInt(yearStr, 10);
+                    if (year < 100) year += 2000;
+                }
+                
+                let monthIndex = 0;
+                const monthStr = match.groups.month || match.groups.mes;
+                if (monthStr) {
+                    if (!isNaN(parseInt(monthStr, 10))) {
+                        monthIndex = parseInt(monthStr, 10) - 1;
+                    } else if (monthNames[monthStr] !== undefined) {
+                        monthIndex = monthNames[monthStr];
+                    }
+                }
+                
+                let day = 1;
+                const dayStr = match.groups.day || match.groups.dia;
+                if (dayStr) {
+                    day = parseInt(dayStr, 10);
+                }
+                
+                const d = new Date(Date.UTC(year, monthIndex, day));
+                const finalMode = customMode !== 'auto' ? customMode : (dayStr ? 'exact' : 'month');
+                return { date: d.toISOString().split('T')[0], mode: finalMode as any };
+            }
+        } catch (e) {
+            console.warn("Regex custom date ignorada por error de sintaxis", e);
+        }
+    }
+
+    // 1. Try regex for "Mes Año" or "Mes de Año" (e.g. "junio 2026")
 
     const monthYearRegex = /^([a-z]+)[\sde]+(\d{4}|\d{2})$/i;
     const match = str.match(monthYearRegex);
@@ -136,6 +174,8 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
     const [parsedData, setParsedData] = useState<ParsedData | null>(null);
     const [mapping, setMapping] = useState<Record<string, string>>({});
     const [dateMetadata, setDateMetadata] = useState<any>(null);
+    const [customDateRegex, setCustomDateRegex] = useState<string>('');
+    const [customDateMode, setCustomDateMode] = useState<'auto' | 'exact' | 'month'>('auto');
     const [isImporting, setIsImporting] = useState(false);
     const [autoCreateProjects, setAutoCreateProjects] = useState(true);
     const [autoCreateMembers, setAutoCreateMembers] = useState(true);
@@ -198,6 +238,9 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
             setMapping(initialMapping);
             if (responseData.dateMetadata) {
                 setDateMetadata(responseData.dateMetadata);
+                if (responseData.dateMetadata.suggestedRegex) {
+                    setCustomDateRegex(responseData.dateMetadata.suggestedRegex);
+                }
             } else {
                 setDateMetadata(null);
             }
@@ -425,7 +468,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                                 task[targetField] = String(value).trim();
                             }
                         } else if (targetField === 'scheduled_date') {
-                            const parsed = parseSmartDate(value);
+                            const parsed = parseSmartDate(value, customDateRegex, customDateMode);
                             if (parsed) {
                                 task[targetField] = parsed.date;
                                 task.date_mode = parsed.mode;
@@ -620,11 +663,40 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                             </div>
                             
                             {dateMetadata && dateMetadata.hasDate && (
-                                <div className="p-4 border-b border-slate-100 bg-blue-50/50 flex items-start gap-3">
-                                    <div className="text-blue-500 mt-0.5 shrink-0 flex items-center justify-center bg-blue-100 rounded-full h-5 w-5 font-bold text-xs">i</div>
-                                    <div>
-                                        <h4 className="text-sm font-bold text-blue-800">Formato de Fecha Detectado: {dateMetadata.detectedFormat}</h4>
-                                        <p className="text-xs text-blue-700 mt-1">La IA ha analizado tus fechas y sugiere este formato. Nous usará el <strong>Modo Mes</strong> si tus fechas indican "mes año". Regex sugerida para desarrolladores: <code className="bg-blue-100 px-1 rounded">{dateMetadata.suggestedRegex || 'N/A'}</code></p>
+                                <div className="p-4 border-b border-slate-100 bg-blue-50/50 flex flex-col gap-3">
+                                    <div className="flex items-start gap-3">
+                                        <div className="text-blue-500 mt-0.5 shrink-0 flex items-center justify-center bg-blue-100 rounded-full h-5 w-5 font-bold text-xs">i</div>
+                                        <div>
+                                            <h4 className="text-sm font-bold text-blue-800">Ajuste de Formato de Fecha</h4>
+                                            <p className="text-xs text-blue-700 mt-1">
+                                                La IA detectó este formato: <strong>{dateMetadata.detectedFormat}</strong>.<br/>
+                                                Hemos pre-cargado la expresión regular para extraerla automáticamente, pero puedes ajustarla si hace falta.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="ml-8 flex items-end gap-3">
+                                        <div className="flex-1">
+                                            <label className="block text-[10px] font-bold text-blue-800 uppercase tracking-wider mb-1">Regex de Extracción (Grupos permitidos: ?&lt;year&gt;, ?&lt;month&gt;, ?&lt;day&gt;)</label>
+                                            <input 
+                                                type="text" 
+                                                value={customDateRegex}
+                                                onChange={e => setCustomDateRegex(e.target.value)}
+                                                placeholder="Ej: ^(?<month>[a-zA-Z]+)\s+(?<year>\d{4})$"
+                                                className="w-full p-2 rounded-lg border border-blue-200 text-xs font-mono bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            />
+                                        </div>
+                                        <div className="w-40">
+                                            <label className="block text-[10px] font-bold text-blue-800 uppercase tracking-wider mb-1">Modo de Fecha</label>
+                                            <select 
+                                                value={customDateMode}
+                                                onChange={e => setCustomDateMode(e.target.value as any)}
+                                                className="w-full p-2 rounded-lg border border-blue-200 text-xs bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            >
+                                                <option value="auto">Automático</option>
+                                                <option value="month">Solo Mes</option>
+                                                <option value="exact">Día Exacto</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                             )}
