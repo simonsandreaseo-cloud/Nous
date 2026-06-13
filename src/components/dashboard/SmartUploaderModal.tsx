@@ -135,6 +135,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
     const [validTasksToImport, setValidTasksToImport] = useState<any[]>([]);
     const [parsedData, setParsedData] = useState<ParsedData | null>(null);
     const [mapping, setMapping] = useState<Record<string, string>>({});
+    const [dateMetadata, setDateMetadata] = useState<any>(null);
     const [isImporting, setIsImporting] = useState(false);
     const [autoCreateProjects, setAutoCreateProjects] = useState(true);
     const [autoCreateMembers, setAutoCreateMembers] = useState(true);
@@ -195,6 +196,11 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
             }
 
             setMapping(initialMapping);
+            if (responseData.dateMetadata) {
+                setDateMetadata(responseData.dateMetadata);
+            } else {
+                setDateMetadata(null);
+            }
             setStep('mapping');
             NotificationService.success("Análisis completado", "La IA ha sugerido un mapeo. Por favor, revísalo.");
 
@@ -613,6 +619,16 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                                 </div>
                             </div>
                             
+                            {dateMetadata && (
+                                <div className="p-4 border-b border-slate-100 bg-blue-50/50 flex items-start gap-3">
+                                    <div className="text-blue-500 mt-0.5 shrink-0 flex items-center justify-center bg-blue-100 rounded-full h-5 w-5 font-bold text-xs">i</div>
+                                    <div>
+                                        <h4 className="text-sm font-bold text-blue-800">Formato de Fecha Detectado: {dateMetadata.detectedFormat}</h4>
+                                        <p className="text-xs text-blue-700 mt-1">La IA ha analizado tus fechas y sugiere este formato. Nous usará el <strong>Modo Mes</strong> si tus fechas indican "mes año". Regex sugerida para desarrolladores: <code className="bg-blue-100 px-1 rounded">{dateMetadata.suggestedRegex || 'N/A'}</code></p>
+                                    </div>
+                                </div>
+                            )}
+
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-medium">
                                     <tr>

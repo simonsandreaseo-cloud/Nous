@@ -62,7 +62,7 @@ ESQUEMA DE BASE DE DATOS (NOUS TASK TABLE):
 - "language": Idioma del contenido (ej: es, en).
 - "observaciones": Observaciones, enfoque particular, o directivas específicas para la IA.
 - "project_name": Nombre del proyecto al que pertenece la fila (útil para archivos multi-proyecto).
-- "scheduled_date": Fecha programada de publicación (YYYY-MM-DD o similar).
+- "scheduled_date": Fecha programada de publicación. Puede ser exacta (YYYY-MM-DD) o aproximada por mes (ej: "junio 2026", "06/2026", "Enero"). Si la columna indica meses o fechas, es este campo.
 
 INSTRUCCIONES:
 El usuario subió un archivo con los siguientes encabezados: ${JSON.stringify(headers)}
@@ -71,13 +71,23 @@ ${JSON.stringify(sampleRows, null, 2)}
 
 Tu tarea es deducir qué encabezado de la tabla del usuario corresponde a cada campo de nuestra base de datos basándote TANTO en el nombre del encabezado como en su CONTENIDO REAL (si una columna se llama "Varios" pero tiene URLs, es una URL).
 
-Devuelve UNICAMENTE un objeto JSON donde las CLAVES sean los nombres exactos de los encabezados del usuario, y los VALORES sean el nombre del campo en nuestro esquema. 
-Si una columna del usuario no sirve o no se mapea a nada de nuestro esquema, su valor debe ser null.
+Devuelve UNICAMENTE un objeto JSON con la siguiente estructura:
+1. "mapping": donde las CLAVES sean los nombres exactos de los encabezados del usuario, y los VALORES sean el nombre del campo en nuestro esquema (o null si no mapea).
+2. "dateMetadata": (Opcional) Si detectaste una columna que mapeaste a "scheduled_date", incluye información de cómo está formateada esa columna en el CSV del usuario, y proporciona una pequeña sugerencia (regex) de cómo debería leerse.
+
 Ejemplo de salida:
 {
-  "Palabra clave": "target_keyword",
-  "URL_Target": "associated_url",
-  "Mi Columna Rara": null
+  "mapping": {
+    "Palabra clave": "target_keyword",
+    "URL_Target": "associated_url",
+    "Mes": "scheduled_date",
+    "Mi Columna Rara": null
+  },
+  "dateMetadata": {
+    "detectedFormat": "mes año (ej: junio 2026)",
+    "suggestedRegex": "^(?<mes>[a-zA-Z]+)\\\\s+(?<year>\\\\d{4})$",
+    "isMonthMode": true
+  }
 }
 `;
         }
@@ -92,17 +102,25 @@ Ejemplo de salida:
         });
 
         // Intentar parsear el JSON de la IA de forma segura
-        let mapping = {};
+        let aiResult: any = {};
         try {
             // Eliminar markdown ```json
             const raw = response.text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-            mapping = JSON.parse(raw);
+            aiResult = JSON.parse(raw);
         } catch (err) {
             console.error("Error parseando respuesta JSON de IA:", err, response.text);
             return NextResponse.json({ error: "La IA no devolvió un JSON válido.", raw: response.text }, { status: 500 });
         }
 
-        return NextResponse.json({ mapping });
+        // Compatibilidad hacia atrás: si la IA devolvió el mapeo plano, envolverlo
+        if (!aiResult.mapping && Object.keys(aiResult).length > 0 && typeof aiResult[Object.keys(aiResult)[0]] === 'string') {
+            aiResult = { mapping: aiResult };
+        }
+
+        return NextResponse.json({ 
+            mapping: aiResult.mapping || {},
+            dateMetadata: aiResult.dateMetadata || null
+        });
 
     } catch (error: any) {
         console.error("Error en map-columns API:", error);

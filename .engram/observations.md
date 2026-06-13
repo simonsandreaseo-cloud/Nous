@@ -158,3 +158,10 @@ Las acciones masivas (ej: redacción masiva, humanización masiva) se completaba
 - **Why:** To prevent overlapping topics and content cannibalization.
 - **How:** Used a local S�rensen-Dice coefficient algorithm (src/utils/similarity.ts) instead of semantic embeddings to keep it fast and token-free.
 - **Files changed:** SmartUploaderModal.tsx, task-slice.ts, similarity.ts
+
+## Fixed Smart Date Detection in CSV Upload
+
+- **Date:** 2026-06-13
+- **What:** Updated the Gemini prompt in /api/ai/map-columns/route.ts so it maps columns with month-based dates (e.g., 'junio 2026') to scheduled_date and returns dateMetadata with regex formatting suggestions. Displayed this metadata in the SmartUploaderModal.tsx UI.
+- **Why:** The AI was previously ignoring 'Mes' columns because the prompt strictly requested 'YYYY-MM-DD'.
+- **How:** Relaxed the AI prompt, requested structured date metadata, and added a blue alert banner in the mapping step UI. Frontend's parseSmartDate already handled the actual string parsing correctly.
