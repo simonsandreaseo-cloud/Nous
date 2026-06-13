@@ -833,3 +833,48 @@ export const runTranslationAction = async (
 export const executeTranslationAction = async (prompt: string, targetLanguageName: string): Promise<string> => {
     return executeTranslation(prompt, targetLanguageName);
 };
+
+export const runContentCleaning = async (html: string, onStatus?: (msg: string) => void): Promise<string> => {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else console.log(`[Content-Cleaning] ${msg}`);
+    };
+
+    safeStatus('Iniciando limpieza inteligente del contenido (eliminando ruido IA)...');
+
+    try {
+        const cleanContent = await executeWithKeyRotation(async (ai, currentModel) => {
+            const modelObj = ai.getGenerativeModel({
+                model: currentModel || 'gemini-3.5-flash',
+                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nEres un editor estricto y determinista. Tu única tarea es eliminar de este artículo HTML cualquier introducción robótica, prefacio tipo 'Aquí tienes el artículo...', conclusiones innecesarias o ruido que no pertenezca estrictamente al contenido de valor del artículo. Mantén TODAS las etiquetas HTML estructurales (h2, p, ul, a, img, etc.). Devuelve únicamente un objeto JSON con 'razonamiento_interno' y 'html'.`,
+                generationConfig: {
+                    temperature: 0.1,
+                }
+            });
+
+            const prompt = `Limpia el siguiente HTML para dejar SOLO el contenido valioso, sin prefacios ni despedidas generadas por IA. No resumas, solo amuta los extremos irrelevantes si existen.\n\nARTÍCULO HTML:\n${html}`;
+
+            const response = await modelObj.generateContent(prompt);
+            let raw = response.response.text();
+
+            const jsonStart = raw.indexOf('{');
+            const jsonEnd = raw.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                raw = raw.substring(jsonStart, jsonEnd + 1);
+            }
+
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed.html || html;
+            } catch (e) {
+                return html;
+            }
+        }, 'gemini-3.5-flash', undefined, undefined, undefined, true, 'Limpieza Contenido');
+
+        safeStatus('✅ Limpieza completada.');
+        return cleanContent;
+    } catch (e: any) {
+        safeStatus(`⚠️ Error en limpieza: ${e.message}. Devolviendo original.`);
+        return html;
+    }
+};

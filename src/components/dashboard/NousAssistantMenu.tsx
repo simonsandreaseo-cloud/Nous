@@ -20,7 +20,7 @@ interface NousAssistantMenuProps {
     viewMode?: 'planner' | 'writer';
     tasks?: Task[];
     onAction?: (actionType: string, config?: any) => void;
-    onWriterAction?: (actionType: 'seo' | 'outline' | 'generate' | 'refine' | 'humanize') => void;
+    onWriterAction?: (actionType: 'seo' | 'outline' | 'generate' | 'refine' | 'humanize' | 'clean') => void;
     isProcessing?: boolean;
     processingProgress?: number;
     selectedCount?: number;
@@ -50,6 +50,7 @@ export default function NousAssistantMenu({
     const [pipelineResearch, setPipelineResearch] = useState(true);
     const [pipelineDraft, setPipelineDraft] = useState(true);
     const [pipelineHumanize, setPipelineHumanize] = useState(false);
+    const [pipelineClean, setPipelineClean] = useState(false);
     const [pipelineTranslate, setPipelineTranslate] = useState(false);
     const [pipelineFinalStatus, setPipelineFinalStatus] = useState<'por_corregir' | 'en_redaccion' | 'por_maquetar' | 'publicado'>('por_corregir');
 
@@ -193,6 +194,16 @@ export default function NousAssistantMenu({
                                 disabled={effectiveIsProcessing}
                             />
                         </div>
+                        
+                        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
+                            <ActionButton 
+                                icon={Sparkles} 
+                                label="Limpiar Ruido IA" 
+                                color="indigo"
+                                onClick={() => onWriterAction?.('clean')}
+                                disabled={effectiveIsProcessing}
+                            />
+                        </div>
                     </div>
                 </>
             )}
@@ -238,10 +249,20 @@ export default function NousAssistantMenu({
                             color="emerald"
                         />
 
+                        <PipelineToggle 
+                            icon={Sparkles}
+                            title="4. Limpieza Inteligente"
+                            desc="Eliminar prefacios, conclusiones robóticas y ruido de IA del HTML."
+                            active={pipelineClean}
+                            onToggle={() => setPipelineClean(!pipelineClean)}
+                            count={effectiveSelectedCount > 0 ? effectiveSelectedCount : stats.needHuman}
+                            color="indigo"
+                        />
+
                         {i18nLanguages.length > 0 && (
                             <PipelineToggle 
                                 icon={Globe}
-                                title="4. Traducir Contenido"
+                                title="5. Traducir Contenido"
                                 desc={`Generar versiones en ${i18nLanguages.length} idiomas configurados.`}
                                 active={pipelineTranslate}
                                 onToggle={() => setPipelineTranslate(!pipelineTranslate)}
@@ -281,6 +302,7 @@ export default function NousAssistantMenu({
                                     research: pipelineResearch,
                                     draft: pipelineDraft,
                                     humanize: pipelineHumanize,
+                                    clean: pipelineClean,
                                     translate: pipelineTranslate,
                                     finalStatus: pipelineFinalStatus
                                 });

@@ -62,6 +62,7 @@ import NousOrb from "./NousOrb";
 import { SmartUploaderModal } from "./SmartUploaderModal";
 import SmartSlugGeneratorModal from "./SmartSlugGeneratorModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
+import { runContentCleaning } from '@/lib/actions/aiActions';
 import { 
     processTaskOutlineAction,
     prepareTaskDraftAction,
@@ -344,6 +345,28 @@ export function EditorialCalendar() {
         }
     };
 
+    const runTaskCleanPipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
+        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 50 }));
+        try {
+            const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+            const content = taskContent?.content_body || task.content_body;
+            if (!content) throw new Error("No hay contenido para limpiar.");
+
+            onLog(task.id, 'Limpieza', 'Iniciando limpieza inteligente...');
+            const cleanHtml = await runContentCleaning(content, (msg) => onLog(task.id, 'Limpieza', msg));
+
+            const { error } = await supabase.from('task_contents').upsert({ id: task.id, content_body: cleanHtml });
+            if (error) throw error;
+
+            updateTask(task.id, { status: task.status }); // Trigger refresh
+            setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
+        } catch (e: any) {
+            setBatchResearchStatus(prev => ({ ...prev, [task.id]: -1 }));
+            onLog(task.id, 'Error', `❌ Error limpieza: ${e.message}`);
+            throw e;
+        }
+    };
+
     const handleUnitAction = async (taskId: string, action: string) => {
         if (!activeProject) return;
         const task = tasks.find(t => t.id === taskId);
@@ -582,11 +605,11 @@ export function EditorialCalendar() {
 
             // ── Actual pipeline execution (called after modal confirm) ──
             if (action === '__execute_batch_pipeline__') {
-                const { research, draft, humanize, translate, finalStatus, _plan, _targetTasks, _tasksWithContent } = config || {};
+                const { research, draft, humanize, clean, translate, finalStatus, _plan, _targetTasks, _tasksWithContent } = config || {};
                 const tasksWithContent = new Set(_tasksWithContent || []);
                 const targetTasks = _targetTasks || [];
 
-                const activePhases = [research, draft, humanize, translate].filter(Boolean).length;
+                const activePhases = [research, draft, humanize, clean, translate].filter(Boolean).length;
                 const phaseWeight = 100 / (activePhases || 1);
                 let currentPhaseIndex = 0;
 
@@ -671,6 +694,27 @@ export function EditorialCalendar() {
                             }
                             pCount++;
                             setResearchProgress(phaseBase + ((pCount / toHumanize.length) * phaseWeight));
+                        }
+                    }
+                    currentPhaseIndex++;
+                }
+
+                if (clean) {
+                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
+                    const toClean = latestTasks.filter(t => tasksWithContent.has(t.id) || t.content_body || t.status === 'por_corregir' || t.status === 'redactado');
+                    if (toClean.length > 0) {
+                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Limpiando ${toClean.length} artículos...`);
+                        const phaseBase = currentPhaseIndex * phaseWeight;
+                        let pCount = 0;
+                        for (const t of toClean) {
+                            try {
+                                await runTaskCleanPipeline(t, onLog);
+                            } catch (e: any) {
+                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
+                                onLog(t.id, 'Error', `❌ Error: ${e.message}`);
+                            }
+                            pCount++;
+                            setResearchProgress(phaseBase + ((pCount / toClean.length) * phaseWeight));
                         }
                     }
                     currentPhaseIndex++;

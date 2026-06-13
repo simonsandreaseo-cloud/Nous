@@ -6,6 +6,7 @@ import {
     generateArticleJSON, 
     runSEOPostProcessor,
     refineArticleContent, 
+    runContentCleaning,
     ArticleConfig 
 } from '@/lib/actions/aiActions';
 import { 
@@ -512,12 +513,39 @@ export function useWriterActions() {
         }
     }, [store, hasAccess]);
 
+    // --- Clean ---
+    const handleClean = useCallback(async () => {
+        if (!hasAccess) return alert('No tienes permisos.');
+        if (!store.content) return;
+        
+        store.setRefining(true);
+        store.setStatus('Limpiando ruido IA del artículo…');
+        try {
+            const cleanHtml = await runContentCleaning(store.content, (msg) => store.setStatus(msg));
+            
+            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+            
+            useWriterStore.setState({
+                content: cleanHtml,
+                statusMessage: '✅ ¡Limpieza mágica aplicada!'
+            } as any);
+
+            store.addDebugPrompt('Limpieza Completada', `Ruido IA eliminado con éxito`, cleanHtml.substring(0, 1000));
+        } catch (e: any) {
+            console.error(e);
+            store.setStatus('❌ Error en limpieza: ' + e.message);
+        } finally {
+            store.setRefining(false);
+        }
+    }, [store, hasAccess]);
+
     return {
         handleSEO,
         handleRegenerateOutline,
         handleGenerate,
         handleHumanize,
         handleRefine,
+        handleClean,
         isLocalConnected,
         setIsLocalConnected,
         hasAccess

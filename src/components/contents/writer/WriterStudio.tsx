@@ -346,7 +346,7 @@ export default function WriterStudio() {
     };
     
     const presenceBuffer = useRef<Record<string, { user: any, lastSeen: number }>>({});
-    const { handleSEO, handleGenerate, handleHumanize, handleRefine } = useWriterActions();
+    const { handleSEO, handleGenerate, handleHumanize, handleRefine, handleClean } = useWriterActions();
     const isProcessingAny = isGenerating || isAnalyzingSEO || isPlanningStructure || isHumanizing || isRefining;
     const { user: localUser } = useAuthStore();
 
@@ -763,7 +763,7 @@ export default function WriterStudio() {
                                           variant="header" 
                                           viewMode="writer" 
                                           isProcessing={isProcessingAny} 
-                                          onWriterAction={(type) => { if (type === 'seo') handleSEO(); if (type === 'generate') handleGenerate(); if (type === 'humanize') handleHumanize(); if (type === 'refine') handleRefine(); }} 
+                                          onWriterAction={(type) => { if (type === 'seo') handleSEO(); if (type === 'generate') handleGenerate(); if (type === 'humanize') handleHumanize(); if (type === 'refine') handleRefine(); if (type === 'clean') handleClean(); }} 
                                       />
                                   </div>
                                   <div className="flex-1 overflow-hidden">
@@ -779,6 +779,7 @@ export default function WriterStudio() {
                                                    handleHumanize(); 
                                                } 
                                                if (type === 'refine') handleRefine(); 
+                                               if (type === 'clean') handleClean();
                                            }} 
                                        />
                                   </div>
