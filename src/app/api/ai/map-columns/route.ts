@@ -71,11 +71,20 @@ ${JSON.stringify(sampleRows, null, 2)}
 
 Tu tarea es deducir qué encabezado de la tabla del usuario corresponde a cada campo de nuestra base de datos basándote TANTO en el nombre del encabezado como en su CONTENIDO REAL (si una columna se llama "Varios" pero tiene URLs, es una URL).
 
-Devuelve UNICAMENTE un objeto JSON con la siguiente estructura:
-1. "mapping": donde las CLAVES sean los nombres exactos de los encabezados del usuario, y los VALORES sean el nombre del campo en nuestro esquema (o null si no mapea).
-2. "dateMetadata": (Opcional) Si detectaste una columna que mapeaste a "scheduled_date", incluye información de cómo está formateada esa columna en el CSV del usuario, y proporciona una pequeña sugerencia (regex) de cómo debería leerse.
+Devuelve UNICAMENTE un objeto JSON con EXACTAMENTE la siguiente estructura, sin agregar texto adicional:
+{
+  "mapping": {
+    "Encabezado 1 del usuario": "nombre_campo_nous",
+    "Encabezado 2 del usuario": null
+  },
+  "dateMetadata": {
+    "hasDate": true, // true si detectaste alguna columna de fecha
+    "detectedFormat": "mes año (ej: junio 2026)", // El formato detectado o null
+    "suggestedRegex": "^(?<mes>[a-zA-Z]+)\\\\s+(?<year>\\\\d{4})$" // Regex sugerida o null
+  }
+}
 
-Ejemplo de salida:
+Ejemplo de salida realista:
 {
   "mapping": {
     "Palabra clave": "target_keyword",
@@ -84,9 +93,9 @@ Ejemplo de salida:
     "Mi Columna Rara": null
   },
   "dateMetadata": {
+    "hasDate": true,
     "detectedFormat": "mes año (ej: junio 2026)",
-    "suggestedRegex": "^(?<mes>[a-zA-Z]+)\\\\s+(?<year>\\\\d{4})$",
-    "isMonthMode": true
+    "suggestedRegex": "^([a-zA-Z]+)\\\\s+(\\\\d{4})$"
   }
 }
 `;

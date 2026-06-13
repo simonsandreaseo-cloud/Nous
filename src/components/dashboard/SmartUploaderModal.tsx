@@ -619,7 +619,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                                 </div>
                             </div>
                             
-                            {dateMetadata && (
+                            {dateMetadata && dateMetadata.hasDate && (
                                 <div className="p-4 border-b border-slate-100 bg-blue-50/50 flex items-start gap-3">
                                     <div className="text-blue-500 mt-0.5 shrink-0 flex items-center justify-center bg-blue-100 rounded-full h-5 w-5 font-bold text-xs">i</div>
                                     <div>
