@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
         console.log(`[GROQ-PROXY] Ejecutando: ${model}...`);
         
-        const completion = await groq.chat.completions.create({
+        const requestPayload: any = {
             messages: [
                 { role: "system", content: systemPrompt || "Eres un experto en SEO." },
                 { role: "user", content: prompt }
@@ -28,7 +28,13 @@ export async function POST(req: Request) {
             temperature: 0.2,
             max_tokens: 4096,
             response_format: jsonResponse ? { type: "json_object" } : undefined,
-        });
+        };
+
+        if ((model || "").includes('gemma')) {
+            delete requestPayload.response_format;
+        }
+
+        const completion = await groq.chat.completions.create(requestPayload);
 
         const result = completion.choices[0]?.message?.content || "";
         return NextResponse.json({ result, ok: true });

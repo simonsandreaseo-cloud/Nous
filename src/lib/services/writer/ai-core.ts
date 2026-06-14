@@ -29,13 +29,19 @@ class GroqGenerativeModelCompatibility {
             messages.push({ role: 'user', content: prompt });
         }
 
-        const completion = await this.groq.chat.completions.create({
+        const requestPayload: any = {
             messages,
             model: this.model,
             temperature: req.generationConfig?.temperature ?? 0.7,
             max_tokens: req.generationConfig?.maxOutputTokens ?? 4096,
             response_format: req.generationConfig?.responseMimeType === 'application/json' ? { type: 'json_object' } : undefined
-        });
+        };
+
+        if (this.model.includes('gemma')) {
+            delete requestPayload.response_format;
+        }
+
+        const completion = await this.groq.chat.completions.create(requestPayload);
 
         return {
             response: {
@@ -114,13 +120,19 @@ class OpenRouterGenerativeModelCompatibility {
             messages.push({ role: 'user', content: prompt });
         }
 
-        const completion = await this.client.chat.completions.create({
+        const requestPayload: any = {
             model: this.model,
             messages,
             temperature: req.generationConfig?.temperature ?? 0.7,
             max_tokens: req.generationConfig?.maxOutputTokens ?? 4096,
             response_format: req.generationConfig?.responseMimeType === 'application/json' ? { type: 'json_object' } : undefined
-        });
+        };
+
+        if (this.model.includes('gemma')) {
+            delete requestPayload.response_format;
+        }
+
+        const completion = await this.client.chat.completions.create(requestPayload);
 
         return {
             response: {
@@ -158,13 +170,19 @@ class CerebrasGenerativeModelCompatibility {
             messages.push({ role: 'user', content: prompt });
         }
 
-        const completion = await this.client.chat.completions.create({
+        const requestPayload: any = {
             model: this.model,
             messages,
             temperature: req.generationConfig?.temperature ?? 0.7,
             max_tokens: req.generationConfig?.maxOutputTokens ?? 4096,
             response_format: req.generationConfig?.responseMimeType === 'application/json' ? { type: 'json_object' } : undefined
-        });
+        };
+
+        if (this.model.includes('gemma')) {
+            delete requestPayload.response_format;
+        }
+
+        const completion = await this.client.chat.completions.create(requestPayload);
 
         return {
             response: {
@@ -329,7 +347,38 @@ export const executeWithKeyRotation = async <T>(
             try {
                 let client: any;
                 if (step.provider === 'google') {
-                    client = new GoogleGenerativeAI(apiKey);
+                    const rawGoogleClient = new GoogleGenerativeAI(apiKey);
+                    client = {
+                        getGenerativeModel: (config: any) => {
+                            if (config.model.includes('gemma')) {
+                                const newConfig = { ...config };
+                                const sysInst = newConfig.systemInstruction;
+                                delete newConfig.systemInstruction;
+                                if (newConfig.generationConfig) {
+                                    delete newConfig.generationConfig.responseSchema;
+                                    delete newConfig.generationConfig.responseMimeType;
+                                }
+                                const nativeModel = rawGoogleClient.getGenerativeModel(newConfig);
+                                return {
+                                    generateContent: async (prompt: any) => {
+                                        let finalPrompt = prompt;
+                                        if (sysInst && typeof prompt === 'string') {
+                                            finalPrompt = `${sysInst}\n\n${prompt}`;
+                                        }
+                                        return nativeModel.generateContent(finalPrompt);
+                                    },
+                                    generateContentStream: async (prompt: any) => {
+                                        let finalPrompt = prompt;
+                                        if (sysInst && typeof prompt === 'string') {
+                                            finalPrompt = `${sysInst}\n\n${prompt}`;
+                                        }
+                                        return nativeModel.generateContentStream(finalPrompt);
+                                    }
+                                };
+                            }
+                            return rawGoogleClient.getGenerativeModel(config);
+                        }
+                    };
                 } else if (step.provider === 'groq') {
                     const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
                     client = new GroqClientCompatibility(groq);
