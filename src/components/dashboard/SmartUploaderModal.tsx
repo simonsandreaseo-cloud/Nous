@@ -59,8 +59,11 @@ const parseSmartDate = (val: any, customRegexStr?: string, customMode: 'auto' | 
                 if (monthStr) {
                     if (!isNaN(parseInt(monthStr, 10))) {
                         monthIndex = parseInt(monthStr, 10) - 1;
-                    } else if (monthNames[monthStr] !== undefined) {
-                        monthIndex = monthNames[monthStr];
+                    } else {
+                        const monthLower = monthStr.toLowerCase();
+                        if (monthNames[monthLower] !== undefined) {
+                            monthIndex = monthNames[monthLower];
+                        }
                     }
                 }
                 

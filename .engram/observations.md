@@ -165,3 +165,13 @@ Las acciones masivas (ej: redacción masiva, humanización masiva) se completaba
 - **What:** Updated the Gemini prompt in /api/ai/map-columns/route.ts so it maps columns with month-based dates (e.g., 'junio 2026') to scheduled_date and returns dateMetadata with regex formatting suggestions. Displayed this metadata in the SmartUploaderModal.tsx UI.
 - **Why:** The AI was previously ignoring 'Mes' columns because the prompt strictly requested 'YYYY-MM-DD'.
 - **How:** Relaxed the AI prompt, requested structured date metadata, and added a blue alert banner in the mapping step UI. Frontend's parseSmartDate already handled the actual string parsing correctly.
+
+## mem_save: Bugfix - Case-insensitive month lookup in SmartUploaderModal
+- **title**: Fixed missing toLowerCase() in month lookup
+- **type**: bugfix
+- **scope**: project
+- **content**:
+  - **What**: Added toLowerCase() before looking up month strings in monthNames dictionary.
+  - **Why**: Regex with 'i' flag matches capitalized months (e.g., 'Marzo') but the original string case is preserved in capture groups. The dictionary only contains lowercase keys, causing it to fail on capitalized months.
+  - **Where**: src/components/dashboard/SmartUploaderModal.tsx
+  - **Learned**: JS named capture groups retain the exact case of the matched substring even when the regex is case-insensitive.
