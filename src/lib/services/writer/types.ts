@@ -36,6 +36,9 @@ export interface ArticleConfig {
     strictFrequency?: number;
     extractorInstructions?: string;
     language?: string; // New: Content and SERP language
+    chunkIndex?: number;
+    totalChunks?: number;
+    previousContext?: string;
 }
 
 export interface VisualResource {

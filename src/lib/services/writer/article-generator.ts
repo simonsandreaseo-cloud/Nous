@@ -7,6 +7,7 @@ export const generateArticleStream = async (model: string, prompt: string) => {
             systemInstruction: "Eres un redactor HTML experto. Generas HTML limpio.",
             generationConfig: {
                 temperature: 0.7,
+                maxOutputTokens: 8192,
             }
         });
         const result = await modelObj.generateContentStream({

@@ -37,6 +37,12 @@ export const cleanAndFormatHtml = (html: string): string => {
         .replace(/^###\s+(.*$)/gim, '<h3>$1</h3>')
         .replace(/^##\s+(.*$)/gim, '<h2>$1</h2>');
 
+    // Remove any trailing hallucinated JSON metadata object
+    const jsonMatch = processedHtml.match(/\{[\s\S]*"title"[\s\S]*"slug"[\s\S]*\}$/);
+    if (jsonMatch) {
+        processedHtml = processedHtml.replace(jsonMatch[0], '');
+    }
+
     if (typeof window === 'undefined') return processedHtml;
     
     const parser = new DOMParser();

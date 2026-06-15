@@ -71,20 +71,25 @@ export async function prepareTaskDraftAction(taskId: string) {
 
         const config: ArticleConfig = {
             projectName: activeProject?.name || 'Nous Project',
-            niche: task.metadata?.niche || 'General',
+            niche: task.metadata?.niche || research_dossier?.nicheDetected || 'General',
             topic: task.h1 || task.title,
             metaTitle: task.seo_title || task.title,
-            keywords: task.target_keyword || '',
+            keywords: research_dossier?.keywordIdeas?.shortTail?.slice(0, 5).join(', ') || task.target_keyword || '',
             tone: 'Profesional',
-            wordCount: '1500',
+            wordCount: task.target_word_count ? String(task.target_word_count) : '1500',
             refUrls: '',
             refContent: research_dossier?.brief || '',
             csvData: [],
             outlineStructure: outlineArray,
             approvedLinks: research_dossier?.suggestedInternalLinks || [],
-            language: task.language || 'es',
+            questions: research_dossier?.frequentQuestions || [],
+            lsiKeywords: (research_dossier?.lsiKeywords || []).map((l: any) => l.keyword).concat(research_dossier?.autocompleteLongTail || []),
+            contextInstructions: task.metadata?.contextInstructions || '',
+            language: task.language || activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es',
             architectureInstructions: activeProject?.architecture_instructions,
             architectureRules: activeProject?.architecture_rules,
+            isStrictMode: activeProject?.settings?.content_preferences?.strict_mode || false,
+            strictFrequency: activeProject?.settings?.content_preferences?.strict_frequency || 'medium',
             extractorInstructions: activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer')
                     .map(r => {
                         let placementText = "";

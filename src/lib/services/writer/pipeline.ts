@@ -31,15 +31,20 @@ export async function executeDraftPipeline(
         metaTitle: task.seo_title || task.title,
         keywords: task.target_keyword || '',
         tone: 'Profesional',
-        wordCount: '1500',
+        wordCount: task.target_word_count ? String(task.target_word_count) : '1500',
         refUrls: '',
         refContent: research_dossier?.brief || '',
         csvData: [],
         outlineStructure: outlineArray,
         approvedLinks: approvedLinks,
+        questions: research_dossier?.frequentQuestions || [],
+        lsiKeywords: (research_dossier?.lsiKeywords || []).map((l: any) => l.keyword).concat(research_dossier?.autocompleteLongTail || []),
+        contextInstructions: task.metadata?.contextInstructions || '',
         language: task.language || activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es',
         architectureInstructions: activeProject?.architecture_instructions,
         architectureRules: activeProject?.architecture_rules,
+        isStrictMode: activeProject?.settings?.content_preferences?.strict_mode || false,
+        strictFrequency: activeProject?.settings?.content_preferences?.strict_frequency || 'medium',
         extractorInstructions: activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer')
             .map(r => {
                 let placementText = "";
@@ -50,38 +55,80 @@ export async function executeDraftPipeline(
             }).join('\n') : ''
     };
 
-    const prompt = buildPrompt(config);
-    onLog('Redactando contenido base (streaming)...');
+    // Helper to chunk the outline
+    const chunkOutline = (outline: any[], maxH2: number = 3): any[][] => {
+        const chunks: any[][] = [];
+        let currentChunk: any[] = [];
+        let h2Count = 0;
+
+        for (const item of outline) {
+            if (item.type === 'H2') {
+                if (h2Count >= maxH2) {
+                    chunks.push(currentChunk);
+                    currentChunk = [];
+                    h2Count = 0;
+                }
+                h2Count++;
+            }
+            currentChunk.push(item);
+        }
+        if (currentChunk.length > 0) chunks.push(currentChunk);
+        
+        return chunks.length > 0 ? chunks : [outline];
+    };
+
+    const outlineChunks = chunkOutline(config.outlineStructure || [], 3);
+    onLog(`Documento dividido en ${outlineChunks.length} fragmentos para redacción progresiva...`);
 
     let finalHtml = '';
     const writingHierarchy = AI_CONFIG.gemini.hierarchies.writing;
-    
-    try {
-        finalHtml = await streamGenerate(
-            prompt,
-            writingHierarchy[0],
-            writingHierarchy,
-            (chunk) => { 
-                finalHtml = chunk; 
-                onChunk(chunk); 
-            },
-            (msg) => onLog(msg)
-        );
-    } catch (err) {
-        console.error('[Generate] Fallback triggered', err);
-        onLog('⚠️ Interrupción detectada. Aplicando Fallback de continuación...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const fallbackModel = writingHierarchy.length > 1 ? writingHierarchy[1] : writingHierarchy[0];
-        finalHtml = await streamGenerate(
-            prompt,
-            fallbackModel,
-            writingHierarchy,
-            (chunk) => { 
-                finalHtml = chunk; 
-                onChunk(chunk); 
-            },
-            (msg) => onLog(msg)
-        );
+    const modelToUse = 'gemma-4-31b-it';
+    let previousContext = '';
+
+    for (let i = 0; i < outlineChunks.length; i++) {
+        const chunkConfig = {
+            ...config,
+            outlineStructure: outlineChunks[i],
+            chunkIndex: i,
+            totalChunks: outlineChunks.length,
+            previousContext: previousContext
+        };
+
+        const prompt = buildPrompt(chunkConfig);
+        onLog(`Redactando parte ${i + 1}/${outlineChunks.length} (streaming)...`);
+
+        let chunkHtml = '';
+        try {
+            chunkHtml = await streamGenerate(
+                prompt,
+                modelToUse,
+                writingHierarchy,
+                (chunk) => { 
+                    chunkHtml = chunk; 
+                    onChunk(finalHtml + chunk); 
+                },
+                (msg) => onLog(`[Parte ${i+1}] ${msg}`)
+            );
+        } catch (err) {
+            console.error(`[Generate Chunk ${i+1}] Fallback triggered`, err);
+            onLog(`⚠️ Interrupción detectada en parte ${i+1}. Reintentando...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            chunkHtml = await streamGenerate(
+                prompt,
+                modelToUse, // Strict gemma-4-31b-it constraint
+                writingHierarchy,
+                (chunk) => { 
+                    chunkHtml = chunk; 
+                    onChunk(finalHtml + chunk); 
+                },
+                (msg) => onLog(`[Parte ${i+1}] ${msg}`)
+            );
+        }
+
+        finalHtml += chunkHtml + '\n\n';
+        
+        // Strip HTML tags roughly to give text context for the next chunk
+        previousContext = chunkHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
     onLog('Procesando vínculos y SEO...');

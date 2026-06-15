@@ -14,7 +14,7 @@ import { cn } from '@/utils/cn';
 import { Task } from '@/types/project';
 import { useAppStore } from '@/store/useAppStore';
 import { useWriterStore } from '@/store/useWriterStore';
-import { useProjectStore } from '@/store/useProjectStore';
+import { useProjectStore, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
 
 interface NousAssistantMenuProps {
     viewMode?: 'planner' | 'writer';
@@ -56,6 +56,13 @@ export default function NousAssistantMenu({
 
     const { activeProject } = useProjectStore();
     const i18nLanguages = activeProject?.i18n_settings?.languages || [];
+
+    const allStatuses = useMemo(() => {
+        const custom = activeProject?.settings?.content_preferences?.custom_statuses || [];
+        const baseStatuses = Object.keys(STATUS_LABELS);
+        
+        return Array.from(new Set([...baseStatuses, ...custom]));
+    }, [activeProject]);
 
     const effectiveProgress = (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining) 
         ? processingProgress 
@@ -283,19 +290,26 @@ export default function NousAssistantMenu({
                                 <select 
                                     value={pipelineFinalStatus}
                                     onChange={(e) => setPipelineFinalStatus(e.target.value)}
-                                    className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+                                    className={cn(
+                                        "w-full appearance-none border rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer transition-colors",
+                                        STATUS_COLORS[pipelineFinalStatus]?.bg || 'bg-white',
+                                        STATUS_COLORS[pipelineFinalStatus]?.text || 'text-slate-700',
+                                        STATUS_COLORS[pipelineFinalStatus]?.border || 'border-slate-200'
+                                    )}
                                 >
-                                    <option value="en_redaccion">Mantener en Redacción</option>
-                                    <option value="por_corregir">Pasar a Corrección</option>
-                                    <option value="por_maquetar">Pasar a Por Maquetar</option>
-                                    <option value="publicado">Marcar como Publicado</option>
-                                    {activeProject?.settings?.content_preferences?.custom_statuses?.map((status: string) => (
-                                        <option key={status} value={status}>
-                                            {status.replace(/_/g, ' ').toUpperCase()}
-                                        </option>
-                                    ))}
+                                    {allStatuses.map(status => {
+                                        const label = STATUS_LABELS[status] || (status.includes('_') ? status.replace(/_/g, ' ').toUpperCase() : status.toUpperCase());
+                                        return (
+                                            <option key={status} value={status}>
+                                                {label}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                <div className={cn(
+                                    "absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors",
+                                    STATUS_COLORS[pipelineFinalStatus]?.text || 'text-slate-400'
+                                )}>
                                     <ChevronDown size={14} />
                                 </div>
                             </div>
@@ -318,7 +332,7 @@ export default function NousAssistantMenu({
                                 effectiveIsProcessing ? "opacity-50 cursor-not-allowed bg-slate-100 text-slate-400" : "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] hover:shadow-[0_8px_30px_rgba(79,70,229,0.4)] hover:-translate-y-0.5"
                             )}
                         >
-                            <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay"></div>
+                            <div className="absolute inset-0 bg-[url(&quot;data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E&quot;)] opacity-10 mix-blend-overlay"></div>
                             <div className="absolute inset-0 -translate-x-[150%] bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover/cta:translate-x-[150%] transition-transform duration-1000 ease-in-out"></div>
                             <div className="flex items-center gap-2 relative z-10">
                                 <Zap size={16} className="text-indigo-200 fill-indigo-200" />

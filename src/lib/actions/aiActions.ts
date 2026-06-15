@@ -199,6 +199,7 @@ export const generateArticleJSON = async (model: string, prompt: string, hierarc
             systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Generas el artículo basándote en la estructura indicada. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>) y NUNCA usas markdown ni etiquetas de imagen <img>. Generas HTML impecable para la web.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
             generationConfig: {
                 temperature: 0.7,
+                maxOutputTokens: 8192,
             }
         });
         
@@ -232,6 +233,7 @@ export const generateArticleStream = async (model: string, prompt: string, hiera
             systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Escribe el artículo en formato HTML directo. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>). NO USES JSON, devuelve únicamente el código HTML resultante.`,
             generationConfig: {
                 temperature: 0.7,
+                maxOutputTokens: 8192,
             }
         });
         

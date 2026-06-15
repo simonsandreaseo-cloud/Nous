@@ -239,44 +239,90 @@ export function useWriterActions() {
                 language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
             };
 
+            // Helper to chunk the outline
+            const chunkOutline = (outline: any[], maxH2: number = 3): any[][] => {
+                const chunks: any[][] = [];
+                let currentChunk: any[] = [];
+                let h2Count = 0;
+        
+                for (const item of outline) {
+                    if (item.type === 'H2') {
+                        if (h2Count >= maxH2) {
+                            chunks.push(currentChunk);
+                            currentChunk = [];
+                            h2Count = 0;
+                        }
+                        h2Count++;
+                    }
+                    currentChunk.push(item);
+                }
+                if (currentChunk.length > 0) chunks.push(currentChunk);
+                
+                return chunks.length > 0 ? chunks : [outline];
+            };
+
+            const outlineChunks = chunkOutline(config.outlineStructure || [], 3);
+            store.setStatus(`Documento dividido en ${outlineChunks.length} fragmentos para redacción progresiva...`);
+
             if (activeProject && !hasTokens(1)) {
                 store.setStatus('❌ Límite de tokens mensual alcanzado.');
                 return alert(`Has superado tu límite de ${getTokensLimit()} tokens.`);
             }
 
-            const prompt = buildPrompt(config);
-            store.addDebugPrompt('Fase 1: Redacción Inicial', prompt);
             store.setStatus('Redactando artículo (1 Token usado)…');
             if (activeProject) await consumeTokens(1);
 
             const writingHierarchy = AI_CONFIG.gemini.hierarchies.writing;
-            const modelToUse = store.researchMode === 'rapid' ? 'gemma-4-31b-it' : writingHierarchy[0];
-            
-            // Replaced streaming loop with shared ai-streaming utility
-            store.setStatus('Redactando contenido base... (Espere unos segundos)');
+            const modelToUse = 'gemma-4-31b-it'; // Strict rule
             
             let finalHtml = "";
-            try {
-                finalHtml = await streamGenerate(
-                    prompt, 
-                    modelToUse, 
-                    writingHierarchy,
-                    (html) => { finalHtml = html; },
-                    (msg) => store.setStatus(msg)
-                );
-            } catch (err) {
-                console.error('[Generate] Fallback triggered', err);
-                store.setStatus('⚠️ Interrupción detectada. Aplicando Fallback de continuación...');
-                await new Promise(resolve => setTimeout(resolve, 1000));
+            let previousContext = '';
+
+            for (let i = 0; i < outlineChunks.length; i++) {
+                const chunkConfig = {
+                    ...config,
+                    outlineStructure: outlineChunks[i],
+                    chunkIndex: i,
+                    totalChunks: outlineChunks.length,
+                    previousContext: previousContext
+                };
+
+                const prompt = buildPrompt(chunkConfig);
+                if (i === 0) store.addDebugPrompt('Fase 1: Redacción Inicial', prompt);
                 
-                const fallbackModel = writingHierarchy.length > 1 ? writingHierarchy[1] : writingHierarchy[0];
-                finalHtml = await streamGenerate(
-                    prompt, 
-                    fallbackModel, 
-                    writingHierarchy,
-                    (html) => { finalHtml = html; },
-                    (msg) => store.setStatus(msg)
-                );
+                store.setStatus(`Redactando parte ${i + 1}/${outlineChunks.length}... (Espere unos segundos)`);
+                
+                let chunkHtml = "";
+                try {
+                    chunkHtml = await streamGenerate(
+                        prompt, 
+                        modelToUse, 
+                        writingHierarchy,
+                        (html) => { 
+                            chunkHtml = html; 
+                            store.setContent(finalHtml + html); 
+                        },
+                        (msg) => store.setStatus(`[Parte ${i+1}] ${msg}`)
+                    );
+                } catch (err) {
+                    console.error(`[Generate Chunk ${i+1}] Fallback triggered`, err);
+                    store.setStatus(`⚠️ Interrupción detectada en parte ${i+1}. Reintentando...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    chunkHtml = await streamGenerate(
+                        prompt, 
+                        modelToUse, 
+                        writingHierarchy,
+                        (html) => { 
+                            chunkHtml = html; 
+                            store.setContent(finalHtml + html); 
+                        },
+                        (msg) => store.setStatus(`[Parte ${i+1}] ${msg}`)
+                    );
+                }
+
+                finalHtml += chunkHtml + '\n\n';
+                previousContext = chunkHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
             }
 
             store.setStatus('Procesando HTML final...');

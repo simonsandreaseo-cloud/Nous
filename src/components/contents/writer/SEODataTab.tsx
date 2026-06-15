@@ -94,6 +94,8 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
 
     const [checkedItems, setCheckedItems] = useState<string[]>([]);
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+    const [interlinkKeywords, setInterlinkKeywords] = useState('');
+    const [interlinkCount, setInterlinkCount] = useState<number>(5);
 
     const rawLsiKeywords = strategyLSI.length > 0 ? strategyLSI : (researchDossier?.lsiKeywords || researchDossier?.keywordIdeas || seoData?.lsiKeywords || seoData?.keywordIdeas || []);
     
@@ -579,11 +581,12 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                     exit={{ height: 0 }}
                                     className="overflow-hidden"
                                 >
-                                    <div className="p-5 border-t border-slate-100 bg-slate-50/50 space-y-2">
-                                        {uniqueLinks.length === 0 ? (
-                                            <p className="text-[11px] text-slate-500">No hay enlaces sugeridos.</p>
-                                        ) : (
-                                            uniqueLinks.map((link: any, i: number) => {
+                                    <div className="p-5 border-t border-slate-100 bg-slate-50/50">
+                                        <div className="max-h-[300px] overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                                            {uniqueLinks.length === 0 ? (
+                                                <p className="text-[11px] text-slate-500">No hay enlaces sugeridos.</p>
+                                            ) : (
+                                                uniqueLinks.map((link: any, i: number) => {
                                                 const slug = link.url.replace(/^https?:\/\/[^\/]+/, '');
                                                 const isDone = currentContent.includes(link.url) || (slug.length > 1 && currentContent.includes(slug));
                                                 return (
@@ -625,18 +628,50 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                                 );
                                             })
                                         )}
+                                        </div>
                                         
+                                        {/* CUSTOM SEARCH CONFIG */}
+                                        <div className="flex flex-col gap-3 pt-4 border-t border-slate-200/60 mt-4">
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                                                    Keywords (separadas por comas)
+                                                </label>
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Ej: seo local, marketing, agencias..."
+                                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20"
+                                                    value={interlinkKeywords}
+                                                    onChange={e => setInterlinkKeywords(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                                                    Cantidad
+                                                </label>
+                                                <select 
+                                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20"
+                                                    value={interlinkCount}
+                                                    onChange={e => setInterlinkCount(Number(e.target.value))}
+                                                >
+                                                    <option value={5}>5 enlaces</option>
+                                                    <option value={10}>10 enlaces</option>
+                                                    <option value={15}>15 enlaces</option>
+                                                    <option value={20}>20 enlaces</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
                                         {/* BOTONES DE ACCIÓN INFERIORES */}
                                         <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-200/60 mt-4">
                                             <button 
-                                                onClick={() => useWriterStore.getState().refreshInterlinking('append')}
+                                                onClick={() => useWriterStore.getState().refreshInterlinking('append', interlinkKeywords, interlinkCount)}
                                                 disabled={isRefreshingLinks}
                                                 className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50"
                                             >
                                                 <Search size={12} className={cn(isRefreshingLinks && "animate-spin")} /> Buscar más
                                             </button>
                                             <button 
-                                                onClick={() => useWriterStore.getState().refreshInterlinking('overwrite')}
+                                                onClick={() => useWriterStore.getState().refreshInterlinking('overwrite', interlinkKeywords, interlinkCount)}
                                                 disabled={isRefreshingLinks}
                                                 className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-bold hover:bg-slate-200 transition-colors disabled:opacity-50"
                                             >

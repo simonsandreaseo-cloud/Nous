@@ -21,7 +21,7 @@ export interface StrategyActions {
     setDetectedNiche: (niche: string) => void;
     updateSectionProgress: (idx: number, count: number) => void;
     updateStrategyFromSeo: (seoData: any) => void;
-    refreshInterlinking: (mode?: 'append' | 'overwrite') => Promise<void>;
+    refreshInterlinking: (mode?: 'append' | 'overwrite', customKeywords?: string, count?: number) => Promise<void>;
     resetStrategy: () => void;
     setStrategyDensity: (density: number) => void;
 }
@@ -126,7 +126,7 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
         } as any);
     },
 
-    refreshInterlinking: async (mode: 'append' | 'overwrite' = 'overwrite') => {
+    refreshInterlinking: async (mode: 'append' | 'overwrite' = 'overwrite', customKeywords?: string, count: number = 5) => {
         try {
             const { strategyLinks, keyword, strategyH1, strategyExcerpt, strategyLSI, projectId } = get() as any;
             if (!projectId) return;
@@ -134,10 +134,17 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
             set({ isRefreshingLinks: true } as any);
 
             const { supabase } = require('@/lib/supabase');
-            const rawTerms = [
-                ...keyword.split(/\s+/),
-                ...(strategyLSI || []).map((l: any) => typeof l === 'string' ? l.split(/\s+/) : (l.keyword?.split(/\s+/) || [])).flat()
-            ].filter((w: string) => w && w.length > 3).map((w: string) => w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            
+            let rawTerms: string[] = [];
+            if (customKeywords && customKeywords.trim().length > 0) {
+                rawTerms = customKeywords.split(',').map(k => k.trim().toLowerCase().replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')).filter(k => k.length > 2);
+            } else {
+                rawTerms = [
+                    ...keyword.split(/\s+/),
+                    ...(strategyLSI || []).map((l: any) => typeof l === 'string' ? l.split(/\s+/) : (l.keyword?.split(/\s+/) || [])).flat()
+                ].filter((w: string) => w && w.length > 3).map((w: string) => w.toLowerCase().replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&'));
+            }
+            
             const allTerms = Array.from(new Set(rawTerms)).slice(0, 15);
             const searchRegex = allTerms.join('|');
 
@@ -151,10 +158,10 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
             if (rpcError) throw rpcError;
 
             const highLsis = (strategyLSI || []).filter((l: any) => typeof l !== 'string' && l.count === "Alto").map((l: any) => l.keyword).join(", ");
-            const linkPrompt = `ESTRATEGIA DE INTERLINKING PARA: "${keyword}"
+            const linkPrompt = \`ESTRATEGIA DE INTERLINKING PARA: "${keyword}"
 H1 PROPUESTO: "${strategyH1}"
 RESUMEN: "${strategyExcerpt}"
-KEYWORDS CLAVE: ${highLsis || keyword}
+KEYWORDS CLAVE: ${customKeywords ? customKeywords : (highLsis || keyword)}
 
 CATÁLOGO DISTRIBUIDO POR CATEGORÍAS:
 ${JSON.stringify((units || []).map((u: any) => ({ 
@@ -164,9 +171,9 @@ ${JSON.stringify((units || []).map((u: any) => ({
 })))}
 
 REGLAS:
-1. Elige los 5 artículos del catálogo que mejor conecten semánticamente con el contenido.
+1. Elige los ${count} artículos del catálogo que mejor conecten semánticamente con el contenido.
 2. ${mode === 'overwrite' ? 'Ignora los enlaces actuales y genera una lista totalmente nueva.' : 'Busca enlaces complementarios a los que ya existen.'}
-3. Retorna ÚNICAMENTE un array JSON válido: [{"url": "...", "title": "...", "anchor_text": "..."}]`;
+3. Retorna ÚNICAMENTE un array JSON válido: [{"url": "...", "title": "...", "anchor_text": "..."}]\`;
 
             const linkRes = await executeWithGroq(linkPrompt, "Arquitecto de Interlinking SEO.", "gemini-3.5-flash", true);
             const newLinks = safeJsonExtract(linkRes, []);

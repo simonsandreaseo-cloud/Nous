@@ -150,7 +150,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
     },
 
     initializeFromTask: (task: any, project: any) => {
-        const hasContentBody = task.content_body !== undefined;
+        const hasContentBody = task.content_body !== undefined && task.content_body !== '';
         
         if (!hasContentBody) {
             // Trigger async rehydration since Planner lightweight fetch omitted content_body

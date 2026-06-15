@@ -1,3 +1,16 @@
+-- 0. Helper function to extract category from URL
+CREATE OR REPLACE FUNCTION public.extract_category_from_url(url TEXT)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE 
+    WHEN array_length(string_to_array(btrim(regexp_replace(url, '^https?://[^/]+', ''), '/'), '/'), 1) < 2 
+      THEN 'Sin categorizar'
+    ELSE (string_to_array(btrim(regexp_replace(url, '^https?://[^/]+', ''), '/'), '/'))[array_length(string_to_array(btrim(regexp_replace(url, '^https?://[^/]+', ''), '/'), '/'), 1) - 1]
+  END;
+$$;
+
 -- 1. Modified get_unique_categories
 CREATE OR REPLACE FUNCTION public.get_unique_categories(p_project_id UUID)
 RETURNS TABLE (category TEXT)
@@ -9,13 +22,7 @@ BEGIN
   WITH parsed AS (
     SELECT 
       pu.url,
-      COALESCE(pu.category, 
-        CASE 
-          WHEN array_length(string_to_array(btrim(regexp_replace(pu.url, '^https?://[^/]+', ''), '/'), '/'), 1) < 2 
-            THEN 'Sin categorizar'
-          ELSE (string_to_array(btrim(regexp_replace(pu.url, '^https?://[^/]+', ''), '/'), '/'))[array_length(string_to_array(btrim(regexp_replace(pu.url, '^https?://[^/]+', ''), '/'), '/'), 1) - 1]
-        END
-      ) as computed_category
+      COALESCE(pu.category, public.extract_category_from_url(pu.url)) as computed_category
     FROM public.project_urls pu
     WHERE pu.project_id = p_project_id 
   )
@@ -46,13 +53,7 @@ BEGIN
   SELECT 
     pu.url,
     COALESCE(pu.top_query, split_part(pu.url, '/', -1), pu.url) AS title,
-    COALESCE(pu.category, 
-      CASE 
-        WHEN array_length(string_to_array(btrim(regexp_replace(pu.url, '^https?://[^/]+', ''), '/'), '/'), 1) < 2 
-          THEN 'Sin categorizar'
-        ELSE (string_to_array(btrim(regexp_replace(pu.url, '^https?://[^/]+', ''), '/'), '/'))[array_length(string_to_array(btrim(regexp_replace(pu.url, '^https?://[^/]+', ''), '/'), '/'), 1) - 1]
-      END
-    ) AS category
+    COALESCE(pu.category, public.extract_category_from_url(pu.url)) AS category
   FROM public.project_urls pu
   WHERE pu.project_id = p_project_id
     AND (

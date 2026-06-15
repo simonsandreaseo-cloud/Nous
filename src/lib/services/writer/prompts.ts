@@ -5,8 +5,12 @@ export const buildPrompt = (config: ArticleConfig): string => {
         topic, metaTitle, keywords, tone, wordCount, refUrls, refContent, 
         csvData, outlineStructure, approvedLinks, projectName, niche, 
         questions, lsiKeywords, contextInstructions, 
-        isStrictMode, strictFrequency, architectureInstructions 
+        isStrictMode, strictFrequency, architectureInstructions,
+        chunkIndex = 0, totalChunks = 1, previousContext = ""
     } = config;
+
+    const isFirstChunk = chunkIndex === 0;
+    const isLastChunk = chunkIndex === totalChunks - 1;
 
     let linkingInstructions = "";
     if (approvedLinks && approvedLinks.length > 0) {
@@ -33,10 +37,12 @@ ${others.length > 0 ? `OTROS ENLACES DE CALIDAD (BLOG/ESTRATEGIA):\n${formatList
     let outlineInstruction = "";
     if (outlineStructure && outlineStructure.length > 0) {
         outlineInstruction = `
-### ESTRUCTURA OBLIGATORIA (Sigue este orden)
-El H1 del artículo es: "${topic}" (Debe ser el título visible).
-Luego sigue este esquema:
-${outlineStructure.map(h => `${h.type}: ${h.text} (Referencia: ~${h.wordCount} palabras) [Instrucción: ${h.notes || 'Normal'}]`).join('\n')}
+### ESTRUCTURA OBLIGATORIA PARA ESTE FRAGMENTO (${chunkIndex + 1}/${totalChunks})
+${isFirstChunk ? `El H1 del artículo es: "${topic}" (Debe ser el título visible).` : `(Omite el H1, ya fue escrito en la parte anterior).`}
+Asegurándote de cumplir la longitud de palabras exigida por cada sección, desarrolla el siguiente esquema:
+${outlineStructure.map(h => `${h.type}: ${h.text}
+   👉 [LONGITUD MÍNIMA: ${h.wordCount} palabras. EXPANDE DETALLADAMENTE. PROHIBIDO RESUMIR.]
+   👉 [Instrucción: ${h.notes || 'Normal'}]`).join('\n')}
 `;
     }    const formatRules = `
         - Usa un formato HTML semántico enriquecido (tablas, listas, citas) cuando aporte valor.
@@ -80,7 +86,7 @@ DATOS TÉCNICOS:
 - H1 (Header Principal): ${topic}
 - Keywords Short Tail: ${keywords}
 - Tono: ${tone || 'Profesional'}
-- Extensión TOTAL OBLIGATORIA: Mínimo ${wordCount || '1500'} palabras. [CRÍTICO: No escatimes en texto. Escribe con profundidad para superar la cuota total.]
+- Extensión TOTAL OBLIGATORIA: Mínimo ${wordCount || '1500'} palabras. [REGLA DE ORO: Tienes prohibido resumir. Debes alcanzar o superar esta longitud total. Desarrolla profundamente con ejemplos, listas y casos de estudio].
 - Idioma: ${config.language ? (config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español de España (Neutro, profesional)' : config.language) : 'Español de España (Neutro, profesional)'}.
 
 ${contextInstructions ? `### INSTRUCCIONES DE CONTEXTO GLOBAL (MUY IMPORTANTE):\n${contextInstructions}\n` : ''}
@@ -91,9 +97,11 @@ ${strictModeInstruction}
 
 ### REQUISITOS DE CONTENIDO ESTRICTOS:
 
-1. **RESPUESTA DIRECTA (ZERO CLICK):**
-    - Justo debajo del H1, escribe un párrafo de **MÁXIMO 50 PALABRAS** que responda la intención de búsqueda principal.
-    - NO escribas introducciones genéricas ("En este artículo...").
+1. **RESPUESTA DIRECTA Y FLUJO:**
+${isFirstChunk ? `    - OBLIGATORIO: Justo debajo del H1, escribe un párrafo de **MÁXIMO 40 PALABRAS** que resuelva por completo la intención de búsqueda principal.
+    - Luego de este párrafo inicial, coloca inmediatamente el primer H2 del esquema.
+    - NO escribas introducciones genéricas ("En este artículo...").` : `    - NO incluyas un H1 ni introducciones. 
+    - Comienza directamente desarrollando el primer elemento del esquema asignado para esta parte.`}
 
 2. **FORMATO Y ESTRUCTURA:**
     ${formatRules}
@@ -130,11 +138,18 @@ ${refContent ? `### INTELIGENCIA COMPETITIVA (SNIPPETS DE CONTENIDO):\n${refCont
     
     ${config.extractorInstructions ? `### PAUTAS DE EXTRACCIÓN DE DATOS (NOUS EXTRACTOR):\n${config.extractorInstructions}\n` : ''}
 
+${previousContext ? `
+### CONTEXTO PREVIO:
+El texto generado en el fragmento anterior terminó así:
+"...${previousContext.slice(-800)}..."
+Asegura que la redacción fluya a partir de este punto. (NO REPITAS este texto).
+` : ''}
+
     RECUERDA: Inserta los enlaces internos de la estrategia de forma prioritaria.
     
     COMIENZA LA REDACCIÓN AHORA:
 
-    METADATOS JSON (FINAL):
+${isLastChunk ? `    METADATOS JSON (FINAL):
     Al terminar el artículo, añade EXACTAMENTE esta cadena separatoria: "<!-- METADATA_START -->"
     Seguido inmediatamente de un objeto JSON válido con este formato:
     {
@@ -142,6 +157,6 @@ ${refContent ? `### INTELIGENCIA COMPETITIVA (SNIPPETS DE CONTENIDO):\n${refCont
       "description": "Meta Description Generada",
       "slug": "slug-generado",
       "excerpt": "Breve extracto del artículo para blog (2 frases)"
-    }
+    }` : `    IMPORTANTE: Este es el fragmento ${chunkIndex + 1} de ${totalChunks}. NO escribas un párrafo de conclusión general ni generes metadatos JSON al final. El texto debe terminar en el desarrollo del último subtema de este bloque.`}
     `;
 };
