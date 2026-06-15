@@ -202,6 +202,7 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
         Object.entries(finalUpdates).forEach(([key, value]) => {
             if (key === 'content_body') {
                 contentUpdates[key] = value;
+                taskUpdates[key] = value; // Keep legacy tasks column in sync for UI rehydration
             } else if (['research_dossier', 'outline_structure', 'seo_data', 'schemas'].includes(key)) {
                 researchUpdates[key] = value;
             } else {
