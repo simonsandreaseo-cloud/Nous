@@ -143,19 +143,66 @@ export async function executeHumanizePipeline(
         language: task.language || activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es' 
     };
 
-    let htmlRes = '';
-    const finalResult = await streamHumanize(
-        content,
-        config,
-        50,
-        (chunk) => { 
-            htmlRes = chunk; 
-            onChunk(chunk); 
-        },
-        (msg) => onLog(msg)
-    );
+    const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
+        const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
+        const chunks = [];
+        for (let i = 0; i < elements.length; i += chunkSize) {
+            chunks.push(elements.slice(i, i + chunkSize).join(''));
+        }
+        return chunks;
+    };
 
-    const newContent = finalResult.html || htmlRes;
+    const chunks = chunkHtml(content, 4);
+    onLog(`Documento dividido en ${chunks.length} chunks de 4 elementos HTML...`);
+    
+    let accumulatedHtml = '';
+    let humLastUpdateTime = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+        let success = false;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 3;
+
+        while (!success && attempts < MAX_ATTEMPTS) {
+            try {
+                onLog(`Humanizando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
+                
+                const chunkResult = await streamHumanize(
+                    chunks[i],
+                    config,
+                    50,
+                    (partialHtml) => {
+                        const now = Date.now();
+                        if (now - humLastUpdateTime > 300) {
+                            onChunk(accumulatedHtml + partialHtml);
+                            humLastUpdateTime = now;
+                        }
+                    },
+                    (msg) => {
+                        console.log(`[Chunk ${i+1}] ${msg}`);
+                    }
+                );
+                
+                accumulatedHtml += chunkResult.html + '\n';
+                onChunk(accumulatedHtml);
+                success = true;
+            } catch (err: any) {
+                attempts++;
+                console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
+                
+                if (attempts >= MAX_ATTEMPTS) {
+                    throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                }
+                
+                onLog(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
+                await new Promise(resolve => setTimeout(resolve, 60000));
+            }
+        }
+    }
+
+    const finalResult = { html: accumulatedHtml };
+
+    const newContent = finalResult.html;
 
     const updates: Partial<Task> = {
         metadata: { ...task.metadata, is_humanized: true, humanized_at: new Date().toISOString() }
