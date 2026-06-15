@@ -339,6 +339,8 @@ export const executeWithKeyRotation = async <T>(
 
         let allKeysFailedRotationReason = true;
         let allKeysFailedQuota = true;
+        let quotaRetriesForCurrentKey = 0;
+        const MAX_QUOTA_RETRIES_PER_KEY = 2; // Esperar 60s hasta 2 veces por llave
 
         for (let kIndex = 0; kIndex < currentKeys.length; kIndex++) {
             const apiKey = currentKeys[kIndex];
@@ -429,7 +431,21 @@ export const executeWithKeyRotation = async <T>(
                 if (isQuota || isServerErr || isInvalid || isSize) {
                     errorLog.push(`${step.provider}/${step.model}: ${e.status || 'ERR'}`);
                     if (onRotation) onRotation(apiKey.slice(-5), isQuota ? "Quota" : (isServerErr ? "Server" : "Invalid"), totalAttempts, MAX_TOTAL_ATTEMPTS);
-                    if (isQuota || isServerErr) await sleep(500 * (kIndex + 1));
+                    
+                    if (isQuota) {
+                        if (quotaRetriesForCurrentKey < MAX_QUOTA_RETRIES_PER_KEY) {
+                            quotaRetriesForCurrentKey++;
+                            console.warn(`[AI-ORCHESTRATOR] ⚠️ Cuota/Rate Limit (429) detectado. Esperando 60s antes de reintentar la misma llave (Intento ${quotaRetriesForCurrentKey}/${MAX_QUOTA_RETRIES_PER_KEY})...`);
+                            await sleep(60000);
+                            kIndex--; // Reintentamos la MISMA llave
+                            continue;
+                        } else {
+                            quotaRetriesForCurrentKey = 0; // Agotó los reintentos, pasamos a la siguiente llave
+                        }
+                    } else if (isServerErr) {
+                        await sleep(500 * (kIndex + 1));
+                    }
+                    
                     if (!isQuota) allKeysFailedQuota = false;
                     continue; 
                 }
