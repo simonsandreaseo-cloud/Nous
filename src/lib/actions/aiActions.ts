@@ -88,11 +88,12 @@ export async function executeWithKeyRotation<T>(
     keys?: string[] | string,
     onRotation?: any,
     isStrictModel: boolean = false,
-    label: string = 'Operación AI'
+    label: string = 'Operación AI',
+    timeoutMs?: number
 ): Promise<T> {
     return libExecuteWithKeyRotation(async (client, m) => {
         return operation(client, m);
-    }, modelName, explicitHierarchy, keys, onRotation, isStrictModel, label);
+    }, modelName, explicitHierarchy, keys, onRotation, isStrictModel, label, timeoutMs);
 }
 
 export async function executeHumanizerWithRetry<T>(
@@ -106,6 +107,9 @@ export async function executeHumanizerWithRetry<T>(
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
+    // Le damos 3 minutos (180000ms) de timeout al Humanizer porque procesa HTML enorme y necesita más tiempo
+    const HUMANIZER_TIMEOUT = 180000;
+
     try {
         return await executeWithKeyRotation(
             operation,
@@ -114,7 +118,8 @@ export async function executeHumanizerWithRetry<T>(
             undefined,
             undefined,
             true,
-            label
+            label,
+            HUMANIZER_TIMEOUT
         );
     } catch (e: any) {
         console.error(`[Humanizer-Retry] Error en ejecución de humanizador:`, e);
@@ -127,7 +132,8 @@ export async function executeHumanizerWithRetry<T>(
             undefined,
             undefined,
             true,
-            label
+            label,
+            HUMANIZER_TIMEOUT
         );
     }
 };
