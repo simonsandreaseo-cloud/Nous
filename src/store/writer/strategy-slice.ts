@@ -173,7 +173,7 @@ ${JSON.stringify((units || []).map((u: any) => ({
 REGLAS:
 1. Elige los ${count} artículos del catálogo que mejor conecten semánticamente con el contenido.
 2. ${mode === 'overwrite' ? 'Ignora los enlaces actuales y genera una lista totalmente nueva.' : 'Busca enlaces complementarios a los que ya existen.'}
-3. Retorna ÚNICAMENTE un array JSON válido: [{"url": "...", "title": "...", "anchor_text": "..."}]\`;
+3. Retorna ÚNICAMENTE un array JSON válido: [{"url": "...", "title": "...", "anchor_text": "..."}]`;
 
             const linkRes = await executeWithGroq(linkPrompt, "Arquitecto de Interlinking SEO.", "gemini-3.5-flash", true);
             const newLinks = safeJsonExtract(linkRes, []);
