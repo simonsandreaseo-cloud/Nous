@@ -158,7 +158,7 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
             if (rpcError) throw rpcError;
 
             const highLsis = (strategyLSI || []).filter((l: any) => typeof l !== 'string' && l.count === "Alto").map((l: any) => l.keyword).join(", ");
-            const linkPrompt = \`ESTRATEGIA DE INTERLINKING PARA: "${keyword}"
+            const linkPrompt = `ESTRATEGIA DE INTERLINKING PARA: "${keyword}"
 H1 PROPUESTO: "${strategyH1}"
 RESUMEN: "${strategyExcerpt}"
 KEYWORDS CLAVE: ${customKeywords ? customKeywords : (highLsis || keyword)}
