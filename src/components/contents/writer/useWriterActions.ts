@@ -439,29 +439,49 @@ export function useWriterActions() {
             let accumulatedHtml = '';
 
             for (let i = 0; i < chunks.length; i++) {
-                store.setHumanizerStatus(`Humanizando Chunk ${i + 1}/${chunks.length}...`);
-                
-                // Petición HTTP individual por cada chunk para renovar los 5 minutos de Vercel
-                const chunkResult = await streamHumanize(
-                    chunks[i],
-                    config,
-                    50,
-                    (partialHtml) => {
-                        const now = Date.now();
-                        if (now - humLastUpdateTime > 300) {
-                            store.setContent(accumulatedHtml + partialHtml);
-                            humLastUpdateTime = now;
+                let success = false;
+                let attempts = 0;
+                const MAX_ATTEMPTS = 3;
+
+                while (!success && attempts < MAX_ATTEMPTS) {
+                    try {
+                        store.setHumanizerStatus(`Humanizando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
+                        
+                        // Petición HTTP individual por cada chunk para renovar los 5 minutos de Vercel
+                        const chunkResult = await streamHumanize(
+                            chunks[i],
+                            config,
+                            50,
+                            (partialHtml) => {
+                                const now = Date.now();
+                                if (now - humLastUpdateTime > 300) {
+                                    store.setContent(accumulatedHtml + partialHtml);
+                                    humLastUpdateTime = now;
+                                }
+                            },
+                            (msg) => {
+                                // Solo logueamos para no ensuciar el status principal
+                                console.log(`[Chunk ${i+1}] ${msg}`);
+                            }
+                        );
+                        
+                        // Acumulamos el resultado final del chunk
+                        accumulatedHtml += chunkResult.html + '\n';
+                        store.setContent(accumulatedHtml);
+                        success = true;
+                    } catch (err: any) {
+                        attempts++;
+                        console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
+                        
+                        if (attempts >= MAX_ATTEMPTS) {
+                            throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
                         }
-                    },
-                    (msg) => {
-                        // Solo logueamos para no ensuciar el status principal
-                        console.log(`[Chunk ${i+1}] ${msg}`);
+                        
+                        // Si falló (probablemente por 429 quota o un timeout del modelo), esperamos 60s antes de reintentar
+                        store.setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
+                        await new Promise(resolve => setTimeout(resolve, 60000));
                     }
-                );
-                
-                // Acumulamos el resultado final del chunk
-                accumulatedHtml += chunkResult.html + '\n';
-                store.setContent(accumulatedHtml);
+                }
             }
 
             const finalResult = { html: accumulatedHtml };
