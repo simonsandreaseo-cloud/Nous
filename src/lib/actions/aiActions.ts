@@ -65,14 +65,7 @@ const cleanAndFormatHtml = (html: string) => {
     return html.trim();
 };
 
-const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-    const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
-    const chunks = [];
-    for (let i = 0; i < elements.length; i += chunkSize) {
-        chunks.push(elements.slice(i, i + chunkSize).join(''));
-    }
-    return chunks;
-};
+
 
 const isTrivialChunk = (chunk: string): boolean => {
     const textContent = chunk.replace(/<[^>]*>/g, '').replace(/\\s/g, '');
@@ -546,9 +539,9 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    // Siempre forzamos el modo chunks (ahora con 2 párrafos) para asegurar la máxima calidad y evitar cuelgues
-    const isChunkedMode = true;
-    safeStatus(`Iniciando pipeline de humanización (${isChunkedMode ? 'Modo Chunks' : 'Documento completo'}) con modelo ${modelName}...`);
+    // El backend ya no hace chunks, asume que el frontend se lo manda picado
+    const isChunkedMode = false;
+    safeStatus(`Iniciando humanización de chunk con modelo ${modelName}...`);
     const start = Date.now();
     
     // Función auxiliar para humanizar un bloque (chunk o documento completo)
@@ -636,45 +629,9 @@ export const runHumanizerPipeline = async (
         }
     };
 
-    let finalHtml = "";
-
-    if (isChunkedMode) {
-        // Modo Chunks (Unified o Duplicate Detection)
-        // 4 elementos HTML por chunk como pidió el usuario
-        const chunks = chunkHtml(html, 4);
-        safeStatus(`Documento dividido en ${chunks.length} chunks para procesamiento dinámico.`);
-        
-        let processedChunksCount = 0;
-        const BATCH_SIZE = 1; // Volvemos a secuencial (1 por 1) para no triggerear límite de peticiones (429)
-        const processedChunksArray = new Array(chunks.length).fill("");
-
-        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-            const batch = chunks.slice(i, i + BATCH_SIZE);
-            safeStatus(`Procesando lote de chunks en paralelo (${i + 1} a ${Math.min(i + BATCH_SIZE, chunks.length)} de ${chunks.length})...`);
-            
-            const batchPromises = batch.map(async (chunk, index) => {
-                const globalIndex = i + index;
-                const processedChunk = await processContentBlock(chunk, globalIndex + 1, chunks.length);
-                processedChunksArray[globalIndex] = processedChunk;
-                processedChunksCount++;
-            });
-
-            // Esperar a que todo el lote termine antes de lanzar el siguiente
-            await Promise.all(batchPromises);
-        }
-
-        finalHtml = processedChunksArray.join("\n");
-        
-        safeStatus(`✅ Humanización completada: Han llegado de vuelta ${processedChunksCount} de ${chunks.length} chunks correctamente.`);
-        
-        if (config.mode === 'duplicate_detection') {
-            safeStatus(`Ejecutando detección de duplicados global (fase final)...`);
-            // Fase de cohesión y verificación de duplicados global, lista para implementación futura o inmediata.
-        }
-    } else {
-        // Modo Petición Única (no_chunks)
-        finalHtml = await processContentBlock(html, 1, 1);
-    }
+    // El frontend ahora es responsable de enviar los chunks de manera individual.
+    // Nosotros simplemente procesamos lo que llega (sea un chunk o un doc pequeño) de una sola vez.
+    let finalHtml = await processContentBlock(html, 1, 1);
 
     const duration = (Date.now() - start) / 1000;
     console.log(`[Humanizer-Perf] Completado en ${duration}s`);

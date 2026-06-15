@@ -421,22 +421,50 @@ export function useWriterActions() {
                 language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
             };
 
+            const originalContent = store.content;
             store.setContent(''); // Empezar de cero para mostrar el stream
             let humLastUpdateTime = 0;
 
-            const finalResult = await streamHumanize(
-                store.content,
-                config,
-                50,
-                (html) => {
-                    const now = Date.now();
-                    if (now - humLastUpdateTime > 300) {
-                        store.setContent(html);
-                        humLastUpdateTime = now;
+            const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
+                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
+                const chunks = [];
+                for (let i = 0; i < elements.length; i += chunkSize) {
+                    chunks.push(elements.slice(i, i + chunkSize).join(''));
+                }
+                return chunks;
+            };
+
+            // Creamos los chunks en el frontend (4 elementos por chunk)
+            const chunks = chunkHtml(originalContent, 4);
+            let accumulatedHtml = '';
+
+            for (let i = 0; i < chunks.length; i++) {
+                store.setHumanizerStatus(`Humanizando Chunk ${i + 1}/${chunks.length}...`);
+                
+                // Petición HTTP individual por cada chunk para renovar los 5 minutos de Vercel
+                const chunkResult = await streamHumanize(
+                    chunks[i],
+                    config,
+                    50,
+                    (partialHtml) => {
+                        const now = Date.now();
+                        if (now - humLastUpdateTime > 300) {
+                            store.setContent(accumulatedHtml + partialHtml);
+                            humLastUpdateTime = now;
+                        }
+                    },
+                    (msg) => {
+                        // Solo logueamos para no ensuciar el status principal
+                        console.log(`[Chunk ${i+1}] ${msg}`);
                     }
-                },
-                (msg) => store.setHumanizerStatus(msg)
-            );
+                );
+                
+                // Acumulamos el resultado final del chunk
+                accumulatedHtml += chunkResult.html + '\n';
+                store.setContent(accumulatedHtml);
+            }
+
+            const finalResult = { html: accumulatedHtml };
 
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
 
