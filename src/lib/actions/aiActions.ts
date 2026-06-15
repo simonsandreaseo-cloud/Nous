@@ -645,11 +645,25 @@ export const runHumanizerPipeline = async (
         safeStatus(`Documento dividido en ${chunks.length} chunks para procesamiento dinámico.`);
         
         let processedChunksCount = 0;
-        for (let i = 0; i < chunks.length; i++) {
-            const processedChunk = await processContentBlock(chunks[i], i + 1, chunks.length);
-            finalHtml += processedChunk + "\n";
-            processedChunksCount++;
+        const BATCH_SIZE = 5; // Ejecutar en lotes de 5 para paralelizacion y evitar el timeout de Vercel
+        const processedChunksArray = new Array(chunks.length).fill("");
+
+        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+            const batch = chunks.slice(i, i + BATCH_SIZE);
+            safeStatus(`Procesando lote de chunks en paralelo (${i + 1} a ${Math.min(i + BATCH_SIZE, chunks.length)} de ${chunks.length})...`);
+            
+            const batchPromises = batch.map(async (chunk, index) => {
+                const globalIndex = i + index;
+                const processedChunk = await processContentBlock(chunk, globalIndex + 1, chunks.length);
+                processedChunksArray[globalIndex] = processedChunk;
+                processedChunksCount++;
+            });
+
+            // Esperar a que todo el lote termine antes de lanzar el siguiente
+            await Promise.all(batchPromises);
         }
+
+        finalHtml = processedChunksArray.join("\n");
         
         safeStatus(`✅ Humanización completada: Han llegado de vuelta ${processedChunksCount} de ${chunks.length} chunks correctamente.`);
         
