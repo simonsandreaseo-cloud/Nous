@@ -546,7 +546,8 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    const isChunkedMode = config.mode === 'unified' || config.mode === 'duplicate_detection';
+    // Siempre forzamos el modo chunks (ahora con 2 párrafos) para asegurar la máxima calidad y evitar cuelgues
+    const isChunkedMode = true;
     safeStatus(`Iniciando pipeline de humanización (${isChunkedMode ? 'Modo Chunks' : 'Documento completo'}) con modelo ${modelName}...`);
     const start = Date.now();
     
@@ -639,7 +640,8 @@ export const runHumanizerPipeline = async (
 
     if (isChunkedMode) {
         // Modo Chunks (Unified o Duplicate Detection)
-        const chunks = chunkHtml(html, 15); // 15 elementos HTML por chunk
+        // 2 elementos HTML por chunk (máximo 2 párrafos aprox) como pidió el usuario
+        const chunks = chunkHtml(html, 2);
         safeStatus(`Documento dividido en ${chunks.length} chunks para procesamiento dinámico.`);
         
         let processedChunksCount = 0;
