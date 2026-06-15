@@ -493,7 +493,7 @@ export default function StrategyGrid({
                                                         <span className="text-[8px] font-black uppercase text-indigo-600 tracking-tighter leading-none animate-pulse">
                                                             {!task.research_dossier || Object.keys(task.research_dossier).length === 0 ? "Investigando" :
                                                              !task.outline_structure || !task.outline_structure.headers || task.outline_structure.headers.length === 0 ? "Planificando" :
-                                                             !task.content_body ? "Redactando" : "Humanizando"}
+                                                             (!task.content_body && (!task.word_count_real || task.word_count_real === 0)) ? "Redactando" : "Humanizando"}
                                                         </span>
                                                         <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Nous en proceso</span>
                                                     </div>
@@ -1050,11 +1050,11 @@ export default function StrategyGrid({
                                                 }}
                                                 className={cn(
                                                     "p-2 rounded-xl transition-all border",
-                                                    task.content_body?.trim() 
+                                                    (task.content_body?.trim() || (task.word_count_real && task.word_count_real > 0))
                                                         ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100"
                                                         : "bg-slate-50 text-slate-300 border-slate-100 hover:text-indigo-500 hover:bg-slate-100"
                                                 )}
-                                                title={task.content_body?.trim() ? "Abrir Redactor (Con Contenido)" : "Abrir Redactor (Vacío)"}
+                                                title={(task.content_body?.trim() || (task.word_count_real && task.word_count_real > 0)) ? "Abrir Redactor (Con Contenido)" : "Abrir Redactor (Vacío)"}
                                             >
                                                 <FileText size={14} />
                                             </button>
@@ -1384,7 +1384,7 @@ function IntelligentActionButton({ task, onAction, isProcessing }: { task: Task,
         }
         
         // 3. Sin redacción -> Redactar
-        if (task.status === 'por_redactar' || (!task.content_body || task.content_body.trim() === '')) {
+        if (task.status === 'por_redactar' || ((!task.content_body || task.content_body.trim() === '') && (!task.word_count_real || task.word_count_real === 0))) {
             return { label: 'Redactar', action: 'draft', color: 'rose', icon: Sparkles };
         }
         

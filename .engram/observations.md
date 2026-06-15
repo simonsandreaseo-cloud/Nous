@@ -175,3 +175,13 @@ Las acciones masivas (ej: redacción masiva, humanización masiva) se completaba
   - **Why**: Regex with 'i' flag matches capitalized months (e.g., 'Marzo') but the original string case is preserved in capture groups. The dictionary only contains lowercase keys, causing it to fail on capitalized months.
   - **Where**: src/components/dashboard/SmartUploaderModal.tsx
   - **Learned**: JS named capture groups retain the exact case of the matched substring even when the regex is case-insensitive.
+
+## mem_save: Bugfix - Added missing date_mode column
+- **title**: Added date_mode column to tasks
+- **type**: bugfix
+- **scope**: project
+- **content**:
+  - **What**: Added 'date_mode' (text) column to tasks table via RPC migration and pushed migration file.
+  - **Why**: The Smart Modal was sending date_mode but the backend threw 400 because the column didn't exist in Supabase.
+  - **Where**: supabase/migrations/20260614140500_add_date_mode_to_tasks.sql
+  - **Learned**: Always ensure UI state changes reflect correctly in the DB schema before testing.

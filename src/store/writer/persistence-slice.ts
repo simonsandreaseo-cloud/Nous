@@ -149,31 +149,47 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         return true;
     },
 
-    initializeFromTask: (task: any, project: any) => set((state: any) => {
-        const dossier = (task as any).research_dossier || (task as any).seo_data || null;
-        const seoTitle = task.seo_title || dossier?.seo_title || dossier?.strategyTitle || task.title || '';
-        const h1 = task.h1 || dossier?.h1 || dossier?.title || task.title || '';
-        const slug = task.target_url_slug || dossier?.slug || dossier?.target_url_slug || '';
-        const desc = task.meta_description || dossier?.meta_description || '';
-        const excerpt = (task as any).excerpt || dossier?.excerpt || '';
-        const lsi = dossier?.lsiKeywords || dossier?.keywordIdeas || state.strategyLSI;
-        const competitors = dossier?.fullCompetitorAnalysis || dossier?.competitors || dossier?.top10Urls || state.competitorDetails;
+    initializeFromTask: (task: any, project: any) => {
+        const hasContentBody = task.content_body !== undefined;
         
-        // Briefing fallback
-        let notes = state.strategyNotes;
-        if (dossier) {
-            try {
-                const { generateBriefingText } = require('@/components/tools/writer/services');
-                notes = generateBriefingText(dossier);
-            } catch (e) {}
+        if (!hasContentBody) {
+            // Trigger async rehydration since Planner lightweight fetch omitted content_body
+            setTimeout(() => {
+                const { useProjectStore } = require('@/store/useProjectStore');
+                useProjectStore.getState().fetchTaskContent(task.id).then((contentBody: string | null) => {
+                    const currentDraftId = (get() as any).draftId;
+                    if (currentDraftId === task.id && contentBody !== null) {
+                        (get() as any).setContent(contentBody || '');
+                    }
+                });
+            }, 0);
         }
 
-        return {
-            title: task.title,
-            draftId: task.id,
-            linkedTaskId: task.id,
-            content: task.content_body || '',
-            keyword: task.target_keyword || dossier?.target_keyword || '',
+        set((state: any) => {
+            const dossier = (task as any).research_dossier || (task as any).seo_data || null;
+            const seoTitle = task.seo_title || dossier?.seo_title || dossier?.strategyTitle || task.title || '';
+            const h1 = task.h1 || dossier?.h1 || dossier?.title || task.title || '';
+            const slug = task.target_url_slug || dossier?.slug || dossier?.target_url_slug || '';
+            const desc = task.meta_description || dossier?.meta_description || '';
+            const excerpt = (task as any).excerpt || dossier?.excerpt || '';
+            const lsi = dossier?.lsiKeywords || dossier?.keywordIdeas || state.strategyLSI;
+            const competitors = dossier?.fullCompetitorAnalysis || dossier?.competitors || dossier?.top10Urls || state.competitorDetails;
+            
+            // Briefing fallback
+            let notes = state.strategyNotes;
+            if (dossier) {
+                try {
+                    const { generateBriefingText } = require('@/components/tools/writer/services');
+                    notes = generateBriefingText(dossier);
+                } catch (e) {}
+            }
+
+            return {
+                title: task.title,
+                draftId: task.id,
+                linkedTaskId: task.id,
+                content: hasContentBody ? (task.content_body || '') : null,
+                keyword: task.target_keyword || dossier?.target_keyword || '',
             strategyH1: h1,
             strategyTitle: seoTitle,
             strategySlug: slug,
@@ -234,8 +250,9 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
             viewMode: 'workspace',
             status: task.status || 'por_redactar'
         } as any;
-    }),
-    
+    });
+},
+
     switchLanguage: async (langCode: string) => {
         const { contentVersions, loadContentById, setStatus } = get() as any;
         const targetId = contentVersions[langCode];

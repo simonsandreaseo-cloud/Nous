@@ -221,7 +221,7 @@ export const executeWithKeyRotation = async <T>(
     onRotation?: (failedKey: string, reason: string, attempt: number, max: number) => void,
     isStrictModel: boolean = false,
     label: string = 'Operación AI',
-    timeoutMs: number = 90000
+    timeoutMs: number = 20000
 ): Promise<T> => {
     // 1. Determine Hierarchy based on label/intent
     type Step = { provider: 'google' | 'groq' | 'openrouter' | 'cerebras', model: string };

@@ -52,7 +52,7 @@ export default function NousAssistantMenu({
     const [pipelineHumanize, setPipelineHumanize] = useState(false);
     const [pipelineClean, setPipelineClean] = useState(false);
     const [pipelineTranslate, setPipelineTranslate] = useState(false);
-    const [pipelineFinalStatus, setPipelineFinalStatus] = useState<'por_corregir' | 'en_redaccion' | 'por_maquetar' | 'publicado'>('por_corregir');
+    const [pipelineFinalStatus, setPipelineFinalStatus] = useState<string>('por_corregir');
 
     const { activeProject } = useProjectStore();
     const i18nLanguages = activeProject?.i18n_settings?.languages || [];
@@ -282,13 +282,18 @@ export default function NousAssistantMenu({
                             <div className="relative">
                                 <select 
                                     value={pipelineFinalStatus}
-                                    onChange={(e) => setPipelineFinalStatus(e.target.value as any)}
+                                    onChange={(e) => setPipelineFinalStatus(e.target.value)}
                                     className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
                                 >
                                     <option value="en_redaccion">Mantener en Redacción</option>
                                     <option value="por_corregir">Pasar a Corrección</option>
                                     <option value="por_maquetar">Pasar a Por Maquetar</option>
                                     <option value="publicado">Marcar como Publicado</option>
+                                    {activeProject?.settings?.content_preferences?.custom_statuses?.map((status: string) => (
+                                        <option key={status} value={status}>
+                                            {status.replace(/_/g, ' ').toUpperCase()}
+                                        </option>
+                                    ))}
                                 </select>
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                     <ChevronDown size={14} />

@@ -208,7 +208,7 @@ export default function WriterStudio() {
         projectId, loadContentById,
         redactorUI, setRedactorUI, leftSidebarWidth, setLeftSidebarWidth, 
         rightSidebarWidth, setRightSidebarWidth, isToolboxOpen, toggleToolbox,
-        deleteVersion, parentTaskId, statusMessage, hasGenerated, status, updateTaskStatus
+        deleteVersion, parentTaskId, statusMessage, hasGenerated, status, updateTaskStatus, content
     } = useWriterStore(useShallow(state => ({
         isSidebarOpen: state.isSidebarOpen,
         toggleSidebar: state.toggleSidebar,
@@ -261,7 +261,8 @@ export default function WriterStudio() {
         statusMessage: state.statusMessage,
         hasGenerated: state.hasGenerated,
         status: (state as any).status,
-        updateTaskStatus: (state as any).updateTaskStatus
+        updateTaskStatus: (state as any).updateTaskStatus,
+        content: state.content
     })));
 
     const hasOutline = useWriterStore(state => state.strategyOutline.length > 0);
@@ -483,6 +484,16 @@ export default function WriterStudio() {
 
     const renderContent = () => {
         if (viewMode === 'setup') return <WriterSetupBoard />;
+        if (content === null) {
+            return (
+                <div className="flex-1 flex items-center justify-center bg-slate-50">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</span>
+                    </div>
+                </div>
+            );
+        }
         if (redactorUI === 'standard') {
             return (
                 <div className="flex-1 flex overflow-hidden">
