@@ -436,6 +436,8 @@ export function useWriterActions() {
 
             // Creamos los chunks en el frontend (4 elementos por chunk)
             const chunks = chunkHtml(originalContent, 4);
+            console.log(`[DEBUG-Humanize] Documento dividido en ${chunks.length} chunks de 4 elementos HTML cada uno.`);
+            store.setHumanizerStatus(`Documento dividido en ${chunks.length} partes...`);
             let accumulatedHtml = '';
 
             for (let i = 0; i < chunks.length; i++) {
