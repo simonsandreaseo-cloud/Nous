@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
     try {
-        const { q, gl = "es", hl = "es", num = 20 } = await req.json();
+        let { q, gl = "es", hl = "es", num = 20 } = await req.json();
 
         if (!q) {
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
+
+        // Limpiar la query de caracteres que rompen Serper (comillas literales)
+        q = q.replace(/["\\]/g, '');
 
         const apiKey = process.env.SERPER_API_KEY || process.env.NEXT_PUBLIC_SERPER_API_KEY;
 
