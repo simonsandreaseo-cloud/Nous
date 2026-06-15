@@ -1,11 +1,10 @@
 import Groq from "groq-sdk";
 
-const getGroqKey = () => 
-    process.env.NEXT_PUBLIC_GROQ_API_KEYS || 
-    process.env.NEXT_PUBLIC_GROQ_API_KEY || 
+const groqKeysRaw = (
     process.env.GROQ_API_KEYS || 
     process.env.GROQ_API_KEY || 
-    "";
+    ""
+);
 
 import { executeWithKeyRotation } from "./writer/ai-core";
 

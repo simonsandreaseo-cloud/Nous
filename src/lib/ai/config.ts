@@ -1,16 +1,14 @@
 const groqKeysRaw = (
-    process.env.NEXT_PUBLIC_GROQ_API_KEYS || 
-    process.env.NEXT_PUBLIC_GROQ_API_KEY || 
     process.env.GROQ_API_KEYS || 
     process.env.GROQ_API_KEY || 
     ""
 );
-const geminiKeysRaw = (process.env.NEXT_PUBLIC_NOUS_API_KEYS || process.env.NOUS_API_KEYS || "");
+const geminiKeysRaw = (process.env.NOUS_API_KEYS || "");
 
 const groqKeys = groqKeysRaw.split(',').map(key => key.trim()).filter(k => k && k.length > 10);
 const geminiKeys = geminiKeysRaw.split(',').map(key => key.trim()).filter(k => k && k.length > 10);
-const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || "";
-const cerebrasKeyRaw = process.env.CEREBRAS_API_KEY || process.env.NEXT_PUBLIC_CEREBRAS_API_KEY || "";
+const openRouterKey = process.env.OPENROUTER_API_KEY || "";
+const cerebrasKeyRaw = process.env.CEREBRAS_API_KEY || "";
 const cerebrasKey = cerebrasKeyRaw.trim().split(',').filter(k => k && k.length > 10);
 
 export const AI_CONFIG = {

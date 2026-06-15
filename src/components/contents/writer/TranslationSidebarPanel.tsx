@@ -6,7 +6,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';
 import { Languages, CheckCircle2, Loader2, AlertCircle, Square, CheckSquare, Trash2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import { executeTranslation } from '@/lib/services/writer/ai-core';
+import { executeTranslationAction as executeTranslation } from '@/lib/actions/aiActions';
 
 import { LinkPatcherService } from '@/lib/services/link-patcher';
 import { mdToHtml } from '@/utils/markdown';

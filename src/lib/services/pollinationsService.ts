@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
  */
 export class PollinationsService {
   private static API_URL = 'https://gen.pollinations.ai/image/';
-  private static API_KEY = process.env.NEXT_PUBLIC_POLLINATIONS_API_KEY;
+  private static API_KEY = process.env.POLLINATIONS_API_KEY;
 
   /**
    * Helper to convert pixel dimensions into descriptive aspect ratio keywords for AI prompts.

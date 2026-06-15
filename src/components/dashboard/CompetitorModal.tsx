@@ -63,8 +63,7 @@ export default function CompetitorModal({ isOpen, onClose, taskId }: CompetitorM
             const results = [];
         for (const comp of competitors) {
                 try {
-                    const apiKey = process.env.NEXT_PUBLIC_JINA_API_KEY || '';
-                    const data = await fetchJinaExtraction(comp.url, apiKey);
+                    const data = await fetchJinaExtraction(comp.url);
                     
                     if (data && data.content) {
                         results.push({ url: comp.url, content: data.content });
