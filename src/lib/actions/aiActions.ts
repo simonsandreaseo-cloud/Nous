@@ -640,12 +640,12 @@ export const runHumanizerPipeline = async (
 
     if (isChunkedMode) {
         // Modo Chunks (Unified o Duplicate Detection)
-        // 2 elementos HTML por chunk (máximo 2 párrafos aprox) como pidió el usuario
-        const chunks = chunkHtml(html, 2);
+        // 4 elementos HTML por chunk como pidió el usuario
+        const chunks = chunkHtml(html, 4);
         safeStatus(`Documento dividido en ${chunks.length} chunks para procesamiento dinámico.`);
         
         let processedChunksCount = 0;
-        const BATCH_SIZE = 5; // Ejecutar en lotes de 5 para paralelizacion y evitar el timeout de Vercel
+        const BATCH_SIZE = 1; // Volvemos a secuencial (1 por 1) para no triggerear límite de peticiones (429)
         const processedChunksArray = new Array(chunks.length).fill("");
 
         for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
