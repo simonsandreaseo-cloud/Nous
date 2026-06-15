@@ -205,6 +205,7 @@ export async function executeHumanizePipeline(
     const newContent = finalResult.html;
 
     const updates: Partial<Task> = {
+        content_body: newContent,
         metadata: { ...task.metadata, is_humanized: true, humanized_at: new Date().toISOString() }
     };
 
