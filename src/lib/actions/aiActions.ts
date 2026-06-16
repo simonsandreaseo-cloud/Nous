@@ -359,7 +359,7 @@ export const runSEOAnalysis = async (
     modelName?: string,
     isIdea: boolean = false
 ): Promise<SEOAnalysisResult> => {
-    const serperKey = serperKeyOverride || process.env.SERPER_API_KEY || '';
+    const serperKey = serperKeyOverride || process.env.SERPER_API_KEY || process.env.NEXT_PUBLIC_SERPER_API_KEY || '';
     
     const { data: units, error: rpcError } = await supabase.rpc('get_semantic_inventory_matches_v3', { 
         p_project_id: projectId,

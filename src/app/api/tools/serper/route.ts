@@ -11,7 +11,7 @@ export async function POST(req: Request) {
         // Limpiar la query de caracteres que rompen Serper (comillas literales)
         q = q.replace(/["\\]/g, '');
 
-        const apiKey = process.env.SERPER_API_KEY;
+        const apiKey = process.env.SERPER_API_KEY || process.env.NEXT_PUBLIC_SERPER_API_KEY;
 
         if (!apiKey) {
             console.error("[SERPER-PROXY] No API Key found in environment variables.");
