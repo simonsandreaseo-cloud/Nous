@@ -309,7 +309,7 @@ export const executeWithKeyRotation = async <T>(
     // For now, to keep it simple and safe, we treat all keys in NOUS_API_KEYS as Google keys for the Google provider.
     // Adjust if you have different variables for Groq/OpenRouter.
     // Filtramos para usar SOLO la llave en el index 6 como pidió el usuario (Llave 7)
-    const googleKeys = allKeys.length > 6 ? [allKeys[6]] : allKeys;
+    const googleKeys = allKeys;
     const groqKeys = AI_CONFIG.groq.apiKeys || [];
     const openRouterKeys = AI_CONFIG.openrouter.apiKey ? [AI_CONFIG.openrouter.apiKey] : [];
     const cerebrasKeys = AI_CONFIG.cerebras.apiKey ? [AI_CONFIG.cerebras.apiKey] : [];
