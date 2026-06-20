@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { ArticleConfig } from '@/lib/actions/aiActions';
 import { buildPrompt, autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
 import { streamGenerate, streamHumanize, streamSEOPostProcess } from '@/lib/services/writer/ai-streaming';
+import { sanitizeLLMHtml } from '@/utils/html-parser';
 import { AI_CONFIG } from '@/lib/ai/config';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 
@@ -199,7 +200,8 @@ export async function executeHumanizePipeline(
         return chunks;
     };
 
-    const chunks = chunkHtml(content, 4);
+    const sanitizedContent = sanitizeLLMHtml(content);
+    const chunks = chunkHtml(sanitizedContent, 4);
     onLog(`Documento dividido en ${chunks.length} chunks de 4 elementos HTML...`);
     
     let accumulatedHtml = '';
