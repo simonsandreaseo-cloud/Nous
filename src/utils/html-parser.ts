@@ -1,4 +1,5 @@
 import { ContentItem } from '../types/content';
+import * as cheerio from 'cheerio';
 
 export function escapeRegExp(string: string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -127,3 +128,30 @@ export const refineStyling = (html: string): string => {
 
     return doc.body.innerHTML;
 }
+
+export const sanitizeLLMHtml = (rawHtml: string): string => {
+    if (!rawHtml) return '';
+    
+    // 1. Cargar HTML (Cheerio arregla etiquetas mal cerradas)
+    // El 'false' evita que se agreguen tags html, head y body automáticos.
+    const $ = cheerio.load(rawHtml, null, false);
+    
+    // 2. Volar etiquetas no permitidas que puedan romper el layout
+    $('script, style, pre, code, iframe').remove();
+
+    // 3. Regex para cazar la basura típica que el LLM puede "escupir" cuando se desborda
+    const aiGarbageRegex = /(?:Deterministic Transformer|Expert HTML|Focus:|Expansion:|Drafting:|Minimum \d+ words|HTML direct|semantic tags|H\d:|Direct answer|Professional, SEO|No markdown|In this article|Concluding|Check word counts)/i;
+
+    // 4. Recorrer nodos de contenido principal y purgar
+    $('p, h1, h2, h3, h4, h5, h6, li').each((_, el) => {
+        const text = $(el).text();
+        
+        // Si el texto está vacío o contiene instrucciones residuales de la IA, lo eliminamos
+        if (!text.trim() || aiGarbageRegex.test(text)) {
+            $(el).remove();
+        }
+    });
+
+    // Extraemos el string HTML ya sanitizado
+    return $.html();
+};

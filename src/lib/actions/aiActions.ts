@@ -1,6 +1,7 @@
 'use server';
 
 
+import * as cheerio from 'cheerio';
 import { aiRouter } from "@/lib/ai/router";
 export type { 
     ArticleConfig, 
@@ -541,103 +542,76 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    // El backend ya no hace chunks, asume que el frontend se lo manda picado
-    const isChunkedMode = false;
-    safeStatus(`Iniciando humanización de chunk con modelo ${modelName}...`);
+    safeStatus(`Iniciando humanización estructural con Cheerio y modelo ${modelName}...`);
     const start = Date.now();
     
-    // Función auxiliar para humanizar un bloque (chunk o documento completo)
-    const processContentBlock = async (contentToProcess: string, index: number, total: number) => {
-        if (isTrivialChunk(contentToProcess)) {
-            if (onChunk) onChunk(contentToProcess);
-            return contentToProcess;
-        }
+    const $ = cheerio.load(html, { decodeEntities: false }, false);
+    const textBlocks: Record<string, string> = {};
+    let counter = 0;
 
-        const blockLabel = isChunkedMode ? `Chunk ${index}/${total}` : 'Documento Completo';
-        safeStatus(`Humanizando ${blockLabel}...`);
-
-        try {
-            const processed = await executeHumanizerWithRetry(async (ai) => {
-                const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3.  CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4.  MORFOSINTAXIS (EXPLOSIVIDAD):\n    * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n    * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5.  IDIOMA: Usa español neutro panhispánico.\n6.  PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7.  PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n\nREGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas HTML (como <h1>, <h2>, <p>, <table>, <tr>, <td>, <strong>, <a>). Reescribe ÚNICAMENTE el texto que está DENTRO de estas etiquetas.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`;
-
-                const model = ai.getGenerativeModel({ 
-                    model: modelName, 
-                    systemInstruction: systemInstructionStr,
-                    generationConfig: {}
-                });
-                
-                const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nAplica TODAS las reglas de humanización del REDACTOR MEDIOCRE al siguiente ARTÍCULO HTML: ${contentToProcess}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación de los defectos agregados) y 'html' (el contenido humanizado en crudo).`;
-                const response = await model.generateContent(prompt);
-                
-                let raw = response.response.text();
-                const jsonStart = raw.indexOf('{');
-                const jsonEnd = raw.lastIndexOf('}');
-                if (jsonStart !== -1 && jsonEnd !== -1) {
-                    raw = raw.substring(jsonStart, jsonEnd + 1);
-                }
-                
-                let htmlOutput = "";
-                try {
-                    const parsed = JSON.parse(raw);
-                    htmlOutput = parsed.html || contentToProcess; 
-                } catch (err) {
-                    console.error("[Humanizer] Failed to parse JSON:", raw);
-                    htmlOutput = contentToProcess; 
-                }
-                
-                return cleanAndFormatHtml(htmlOutput);
-            }, safeStatus, `Humanización ${blockLabel}`, modelName);
-            
-            if (onChunk) onChunk(processed);
-            return processed;
-        } catch (e: any) {
-            safeStatus(`Error en ${blockLabel}: ${e.message}. Aplicando fallback de rescate...`);
-            try {
-                const processedFallback = await executeHumanizerWithRetry(async (ai) => {
-                    const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3.  CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4.  MORFOSINTAXIS (EXPLOSIVIDAD):\n    * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n    * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5.  IDIOMA: Usa español neutro panhispánico.\n6.  PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7.  PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n\nREGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas HTML (como <h1>, <h2>, <p>, <table>, <tr>, <td>, <strong>, <a>). Reescribe ÚNICAMENTE el texto que está DENTRO de estas etiquetas.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`;
-
-                    const model = ai.getGenerativeModel({ 
-                        model: 'gemma-4-31b-it', // Fallback model (or main if passed)
-                        systemInstruction: systemInstructionStr,
-                        generationConfig: {}
-                    });
-                    
-                    const languageInstruction = config.language ? `\n\nIdioma OBLIGATORIO de salida: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español de España (Neutro, profesional)' : config.language}. Asegúrate de respetar este idioma estrictamente en el contenido generado.` : '';
-                    
-                    const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}${languageInstruction}\n\nAplica TODAS las reglas de humanización del REDACTOR MEDIOCRE al siguiente ARTÍCULO HTML: ${contentToProcess}\n\nIMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis y justificación de los defectos agregados) y 'html' (el contenido humanizado en crudo).`;
-                    const response = await model.generateContent(prompt);
-                    
-                    let raw = response.response.text();
-                    const jsonStart = raw.indexOf('{');
-                    const jsonEnd = raw.lastIndexOf('}');
-                    if (jsonStart !== -1 && jsonEnd !== -1) {
-                        raw = raw.substring(jsonStart, jsonEnd + 1);
-                    }
-                    
-                    let htmlOutput = "";
-                    try {
-                        const parsed = JSON.parse(raw);
-                        htmlOutput = parsed.html || contentToProcess; 
-                    } catch (err) {
-                        htmlOutput = contentToProcess; 
-                    }
-                    
-                    return cleanAndFormatHtml(htmlOutput);
-                }, safeStatus, `Humanización Fallback ${blockLabel}`, 'gemma-4-31b-it');
-                
-                if (onChunk) onChunk(processedFallback);
-                return processedFallback;
-            } catch (fallbackError) {
-                safeStatus(`Fallback falló en ${blockLabel}. Conservando original...`);
-                if (onChunk) onChunk(contentToProcess);
-                return contentToProcess;
+    const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th';
+    $(blockSelectors).each((_, el) => {
+        if ($(el).children(blockSelectors).length === 0) {
+            const innerHtml = $(el).html()?.trim();
+            if (innerHtml && innerHtml.replace(/<[^>]*>/g, '').trim().length > 5) {
+                const id = `block_${counter++}`;
+                textBlocks[id] = innerHtml;
+                $(el).attr('data-humanize-id', id);
             }
         }
-    };
+    });
 
-    // El frontend ahora es responsable de enviar los chunks de manera individual.
-    // Nosotros simplemente procesamos lo que llega (sea un chunk o un doc pequeño) de una sola vez.
-    let finalHtml = await processContentBlock(html, 1, 1);
+    const numBlocks = Object.keys(textBlocks).length;
+    if (numBlocks === 0) {
+        safeStatus(`No se encontraron bloques de texto válidos. Devolviendo original.`);
+        if (onChunk) onChunk(html);
+        return { html: cleanAndFormatHtml(html) };
+    }
+
+    safeStatus(`Se extrajeron ${numBlocks} bloques. Enviando al modelo...`);
+
+    try {
+        const processedBlocks = await executeHumanizerWithRetry(async (ai) => {
+            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común.\n2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite pequeños saltos conceptuales.\n3.  CONECTORES PROHIBIDOS: Evita conectores formales como "Sin embargo,", "Por lo tanto,", "En conclusión,".\n4.  MORFOSINTAXIS: Usa frases cortas predominantemente. Mezcla con algunas frases largas para ser impredecible.\n5.  IDIOMA: Usa español neutro panhispánico.\n6.  VOZ ACTIVA: Prioriza la voz activa.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos humanizados. No devuelvas markdown ni otra cosa.`;
+
+            const model = ai.getGenerativeModel({ 
+                model: modelName, 
+                systemInstruction: systemInstructionStr,
+                generationConfig: {
+                    responseMimeType: 'application/json'
+                }
+            });
+            
+            const languageInstruction = config.language ? `\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
+            
+            const prompt = `JSON DE ENTRADA CON BLOQUES:\n${JSON.stringify(textBlocks)}\n\n${languageInstruction}\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA.`;
+            
+            const response = await model.generateContent(prompt);
+            let raw = response.response.text();
+            
+            if (raw.startsWith('```json')) {
+                raw = raw.replace(/```json\n?/, '').replace(/```\n?$/, '');
+            }
+            
+            return JSON.parse(raw);
+        }, safeStatus, `Humanización de ${numBlocks} bloques`, modelName);
+        
+        safeStatus(`Reconstruyendo el HTML...`);
+        for (const [id, humanizedText] of Object.entries(processedBlocks as Record<string, string>)) {
+            const el = $(`[data-humanize-id="${id}"]`);
+            if (el.length > 0 && typeof humanizedText === 'string') {
+                el.html(humanizedText);
+            }
+        }
+
+    } catch (e: any) {
+        safeStatus(`Error durante la humanización: ${e.message}. Devolviendo original.`);
+    }
+
+    $('[data-humanize-id]').removeAttr('data-humanize-id');
+    const finalHtml = $.html();
+    
+    if (onChunk) onChunk(finalHtml);
 
     const duration = (Date.now() - start) / 1000;
     console.log(`[Humanizer-Perf] Completado en ${duration}s`);
