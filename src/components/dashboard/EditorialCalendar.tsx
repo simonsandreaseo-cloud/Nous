@@ -558,7 +558,7 @@ export function EditorialCalendar() {
                 const translateLanguages = activeProject?.i18n_settings?.languages?.length ?? 0;
 
                 // Build plan buckets
-                // If manual selection: force the phase for selected items if the option is checked.
+                // Only allow actions if prerequisites are met, even if manually selected.
                 const planToResearch = research
                     ? targetTasks.filter(t => isManualSelection || !RESEARCHED_STATUSES.includes(t.status))
                     : [];
@@ -568,19 +568,19 @@ export function EditorialCalendar() {
                     ? targetTasks.filter(t => !tasksWithContent.has(t.id))
                     : [];
                 
-                // Rewrite items only if explicitly selected and they already have content.
+                // Rewrite items only if they already have content.
                 const planToRewrite = draft && isManualSelection
                     ? targetTasks.filter(t => tasksWithContent.has(t.id))
                     : [];
                 
                 // Cascade: Humanize items if they already have content, or if they WILL be drafted in this run.
                 const planToHumanize = humanize
-                    ? targetTasks.filter(t => isManualSelection || tasksWithContent.has(t.id) || draft)
+                    ? targetTasks.filter(t => tasksWithContent.has(t.id) || draft)
                     : [];
                 
                 // Cascade: Translate items if they already have content, or if they WILL be drafted in this run.
                 const planToTranslate = translate
-                    ? targetTasks.filter(t => isManualSelection || tasksWithContent.has(t.id) || draft)
+                    ? targetTasks.filter(t => tasksWithContent.has(t.id) || draft)
                     : [];
 
                 const plan: OrbPipelinePlan = {
@@ -823,10 +823,14 @@ export function EditorialCalendar() {
                     setResearchProgress((pCount / filtered.length) * 100);
                 }
             } else if (action === 'humanizacion_masiva') {
-                // Use status as proxy: por_corregir or redactado = written, needs humanization
+                // Ignore status if manual selection, but STRICTLY require content
                 let filtered = tasks.filter(t => t.status === 'por_corregir' || t.status === 'redactado');
-                if (selectedTaskIds.length > 0) filtered = tasks.filter(t => selectedTaskIds.includes(t.id));
-                if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay artículos redactados que necesiten humanización.'); return; }
+                if (selectedTaskIds.length > 0) {
+                    const { data: tc } = await supabase.from('task_contents').select('id, content_body').in('id', selectedTaskIds);
+                    const validIds = new Set((tc || []).filter((c: any) => c.content_body && c.content_body.trim().length > 0).map((c: any) => c.id));
+                    filtered = tasks.filter(t => selectedTaskIds.includes(t.id) && validIds.has(t.id));
+                }
+                if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'Ninguno de los artículos seleccionados tiene contenido válido para humanizar.'); return; }
                 let pCount = 0;
                 for (const t of filtered) {
                     try {
