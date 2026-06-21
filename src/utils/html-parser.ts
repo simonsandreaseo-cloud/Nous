@@ -132,18 +132,31 @@ export const refineStyling = (html: string): string => {
 export const sanitizeLLMHtml = (rawHtml: string): string => {
     if (!rawHtml) return '';
     
+    // 0. Eliminar bloques <thinking> si existen en el raw HTML
+    let preCleaned = rawHtml.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+
     // 1. Cargar HTML (Cheerio arregla etiquetas mal cerradas)
     // El 'false' evita que se agreguen tags html, head y body automáticos.
-    const $ = cheerio.load(rawHtml, null, false);
+    const $ = cheerio.load(preCleaned, null, false);
     
     // 2. Volar etiquetas no permitidas que puedan romper el layout
     $('script, style, pre, code, iframe').remove();
 
-    // 3. Regex para cazar la basura típica que el LLM puede "escupir" cuando se desborda
-    const aiGarbageRegex = /(?:Deterministic Transformer|Expert HTML|Focus:|Expansion:|Drafting:|Minimum \d+ words|HTML direct|semantic tags|H\d:|Direct answer|Professional, SEO|No markdown|In this article|Concluding|Check word counts)/i;
+    // 3. Regex ampliada (Agnóstica) para cazar la basura típica que el LLM puede "escupir" cuando se desborda
+    const aiGarbageRegex = /(?:Deterministic Transformer|Expert HTML|Focus:|Expansion:|Drafting:|Minimum \d+ words|1500\+ words|HTML direct|semantic tags|H\d:|Direct answer|Professional, SEO|No markdown|In this article|Concluding|Check word count|Word count strategy|Internal link|Constraint Check|Self-Correction|JSON metadata|Direct response|Prompt:|Table for comparison|Comparative Table|Blockquote for|ESTRATEGIA DE ENLAZADO INTERNO|Wait, |I will |I'll |I must |list provided|omit links|create generic|Section \d+|tags\.|must check if I missed|only body content|No generic intro|use placeholders|hallucinating URLs|none were given|Focus on the|MUST appear)/i;
 
-    // 4. Recorrer nodos de contenido principal y purgar
-    $('p, h1, h2, h3, h4, h5, h6, li').each((_, el) => {
+    // 4. Eliminar TODO texto huérfano (verbosidad de Gemma) que no esté envuelto en una etiqueta HTML válida.
+    // Esto borra automáticamente cualquier texto suelto en la raíz del documento.
+    $.root().contents().filter((_, el) => el.type === 'text').remove();
+
+    // 4.1. Tablas y listas: Eliminar textos sueltos e inválidos inyectados directamente dentro de ul, ol, table, tr, etc.
+    // (Ejemplo: Gemma pone "Aquí tienes los elementos:" dentro del <ul> pero fuera del <li>)
+    $('ul, ol, table, tbody, thead, tfoot, tr').contents().filter((_, el) => {
+        return el.type === 'text' && $(el).text().trim().length > 0;
+    }).remove();
+
+    // 5. Recorrer nodos de contenido principal y purgar. Añadimos blockquote, ul, ol, div, span.
+    $('p, h1, h2, h3, h4, h5, h6, li, blockquote, ul, ol, div, span').each((_, el) => {
         const text = $(el).text();
         
         // Si el texto está vacío o contiene instrucciones residuales de la IA, lo eliminamos

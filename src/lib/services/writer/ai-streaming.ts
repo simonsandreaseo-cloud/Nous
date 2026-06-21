@@ -163,3 +163,46 @@ export async function streamSEOPostProcess(
     }
     return refinedSEO;
 }
+
+export async function streamFinalCleanup(
+    html: string,
+    onStatus: (msg: string) => void
+): Promise<string> {
+    let cleanedHtml = html;
+    const response = await fetch('/api/writer/clean', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html })
+    });
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+            
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const parsed = JSON.parse(line);
+                    if (parsed.type === 'error') throw new Error(parsed.error);
+                    if (parsed.type === 'status') onStatus(parsed.message);
+                    if (parsed.type === 'done') cleanedHtml = parsed.text;
+                } catch (e: any) {
+                    if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
+                        throw e;
+                    }
+                }
+            }
+        }
+    }
+    return cleanedHtml;
+}

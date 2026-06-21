@@ -2,7 +2,7 @@ import { Task, Project } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 import { ArticleConfig } from '@/lib/actions/aiActions';
 import { buildPrompt, autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
-import { streamGenerate, streamHumanize, streamSEOPostProcess } from '@/lib/services/writer/ai-streaming';
+import { streamGenerate, streamHumanize, streamSEOPostProcess, streamFinalCleanup } from '@/lib/services/writer/ai-streaming';
 import { sanitizeLLMHtml } from '@/utils/html-parser';
 import { AI_CONFIG } from '@/lib/ai/config';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
@@ -130,6 +130,13 @@ export async function executeDraftPipeline(
         
         // Strip HTML tags roughly to give text context for the next chunk
         previousContext = chunkHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    onLog('Limpiando alucinaciones del modelo (Capa Final)...');
+    try {
+        finalHtml = await streamFinalCleanup(finalHtml, onLog);
+    } catch (cleanupErr: any) {
+        onLog(`⚠️ Error en limpieza final: ${cleanupErr.message}. Usando versión original.`);
     }
 
     onLog('Procesando vínculos y SEO...');

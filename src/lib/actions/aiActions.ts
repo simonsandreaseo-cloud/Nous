@@ -798,7 +798,66 @@ export const runTranslationAction = async (
         });
         return response.text;
     }, modelName, undefined, undefined, undefined, false, 'Traducción AI');
-};
+}
+
+export const runFinalCleaningLayer = async (
+    html: string,
+    onStatus?: (msg: string) => void
+): Promise<string> => {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else console.log(`[FinalCleaning-Status] ${msg}`);
+    };
+
+    safeStatus(`Iniciando capa de limpieza final con Gemini 3.5...`);
+    
+    try {
+        const processed = await executeWithKeyRotation(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({
+                model: currentModel,
+                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor de Limpieza de HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+                generationConfig: { 
+                    temperature: 0.1
+                } 
+            });
+            
+            const prompt = `
+            TASK: Revisa este artículo HTML y ELIMINA cualquier instrucción, meta-pensamiento, reglas de prompt, o texto en inglés ("Internal links", "1500+ words", "Table for comparison", "I will proceed", etc.) que se haya filtrado por error en la redacción.
+            
+            REGLAS CRÍTICAS:
+            1. CONSERVA el resto del texto TAL CUAL. No reescribas, no resumas, no cambies el estilo.
+            2. MANTÉN INTACTAS todas las etiquetas HTML (enlaces, negritas, encabezados, listas).
+            3. Si un párrafo entero es basura del modelo (ej. explicando qué va a hacer), elimínalo por completo.
+            4. Si la basura está en medio de una oración válida, simplemente bórrala para que la oración recobre el sentido en español.
+            
+            IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis breve de lo que eliminaste) y 'html' (el artículo limpio final).
+            
+            ARTÍCULO HTML TO CLEAN:
+            ${html}
+            `;
+            const response = await model.generateContent(prompt);
+            let raw = response.response.text();
+            
+            const jsonStart = raw.indexOf('{');
+            const jsonEnd = raw.lastIndexOf('}');
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                raw = raw.substring(jsonStart, jsonEnd + 1);
+            }
+            
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed.html || html;
+            } catch (e) {
+                return html;
+            }
+        }, AI_CONFIG.gemini.models.flash3_5 || 'gemini-3.5-flash', undefined, undefined, false, `Limpieza Final Gemini 3.5`);
+        
+        return processed;
+    } catch (e: any) {
+        safeStatus(`Error en limpieza final: ${e.message}. Devolviendo original por seguridad.`);
+        return html;
+    }
+};;
 
 export const executeTranslationAction = async (prompt: string, targetLanguageName: string): Promise<string> => {
     return executeTranslation(prompt, targetLanguageName);
