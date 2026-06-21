@@ -28,11 +28,30 @@ export const processHtmlLinks = (html: string): string => {
     return doc.body.innerHTML;
 };
 
+export const strictHtmlRegexFilter = (rawHtml: string): string => {
+    if (!rawHtml) return "";
+
+    // Regex que captura CUALQUIER bloque que empiece y termine con una etiqueta estructural válida.
+    // [\s\S]*? asegura que capture todo el contenido interno, incluso si hay saltos de línea.
+    const structuralTagRegex = /<(h[1-6]|p|ul|ol|blockquote|table)[^>]*>[\s\S]*?<\/\1>/gi;
+    
+    const matches = rawHtml.match(structuralTagRegex);
+    
+    if (!matches || matches.length === 0) {
+        return rawHtml; 
+    }
+
+    return matches.join('\n\n');
+};
+
 export const cleanAndFormatHtml = (html: string): string => {
     if (!html) return html;
     
+    // 0. PURGA DETERMINISTA: Destruir ruido de IA fuera de etiquetas
+    let processedHtml = strictHtmlRegexFilter(html);
+
     // 1. Limpieza inicial segura de Markdown a HTML sobre la cadena cruda antes de parsear
-    let processedHtml = html
+    processedHtml = processedHtml
         .replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
         .replace(/^###\s+(.*$)/gim, '<h3>$1</h3>')
         .replace(/^##\s+(.*$)/gim, '<h2>$1</h2>');
