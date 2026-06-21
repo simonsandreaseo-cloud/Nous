@@ -114,7 +114,7 @@ export default function NousOrb({
 
         // Needs humanization = status is 'por_corregir' or 'redactado' (written, not humanized)
         const needHuman = tasks.filter(t => 
-            t.status === 'por_corregir' || t.status === 'redactado'
+            t.status === 'por_corregir' || t.status === 'redactado' || t.status === 'por_humanizar'
         );
 
         return {

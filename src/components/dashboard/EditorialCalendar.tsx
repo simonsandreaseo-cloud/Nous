@@ -548,13 +548,16 @@ export function EditorialCalendar() {
                     .select('id, content_body')
                     .in('id', targetTasks.map(t => t.id));
 
-                const tasksWithContent = new Set(
-                    (existingContents || [])
-                        .filter((c: any) => c.content_body && c.content_body.trim().length > 0)
-                        .map((c: any) => c.id)
-                );
+                const dbTasksWithContent = (existingContents || [])
+                    .filter((c: any) => c.content_body && c.content_body.trim().length > 0)
+                    .map((c: any) => c.id);
 
-                const RESEARCHED_STATUSES = ['por_redactar', 'por_corregir', 'redactado', 'publicado', 'humanizado', 'en_revision', 'en_investigacion'];
+                const tasksWithContent = new Set([
+                    ...dbTasksWithContent,
+                    ...targetTasks.filter(t => t.content_body && t.content_body.trim().length > 0).map(t => t.id)
+                ]);
+
+                const RESEARCHED_STATUSES = ['por_redactar', 'por_corregir', 'redactado', 'publicado', 'humanizado', 'en_revision', 'en_investigacion', 'por_humanizar', 'por_maquetar'];
                 const translateLanguages = activeProject?.i18n_settings?.languages?.length ?? 0;
 
                 // Build plan buckets

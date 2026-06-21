@@ -64,12 +64,15 @@ export default function NousAssistantMenu({
         return Array.from(new Set([...baseStatuses, ...custom]));
     }, [activeProject]);
 
-    const effectiveProgress = (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining) 
+    const effectiveProgress = (viewMode === 'writer' && (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining)) 
         ? processingProgress 
         : processingProgress; // This is a simplification, the actual logic was in NousOrb
         
-    const effectiveIsProcessing = (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining || isProcessing);
-    const effectiveStatus = (isHumanizing ? humanizerStatus : statusMessage || "Procesando...");
+    const effectiveIsProcessing = viewMode === 'writer' 
+        ? (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining || isProcessing)
+        : isProcessing;
+        
+    const effectiveStatus = (viewMode === 'writer' && isHumanizing) ? humanizerStatus : statusMessage || "Procesando...";
 
     // STATUS WORKFLOW: idea -> en_investigacion -> por_redactar -> por_corregir/redactado -> humanizado
     const stats = useMemo(() => {
@@ -83,7 +86,7 @@ export default function NousAssistantMenu({
         const needDraft = tasks.filter(t => t.status === 'por_redactar');
         // Needs humanization = written but not yet humanized
         const needHuman = tasks.filter(t => 
-            t.status === 'por_corregir' || t.status === 'redactado'
+            t.status === 'por_corregir' || t.status === 'redactado' || t.status === 'por_humanizar'
         );
 
         return {

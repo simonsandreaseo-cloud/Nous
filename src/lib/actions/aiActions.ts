@@ -589,11 +589,22 @@ export const runHumanizerPipeline = async (
             const response = await model.generateContent(prompt);
             let raw = response.response.text();
             
-            if (raw.startsWith('```json')) {
-                raw = raw.replace(/```json\n?/, '').replace(/```\n?$/, '');
+            let cleaned = raw;
+            cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            
+            const jsonStart = cleaned.indexOf('{');
+            const jsonEnd = cleaned.lastIndexOf('}');
+            
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
             }
             
-            return JSON.parse(raw);
+            try {
+                return JSON.parse(cleaned);
+            } catch (e) {
+                console.error("[Humanizer-Parser] Fallo catastrófico al parsear JSON. Raw preview:", cleaned.substring(0, 100) + "...");
+                throw e;
+            }
         }, safeStatus, `Humanización de ${numBlocks} bloques`, modelName);
         
         safeStatus(`Reconstruyendo el HTML...`);

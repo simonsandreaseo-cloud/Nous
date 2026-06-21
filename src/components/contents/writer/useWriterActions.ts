@@ -359,16 +359,7 @@ export function useWriterActions() {
             
             // --- API ROUTE REPLACEMENT FOR SEO POSTPROCESSOR ---
             let refinedSEO = linked;
-            try {
-                refinedSEO = await streamSEOPostProcess(
-                    linked, 
-                    config, 
-                    (msg) => store.setStatus(msg)
-                );
-            } catch (seoErr) {
-                console.error('[SEO PostProcess] Fallback triggered due to API error:', seoErr);
-                refinedSEO = linked; // Fallback to original
-            }
+            // Post-procesado global removido para evitar procesamiento de documento completo
             
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
             

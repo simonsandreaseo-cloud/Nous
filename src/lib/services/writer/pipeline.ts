@@ -143,13 +143,7 @@ export async function executeDraftPipeline(
         activeProject
     );
 
-    const refinedSEO = await streamSEOPostProcess(
-        linked, 
-        config, 
-        (msg) => onLog(msg)
-    );
-
-    let finalContent = refinedSEO;
+    let finalContent = linked;
     const activeExtractorRules = activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer') : [];
     if (activeExtractorRules.length > 0) {
         onLog('Ejecutando extractores de datos...');
