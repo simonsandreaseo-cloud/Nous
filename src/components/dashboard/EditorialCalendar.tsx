@@ -529,7 +529,7 @@ export function EditorialCalendar() {
 
         try {
             if (action === 'batch_pipeline') {
-                const { research, draft, humanize, translate, finalStatus } = config || {};
+                const { research, draft, humanize, clean, translate, finalStatus } = config || {};
                 const isManualSelection = selectedTaskIds && selectedTaskIds.length > 0;
                 const targetTasks = isManualSelection
                     ? tasks.filter(t => selectedTaskIds.includes(t.id))
