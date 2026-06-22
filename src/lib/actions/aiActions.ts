@@ -875,13 +875,13 @@ export const runContentCleaning = async (html: string, onStatus?: (msg: string) 
         const cleanContent = await executeWithKeyRotation(async (ai, currentModel) => {
             const modelObj = ai.getGenerativeModel({
                 model: currentModel || 'gemini-3.5-flash',
-                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nEres un editor estricto y determinista. Tu única tarea es eliminar de este artículo HTML cualquier introducción robótica, prefacio tipo 'Aquí tienes el artículo...', conclusiones innecesarias o ruido que no pertenezca estrictamente al contenido de valor del artículo. Mantén TODAS las etiquetas HTML estructurales (h2, p, ul, a, img, etc.). Devuelve únicamente un objeto JSON con 'razonamiento_interno' y 'html'.`,
+                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nEres un editor de HTML. Tu única tarea es eliminar toda la basura y texto generado por IA que no pertenezca al contenido principal del artículo. Mantén intacta toda la estructura HTML válida (h2, p, ul, etc.). Devuelve únicamente un objeto JSON con 'razonamiento_interno' y 'html'.`,
                 generationConfig: {
                     temperature: 0.1,
                 }
             });
 
-            const prompt = `Limpia el siguiente HTML para dejar SOLO el contenido valioso, sin prefacios ni despedidas generadas por IA. No resumas, solo amuta los extremos irrelevantes si existen.\n\nARTÍCULO HTML:\n${html}`;
+            const prompt = `Elimina toda la basura que no pertenezca al contenido principal de este artículo HTML.\n\nARTÍCULO HTML:\n${html}`;
 
             const response = await modelObj.generateContent(prompt);
             let raw = response.response.text();
