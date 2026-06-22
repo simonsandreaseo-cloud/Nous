@@ -229,16 +229,16 @@ export const generateArticleJSON = async (model: string, prompt: string, hierarc
 
 export const generateArticleStream = async (model: string, prompt: string, hierarchy?: string[], onChunk?: (text: string) => void) => {
     return executeWithKeyRotation(async (ai, currentModel) => {
+        const sysInst = `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Escribe el artículo en formato HTML directo. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>). NO USES JSON, devuelve únicamente el código HTML resultante.`;
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
-            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Escribe el artículo en formato HTML directo. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>). NO USES JSON, devuelve únicamente el código HTML resultante.`,
             generationConfig: {
                 temperature: 0.7,
                 maxOutputTokens: 8192,
             }
         });
         
-        const finalPrompt = `INSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el artículo de cero siguiendo la estructura dada. NO repitas instrucciones, NO uses prefacios. Devuelve SOLAMENTE el texto en HTML final.`;
+        const finalPrompt = `[SYSTEM INSTRUCTIONS]\n${sysInst}\n\n[USER INSTRUCTIONS]\nINSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el artículo de cero siguiendo la estructura dada. NO repitas instrucciones, NO uses prefacios. Devuelve SOLAMENTE el texto en HTML final.`;
         
         const response = await modelObj.generateContentStream(finalPrompt);
         let fullHtml = '';
@@ -249,7 +249,7 @@ export const generateArticleStream = async (model: string, prompt: string, hiera
         }
         
         return fullHtml;
-    }, model || 'default', hierarchy, undefined, undefined, false, 'Redacción Artículo Stream');
+    }, model || 'default', hierarchy, undefined, undefined, true, 'Redacción Artículo Stream', 180000);
 };
 
 export const refineArticleContent = async (

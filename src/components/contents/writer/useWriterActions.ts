@@ -240,7 +240,7 @@ export function useWriterActions() {
             };
 
             // Helper to chunk the outline
-            const chunkOutline = (outline: any[], maxH2: number = 3): any[][] => {
+            const chunkOutline = (outline: any[], maxH2: number = 2): any[][] => {
                 const chunks: any[][] = [];
                 let currentChunk: any[] = [];
                 let h2Count = 0;
@@ -261,7 +261,7 @@ export function useWriterActions() {
                 return chunks.length > 0 ? chunks : [outline];
             };
 
-            const outlineChunks = chunkOutline(config.outlineStructure || [], 3);
+            const outlineChunks = chunkOutline(config.outlineStructure || [], 2);
             store.setStatus(`Documento dividido en ${outlineChunks.length} fragmentos para redacción progresiva...`);
 
             if (activeProject && !hasTokens(1)) {

@@ -57,7 +57,7 @@ export async function executeDraftPipeline(
     };
 
     // Helper to chunk the outline
-    const chunkOutline = (outline: any[], maxH2: number = 3): any[][] => {
+    const chunkOutline = (outline: any[], maxH2: number = 2): any[][] => {
         const chunks: any[][] = [];
         let currentChunk: any[] = [];
         let h2Count = 0;
@@ -78,7 +78,7 @@ export async function executeDraftPipeline(
         return chunks.length > 0 ? chunks : [outline];
     };
 
-    const outlineChunks = chunkOutline(config.outlineStructure || [], 3);
+    const outlineChunks = chunkOutline(config.outlineStructure || [], 2);
     onLog(`Documento dividido en ${outlineChunks.length} fragmentos para redacción progresiva...`);
 
     let finalHtml = '';
@@ -154,7 +154,7 @@ export async function executeDraftPipeline(
     const activeExtractorRules = activeProject ? NousExtractorService.getActiveRulesForPhase(activeProject, 'writer') : [];
     if (activeExtractorRules.length > 0) {
         onLog('Ejecutando extractores de datos...');
-        finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
+        finalContent = await NousExtractorService.applyExtractionToHtml(linked, activeProject, 'writer');
     }
 
     const formatted = cleanAndFormatHtml(finalContent);
