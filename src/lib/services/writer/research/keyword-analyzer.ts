@@ -9,6 +9,31 @@ import { safeJsonExtract } from "@/utils/json";
  */
 export const KeywordAnalyzer = {
     /**
+     * Executes an operation with retries to prevent timeouts and transient errors.
+     */
+    async executeWithRetry<T>(operation: () => Promise<T>, taskName: string, onLog?: (p: string, m: string) => void): Promise<T> {
+        let success = false;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 3;
+        let lastError: any;
+
+        while (!success && attempts < MAX_ATTEMPTS) {
+            try {
+                return await operation();
+            } catch (err: any) {
+                attempts++;
+                lastError = err;
+                if (attempts >= MAX_ATTEMPTS) {
+                    throw new Error(`Fallo definitivo en ${taskName} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                }
+                if (onLog) onLog(taskName, `⚠️ Interrupción o Timeout detectado. Reintentando en 10s... (${attempts}/${MAX_ATTEMPTS})`);
+                await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+        }
+        throw lastError;
+    },
+
+    /**
      * Extracts and curates LSI keywords from a set of texts.
      */
     async extractLSIKeywords(texts: string[], targetKeyword: string, onLog?: (p: string, m: string) => void): Promise<any[]> {
@@ -40,14 +65,15 @@ Devuelve ÚNICAMENTE un array de strings en formato JSON con los términos sobre
 FORMATO OBLIGATORIO:
 {"keywords": ["termino 1", "termino 2", "termino 3"]}`;
 
-        const lsiRes = await aiRouter.generate({
+        const lsiRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: lsiPrompt,
             model: "gemini-3.5-flash", // Fast and efficient model
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios LSI. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "LSI Technical",
-            timeoutMs: 180000
-        });
+            timeoutMs: 180000,
+            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
+        }), "Fase 2 (LSI)", onLog);
         
         const extractedJson = safeJsonExtract<{keywords: string[]}>(lsiRes.text, {keywords: []});
         const wordList = Array.from(new Set(
@@ -107,14 +133,15 @@ REGLAS:
 4. FORMATO OBLIGATORIO:
 {"keywords": ["termino 1", "termino 2", "termino 3"]}`;
 
-        const askRes = await aiRouter.generate({
+        const askRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: askPrompt,
             model: "gemini-3.5-flash",
             systemPrompt: "Eres un experto analista de lingüística técnica. Respondes exclusivamente con JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "ASK Extraction",
-            timeoutMs: 180000
-        });
+            timeoutMs: 180000,
+            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
+        }), "Fase 3 (ASK)", onLog);
 
         const extractedJson = safeJsonExtract<{keywords: string[]}>(askRes.text, {keywords: []});
         const extractedTerms = (extractedJson.keywords || []).map(t => t.trim()).filter(t => t.length > 2);
@@ -187,14 +214,15 @@ Devuelve ÚNICAMENTE un array de strings en formato JSON con las palabras clave 
 FORMATO OBLIGATORIO:
 {"keywords": ["termino 1", "termino 2", "termino 3"]}`;
 
-        const filterRes = await aiRouter.generate({
+        const filterRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: filterPrompt,
             model: "gemini-3.5-flash",
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios SEO. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "Golden Keywords Filter",
-            timeoutMs: 180000
-        });
+            timeoutMs: 180000,
+            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
+        }), "Fase 4 (Golden KWs)", onLog);
 
         const extractedJson = safeJsonExtract<{keywords: string[]}>(filterRes.text, {keywords: []});
         const survivingKeywords = new Set((extractedJson.keywords || []).map((k: string) => k.toLowerCase().trim()));

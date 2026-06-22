@@ -56,7 +56,7 @@ class AIRouter {
                 }
             },
             model,
-            undefined,      // explicitHierarchy
+            request.explicitHierarchy,      // explicitHierarchy
             undefined,      // keys
             undefined,      // onRotation
             forceModel,     // isStrictModel
