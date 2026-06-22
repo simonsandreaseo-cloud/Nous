@@ -822,13 +822,7 @@ export const runFinalCleaningLayer = async (
             });
             
             const prompt = `
-            TASK: Revisa este artículo HTML y ELIMINA cualquier instrucción, meta-pensamiento, reglas de prompt, o texto en inglés ("Internal links", "1500+ words", "Table for comparison", "I will proceed", etc.) que se haya filtrado por error en la redacción.
-            
-            REGLAS CRÍTICAS:
-            1. CONSERVA el resto del texto TAL CUAL. No reescribas, no resumas, no cambies el estilo.
-            2. MANTÉN INTACTAS todas las etiquetas HTML (enlaces, negritas, encabezados, listas).
-            3. Si un párrafo entero es basura del modelo (ej. explicando qué va a hacer), elimínalo por completo.
-            4. Si la basura está en medio de una oración válida, simplemente bórrala para que la oración recobre el sentido en español.
+            TASK: Elimina toda la basura y texto generado por IA que no pertenezca al contenido principal del artículo. Limita tu respuesta estrictamente al contenido de valor.
             
             IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis breve de lo que eliminaste) y 'html' (el artículo limpio final).
             

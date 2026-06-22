@@ -63,7 +63,7 @@ import NousOrb from "./NousOrb";
 import { SmartUploaderModal } from "./SmartUploaderModal";
 import SmartSlugGeneratorModal from "./SmartSlugGeneratorModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
-import { runContentCleaning } from '@/lib/actions/aiActions';
+import { processTaskTranslationAction } from '@/lib/actions/aiActions';
 import { 
     processTaskOutlineAction,
     prepareTaskDraftAction,
@@ -72,6 +72,7 @@ import {
 import { executeDraftPipeline, executeHumanizePipeline } from '@/lib/services/writer/pipeline';
 import OrbConfirmationModal, { OrbPipelinePlan } from './OrbConfirmationModal';
 import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
+import { streamFinalCleanup } from '@/lib/services/writer/ai-streaming';
 import { streamGenerate, streamSEOPostProcess, streamHumanize } from '@/lib/services/writer/ai-streaming';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 import { formatTasksToTSV, formatTasksToCSV } from "@/utils/exportUtils";
@@ -354,7 +355,7 @@ export function EditorialCalendar() {
             if (!content) throw new Error("No hay contenido para limpiar.");
 
             onLog(task.id, 'Limpieza', 'Iniciando limpieza inteligente...');
-            const cleanHtml = await runContentCleaning(content);
+            const cleanHtml = await streamFinalCleanup(content, (msg) => onLog(task.id, 'Limpieza', msg));
 
             const { error } = await supabase.from('task_contents').upsert({ id: task.id, content_body: cleanHtml });
             if (error) throw error;
