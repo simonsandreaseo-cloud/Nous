@@ -354,7 +354,7 @@ export function EditorialCalendar() {
             if (!content) throw new Error("No hay contenido para limpiar.");
 
             onLog(task.id, 'Limpieza', 'Iniciando limpieza inteligente...');
-            const cleanHtml = await runContentCleaning(content, (msg) => onLog(task.id, 'Limpieza', msg));
+            const cleanHtml = await runContentCleaning(content);
 
             const { error } = await supabase.from('task_contents').upsert({ id: task.id, content_body: cleanHtml });
             if (error) throw error;
