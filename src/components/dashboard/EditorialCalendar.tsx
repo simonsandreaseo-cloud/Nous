@@ -586,6 +586,11 @@ export function EditorialCalendar() {
                 const planToTranslate = translate
                     ? targetTasks.filter(t => tasksWithContent.has(t.id) || draft)
                     : [];
+                
+                // Clean items if they have content.
+                const planToClean = clean
+                    ? targetTasks.filter(t => tasksWithContent.has(t.id))
+                    : [];
 
                 const plan: OrbPipelinePlan = {
                     toResearch: planToResearch.map(t => ({ id: t.id, title: t.title })),
@@ -593,6 +598,7 @@ export function EditorialCalendar() {
                     toRewrite: planToRewrite.map(t => ({ id: t.id, title: t.title })),
                     toHumanize: planToHumanize.map(t => ({ id: t.id, title: t.title })),
                     toTranslate: planToTranslate.map(t => ({ id: t.id, title: t.title })),
+                    toClean: planToClean.map(t => ({ id: t.id, title: t.title })),
                     translateLanguages,
                     generateImages: false,
                 };
@@ -705,7 +711,7 @@ export function EditorialCalendar() {
 
                 if (clean) {
                     const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
-                    const toClean = latestTasks.filter(t => tasksWithContent.has(t.id) || t.content_body || t.status === 'por_corregir' || t.status === 'redactado');
+                    const toClean = latestTasks.filter(t => tasksWithContent.has(t.id) || t.content_body);
                     if (toClean.length > 0) {
                         NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Limpiando ${toClean.length} artículos...`);
                         const phaseBase = currentPhaseIndex * phaseWeight;

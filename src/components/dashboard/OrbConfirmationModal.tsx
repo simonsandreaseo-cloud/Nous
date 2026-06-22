@@ -28,8 +28,10 @@ export interface OrbPipelinePlan {
     toHumanize: { id: string; title: string }[];
     /** How many translation languages are configured */
     translateLanguages: number;
-    /** Total tasks that will be translated */
+    /** Tasks that will be translated */
     toTranslate: { id: string; title: string }[];
+    /** Tasks that will be cleaned */
+    toClean: { id: string; title: string }[];
     /** Whether image generation is enabled in the pipeline */
     generateImages: boolean;
 }
@@ -42,6 +44,7 @@ const CREDIT_RATES = {
     rewrite: 10,
     humanize: 15,
     translate: 5,   // per language
+    clean: 5,
     image: 12,
 } as const;
 
@@ -52,6 +55,7 @@ function computeTotalCredits(plan: OrbPipelinePlan): number {
         plan.toRewrite.length * CREDIT_RATES.rewrite +
         plan.toHumanize.length * CREDIT_RATES.humanize +
         plan.toTranslate.length * plan.translateLanguages * CREDIT_RATES.translate +
+        plan.toClean.length * CREDIT_RATES.clean +
         (plan.generateImages ? plan.toDraft.length * CREDIT_RATES.image : 0)
     );
 }
@@ -140,7 +144,8 @@ export default function OrbConfirmationModal({
         (plan?.toDraft.length ?? 0) > 0 ||
         (plan?.toRewrite.length ?? 0) > 0 ||
         (plan?.toHumanize.length ?? 0) > 0 ||
-        (plan?.toTranslate.length ?? 0) > 0;
+        (plan?.toTranslate.length ?? 0) > 0 ||
+        (plan?.toClean.length ?? 0) > 0;
 
     return (
         <AnimatePresence>
@@ -248,6 +253,15 @@ export default function OrbConfirmationModal({
                                                         count={plan.toTranslate.length * plan.translateLanguages}
                                                         color="purple"
                                                         credits={plan.toTranslate.length * plan.translateLanguages * CREDIT_RATES.translate}
+                                                    />
+                                                )}
+                                                {plan.toClean.length > 0 && (
+                                                    <ActionRow
+                                                        icon={Wand2}
+                                                        label="Limpiar contenidos"
+                                                        count={plan.toClean.length}
+                                                        color="cyan"
+                                                        credits={plan.toClean.length * CREDIT_RATES.clean}
                                                     />
                                                 )}
                                                 {plan.generateImages && plan.toDraft.length > 0 && (
