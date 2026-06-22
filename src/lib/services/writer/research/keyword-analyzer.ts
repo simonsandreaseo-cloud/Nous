@@ -26,8 +26,8 @@ export const KeywordAnalyzer = {
                 if (attempts >= MAX_ATTEMPTS) {
                     throw new Error(`Fallo definitivo en ${taskName} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
                 }
-                if (onLog) onLog(taskName, `⚠️ Interrupción o Timeout detectado. Reintentando en 10s... (${attempts}/${MAX_ATTEMPTS})`);
-                await new Promise(resolve => setTimeout(resolve, 10000));
+                if (onLog) onLog(taskName, `⚠️ Interrupción o Timeout detectado. Reintentando en 5s... (${attempts}/${MAX_ATTEMPTS})`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
             }
         }
         throw lastError;
