@@ -549,7 +549,7 @@ export const runHumanizerPipeline = async (
     const textBlocks: Record<string, string> = {};
     let counter = 0;
 
-    const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th';
+    const blockSelectors = 'p, li, td, th';
     $(blockSelectors).each((_, el) => {
         if ($(el).children(blockSelectors).length === 0) {
             const innerHtml = $(el).html()?.trim();
@@ -846,6 +846,16 @@ export const runFinalCleaningLayer = async (
             }
         }, AI_CONFIG.gemini.models.flash3_5 || 'gemini-3.5-flash', undefined, undefined, false, `Limpieza Final Gemini 3.5`);
         
+        console.log("\n==========================================");
+        console.log("=== LIMPIEZA INTELIGENTE (ANTES) ===");
+        console.log("==========================================");
+        console.log(html);
+        console.log("\n==========================================");
+        console.log("=== LIMPIEZA INTELIGENTE (DESPUÉS) ===");
+        console.log("==========================================");
+        console.log(processed);
+        console.log("==========================================\n");
+
         return processed;
     } catch (e: any) {
         safeStatus(`Error en limpieza final: ${e.message}. Devolviendo original por seguridad.`);
@@ -893,6 +903,16 @@ export const runContentCleaning = async (html: string, onStatus?: (msg: string) 
                 return html;
             }
         }, 'gemini-3.5-flash', undefined, undefined, undefined, true, 'Limpieza Contenido');
+
+        console.log("\n==========================================");
+        console.log("=== LIMPIEZA CONTENIDO (ANTES) ===");
+        console.log("==========================================");
+        console.log(html);
+        console.log("\n==========================================");
+        console.log("=== LIMPIEZA CONTENIDO (DESPUÉS) ===");
+        console.log("==========================================");
+        console.log(cleanContent);
+        console.log("==========================================\n");
 
         safeStatus('✅ Limpieza completada.');
         return cleanContent;
