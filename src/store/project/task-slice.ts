@@ -330,6 +330,9 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
             updates.volume = 0;
             updates.lsi_keywords = [];
             updates.status = 'idea';
+            
+            // Delete extended research data
+            await supabase.from('task_research').delete().eq('id', taskId);
         }
 
         if (options.writing) {
@@ -344,6 +347,9 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
             if (!options.research) {
                 updates.status = 'por_redactar';
             }
+            
+            // Delete extended content data
+            await supabase.from('task_contents').delete().eq('id', taskId);
         }
 
         if (options.images) {
