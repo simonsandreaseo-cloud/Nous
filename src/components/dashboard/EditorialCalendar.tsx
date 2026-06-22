@@ -42,7 +42,8 @@ import {
     ChevronDown,
     Zap,
     UploadCloud,
-    Settings
+    Settings,
+    Eraser
 } from "lucide-react";
 import { useProjectStore, Task, STATUS_LABELS } from "@/store/useProjectStore";
 import { usePermissions } from '@/hooks/usePermissions';
@@ -1301,13 +1302,27 @@ export function EditorialCalendar() {
                         <span className="text-[9px] font-black uppercase tracking-widest">Descargar CSV</span>
                     </button>
                     {selectedTaskIds.length > 0 && (
-                        <button 
-                            onClick={handleBatchDelete}
-                            className="flex items-center gap-2.5 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 hover:bg-rose-500 hover:text-white transition-all group"
-                        >
-                            <Trash2 size={12} className="group-hover:scale-110 transition-transform" />
-                            <span className="text-[9px] font-black uppercase tracking-widest">Eliminar ({selectedTaskIds.length})</span>
-                        </button>
+                        <>
+                            <button 
+                                onClick={handleBatchDelete}
+                                className="flex items-center gap-2.5 px-4 py-2 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 hover:bg-amber-500 hover:text-white transition-all group"
+                            >
+                                <Eraser size={12} className="group-hover:scale-110 transition-transform" />
+                                <span className="text-[9px] font-black uppercase tracking-widest">Limpiar Datos ({selectedTaskIds.length})</span>
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    const confirmText = prompt(`Escribe "ELIMINAR" para borrar permanentemente ${selectedTaskIds.length} artículos:`);
+                                    if (confirmText === 'ELIMINAR') {
+                                        confirmBatchDelete(true);
+                                    }
+                                }}
+                                className="flex items-center gap-2.5 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 hover:bg-rose-600 hover:text-white transition-all group"
+                            >
+                                <Trash2 size={12} className="group-hover:scale-110 transition-transform" />
+                                <span className="text-[9px] font-black uppercase tracking-widest">Borrar ({selectedTaskIds.length})</span>
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
@@ -1401,33 +1416,13 @@ export function EditorialCalendar() {
                             </div>
 
                             <div className="space-y-3">
-                                {(batchDeleteOptions.research || batchDeleteOptions.writing || batchDeleteOptions.images || batchDeleteOptions.translations) && (
-                                    <button 
-                                        onClick={() => confirmBatchDelete(false)}
-                                        disabled={isDeletingAll}
-                                        className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex justify-center items-center gap-2"
-                                    >
-                                        {isDeletingAll ? <Loader2 size={14} className="animate-spin" /> : "Confirmar Limpieza Parcial"}
-                                    </button>
-                                )}
-                                
-                                {!(batchDeleteOptions.research || batchDeleteOptions.writing || batchDeleteOptions.images || batchDeleteOptions.translations) && (
-                                    <>
-                                        <div className="h-px bg-slate-100 w-full my-2" />
-
-                                        <button 
-                                            onClick={() => {
-                                                if (confirm('¿Eliminar por completo todos estos contenidos?')) {
-                                                    confirmBatchDelete(true);
-                                                }
-                                            }}
-                                            disabled={isDeletingAll}
-                                            className="w-full py-3 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all flex justify-center items-center gap-2 border border-rose-100"
-                                        >
-                                            {isDeletingAll ? <Loader2 size={14} className="animate-spin" /> : "ELIMINAR TODO POR COMPLETO"}
-                                        </button>
-                                    </>
-                                )}
+                                <button 
+                                    onClick={() => confirmBatchDelete(false)}
+                                    disabled={isDeletingAll || !(batchDeleteOptions.research || batchDeleteOptions.writing || batchDeleteOptions.images || batchDeleteOptions.translations)}
+                                    className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:bg-slate-200 transition-all flex justify-center items-center gap-2"
+                                >
+                                    {isDeletingAll ? <Loader2 size={14} className="animate-spin" /> : "Confirmar Limpieza Parcial"}
+                                </button>
 
                                 <button 
                                     onClick={() => setIsBatchDeleteModalOpen(false)}
