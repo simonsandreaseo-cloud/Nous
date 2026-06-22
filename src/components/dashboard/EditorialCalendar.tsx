@@ -63,11 +63,11 @@ import NousOrb from "./NousOrb";
 import { SmartUploaderModal } from "./SmartUploaderModal";
 import SmartSlugGeneratorModal from "./SmartSlugGeneratorModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
-import { processTaskTranslationAction } from '@/lib/actions/aiActions';
 import { 
     processTaskOutlineAction,
     prepareTaskDraftAction,
-    saveTaskDraftAction
+    saveTaskDraftAction,
+    processTaskTranslationAction
 } from '@/lib/client/plannerActions';
 import { executeDraftPipeline, executeHumanizePipeline } from '@/lib/services/writer/pipeline';
 import OrbConfirmationModal, { OrbPipelinePlan } from './OrbConfirmationModal';
