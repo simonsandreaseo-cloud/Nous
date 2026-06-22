@@ -12,6 +12,7 @@ import {
     Coins,
     CheckCircle2,
     Image as ImageIcon,
+    Wand2,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 
