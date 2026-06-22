@@ -754,7 +754,7 @@ export function EditorialCalendar() {
                     currentPhaseIndex++;
                 }
 
-                if (finalStatus) {
+                if (finalStatus && finalStatus !== 'keep_current') {
                     const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
                     for (const t of latestTasks) {
                         if (t.status !== finalStatus) await updateTask(t.id, { status: finalStatus });

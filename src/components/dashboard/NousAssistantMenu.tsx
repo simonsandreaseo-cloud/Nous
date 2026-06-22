@@ -52,7 +52,7 @@ export default function NousAssistantMenu({
     const [pipelineHumanize, setPipelineHumanize] = useState(false);
     const [pipelineClean, setPipelineClean] = useState(false);
     const [pipelineTranslate, setPipelineTranslate] = useState(false);
-    const [pipelineFinalStatus, setPipelineFinalStatus] = useState<string>('por_corregir');
+    const [pipelineFinalStatus, setPipelineFinalStatus] = useState<string>('keep_current');
 
     const { activeProject } = useProjectStore();
     const i18nLanguages = activeProject?.i18n_settings?.languages || [];
@@ -295,11 +295,12 @@ export default function NousAssistantMenu({
                                     onChange={(e) => setPipelineFinalStatus(e.target.value)}
                                     className={cn(
                                         "w-full appearance-none border rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wider outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer transition-colors",
-                                        STATUS_COLORS[pipelineFinalStatus]?.bg || 'bg-white',
-                                        STATUS_COLORS[pipelineFinalStatus]?.text || 'text-slate-700',
-                                        STATUS_COLORS[pipelineFinalStatus]?.border || 'border-slate-200'
+                                        pipelineFinalStatus === 'keep_current' ? 'bg-slate-50 text-slate-500 border-slate-200' : (STATUS_COLORS[pipelineFinalStatus]?.bg || 'bg-white'),
+                                        pipelineFinalStatus === 'keep_current' ? '' : (STATUS_COLORS[pipelineFinalStatus]?.text || 'text-slate-700'),
+                                        pipelineFinalStatus === 'keep_current' ? '' : (STATUS_COLORS[pipelineFinalStatus]?.border || 'border-slate-200')
                                     )}
                                 >
+                                    <option value="keep_current">CONSERVAR ESTATUS ACTUAL</option>
                                     {allStatuses.map(status => {
                                         const label = STATUS_LABELS[status] || (status.includes('_') ? status.replace(/_/g, ' ').toUpperCase() : status.toUpperCase());
                                         return (
