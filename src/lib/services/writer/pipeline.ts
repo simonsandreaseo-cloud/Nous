@@ -126,18 +126,21 @@ export async function executeDraftPipeline(
             );
         }
 
+        // Clean each chunk right after generation
+        onLog(`Limpiando alucinaciones del modelo en parte ${i+1}...`);
+        try {
+            chunkHtml = await streamFinalCleanup(chunkHtml, onLog);
+        } catch (cleanupErr: any) {
+            onLog(`⚠️ Error en limpieza de parte ${i+1}: ${cleanupErr.message}. Usando versión original.`);
+        }
+
         finalHtml += chunkHtml + '\n\n';
         
         // Strip HTML tags roughly to give text context for the next chunk
         previousContext = chunkHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
-    onLog('Limpiando alucinaciones del modelo (Capa Final)...');
-    try {
-        finalHtml = await streamFinalCleanup(finalHtml, onLog);
-    } catch (cleanupErr: any) {
-        onLog(`⚠️ Error en limpieza final: ${cleanupErr.message}. Usando versión original.`);
-    }
+    // El cleanup global con IA fue movido a cada chunk.
 
     onLog('Procesando vínculos y SEO...');
     let cleanHtml = cleanAndFormatHtml(finalHtml);

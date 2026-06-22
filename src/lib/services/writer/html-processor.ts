@@ -46,9 +46,8 @@ export const strictHtmlRegexFilter = (rawHtml: string): string => {
 
 export const cleanAndFormatHtml = (html: string): string => {
     if (!html) return html;
-    
-    // 0. PURGA DETERMINISTA: Destruir ruido de IA fuera de etiquetas
-    let processedHtml = strictHtmlRegexFilter(html);
+    // 0. PURGA DETERMINISTA: Removida porque cortaba el contenido arbitrariamente
+    let processedHtml = html;
 
     // 1. Limpieza inicial segura de Markdown a HTML sobre la cadena cruda antes de parsear
     processedHtml = processedHtml
