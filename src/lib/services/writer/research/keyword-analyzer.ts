@@ -42,10 +42,11 @@ FORMATO OBLIGATORIO:
 
         const lsiRes = await aiRouter.generate({
             prompt: lsiPrompt,
-            model: "gemini-3.1-flash-lite-preview", // Stable Verified Alternative
+            model: "gemini-3.5-flash", // Fast and efficient model
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios LSI. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
-            label: "LSI Technical"
+            label: "LSI Technical",
+            timeoutMs: 180000
         });
         
         const extractedJson = safeJsonExtract<{keywords: string[]}>(lsiRes.text, {keywords: []});
@@ -108,10 +109,11 @@ REGLAS:
 
         const askRes = await aiRouter.generate({
             prompt: askPrompt,
-            model: "gemma-4-31b-it",
+            model: "gemini-3.5-flash",
             systemPrompt: "Eres un experto analista de lingüística técnica. Respondes exclusivamente con JSON válido, sin explicaciones.",
             jsonMode: true,
-            label: "ASK Extraction"
+            label: "ASK Extraction",
+            timeoutMs: 180000
         });
 
         const extractedJson = safeJsonExtract<{keywords: string[]}>(askRes.text, {keywords: []});
@@ -187,10 +189,11 @@ FORMATO OBLIGATORIO:
 
         const filterRes = await aiRouter.generate({
             prompt: filterPrompt,
-            model: "gemini-3.1-flash-lite-preview",
+            model: "gemini-3.5-flash",
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios SEO. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
-            label: "Golden Keywords Filter"
+            label: "Golden Keywords Filter",
+            timeoutMs: 180000
         });
 
         const extractedJson = safeJsonExtract<{keywords: string[]}>(filterRes.text, {keywords: []});
