@@ -21,7 +21,7 @@ import { ResearchOrchestrator } from '@/lib/services/writer/research';
 import { OutlineEngine } from '@/lib/services/writer/research/outline-engine';
 import { LinkPatcherService } from '@/lib/services/link-patcher';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
-import { streamGenerate, streamSEOPostProcess, streamHumanize } from '@/lib/services/writer/ai-streaming';
+import { streamGenerate, streamSEOPostProcess, streamHumanize, streamFinalCleanup } from '@/lib/services/writer/ai-streaming';
 
 import { AI_CONFIG } from '@/lib/ai/config';
 import { useWriterStore } from '@/store/useWriterStore';
@@ -607,17 +607,63 @@ export function useWriterActions() {
         
         store.setRefining(true);
         store.setStatus('Limpiando ruido IA del artículo…');
+        
         try {
-            const cleanHtml = await runContentCleaning(store.content, (msg) => store.setStatus(msg));
+            const originalContent = store.content;
+            store.setContent(''); // Empezar de cero para mostrar el stream progresivo
+            
+            const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
+                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
+                const chunks = [];
+                for (let i = 0; i < elements.length; i += chunkSize) {
+                    chunks.push(elements.slice(i, i + chunkSize).join(''));
+                }
+                return chunks;
+            };
+
+            const chunks = chunkHtml(originalContent, 4);
+            store.setStatus(`Documento dividido en ${chunks.length} partes para limpieza...`);
+            let accumulatedHtml = '';
+            
+            for (let i = 0; i < chunks.length; i++) {
+                let success = false;
+                let attempts = 0;
+                const MAX_ATTEMPTS = 3;
+
+                while (!success && attempts < MAX_ATTEMPTS) {
+                    try {
+                        store.setStatus(`Limpiando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
+                        
+                        const chunkResult = await streamFinalCleanup(
+                            chunks[i],
+                            (msg) => console.log(`[Clean Chunk ${i+1}] ${msg}`)
+                        );
+                        
+                        accumulatedHtml += chunkResult + '\n';
+                        store.setContent(accumulatedHtml);
+                        success = true;
+                    } catch (err: any) {
+                        attempts++;
+                        console.error(`[Clean Chunk ${i+1}] Fallo intento ${attempts}:`, err);
+                        
+                        if (attempts >= MAX_ATTEMPTS) {
+                            throw new Error(`Fallo definitivo en la limpieza del chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                        }
+                        
+                        store.setStatus(`Error en Limpieza Chunk ${i + 1}. Reintentando en 10s... (${attempts}/${MAX_ATTEMPTS})`);
+                        await new Promise(resolve => setTimeout(resolve, 10000));
+                    }
+                }
+            }
             
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
             
             useWriterStore.setState({
-                content: cleanHtml,
-                statusMessage: '✅ ¡Limpieza mágica aplicada!'
+                content: accumulatedHtml,
+                statusMessage: '✅ ¡Limpieza mágica aplicada en todo el artículo!'
             } as any);
 
-            store.addDebugPrompt('Limpieza Completada', `Ruido IA eliminado con éxito`, cleanHtml.substring(0, 1000));
+            store.addDebugPrompt('Limpieza Completada', `Ruido IA eliminado con éxito mediante chunks`, accumulatedHtml.substring(0, 1000));
         } catch (e: any) {
             console.error(e);
             store.setStatus('❌ Error en limpieza: ' + e.message);

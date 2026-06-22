@@ -354,14 +354,54 @@ export function EditorialCalendar() {
             const content = taskContent?.content_body || task.content_body;
             if (!content) throw new Error("No hay contenido para limpiar.");
 
-            onLog(task.id, 'Limpieza', 'Iniciando limpieza inteligente...');
-            const cleanHtml = await streamFinalCleanup(content, (msg) => onLog(task.id, 'Limpieza', msg));
+            onLog(task.id, 'Limpieza', 'Iniciando limpieza inteligente por fragmentos...');
+            
+            const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
+                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
+                const chunks = [];
+                for (let i = 0; i < elements.length; i += chunkSize) {
+                    chunks.push(elements.slice(i, i + chunkSize).join(''));
+                }
+                return chunks;
+            };
 
-            const { error } = await supabase.from('task_contents').upsert({ id: task.id, content_body: cleanHtml });
+            const chunks = chunkHtml(content, 4);
+            let accumulatedHtml = '';
+            
+            for (let i = 0; i < chunks.length; i++) {
+                let success = false;
+                let attempts = 0;
+                const MAX_ATTEMPTS = 3;
+
+                while (!success && attempts < MAX_ATTEMPTS) {
+                    try {
+                        onLog(task.id, 'Limpieza', `Limpiando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
+                        
+                        const cleanChunk = await streamFinalCleanup(
+                            chunks[i], 
+                            (msg) => {} // Omitimos el log detallado de cada chunk para no saturar la vista
+                        );
+                        
+                        accumulatedHtml += cleanChunk + '\n';
+                        success = true;
+                    } catch (err: any) {
+                        attempts++;
+                        if (attempts >= MAX_ATTEMPTS) {
+                            throw new Error(`Fallo definitivo en la limpieza del chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                        }
+                        
+                        onLog(task.id, 'Limpieza', `Error en Limpieza Chunk ${i + 1}. Reintentando en 10s... (${attempts}/${MAX_ATTEMPTS})`);
+                        await new Promise(resolve => setTimeout(resolve, 10000));
+                    }
+                }
+            }
+
+            const { error } = await supabase.from('task_contents').upsert({ id: task.id, content_body: accumulatedHtml });
             if (error) throw error;
 
             updateTask(task.id, { status: task.status }); // Trigger refresh
             setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
+            onLog(task.id, 'Limpieza', '✅ Limpieza inteligente completada exitosamente.');
         } catch (e: any) {
             setBatchResearchStatus(prev => ({ ...prev, [task.id]: -1 }));
             onLog(task.id, 'Error', `❌ Error limpieza: ${e.message}`);
