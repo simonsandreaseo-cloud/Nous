@@ -656,149 +656,117 @@ export function EditorialCalendar() {
 
             // ── Actual pipeline execution (called after modal confirm) ──
             if (action === '__execute_batch_pipeline__') {
-                const { research, draft, humanize, clean, translate, finalStatus, _plan, _targetTasks, _tasksWithContent } = config || {};
-                const tasksWithContent = new Set(_tasksWithContent || []);
+                const { research, draft, humanize, clean, translate, finalStatus, _plan, _targetTasks } = config || {};
                 const targetTasks = _targetTasks || [];
 
-                const activePhases = [research, draft, humanize, clean, translate].filter(Boolean).length;
-                const phaseWeight = 100 / (activePhases || 1);
-                let currentPhaseIndex = 0;
+                let taskCount = 0;
 
-                if (research) {
-                    const toResearch = (_plan?.toResearch || []).map((p: any) => targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
-                    if (toResearch.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Investigando ${toResearch.length} contenidos...`);
-                        let pCount = 0;
-                        for (const t of toResearch) {
-                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: 5 }));
-                            const result = await StrategyService.runDeepSEOAnalysis({
-                                projectId: activeProject.id,
-                                keyword: t.target_keyword || t.title,
-                                onProgress: (p) => {
-                                    const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
-                                    setBatchResearchStatus(prev => ({ ...prev, [t.id]: progressMap[p] || 10 }));
-                                    setResearchPhaseId(p);
-                                    setResearchTopic(t.target_keyword || t.title);
-                                },
-                                onLog: (s, m, r) => onLog(t.id, s, m, r),
-                                taskId: t.id,
-                                linkPlannedContents,
-                                linkPlannedStatuses
+                for (const t of targetTasks) {
+                    NotificationService.notify("Nous Global", `Procesando contenido ${taskCount + 1}/${targetTasks.length}: ${t.title}...`);
+                    
+                    let latestTask = useProjectStore.getState().tasks.find(tk => tk.id === t.id) || t;
+                    let successSoFar = true;
+
+                    // 1. Research
+                    const shouldResearch = (_plan?.toResearch || []).some((p: any) => p.id === t.id);
+                    if (research && shouldResearch) {
+                        setBatchResearchStatus(prev => ({ ...prev, [t.id]: 5 }));
+                        const result = await StrategyService.runDeepSEOAnalysis({
+                            projectId: activeProject.id,
+                            keyword: latestTask.target_keyword || latestTask.title,
+                            onProgress: (p) => {
+                                const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
+                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: progressMap[p] || 10 }));
+                                setResearchPhaseId(p);
+                                setResearchTopic(latestTask.target_keyword || latestTask.title);
+                            },
+                            onLog: (s, m, r) => onLog(t.id, s, m, r),
+                            taskId: t.id,
+                            linkPlannedContents,
+                            linkPlannedStatuses
+                        });
+                        if (result) {
+                            const statusToSet = (finalStatus === 'keep_current') ? latestTask.status : result.status;
+                            await updateTask(t.id, {
+                                title: improveTitleWithNous && result.seo_title ? result.seo_title : latestTask.title,
+                                research_dossier: result.research_dossier,
+                                seo_title: latestTask.seo_title || result.seo_title,
+                                meta_description: latestTask.meta_description || result.meta_description,
+                                target_url_slug: latestTask.target_url_slug || result.target_url_slug,
+                                status: statusToSet,
+                                observaciones: latestTask.observaciones || result.observaciones
                             });
-                            if (result) {
-                                await updateTask(t.id, {
-                                    title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title,
-                                    research_dossier: result.research_dossier,
-                                    seo_title: t.seo_title || result.seo_title,
-                                    meta_description: t.meta_description || result.meta_description,
-                                    target_url_slug: t.target_url_slug || result.target_url_slug,
-                                    status: result.status,
-                                    observaciones: t.observaciones || result.observaciones
-                                });
-                            }
-                            pCount++;
-                            setResearchProgress(currentPhaseIndex * phaseWeight + ((pCount / toResearch.length) * phaseWeight));
-                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
+                            latestTask = { ...latestTask, status: statusToSet };
+                        } else {
+                            successSoFar = false;
+                        }
+                        setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
+                    }
+
+                    // 2. Draft
+                    const shouldDraft = (_plan?.toDraft || []).some((p: any) => p.id === t.id);
+                    const shouldRewrite = (_plan?.toRewrite || []).some((p: any) => p.id === t.id);
+                    if (draft && successSoFar && (shouldDraft || shouldRewrite)) {
+                        try {
+                            await runTaskDraftPipeline(latestTask, onLog);
+                            latestTask = useProjectStore.getState().tasks.find(tk => tk.id === t.id) || latestTask;
+                        } catch (e: any) {
+                            successSoFar = false;
+                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
+                            onLog(t.id, 'Error', `❌ Error redactando: ${e.message}`);
                         }
                     }
-                    currentPhaseIndex++;
-                }
 
-                if (draft) {
-                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
-                    // toDraft = no content in DB (confirmed by pre-check)
-                    const toDraft = (_plan?.toDraft || []).map((p: any) => latestTasks.find(t => t.id === p.id) || targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
-                    // toRewrite = had content, manual override
-                    const toRewrite = (_plan?.toRewrite || []).map((p: any) => latestTasks.find(t => t.id === p.id) || targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
-                    const allToDraft = [...toDraft, ...toRewrite];
-                    if (allToDraft.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Redactando ${toDraft.length} + Reescribiendo ${toRewrite.length} contenidos...`);
-                        const phaseBase = currentPhaseIndex * phaseWeight;
-                        let pCount = 0;
-                        for (const t of allToDraft) {
-                            try {
-                                await runTaskDraftPipeline(t, onLog);
-                            } catch (e: any) {
-                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
-                                onLog(t.id, 'Error', `❌ Error: ${e.message}`);
-                            }
-                            pCount++;
-                            setResearchProgress(phaseBase + ((pCount / allToDraft.length) * phaseWeight));
+                    // 3. Humanize
+                    const shouldHumanize = (_plan?.toHumanize || []).some((p: any) => p.id === t.id);
+                    if (humanize && successSoFar && shouldHumanize) {
+                        try {
+                            await runTaskHumanizePipeline(latestTask, onLog);
+                            latestTask = useProjectStore.getState().tasks.find(tk => tk.id === t.id) || latestTask;
+                        } catch (e: any) {
+                            successSoFar = false;
+                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
+                            onLog(t.id, 'Error', `❌ Error humanizando: ${e.message}`);
                         }
                     }
-                    currentPhaseIndex++;
-                }
 
-                if (humanize) {
-                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
-                    const toHumanize = (_plan?.toHumanize || []).map((p: any) => latestTasks.find(t => t.id === p.id) || targetTasks.find((t: Task) => t.id === p.id)).filter(Boolean) as Task[];
-                    if (toHumanize.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Humanizando ${toHumanize.length} artículos...`);
-                        const phaseBase = currentPhaseIndex * phaseWeight;
-                        let pCount = 0;
-                        for (const t of toHumanize) {
-                            try {
-                                await runTaskHumanizePipeline(t, onLog);
-                            } catch (e: any) {
-                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
-                                onLog(t.id, 'Error', `❌ Error: ${e.message}`);
-                            }
-                            pCount++;
-                            setResearchProgress(phaseBase + ((pCount / toHumanize.length) * phaseWeight));
+                    // 4. Clean
+                    const shouldClean = (_plan?.toClean || []).some((p: any) => p.id === t.id);
+                    if (clean && successSoFar && shouldClean) {
+                        try {
+                            await runTaskCleanPipeline(latestTask, onLog);
+                            latestTask = useProjectStore.getState().tasks.find(tk => tk.id === t.id) || latestTask;
+                        } catch (e: any) {
+                            successSoFar = false;
+                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
+                            onLog(t.id, 'Error', `❌ Error limpiando: ${e.message}`);
                         }
                     }
-                    currentPhaseIndex++;
-                }
 
-                if (clean) {
-                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some((tgt: Task) => tgt.id === t.id));
-                    const toClean = latestTasks.filter(t => tasksWithContent.has(t.id) || t.content_body);
-                    if (toClean.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Limpiando ${toClean.length} artículos...`);
-                        const phaseBase = currentPhaseIndex * phaseWeight;
-                        let pCount = 0;
-                        for (const t of toClean) {
-                            try {
-                                await runTaskCleanPipeline(t, onLog);
-                            } catch (e: any) {
-                                setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
-                                onLog(t.id, 'Error', `❌ Error: ${e.message}`);
-                            }
-                            pCount++;
-                            setResearchProgress(phaseBase + ((pCount / toClean.length) * phaseWeight));
-                        }
-                    }
-                    currentPhaseIndex++;
-                }
-
-                if (translate) {
-                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
+                    // 5. Translate
+                    const shouldTranslate = (_plan?.toTranslate || []).some((p: any) => p.id === t.id);
                     const targetLangs = activeProject.i18n_settings?.languages || [];
-                    if (targetLangs.length > 0 && latestTasks.length > 0) {
-                        NotificationService.notify("Nous Global", `Fase ${currentPhaseIndex + 1}/${activePhases}: Traduciendo a ${targetLangs.length} idiomas...`);
-                        const phaseBase = currentPhaseIndex * phaseWeight;
-                        let pCount = 0;
-                        for (const t of latestTasks) {
-                            for (const lang of targetLangs) {
-                                const res = await processTaskTranslationAction(t.id, lang);
-                                if (res.success) {
-                                    onLog(t.id, 'Traducción', res.msg!);
-                                } else {
-                                    onLog(t.id, 'Error', `❌ Error: ${res.error}`);
-                                }
+                    if (translate && successSoFar && shouldTranslate && targetLangs.length > 0) {
+                        for (const lang of targetLangs) {
+                            const res = await processTaskTranslationAction(t.id, lang);
+                            if (res.success) {
+                                onLog(t.id, 'Traducción', res.msg!);
+                            } else {
+                                onLog(t.id, 'Error', `❌ Error traducción: ${res.error}`);
                             }
-                            pCount++;
-                            setResearchProgress(phaseBase + ((pCount / latestTasks.length) * phaseWeight));
+                        }
+                        latestTask = useProjectStore.getState().tasks.find(tk => tk.id === t.id) || latestTask;
+                    }
+
+                    // Finally, if everything was successful or at least attempted, set final status for this task
+                    if (finalStatus && finalStatus !== 'keep_current' && successSoFar) {
+                        if (latestTask.status !== finalStatus) {
+                            await updateTask(t.id, { status: finalStatus });
                         }
                     }
-                    currentPhaseIndex++;
-                }
 
-                if (finalStatus && finalStatus !== 'keep_current') {
-                    const latestTasks = useProjectStore.getState().tasks.filter(t => targetTasks.some(tgt => tgt.id === t.id));
-                    for (const t of latestTasks) {
-                        if (t.status !== finalStatus) await updateTask(t.id, { status: finalStatus });
-                    }
+                    taskCount++;
+                    setResearchProgress((taskCount / targetTasks.length) * 100);
                 }
 
                 setResearchProgress(100);
