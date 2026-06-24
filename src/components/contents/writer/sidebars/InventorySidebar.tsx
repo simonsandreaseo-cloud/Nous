@@ -36,6 +36,14 @@ export function InventorySidebar() {
         const statuses = new Set(tasks.map(t => t.status));
         return Array.from(statuses);
     }, [tasks]);
+    const filteredTasks = useMemo(() => {
+        return tasks.filter(task => {
+            const matchesSearch = task.keyword?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                  task.title?.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+            return matchesSearch && matchesStatus;
+        });
+    }, [tasks, searchTerm, statusFilter]);
 
     return (
         <div className="h-full flex flex-col bg-slate-50 relative select-none">
