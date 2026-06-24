@@ -213,7 +213,7 @@ export default function WriterStudio() {
         projectId, loadContentById,
         redactorUI, setRedactorUI, leftSidebarWidth, setLeftSidebarWidth, 
         rightSidebarWidth, setRightSidebarWidth, isToolboxOpen, toggleToolbox,
-        deleteVersion, parentTaskId, statusMessage, hasGenerated, status, updateTaskStatus, content
+        deleteVersion, parentTaskId, statusMessage, hasGenerated, status, updateTaskStatus, content, wordCountReal
     } = useWriterStore(useShallow(state => ({
         isSidebarOpen: state.isSidebarOpen,
         toggleSidebar: state.toggleSidebar,
