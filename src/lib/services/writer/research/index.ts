@@ -506,7 +506,7 @@ REGLAS:
             try {
                 const productRes = await aiRouter.generate({
                     prompt: productPrompt,
-                    model: "gemini-3.1-flash-lite",
+                    model: "gemini-3.1-flash-lite-preview",
                     systemPrompt: "Eres un experto en catálogos de e-commerce. Tu única función es deducir modelos y códigos de fabricante exactos.",
                     jsonMode: false,
                     label: "Product Hunter AI",

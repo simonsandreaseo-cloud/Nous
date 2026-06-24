@@ -72,7 +72,7 @@ FORMATO OBLIGATORIO:
             jsonMode: true,
             label: "LSI Technical",
             timeoutMs: 180000,
-            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
+            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
         }), "Fase 2 (LSI)", onLog);
         
         const extractedJson = safeJsonExtract<{keywords: string[]}>(lsiRes.text, {keywords: []});
@@ -140,7 +140,7 @@ REGLAS:
             jsonMode: true,
             label: "ASK Extraction",
             timeoutMs: 180000,
-            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
+            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
         }), "Fase 3 (ASK)", onLog);
 
         const extractedJson = safeJsonExtract<{keywords: string[]}>(askRes.text, {keywords: []});
@@ -221,7 +221,7 @@ FORMATO OBLIGATORIO:
             jsonMode: true,
             label: "Golden Keywords Filter",
             timeoutMs: 180000,
-            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
+            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
         }), "Fase 4 (Golden KWs)", onLog);
 
         const extractedJson = safeJsonExtract<{keywords: string[]}>(filterRes.text, {keywords: []});

@@ -285,7 +285,7 @@ export const executeWithKeyRotation = async <T>(
             // Default logic
             if (modelName.includes('gemini') || modelName.includes('gemma')) {
                  hierarchy = [{ provider: 'google', model: modelName }];
-                 hierarchy.push({ provider: 'google', model: AI_CONFIG.gemini.models.flash3_1_lite });
+                 hierarchy.push({ provider: 'google', model: AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite-preview' });
             } else if (isOpenRouter(modelName)) {
                  hierarchy = [{ provider: 'openrouter', model: modelName }];
             } else {

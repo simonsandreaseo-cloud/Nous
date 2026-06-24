@@ -853,7 +853,7 @@ export const runFinalCleaningLayer = async (
             } catch (e) {
                 return html;
             }
-        }, AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite', undefined, undefined, false, `Limpieza Final Gemini 3.1 Flash Lite`);
+        }, AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite-preview', undefined, undefined, false, `Limpieza Final Gemini 3.1 Flash Lite`);
         
         console.log("\n==========================================");
         console.log("=== LIMPIEZA INTELIGENTE (ANTES) ===");
@@ -887,7 +887,7 @@ export const runContentCleaning = async (html: string, onStatus?: (msg: string) 
     try {
         const cleanContent = await executeWithKeyRotation(async (ai, currentModel) => {
             const modelObj = ai.getGenerativeModel({
-                model: currentModel || 'gemini-3.1-flash-lite',
+                model: currentModel || 'gemini-3.1-flash-lite-preview',
                 systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nEres un editor de HTML. Tu única tarea es eliminar toda la basura y texto generado por IA que no pertenezca al contenido principal del artículo. Mantén intacta toda la estructura HTML válida (h2, p, ul, etc.). Devuelve únicamente un objeto JSON con 'razonamiento_interno' y 'html'.`,
                 generationConfig: {
                     temperature: 0.1,
@@ -911,7 +911,7 @@ export const runContentCleaning = async (html: string, onStatus?: (msg: string) 
             } catch (e) {
                 return html;
             }
-        }, AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite', undefined, undefined, undefined, true, 'Limpieza Contenido');
+        }, AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite-preview', undefined, undefined, undefined, true, 'Limpieza Contenido');
 
         console.log("\n==========================================");
         console.log("=== LIMPIEZA CONTENIDO (ANTES) ===");
