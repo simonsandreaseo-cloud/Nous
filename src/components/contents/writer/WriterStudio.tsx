@@ -534,7 +534,7 @@ export default function WriterStudio() {
 
     const [fullscreenAsset, setFullscreenAsset] = useState<ImageAsset | null>(null);
 
-    const renderContent = () => {
+    const renderEditorContent = () => {
         if (viewMode === 'setup') return <WriterSetupBoard />;
         if (content === null) {
             return (
@@ -546,54 +546,23 @@ export default function WriterStudio() {
                 </div>
             );
         }
-        if (redactorUI === 'standard') {
-            return (
-                <PanelGroup direction="horizontal" className="flex-1 flex overflow-hidden">
-                    <Panel 
-                        ref={leftPanelRef}
-                        defaultSize={30} minSize={20} maxSize={50} 
-                        collapsible={true} 
-                        onCollapse={() => setIsLeftPanelCollapsed(true)}
-                        onExpand={() => setIsLeftPanelCollapsed(false)}
-                        className="bg-slate-50 border-r border-slate-200/50 z-20 relative"
-                    >
-                        <InventorySidebar />
-                    </Panel>
-                    
-                    <PanelResizeHandle className="w-1.5 hover:w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[3px] z-30 flex items-center justify-center group/handle">
-                        <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
-                    </PanelResizeHandle>
-
-                    <Panel defaultSize={70} minSize={30} collapsible={true} className="bg-slate-200/50 relative flex flex-col">
-                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                            <div className="mx-auto min-h-full transition-all duration-500 p-4 md:p-6">
-                                <div className="relative bg-white shadow-2xl min-h-screen max-w-4xl mx-auto rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
-                                    <FloatingOutlineUI />
-                                    <FeaturedImageSlot taskId={draftId} onFullscreen={setFullscreenAsset} />
-                                    <WriterEditor key={draftId || 'standard'} />
-                                </div>
-                            </div>
-                        </div>
-                    </Panel>
-                </PanelGroup>
-            );
-        }
         if (viewMode === 'dashboard') return <WriterDashboard />;
+        
         return (
-            <div className="flex-1 overflow-hidden flex flex-col relative bg-slate-200/50">
-                <div className="flex-1 overflow-y-auto custom-scrollbar flex justify-center relative">
-                    <div className="w-full max-w-4xl px-4 py-6">
-                        <div className="relative bg-white shadow-2xl min-h-screen rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
+            <div className={cn("flex-1 overflow-hidden flex flex-col relative", redactorUI === 'zen' ? "bg-slate-200/50" : "bg-slate-200/50")}>
+                <div className={cn("flex-1 overflow-y-auto custom-scrollbar relative", redactorUI === 'zen' ? "flex justify-center" : "")}>
+                    <div className={cn("mx-auto min-h-full transition-all duration-500", redactorUI === 'zen' ? "w-full max-w-4xl px-4 py-6" : "p-4 md:p-6")}>
+                        <div className="relative bg-white shadow-2xl min-h-screen max-w-4xl mx-auto rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
                             <FloatingOutlineUI />
                             <FeaturedImageSlot taskId={draftId} onFullscreen={setFullscreenAsset} />
-                            <WriterEditor key={draftId || 'zen'} />
+                            <WriterEditor key={draftId || 'standard'} />
                         </div>
                     </div>
                 </div>
-                <FloatingToolbox />
+                {redactorUI === 'zen' && <FloatingToolbox />}
             </div>
         );
-    }
+    };
 
     const renderMainContent = () => (
         <main className="flex-1 flex flex-col min-w-0 bg-white relative h-full">
@@ -836,23 +805,40 @@ export default function WriterStudio() {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden flex flex-col">{renderContent()}</div>
-            </main>
+                {renderEditorContent()}
+        </main>
     );
 
     return (
         <div className="flex w-full h-full bg-white overflow-hidden">
             {redactorUI === 'standard' ? (
-                <PanelGroup direction="horizontal" className="w-full h-full">
-                    <Panel defaultSize={100} minSize={40} collapsible={true} className="flex flex-col min-w-0 bg-white relative">
+                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout" id="writer-studio-root" className="w-full h-full">
+                    <Panel 
+                        id="writer-left-panel"
+                        ref={leftPanelRef} 
+                        defaultSize={30} minSize={20} maxSize={50} 
+                        collapsible={true} 
+                        onCollapse={() => setIsLeftPanelCollapsed(true)}
+                        onExpand={() => setIsLeftPanelCollapsed(false)}
+                        className="bg-slate-50 border-r border-slate-200/50 z-20 relative"
+                    >
+                        <InventorySidebar />
+                    </Panel>
+
+                    <PanelResizeHandle id="writer-handle-left" className="w-1.5 hover:w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[3px] z-30 flex items-center justify-center group/handle">
+                        <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
+                    </PanelResizeHandle>
+
+                    <Panel id="writer-editor-panel" defaultSize={70} minSize={30} className="flex flex-col min-w-0 bg-white relative">
                         {renderMainContent()}
                     </Panel>
 
-                    <PanelResizeHandle className="w-1.5 hover:w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[3px] z-30 flex items-center justify-center group/handle">
+                    <PanelResizeHandle id="writer-handle-right" className="w-1.5 hover:w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[3px] z-30 flex items-center justify-center group/handle">
                         <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
                     </PanelResizeHandle>
 
                     <Panel 
+                        id="writer-right-panel"
                         ref={rightPanelRef}
                         defaultSize={0} minSize={20} maxSize={45} 
                         collapsible={true} 
