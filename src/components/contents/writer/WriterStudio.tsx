@@ -23,6 +23,7 @@ import {
     Download, 
     RefreshCcw,
     Maximize2,
+    Minimize2,
     Search,
     Layout,
     FileText,
@@ -211,12 +212,9 @@ export default function WriterStudio() {
         activeSidebarTab, setSidebarTab,
         currentLanguage, contentVersions, switchLanguage,
         projectId, loadContentById,
-        redactorUI, setRedactorUI, leftSidebarWidth, setLeftSidebarWidth, 
-        rightSidebarWidth, setRightSidebarWidth, isToolboxOpen, toggleToolbox,
+        redactorUI, setRedactorUI, isToolboxOpen, toggleToolbox,
         deleteVersion, parentTaskId, statusMessage, hasGenerated, status, updateTaskStatus, content, wordCountReal
     } = useWriterStore(useShallow(state => ({
-        isSidebarOpen: state.isSidebarOpen,
-        toggleSidebar: state.toggleSidebar,
         isSaving: state.isSaving,
         lastSaved: state.lastSaved,
         keyword: state.keyword,
@@ -255,10 +253,6 @@ export default function WriterStudio() {
         
         redactorUI: state.redactorUI,
         setRedactorUI: state.setRedactorUI,
-        leftSidebarWidth: state.leftSidebarWidth,
-        setLeftSidebarWidth: state.setLeftSidebarWidth,
-        rightSidebarWidth: state.rightSidebarWidth,
-        setRightSidebarWidth: state.setRightSidebarWidth,
         isToolboxOpen: state.isToolboxOpen,
         toggleToolbox: state.toggleToolbox,
         deleteVersion: state.deleteVersion,
@@ -273,8 +267,10 @@ export default function WriterStudio() {
 
     const leftPanelRef = useRef<any>(null);
     const rightPanelRef = useRef<any>(null);
+    const editorPanelRef = useRef<any>(null);
     const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
     const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
+    const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
 
     const toggleLeftPanel = useCallback(() => {
         const panel = leftPanelRef.current;
@@ -294,6 +290,17 @@ export default function WriterStudio() {
         if (panel.isCollapsed()) {
             panel.expand();
             setTimeout(() => panel.resize(25), 10);
+        } else {
+            panel.collapse();
+        }
+    }, []);
+
+    const toggleEditorPanel = useCallback(() => {
+        const panel = editorPanelRef.current;
+        if (!panel) return;
+        if (panel.isCollapsed()) {
+            panel.expand();
+            setTimeout(() => panel.resize(50), 10);
         } else {
             panel.collapse();
         }
@@ -702,6 +709,13 @@ export default function WriterStudio() {
                                             {isLeftPanelCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
                                         </button>
                                         <button 
+                                            onClick={toggleEditorPanel}
+                                            className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors shadow-sm border border-slate-200/60 bg-white"
+                                            title="Alternar editor"
+                                        >
+                                            {isEditorCollapsed ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+                                        </button>
+                                        <button 
                                             onClick={toggleRightPanel}
                                             className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors shadow-sm border border-slate-200/60 bg-white"
                                             title="Alternar panel derecho"
@@ -809,13 +823,25 @@ export default function WriterStudio() {
     );
 
     return (
-        <div className="flex w-full h-full bg-white overflow-hidden">
+        <div className="flex w-full h-full bg-white overflow-hidden relative">
+            {isEditorCollapsed && (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
+                    <button 
+                        onClick={toggleEditorPanel}
+                        className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-2xl transition-all hover:scale-105 group border border-white/20"
+                    >
+                        <Maximize2 size={16} className="group-hover:rotate-180 transition-transform duration-500" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Restaurar Editor</span>
+                    </button>
+                </div>
+            )}
+            
             {redactorUI === 'standard' ? (
-                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v3" id="writer-studio-root" className="w-full h-full">
+                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v4" id="writer-studio-root" className="w-full h-full">
                     <Panel 
                         id="writer-left-panel"
                         ref={leftPanelRef} 
-                        defaultSize={25} minSize={20} maxSize={40} 
+                        defaultSize={25} minSize={10} maxSize={50} 
                         collapsible={true} 
                         onCollapse={() => setIsLeftPanelCollapsed(true)}
                         onExpand={() => setIsLeftPanelCollapsed(false)}
@@ -828,7 +854,15 @@ export default function WriterStudio() {
                         <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
                     </PanelResizeHandle>
 
-                    <Panel id="writer-editor-panel" defaultSize={75} minSize={40} className="flex flex-col min-w-0 bg-white relative overflow-hidden">
+                    <Panel 
+                        id="writer-editor-panel" 
+                        ref={editorPanelRef}
+                        defaultSize={75} minSize={10} maxSize={100}
+                        collapsible={true}
+                        onCollapse={() => setIsEditorCollapsed(true)}
+                        onExpand={() => setIsEditorCollapsed(false)}
+                        className="flex flex-col min-w-0 bg-white relative overflow-hidden"
+                    >
                         {renderMainContent()}
                     </Panel>
 
@@ -839,7 +873,7 @@ export default function WriterStudio() {
                     <Panel 
                         id="writer-right-panel"
                         ref={rightPanelRef}
-                        defaultSize={0} minSize={20} maxSize={45} 
+                        defaultSize={0} minSize={10} maxSize={60} 
                         collapsible={true} 
                         onCollapse={() => setIsRightPanelCollapsed(true)}
                         onExpand={() => setIsRightPanelCollapsed(false)}

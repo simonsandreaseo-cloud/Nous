@@ -25,15 +25,12 @@ export interface UiActions {
     clearDebugPrompts: () => void;
     setActiveUsers: (users: Record<string, any>) => void;
     setEditor: (editor: any) => void;
-    toggleSidebar: () => void;
     setEditorTab: (tab: 'visual' | 'code') => void;
     setNousExtractorFindings: (findings: Record<string, any[]>) => void;
     setPatcherFindings: (findings: Record<string, any[]>) => void;
     
     // Dual Mode Actions
     setRedactorUI: (ui: 'zen' | 'standard') => void;
-    setLeftSidebarWidth: (width: number) => void;
-    setRightSidebarWidth: (width: number) => void;
     toggleToolbox: () => void;
 }
 
@@ -64,7 +61,6 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     isConsoleOpen: false,
     debugPrompts: [],
     activeUsers: {},
-    isSidebarOpen: true,
     editor: null,
     editorTab: 'visual',
     nousExtractorFindings: {},
@@ -72,8 +68,6 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     
     // Dual Mode Init
     redactorUI: 'standard',
-    leftSidebarWidth: 18, // Adjusted to 18 as requested
-    rightSidebarWidth: 30,
     isToolboxOpen: false,
 
 
@@ -109,14 +103,10 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
 
     setActiveUsers: (activeUsers) => set({ activeUsers }),
     setEditor: (editor) => set({ editor }),
-    toggleSidebar: () => set((state: any) => ({ isSidebarOpen: !state.isSidebarOpen })),
     setEditorTab: (editorTab) => set({ editorTab }),
     setNousExtractorFindings: (nousExtractorFindings) => set({ nousExtractorFindings }),
     setPatcherFindings: (patcherFindings) => set({ patcherFindings }),
 
     setRedactorUI: (redactorUI) => set({ redactorUI }),
-    setLeftSidebarWidth: (leftSidebarWidth) => set({ leftSidebarWidth }),
-    setRightSidebarWidth: (rightSidebarWidth) => set({ rightSidebarWidth }),
     toggleToolbox: () => set((state: any) => ({ isToolboxOpen: !state.isToolboxOpen })),
 } as any);
-

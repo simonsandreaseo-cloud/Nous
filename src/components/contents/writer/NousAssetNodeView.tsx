@@ -135,7 +135,7 @@ export default function NousAssetNodeView(props: any) {
                             initial={{ opacity: 0, y: 10, scale: 0.95, x: "-50%" }}
                             animate={{ opacity: 1, y: -24, scale: 1, x: "-50%" }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            className="absolute -top-12 left-1/2 z-[200] min-w-[320px]"
+                            className="absolute -top-12 left-1/2 z-30 min-w-[320px]"
                         >
                             <div className="flex flex-col gap-2 p-3 bg-slate-950/95 backdrop-blur-3xl rounded-[1.8rem] border border-white/10 shadow-2xl">
                                 
@@ -262,7 +262,7 @@ export default function NousAssetNodeView(props: any) {
                     <div 
                         onMouseDown={handleResizeStart}
                         onTouchStart={handleResizeStart}
-                        className="absolute bottom-3 right-3 w-10 h-10 cursor-nwse-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 hover:bg-white hover:text-indigo-600 z-[110]"
+                        className="absolute bottom-3 right-3 w-10 h-10 cursor-nwse-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 hover:bg-white hover:text-indigo-600 z-30"
                     >
                         <Maximize2 size={16} className="rotate-90 pointer-events-none" />
                     </div>
