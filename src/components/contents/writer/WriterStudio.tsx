@@ -276,6 +276,30 @@ export default function WriterStudio() {
     const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
     const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
 
+    const toggleLeftPanel = useCallback(() => {
+        const panel = leftPanelRef.current;
+        if (!panel) return;
+        if (panel.isCollapsed()) {
+            panel.expand();
+            // Try to force a good size
+            setTimeout(() => panel.resize(30), 10);
+        } else {
+            panel.collapse();
+        }
+    }, []);
+
+    const toggleRightPanel = useCallback(() => {
+        const panel = rightPanelRef.current;
+        if (!panel) return;
+        if (panel.isCollapsed()) {
+            panel.expand();
+            // Try to force a good size
+            setTimeout(() => panel.resize(25), 10);
+        } else {
+            panel.collapse();
+        }
+    }, []);
+
     const hasOutline = useWriterStore(state => state.strategyOutline.length > 0);
 
     const [isStatusOpen, setIsStatusOpen] = useState(false);
@@ -527,7 +551,7 @@ export default function WriterStudio() {
                 <PanelGroup direction="horizontal" className="flex-1 flex overflow-hidden">
                     <Panel 
                         ref={leftPanelRef}
-                        defaultSize={25} minSize={15} maxSize={40} 
+                        defaultSize={30} minSize={20} maxSize={50} 
                         collapsible={true} 
                         onCollapse={() => setIsLeftPanelCollapsed(true)}
                         onExpand={() => setIsLeftPanelCollapsed(false)}
@@ -540,7 +564,7 @@ export default function WriterStudio() {
                         <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
                     </PanelResizeHandle>
 
-                    <Panel defaultSize={75} minSize={30} collapsible={true} className="bg-slate-200/50 relative flex flex-col">
+                    <Panel defaultSize={70} minSize={30} collapsible={true} className="bg-slate-200/50 relative flex flex-col">
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
                             <div className="mx-auto min-h-full transition-all duration-500 p-4 md:p-6">
                                 <div className="relative bg-white shadow-2xl min-h-screen max-w-4xl mx-auto rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
@@ -703,14 +727,14 @@ export default function WriterStudio() {
                                     <div className="w-[1px] h-4 bg-slate-200/50" />
                                     <div className="flex items-center gap-1">
                                         <button 
-                                            onClick={() => leftPanelRef.current?.isCollapsed() ? leftPanelRef.current?.expand(25) : leftPanelRef.current?.collapse()}
+                                            onClick={toggleLeftPanel}
                                             className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors shadow-sm border border-slate-200/60 bg-white"
                                             title="Alternar panel izquierdo"
                                         >
                                             {isLeftPanelCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
                                         </button>
                                         <button 
-                                            onClick={() => rightPanelRef.current?.isCollapsed() ? rightPanelRef.current?.expand(25) : rightPanelRef.current?.collapse()}
+                                            onClick={toggleRightPanel}
                                             className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors shadow-sm border border-slate-200/60 bg-white"
                                             title="Alternar panel derecho"
                                         >
