@@ -132,10 +132,11 @@ Responde ÚNICAMENTE en JSON:
 
         const analysisRes = await aiRouter.generate({
             prompt: serpAnalysisPrompt,
-            model: "gemma-4-31b-it",
+            model: "gemini-3.1-flash-lite-preview",
             systemPrompt: "Analista SEO Senior. Tu objetivo es diseccionar el SERP y elegir las fuentes de mayor calidad para investigación profunda. Devuelves SOLO JSON.",
             jsonMode: true,
-            label: "Análisis de SERP"
+            label: "Análisis de SERP",
+            timeoutMs: 180000
         });
 
         const analysis = safeJsonExtract<{ 
@@ -388,11 +389,11 @@ Retorna ÚNICAMENTE este formato JSON válido:
 }`;
         const metaRes = await aiRouter.generate({
             prompt: metadataPrompt,
-            model: "gemma-4-31b-it",
+            model: "gemini-3.1-flash-lite-preview",
             systemPrompt: "Eres el Director de Estrategia SEO de más alto nivel. Tu única función es devolver objetos JSON estables respetando escrupulosamente los límites de caracteres (60 para title, 155 para meta).",
             jsonMode: true,
             label: "Estrategia Writing",
-            timeoutMs: 60000
+            timeoutMs: 180000
         });
         return { seoMetadata: safeJsonExtract<any>(metaRes.text, {}), wordCountGoal };
     },
