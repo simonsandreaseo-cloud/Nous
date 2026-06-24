@@ -31,7 +31,11 @@ import {
     ChevronRight,
     Cloud,
     CloudOff,
-    Loader2
+    Loader2,
+    PanelLeftClose,
+    PanelLeft,
+    PanelRightClose,
+    PanelRight
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
 
@@ -263,8 +267,14 @@ export default function WriterStudio() {
         hasGenerated: state.hasGenerated,
         status: (state as any).status,
         updateTaskStatus: (state as any).updateTaskStatus,
-        content: state.content
+        content: state.content,
+        wordCountReal: state.wordCountReal
     })));
+
+    const leftPanelRef = useRef<any>(null);
+    const rightPanelRef = useRef<any>(null);
+    const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+    const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
 
     const hasOutline = useWriterStore(state => state.strategyOutline.length > 0);
 
@@ -468,6 +478,31 @@ export default function WriterStudio() {
         return () => clearInterval(interval);
     }, [draftId, setSaving, setStatus, updateTask]);
 
+    const forceSave = async () => {
+        const latestState = useWriterStore.getState() as any;
+        if (latestState.draftId !== draftId || latestState.isGenerating) return;
+        
+        const payload = {
+            content_body: latestState.content,
+            word_count_real: latestState.wordCountReal,
+            h1: latestState.strategyH1,
+            seo_title: latestState.strategyTitle,
+            target_url_slug: latestState.strategySlug,
+            meta_description: latestState.strategyDesc,
+            excerpt: latestState.strategyExcerpt,
+            research_dossier: { ...latestState.rawSeoData, briefing: latestState.strategyNotes, suggested_links: latestState.strategyLinks, nous_extractor_findings: latestState.nousExtractorFindings },
+            outline_structure: { headers: latestState.strategyOutline },
+        };
+        
+        setSaving(true);
+        try { 
+            await updateTask(draftId, payload); 
+        } catch (e) { 
+            setStatus('❌ Error al guardar'); 
+        } finally { 
+            setSaving(false); 
+        }
+    };
 
     useEffect(() => { if (redactorUI === 'standard' && viewMode === 'dashboard') setViewMode('workspace'); }, [redactorUI, viewMode, setViewMode]);
 
@@ -490,7 +525,14 @@ export default function WriterStudio() {
         if (redactorUI === 'standard') {
             return (
                 <PanelGroup direction="horizontal" className="flex-1 flex overflow-hidden">
-                    <Panel defaultSize={20} minSize={15} maxSize={40} collapsible={true} className="bg-slate-50 border-r border-slate-200/50 z-20 relative transition-all duration-300">
+                    <Panel 
+                        ref={leftPanelRef}
+                        defaultSize={20} minSize={15} maxSize={40} 
+                        collapsible={true} 
+                        onCollapse={() => setIsLeftPanelCollapsed(true)}
+                        onExpand={() => setIsLeftPanelCollapsed(false)}
+                        className="bg-slate-50 border-r border-slate-200/50 z-20 relative transition-all duration-300"
+                    >
                         <InventorySidebar />
                     </Panel>
                     
@@ -498,7 +540,7 @@ export default function WriterStudio() {
                         <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
                     </PanelResizeHandle>
 
-                    <Panel defaultSize={80} minSize={30} collapsible={true} className="flex-1 bg-slate-200/50 relative flex flex-col transition-all duration-300">
+                    <Panel defaultSize={80} minSize={30} collapsible={true} className="bg-slate-200/50 relative flex flex-col transition-all duration-300">
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
                             <div className="mx-auto min-h-full transition-all duration-500 p-4 md:p-6">
                                 <div className="relative bg-white shadow-2xl min-h-screen max-w-4xl mx-auto rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
@@ -642,9 +684,41 @@ export default function WriterStudio() {
                         <div className="flex items-center gap-4 shrink-0">
                             {activeUsers && <PresenceAvatars users={activeUsers} />}
                             <div className="w-[1px] h-4 bg-slate-200/50" />
-                            <div className="flex items-center justify-center p-1.5 rounded-lg transition-colors" title={isSaving ? "Guardando..." : "Sincronizado"}>
-                                {isSaving ? <Cloud className="text-amber-500 animate-pulse" size={14} /> : <Cloud className="text-emerald-500" size={14} />}
+                            
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    {wordCountReal || 0} p.
+                                </span>
+                                <button 
+                                    onClick={forceSave}
+                                    className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 active:scale-95 transition-all" 
+                                    title={isSaving ? "Guardando..." : "Sincronizado (Click para forzar guardado)"}
+                                >
+                                    {isSaving ? <Cloud className="text-amber-500 animate-pulse" size={14} /> : <Cloud className="text-emerald-500" size={14} />}
+                                </button>
                             </div>
+                            
+                            {redactorUI === 'standard' && (
+                                <>
+                                    <div className="w-[1px] h-4 bg-slate-200/50" />
+                                    <div className="flex items-center gap-1">
+                                        <button 
+                                            onClick={() => leftPanelRef.current?.isCollapsed() ? leftPanelRef.current?.expand() : leftPanelRef.current?.collapse()}
+                                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                            title="Alternar panel izquierdo"
+                                        >
+                                            {isLeftPanelCollapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
+                                        </button>
+                                        <button 
+                                            onClick={() => rightPanelRef.current?.isCollapsed() ? rightPanelRef.current?.expand() : rightPanelRef.current?.collapse()}
+                                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                            title="Alternar panel derecho"
+                                        >
+                                            {isRightPanelCollapsed ? <PanelRight size={14} /> : <PanelRightClose size={14} />}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <div className="flex-1 flex justify-center">
@@ -754,7 +828,14 @@ export default function WriterStudio() {
                         <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
                     </PanelResizeHandle>
 
-                    <Panel defaultSize={25} minSize={15} maxSize={45} collapsible={true} className="h-full bg-slate-50 flex flex-col overflow-hidden relative shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10 border-l border-slate-200/50 transition-all duration-300">
+                    <Panel 
+                        ref={rightPanelRef}
+                        defaultSize={25} minSize={15} maxSize={45} 
+                        collapsible={true} 
+                        onCollapse={() => setIsRightPanelCollapsed(true)}
+                        onExpand={() => setIsRightPanelCollapsed(false)}
+                        className="h-full bg-slate-50 flex flex-col overflow-hidden relative shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10 border-l border-slate-200/50 transition-all duration-300"
+                    >
                         <div className="hidden">
                             <button onClick={() => (useWriterStore.getState() as any).finishContent()} className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group">
                                 <Send size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /> Finalizar Artículo
