@@ -282,7 +282,7 @@ export default function WriterStudio() {
         if (panel.isCollapsed()) {
             panel.expand();
             // Try to force a good size
-            setTimeout(() => panel.resize(30), 10);
+            setTimeout(() => panel.resize(25), 10);
         } else {
             panel.collapse();
         }
@@ -293,7 +293,6 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
-            // Try to force a good size
             setTimeout(() => panel.resize(25), 10);
         } else {
             panel.collapse();
@@ -812,15 +811,15 @@ export default function WriterStudio() {
     return (
         <div className="flex w-full h-full bg-white overflow-hidden">
             {redactorUI === 'standard' ? (
-                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout" id="writer-studio-root" className="w-full h-full">
+                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v3" id="writer-studio-root" className="w-full h-full">
                     <Panel 
                         id="writer-left-panel"
                         ref={leftPanelRef} 
-                        defaultSize={30} minSize={20} maxSize={50} 
+                        defaultSize={25} minSize={20} maxSize={40} 
                         collapsible={true} 
                         onCollapse={() => setIsLeftPanelCollapsed(true)}
                         onExpand={() => setIsLeftPanelCollapsed(false)}
-                        className="bg-slate-50 border-r border-slate-200/50 z-20 relative"
+                        className="bg-slate-50 border-r border-slate-200/50 z-20 relative min-w-0 overflow-hidden"
                     >
                         <InventorySidebar />
                     </Panel>
@@ -829,7 +828,7 @@ export default function WriterStudio() {
                         <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
                     </PanelResizeHandle>
 
-                    <Panel id="writer-editor-panel" defaultSize={70} minSize={30} className="flex flex-col min-w-0 bg-white relative">
+                    <Panel id="writer-editor-panel" defaultSize={75} minSize={40} className="flex flex-col min-w-0 bg-white relative overflow-hidden">
                         {renderMainContent()}
                     </Panel>
 
@@ -844,7 +843,7 @@ export default function WriterStudio() {
                         collapsible={true} 
                         onCollapse={() => setIsRightPanelCollapsed(true)}
                         onExpand={() => setIsRightPanelCollapsed(false)}
-                        className="h-full bg-slate-50 flex flex-col overflow-hidden relative shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10 border-l border-slate-200/50"
+                        className="h-full bg-slate-50 flex flex-col overflow-hidden relative shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10 border-l border-slate-200/50 min-w-0"
                     >
                         <div className="hidden">
                             <button onClick={() => (useWriterStore.getState() as any).finishContent()} className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group">
