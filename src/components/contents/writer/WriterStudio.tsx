@@ -274,7 +274,7 @@ export default function WriterStudio() {
     const leftPanelRef = useRef<any>(null);
     const rightPanelRef = useRef<any>(null);
     const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
-    const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+    const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
 
     const hasOutline = useWriterStore(state => state.strategyOutline.length > 0);
 
@@ -527,11 +527,11 @@ export default function WriterStudio() {
                 <PanelGroup direction="horizontal" className="flex-1 flex overflow-hidden">
                     <Panel 
                         ref={leftPanelRef}
-                        defaultSize={20} minSize={15} maxSize={40} 
+                        defaultSize={25} minSize={15} maxSize={40} 
                         collapsible={true} 
                         onCollapse={() => setIsLeftPanelCollapsed(true)}
                         onExpand={() => setIsLeftPanelCollapsed(false)}
-                        className="bg-slate-50 border-r border-slate-200/50 z-20 relative transition-all duration-300"
+                        className="bg-slate-50 border-r border-slate-200/50 z-20 relative"
                     >
                         <InventorySidebar />
                     </Panel>
@@ -540,7 +540,7 @@ export default function WriterStudio() {
                         <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
                     </PanelResizeHandle>
 
-                    <Panel defaultSize={80} minSize={30} collapsible={true} className="bg-slate-200/50 relative flex flex-col transition-all duration-300">
+                    <Panel defaultSize={75} minSize={30} collapsible={true} className="bg-slate-200/50 relative flex flex-col">
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
                             <div className="mx-auto min-h-full transition-all duration-500 p-4 md:p-6">
                                 <div className="relative bg-white shadow-2xl min-h-screen max-w-4xl mx-auto rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
@@ -703,18 +703,18 @@ export default function WriterStudio() {
                                     <div className="w-[1px] h-4 bg-slate-200/50" />
                                     <div className="flex items-center gap-1">
                                         <button 
-                                            onClick={() => leftPanelRef.current?.isCollapsed() ? leftPanelRef.current?.expand() : leftPanelRef.current?.collapse()}
-                                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                            onClick={() => leftPanelRef.current?.isCollapsed() ? leftPanelRef.current?.expand(25) : leftPanelRef.current?.collapse()}
+                                            className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors shadow-sm border border-slate-200/60 bg-white"
                                             title="Alternar panel izquierdo"
                                         >
-                                            {isLeftPanelCollapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
+                                            {isLeftPanelCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
                                         </button>
                                         <button 
-                                            onClick={() => rightPanelRef.current?.isCollapsed() ? rightPanelRef.current?.expand() : rightPanelRef.current?.collapse()}
-                                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                            onClick={() => rightPanelRef.current?.isCollapsed() ? rightPanelRef.current?.expand(25) : rightPanelRef.current?.collapse()}
+                                            className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors shadow-sm border border-slate-200/60 bg-white"
                                             title="Alternar panel derecho"
                                         >
-                                            {isRightPanelCollapsed ? <PanelRight size={14} /> : <PanelRightClose size={14} />}
+                                            {isRightPanelCollapsed ? <PanelRight size={16} /> : <PanelRightClose size={16} />}
                                         </button>
                                     </div>
                                 </>
@@ -820,7 +820,7 @@ export default function WriterStudio() {
         <div className="flex w-full h-full bg-white overflow-hidden">
             {redactorUI === 'standard' ? (
                 <PanelGroup direction="horizontal" className="w-full h-full">
-                    <Panel defaultSize={75} minSize={40} collapsible={true} className="flex flex-col min-w-0 bg-white relative transition-all duration-300">
+                    <Panel defaultSize={100} minSize={40} collapsible={true} className="flex flex-col min-w-0 bg-white relative">
                         {renderMainContent()}
                     </Panel>
 
@@ -830,11 +830,11 @@ export default function WriterStudio() {
 
                     <Panel 
                         ref={rightPanelRef}
-                        defaultSize={25} minSize={15} maxSize={45} 
+                        defaultSize={0} minSize={20} maxSize={45} 
                         collapsible={true} 
                         onCollapse={() => setIsRightPanelCollapsed(true)}
                         onExpand={() => setIsRightPanelCollapsed(false)}
-                        className="h-full bg-slate-50 flex flex-col overflow-hidden relative shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10 border-l border-slate-200/50 transition-all duration-300"
+                        className="h-full bg-slate-50 flex flex-col overflow-hidden relative shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10 border-l border-slate-200/50"
                     >
                         <div className="hidden">
                             <button onClick={() => (useWriterStore.getState() as any).finishContent()} className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group">
