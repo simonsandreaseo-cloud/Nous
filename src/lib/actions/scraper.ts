@@ -193,7 +193,7 @@ Si ninguno es útil, retorna \`[]\`. Solo retorna el arreglo JSON, sin texto adi
 
         try {
             const aiResult = await aiRouter.generate({
-                model: "gemini-3.1-flash-lite-preview",
+                model: "gemini-3.1-flash-lite",
                 systemPrompt,
                 prompt,
                 jsonMode: true,

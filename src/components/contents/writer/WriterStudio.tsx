@@ -42,6 +42,7 @@ import dynamic from 'next/dynamic';
 import CompetitorCard from './CompetitorCard';
 import OutlineSidebar from './OutlineSidebar';
 
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
 const SEODataTab = dynamic(() => import('./SEODataTab'), { loading: () => <div className="p-8 text-center text-[10px] uppercase font-black tracking-widest text-slate-400">Cargando...</div> });
 const FloatingOutlineUI = dynamic(() => import('./widgets/FloatingOutlineUI'));
 import { CompetitorPanel } from './CompetitorPanel';
@@ -470,15 +471,7 @@ export default function WriterStudio() {
 
     useEffect(() => { if (redactorUI === 'standard' && viewMode === 'dashboard') setViewMode('workspace'); }, [redactorUI, viewMode, setViewMode]);
 
-    const [isResizingRight, setIsResizingRight] = useState(false);
-    const handleRightResizeDown = (e: React.MouseEvent) => { setIsResizingRight(true); e.preventDefault(); };
-    const handleRightResizeMove = useCallback((e: MouseEvent) => { if (!isResizingRight) return; const newWidth = ((window.innerWidth - e.clientX) / window.innerWidth) * 100; if (newWidth > 15 && newWidth < 45) setRightSidebarWidth(newWidth); }, [isResizingRight, setRightSidebarWidth]);
-    const handleRightResizeUp = useCallback(() => setIsResizingRight(false), []);
-    useEffect(() => {
-        if (isResizingRight) { window.addEventListener('mousemove', handleRightResizeMove); window.addEventListener('mouseup', handleRightResizeUp); }
-        else { window.removeEventListener('mousemove', handleRightResizeMove); window.removeEventListener('mouseup', handleRightResizeUp); }
-        return () => { window.removeEventListener('mousemove', handleRightResizeMove); window.removeEventListener('mouseup', handleRightResizeUp); };
-    }, [isResizingRight, handleRightResizeMove, handleRightResizeUp]);
+    // Resizing handled by react-resizable-panels
 
     const [fullscreenAsset, setFullscreenAsset] = useState<ImageAsset | null>(null);
 
@@ -496,18 +489,27 @@ export default function WriterStudio() {
         }
         if (redactorUI === 'standard') {
             return (
-                <div className="flex-1 flex overflow-hidden">
-                    <InventorySidebar />
-                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-200/50">
-                        <div className="mx-auto min-h-full transition-all duration-500 p-4 md:p-6">
-                            <div className="relative bg-white shadow-2xl min-h-screen max-w-4xl mx-auto rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
-                                <FloatingOutlineUI />
-                                <FeaturedImageSlot taskId={draftId} onFullscreen={setFullscreenAsset} />
-                                <WriterEditor key={draftId || 'standard'} />
+                <PanelGroup direction="horizontal" className="flex-1 flex overflow-hidden">
+                    <Panel defaultSize={20} minSize={15} maxSize={40} collapsible={true} className="bg-slate-50 border-r border-slate-200/50 z-20 relative transition-all duration-300">
+                        <InventorySidebar />
+                    </Panel>
+                    
+                    <PanelResizeHandle className="w-1.5 hover:w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[3px] z-30 flex items-center justify-center group/handle">
+                        <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
+                    </PanelResizeHandle>
+
+                    <Panel defaultSize={80} minSize={30} collapsible={true} className="flex-1 bg-slate-200/50 relative flex flex-col transition-all duration-300">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            <div className="mx-auto min-h-full transition-all duration-500 p-4 md:p-6">
+                                <div className="relative bg-white shadow-2xl min-h-screen max-w-4xl mx-auto rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
+                                    <FloatingOutlineUI />
+                                    <FeaturedImageSlot taskId={draftId} onFullscreen={setFullscreenAsset} />
+                                    <WriterEditor key={draftId || 'standard'} />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </Panel>
+                </PanelGroup>
             );
         }
         if (viewMode === 'dashboard') return <WriterDashboard />;
@@ -527,9 +529,8 @@ export default function WriterStudio() {
         );
     }
 
-    return (
-        <div className="flex w-full h-full bg-white overflow-hidden">
-            <main className="flex-1 flex flex-col min-w-0 bg-white relative">
+    const renderMainContent = () => (
+        <main className="flex-1 flex flex-col min-w-0 bg-white relative h-full">
                 <header className="h-14 flex items-center justify-between px-6 md:px-10 bg-white/10 backdrop-blur-xl z-50 sticky top-0 shrink-0 border-b border-slate-200/20 gap-4">
                     <div className="flex items-center gap-6 min-w-0">
                         {redactorUI === 'zen' && (
@@ -739,22 +740,45 @@ export default function WriterStudio() {
 
                 <div className="flex-1 overflow-hidden flex flex-col">{renderContent()}</div>
             </main>
+    );
 
-            {redactorUI === 'standard' && (
-                <div className="h-full bg-slate-50 flex flex-col overflow-hidden border-l border-slate-200/50 relative" style={{ width: `${rightSidebarWidth}%` }}>
-                    <div onMouseDown={handleRightResizeDown} className={cn("absolute top-0 left-0 w-1 h-full cursor-col-resize transition-all z-30", isResizingRight ? "bg-indigo-500 w-1" : "hover:bg-indigo-300/50 hover:w-1")} />
-                    <div className="hidden">
-                        <button onClick={() => (useWriterStore.getState() as any).finishContent()} className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group">
-                            <Send size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /> Finalizar Artículo
-                        </button>
-                    </div>
-                    <div className="px-5 py-3 border-b border-slate-200/50 bg-white/40 backdrop-blur-md z-10">
-                        <div className="grid grid-cols-6 gap-2 p-1 bg-slate-100 border border-slate-200 w-full overflow-hidden">
-                            {[ { id: 'history', icon: <Search size={16} /> }, { id: 'seo', icon: <Zap size={16} /> }, { id: 'media', icon: <ImagePlus size={16} /> }, { id: 'tools', icon: <Wrench size={16} /> }, { id: 'translate', icon: <Languages size={16} /> }, { id: 'nous', icon: <NousLogo showText={false} className="scale-75" /> } ].map(tab => (
-                                <button key={tab.id} onClick={() => setSidebarTab(tab.id as any)} className={cn("flex items-center justify-center aspect-square transition-all duration-150 border-2", activeSidebarTab === tab.id ? "bg-slate-50 text-indigo-500 border-indigo-200 shadow-sm" : "bg-white text-slate-400 border-slate-200 hover:border-slate-300")}>{tab.icon}</button>
-                            ))}
+    return (
+        <div className="flex w-full h-full bg-white overflow-hidden">
+            {redactorUI === 'standard' ? (
+                <PanelGroup direction="horizontal" className="w-full h-full">
+                    <Panel defaultSize={75} minSize={40} collapsible={true} className="flex flex-col min-w-0 bg-white relative transition-all duration-300">
+                        {renderMainContent()}
+                    </Panel>
+
+                    <PanelResizeHandle className="w-1.5 hover:w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[3px] z-30 flex items-center justify-center group/handle">
+                        <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
+                    </PanelResizeHandle>
+
+                    <Panel defaultSize={25} minSize={15} maxSize={45} collapsible={true} className="h-full bg-slate-50 flex flex-col overflow-hidden relative shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10 border-l border-slate-200/50 transition-all duration-300">
+                        <div className="hidden">
+                            <button onClick={() => (useWriterStore.getState() as any).finishContent()} className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 group">
+                                <Send size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /> Finalizar Artículo
+                            </button>
                         </div>
-                    </div>
+                        <div className="px-3 pt-3 pb-2 border-b border-slate-200/50 bg-white/60 backdrop-blur-xl z-10">
+                            <div className="flex bg-slate-100/50 p-1 rounded-2xl shadow-inner border border-slate-200/60 overflow-x-auto no-scrollbar justify-between gap-1">
+                                {[ { id: 'history', icon: <Search size={14} />, label: 'Hist' }, { id: 'seo', icon: <Zap size={14} />, label: 'SEO' }, { id: 'media', icon: <ImagePlus size={14} />, label: 'Media' }, { id: 'tools', icon: <Wrench size={14} />, label: 'Tools' }, { id: 'translate', icon: <Languages size={14} />, label: 'I18n' }, { id: 'nous', icon: <NousLogo showText={false} className="scale-[0.6]" />, label: 'Nous' } ].map(tab => (
+                                    <button 
+                                        key={tab.id} 
+                                        onClick={() => setSidebarTab(tab.id as any)} 
+                                        className={cn(
+                                            "flex flex-col items-center justify-center py-2 px-2 flex-1 transition-all duration-300 rounded-xl min-w-[45px]", 
+                                            activeSidebarTab === tab.id 
+                                                ? "bg-white text-indigo-600 shadow-md ring-1 ring-slate-900/5 scale-100" 
+                                                : "text-slate-400 hover:bg-slate-200/40 hover:text-slate-600 scale-95"
+                                        )}
+                                    >
+                                        <div className="mb-1">{tab.icon}</div>
+                                        <span className="text-[8px] font-black uppercase tracking-widest">{tab.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     <div className="flex-1 flex flex-col min-h-0 bg-slate-50/20">
                         {activeSidebarTab === 'seo' ? <SEODataTab seoData={rawSeoData} currentContent={useWriterStore.getState().content || ''} /> : 
                           activeSidebarTab === 'media' ? <VisualPlanningBoard onRegenerate={async (id) => {
@@ -799,8 +823,9 @@ export default function WriterStudio() {
 
                          <CompetitorPanel />}
                     </div>
-                </div>
-            )}
+                    </Panel>
+                </PanelGroup>
+            ) : renderMainContent()}
             
             <ImageLightbox isOpen={!!fullscreenAsset} onClose={() => setFullscreenAsset(null)} asset={fullscreenAsset} />
         </div>

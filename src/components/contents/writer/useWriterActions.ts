@@ -459,54 +459,53 @@ export function useWriterActions() {
             };
 
             const originalContent = store.content;
-            store.setContent(''); // Empezar de cero para mostrar el stream
-            let humLastUpdateTime = 0;
 
             const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
+                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
                 const chunks = [];
                 for (let i = 0; i < elements.length; i += chunkSize) {
-                    chunks.push(elements.slice(i, i + chunkSize).join(''));
+                    const chunk = elements.slice(i, i + chunkSize).join('').trim();
+                    if (chunk) chunks.push(chunk);
                 }
                 return chunks;
             };
 
-            // Creamos los chunks en el frontend (4 elementos por chunk)
-            const chunks = chunkHtml(originalContent, 4);
-            console.log(`[DEBUG-Humanize] Documento dividido en ${chunks.length} chunks de 4 elementos HTML cada uno.`);
-            store.setHumanizerStatus(`Documento dividido en ${chunks.length} partes...`);
-            let accumulatedHtml = '';
+            const rawChunks = chunkHtml(originalContent, 4);
+            console.log(`[DEBUG-Humanize] Documento dividido en ${rawChunks.length} chunks.`);
+            store.setHumanizerStatus(`Documento dividido en ${rawChunks.length} partes...`);
+            
+            // In-place chunking: envolver todos los chunks inicialmente
+            let currentDocumentChunks = rawChunks.map((chunk, index) => 
+                `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
+            );
+            
+            // Publicar el documento intacto pero marcado en el store
+            store.setContent(currentDocumentChunks.join('\n'));
 
-            for (let i = 0; i < chunks.length; i++) {
+            for (let i = 0; i < rawChunks.length; i++) {
                 let success = false;
                 let attempts = 0;
                 const MAX_ATTEMPTS = 3;
 
+                // Marcar el chunk actual como "processing"
+                currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
+                store.setContent(currentDocumentChunks.join('\n'));
+
                 while (!success && attempts < MAX_ATTEMPTS) {
                     try {
-                        store.setHumanizerStatus(`Humanizando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
+                        store.setHumanizerStatus(`Humanizando Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
                         
-                        // Petición HTTP individual por cada chunk para renovar los 5 minutos de Vercel
                         const chunkResult = await streamHumanize(
-                            chunks[i],
+                            rawChunks[i],
                             config,
                             50,
-                            (partialHtml) => {
-                                const now = Date.now();
-                                if (now - humLastUpdateTime > 300) {
-                                    store.setContent(accumulatedHtml + partialHtml);
-                                    humLastUpdateTime = now;
-                                }
-                            },
-                            (msg) => {
-                                // Solo logueamos para no ensuciar el status principal
-                                console.log(`[Chunk ${i+1}] ${msg}`);
-                            }
+                            () => {}, // Desactivamos el streaming parcial para mantener el DOM estable
+                            (msg) => console.log(`[Chunk ${i+1}] ${msg}`)
                         );
                         
-                        // Acumulamos el resultado final del chunk
-                        accumulatedHtml += chunkResult.html + '\n';
-                        store.setContent(accumulatedHtml);
+                        // Reemplazar el chunk original con el HTML finalizado
+                        currentDocumentChunks[i] = chunkResult.html;
+                        store.setContent(currentDocumentChunks.join('\n'));
                         success = true;
                     } catch (err: any) {
                         attempts++;
@@ -516,14 +515,13 @@ export function useWriterActions() {
                             throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
                         }
                         
-                        // Si falló (probablemente por 429 quota o un timeout del modelo), esperamos 60s antes de reintentar
                         store.setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
                         await new Promise(resolve => setTimeout(resolve, 60000));
                     }
                 }
             }
 
-            const finalResult = { html: accumulatedHtml };
+            const finalResult = { html: currentDocumentChunks.join('\n') };
 
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
 
@@ -610,37 +608,49 @@ export function useWriterActions() {
         
         try {
             const originalContent = store.content;
-            store.setContent(''); // Empezar de cero para mostrar el stream progresivo
             
             const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
+                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
                 const chunks = [];
                 for (let i = 0; i < elements.length; i += chunkSize) {
-                    chunks.push(elements.slice(i, i + chunkSize).join(''));
+                    const chunk = elements.slice(i, i + chunkSize).join('').trim();
+                    if (chunk) chunks.push(chunk);
                 }
                 return chunks;
             };
 
-            const chunks = chunkHtml(originalContent, 4);
-            store.setStatus(`Documento dividido en ${chunks.length} partes para limpieza...`);
-            let accumulatedHtml = '';
+            const rawChunks = chunkHtml(originalContent, 4);
+            store.setStatus(`Documento dividido en ${rawChunks.length} partes para limpieza...`);
             
-            for (let i = 0; i < chunks.length; i++) {
+            // In-place chunking: envolver todos los chunks inicialmente
+            let currentDocumentChunks = rawChunks.map((chunk, index) => 
+                `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
+            );
+            
+            // Publicar el documento intacto pero marcado en el store
+            store.setContent(currentDocumentChunks.join('\n'));
+            
+            for (let i = 0; i < rawChunks.length; i++) {
                 let success = false;
                 let attempts = 0;
                 const MAX_ATTEMPTS = 3;
 
+                // Marcar el chunk actual como "processing"
+                currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
+                store.setContent(currentDocumentChunks.join('\n'));
+
                 while (!success && attempts < MAX_ATTEMPTS) {
                     try {
-                        store.setStatus(`Limpiando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
+                        store.setStatus(`Limpiando Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
                         
                         const chunkResult = await streamFinalCleanup(
-                            chunks[i],
+                            rawChunks[i],
                             (msg) => console.log(`[Clean Chunk ${i+1}] ${msg}`)
                         );
                         
-                        accumulatedHtml += chunkResult + '\n';
-                        store.setContent(accumulatedHtml);
+                        // Reemplazar el chunk original con el HTML finalizado
+                        currentDocumentChunks[i] = chunkResult;
+                        store.setContent(currentDocumentChunks.join('\n'));
                         success = true;
                     } catch (err: any) {
                         attempts++;
@@ -658,6 +668,7 @@ export function useWriterActions() {
             
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
             
+            const accumulatedHtml = currentDocumentChunks.join('\n');
             useWriterStore.setState({
                 content: accumulatedHtml,
                 statusMessage: '✅ ¡Limpieza mágica aplicada en todo el artículo!'

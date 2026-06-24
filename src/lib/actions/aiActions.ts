@@ -101,6 +101,11 @@ export async function executeHumanizerWithRetry<T>(
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
+    if (modelName !== 'gemma-4-31b-it' && modelName !== 'gemma-4-26b-a4b-it') {
+        safeStatus(`⚠️ Modelo ${modelName} no permitido para humanización. Forzando gemma-4-31b-it.`);
+        modelName = 'gemma-4-31b-it';
+    }
+
     // Le damos 3 minutos (180000ms) de timeout al Humanizer porque procesa HTML enorme y necesita más tiempo
     const HUMANIZER_TIMEOUT = 180000;
 
@@ -542,6 +547,10 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
+    if (modelName !== 'gemma-4-31b-it' && modelName !== 'gemma-4-26b-a4b-it') {
+        modelName = 'gemma-4-31b-it';
+    }
+
     safeStatus(`Iniciando humanización estructural con Cheerio y modelo ${modelName}...`);
     const start = Date.now();
     
@@ -572,7 +581,7 @@ export const runHumanizerPipeline = async (
 
     try {
         const processedBlocks = await executeHumanizerWithRetry(async (ai) => {
-            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común.\n2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite pequeños saltos conceptuales.\n3.  CONECTORES PROHIBIDOS: Evita conectores formales como "Sin embargo,", "Por lo tanto,", "En conclusión,".\n4.  MORFOSINTAXIS Y ERRORES: Usa frases cortas predominantemente. Mezcla con algunas frases largas para ser impredecible. Incluye ligeros errores gramaticales y de morfosintaxis muy sutiles para emular imperfección humana.\n5.  IDIOMA: Usa español neutro panhispánico.\n6.  VOZ ACTIVA: Prioriza la voz activa.\n7.  LONGITUD Y DESARROLLO (VITAL): EXTIENDE los textos aportando detalles, opiniones casuales, anécdotas o conectores informales. BAJO NINGUNA CIRCUNSTANCIA debes resumir o acortar la cantidad original de palabras. Si el texto original tiene 50 palabras, tu versión debe tener al menos 60 o 70.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos humanizados. No devuelvas markdown ni otra cosa.`;
+            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común.\n2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite pequeños saltos conceptuales.\n3.  CONECTORES PROHIBIDOS: Evita conectores formales como "Sin embargo,", "Por lo tanto,", "En conclusión,".\n4.  MORFOSINTAXIS Y ERRORES: Usa frases cortas predominantemente. Mezcla con algunas frases largas para ser impredecible. Incluye ligeros errores gramaticales y de morfosintaxis.\n5.  IDIOMA: Usa español neutro panhispánico.\n6.  VOZ ACTIVA: Prioriza la voz activa.\n7.  LONGITUD Y DESARROLLO (VITAL): BAJO NINGUNA CIRCUNSTANCIA debes resumir o acortar la cantidad original de palabras. Si el texto original tiene 50 palabras, tu versión debe tener al menos 60 o 70.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos humanizados. No devuelvas markdown ni otra cosa.`;
 
             const model = ai.getGenerativeModel({ 
                 model: modelName, 
@@ -809,7 +818,7 @@ export const runFinalCleaningLayer = async (
         else console.log(`[FinalCleaning-Status] ${msg}`);
     };
 
-    safeStatus(`Iniciando capa de limpieza final con Gemini 3.5...`);
+    safeStatus(`Iniciando capa de limpieza final con Gemini 3.1 Flash Lite...`);
     
     try {
         const processed = await executeWithKeyRotation(async (ai, currentModel) => {
@@ -844,7 +853,7 @@ export const runFinalCleaningLayer = async (
             } catch (e) {
                 return html;
             }
-        }, AI_CONFIG.gemini.models.flash3_5 || 'gemini-3.5-flash', undefined, undefined, false, `Limpieza Final Gemini 3.5`);
+        }, AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite', undefined, undefined, false, `Limpieza Final Gemini 3.1 Flash Lite`);
         
         console.log("\n==========================================");
         console.log("=== LIMPIEZA INTELIGENTE (ANTES) ===");
@@ -878,7 +887,7 @@ export const runContentCleaning = async (html: string, onStatus?: (msg: string) 
     try {
         const cleanContent = await executeWithKeyRotation(async (ai, currentModel) => {
             const modelObj = ai.getGenerativeModel({
-                model: currentModel || 'gemini-3.5-flash',
+                model: currentModel || 'gemini-3.1-flash-lite',
                 systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nEres un editor de HTML. Tu única tarea es eliminar toda la basura y texto generado por IA que no pertenezca al contenido principal del artículo. Mantén intacta toda la estructura HTML válida (h2, p, ul, etc.). Devuelve únicamente un objeto JSON con 'razonamiento_interno' y 'html'.`,
                 generationConfig: {
                     temperature: 0.1,
@@ -902,7 +911,7 @@ export const runContentCleaning = async (html: string, onStatus?: (msg: string) 
             } catch (e) {
                 return html;
             }
-        }, 'gemini-3.5-flash', undefined, undefined, undefined, true, 'Limpieza Contenido');
+        }, AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite', undefined, undefined, undefined, true, 'Limpieza Contenido');
 
         console.log("\n==========================================");
         console.log("=== LIMPIEZA CONTENIDO (ANTES) ===");
