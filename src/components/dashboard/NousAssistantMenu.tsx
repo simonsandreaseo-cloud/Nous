@@ -54,15 +54,15 @@ export default function NousAssistantMenu({
     const [pipelineTranslate, setPipelineTranslate] = useState(false);
     const [pipelineFinalStatus, setPipelineFinalStatus] = useState<string>('keep_current');
 
-    const { activeProject } = useProjectStore();
+    const { activeProject, activeTeam } = useProjectStore();
     const i18nLanguages = activeProject?.i18n_settings?.languages || [];
 
     const allStatuses = useMemo(() => {
-        const custom = activeProject?.settings?.content_preferences?.custom_statuses || [];
+        const custom = activeTeam?.settings?.custom_statuses || [];
         const baseStatuses = Object.keys(STATUS_LABELS);
         
         return Array.from(new Set([...baseStatuses, ...custom]));
-    }, [activeProject]);
+    }, [activeTeam]);
 
     const effectiveProgress = (viewMode === 'writer' && (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining)) 
         ? processingProgress 

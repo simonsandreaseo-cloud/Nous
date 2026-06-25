@@ -56,7 +56,7 @@ export default function StrategyGrid({
     batchProgress = {},
     tasks: externalTasks
 }: StrategyGridProps) {
-    const { tasks: storeTasks, activeProject, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
+    const { tasks: storeTasks, activeProject, activeTeam, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
     const [deletePopupId, setDeletePopupId] = useState<string | null>(null);
     const [deleteOptions, setDeleteOptions] = useState({ research: false, writing: false, images: false, translations: false });
@@ -98,6 +98,15 @@ export default function StrategyGrid({
     const [isRegeneratingOutline, setIsRegeneratingOutline] = useState(false);
 
     const tasksToUse = externalTasks || storeTasks;
+
+    const statusLabelsMap = useMemo(() => {
+        const map = { ...STATUS_LABELS };
+        const customStatuses = activeTeam?.settings?.custom_statuses || [];
+        customStatuses.forEach((status: string) => {
+            map[status] = status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        });
+        return map;
+    }, [activeTeam]);
 
     const sortedTasks = [...tasksToUse].sort((a, b) => new Date(a.scheduled_date || 0).getTime() - new Date(b.scheduled_date || 0).getTime());
     const { canCreateOrDelete, canEditAny, canTakeTasks } = usePermissions();
@@ -455,8 +464,8 @@ export default function StrategyGrid({
                                                     {Object.entries(STATUS_LABELS).map(([value, label]) => (
                                                         <option key={value} value={value}>{label}</option>
                                                     ))}
-                                                    {activeProject?.settings?.content_preferences?.custom_statuses?.map((status: string) => (
-                                                        <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
+                                                    {activeTeam?.settings?.custom_statuses?.map((status: string) => (
+                                                        <option key={status} value={status}>{status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</option>
                                                     ))}
                                                 </select>
                                             ) : batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100 ? (
@@ -521,7 +530,7 @@ export default function StrategyGrid({
                                                         "w-1 h-1 rounded-full",
                                                         STATUS_COLORS[task.status]?.dot || 'bg-slate-400'
                                                     )} />
-                                                    {STATUS_LABELS[task.status] || (task.status ? task.status.replace(/_/g, ' ') : '—')}
+                                                    {statusLabelsMap[task.status] || (task.status ? task.status.replace(/_/g, ' ') : '—')}
                                                 </div>
                                             )}
                                         </td>

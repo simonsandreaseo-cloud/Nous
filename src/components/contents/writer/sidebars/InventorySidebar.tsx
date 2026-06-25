@@ -16,28 +16,33 @@ import { useWriterStore } from '@/store/useWriterStore';
 import { useShallow } from 'zustand/react/shallow';
 
 export function InventorySidebar() {
-    const { 
-        tasks, 
-        isLoading 
-    } = useProjectStore();
+    const { projectId, loadContentById, draftId } = useWriterStore();
+    const { activeTeam, tasks, isLoading } = useProjectStore();
     
-    const { 
-        draftId, 
-        loadContentById
-    } = useWriterStore(useShallow(state => ({
-        draftId: state.draftId,
-        loadContentById: state.loadContentById
-    })));
-
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+
+    const projectTasks = useMemo(() => {
+        return tasks.filter(t => t.project_id === projectId);
+    }, [tasks, projectId]);
+
+    const statusLabelsMap = useMemo(() => {
+        const map = { ...STATUS_LABELS };
+        const customStatuses = activeTeam?.settings?.custom_statuses || [];
+        customStatuses.forEach((status: string) => {
+            map[status] = status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        });
+        return map;
+    }, [activeTeam]);
+
     // Available statuses from tasks
     const availableStatuses = useMemo(() => {
-        const statuses = new Set(tasks.map(t => t.status));
-        return Array.from(statuses);
-    }, [tasks]);
+        const statuses = new Set(projectTasks.map(t => t.status));
+        return Array.from(statuses).filter(Boolean);
+    }, [projectTasks]);
+
     const filteredTasks = useMemo(() => {
-        return tasks.filter(task => {
+        return projectTasks.filter(task => {
             const matchesSearch = task.keyword?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                   task.title?.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
@@ -91,7 +96,7 @@ export function InventorySidebar() {
                                         : "bg-white text-slate-400 border-slate-100 hover:border-slate-300"
                                 )}
                             >
-                                {STATUS_LABELS[status] || status}
+                                {statusLabelsMap[status] || status}
                             </button>
                         ))}
                     </div>
@@ -131,7 +136,7 @@ export function InventorySidebar() {
                                         "text-[8px] font-black uppercase tracking-widest",
                                         draftId === task.id ? "text-indigo-600" : "text-slate-400"
                                     )}>
-                                        {STATUS_LABELS[task.status] || task.status}
+                                        {statusLabelsMap[task.status] || task.status}
                                     </span>
                                 </div>
                                 <span className="text-[7px] font-bold text-slate-300 uppercase tracking-widest">

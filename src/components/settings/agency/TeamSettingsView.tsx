@@ -5,6 +5,7 @@ import { Plus, Trash2, Edit2, Shield, User, Mail, Loader2, Check, X, AlertCircle
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/utils/cn";
 import { CustomPermissions, TeamMember } from "@/types/project";
+import { CustomStatusesSettings } from "./CustomStatusesSettings";
 
 const DEFAULT_PERMISSIONS: CustomPermissions = {
     admin: false,
@@ -40,6 +41,9 @@ export function TeamSettings({ teamId, onBack }: { teamId: string, onBack?: () =
     const [permissions, setPermissions] = useState<CustomPermissions>(DEFAULT_PERMISSIONS);
     const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Tabs state
+    const [activeTab, setActiveTab] = useState<'members' | 'projects' | 'preferences'>('members');
 
     useEffect(() => {
         if (teamId) {
@@ -264,7 +268,7 @@ export function TeamSettings({ teamId, onBack }: { teamId: string, onBack?: () =
                 </div>
             ) : null}
 
-            <div className="flex justify-between items-end mb-10 border-b border-slate-100 pb-8">
+            <div className="flex justify-between items-end mb-6 border-b border-slate-100 pb-8">
                 <div className="flex items-center gap-6">
                     {onBack && (
                         <button 
@@ -275,16 +279,40 @@ export function TeamSettings({ teamId, onBack }: { teamId: string, onBack?: () =
                         </button>
                     )}
                     <div>
-                        <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">Miembros del Equipo</h2>
+                        <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">Equipo y Preferencias</h2>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">Niveles de acceso y jerarquía</p>
                     </div>
                 </div>
-                <button
-                    onClick={openInviteModal}
-                    className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all flex items-center gap-2 shadow-[0_8px_16px_rgba(0,0,0,0.1)]"
-                >
-                    <Plus size={14} /> Añadir Miembro
-                </button>
+                {activeTab === 'members' && (
+                    <button
+                        onClick={openInviteModal}
+                        className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all flex items-center gap-2 shadow-[0_8px_16px_rgba(0,0,0,0.1)]"
+                    >
+                        <Plus size={14} /> Añadir Miembro
+                    </button>
+                )}
+            </div>
+
+            <div className="flex gap-4 border-b border-slate-100 pb-6 mb-8">
+                {[
+                    { id: 'members', label: 'Miembros', icon: User },
+                    { id: 'projects', label: 'Proyectos', icon: LayoutGrid },
+                    { id: 'preferences', label: 'Preferencias', icon: Settings }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={cn(
+                            "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                            activeTab === tab.id 
+                                ? "bg-slate-900 text-white shadow-md"
+                                : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        )}
+                    >
+                        <tab.icon size={14} />
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
             {isLoading ? (
@@ -298,149 +326,160 @@ export function TeamSettings({ teamId, onBack }: { teamId: string, onBack?: () =
                 </div>
             ) : (
                 <div className="space-y-6">
-                    <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Miembros de la Agencia</h3>
-                        {members.length === 0 && invites.length === 0 ? (
-                            <p className="text-xs text-slate-500 py-4 text-center border border-dashed rounded-xl">No hay miembros registrados ni invitaciones pendientes.</p>
-                        ) : (
-                            <div className="space-y-4">
-                                {/* Members List */}
-                                {members.map(member => {
-                                    const displayName = (member.profiles?.full_name && member.profiles.full_name !== 'MIEMBRO') ? member.profiles.full_name : (member.profiles?.email || 'Miembro');
-                                    return (
-                                        <div key={member.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-200 transition-all group">
+                    {activeTab === 'members' && (
+                        <div className="space-y-3">
+                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Miembros de la Agencia</h3>
+                            {members.length === 0 && invites.length === 0 ? (
+                                <p className="text-xs text-slate-500 py-4 text-center border border-dashed rounded-xl">No hay miembros registrados ni invitaciones pendientes.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {/* Members List */}
+                                    {members.map(member => {
+                                        const displayName = (member.profiles?.full_name && member.profiles.full_name !== 'MIEMBRO') ? member.profiles.full_name : (member.profiles?.email || 'Miembro');
+                                        return (
+                                            <div key={member.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-200 transition-all group">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center font-black text-slate-300">
+                                                        {member.profiles?.avatar_url ? (
+                                                            <img src={member.profiles.avatar_url} className="w-full h-full object-cover rounded-xl" />
+                                                        ) : displayName.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">
+                                                            {displayName}
+                                                        </p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50/50 px-1.5 py-0.5 rounded border border-indigo-100/50">{member.role}</span>
+                                                            {member.status === 'pending' && (
+                                                                <span className="text-[8px] font-black uppercase tracking-widest text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">Pendiente</span>
+                                                            )}
+                                                            {member.custom_permissions?.admin && (
+                                                                <span className="text-[8px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">Admin</span>
+                                                            )}
+                                                            <span className="text-[8px] font-bold text-slate-400 ml-1">{member.profiles?.email}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {teamOwnerId === currentUserId && member.user_id !== currentUserId && (
+                                                        <button 
+                                                            onClick={() => handleTransferOwnership(member.user_id)} 
+                                                            className="px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-indigo-600 hover:bg-slate-50 rounded-lg transition-all border border-slate-100"
+                                                            title="Transferir Propiedad"
+                                                        >
+                                                            Transferir
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => openEditModal(member)} className="p-2 text-slate-300 hover:text-slate-900 transition-colors">
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteMember(member.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* Invites List */}
+                                    {invites.map(invite => (
+                                        <div key={invite.id} className="flex items-center justify-between p-4 bg-amber-50/50 border border-amber-100/50 rounded-2xl border-dashed">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center font-black text-slate-300">
-                                                    {member.profiles?.avatar_url ? (
-                                                        <img src={member.profiles.avatar_url} className="w-full h-full object-cover rounded-xl" />
-                                                    ) : displayName.charAt(0).toUpperCase()}
+                                                <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                                                    <Mail size={16} />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">
-                                                        {displayName}
+                                                    <p className="text-sm font-bold text-slate-700">
+                                                        {invite.email}
                                                     </p>
                                                     <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-50/50 px-1.5 py-0.5 rounded border border-indigo-100/50">{member.role}</span>
-                                                        {member.status === 'pending' && (
-                                                            <span className="text-[8px] font-black uppercase tracking-widest text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">Pendiente</span>
-                                                        )}
-                                                        {member.custom_permissions?.admin && (
-                                                            <span className="text-[8px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">Admin</span>
-                                                        )}
-                                                        <span className="text-[8px] font-bold text-slate-400 ml-1">{member.profiles?.email}</span>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{invite.role}</span>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Invitado</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {teamOwnerId === currentUserId && member.user_id !== currentUserId && (
-                                                    <button 
-                                                        onClick={() => handleTransferOwnership(member.user_id)} 
-                                                        className="px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-indigo-600 hover:bg-slate-50 rounded-lg transition-all border border-slate-100"
-                                                        title="Transferir Propiedad"
-                                                    >
-                                                        Transferir
-                                                    </button>
-                                                )}
-                                                <button onClick={() => openEditModal(member)} className="p-2 text-slate-300 hover:text-slate-900 transition-colors">
-                                                    <Edit2 size={14} />
+                                            <div className="flex gap-2">
+                                                <button onClick={() => openEditModal(invite, true)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors">
+                                                    <Edit2 size={16} />
                                                 </button>
-                                                <button onClick={() => handleDeleteMember(member.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                                                    <Trash2 size={14} />
+                                                <button onClick={() => handleDeleteMember(invite.id, true)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                                    <Trash2 size={16} />
                                                 </button>
                                             </div>
                                         </div>
-                                    );
-                                })}
-
-                                {/* Invites List */}
-                                {invites.map(invite => (
-                                    <div key={invite.id} className="flex items-center justify-between p-4 bg-amber-50/50 border border-amber-100/50 rounded-2xl border-dashed">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
-                                                <Mail size={16} />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-700">
-                                                    {invite.email}
-                                                </p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{invite.role}</span>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Invitado</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => openEditModal(invite, true)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors">
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button onClick={() => handleDeleteMember(invite.id, true)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Projects Section */}
-                    <div className="pt-8 border-t border-slate-50 space-y-4">
-                        <div className="flex justify-between items-center px-2">
-                            <div>
-                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Proyectos Vinculados</h3>
-                                <p className="text-[9px] text-slate-300 font-bold uppercase mt-1">Proyectos que este equipo puede gestionar</p>
+                    {activeTab === 'projects' && (
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center px-2">
+                                <div>
+                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Proyectos Vinculados</h3>
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase mt-1">Proyectos que este equipo puede gestionar</p>
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                    <select 
+                                        className="bg-slate-50 border-none rounded-lg text-[9px] font-black uppercase tracking-widest p-2 outline-none focus:ring-2 ring-indigo-500/10 min-w-[150px]"
+                                        onChange={(e) => handleAssignProject(e.target.value)}
+                                        value=""
+                                        disabled={isAssigningProject}
+                                    >
+                                        <option value="" disabled>Asignar Proyecto...</option>
+                                        {allAvailableProjects
+                                            .filter(p => !teamProjects.find(tp => tp.id === p.id))
+                                            .map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))
+                                        }
+                                    </select>
+                                </div>
                             </div>
-                            
-                            <div className="flex items-center gap-2">
-                                <select 
-                                    className="bg-slate-50 border-none rounded-lg text-[9px] font-black uppercase tracking-widest p-2 outline-none focus:ring-2 ring-indigo-500/10 min-w-[150px]"
-                                    onChange={(e) => handleAssignProject(e.target.value)}
-                                    value=""
-                                    disabled={isAssigningProject}
-                                >
-                                    <option value="" disabled>Asignar Proyecto...</option>
-                                    {allAvailableProjects
-                                        .filter(p => !teamProjects.find(tp => tp.id === p.id))
-                                        .map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))
-                                    }
-                                </select>
-                            </div>
-                        </div>
 
-                        {teamProjects.length === 0 ? (
-                            <div className="py-8 text-center border border-dashed rounded-2xl border-slate-100 flex flex-col items-center justify-center gap-2">
-                                <AlertCircle size={20} className="text-slate-100" />
-                                <p className="text-[9px] font-bold text-slate-300 uppercase italic">Sin proyectos asignados</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {teamProjects.map(project => (
-                                    <div key={project.id} className="group relative bg-white border border-slate-100 rounded-xl p-4 flex items-center justify-between hover:border-indigo-200 transition-all">
-                                        <div className="flex items-center gap-3">
-                                            <div 
-                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-black shadow-sm"
-                                                style={{ backgroundColor: project.color || '#6366F1' }}
+                            {teamProjects.length === 0 ? (
+                                <div className="py-8 text-center border border-dashed rounded-2xl border-slate-100 flex flex-col items-center justify-center gap-2">
+                                    <AlertCircle size={20} className="text-slate-100" />
+                                    <p className="text-[9px] font-bold text-slate-300 uppercase italic">Sin proyectos asignados</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {teamProjects.map(project => (
+                                        <div key={project.id} className="group relative bg-white border border-slate-100 rounded-xl p-4 flex items-center justify-between hover:border-indigo-200 transition-all">
+                                            <div className="flex items-center gap-3">
+                                                <div 
+                                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-black shadow-sm"
+                                                    style={{ backgroundColor: project.color || '#6366F1' }}
+                                                >
+                                                    {project.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight truncate max-w-[120px]">{project.name}</p>
+                                                    <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{project.domain || 'Sin dominio'}</p>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleRemoveProject(project.id)}
+                                                className="p-1.5 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                             >
-                                                {project.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight truncate max-w-[120px]">{project.name}</p>
-                                                <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{project.domain || 'Sin dominio'}</p>
-                                            </div>
+                                                <Trash2 size={12} />
+                                            </button>
                                         </div>
-                                        <button 
-                                            onClick={() => handleRemoveProject(project.id)}
-                                            className="p-1.5 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Preferences Section */}
+                    {activeTab === 'preferences' && (
+                        <div className="space-y-6">
+                            <CustomStatusesSettings teamId={teamId} />
+                        </div>
+                    )}
                 </div>
             )}
 

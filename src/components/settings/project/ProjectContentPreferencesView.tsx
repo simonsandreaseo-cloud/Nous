@@ -21,9 +21,7 @@ import { cn } from "@/utils/cn";
 export default function ProjectContentPreferencesView() {
     const { activeProject, updateProject, teamMembers } = useProjectStore();
     const { user } = useAuthStore();
-    const { permissions, role } = usePermissions(activeProject?.id);
-    
-    const canManageStatuses = permissions.admin || role === 'owner' || role === 'partner' || role === 'manager' || role === 'admin';
+    const { activeProject, updateProject } = useProjectStore();
     
     
     const [minLinks, setMinLinks] = useState(5);
@@ -34,8 +32,7 @@ export default function ProjectContentPreferencesView() {
     const [defaultContentLang, setDefaultContentLang] = useState<string>('es');
     const [customContentTypes, setCustomContentTypes] = useState<string[]>([]);
     const [newContentType, setNewContentType] = useState('');
-    const [customStatuses, setCustomStatuses] = useState<string[]>([]);
-    const [newStatus, setNewStatus] = useState('');
+    const [newContentType, setNewContentType] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -48,7 +45,6 @@ export default function ProjectContentPreferencesView() {
             setDefaultLangs(prefs.default_translator_languages || []);
             setDefaultContentLang(prefs.default_content_language || 'es');
             setCustomContentTypes(prefs.custom_content_types || []);
-            setCustomStatuses(prefs.custom_statuses || []);
         }
     }, [activeProject]);
 
@@ -65,8 +61,7 @@ export default function ProjectContentPreferencesView() {
                     default_strategy: strategy,
                     default_translator_languages: defaultLangs,
                     default_content_language: defaultContentLang,
-                    custom_content_types: customContentTypes,
-                    custom_statuses: customStatuses
+                    custom_content_types: customContentTypes
                 }
             };
 
@@ -363,83 +358,6 @@ export default function ProjectContentPreferencesView() {
                         </div>
                     </section>
 
-                    {/* Custom Statuses */}
-                    <section className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm space-y-8 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
-                            <Activity size={120} />
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 shadow-sm">
-                                <Activity size={24} />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-black text-slate-900 uppercase italic">Estatus Personalizados</h3>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Añade o personaliza los estatus para las tareas del proyecto</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="flex flex-wrap gap-2">
-                                {['Idea', 'Investigando', 'Por Redactar', 'En Redacción', 'Por Humanizar', 'Por Corregir', 'Por Revisar', 'Por Maquetar', 'Publicado'].map(type => (
-                                    <div key={type} className="px-3 py-1.5 bg-slate-50 border border-slate-100 text-slate-400 rounded-lg text-[10px] font-bold">
-                                        {type} (Nativo)
-                                    </div>
-                                ))}
-                                {customStatuses.map(status => (
-                                    <div key={status} className="px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-[10px] font-bold flex items-center gap-2 group">
-                                        {status.replace(/_/g, ' ')}
-                                        {canManageStatuses && (
-                                            <button 
-                                                onClick={() => setCustomStatuses(prev => prev.filter(t => t !== status))}
-                                                className="opacity-50 hover:opacity-100 hover:text-red-500 transition-colors"
-                                            >
-                                                <span className="font-black">×</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                            {canManageStatuses ? (
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={newStatus}
-                                        onChange={e => setNewStatus(e.target.value)}
-                                        onKeyDown={e => {
-                                            if (e.key === 'Enter' && newStatus.trim()) {
-                                                const formatted = newStatus.trim().toLowerCase().replace(/\s+/g, '_');
-                                                if (!customStatuses.includes(formatted)) {
-                                                    setCustomStatuses(prev => [...prev, formatted]);
-                                                }
-                                                setNewStatus('');
-                                            }
-                                        }}
-                                        placeholder="Ej: Aprobación Legal (Presiona Enter)"
-                                        className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-600 outline-none focus:border-rose-400"
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            if (newStatus.trim()) {
-                                                const formatted = newStatus.trim().toLowerCase().replace(/\s+/g, '_');
-                                                if (!customStatuses.includes(formatted)) {
-                                                    setCustomStatuses(prev => [...prev, formatted]);
-                                                }
-                                                setNewStatus('');
-                                            }
-                                        }}
-                                        className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
-                                    >
-                                        Agregar
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">
-                                        Solo los Administradores (Owner, Partner, Manager, Admin) pueden agregar o eliminar estatus personalizados.
-                                    </p>
-                                </div>
-                            )}
                         </div>
                     </section>
                 </div>

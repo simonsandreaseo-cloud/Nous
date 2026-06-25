@@ -48,6 +48,7 @@ export interface TeamActions {
     fetchTeamMembers: (teamId?: string) => Promise<void>;
     fetchUnassignedMembers: () => Promise<void>;
     updateTeamStyling: (teamId: string, updates: { header_color?: string, icon_color?: string, icon_library?: string }) => Promise<void>;
+    updateTeamSettings: (teamId: string, settings: any) => Promise<void>;
 }
 
 export interface SyncActions {

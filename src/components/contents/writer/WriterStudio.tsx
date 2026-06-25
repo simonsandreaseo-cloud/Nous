@@ -191,15 +191,7 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
 
 const EMPTY_ARRAY: any[] = [];
 
-const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([value, label]) => {
-    const colors = STATUS_COLORS[value] || STATUS_COLORS['idea'];
-    return {
-        value,
-        label,
-        color: `${colors.bg} ${colors.text} ${colors.border} hover:opacity-80`,
-        dot: colors.dot
-    };
-});
+// STATUS_OPTIONS is now computed dynamically inside the component
 
 export default function WriterStudio() {
     const {
@@ -264,6 +256,31 @@ export default function WriterStudio() {
         content: state.content,
         wordCountReal: state.wordCountReal
     })));
+
+    const { projects, activeTeam } = useProjectStore();
+    const activeProject = projects.find(p => p.id === projectId);
+
+    const statusOptions = useMemo(() => {
+        const baseOptions = Object.entries(STATUS_LABELS).map(([value, label]) => {
+            const colors = STATUS_COLORS[value] || STATUS_COLORS['idea'];
+            return {
+                value,
+                label,
+                color: `${colors.bg} ${colors.text} ${colors.border} hover:opacity-80`,
+                dot: colors.dot
+            };
+        });
+
+        const customStatuses = activeTeam?.settings?.custom_statuses || [];
+        const customOptions = customStatuses.map((s: string) => ({
+            value: s,
+            label: s.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+            color: 'bg-rose-50 text-rose-700 border-rose-200 hover:opacity-80',
+            dot: 'bg-rose-500'
+        }));
+
+        return [...baseOptions, ...customOptions];
+    }, [activeTeam]);
 
     const leftPanelRef = useRef<ImperativePanelHandle>(null);
     const rightPanelRef = useRef<ImperativePanelHandle>(null);
@@ -589,11 +606,11 @@ export default function WriterStudio() {
                                         onClick={() => setIsStatusOpen(!isStatusOpen)}
                                         className={cn(
                                             "flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider border shadow-sm transition-all duration-300 active:scale-95",
-                                            (STATUS_OPTIONS.find(opt => opt.value === status))?.color || "bg-rose-50 text-rose-600 border-rose-100 hover:opacity-80"
+                                            (statusOptions.find(opt => opt.value === status))?.color || "bg-rose-50 text-rose-600 border-rose-100 hover:opacity-80"
                                         )}
                                     >
-                                        <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", (STATUS_OPTIONS.find(opt => opt.value === status))?.dot || "bg-rose-500")} />
-                                        {(STATUS_OPTIONS.find(opt => opt.value === status))?.label || (status ? status.replace(/_/g, ' ') : 'Idea')}
+                                        <span className={cn("w-1.5 h-1.5 rounded-full animate-pulse", (statusOptions.find(opt => opt.value === status))?.dot || "bg-rose-500")} />
+                                        {(statusOptions.find(opt => opt.value === status))?.label || (status ? status.replace(/_/g, ' ') : 'Idea')}
                                         <ChevronDown size={10} className={cn("transition-transform duration-300 text-slate-400", isStatusOpen && "rotate-180")} />
                                     </button>
                                     
@@ -612,7 +629,7 @@ export default function WriterStudio() {
                                                     <div className="px-2.5 py-1 text-[7px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100/60 mb-1">
                                                         Cambiar Estado
                                                     </div>
-                                                    {STATUS_OPTIONS.map((opt) => {
+                                                    {statusOptions.map((opt) => {
                                                         const isSelected = opt.value === status;
                                                         return (
                                                             <button

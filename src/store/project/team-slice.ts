@@ -184,4 +184,19 @@ export const createTeamSlice: StateCreator<ProjectStore, [], [], TeamActions> = 
             }
         }
     },
+
+    updateTeamSettings: async (teamId, settings) => {
+        const { error } = await supabase
+            .from('teams')
+            .update({ settings })
+            .eq('id', teamId);
+
+        if (error) {
+            NotificationService.error('Error al actualizar preferencias de equipo', error.message);
+            return;
+        }
+
+        await get().fetchTeams();
+        NotificationService.success('Preferencias actualizadas');
+    },
 });

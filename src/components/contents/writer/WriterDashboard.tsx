@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
+import { useMemo } from 'react';
 import { Button } from '@/components/dom/Button';
 import { 
     Plus, FileText, Calendar, Clock, 
@@ -21,7 +22,16 @@ export default function WriterDashboard() {
         setViewMode,
         resetStrategy
     } = useWriterStore();
-    const { activeProject } = useProjectStore();
+    const { activeProject, activeTeam } = useProjectStore();
+
+    const statusLabelsMap = useMemo(() => {
+        const map = { ...STATUS_LABELS };
+        const customStatuses = activeTeam?.settings?.custom_statuses || [];
+        customStatuses.forEach((status: string) => {
+            map[status] = status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        });
+        return map;
+    }, [activeTeam]);
 
     useEffect(() => {
         if (activeProject?.id) {
@@ -111,7 +121,7 @@ export default function WriterDashboard() {
                                                     STATUS_COLORS[content.status]?.dot || 'bg-slate-400'
                                                 )} 
                                             />
-                                            {STATUS_LABELS[content.status] || content.status.replace(/_/g, ' ')}
+                                            {statusLabelsMap[content.status] || content.status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                                         </div>
                                         <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-all">
                                             <ChevronRight size={16} />

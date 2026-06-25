@@ -130,6 +130,9 @@ export interface Team {
     icon_color?: string;
     icon_url?: string;
     icon_library?: string;
+    settings?: {
+        custom_statuses?: string[];
+    } & Record<string, any>;
     created_at: string;
     updated_at: string;
 }

@@ -25,23 +25,46 @@ import { NousLogo } from "@/components/dom/NousLogo";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
 import { useProjectStore } from "@/store/useProjectStore";
 
-export const AGENCY_SECTIONS = [
-    { id: "profile", label: "Mi Perfil", icon: User, href: "/settings/agency/profile" },
-    { id: "connections", label: "Bóveda", icon: Zap, href: "/settings/agency/connections" },
-    { id: "teams", label: "Equipos", icon: Shield, href: "/settings/agency/teams" },
-    { id: "projects", label: "Proyectos", icon: Database, href: "/settings/agency/projects" },
+export const AGENCY_GROUPS = [
+    {
+        name: "TU AGENCIA",
+        items: [
+            { id: "profile", label: "Mi Perfil", icon: User, href: "/settings/agency/profile" },
+            { id: "connections", label: "Bóveda", icon: Zap, href: "/settings/agency/connections" },
+        ]
+    },
+    {
+        name: "ORGANIZACIÓN",
+        items: [
+            { id: "teams", label: "Equipos de Trabajo", icon: Shield, href: "/settings/agency/teams" },
+        ]
+    }
 ];
 
-export const PROJECT_SECTIONS = [
-    { id: "general", label: "Identidad", icon: Globe, href: "/general" },
-    { id: "connectivity", label: "Conectividad", icon: Zap, href: "/connectivity" },
-    { id: "inventory", label: "Inventario", icon: Database, href: "/inventory" },
-    { id: "link-strategy", label: "Estrategia Links", icon: Network, href: "/link-strategy" },
-    { id: "preferences", label: "Preferencias", icon: Settings, href: "/preferences" },
-    { id: "images", label: "Imágenes", icon: Palette, href: "/images" },
-    { id: "i18n", label: "I18n & Audit", icon: Globe, href: "/i18n" },
-    { id: "tools", label: "Herramientas", icon: Sliders, href: "/tools" },
-    { id: "budget", label: "Presupuesto", icon: Wallet, href: "/budget" },
+export const PROJECT_GROUPS = [
+    {
+        name: "GENERAL",
+        items: [
+            { id: "general", label: "Identidad", icon: Globe, href: "/general" },
+            { id: "preferences", label: "Preferencias", icon: Settings, href: "/preferences" },
+        ]
+    },
+    {
+        name: "CONTENIDO & SEO",
+        items: [
+            { id: "link-strategy", label: "Estrategia Links", icon: Network, href: "/link-strategy" },
+            { id: "images", label: "Imágenes", icon: Palette, href: "/images" },
+            { id: "i18n", label: "I18n & Audit", icon: Globe, href: "/i18n" },
+        ]
+    },
+    {
+        name: "DATOS & HERRAMIENTAS",
+        items: [
+            { id: "connectivity", label: "Conexiones & Tools", icon: Zap, href: "/connectivity" },
+            { id: "inventory", label: "Inventario", icon: Database, href: "/inventory" },
+            { id: "budget", label: "Presupuesto", icon: Wallet, href: "/budget" },
+        ]
+    }
 ];
 
 export function SettingsSidebar() {
@@ -55,7 +78,7 @@ export function SettingsSidebar() {
     const projectId = isProjectContext ? pathname.split("/")[3] : activeProject?.id;
 
     // Stable section mapping
-    const sections = isProjectContext ? PROJECT_SECTIONS : AGENCY_SECTIONS;
+    const groups = isProjectContext ? PROJECT_GROUPS : AGENCY_GROUPS;
     const contextKey = isProjectContext ? `project-${projectId}` : "agency";
 
     return (
@@ -79,67 +102,77 @@ export function SettingsSidebar() {
             )}
 
             {/* Menu Sections */}
-            <div key={contextKey} className="flex-1 overflow-y-auto custom-scrollbar px-3 space-y-1">
+            <div key={contextKey} className="flex-1 overflow-y-auto custom-scrollbar px-3 space-y-6 pb-4">
                 {isProjectContext && !isCollapsed && (
                     <Link 
-                        href="/settings/agency/projects"
-                        className="flex items-center gap-2 px-4 py-2 mb-4 text-[9px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-widest transition-colors group/back"
+                        href="/settings/agency/teams"
+                        className="flex items-center gap-2 px-4 py-2 text-[9px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-widest transition-colors group/back"
                     >
                         <ChevronLeft size={12} className="group-hover/back:-translate-x-1 transition-transform" />
-                        Volver a Agencia
+                        Volver a Equipos
                     </Link>
                 )}
 
-                {!isCollapsed && (
-                    <p key={`header-${contextKey}`} className="px-4 py-2 text-[8px] font-black text-slate-300 uppercase tracking-widest mb-2">
-                        {isProjectContext ? `Configuración: ${activeProject?.name || 'Proyecto'}` : 'Gestión Agencia'}
+                {!isCollapsed && isProjectContext && (
+                    <p className="px-4 pb-2 text-[8px] font-black text-slate-300 uppercase tracking-widest border-b border-slate-50 mb-4">
+                        Configuración: {activeProject?.name || 'Proyecto'}
                     </p>
                 )}
                 
-                {sections.map((section) => {
-                    const fullHref = isProjectContext 
-                        ? `/settings/projects/${projectId}${section.href}`
-                        : section.href;
-                    
-                    const isActive = pathname === fullHref;
-                    
-                    return (
-                        <Link
-                            key={section.id}
-                            href={fullHref}
-                            className={cn(
-                                "h-11 flex items-center rounded-xl transition-all group relative overflow-hidden",
-                                isCollapsed ? "justify-center px-0" : "px-4",
-                                isActive
-                                    ? "bg-slate-900 text-white shadow-xl shadow-slate-900/10"
-                                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-                            )}
-                        >
-                            <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                                <section.icon
-                                    size={18}
+                {groups.map((group, groupIndex) => (
+                    <div key={group.name} className="space-y-1">
+                        {!isCollapsed && (
+                            <p className="px-4 py-1 text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1 mt-2">
+                                {group.name}
+                            </p>
+                        )}
+                        {group.items.map((section) => {
+                            const fullHref = isProjectContext 
+                                ? `/settings/projects/${projectId}${section.href}`
+                                : section.href;
+                            
+                            const isActive = pathname === fullHref;
+                            
+                            return (
+                                <Link
+                                    key={section.id}
+                                    href={fullHref}
                                     className={cn(
-                                        "transition-transform group-hover:scale-110",
-                                        isActive ? "text-indigo-400" : "opacity-70 group-hover:opacity-100"
+                                        "h-11 flex items-center rounded-xl transition-all group relative overflow-hidden",
+                                        isCollapsed ? "justify-center px-0 mb-1" : "px-4",
+                                        isActive
+                                            ? "bg-slate-900 text-white shadow-xl shadow-slate-900/10"
+                                            : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                                     )}
-                                />
-                            </div>
+                                    title={isCollapsed ? section.label : undefined}
+                                >
+                                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                                        <section.icon
+                                            size={18}
+                                            className={cn(
+                                                "transition-transform group-hover:scale-110",
+                                                isActive ? "text-indigo-400" : "opacity-70 group-hover:opacity-100"
+                                            )}
+                                        />
+                                    </div>
 
-                            {!isCollapsed && (
-                                <span className="ml-3 text-[11px] font-bold uppercase tracking-tight">
-                                    {section.label}
-                                </span>
-                            )}
+                                    {!isCollapsed && (
+                                        <span className="ml-3 text-[11px] font-bold uppercase tracking-tight">
+                                            {section.label}
+                                        </span>
+                                    )}
 
-                            {isActive && !isCollapsed && (
-                                <motion.div 
-                                    layoutId="active-pill"
-                                    className="ml-auto w-1 h-4 bg-indigo-500 rounded-full"
-                                />
-                            )}
-                        </Link>
-                    );
-                })}
+                                    {isActive && !isCollapsed && (
+                                        <motion.div 
+                                            layoutId="active-pill"
+                                            className="ml-auto w-1 h-4 bg-indigo-500 rounded-full"
+                                        />
+                                    )}
+                                </Link>
+                            );
+                        })}
+                    </div>
+                ))}
             </div>
 
             {/* Sub-actions: Back to Dashboard */}

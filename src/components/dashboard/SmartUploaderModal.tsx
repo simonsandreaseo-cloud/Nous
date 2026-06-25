@@ -186,7 +186,7 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { user } = useAuthStore();
-    const { teamMembers, tasks } = useProjectStore();
+    const { tasks, teamMembers, activeTeam, updateTeamSettings } = useProjectStore();
     
     const currentUserRole = teamMembers.find(m => m.user_id === user?.id)?.role;
     const canManageStatuses = currentUserRole === 'owner' || currentUserRole === 'partner' || currentUserRole === 'manager';
@@ -365,15 +365,13 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                 }
             }
 
-            // Fetch project settings earlier to get custom statuses
-            let projectCustomStatuses: string[] = [];
+            let projectCustomStatuses: string[] = activeTeam?.settings?.custom_statuses || [];
             let projectCustomContentTypes: string[] = [];
             let projectSettingsData: any = null;
             try {
                 const { data: pData } = await supabase.from('projects').select('settings').eq('id', projectId).single();
                 if (pData) {
                     projectSettingsData = pData.settings || {};
-                    projectCustomStatuses = pData.settings?.content_preferences?.custom_statuses || [];
                     projectCustomContentTypes = pData.settings?.content_preferences?.custom_content_types || [];
                 }
             } catch(e) {
@@ -523,17 +521,24 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
                     const updatedCustomTypes = [...projectCustomContentTypes, ...newTypes];
                     const updatedCustomStatuses = [...projectCustomStatuses, ...newStatuses];
                     
-                    const updatedSettings = {
-                        ...(projectSettingsData || {}),
-                        content_preferences: {
-                            ...(projectSettingsData?.content_preferences || {}),
-                            custom_content_types: updatedCustomTypes,
+                    if (newTypes.length > 0) {
+                        const updatedSettings = {
+                            ...(projectSettingsData || {}),
+                            content_preferences: {
+                                ...(projectSettingsData?.content_preferences || {}),
+                                custom_content_types: updatedCustomTypes
+                            }
+                        };
+                        await supabase.from('projects').update({ settings: updatedSettings }).eq('id', projectId);
+                        console.log("Añadidos nuevos tipos de contenido desde CSV:", newTypes);
+                    }
+                    if (newStatuses.length > 0 && activeTeam) {
+                        await updateTeamSettings(activeTeam.id, {
+                            ...activeTeam.settings,
                             custom_statuses: updatedCustomStatuses
-                        }
-                    };
-                    await supabase.from('projects').update({ settings: updatedSettings }).eq('id', projectId);
-                    if (newTypes.length > 0) console.log("Añadidos nuevos tipos de contenido desde CSV:", newTypes);
-                    if (newStatuses.length > 0) console.log("Añadidos nuevos estatus desde CSV:", newStatuses);
+                        });
+                        console.log("Añadidos nuevos estatus desde CSV:", newStatuses);
+                    }
                 }
             } catch (err) {
                 console.error("Error auto-creando content types / statuses:", err);

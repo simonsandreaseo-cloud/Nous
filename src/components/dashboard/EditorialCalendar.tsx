@@ -84,7 +84,7 @@ import { useSearchParams } from "next/navigation";
 export function EditorialCalendar() {
     const { 
         tasks, activeProject, activeProjectIds, updateTask, addTask, 
-        fetchProjectTasks, deleteTasks, fetchTasksFullData 
+        fetchProjectTasks, deleteTasks, fetchTasksFullData, activeTeam
     } = useProjectStore();
     const isConsoleOpen = useWriterStore(state => state.isConsoleOpen);
     const setIsConsoleOpen = useWriterStore(state => state.setIsConsoleOpen);
@@ -1214,7 +1214,7 @@ export function EditorialCalendar() {
                                                 </button>
                                             );
                                         })}
-                                        {activeProject?.settings?.content_preferences?.custom_statuses?.map((status: string) => {
+                                        {activeTeam?.settings?.custom_statuses?.map((status: string) => {
                                             const isActive = statusFilter.includes(status);
                                             return (
                                                 <button 
