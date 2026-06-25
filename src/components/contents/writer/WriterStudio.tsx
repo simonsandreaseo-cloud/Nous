@@ -833,11 +833,11 @@ export default function WriterStudio() {
             )}
             
             {redactorUI === 'standard' ? (
-                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v4" id="writer-studio-root" className="w-full h-full">
+                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v5" id="writer-studio-root" className="w-full h-full">
                     <Panel 
                         id="writer-left-panel"
                         ref={leftPanelRef} 
-                        defaultSize={25} minSize={10} maxSize={50} 
+                        defaultSize={20} minSize={15} maxSize={40} 
                         collapsible={true} 
                         onCollapse={() => setIsLeftPanelCollapsed(true)}
                         onExpand={() => setIsLeftPanelCollapsed(false)}
@@ -846,14 +846,15 @@ export default function WriterStudio() {
                         <InventorySidebar />
                     </Panel>
 
-                    <PanelResizeHandle id="writer-handle-left" className="w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[4px] z-30 flex items-center justify-center group/handle">
-                        <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
+                    <PanelResizeHandle id="writer-handle-left" className="relative w-[2px] flex items-center justify-center z-30 group/handle cursor-col-resize bg-slate-200 hover:bg-indigo-400/50 active:bg-indigo-500 transition-all duration-300">
+                        <div className="absolute inset-y-0 -inset-x-2" />
+                        <div className="w-1 h-8 rounded-full bg-slate-400 group-hover/handle:bg-indigo-500 transition-colors relative z-10" />
                     </PanelResizeHandle>
 
                     <Panel 
                         id="writer-editor-panel" 
                         ref={editorPanelRef}
-                        defaultSize={75} minSize={10} maxSize={100}
+                        defaultSize={80} minSize={30} maxSize={100}
                         collapsible={true}
                         onCollapse={() => setIsEditorCollapsed(true)}
                         onExpand={() => setIsEditorCollapsed(false)}
@@ -862,14 +863,15 @@ export default function WriterStudio() {
                         {renderMainContent()}
                     </Panel>
 
-                    <PanelResizeHandle id="writer-handle-right" className="w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[4px] z-30 flex items-center justify-center group/handle">
-                        <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
+                    <PanelResizeHandle id="writer-handle-right" className="relative w-[2px] flex items-center justify-center z-30 group/handle cursor-col-resize bg-slate-200 hover:bg-indigo-400/50 active:bg-indigo-500 transition-all duration-300">
+                        <div className="absolute inset-y-0 -inset-x-2" />
+                        <div className="w-1 h-8 rounded-full bg-slate-400 group-hover/handle:bg-indigo-500 transition-colors relative z-10" />
                     </PanelResizeHandle>
 
                     <Panel 
                         id="writer-right-panel"
                         ref={rightPanelRef}
-                        defaultSize={0} minSize={10} maxSize={60} 
+                        defaultSize={0} minSize={15} maxSize={50} 
                         collapsible={true} 
                         onCollapse={() => setIsRightPanelCollapsed(true)}
                         onExpand={() => setIsRightPanelCollapsed(false)}
