@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { usePermissions } from "@/hooks/usePermissions";
 import { 
     Settings, 
     Link2, 
@@ -20,9 +21,9 @@ import { cn } from "@/utils/cn";
 export default function ProjectContentPreferencesView() {
     const { activeProject, updateProject, teamMembers } = useProjectStore();
     const { user } = useAuthStore();
+    const { permissions, role } = usePermissions(activeProject?.id);
     
-    const currentUserRole = teamMembers.find(m => m.user_id === user?.id)?.role;
-    const canManageStatuses = currentUserRole === 'owner' || currentUserRole === 'partner' || currentUserRole === 'manager';
+    const canManageStatuses = permissions.admin || role === 'owner' || role === 'partner' || role === 'manager' || role === 'admin';
     
     
     const [minLinks, setMinLinks] = useState(5);
@@ -435,7 +436,7 @@ export default function ProjectContentPreferencesView() {
                             ) : (
                                 <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">
-                                        Solo los Administradores (Owner, Partner, Manager) pueden agregar o eliminar estatus personalizados.
+                                        Solo los Administradores (Owner, Partner, Manager, Admin) pueden agregar o eliminar estatus personalizados.
                                     </p>
                                 </div>
                             )}

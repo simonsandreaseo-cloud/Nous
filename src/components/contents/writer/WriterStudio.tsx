@@ -836,7 +836,7 @@ export default function WriterStudio() {
                 <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v6" id="writer-studio-root" className="w-full h-full">
                     <Panel 
                         id="writer-left-panel"
-                        ref={leftPanelRef} 
+                        panelRef={leftPanelRef} 
                         defaultSize={20} minSize={0} 
                         collapsible={true} 
                         onCollapse={() => setIsLeftPanelCollapsed(true)}
@@ -853,7 +853,7 @@ export default function WriterStudio() {
 
                     <Panel 
                         id="writer-editor-panel" 
-                        ref={editorPanelRef}
+                        panelRef={editorPanelRef}
                         defaultSize={80} minSize={0}
                         collapsible={true}
                         onCollapse={() => setIsEditorCollapsed(true)}
@@ -870,7 +870,7 @@ export default function WriterStudio() {
 
                     <Panel 
                         id="writer-right-panel"
-                        ref={rightPanelRef}
+                        panelRef={rightPanelRef}
                         defaultSize={0} minSize={0}
                         collapsible={true} 
                         onCollapse={() => setIsRightPanelCollapsed(true)}
