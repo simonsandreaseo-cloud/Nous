@@ -103,7 +103,7 @@ Ejemplo de salida realista:
 
         const response = await aiRouter.generate({
             prompt: schemaDictionary,
-            model: "gemini-3.5-flash",
+            model: "gemini-3.1-flash-lite-preview",
             systemPrompt: "Eres un ingeniero de datos experto mapeando esquemas de bases de datos desde CSVs caóticos. Devuelve estrictamente JSON validado.",
             jsonMode: true,
             label: "Mapeo Inteligente de Columnas Excel/CSV",

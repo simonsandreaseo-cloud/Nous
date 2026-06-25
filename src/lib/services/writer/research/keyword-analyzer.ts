@@ -67,12 +67,12 @@ FORMATO OBLIGATORIO:
 
         const lsiRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: lsiPrompt,
-            model: "gemini-3.5-flash", // Fast and efficient model
+            model: "gemini-3.1-flash-lite-preview", // Fast and efficient model
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios LSI. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "LSI Technical",
             timeoutMs: 180000,
-            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
+            explicitHierarchy: ['gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
         }), "Fase 2 (LSI)", onLog);
         
         const extractedJson = safeJsonExtract<{keywords: string[]}>(lsiRes.text, {keywords: []});
@@ -135,12 +135,12 @@ REGLAS:
 
         const askRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: askPrompt,
-            model: "gemini-3.5-flash",
+            model: "gemini-3.1-flash-lite-preview",
             systemPrompt: "Eres un experto analista de lingüística técnica. Respondes exclusivamente con JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "ASK Extraction",
             timeoutMs: 180000,
-            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
+            explicitHierarchy: ['gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
         }), "Fase 3 (ASK)", onLog);
 
         const extractedJson = safeJsonExtract<{keywords: string[]}>(askRes.text, {keywords: []});
@@ -216,12 +216,12 @@ FORMATO OBLIGATORIO:
 
         const filterRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: filterPrompt,
-            model: "gemini-3.5-flash",
+            model: "gemini-3.1-flash-lite-preview",
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios SEO. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "Golden Keywords Filter",
             timeoutMs: 180000,
-            explicitHierarchy: ['gemini-3.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
+            explicitHierarchy: ['gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
         }), "Fase 4 (Golden KWs)", onLog);
 
         const extractedJson = safeJsonExtract<{keywords: string[]}>(filterRes.text, {keywords: []});

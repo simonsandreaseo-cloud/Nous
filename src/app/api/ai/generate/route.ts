@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { aiRouter } from '@/lib/ai/router';
 
+export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s limit
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -12,7 +14,7 @@ export async function POST(req: NextRequest) {
 
         const response = await aiRouter.generate({
             prompt,
-            model: model || 'gemini-3.5-flash',
+            model: model || 'gemini-3.1-flash-lite-preview',
             systemPrompt: systemPrompt || 'Eres un experto redactor SEO y generador de HTML.',
             temperature: temperature || 0.7,
             maxTokens: maxTokens || 8000,

@@ -38,13 +38,9 @@ export const OutlineEngine = {
         }).join('\n\n');
         
         const fallbackModels = [
-            "gemini-3.5-flash",            // Priority 1: High Reasoning Flash
-            "gemini-3.1-flash-lite-preview", // Fallback 1: Editorial 3.1
-            "gemini-3-flash-preview",      // Fallback 2: Stability 3.0
-            "gemini-2.5-flash",            // Fallback 3: Versatility 2.5
-            "gemini-2.5-flash-lite",       // Fallback 4: Speed 2.5
-            "gemma-4-31b-it",              // Fallback 5: Reasoning
-            "gemma-4-26b-a4b-it"           // Fallback 6: Deep Logic
+            "gemini-3.1-flash-lite-preview",
+            "gemini-3-flash-preview",
+            "gemini-2.5-flash-lite"
         ];
 
         const robustParseOutline = (text: string): any[] => {
@@ -109,6 +105,7 @@ METADATOS PROPUESTOS:
 H1: "${seoMetadata.h1}"
 INTENCIÓN INFERIDA: "${masterIntent}"
 TIPO DE CONTENIDO: "${contentType}"
+META DE PALABRAS (WORD COUNT GOAL): ${wordCountGoal ? `${wordCountGoal} palabras. (Ajusta la cantidad de secciones H2/H3 para que sea realista alcanzar esta meta).` : "No especificada. Usa tu mejor criterio."}
 
 ESTRATEGIA RECOMENDADA: ${strategyRec}${userBrief}${userObs}
 
@@ -122,36 +119,58 @@ PREGUNTAS FRECUENTES (FAQs):
 ${faqsText || "Ninguna FAQ específica detectada."}
 
 REGLAS PARA EL ESQUELETO:
-1. Diseña una estructura lógica y fluida de H2s, H3s y H4s (si los H4s son necesarios para profundidad).
+1. Diseña una estructura lógica y fluida de H2s, y anida los H3s y H4s directamente bajo sus respectivos H2s. ¡Las secciones pueden y deben tener sub-secciones (H3/H4) para mayor profundidad!
 2. REGLA E-COMMERCE ESTRICTA: Si hay PRODUCTOS/ENLACES INTERNOS en la lista anterior, DEBES crear un H2 por cada producto (o agruparlos en H3 dentro de un H2 categorizador). Usa el nombre o modelo exacto del producto en el encabezado.
 3. Si el SERP es informativo, prioritiza el valor educativo. Si es transaccional, prioritiza los beneficios y la comparativa.
-4. Asegúrate de responder las FAQs de manera natural.
-5. Devuelve un Array de objetos con "level" (2, 3 o 4) y "text" (título).
+4. Asegúrate de responder las FAQs de manera natural integrándolas en H2s o H3s.
+5. Sugiere explícitamente en el texto si una sección debería contener una TABLA COMPARATIVA, una LISTA DE BULLET POINTS, o algún formato rico.
+6. Devuelve un Array de objetos con "level" (2, 3 o 4) y "text" (título). Si sugieres un formato, añádelo sutilmente al título (ej. "Características (Tabla)").
 
 FORMATO PREFERIDO:
 [{"level": 2, "text": "Título"}]`;
 
             let skeleton: any[] = [];
-            for (const model of fallbackModels) {
-                try {
-                    const phase1Res = await aiRouter.generate({
-                        prompt: phase1Prompt,
-                        model: model,
-                        systemPrompt: "Eres un Arquitecto de Contenidos. Devuelves el esqueleto H2/H3/H4 de forma estructurada. Prefiere JSON, pero puedes usar Markdown si es necesario.",
-                        jsonMode: true,
-                        label: `Outline P1 (${model})`,
-                        temperature: 0.2,
-                        timeoutMs
-                    });
-                    
-                    skeleton = robustParseOutline(phase1Res.text);
-                    if (skeleton.length > 0) {
-                        console.log(`🚀 [OutlineEngine] P1 Exitosa con ${model}. Esqueleto: ${skeleton.length} secciones.`);
-                        break;
-                    }
-                } catch (e) {
-                    console.warn(`[OutlineEngine] P1 Fallback: ${model} failed`, e);
+            
+            try {
+                // Paso 1: Generación de contenido con Gemma 4
+                const phase1ResGemma = await aiRouter.generate({
+                    prompt: phase1Prompt,
+                    model: "gemma-4-31b-it",
+                    systemPrompt: "Eres un Arquitecto de Contenidos. Diseña el esqueleto H2/H3/H4 detalladamente.",
+                    jsonMode: false,
+                    label: `Outline P1 (Gemma 4)`,
+                    temperature: 0.2,
+                    timeoutMs
+                });
+
+                // Paso 2: Formateo JSON con Gemini 3.1 Flash Lite
+                const formatterPrompt = `Convierte el siguiente outline generado en un array JSON estricto.
+OUTLINE ORIGINAL:
+${phase1ResGemma.text}
+
+REGLAS PARA EL JSON:
+1. Devuelve un Array de objetos con "level" (2, 3 o 4) y "text" (título).
+2. NO incluyas ninguna explicación, solo el array JSON válido.
+
+FORMATO PREFERIDO:
+[{"level": 2, "text": "Título"}]`;
+
+                const phase1Res = await aiRouter.generate({
+                    prompt: formatterPrompt,
+                    model: "gemini-3.1-flash-lite-preview",
+                    systemPrompt: "Eres un formateador JSON estricto. Devuelves el esqueleto H2/H3/H4 en formato JSON sin errores.",
+                    jsonMode: true,
+                    label: `Outline P1 Formatter (3.1 flash lite)`,
+                    temperature: 0.1,
+                    timeoutMs
+                });
+                
+                skeleton = robustParseOutline(phase1Res.text);
+                if (skeleton.length > 0) {
+                    console.log(`🚀 [OutlineEngine] P1 Exitosa con Gemma 4 + Gemini 3.1. Esqueleto: ${skeleton.length} secciones.`);
                 }
+            } catch (e) {
+                console.warn(`[OutlineEngine] P1 Fallback failed`, e);
             }
 
             if (!skeleton || skeleton.length === 0) {
@@ -171,57 +190,98 @@ FORMATO PREFERIDO:
 ESQUELETO ACTUAL:
 ${skeletonText}
 
-RECURSOS SEMÁNTICOS:
+RECURSOS SEMÁNTICOS (DEBEN USARSE):
 - LSI: ${highLsi}
 - Golden KWs: ${realKwsText}
 - Jerga (ASK): ${askKwsText}
-- Enlaces sugeridos: ${linksText}
+- Enlaces sugeridos (Interlinking): ${linksText}
 
-CONTENIDO DE COMPETIDORES:
+CONTENIDO DE COMPETIDORES (PARA CITAS Y REFERENCIAS):
 ${competitorContent.substring(0, 4000)}
 
-INSTRUCCIONES:
-Para cada una de las ${skeleton.length} secciones, genera las pautas para el redactor.
-RESULTADO OBLIGATORIO: Un objeto JSON donde las llaves sean el índice de la sección (ej: "1", "2") y el valor sea un objeto con:
-- instructions: (Pautas detalladas y referencias)
-- keywords: (Array de strings con LSI/ASK/Golden KWs ideales para ese H2)
+INSTRUCCIONES EXTREMAS PARA EL MODELO:
+Para cada una de las ${skeleton.length} secciones del esqueleto, DEBES generar un análisis profundo y directrices de redacción. 
+Es OBLIGATORIO que para CADA sección (H2/H3/H4) especifiques explícitamente en el texto:
+1. Qué palabras clave LSI, ASK o Golden KWs de la lista provista se deben usar en esa sección.
+2. Qué enlaces internos de los sugeridos encajan perfectamente en esa sección. No digas "añadir enlace interno", di exactamente cuál enlace usar.
+3. Analiza el contenido de los competidores provistos e indica explícitamente a qué competidor citar o referenciar para respaldar la información (ej. "Citar a [Nombre Competidor] sobre el dato X").
+4. Formato de Contenido: Indica de forma explícita si el redactor debe usar una TABLA, una LISTA (Bullet points), una caja de advertencia, o un formato rico específico en esta sección para romper el muro de texto.
+5. El enfoque E-E-A-T necesario para dar máxima autoridad al texto.
+6. Extensión Sugerida: Para promover la variedad, asigna a cada sección una longitud diferente según su importancia. Indica explícitamente si la sección debe ser "Corta", "Media", o "Larga". Evita que todas las secciones tengan la misma extensión.
 
-FORMATO:
+Redacta este análisis sección por sección con lujo de detalles (no te preocupes por el JSON, otro modelo lo parseará luego).`;
+
+            let enrichmentData: Record<string, any> = {};
+            
+            try {
+                // Paso 1: Generación de instrucciones con Gemma 4
+                const enrichResGemma = await aiRouter.generate({
+                    prompt: phase2Prompt,
+                    model: "gemma-4-31b-it",
+                    systemPrompt: "Eres un Editor Senior E-E-A-T. Genera pautas detalladas para cada sección basándote en la información provista.",
+                    jsonMode: false,
+                    label: `Outline P2 (Gemma 4)`,
+                    temperature: 0.3,
+                    timeoutMs
+                });
+
+                // Paso 2: Formateo JSON con Gemini 3.1 Flash Lite
+                const enrichFormatterPrompt = `Convierte las pautas de enriquecimiento generadas en el JSON solicitado.
+TEXTO ORIGINAL:
+${enrichResGemma.text}
+
+RESULTADO OBLIGATORIO: Un objeto JSON donde las llaves sean el índice numérico de la sección del esqueleto (ej: "1", "2") y el valor sea un objeto con:
+- instructions: (String largo con las pautas detalladas generadas, ASEGÚRATE de incluir aquí toda la información explícita sobre qué competidor citar, qué enlaces internos exactos poner y la intención de redacción).
+- keywords: (Array de strings con todas las LSI/ASK/Golden KWs asignadas a esa sección en el texto original).
+- length: (String indicando "Corta", "Media" o "Larga" según lo que haya sugerido el texto original).
+
+FORMATO DE SALIDA ESTRICTO:
 {
- "1": { "instructions": "...", "keywords": ["kw1", "kw2"] },
+ "1": { "instructions": "En esta sección debes hablar de X y citar al competidor Y respecto a Z. Incluye el enlace sugerido hacia /url...", "keywords": ["kw1", "kw2"], "length": "Larga" },
  "2": { ... }
 }`;
 
-            let enrichmentData: Record<string, any> = {};
-            for (const model of fallbackModels) {
-                try {
-                    const enrichRes = await aiRouter.generate({
-                        prompt: phase2Prompt,
-                        model: model,
-                        systemPrompt: "Eres un Editor Senior E-E-A-T. Devuelves el JSON exacto con las pautas por sección.",
-                        jsonMode: true,
-                        label: `Outline P2 (${model})`,
-                        temperature: 0.3,
-                        timeoutMs
-                    });
-                    enrichmentData = safeJsonExtract<Record<string, any>>(enrichRes.text, {});
-                    if (Object.keys(enrichmentData).length > 0) break;
-                } catch (e) {
-                    console.warn(`[OutlineEngine] P2 Fallback: ${model} failed`, e);
-                }
+                const enrichRes = await aiRouter.generate({
+                    prompt: enrichFormatterPrompt,
+                    model: "gemini-3.1-flash-lite-preview",
+                    systemPrompt: "Eres un formateador JSON estricto. Devuelves el JSON exacto con las pautas por sección sin explicaciones.",
+                    jsonMode: true,
+                    label: `Outline P2 Formatter (3.1 flash lite)`,
+                    temperature: 0.1,
+                    timeoutMs
+                });
+
+                enrichmentData = safeJsonExtract<Record<string, any>>(enrichRes.text, {});
+            } catch (e) {
+                console.warn(`[OutlineEngine] P2 Gemma+Gemini flow failed`, e);
             }
 
             // FINAL MAPPING (UI Adapter)
-            const totalWeight = skeleton.reduce((sum, s) => sum + ((s.level || s.type) === 3 ? 1.0 : 1.5), 0);
             const goal = wordCountGoal || 1500;
-
-            const finalOutline = skeleton.map((section, index) => {
+            
+            // First pass to calculate total weight with the new dynamic lengths
+            let totalWeight = 0;
+            const outlineWithWeights = skeleton.map((section, index) => {
                 const sectionNum = String(index + 1);
                 const enrichment = enrichmentData[sectionNum] || enrichmentData[index] || {};
                 
-                const level = section.level || (section.type === "H3" ? 3 : 2);
-                const weight = level === 3 ? 1.0 : 1.5;
-                const calculatedWordCount = Math.floor((weight / totalWeight) * goal);
+                const level = section.level || (section.type === "H3" ? 3 : (section.type === "H4" ? 4 : 2));
+                let baseWeight = level === 3 ? 1.0 : (level === 4 ? 0.7 : 1.5);
+                
+                // Adjust weight based on Gemma's length suggestion
+                const lengthStr = (enrichment.length || "").toLowerCase();
+                let lengthMultiplier = 1.0;
+                if (lengthStr.includes("corta")) lengthMultiplier = 0.6;
+                else if (lengthStr.includes("larga")) lengthMultiplier = 1.5;
+                
+                const finalWeight = baseWeight * lengthMultiplier;
+                totalWeight += finalWeight;
+                
+                return { section, enrichment, level, finalWeight };
+            });
+
+            const finalOutline = outlineWithWeights.map(({ section, enrichment, level, finalWeight }) => {
+                const calculatedWordCount = Math.floor((finalWeight / totalWeight) * goal);
 
                 return {
                     type: `H${level}`,
