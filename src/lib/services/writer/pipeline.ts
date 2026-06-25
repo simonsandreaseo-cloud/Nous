@@ -205,8 +205,8 @@ export async function executeHumanizePipeline(
     };
 
     const sanitizedContent = sanitizeLLMHtml(content);
-    const chunks = chunkHtml(sanitizedContent, 10);
-    onLog(`Documento dividido en ${chunks.length} chunks de 10 elementos HTML...`);
+    const chunks = chunkHtml(sanitizedContent, 5);
+    onLog(`Documento dividido en ${chunks.length} chunks de 5 elementos HTML...`);
     
     let accumulatedHtml = '';
     let humLastUpdateTime = 0;
