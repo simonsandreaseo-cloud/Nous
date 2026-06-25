@@ -261,7 +261,7 @@ export function useWriterActions() {
                 return chunks.length > 0 ? chunks : [outline];
             };
 
-            const outlineChunks = chunkOutline(config.outlineStructure || [], 2);
+            const outlineChunks = chunkOutline(config.outlineStructure || [], 4);
             store.setStatus(`Documento dividido en ${outlineChunks.length} fragmentos para redacción progresiva...`);
 
             if (activeProject && !hasTokens(1)) {
@@ -470,7 +470,7 @@ export function useWriterActions() {
                 return chunks;
             };
 
-            const rawChunks = chunkHtml(originalContent, 4);
+            const rawChunks = chunkHtml(originalContent, 10);
             console.log(`[DEBUG-Humanize] Documento dividido en ${rawChunks.length} chunks.`);
             store.setHumanizerStatus(`Documento dividido en ${rawChunks.length} partes...`);
             
