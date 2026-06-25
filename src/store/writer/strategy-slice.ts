@@ -1,7 +1,6 @@
 import { StateCreator } from 'zustand';
 import { WriterStoreState, StrategyOutlineItem } from './types';
-import { executeWithGroq } from '@/lib/services/groq';
-import { safeJsonExtract } from '@/utils/json';
+
 
 export interface StrategyActions {
     setStrategyTitle: (title: string) => void;
@@ -157,26 +156,13 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
 
             if (rpcError) throw rpcError;
 
-            const highLsis = (strategyLSI || []).filter((l: any) => typeof l !== 'string' && l.count === "Alto").map((l: any) => l.keyword).join(", ");
-            const linkPrompt = `ESTRATEGIA DE INTERLINKING PARA: "${keyword}"
-H1 PROPUESTO: "${strategyH1}"
-RESUMEN: "${strategyExcerpt}"
-KEYWORDS CLAVE: ${customKeywords ? customKeywords : (highLsis || keyword)}
-
-CATÁLOGO DISTRIBUIDO POR CATEGORÍAS:
-${JSON.stringify((units || []).map((u: any) => ({ 
-    title: u.title.substring(0, 60), 
-    url: u.url, 
-    category: u.category 
-})))}
-
-REGLAS:
-1. Elige los ${count} artículos del catálogo que mejor conecten semánticamente con el contenido.
-2. ${mode === 'overwrite' ? 'Ignora los enlaces actuales y genera una lista totalmente nueva.' : 'Busca enlaces complementarios a los que ya existen.'}
-3. Retorna ÚNICAMENTE un array JSON válido: [{"url": "...", "title": "...", "anchor_text": "..."}]`;
-
-            const linkRes = await executeWithGroq(linkPrompt, "Arquitecto de Interlinking SEO.", "gemini-3.5-flash", true);
-            const newLinks = safeJsonExtract(linkRes, []);
+            const newLinks = (units || []).slice(0, count).map((u: any) => ({
+                url: u.url,
+                title: u.title,
+                anchor_text: u.title, // Default to title for the anchor text, or user can adjust later
+                type: 'other' as const,
+                search_index: "0"
+            }));
 
             const { useProjectStore } = require('@/store/useProjectStore');
             const { updateTask } = useProjectStore.getState();
