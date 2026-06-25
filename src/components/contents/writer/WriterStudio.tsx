@@ -47,7 +47,7 @@ import dynamic from 'next/dynamic';
 import CompetitorCard from './CompetitorCard';
 import OutlineSidebar from './OutlineSidebar';
 
-import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from 'react-resizable-panels';
+import { PanelGroup, Panel, PanelResizeHandle, ImperativePanelHandle } from 'react-resizable-panels';
 const SEODataTab = dynamic(() => import('./SEODataTab'), { loading: () => <div className="p-8 text-center text-[10px] uppercase font-black tracking-widest text-slate-400">Cargando...</div> });
 const FloatingOutlineUI = dynamic(() => import('./widgets/FloatingOutlineUI'));
 import { CompetitorPanel } from './CompetitorPanel';
@@ -265,9 +265,9 @@ export default function WriterStudio() {
         wordCountReal: state.wordCountReal
     })));
 
-    const leftPanelRef = useRef<any>(null);
-    const rightPanelRef = useRef<any>(null);
-    const editorPanelRef = useRef<any>(null);
+    const leftPanelRef = useRef<ImperativePanelHandle>(null);
+    const rightPanelRef = useRef<ImperativePanelHandle>(null);
+    const editorPanelRef = useRef<ImperativePanelHandle>(null);
     const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
     const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
     const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
@@ -277,8 +277,6 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
-            // Try to force a good size
-            setTimeout(() => panel.resize(25), 10);
         } else {
             panel.collapse();
         }
@@ -289,7 +287,6 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
-            setTimeout(() => panel.resize(25), 10);
         } else {
             panel.collapse();
         }
@@ -300,7 +297,6 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
-            setTimeout(() => panel.resize(50), 10);
         } else {
             panel.collapse();
         }
@@ -850,7 +846,7 @@ export default function WriterStudio() {
                         <InventorySidebar />
                     </Panel>
 
-                    <PanelResizeHandle id="writer-handle-left" className="w-1.5 hover:w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[3px] z-30 flex items-center justify-center group/handle">
+                    <PanelResizeHandle id="writer-handle-left" className="w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[4px] z-30 flex items-center justify-center group/handle">
                         <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
                     </PanelResizeHandle>
 
@@ -866,7 +862,7 @@ export default function WriterStudio() {
                         {renderMainContent()}
                     </Panel>
 
-                    <PanelResizeHandle id="writer-handle-right" className="w-1.5 hover:w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[3px] z-30 flex items-center justify-center group/handle">
+                    <PanelResizeHandle id="writer-handle-right" className="w-2 bg-transparent hover:bg-indigo-400/20 transition-all duration-300 cursor-col-resize active:bg-indigo-500/40 -mx-[4px] z-30 flex items-center justify-center group/handle">
                         <div className="w-1 h-8 rounded-full bg-slate-300 group-hover/handle:bg-indigo-400 transition-colors" />
                     </PanelResizeHandle>
 
