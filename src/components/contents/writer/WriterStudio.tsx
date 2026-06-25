@@ -47,7 +47,7 @@ import dynamic from 'next/dynamic';
 import CompetitorCard from './CompetitorCard';
 import OutlineSidebar from './OutlineSidebar';
 
-import { PanelGroup, Panel, PanelResizeHandle, ImperativePanelHandle } from 'react-resizable-panels';
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle, PanelImperativeHandle as ImperativePanelHandle } from 'react-resizable-panels';
 const SEODataTab = dynamic(() => import('./SEODataTab'), { loading: () => <div className="p-8 text-center text-[10px] uppercase font-black tracking-widest text-slate-400">Cargando...</div> });
 const FloatingOutlineUI = dynamic(() => import('./widgets/FloatingOutlineUI'));
 import { CompetitorPanel } from './CompetitorPanel';
