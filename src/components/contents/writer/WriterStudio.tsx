@@ -833,11 +833,11 @@ export default function WriterStudio() {
             )}
             
             {redactorUI === 'standard' ? (
-                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v5" id="writer-studio-root" className="w-full h-full">
+                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v6" id="writer-studio-root" className="w-full h-full">
                     <Panel 
                         id="writer-left-panel"
                         ref={leftPanelRef} 
-                        defaultSize={20} minSize={15} maxSize={40} 
+                        defaultSize={20} minSize={0} 
                         collapsible={true} 
                         onCollapse={() => setIsLeftPanelCollapsed(true)}
                         onExpand={() => setIsLeftPanelCollapsed(false)}
@@ -854,7 +854,7 @@ export default function WriterStudio() {
                     <Panel 
                         id="writer-editor-panel" 
                         ref={editorPanelRef}
-                        defaultSize={80} minSize={30} maxSize={100}
+                        defaultSize={80} minSize={0}
                         collapsible={true}
                         onCollapse={() => setIsEditorCollapsed(true)}
                         onExpand={() => setIsEditorCollapsed(false)}
@@ -871,7 +871,7 @@ export default function WriterStudio() {
                     <Panel 
                         id="writer-right-panel"
                         ref={rightPanelRef}
-                        defaultSize={0} minSize={15} maxSize={50} 
+                        defaultSize={0} minSize={0}
                         collapsible={true} 
                         onCollapse={() => setIsRightPanelCollapsed(true)}
                         onExpand={() => setIsRightPanelCollapsed(false)}
