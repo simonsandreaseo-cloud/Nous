@@ -69,15 +69,24 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         const { supabase } = require('@/lib/supabase');
         let query = supabase.from('tasks').select('*');
 
-        if (Array.isArray(projectId)) {
-            query = query.in('project_id', projectId);
-        } else {
-            query = query.eq('project_id', projectId);
+        let validIds = Array.isArray(projectId) ? projectId : [projectId];
+        validIds = validIds.filter(id => id && typeof id === 'string' && id.length === 36);
+
+        if (validIds.length === 0) {
+            set({ projectContents: [] } as any);
+            return;
         }
+
+        query = query.in('project_id', validIds);
 
         const { data, error } = await query
             .is('translation_parent_id', null) // Solo mostrar contenido original/padre
             .order('created_at', { ascending: false });
+            
+        if (error) {
+            console.error('[Persistence] Error loading project contents:', error);
+        }
+            
         if (!error && data) set({ projectContents: data } as any);
     },
 
