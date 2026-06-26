@@ -343,7 +343,7 @@ export default function WriterStudio() {
                     fetchTaskResearch(draftId)
                 ]);
 
-                if (contentBody) useWriterStore.getState().setContent(contentBody);
+                if (contentBody !== null) useWriterStore.getState().setContent(contentBody || '');
                 if (researchData) {
                     const { research_dossier, outline_structure, seo_data, schemas } = researchData;
                     
