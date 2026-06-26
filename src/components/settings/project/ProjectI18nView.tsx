@@ -19,7 +19,8 @@ import {
     TestTube2,
     Plus,
     Trash2,
-    Sparkles
+    Sparkles,
+    Settings
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";

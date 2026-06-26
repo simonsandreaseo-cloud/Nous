@@ -6,7 +6,8 @@ import {
     ArrowRight, 
     Globe, 
     ExternalLink,
-    Plus
+    Plus,
+    Settings
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/utils/cn";
