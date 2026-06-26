@@ -323,10 +323,9 @@ export default function WriterStudio() {
 
     const [isStatusOpen, setIsStatusOpen] = useState(false);
 
-    const { tasks, isLoading: isProjectLoading, activeProject, fetchTaskContent, fetchTaskResearch } = useProjectStore(useShallow(state => ({
+    const { tasks, isLoading: isProjectLoading, fetchTaskContent, fetchTaskResearch } = useProjectStore(useShallow(state => ({
         tasks: state.tasks,
         isLoading: state.isLoading,
-        activeProject: state.activeProject,
         fetchTaskContent: state.fetchTaskContent,
         fetchTaskResearch: state.fetchTaskResearch
     })));

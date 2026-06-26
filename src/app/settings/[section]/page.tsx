@@ -10,14 +10,8 @@ const GeneralSettingsView = dynamic(() => import("@/components/settings/GeneralS
 const TeamSettings = dynamic(() => import("@/components/settings/agency/TeamSettingsView").then(mod => mod.TeamSettings), { 
     loading: () => <ToolLoading name="Equipo" /> 
 });
-const IntegrationsView = dynamic(() => import("@/components/settings/IntegrationsView"), { 
-    loading: () => <ToolLoading name="Integraciones" /> 
-});
 const InventoryView = dynamic(() => import("@/components/settings/InventoryView"), { 
     loading: () => <ToolLoading name="Inventario" /> 
-});
-const ToolsSettingsView = dynamic(() => import("@/components/settings/ToolsSettingsView"), { 
-    loading: () => <ToolLoading name="Herramientas" /> 
 });
 const BillingView = dynamic(() => import("@/components/settings/BillingView"), { 
     loading: () => <ToolLoading name="Presupuesto" /> 
@@ -38,9 +32,7 @@ export default function SettingSectionPage({ params }: { params: Promise<{ secti
     switch (section) {
         case "general": return <GeneralSettingsView />;
         case "team": return <TeamSettings />;
-        case "integrations": return <IntegrationsView />;
         case "inventory": return <InventoryView />;
-        case "tools": return <ToolsSettingsView />;
         case "billing": return <BillingView />;
         default: return <GeneralSettingsView />;
     }

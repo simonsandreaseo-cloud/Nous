@@ -19,9 +19,8 @@ import { AVAILABLE_LANGUAGES } from "@/constants/languages";
 import { cn } from "@/utils/cn";
 
 export default function ProjectContentPreferencesView() {
-    const { activeProject, updateProject, teamMembers } = useProjectStore();
-    const { user } = useAuthStore();
     const { activeProject, updateProject } = useProjectStore();
+    const { user } = useAuthStore();
     
     
     const [minLinks, setMinLinks] = useState(5);
@@ -31,7 +30,6 @@ export default function ProjectContentPreferencesView() {
     const [defaultLangs, setDefaultLangs] = useState<string[]>([]);
     const [defaultContentLang, setDefaultContentLang] = useState<string>('es');
     const [customContentTypes, setCustomContentTypes] = useState<string[]>([]);
-    const [newContentType, setNewContentType] = useState('');
     const [newContentType, setNewContentType] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -355,9 +353,6 @@ export default function ProjectContentPreferencesView() {
                                     Agregar
                                 </button>
                             </div>
-                        </div>
-                    </section>
-
                         </div>
                     </section>
                 </div>
