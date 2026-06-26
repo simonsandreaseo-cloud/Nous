@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Loader2, X, FileSpreadsheet, Check, ArrowRight, AlertTriangle } from 'lucide-react';
 import { parseSpreadsheet, ParsedData } from '@/lib/utils/excel-parser';
 import { NotificationService } from '@/lib/services/notifications';
