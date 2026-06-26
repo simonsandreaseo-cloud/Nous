@@ -22,6 +22,7 @@ import { WidgetCard } from "@/components/contents/settings/widgets/WidgetCard";
 import { WidgetGalleryModal } from "@/components/contents/settings/widgets/WidgetGalleryModal";
 import { NousExtractorConfigModal } from "@/components/contents/settings/widgets/NousExtractorConfigModal";
 import { LinkPatcherConfigModal } from "@/components/contents/settings/widgets/LinkPatcherConfigModal";
+import { ContentSplitterConfigModal } from "@/components/contents/settings/widgets/ContentSplitterConfigModal";
 
 // Types
 import type { CustomWidget } from "@/types/project";
@@ -50,13 +51,13 @@ export default function ProjectToolsView() {
     const editingWidget = widgets.find(w => w.id === editingWidgetId);
 
     // Automation Handlers
-    const addWidget = async (type: 'nous_extractor' | 'link_patcher' | 'price_monitor' | 'entity_extractor') => {
+    const addWidget = async (type: 'nous_extractor' | 'link_patcher' | 'price_monitor' | 'entity_extractor' | 'content_splitter') => {
         if (!activeProject) return;
         
         const newWidget: CustomWidget = {
             id: crypto.randomUUID(),
             type,
-            name: (type === 'nous_extractor') ? "Nuevo Nous Extractor" : (type === 'link_patcher' ? "Nuevo Link Patcher" : "Nueva Herramienta"),
+            name: (type === 'nous_extractor') ? "Nuevo Nous Extractor" : (type === 'link_patcher' ? "Nuevo Link Patcher" : type === 'content_splitter' ? "Content Splitter" : "Nueva Herramienta"),
             config: type === 'nous_extractor' 
                 ? { rules: [] } 
                 : type === 'link_patcher' 
@@ -69,6 +70,12 @@ export default function ProjectToolsView() {
                         extractor: { enabled: false, target_extractor_id: "" }
                     }
                   } 
+                : type === 'content_splitter'
+                ? {
+                    limitType: 'words',
+                    limitMode: 'max_h2',
+                    limitValue: 1000
+                  }
                 : {},
             is_active: true,
             created_at: new Date().toISOString()
@@ -80,7 +87,7 @@ export default function ProjectToolsView() {
         });
         
         setIsGalleryOpen(false);
-        if (type === 'nous_extractor' || type === 'link_patcher') {
+        if (type === 'nous_extractor' || type === 'link_patcher' || type === 'content_splitter') {
             setEditingWidgetId(newWidget.id);
         }
     };
@@ -266,6 +273,15 @@ export default function ProjectToolsView() {
 
             {editingWidget && editingWidget.type === 'link_patcher' && (
                 <LinkPatcherConfigModal 
+                    isOpen={!!editingWidgetId}
+                    onClose={() => setEditingWidgetId(null)}
+                    widget={editingWidget}
+                    onUpdate={(updates) => updateWidget(editingWidget.id, updates)}
+                />
+            )}
+
+            {editingWidget && editingWidget.type === 'content_splitter' && (
+                <ContentSplitterConfigModal 
                     isOpen={!!editingWidgetId}
                     onClose={() => setEditingWidgetId(null)}
                     widget={editingWidget}
