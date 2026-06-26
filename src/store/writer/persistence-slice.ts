@@ -76,7 +76,6 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         }
 
         const { data, error } = await query
-            .in('status', ['por_redactar', 'por_corregir', 'en_redaccion', 'publicado', 'por_maquetar'])
             .is('translation_parent_id', null) // Solo mostrar contenido original/padre
             .order('created_at', { ascending: false });
         if (!error && data) set({ projectContents: data } as any);
