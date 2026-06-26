@@ -19,7 +19,8 @@ import {
     Settings,
     Home,
     Palette,
-    Network
+    Network,
+    Wrench
 } from "lucide-react";
 import { NousLogo } from "@/components/dom/NousLogo";
 import { ProjectSelector } from "@/components/dashboard/ProjectSelector";
@@ -60,7 +61,8 @@ export const PROJECT_GROUPS = [
     {
         name: "DATOS & HERRAMIENTAS",
         items: [
-            { id: "connectivity", label: "Conexiones & Tools", icon: Zap, href: "/connectivity" },
+            { id: "connectivity", label: "Conexiones", icon: Zap, href: "/connectivity" },
+            { id: "tools", label: "Herramientas de IA", icon: Wrench, href: "/tools" },
             { id: "inventory", label: "Inventario", icon: Database, href: "/inventory" },
             { id: "budget", label: "Presupuesto", icon: Wallet, href: "/budget" },
         ]

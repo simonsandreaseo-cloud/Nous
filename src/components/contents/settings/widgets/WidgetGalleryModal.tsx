@@ -1,12 +1,12 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Link as LinkIcon, Target, BarChart3, Plus, ArrowRight, MousePointer2 } from "lucide-react";
+import { X, Sparkles, Link as LinkIcon, Target, BarChart3, Plus, ArrowRight, MousePointer2, Scissors } from "lucide-react";
 import { cn } from "@/utils/cn";
 
 interface WidgetType {
     id: string;
-    type: 'nous_extractor' | 'link_patcher' | 'price_monitor' | 'entity_extractor' | 'asset_patcher';
+    type: 'nous_extractor' | 'link_patcher' | 'price_monitor' | 'entity_extractor' | 'asset_patcher' | 'content_splitter';
     name: string;
     description: string;
     icon: any;
@@ -22,6 +22,14 @@ const AVAILABLE_WIDGETS: WidgetType[] = [
         description: "Control supremo sobre URLs, dimensiones y máscaras de activos para cualquier CMS.", 
         icon: MousePointer2, 
         color: "bg-amber-500" 
+    },
+    { 
+        id: "content_splitter", 
+        type: "content_splitter", 
+        name: "Content Splitter", 
+        description: "Divide textos largos en fragmentos manteniendo la estructura de headers.", 
+        icon: Scissors, 
+        color: "bg-orange-500" 
     },
     { 
         id: "nous_extractor", 
@@ -62,7 +70,7 @@ const AVAILABLE_WIDGETS: WidgetType[] = [
 interface WidgetGalleryModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSelect: (type: 'nous_extractor' | 'link_patcher' | 'price_monitor' | 'entity_extractor' | 'asset_patcher') => void;
+    onSelect: (type: 'nous_extractor' | 'link_patcher' | 'price_monitor' | 'entity_extractor' | 'asset_patcher' | 'content_splitter') => void;
 }
 
 export function WidgetGalleryModal({ isOpen, onClose, onSelect }: WidgetGalleryModalProps) {

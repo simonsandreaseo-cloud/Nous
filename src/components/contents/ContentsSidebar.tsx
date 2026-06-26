@@ -54,10 +54,6 @@ export const CONTENT_TOOLS = [
     { id: "distribution", label: "Distribución", icon: Share2, color: "text-emerald-500", bg: "bg-emerald-500" },
 ];
 
-export const CONFIG_TOOLS = [
-    { id: "custom-tools", label: "Configuraciones", icon: Sliders, color: "text-indigo-500" },
-];
-
 interface ContentsSidebarProps {
     activeTool: string;
     onToolSelect: (toolId: string) => void;
@@ -263,42 +259,22 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
                     )}
                 </div>
 
-                {/* Config Trigger (Above User Profile) */}
-                <button 
-                    onClick={() => onToolSelect('custom-tools')}
-                    className={cn(
-                        "h-10 rounded-lg flex items-center transition-all group/config overflow-hidden shrink-0",
-                        isCollapsed ? "w-10 mx-auto justify-center" : "w-full px-4",
-                        activeTool === 'custom-tools' 
-                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" 
-                            : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                    )}
-                    title="Configuraciones"
-                >
-                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                        <Sliders size={18} className={cn("transition-transform group-hover/config:scale-110", activeTool === 'custom-tools' && "animate-pulse")} />
-                    </div>
-                    {!isCollapsed && (
-                        <span className="ml-3 text-[11px] font-bold uppercase tracking-tight">Configuraciones</span>
-                    )}
-                </button>
-
-                    <div className="flex items-center gap-2">
-                        {/* Unpin button - only visible when collapsed */}
-                        <div className="relative group/profile shrink-0 flex flex-col items-center gap-1">
-                            {isCollapsed && (
-                                <button 
-                                    onClick={() => setIsCollapsed(false)}
-                                    className="p-1 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all shadow-sm border border-indigo-100"
-                                    title="Desfijar Panel"
-                                >
-                                    <ChevronsRight size={12} />
-                                </button>
-                            )}
+                <div className="flex items-center gap-2 mt-4">
+                    {/* Unpin button - only visible when collapsed */}
+                    <div className="relative group/profile shrink-0 flex flex-col items-center gap-1">
+                        {isCollapsed && (
                             <button 
-                                onClick={() => user ? setShowProfileMenu(!showProfileMenu) : signInWithGoogle()}
-                                className="w-10 h-10 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 transition-all cursor-pointer"
+                                onClick={() => setIsCollapsed(false)}
+                                className="p-1 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-all shadow-sm border border-indigo-100"
+                                title="Desfijar Panel"
                             >
+                                <ChevronsRight size={12} />
+                            </button>
+                        )}
+                        <button 
+                            onClick={() => user ? setShowProfileMenu(!showProfileMenu) : signInWithGoogle()}
+                            className="w-10 h-10 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden hover:border-indigo-400 transition-all cursor-pointer"
+                        >
                                 {mounted && user?.user_metadata?.avatar_url ? (
                                     <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                                 ) : (

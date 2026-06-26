@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { 
     Wrench, Play, ChevronDown, ChevronUp, Sparkles, Loader2, Info, Eye, 
     Copy, ExternalLink, FileCode, Check, PlusSquare, Link as LinkIcon, 
-    RefreshCcw, AlertCircle, Wand2 
+    RefreshCcw, AlertCircle, Wand2, Scissors 
 } from 'lucide-react';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -13,6 +13,7 @@ import { Button } from '@/components/dom/Button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 import { LinkPatcherService } from '@/lib/services/link-patcher';
+import { ContentSplitterService, SplitOptions, SplitChunk } from '@/lib/services/content-splitter';
 import { cn } from '@/utils/cn';
 
 export function ToolsTab() {
@@ -24,6 +25,7 @@ export function ToolsTab() {
 
     const extractorFindings = store.nousExtractorFindings || {};
     const patcherFindings = store.patcherFindings || {};
+    const [splitterChunks, setSplitterChunks] = useState<Record<string, SplitChunk[]>>({});
 
     const widgets = activeProject?.custom_widgets?.filter(w => {
         // We show the widget in the Writer if the integration is enabled,
@@ -156,6 +158,38 @@ export function ToolsTab() {
         }
     };
 
+    /**
+     * Logic for CONTENT SPLITTER
+     */
+    const handleExecuteSplitter = async (widget: any) => {
+        if (!store.editor) return;
+        setExecutingId(widget.id);
+        store.setStatus(`Dividiendo contenido con ${widget.name}...`);
+
+        try {
+            const html = store.editor.getHTML();
+            const options: SplitOptions = {
+                limitType: widget.config?.limitType || 'words',
+                limitMode: widget.config?.limitMode || 'max_h2',
+                limitValue: widget.config?.limitValue || 1000
+            };
+            
+            const chunks = ContentSplitterService.splitContent(html, options);
+            setSplitterChunks(prev => ({ ...prev, [widget.id]: chunks }));
+            
+            if (chunks.length > 0) {
+                setExpandedIds(prev => prev.includes(widget.id) ? prev : [...prev, widget.id]);
+                store.setStatus(`✅ Contenido dividido en ${chunks.length} partes.`);
+            } else {
+                store.setStatus("⚠️ No se pudo dividir el contenido.");
+            }
+        } catch (e: any) {
+            store.setStatus(`❌ Error al dividir: ${e.message}`);
+        } finally {
+            setExecutingId(null);
+        }
+    };
+
     const handleScrollToLink = (pos: number) => {
         if (!store.editor) return;
         store.editor.chain().focus().setTextSelection(pos).scrollIntoView().run();
@@ -198,10 +232,13 @@ export function ToolsTab() {
                     const isExpanded = expandedIds.includes(widget.id);
                     const isExecuting = executingId === widget.id;
                     const isPatcher = widget.type === 'link_patcher';
+                    const isSplitter = widget.type === 'content_splitter';
                     
                     const findings = isPatcher 
                         ? (patcherFindings[widget.id] || [])
                         : (extractorFindings[widget.id] || []);
+                        
+                    const chunks = isSplitter ? (splitterChunks[widget.id] || []) : [];
 
                     return (
                         <div 
@@ -217,10 +254,10 @@ export function ToolsTab() {
                                     <div className={cn(
                                         "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors shadow-sm",
                                         isExpanded 
-                                            ? (isPatcher ? "bg-emerald-500 text-white" : "bg-indigo-500 text-white") 
+                                            ? (isPatcher ? "bg-emerald-500 text-white" : isSplitter ? "bg-amber-500 text-white" : "bg-indigo-500 text-white") 
                                             : "bg-slate-50 text-slate-400"
                                     )}>
-                                        {isPatcher ? <LinkIcon size={16} /> : <Sparkles size={16} />}
+                                        {isPatcher ? <LinkIcon size={16} /> : isSplitter ? <Scissors size={16} /> : <Sparkles size={16} />}
                                     </div>
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2 mb-0.5">
@@ -230,7 +267,9 @@ export function ToolsTab() {
                                             {widget.is_active ? (
                                                 <span className={cn(
                                                     "px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter border",
-                                                    isPatcher ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-indigo-50 text-indigo-600 border-indigo-100"
+                                                    isPatcher ? "bg-emerald-50 text-emerald-600 border-emerald-100" : 
+                                                    isSplitter ? "bg-amber-50 text-amber-600 border-amber-100" :
+                                                    "bg-indigo-50 text-indigo-600 border-indigo-100"
                                                 )}>
                                                     Auto
                                                 </span>
@@ -242,15 +281,14 @@ export function ToolsTab() {
                                         </div>
                                         <p className={cn(
                                             "text-[9px] font-bold uppercase tracking-widest",
-                                            isPatcher ? "text-emerald-500/70" : "text-indigo-500/70"
+                                            isPatcher ? "text-emerald-500/70" : isSplitter ? "text-amber-500/70" : "text-indigo-500/70"
                                         )}>
-                                            {isPatcher ? 'Link Patcher Engine' : 'Extractor Nous'}
+                                            {isPatcher ? 'Link Patcher Engine' : isSplitter ? 'Content Splitter' : 'Extractor Nous'}
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center gap-1">
-                                    {isPatcher ? (
                                         <div className="flex items-center gap-1">
                                             <Button
                                                 onClick={() => handleExecutePatcher(widget, 'simulate')}
@@ -269,6 +307,18 @@ export function ToolsTab() {
                                                 <span className="ml-1.5">{isExecuting ? 'Parchando' : 'Parchar'}</span>
                                             </Button>
                                         </div>
+                                    ) : isSplitter ? (
+                                        <Button
+                                            onClick={() => handleExecuteSplitter(widget)}
+                                            disabled={isExecuting || !!executingId}
+                                            className={cn(
+                                                "h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                                isExecuting ? "bg-amber-100 text-amber-400" : "bg-amber-500 text-white hover:bg-amber-600"
+                                            )}
+                                        >
+                                            {isExecuting ? <Loader2 size={12} className="animate-spin" /> : <Scissors size={10} />}
+                                            <span className="ml-1.5">{isExecuting ? 'Dividiendo' : 'Dividir'}</span>
+                                        </Button>
                                     ) : (
                                         <Button
                                             onClick={() => handleExecuteExtractor(widget)}
@@ -302,7 +352,65 @@ export function ToolsTab() {
                                         className="border-t border-slate-50 overflow-hidden"
                                     >
                                         <div className="p-4 space-y-4">
-                                            {findings.length > 0 ? (
+                                            {isSplitter ? (
+                                                chunks.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between px-1 mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <FileCode size={12} className="text-amber-400" />
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-amber-600">
+                                                                    Partes Generadas
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-[8px] font-bold text-slate-400">
+                                                                {chunks.length} secciones
+                                                            </span>
+                                                        </div>
+                                                        {chunks.map((chunk, idx) => (
+                                                            <div key={chunk.id} className="flex items-center justify-between p-3 bg-white border border-amber-100 hover:border-amber-300 rounded-2xl transition-all group/chunk">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className="text-[10px] font-black text-slate-700 uppercase">
+                                                                            Parte {idx + 1}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                                                        <span>{chunk.wordCount} Palabras</span>
+                                                                        <span>&bull;</span>
+                                                                        <span>{chunk.charCount} Caracteres</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <button 
+                                                                        onClick={() => handleCopyValue(chunk.text)}
+                                                                        title="Copiar Texto Plano"
+                                                                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                                                    >
+                                                                        {lastCopied === chunk.text ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => handleCopyValue(chunk.html)}
+                                                                        title="Copiar HTML"
+                                                                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                                                    >
+                                                                        {lastCopied === chunk.html ? <Check size={14} className="text-emerald-500" /> : <FileCode size={14} />}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-4 bg-white/50 rounded-xl border border-slate-50/50">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <Info size={10} className="text-slate-400" />
+                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Información</span>
+                                                        </div>
+                                                        <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                                                            Haz clic en "Dividir" para fragmentar el documento según los límites de {widget.config?.limitValue || 1000} {widget.config?.limitType === 'characters' ? 'caracteres' : 'palabras'}.
+                                                        </p>
+                                                    </div>
+                                                )
+                                            ) : findings.length > 0 ? (
                                                 <div className="space-y-2">
                                                     <div className="flex items-center justify-between px-1 mb-2">
                                                         <div className="flex items-center gap-2">

@@ -470,7 +470,7 @@ export function useWriterActions() {
                 return chunks;
             };
 
-            const rawChunks = chunkHtml(originalContent, 5);
+            const rawChunks = chunkHtml(originalContent, 4);
             console.log(`[DEBUG-Humanize] Documento dividido en ${rawChunks.length} chunks.`);
             store.setHumanizerStatus(`Documento dividido en ${rawChunks.length} partes...`);
             

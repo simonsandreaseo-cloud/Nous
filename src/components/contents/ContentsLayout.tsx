@@ -28,10 +28,6 @@ const TranslatorView = dynamic(
     () => import("@/components/contents/TranslatorView"),
     { loading: () => <ToolLoading name="Traductor" />, ssr: false }
 );
-const CustomToolsView = dynamic(
-    () => import("@/components/contents/settings/CustomToolsView"),
-    { loading: () => <ToolLoading name="Custom Tools" />, ssr: false }
-);
 
 // --- Mockup View Component ---
 function MockupView({ toolId }: { toolId: string }) {
@@ -84,7 +80,6 @@ function ToolView({ toolId }: { toolId: string }) {
         case "distribution": return <DistributionView />;
         case "imagenes": return <ImageGenerator />;
         case "translator": return <TranslatorView />;
-        case "custom-tools": return <CustomToolsView />;
         default: 
             if (["monitor", "oficina", "seo", "estrategia"].includes(toolId)) {
                 return <MockupView toolId={toolId} />;

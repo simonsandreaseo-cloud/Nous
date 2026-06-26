@@ -1,6 +1,6 @@
 "use client";
 
-import { Zap, Target, BarChart3, Settings2, Trash2, Power, Link as LinkIcon } from "lucide-react";
+import { Zap, Target, BarChart3, Settings2, Trash2, Power, Link as LinkIcon, Scissors } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { motion } from "framer-motion";
 
@@ -8,14 +8,16 @@ const WIDGET_ICONS = {
     nous_extractor: Zap,
     link_patcher: LinkIcon,
     entity_extractor: Target,
-    price_monitor: BarChart3
+    price_monitor: BarChart3,
+    content_splitter: Scissors
 };
 
 const WIDGET_COLORS = {
     nous_extractor: "text-indigo-500 bg-indigo-50",
     link_patcher: "text-emerald-500 bg-emerald-50",
     entity_extractor: "text-slate-500 bg-slate-50",
-    price_monitor: "text-slate-500 bg-slate-50"
+    price_monitor: "text-slate-500 bg-slate-50",
+    content_splitter: "text-amber-500 bg-amber-50"
 };
 
 interface WidgetCardProps {
@@ -89,6 +91,8 @@ export function WidgetCard({ widget, onEdit, onDelete, onToggle }: WidgetCardPro
                         ? `${widget.config?.rules?.length || 0} reglas de extracción configuradas.`
                         : widget.type === 'link_patcher'
                         ? `${widget.config?.rules?.length || 0} reglas de normalización.`
+                        : widget.type === 'content_splitter'
+                        ? `Límite: ${widget.config?.limitValue || 1000} ${widget.config?.limitType === 'characters' ? 'caracteres' : 'palabras'}.`
                         : "Sin datos de configuración."}
                 </p>
             </div>

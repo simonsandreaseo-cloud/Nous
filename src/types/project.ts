@@ -113,7 +113,7 @@ export interface NousExtractorRule {
 
 export interface CustomWidget {
     id: string;
-    type: 'nous_extractor' | 'price_monitor' | 'entity_extractor' | 'link_patcher' | 'asset_patcher';
+    type: 'nous_extractor' | 'price_monitor' | 'entity_extractor' | 'link_patcher' | 'asset_patcher' | 'content_splitter';
     name: string;
     description?: string;
     config: any;
