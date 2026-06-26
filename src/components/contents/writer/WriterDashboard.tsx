@@ -147,7 +147,7 @@ export default function WriterDashboard() {
                         ))}
                     </div>
                 )}
-            </main>
+            </div>
         </div>
     );
 }
