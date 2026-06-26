@@ -109,19 +109,19 @@ export default function WriterDashboard() {
                                     <div className="flex items-start justify-between mb-6">
                                         <div className={cn(
                                             "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all flex items-center gap-2",
-                                            STATUS_COLORS[content.status]?.bg || 'bg-slate-50',
-                                            STATUS_COLORS[content.status]?.text || 'text-slate-600',
-                                            STATUS_COLORS[content.status]?.border || 'border-slate-100/50'
+                                            STATUS_COLORS[content.status || 'por_redactar']?.bg || 'bg-slate-50',
+                                            STATUS_COLORS[content.status || 'por_redactar']?.text || 'text-slate-600',
+                                            STATUS_COLORS[content.status || 'por_redactar']?.border || 'border-slate-100/50'
                                         )}>
                                             <motion.div 
                                                 animate={{ scale: [1, 1.2, 1] }}
                                                 transition={{ duration: 2, repeat: Infinity }}
                                                 className={cn(
                                                     "w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]",
-                                                    STATUS_COLORS[content.status]?.dot || 'bg-slate-400'
+                                                    STATUS_COLORS[content.status || 'por_redactar']?.dot || 'bg-slate-400'
                                                 )} 
                                             />
-                                            {statusLabelsMap[content.status] || content.status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                            {content.status ? (statusLabelsMap[content.status] || content.status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())) : 'Por Redactar'}
                                         </div>
                                         <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-all">
                                             <ChevronRight size={16} />
