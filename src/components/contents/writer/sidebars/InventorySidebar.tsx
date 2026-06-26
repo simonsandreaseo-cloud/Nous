@@ -16,15 +16,30 @@ import { useWriterStore } from '@/store/useWriterStore';
 import { useShallow } from 'zustand/react/shallow';
 
 export function InventorySidebar() {
-    const { projectId, loadContentById, draftId } = useWriterStore();
-    const { activeTeam, tasks, isLoading } = useProjectStore();
+    const { projectId, loadContentById, draftId, projectContents, loadProjectContents } = useWriterStore();
+    const { activeTeam, activeProjectIds } = useProjectStore();
     
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+
+    // Fetch tasks if they aren't loaded or if activeProjectIds changes
+    useEffect(() => {
+        let isMounted = true;
+        const fetchTasks = async () => {
+            if (activeProjectIds && activeProjectIds.length > 0) {
+                setIsLoadingTasks(true);
+                await loadProjectContents(activeProjectIds);
+                if (isMounted) setIsLoadingTasks(false);
+            }
+        };
+        fetchTasks();
+        return () => { isMounted = false; };
+    }, [loadProjectContents, activeProjectIds]);
 
     const projectTasks = useMemo(() => {
-        return tasks.filter(t => t.project_id === projectId);
-    }, [tasks, projectId]);
+        return projectContents.filter(t => !projectId || t.project_id === projectId);
+    }, [projectContents, projectId]);
 
     const statusLabelsMap = useMemo(() => {
         const map = { ...STATUS_LABELS };
@@ -48,7 +63,7 @@ export function InventorySidebar() {
             const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
-    }, [tasks, searchTerm, statusFilter]);
+    }, [projectTasks, searchTerm, statusFilter]);
 
     return (
         <div className="h-full flex flex-col bg-slate-50 relative select-none">
@@ -105,7 +120,7 @@ export function InventorySidebar() {
 
             {/* TASK LIST */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2 bg-slate-50/50">
-                {isLoading ? (
+                {isLoadingTasks ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-3">
                         <Loader2 className="animate-spin text-indigo-300" size={24} />
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Cargando inventario...</span>
@@ -148,7 +163,7 @@ export function InventorySidebar() {
                                 "text-[11px] font-black leading-tight uppercase italic tracking-tight line-clamp-2 transition-colors",
                                 draftId === task.id ? "text-slate-900" : "text-slate-500 group-hover:text-slate-700"
                             )}>
-                                {task.title}
+                                {task.title || 'Sin Título'}
                             </h4>
 
                             {draftId === task.id && (
