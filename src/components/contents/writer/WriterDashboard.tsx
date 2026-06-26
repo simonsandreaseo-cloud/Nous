@@ -22,7 +22,7 @@ export default function WriterDashboard() {
         setViewMode,
         resetStrategy
     } = useWriterStore();
-    const { activeProject, activeTeam } = useProjectStore();
+    const { activeProject, activeTeam, activeProjectIds } = useProjectStore();
 
     const statusLabelsMap = useMemo(() => {
         const map = { ...STATUS_LABELS };
@@ -34,10 +34,10 @@ export default function WriterDashboard() {
     }, [activeTeam]);
 
     useEffect(() => {
-        if (activeProject?.id) {
-            loadProjectContents(activeProject.id);
+        if (activeProjectIds && activeProjectIds.length > 0) {
+            loadProjectContents(activeProjectIds);
         }
-    }, [activeProject?.id, loadProjectContents]);
+    }, [activeProjectIds, loadProjectContents]);
 
     return (
         <div className="flex-1 flex flex-col bg-slate-50/30 overflow-hidden">
@@ -61,9 +61,9 @@ export default function WriterDashboard() {
                 </Button>
             </header>
 
-            {/* Content Area */}
-            <main className="flex-1 overflow-y-auto custom-scrollbar px-10 pb-10">
-                {!activeProject ? (
+            {/* Contenido Principal */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10 px-10 pb-10">
+                {(!activeProjectIds || activeProjectIds.length === 0) ? (
                     <div className="h-[60vh] flex flex-col items-center justify-center text-center space-y-6">
                         <div className="w-20 h-20 bg-amber-50 rounded-[28px] flex items-center justify-center text-amber-500 border border-amber-100/50">
                             <Calendar size={40} />

@@ -347,9 +347,9 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
 
             // Refrescar el panel lateral con las tareas del proyecto activo
             const { useProjectStore } = require('@/store/useProjectStore');
-            const activeProjectId = useProjectStore.getState().projectId;
-            if (activeProjectId && loadProjectContents) {
-                await loadProjectContents(activeProjectId);
+            const { activeProjectIds } = useProjectStore.getState();
+            if (activeProjectIds.length > 0 && loadProjectContents) {
+                await loadProjectContents(activeProjectIds);
             }
         } else {
             if (setStatus) setStatus('❌ Error: ' + error.message);
