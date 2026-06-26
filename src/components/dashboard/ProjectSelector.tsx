@@ -7,7 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
 import Link from "next/link";
 
-export function ProjectSelector() {
+interface ProjectSelectorProps {
+    onSelect?: (projectId: string) => void;
+}
+
+export function ProjectSelector({ onSelect }: ProjectSelectorProps = {}) {
     const { projects, activeProjectIds, setActiveProject, setAllProjectsActive } = useProjectStore();
     const [isOpen, setIsOpen] = useState(false);
 
@@ -82,6 +86,10 @@ export function ProjectSelector() {
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setActiveProject(project.id);
+                                                if (onSelect) {
+                                                    onSelect(project.id);
+                                                }
+                                                setIsOpen(false);
                                             }}
                                             className={cn(
                                                 "w-full p-2.5 rounded-xl text-left transition-all group border border-transparent",

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/utils/cn";
 import { useAuthStore } from "@/store/useAuthStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -69,6 +69,7 @@ export const PROJECT_GROUPS = [
 
 export function SettingsSidebar() {
     const pathname = usePathname();
+    const router = useRouter();
     const { user, signOut } = useAuthStore();
     const { activeProject } = useProjectStore();
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -80,6 +81,10 @@ export function SettingsSidebar() {
     // Stable section mapping
     const groups = isProjectContext ? PROJECT_GROUPS : AGENCY_GROUPS;
     const contextKey = isProjectContext ? `project-${projectId}` : "agency";
+
+    const handleProjectSelect = (selectedProjectId: string) => {
+        router.push(`/settings/projects/${selectedProjectId}/general`);
+    };
 
     return (
         <motion.aside 
@@ -97,7 +102,7 @@ export function SettingsSidebar() {
             {/* Project Selector Section */}
             {!isCollapsed && (
                 <div className="px-4 mb-6 animate-in fade-in duration-500">
-                    <ProjectSelector />
+                    <ProjectSelector onSelect={handleProjectSelect} />
                 </div>
             )}
 
