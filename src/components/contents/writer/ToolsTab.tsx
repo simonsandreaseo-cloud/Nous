@@ -41,6 +41,11 @@ export function ToolsTab() {
             return w.config?.integrations?.writer === true;
         }
 
+        // CONTENT_SPLITTER:
+        if (w.type === 'content_splitter') {
+            return true;
+        }
+
         return w.show_in_writer;
     }) || [];
 
