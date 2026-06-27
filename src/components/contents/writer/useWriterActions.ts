@@ -25,6 +25,7 @@ import { streamGenerate, streamSEOPostProcess, streamHumanize, streamSurgicalEdi
 
 import { AI_CONFIG } from '@/lib/ai/config';
 import { useWriterStore } from '@/store/useWriterStore';
+import { useQueueStore } from '@/store/useQueueStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -49,7 +50,9 @@ export function useWriterActions() {
     }, [store.taskVersions]);
 
     // --- SEO Research ---
-    const handleSEO = useCallback(async () => {
+    const handleSEO = useCallback(() => {
+        const { enqueueTask } = useQueueStore.getState();
+        enqueueTask('seo', 'Investigando SEO', async () => {
         if (!store.keyword) return alert('Ingresa una palabra clave primero.');
         store.setAnalyzingSEO(true);
         store.setStatus('Realizando análisis profundo de SEO...');
@@ -129,10 +132,13 @@ export function useWriterActions() {
         } finally {
             store.setAnalyzingSEO(false);
         }
-    }, [store, activeProject]);
+        });
+    }, [store, hasAccess, activeProject]);
 
     // --- Plan Structure (REGENERATION) ---
     const handleRegenerateOutline = useCallback(async () => {
+        const { enqueueTask } = useQueueStore.getState();
+        enqueueTask('seo', 'Regenerando estructura', async () => {
         if (!store.rawSeoData) return alert('Realiza el análisis SEO primero.');
         store.setPlanningStructure(true);
         store.setStatus('Regenerando outline estratégico con Gemini 3.1 Flash Lite...');
@@ -170,10 +176,13 @@ export function useWriterActions() {
         } finally {
             store.setPlanningStructure(false);
         }
+        });
     }, [store]);
 
-    // --- Generate ---
-    const handleGenerate = useCallback(async () => {
+    // --- Generate Content ---
+    const handleGenerate = useCallback(() => {
+        const { enqueueTask } = useQueueStore.getState();
+        enqueueTask('generate', 'Generando borrador inicial', async () => {
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.strategyH1 && !store.keyword) return alert('Necesitas un H1 o keyword objetivo.');
         
@@ -424,11 +433,15 @@ export function useWriterActions() {
         } finally {
             store.setGenerating(false);
         }
+        });
     }, [store, hasAccess, activeProject, hasTokens, consumeTokens, getTokensLimit, selectTopRelevantLinks]);
 
     // --- Humanize ---
-    const handleHumanize = useCallback(async () => {
-        console.log("[DEBUG-Humanize] Action triggered");
+    const handleHumanize = useCallback(() => {
+        const { enqueueTask } = useQueueStore.getState();
+        
+        enqueueTask('humanize', 'Humanizando artículo', async () => {
+            console.log("[DEBUG-Humanize] Action triggered");
         if (!hasAccess) {
             console.log("[DEBUG-Humanize] Access denied");
             return alert('No tienes permisos.');
@@ -582,10 +595,13 @@ export function useWriterActions() {
         } finally {
             store.setHumanizing(false);
         }
-    }, [store, hasAccess]);
+        });
+    }, [store, hasAccess, activeProject]);
 
     // --- Refine ---
-    const handleSurgicalEdit = useCallback(async () => {
+    const handleSurgicalEdit = useCallback(() => {
+        const { enqueueTask } = useQueueStore.getState();
+        enqueueTask('surgical_edit', 'Edición Quirúrgica', async () => {
         console.log("[DEBUG-SurgicalEdit] Action triggered");
         if (!hasAccess) {
             console.log("[DEBUG-SurgicalEdit] Access denied");
@@ -702,9 +718,12 @@ export function useWriterActions() {
             
             console.log("[DEBUG-SurgicalEdit] Process finished");
         }
+        });
     }, [hasAccess, store, activeProject, refineStyling]);
 
-    const handleRefine = useCallback(async () => {
+    const handleRefine = useCallback(() => {
+        const { enqueueTask } = useQueueStore.getState();
+        enqueueTask('refine', 'Refinando texto', async () => {
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.content || !store.refinementInstructions) return;
         store.setRefining(true);
@@ -734,10 +753,13 @@ export function useWriterActions() {
         } finally {
             store.setRefining(false);
         }
+        });
     }, [store, hasAccess]);
 
     // --- Clean ---
-    const handleClean = useCallback(async () => {
+    const handleClean = useCallback(() => {
+        const { enqueueTask } = useQueueStore.getState();
+        enqueueTask('clean', 'Limpiando huellas IA', async () => {
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.content) return;
         
@@ -823,6 +845,7 @@ export function useWriterActions() {
         } finally {
             store.setRefining(false);
         }
+        });
     }, [store, hasAccess]);
 
     return {

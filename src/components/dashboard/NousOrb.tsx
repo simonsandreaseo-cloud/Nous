@@ -34,6 +34,8 @@ import NousAssistantMenu from '@/components/dashboard/NousAssistantMenu';
 import { useAppStore } from '@/store/useAppStore';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useQueueProcessor } from './useQueueProcessor';
+import { useQueueStore } from '@/store/useQueueStore';
 
 const getIconForPhase = (phase: string) => {
     const p = phase.toLowerCase();
@@ -72,6 +74,9 @@ export default function NousOrb({
     viewMode = 'planner',
     variant = 'floating'
 }: NousOrbProps) {
+    useQueueProcessor(); // Montamos el procesador de colas global
+    const { activeTask, queue } = useQueueStore(); // Consumimos el estado de la cola
+    
     const { nousMode, setNousMode } = useAppStore();
     
     // Writer specific states from store
@@ -95,8 +100,8 @@ export default function NousOrb({
 
     // Progress logic
     const effectiveProgress = viewMode === 'writer' ? (storeProgress || processingProgress) : processingProgress;
-    const effectiveIsProcessing = viewMode === 'writer' ? (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isSurgicalEditing || isProcessing) : isProcessing;
-    const effectiveStatus = viewMode === 'writer' ? (isSurgicalEditing ? surgicalEditStatus : isHumanizing ? humanizerStatus : statusMessage || "Procesando...") : "Investigando...";
+    const effectiveIsProcessing = activeTask !== null || (viewMode === 'writer' ? (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isSurgicalEditing || isProcessing) : isProcessing);
+    const effectiveStatus = activeTask ? activeTask.title : (viewMode === 'writer' ? (isSurgicalEditing ? surgicalEditStatus : isHumanizing ? humanizerStatus : statusMessage || "Procesando...") : "Investigando...");
 
     // Detección Inteligente de Procesos — usando STATUS (campo liviano, siempre disponible)
     // STATUS WORKFLOW: idea -> en_investigacion -> por_redactar -> por_corregir/redactado -> humanizado
@@ -285,7 +290,6 @@ export default function NousOrb({
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className="absolute bottom-[110%] right-0 w-[380px] bg-white/90 backdrop-blur-2xl border border-white/50 rounded-[32px] shadow-[0_32px_128px_rgba(79,70,229,0.15)] overflow-hidden flex flex-col z-[310] ring-1 ring-black/[0.03]"
                     >
-                        {/* Header Elegante */}
                         <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-indigo-50/20 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="relative w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center overflow-hidden">
@@ -304,6 +308,20 @@ export default function NousOrb({
                                 </button>
                             </div>
                         </div>
+
+                        {queue.length > 0 && (
+                            <div className="bg-slate-50/50 border-b border-slate-100 p-4 max-h-40 overflow-y-auto">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">En Cola ({queue.length})</p>
+                                <div className="space-y-2">
+                                    {queue.map((t, idx) => (
+                                        <div key={t.id} className="flex items-center gap-3 text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                                            <span className="font-mono text-[9px] bg-indigo-50 text-indigo-500 font-bold px-1.5 py-0.5 rounded">{idx + 1}</span>
+                                            <span className="truncate font-medium">{t.title}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <NousAssistantMenu 
                             viewMode={viewMode}
