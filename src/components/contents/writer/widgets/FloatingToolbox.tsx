@@ -44,6 +44,7 @@ export function FloatingToolbox() {
     })));
 
     const tabs = [
+        { id: 'research', label: 'Competidores', icon: Search, color: 'text-slate-500' },
         { id: 'history', label: 'Historial', icon: History, color: 'text-slate-500' },
         { id: 'seo', label: 'Datos SEO', icon: Zap, color: 'text-emerald-500' },
         { id: 'media', label: 'Imágenes', icon: ImageIcon, color: 'text-purple-500' },
@@ -117,9 +118,9 @@ export function FloatingToolbox() {
                                     <TranslationSidebarPanel />
                                 ) : activeSidebarTab === 'history' ? (
                                     <HistoryTab />
-                                ) : (
+                                ) : activeSidebarTab === 'research' ? (
                                     <CompetitorPanel />
-                                )}
+                                ) : null}
                             </div>
                         </div>
                     </motion.div>

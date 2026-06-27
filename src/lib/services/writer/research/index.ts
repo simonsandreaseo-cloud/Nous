@@ -733,11 +733,29 @@ REGLAS:
             if (dossier.validSEO.length === 0 || (reqHtml && !hasHtml)) {
                 if (onLog) onLog("WARN", "Auto-Fix", "Falta contenido indexable profundo. Ejecutando Scraping dinámico...");
                 const scraped = await this.runScrapingPhase(config, dossier, onLog);
-                const validSEO = scraped.filter(s => !!s.content);
+                const scrapedWithPos = scraped.map((r: any) => {
+                    const original = (dossier.rankedPool || []).find((p: any) => p.url === r.url || p.link === r.url);
+                    return { ...r, originalPosition: original?.position || 999 };
+                });
+                const validSEO = scrapedWithPos.filter(s => !!s.content);
                 const mappedCompetitors = validSEO.map(v => ({ url: v.url, title: v.title, summary: v.summary, originalPosition: v.originalPosition, headers: v.headers, wordCount: v.wordCount }));
                 dossier = await saveCheckpoint('_auto_scraping', { competitors: mappedCompetitors });
                 dossier.competitors = mappedCompetitors;
                 dossier.validSEO = validSEO; // Retiene el HTML completo para fases pesadas inmediatas.
+                
+                if (config.taskId && validSEO.length > 0) {
+                    await supabase.from('task_competitors').delete().eq('task_id', config.taskId);
+                    await supabase.from('task_competitors').insert(
+                        validSEO.map(v => ({
+                            task_id: config.taskId,
+                            url: v.url,
+                            title: v.title,
+                            rank_position: v.originalPosition === 999 ? null : v.originalPosition,
+                            content: v.content,
+                            headers: v.headers || []
+                        }))
+                    );
+                }
             }
         }
 
@@ -755,9 +773,28 @@ REGLAS:
         if (startIndex <= 1) {
             if (onProgress) onProgress("scraping");
             const scraped = await this.runScrapingPhase(config, dossier, onLog);
-            const validSEO = scraped.filter(s => !!s.content);
+            const scrapedWithPos = scraped.map((r: any) => {
+                const original = (dossier.rankedPool || []).find((p: any) => p.url === r.url || p.link === r.url);
+                return { ...r, originalPosition: original?.position || 999 };
+            });
+            const validSEO = scrapedWithPos.filter(s => !!s.content);
             dossier = await saveCheckpoint('scraping_done', { competitors: validSEO.map(v => ({ url: v.url, title: v.title, summary: v.summary, originalPosition: v.originalPosition, headers: v.headers, wordCount: v.wordCount })) });
             dossier.validSEO = validSEO; // Temporary for next phases
+            
+            if (config.taskId && validSEO.length > 0) {
+                if (onLog) onLog("INFO", "DB", "Guardando contenidos completos de competidores...");
+                await supabase.from('task_competitors').delete().eq('task_id', config.taskId);
+                await supabase.from('task_competitors').insert(
+                    validSEO.map(v => ({
+                        task_id: config.taskId,
+                        url: v.url,
+                        title: v.title,
+                        rank_position: v.originalPosition === 999 ? null : v.originalPosition,
+                        content: v.content,
+                        headers: v.headers || []
+                    }))
+                );
+            }
             if (phaseToRun === 'scraping_done' && !cascade) return dossier;
         }
 

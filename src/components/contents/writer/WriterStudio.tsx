@@ -908,7 +908,7 @@ export default function WriterStudio() {
                         </div>
                         <div className="px-3 pt-3 pb-2 border-b border-slate-200/50 bg-white/60 backdrop-blur-xl z-10">
                             <div className="flex bg-slate-100/50 p-1 rounded-2xl shadow-inner border border-slate-200/60 overflow-x-auto no-scrollbar justify-between gap-1">
-                                {[ { id: 'history', icon: <History size={14} />, label: 'Hist' }, { id: 'seo', icon: <Zap size={14} />, label: 'SEO' }, { id: 'media', icon: <ImagePlus size={14} />, label: 'Media' }, { id: 'tools', icon: <Wrench size={14} />, label: 'Tools' }, { id: 'translate', icon: <Languages size={14} />, label: 'I18n' }, { id: 'nous', icon: <NousLogo showText={false} className="scale-[0.6]" />, label: 'Nous' } ].map(tab => (
+                                {[ { id: 'research', icon: <Search size={14} />, label: 'Inv.' }, { id: 'history', icon: <History size={14} />, label: 'Hist' }, { id: 'seo', icon: <Zap size={14} />, label: 'SEO' }, { id: 'media', icon: <ImagePlus size={14} />, label: 'Media' }, { id: 'tools', icon: <Wrench size={14} />, label: 'Tools' }, { id: 'translate', icon: <Languages size={14} />, label: 'I18n' }, { id: 'nous', icon: <NousLogo showText={false} className="scale-[0.6]" />, label: 'Nous' } ].map(tab => (
                                     <button 
                                         key={tab.id} 
                                         onClick={() => setSidebarTab(tab.id as any)} 
@@ -926,7 +926,8 @@ export default function WriterStudio() {
                             </div>
                         </div>
                     <div className="flex-1 flex flex-col min-h-0 bg-slate-50/20">
-                        {activeSidebarTab === 'history' ? <HistoryTab /> :
+                        {activeSidebarTab === 'research' ? <CompetitorPanel /> :
+                         activeSidebarTab === 'history' ? <HistoryTab /> :
                          activeSidebarTab === 'seo' ? <SEODataTab seoData={rawSeoData} currentContent={useWriterStore.getState().content || ''} /> : 
                           activeSidebarTab === 'media' ? <VisualPlanningBoard onRegenerate={async (id) => {
                               await regenerateImageAction({
