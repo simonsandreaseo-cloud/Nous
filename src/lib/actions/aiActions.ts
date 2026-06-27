@@ -722,8 +722,17 @@ DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde l
             
             const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n\\n${languageInstruction}\\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA. RECUERDA: SÓLO PUEDES MODIFICAR ${editLimit} PALABRAS.`;
             
+            console.log("\n\n=== [DEBUG] SURGICAL EDIT: ENVIANDO PROMPT ===");
+            console.log("Modelo usado:", modelName);
+            console.log("Límite de palabras calculadas:", editLimit);
+            console.log("Texto original enviado (preview):", JSON.stringify(textBlocks).substring(0, 150) + "...");
+            
             const response = await model.generateContent(prompt);
             const raw = response.response.text();
+            
+            console.log("\n=== [DEBUG] SURGICAL EDIT: RAW RESPONSE FROM AI ===");
+            console.log(raw);
+            console.log("====================================================\n\n");
             
             let cleaned = raw;
             cleaned = cleaned.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();
