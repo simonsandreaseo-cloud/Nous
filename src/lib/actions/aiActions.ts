@@ -700,7 +700,7 @@ El texto actual puede tener oraciones torpes o excesivamente informales, pero no
 TIENES UN LÍMITE ESTRICTO DEL 20% (máximo ${editLimit} palabras modificadas).
 Para lograr esto, DEBES APLICAR ESTA REGLA LÓGICA DE EDICIÓN:
 Haz MICRO-EDICIONES distribuidas a lo largo de TODO el fragmento.
-OBLIGATORIO: Debes hacer AL MENOS UN (1) cambio pequeño en CADA ORACIÓN del fragmento (cambiar una palabra por un sinónimo, eliminar una muletilla, arreglar un conector).
+OBLIGATORIO: Debes hacer AL MENOS UN (1) cambio pequeño en CADA ORACIÓN del fragmento, pero NO PUEDES CAMBIAR MÁS DE TRES (3) PALABRAS por oración (cambiar un sinónimo, eliminar una muletilla, arreglar un conector).
 Mantén la estructura original de todas las oraciones intacta, solo "pule" palabras individuales.
 
 --- PROHIBICIÓN ABSOLUTA ---
