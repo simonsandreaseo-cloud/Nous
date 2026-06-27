@@ -682,28 +682,33 @@ export const runSurgicalEditorPipeline = async (
         return { html: cleanAndFormatHtml(html) };
     }
 
-    let totalWords = 0;
-    Object.values(textBlocks).forEach(text => {
-        totalWords += (text.match(/\s+/g) || []).length + 1;
-    });
-    const editLimit = Math.max(10, Math.floor(totalWords * (intensity / 100)));
+    // Calcular el total de palabras en todos los bloques extraídos
+    const allText = Object.values(textBlocks).map(t => t.replace(/<[^>]*>/g, '')).join(' ');
+    const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
+    const editLimit = Math.max(1, Math.floor(wordCount * 0.20));
 
-    safeStatus(`Se extrajeron ${numBlocks} bloques. (Limit recomendado: ${editLimit} palabras). Enviando al modelo...`);
+    safeStatus(`Se extrajeron ${numBlocks} bloques. Límite de edición: ${editLimit} palabras. Enviando al modelo...`);
 
     try {
         const processedBlocks = await libExecuteWithKeyRotation(async (ai) => {
-            const systemInstructionStr = `--- PERSONA: EDITOR QUIRÚRGICO ---
-Actúa como un editor experto. Tu objetivo es mejorar la legibilidad y estilo de un texto que fue previamente "humanizado".
+            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
+--- PERSONA: EDITOR QUIRÚRGICO ---
+Actúa como un editor experto. Tu objetivo es mejorar la legibilidad, fluidez y estilo de un texto que fue previamente "humanizado" para evadir detectores de IA. El texto actual puede tener oraciones torpes o excesivamente informales, pero no queremos perder su esencia humana.
 
---- REGLA DE INTERVENCIÓN MÍNIMA (VITAL) ---
-NO reescribas el texto completo. Tu tarea es hacer una "edición quirúrgica".
-Busca únicamente las frases excesivamente informales, redundantes o torpes y mejóralas.
-Conserva la gran mayoría del texto original intacto. Si un párrafo ya suena bien, déjalo tal cual.
+--- REGLA DE PRESUPUESTO ESTRICTO (VITAL) ---
+Tienes un presupuesto de palabras estricto para modificar.
+Puedes editar, reemplazar, eliminar o crear UN MÁXIMO DE ${editLimit} PALABRAS en total para todo el texto.
+El ~80% restante del texto original DEBE PERMANECER EXACTAMENTE IGUAL.
+Usa tu presupuesto sabiamente para corregir los errores más graves de informalidad, estilo, o palabras mal usadas.
+
+--- CONTEXTO ---
+Nicho/Tópico: ${config.niche || 'N/A'}
+Público Objetivo: ${config.audience || 'N/A'}
 
 REGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):
 Te entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.
 MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).
-DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta.`;
+DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos editados. No devuelvas markdown ni otra cosa.`;
 
             const model = ai.getGenerativeModel({ 
                 model: modelName, 
