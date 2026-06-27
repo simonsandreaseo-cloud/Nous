@@ -354,6 +354,8 @@ export function EditorialCalendar() {
             const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
             const content = taskContent?.content_body || task.content_body;
             if (!content) throw new Error("No hay contenido para humanizar.");
+            
+            await saveBatchTaskVersion(task.id, 'Pre-Humanización', content);
 
             const res = await executeHumanizePipeline(
                 task, 
@@ -384,6 +386,8 @@ export function EditorialCalendar() {
             const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
             const content = taskContent?.content_body || task.content_body;
             if (!content) throw new Error("No hay contenido para limpiar.");
+
+            await saveBatchTaskVersion(task.id, 'Pre-Limpieza', content);
 
             onLog(task.id, 'Limpieza', 'Iniciando limpieza inteligente por fragmentos...');
             
@@ -454,6 +458,8 @@ export function EditorialCalendar() {
             const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
             const content = taskContent?.content_body || task.content_body;
             if (!content) throw new Error("No hay contenido para edición quirúrgica.");
+
+            await saveBatchTaskVersion(task.id, 'Pre-Edición Quirúrgica', content);
 
             onLog(task.id, 'Edición Quirúrgica', 'Iniciando edición quirúrgica por fragmentos...');
             
