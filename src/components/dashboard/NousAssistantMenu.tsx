@@ -8,7 +8,8 @@ import {
     Globe,
     CheckCircle2,
     ChevronDown,
-    BrainCircuit
+    BrainCircuit,
+    Edit3
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Task } from '@/types/project';
