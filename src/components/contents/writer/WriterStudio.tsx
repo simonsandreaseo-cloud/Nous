@@ -294,6 +294,9 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
+            if (panel.getSize() < 15) {
+                panel.resize(20);
+            }
         } else {
             panel.collapse();
         }
@@ -304,7 +307,7 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
-            if (panel.getSize() === 0) {
+            if (panel.getSize() < 15) {
                 panel.resize(25);
             }
         } else {
@@ -852,7 +855,7 @@ export default function WriterStudio() {
             )}
             
             {redactorUI === 'standard' ? (
-                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v6" id="writer-studio-root" className="w-full h-full">
+                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v8" id="writer-studio-root" className="w-full h-full">
                     <Panel 
                         id="writer-left-panel"
                         panelRef={leftPanelRef} 
