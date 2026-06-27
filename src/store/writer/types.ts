@@ -25,6 +25,14 @@ export interface HumanizerConfig {
     mode?: 'no_chunks' | 'unified' | 'duplicate_detection';
 }
 
+export interface TaskVersion {
+    id: string;
+    task_id: string;
+    content_body: string;
+    process_name: string;
+    created_at: string;
+}
+
 /**
  * Combined State Interface
  * This will be used by slices to know about the full store shape.
@@ -140,4 +148,7 @@ export interface WriterStoreState {
     leftSidebarWidth: number;
     rightSidebarWidth: number;
     isToolboxOpen: boolean;
+
+    // Versions
+    taskVersions: TaskVersion[];
 }

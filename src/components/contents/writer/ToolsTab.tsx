@@ -93,6 +93,7 @@ export function ToolsTab() {
             const activeRules = (widget.config?.rules || []).filter((r: any) => r.is_active !== false);
             const newFindings: any[] = [];
             let totalFound = 0;
+            const insertions: { pos: number; endPos: number; value: string; placement: string }[] = [];
 
             for (const link of links) {
                 // Use the service which now handles data-original-url via priority
@@ -101,6 +102,9 @@ export function ToolsTab() {
                 if (response.success && response.results.length > 0) {
                     response.results.forEach(res => {
                         if (res.success) {
+                            const rule = activeRules.find((r: any) => r.id === res.rule_id);
+                            const placement = rule?.placement_mode || 'inline';
+
                             newFindings.push({
                                 url: link.url,
                                 originalUrl: link.originalUrl,
@@ -109,11 +113,30 @@ export function ToolsTab() {
                                 value: res.formatted,
                                 success: true
                             });
+
+                            insertions.push({
+                                pos: link.pos,
+                                endPos: link.pos + (link.text?.length || 0),
+                                value: res.formatted,
+                                placement
+                            });
+
                             totalFound++;
                         }
                     });
                 }
             }
+
+            // Aplicar inserciones al editor (de abajo hacia arriba para no alterar posiciones previas)
+            insertions.sort((a, b) => b.endPos - a.endPos).forEach(ins => {
+                if (ins.placement === 'inline') {
+                    editor.chain().insertContentAt(ins.endPos, ` ${ins.value}`).run();
+                } else if (ins.placement === 'new_line') {
+                    editor.chain().insertContentAt(ins.endPos, `<br>${ins.value}`).run();
+                } else if (ins.placement === 'new_paragraph') {
+                    editor.chain().insertContentAt(ins.endPos, `<p>${ins.value}</p>`).run();
+                }
+            });
 
             store.setNousExtractorFindings({ ...extractorFindings, [widget.id]: newFindings });
             

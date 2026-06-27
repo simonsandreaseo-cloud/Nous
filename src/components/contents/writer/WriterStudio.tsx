@@ -36,7 +36,8 @@ import {
     PanelLeftClose,
     PanelLeft,
     PanelRightClose,
-    PanelRight
+    PanelRight,
+    History
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
 
@@ -57,6 +58,7 @@ const TranslationSidebarPanel = dynamic(() => import('./TranslationSidebarPanel'
 import PresenceAvatars from './PresenceAvatars';
 import { InventorySidebar } from './sidebars/InventorySidebar';
 import { FloatingToolbox } from './widgets/FloatingToolbox';
+import { HistoryTab } from './tabs/HistoryTab';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import NousOrb from '@/components/dashboard/NousOrb';
@@ -906,7 +908,7 @@ export default function WriterStudio() {
                         </div>
                         <div className="px-3 pt-3 pb-2 border-b border-slate-200/50 bg-white/60 backdrop-blur-xl z-10">
                             <div className="flex bg-slate-100/50 p-1 rounded-2xl shadow-inner border border-slate-200/60 overflow-x-auto no-scrollbar justify-between gap-1">
-                                {[ { id: 'history', icon: <Search size={14} />, label: 'Hist' }, { id: 'seo', icon: <Zap size={14} />, label: 'SEO' }, { id: 'media', icon: <ImagePlus size={14} />, label: 'Media' }, { id: 'tools', icon: <Wrench size={14} />, label: 'Tools' }, { id: 'translate', icon: <Languages size={14} />, label: 'I18n' }, { id: 'nous', icon: <NousLogo showText={false} className="scale-[0.6]" />, label: 'Nous' } ].map(tab => (
+                                {[ { id: 'history', icon: <History size={14} />, label: 'Hist' }, { id: 'seo', icon: <Zap size={14} />, label: 'SEO' }, { id: 'media', icon: <ImagePlus size={14} />, label: 'Media' }, { id: 'tools', icon: <Wrench size={14} />, label: 'Tools' }, { id: 'translate', icon: <Languages size={14} />, label: 'I18n' }, { id: 'nous', icon: <NousLogo showText={false} className="scale-[0.6]" />, label: 'Nous' } ].map(tab => (
                                     <button 
                                         key={tab.id} 
                                         onClick={() => setSidebarTab(tab.id as any)} 
@@ -924,7 +926,8 @@ export default function WriterStudio() {
                             </div>
                         </div>
                     <div className="flex-1 flex flex-col min-h-0 bg-slate-50/20">
-                        {activeSidebarTab === 'seo' ? <SEODataTab seoData={rawSeoData} currentContent={useWriterStore.getState().content || ''} /> : 
+                        {activeSidebarTab === 'history' ? <HistoryTab /> :
+                         activeSidebarTab === 'seo' ? <SEODataTab seoData={rawSeoData} currentContent={useWriterStore.getState().content || ''} /> : 
                           activeSidebarTab === 'media' ? <VisualPlanningBoard onRegenerate={async (id) => {
                               await regenerateImageAction({
                                   asset: { id, prompt: '...', url: '...' } as any,

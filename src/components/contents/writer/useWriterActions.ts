@@ -42,6 +42,12 @@ export function useWriterActions() {
     // Context check for hasContentAccess
     const hasAccess = activeProject ? (canTakeContents() || canEditAny() || canUseAllTools()) : true;
 
+    const getNextProcessName = useCallback((baseName: string) => {
+        const versions = store.taskVersions || [];
+        const count = versions.filter((v: any) => v.process_name?.startsWith(baseName)).length;
+        return count === 0 ? baseName : `${baseName} ${count + 1}`;
+    }, [store.taskVersions]);
+
     // --- SEO Research ---
     const handleSEO = useCallback(async () => {
         if (!store.keyword) return alert('Ingresa una palabra clave primero.');
@@ -386,6 +392,9 @@ export function useWriterActions() {
 
             store.addDebugPrompt('Refinamiento Finalizado', `SEO Post-Procesado y Extractores aplicados con éxito`, formatted.substring(0, 1000));
             
+            // Save version
+            await store.saveTaskVersion('Generación Inicial', formatted);
+            
             // --- AUTO-PATCHER ORCHESTRATION ---
             const patchers = LinkPatcherService.getPatchersForProcess(activeProject, 'writer');
             if (patchers.length > 0 && store.editor) {
@@ -537,6 +546,9 @@ export function useWriterActions() {
 
             store.addDebugPrompt('Humanización Finalizada', `Contenido humanizado con éxito`, refined.substring(0, 1000));
             
+            // Save version
+            await store.saveTaskVersion(getNextProcessName('Humanizada'), refined);
+            
             // Update humanization metadata in DB
             if (store.draftId) {
                 const { data: taskData } = await supabase
@@ -669,6 +681,9 @@ export function useWriterActions() {
 
             store.addDebugPrompt('Edición Quirúrgica Finalizada', `Contenido mejorado quirúrgicamente con éxito`, refined.substring(0, 1000));
             
+            // Save version
+            await store.saveTaskVersion(getNextProcessName('Edición Quirúrgica'), refined);
+            
         } catch (error: any) {
             console.error('[SurgicalEdit] Error:', error);
             store.setSurgicalEditStatus(`❌ Error: ${error.message}`);
@@ -704,6 +719,9 @@ export function useWriterActions() {
             } as any);
 
             store.addDebugPrompt('Refinamiento Completado', `Instrucciones aplicadas: ${store.refinementInstructions}`, styled.substring(0, 1000));
+            
+            // Save version
+            await store.saveTaskVersion(getNextProcessName('Refinada'), styled);
         } catch (e: any) {
             console.error(e);
             store.setStatus('❌ Error: ' + e.message);
@@ -789,6 +807,9 @@ export function useWriterActions() {
             } as any);
 
             store.addDebugPrompt('Limpieza Completada', `Ruido IA eliminado con éxito mediante chunks`, accumulatedHtml.substring(0, 1000));
+            
+            // Save version
+            await store.saveTaskVersion(getNextProcessName('Limpieza IA'), accumulatedHtml);
         } catch (e: any) {
             console.error(e);
             store.setStatus('❌ Error en limpieza: ' + e.message);

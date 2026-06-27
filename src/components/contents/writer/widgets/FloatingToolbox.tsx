@@ -10,7 +10,8 @@ import {
     Settings2,
     Languages,
     ChevronDown,
-    Zap
+    Zap,
+    History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
@@ -23,6 +24,7 @@ import { MediaTab } from '../MediaTab';
 import { ToolsTab } from '../ToolsTab';
 import TranslationSidebarPanel from '../TranslationSidebarPanel';
 import { CompetitorPanel } from '../CompetitorPanel';
+import { HistoryTab } from '../tabs/HistoryTab';
 
 export function FloatingToolbox() {
     const { 
@@ -42,7 +44,7 @@ export function FloatingToolbox() {
     })));
 
     const tabs = [
-        { id: 'history', label: 'Competidores', icon: Search, color: 'text-slate-500' },
+        { id: 'history', label: 'Historial', icon: History, color: 'text-slate-500' },
         { id: 'seo', label: 'Datos SEO', icon: Zap, color: 'text-emerald-500' },
         { id: 'media', label: 'Imágenes', icon: ImageIcon, color: 'text-purple-500' },
         { id: 'tools', label: 'Herramientas', icon: Settings2, color: 'text-amber-500' },
@@ -113,6 +115,8 @@ export function FloatingToolbox() {
                                     <ToolsTab />
                                 ) : activeSidebarTab === 'translate' ? (
                                     <TranslationSidebarPanel />
+                                ) : activeSidebarTab === 'history' ? (
+                                    <HistoryTab />
                                 ) : (
                                     <CompetitorPanel />
                                 )}

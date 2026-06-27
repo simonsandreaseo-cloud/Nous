@@ -15,6 +15,9 @@ export interface PersistenceActions {
     switchLanguage: (langCode: string) => Promise<void>;
     deleteVersion: (taskId: string) => Promise<void>;
     setVersionStatus: (langCode: string, taskId: string | null) => void;
+    fetchTaskVersions: (taskId: string) => Promise<void>;
+    saveTaskVersion: (processName: string, contentBody?: string) => Promise<void>;
+    restoreTaskVersion: (versionId: string) => Promise<void>;
 }
 
 export type PersistenceSlice = WriterStoreState & PersistenceActions;
@@ -400,5 +403,63 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
             setStatus('✅ Versión eliminada');
             setTimeout(() => setStatus(''), 2000);
         }
+    },
+
+    fetchTaskVersions: async (taskId: string) => {
+        const { supabase } = require('@/lib/supabase');
+        const { data, error } = await supabase
+            .from('task_versions')
+            .select('*')
+            .eq('task_id', taskId)
+            .order('created_at', { ascending: false });
+
+        if (!error && data) {
+            set({ taskVersions: data } as any);
+        }
+    },
+
+    saveTaskVersion: async (processName: string, contentBody?: string) => {
+        const { supabase } = require('@/lib/supabase');
+        const { draftId, content, fetchTaskVersions } = get() as any;
+        
+        if (!draftId) return;
+
+        const bodyToSave = contentBody !== undefined ? contentBody : content;
+
+        const { error } = await supabase.rpc('save_task_version', {
+            p_task_id: draftId,
+            p_content_body: bodyToSave,
+            p_process_name: processName
+        });
+
+        if (!error) {
+            await fetchTaskVersions(draftId);
+        } else {
+            console.error('[Persistence] Error saving task version:', error);
+        }
+    },
+
+    restoreTaskVersion: async (versionId: string) => {
+        const { supabase } = require('@/lib/supabase');
+        const { draftId, taskVersions, setContent, saveTaskVersion, setStatus } = get() as any;
+
+        if (!draftId) return;
+
+        const versionToRestore = taskVersions.find((v: any) => v.id === versionId);
+        if (!versionToRestore) return;
+
+        setStatus('Restaurando versión...');
+        
+        // Guardar estado actual antes de restaurar
+        await saveTaskVersion('Pre-Restauración');
+
+        // Aplicar contenido restaurado
+        setContent(versionToRestore.content_body);
+        
+        // Guardamos también en la base de datos principal para que no se pierda
+        await supabase.from('tasks').update({ content_body: versionToRestore.content_body }).eq('id', draftId);
+
+        setStatus('✅ Versión restaurada');
+        setTimeout(() => setStatus(''), 2000);
     },
 } as any);
