@@ -727,7 +727,15 @@ DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde l
             const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n\\n${languageInstruction}\\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA. RECUERDA: SÓLO PUEDES MODIFICAR ${editLimit} PALABRAS.`;
             
             safeStatus(`[DEBUG] Enviando Prompt. Modelo: ${modelName}, Límite editLimit: ${editLimit}`);
-            const response = await model.generateContent(prompt);
+            
+            let response;
+            try {
+                response = await model.generateContent(prompt);
+            } catch (apiError: any) {
+                safeStatus(`[DEBUG-ERROR] Falló la llamada a la API de Google/Groq: ${apiError.message}`);
+                throw apiError; // Re-lanzar para que key rotation funcione
+            }
+
             const raw = response.response.text();
             
             safeStatus(`[DEBUG] RAW RESPONSE (primeros 200 chars): ${raw.substring(0, 200)}...`);
@@ -743,9 +751,12 @@ DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde l
             }
             
             try {
-                return JSON.parse(cleaned);
-            } catch (e) {
+                const parsed = JSON.parse(cleaned);
+                safeStatus(`[DEBUG] JSON parseado correctamente con ${Object.keys(parsed).length} bloques.`);
+                return parsed;
+            } catch (e: any) {
                 console.error("[SurgicalEditor-Parser] Fallo catastrófico al parsear JSON. Raw preview:", cleaned.substring(0, 100) + "...");
+                safeStatus(`[DEBUG-ERROR] Falló parseo JSON: ${e.message}. RAW: ${cleaned.substring(0, 50)}...`);
                 throw e;
             }
         }, modelName, undefined, undefined, undefined, true, `Edición Quirúrgica de ${numBlocks} bloques`, 180000);
