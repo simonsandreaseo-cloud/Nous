@@ -202,6 +202,7 @@ class CerebrasClientCompatibility {
 
 // Module-level persistent state for key rotation
 const sessionKeys: string[] = [];
+const apiKeyPenalties = new Map<string, number>();
 
 // Helper to check if a key is roughly valid for Groq (usually starts with gsk_)
 const isGroqKey = (k: string) => k && k.trim().startsWith('gsk_');
@@ -304,6 +305,17 @@ export const executeWithKeyRotation = async <T>(
     const envKeys = process.env.NEXT_PUBLIC_NOUS_API_KEYS || process.env.NOUS_API_KEYS || "";
     console.log(`[AI-ORCHESTRATOR-DEBUG] NOUS_API_KEYS value length: ${envKeys.length}, starts with: ${envKeys.substring(0, 5)}`);
     const allKeys = envKeys ? envKeys.split(',').map(k => k.trim()).filter(isValidKey) : [];
+    
+    const now = Date.now();
+    for (const [key, penaltyExpiry] of apiKeyPenalties.entries()) {
+        if (now > penaltyExpiry) apiKeyPenalties.delete(key);
+    }
+    
+    allKeys.sort((a, b) => {
+        const penA = apiKeyPenalties.get(a) || 0;
+        const penB = apiKeyPenalties.get(b) || 0;
+        return penA - penB;
+    });
     
     // We categorize them based on prefix or just treat them as a unified pool if the user manages provider-specific keys elsewhere.
     // For now, to keep it simple and safe, we treat all keys in NOUS_API_KEYS as Google keys for the Google provider.
@@ -433,9 +445,20 @@ export const executeWithKeyRotation = async <T>(
                     if (onRotation) onRotation(apiKey.slice(-5), isQuota ? "Quota" : (isServerErr ? "Server" : "Invalid"), totalAttempts, MAX_TOTAL_ATTEMPTS);
                     
                     if (isQuota) {
+                        const isDailyQuota = errorMsg.includes('free_tier_requests') || errorMsg.includes('perday') || errorMsg.includes('daily');
+                        
+                        if (isDailyQuota) {
+                             apiKeyPenalties.set(apiKey, Date.now() + 1000 * 60 * 60 * 24); // 24 horas al fondo de la fila
+                             console.warn(`[AI-ORCHESTRATOR] ⚠️ Límite DIARIO detectado para la llave terminada en ${apiKey.slice(-5)}. Movida al final de la fila.`);
+                             quotaRetriesForCurrentKey = 0;
+                             continue; // Saltamos a la siguiente llave sin sleep
+                        }
+
+                        // Si es cuota por minuto, penalizamos levemente e intentamos sleep
+                        apiKeyPenalties.set(apiKey, Date.now() + 1000 * 60); // 1 minuto de penalización
                         if (quotaRetriesForCurrentKey < MAX_QUOTA_RETRIES_PER_KEY) {
                             quotaRetriesForCurrentKey++;
-                            console.warn(`[AI-ORCHESTRATOR] ⚠️ Cuota/Rate Limit (429) detectado. Esperando 60s antes de reintentar la misma llave (Intento ${quotaRetriesForCurrentKey}/${MAX_QUOTA_RETRIES_PER_KEY})...`);
+                            console.warn(`[AI-ORCHESTRATOR] ⚠️ Cuota/Rate Limit por minuto detectado. Esperando 60s antes de reintentar la misma llave (Intento ${quotaRetriesForCurrentKey}/${MAX_QUOTA_RETRIES_PER_KEY})...`);
                             await sleep(60000);
                             kIndex--; // Reintentamos la MISMA llave
                             continue;
