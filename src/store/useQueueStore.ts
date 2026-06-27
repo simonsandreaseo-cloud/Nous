@@ -1,6 +1,4 @@
 import { create } from 'zustand';
-import { v4 as uuidv4 } from 'uuid';
-
 export type QueueActionType = 
   | 'surgical_edit'
   | 'humanize'
@@ -54,7 +52,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     isProcessingQueue: false,
 
     enqueueTask: (type, title, executeFn, options) => {
-        const id = uuidv4();
+        const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
         const newTask: QueueTask = {
             id,
             type,

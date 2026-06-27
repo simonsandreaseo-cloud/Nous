@@ -908,7 +908,6 @@ export function EditorialCalendar() {
                         }
                     }
 
-                    }
                     });
                 }
 
