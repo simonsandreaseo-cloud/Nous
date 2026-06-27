@@ -441,7 +441,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
 
     restoreTaskVersion: async (versionId: string) => {
         const { supabase } = require('@/lib/supabase');
-        const { draftId, taskVersions, setContent, saveTaskVersion, setStatus } = get() as any;
+        const { draftId, taskVersions, setContent, saveTaskVersion, setStatus, setIsRemoteUpdate } = get() as any;
 
         if (!draftId) return;
 
@@ -455,6 +455,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
 
         // Aplicar contenido restaurado
         setContent(versionToRestore.content_body);
+        setIsRemoteUpdate(true);
         
         // Guardamos también en la base de datos principal para que no se pierda
         await supabase.from('tasks').update({ content_body: versionToRestore.content_body }).eq('id', draftId);
