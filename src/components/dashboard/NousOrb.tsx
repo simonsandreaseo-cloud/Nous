@@ -57,7 +57,7 @@ interface NousOrbProps {
     selectedCount?: number;
     viewMode?: 'planner' | 'writer';
     // Writer specific actions
-    onWriterAction?: (actionType: 'seo' | 'outline' | 'generate' | 'refine' | 'humanize') => void;
+    onWriterAction?: (actionType: 'seo' | 'outline' | 'generate' | 'refine' | 'humanize' | 'surgical_edit' | 'clean') => void;
 }
 
 // Force rebuild trigger - Version 1.0.1
@@ -80,8 +80,8 @@ export default function NousOrb({
         isConsoleOpen, setIsConsoleOpen,
         debugPrompts, clearDebugPrompts,
         strategyOutline, researchProgress: storeProgress,
-        isAnalyzingSEO, isPlanningStructure, isGenerating, isHumanizing,
-        statusMessage, humanizerStatus,
+        isAnalyzingSEO, isPlanningStructure, isGenerating, isHumanizing, isSurgicalEditing,
+        statusMessage, humanizerStatus, surgicalEditStatus,
         strategyCannibalization,
         researchTopic,
         researchPhaseId
@@ -95,8 +95,8 @@ export default function NousOrb({
 
     // Progress logic
     const effectiveProgress = viewMode === 'writer' ? (storeProgress || processingProgress) : processingProgress;
-    const effectiveIsProcessing = viewMode === 'writer' ? (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isProcessing) : isProcessing;
-    const effectiveStatus = viewMode === 'writer' ? (isHumanizing ? humanizerStatus : statusMessage || "Procesando...") : "Investigando...";
+    const effectiveIsProcessing = viewMode === 'writer' ? (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isSurgicalEditing || isProcessing) : isProcessing;
+    const effectiveStatus = viewMode === 'writer' ? (isSurgicalEditing ? surgicalEditStatus : isHumanizing ? humanizerStatus : statusMessage || "Procesando...") : "Investigando...";
 
     // Detección Inteligente de Procesos — usando STATUS (campo liviano, siempre disponible)
     // STATUS WORKFLOW: idea -> en_investigacion -> por_redactar -> por_corregir/redactado -> humanizado

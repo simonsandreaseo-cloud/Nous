@@ -377,7 +377,7 @@ export const runSEOAnalysis = async (
     const productContext = (units as any[] || []).filter((u: any) => u.category === 'product').slice(0, 30).map(p => `- ${p.title} (${p.url})`).join('\n');
     const collectionContext = (units as any[] || []).filter((u: any) => u.category === 'collection').slice(0, 15).map(c => `- ${c.title} (${c.url})`).join('\n');
 
-    let serpContext = "No External data available. Rely on internal knowledge.";
+    const serpContext = "No External data available. Rely on internal knowledge.";
 
     const schema = {
         type: Type.OBJECT,
@@ -443,7 +443,7 @@ ${FEW_SHOT_JSON}`,
   
         const response = await model.generateContent(systemPrompt + "\n\nRESULTADO JSON DIRECTO:");
         const result = response.response;
-        let json = JSON.parse(result.text() || "{}");
+        const json = JSON.parse(result.text() || "{}");
         
         if (!json.keywordIdeas) json.keywordIdeas = { shortTail: [], midTail: [] };
         if (!json.top10Urls) json.top10Urls = [];
@@ -596,7 +596,7 @@ export const runHumanizerPipeline = async (
             const prompt = `JSON DE ENTRADA CON BLOQUES:\n${JSON.stringify(textBlocks)}\n\n${languageInstruction}\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA.`;
             
             const response = await model.generateContent(prompt);
-            let raw = response.response.text();
+            const raw = response.response.text();
             
             let cleaned = raw;
             cleaned = cleaned.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -635,6 +635,133 @@ export const runHumanizerPipeline = async (
 
     const duration = (Date.now() - start) / 1000;
     console.log(`[Humanizer-Perf] Completado en ${duration}s`);
+    
+    return { html: cleanAndFormatHtml(finalHtml) };
+};
+
+export const runSurgicalEditorPipeline = async (
+    html: string,
+    config: HumanizerConfig,
+    intensity: number,
+    onStatus?: (msg: string) => void,
+    modelName: string = 'gemini-3.1-flash-lite', 
+    onChunk?: (chunkHtml: string) => void
+): Promise<{ html: string; metadata?: any }> => {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else console.log(`[SurgicalEditor-Status] ${msg}`);
+    };
+
+    if (modelName !== 'gemini-3.1-flash-lite') {
+        modelName = 'gemini-3.1-flash-lite';
+    }
+
+    safeStatus(`Iniciando edición quirúrgica estructural con Cheerio y modelo ${modelName}...`);
+    const start = Date.now();
+    
+    const $ = cheerio.load(html, { decodeEntities: false }, false);
+    const textBlocks: Record<string, string> = {};
+    let counter = 0;
+
+    const blockSelectors = 'p, li, td, th';
+    $(blockSelectors).each((_, el) => {
+        if ($(el).children(blockSelectors).length === 0) {
+            const innerHtml = $(el).html()?.trim();
+            if (innerHtml && innerHtml.replace(/<[^>]*>/g, '').trim().length > 5) {
+                const id = `block_${counter++}`;
+                textBlocks[id] = innerHtml;
+                $(el).attr('data-surgical-id', id);
+            }
+        }
+    });
+
+    const numBlocks = Object.keys(textBlocks).length;
+    if (numBlocks === 0) {
+        safeStatus(`No se encontraron bloques de texto válidos. Devolviendo original.`);
+        if (onChunk) onChunk(html);
+        return { html: cleanAndFormatHtml(html) };
+    }
+
+    // Calcular el total de palabras en todos los bloques extraídos
+    const allText = Object.values(textBlocks).map(t => t.replace(/<[^>]*>/g, '')).join(' ');
+    const wordCount = allText.split(/\\s+/).filter(w => w.length > 0).length;
+    const editLimit = Math.max(1, Math.floor(wordCount * 0.20));
+
+    safeStatus(`Se extrajeron ${numBlocks} bloques. Límite de edición: ${editLimit} palabras. Enviando al modelo...`);
+
+    try {
+        const processedBlocks = await executeHumanizerWithRetry(async (ai) => {
+            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
+--- PERSONA: EDITOR QUIRÚRGICO ---
+Actúa como un editor experto. Tu objetivo es mejorar la legibilidad, fluidez y estilo de un texto que fue previamente "humanizado" para evadir detectores de IA. El texto actual puede tener oraciones torpes o excesivamente informales, pero no queremos perder su esencia humana.
+
+--- REGLA DE PRESUPUESTO ESTRICTO (VITAL) ---
+Tienes un presupuesto de palabras estricto para modificar.
+Puedes editar, reemplazar, eliminar o crear UN MÁXIMO DE ${editLimit} PALABRAS en total para todo el texto.
+El ~80% restante del texto original DEBE PERMANECER EXACTAMENTE IGUAL.
+Usa tu presupuesto sabiamente para corregir los errores más graves de informalidad, estilo, o palabras mal usadas.
+
+--- CONTEXTO ---
+Nicho/Tópico: ${config.niche || 'N/A'}
+Público Objetivo: ${config.audience || 'N/A'}
+
+REGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):
+Te entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.
+MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).
+DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos editados. No devuelvas markdown ni otra cosa.`;
+
+            const model = ai.getGenerativeModel({ 
+                model: modelName, 
+                systemInstruction: systemInstructionStr,
+                generationConfig: {
+                    responseMimeType: 'application/json'
+                }
+            });
+            
+            const languageInstruction = config.language ? `\\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
+            
+            const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n\\n${languageInstruction}\\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA. RECUERDA: SÓLO PUEDES MODIFICAR ${editLimit} PALABRAS.`;
+            
+            const response = await model.generateContent(prompt);
+            const raw = response.response.text();
+            
+            let cleaned = raw;
+            cleaned = cleaned.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();
+            
+            const jsonStart = cleaned.indexOf('{');
+            const jsonEnd = cleaned.lastIndexOf('}');
+            
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+            }
+            
+            try {
+                return JSON.parse(cleaned);
+            } catch (e) {
+                console.error("[SurgicalEditor-Parser] Fallo catastrófico al parsear JSON. Raw preview:", cleaned.substring(0, 100) + "...");
+                throw e;
+            }
+        }, safeStatus, `Edición Quirúrgica de ${numBlocks} bloques`, modelName);
+        
+        safeStatus(`Reconstruyendo el HTML...`);
+        for (const [id, editedText] of Object.entries(processedBlocks as Record<string, string>)) {
+            const el = $(`[data-surgical-id="${id}"]`);
+            if (el.length > 0 && typeof editedText === 'string') {
+                el.html(editedText);
+            }
+        }
+
+    } catch (e: any) {
+        safeStatus(`Error durante la edición quirúrgica: ${e.message}. Devolviendo original.`);
+    }
+
+    $('[data-surgical-id]').removeAttr('data-surgical-id');
+    const finalHtml = $.html();
+    
+    if (onChunk) onChunk(finalHtml);
+
+    const duration = (Date.now() - start) / 1000;
+    console.log(`[SurgicalEditor-Perf] Completado en ${duration}s`);
     
     return { html: cleanAndFormatHtml(finalHtml) };
 };

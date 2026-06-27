@@ -20,7 +20,7 @@ interface NousAssistantMenuProps {
     viewMode?: 'planner' | 'writer';
     tasks?: Task[];
     onAction?: (actionType: string, config?: any) => void;
-    onWriterAction?: (actionType: 'seo' | 'outline' | 'generate' | 'refine' | 'humanize' | 'clean') => void;
+    onWriterAction?: (actionType: 'seo' | 'outline' | 'generate' | 'refine' | 'humanize' | 'surgical_edit' | 'clean') => void;
     isProcessing?: boolean;
     processingProgress?: number;
     selectedCount?: number;
@@ -39,8 +39,8 @@ export default function NousAssistantMenu({
     
     const { 
         strategyOutline,
-        isAnalyzingSEO, isPlanningStructure, isGenerating, isHumanizing, isRefining,
-        statusMessage, humanizerStatus,
+        isAnalyzingSEO, isPlanningStructure, isGenerating, isHumanizing, isRefining, isSurgicalEditing,
+        statusMessage, humanizerStatus, surgicalEditStatus,
         researchTopic,
         humanizerConfig,
         updateHumanizerConfig
@@ -64,15 +64,13 @@ export default function NousAssistantMenu({
         return Array.from(new Set([...baseStatuses, ...custom]));
     }, [activeTeam]);
 
-    const effectiveProgress = (viewMode === 'writer' && (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining)) 
+    const effectiveProgress = (viewMode === 'writer' && (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining || isSurgicalEditing)) 
         ? processingProgress 
         : processingProgress; // This is a simplification, the actual logic was in NousOrb
         
-    const effectiveIsProcessing = viewMode === 'writer' 
-        ? (isAnalyzingSEO || isPlanningStructure || isGenerating || isHumanizing || isRefining || isProcessing)
-        : isProcessing;
+    const effectiveIsProcessing = (viewMode === 'writer' && (isGenerating || isAnalyzingSEO || isPlanningStructure || isHumanizing || isSurgicalEditing));
         
-    const effectiveStatus = (viewMode === 'writer' && isHumanizing) ? humanizerStatus : statusMessage || "Procesando...";
+    const effectiveStatus = (viewMode === 'writer' && isHumanizing) ? humanizerStatus : (viewMode === 'writer' && isSurgicalEditing) ? surgicalEditStatus : statusMessage || "Procesando...";
 
     // STATUS WORKFLOW: idea -> en_investigacion -> por_redactar -> por_corregir/redactado -> humanizado
     const stats = useMemo(() => {
@@ -194,6 +192,14 @@ export default function NousAssistantMenu({
                                 )}
                             </AnimatePresence>
                         </div>
+
+                        <ActionButton 
+                            icon={Edit3} 
+                            label="Edición Quirúrgica" 
+                            color="violet"
+                            onClick={() => onWriterAction?.('surgical_edit')}
+                            disabled={effectiveIsProcessing}
+                        />
 
                         <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
                             <ActionButton 

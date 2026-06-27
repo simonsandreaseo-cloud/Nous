@@ -11,6 +11,8 @@ export interface UiActions {
     setAnalyzingSEO: (isAnalyzingSEO: boolean) => void;
     setPlanningStructure: (isPlanningStructure: boolean) => void;
     setHumanizing: (isHumanizing: boolean) => void;
+    setSurgicalEditing: (isSurgicalEditing: boolean) => void;
+    setSurgicalEditStatus: (status: string) => void;
     setResearching: (isResearching: boolean) => void;
     setResearchProgress: (researchProgress: number) => void;
     setResearchPhaseId: (researchPhaseId: string) => void;
@@ -48,6 +50,8 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     isAnalyzingSEO: false,
     isPlanningStructure: false,
     isHumanizing: false,
+    isSurgicalEditing: false,
+    surgicalEditStatus: '',
     isResearching: false,
     researchProgress: 0,
     researchPhaseId: '',
@@ -81,6 +85,8 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     setAnalyzingSEO: (isAnalyzingSEO) => set({ isAnalyzingSEO }),
     setPlanningStructure: (isPlanningStructure) => set({ isPlanningStructure }),
     setHumanizing: (isHumanizing) => set({ isHumanizing }),
+    setSurgicalEditing: (isSurgicalEditing) => set({ isSurgicalEditing }),
+    setSurgicalEditStatus: (surgicalEditStatus) => set({ surgicalEditStatus }),
     setResearching: (isResearching) => set({ isResearching }),
     setResearchProgress: (researchProgress) => set({ researchProgress }),
     setResearchPhaseId: (researchPhaseId) => set({ researchPhaseId }),

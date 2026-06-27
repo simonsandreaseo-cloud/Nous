@@ -21,7 +21,7 @@ import { ResearchOrchestrator } from '@/lib/services/writer/research';
 import { OutlineEngine } from '@/lib/services/writer/research/outline-engine';
 import { LinkPatcherService } from '@/lib/services/link-patcher';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
-import { streamGenerate, streamSEOPostProcess, streamHumanize, streamFinalCleanup } from '@/lib/services/writer/ai-streaming';
+import { streamGenerate, streamSEOPostProcess, streamHumanize, streamSurgicalEdit, streamFinalCleanup } from '@/lib/services/writer/ai-streaming';
 
 import { AI_CONFIG } from '@/lib/ai/config';
 import { useWriterStore } from '@/store/useWriterStore';
@@ -569,6 +569,120 @@ export function useWriterActions() {
     }, [store, hasAccess]);
 
     // --- Refine ---
+    const handleSurgicalEdit = useCallback(async () => {
+        console.log("[DEBUG-SurgicalEdit] Action triggered");
+        if (!hasAccess) {
+            console.log("[DEBUG-SurgicalEdit] Access denied");
+            return alert('No tienes permisos.');
+        }
+        if (!store.content) {
+            console.log("[DEBUG-SurgicalEdit] No content found in store. Current content length:", store.content?.length);
+            return;
+        }
+        
+        console.log("[DEBUG-SurgicalEdit] Starting pipeline for content length:", store.content.length);
+        store.setSurgicalEditing(true);
+        store.setSurgicalEditStatus('Iniciando edición quirúrgica...');
+        
+        try {
+            const config: any = {
+                projectName: store.projectName, 
+                niche: store.detectedNiche || store.humanizerConfig.niche || 'General', 
+                audience: store.humanizerConfig.audience || 'Público General',
+                language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
+            };
+
+            const originalContent = store.content;
+
+            const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
+                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
+                const chunks = [];
+                for (let i = 0; i < elements.length; i += chunkSize) {
+                    const chunk = elements.slice(i, i + chunkSize).join('').trim();
+                    if (chunk) chunks.push(chunk);
+                }
+                return chunks;
+            };
+
+            const rawChunks = chunkHtml(originalContent, 4);
+            console.log(`[DEBUG-SurgicalEdit] Documento dividido en ${rawChunks.length} chunks.`);
+            store.setSurgicalEditStatus(`Documento dividido en ${rawChunks.length} partes...`);
+            
+            // In-place chunking: envolver todos los chunks inicialmente
+            let currentDocumentChunks = rawChunks.map((chunk, index) => 
+                `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
+            );
+            
+            // Publicar el documento intacto pero marcado en el store
+            store.setContent(currentDocumentChunks.join('\n'));
+
+            for (let i = 0; i < rawChunks.length; i++) {
+                let success = false;
+                let attempts = 0;
+                const MAX_ATTEMPTS = 3;
+
+                // Marcar el chunk actual como "processing"
+                currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
+                store.setContent(currentDocumentChunks.join('\n'));
+
+                while (!success && attempts < MAX_ATTEMPTS) {
+                    try {
+                        store.setSurgicalEditStatus(`Edición Quirúrgica Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
+                        
+                        const chunkResult = await streamSurgicalEdit(
+                            rawChunks[i],
+                            config,
+                            50,
+                            () => {}, // Desactivamos el streaming parcial para mantener el DOM estable
+                            (msg) => console.log(`[Chunk ${i+1}] ${msg}`)
+                        );
+                        
+                        // Reemplazar el chunk original con el HTML finalizado
+                        currentDocumentChunks[i] = chunkResult.html;
+                        store.setContent(currentDocumentChunks.join('\n'));
+                        success = true;
+                    } catch (err: any) {
+                        attempts++;
+                        console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
+                        
+                        if (attempts >= MAX_ATTEMPTS) {
+                            throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                        }
+                        
+                        store.setSurgicalEditStatus(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
+                        await new Promise(resolve => setTimeout(resolve, 60000));
+                    }
+                }
+            }
+
+            const finalResult = { html: currentDocumentChunks.join('\n') };
+
+            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+
+            const refined = refineStyling(finalResult.html);
+            
+            // Batch updates
+            useWriterStore.setState({
+                content: refined,
+                surgicalEditStatus: '✅ ¡Edición Quirúrgica completada!'
+            } as any);
+
+            store.addDebugPrompt('Edición Quirúrgica Finalizada', `Contenido mejorado quirúrgicamente con éxito`, refined.substring(0, 1000));
+            
+        } catch (error: any) {
+            console.error('[SurgicalEdit] Error:', error);
+            store.setSurgicalEditStatus(`❌ Error: ${error.message}`);
+            store.addDebugPrompt('Error en Edición Quirúrgica', 'Fallo general', error.message);
+        } finally {
+            store.setSurgicalEditing(false);
+            setTimeout(() => {
+                store.setSurgicalEditStatus('');
+            }, 5000);
+            
+            console.log("[DEBUG-SurgicalEdit] Process finished");
+        }
+    }, [hasAccess, store, activeProject, refineStyling]);
+
     const handleRefine = useCallback(async () => {
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.content || !store.refinementInstructions) return;
@@ -688,6 +802,7 @@ export function useWriterActions() {
         handleRegenerateOutline,
         handleGenerate,
         handleHumanize,
+        handleSurgicalEdit,
         handleRefine,
         handleClean,
         isLocalConnected,

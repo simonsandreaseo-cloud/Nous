@@ -50,12 +50,14 @@ export interface WriterStoreState {
     isAnalyzingSEO: boolean;
     isPlanningStructure: boolean;
     isHumanizing: boolean;
+    isSurgicalEditing: boolean;
     isExporting: boolean;
     isRefining: boolean;
     hasGenerated: boolean;
     hasHumanized: boolean;
     lastSaved: Date | null;
     statusMessage: string;
+    surgicalEditStatus: string;
     downloadProgress: number | null;
     isConsoleOpen: boolean;
     debugPrompts: DebugPrompt[];
