@@ -231,11 +231,13 @@ export default function NousAssistantMenu({
                     <div className="h-2" />
                     <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 px-2 block">Acciones Inteligentes</label>
                     
-                    <div className="bg-white/50 rounded-[24px] p-2 border border-slate-100/50 space-y-2 mt-2">
-                        <div className="px-2 pt-1 pb-1">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-900 leading-none">Plan de Trabajo Múltiple</p>
-                            <p className="text-[9px] text-slate-500 mt-1 leading-snug">Selecciona las fases a ejecutar para los {effectiveSelectedCount > 0 ? effectiveSelectedCount : (stats.ideas + stats.needOutline + stats.needDraft + stats.needHuman)} artículos detectados.</p>
+                    <div className="bg-white/40 rounded-[20px] p-3 border border-slate-100/50 mt-2">
+                        <div className="mb-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-800 leading-none">Flujo de Trabajo</p>
+                            <p className="text-[9px] text-slate-500 mt-1.5 leading-snug">Se procesarán {effectiveSelectedCount > 0 ? effectiveSelectedCount : (stats.ideas + stats.needOutline + stats.needDraft + stats.needHuman)} artículos.</p>
                         </div>
+                        
+                        <div className="flex flex-col">
                         
                         <PipelineToggle 
                             icon={Search}
@@ -277,15 +279,17 @@ export default function NousAssistantMenu({
                             color="purple"
                         />
 
-                        <PipelineToggle 
-                            icon={Sparkles}
-                            title="5. Limpieza Inteligente"
-                            desc="Eliminar prefacios, conclusiones robóticas y ruido de IA del HTML."
-                            active={pipelineClean}
-                            onToggle={() => setPipelineClean(!pipelineClean)}
-                            count={effectiveSelectedCount > 0 ? effectiveSelectedCount : stats.needHuman}
-                            color="indigo"
-                        />
+                        {i18nLanguages.length > 0 && (
+                            <PipelineToggle 
+                                icon={Sparkles}
+                                title="5. Limpieza Inteligente"
+                                desc="Eliminar prefacios, conclusiones robóticas y ruido de IA del HTML."
+                                active={pipelineClean}
+                                onToggle={() => setPipelineClean(!pipelineClean)}
+                                count={effectiveSelectedCount > 0 ? effectiveSelectedCount : stats.needHuman}
+                                color="indigo"
+                            />
+                        )}
 
                         {i18nLanguages.length > 0 && (
                             <PipelineToggle 
@@ -296,16 +300,27 @@ export default function NousAssistantMenu({
                                 onToggle={() => setPipelineTranslate(!pipelineTranslate)}
                                 count={effectiveSelectedCount > 0 ? (effectiveSelectedCount * i18nLanguages.length) : ((stats.ideas + stats.needOutline + stats.needDraft + stats.needHuman) * i18nLanguages.length)}
                                 color="purple"
+                                isLast={true}
                             />
                         )}
+                        {i18nLanguages.length === 0 && (
+                            <PipelineToggle 
+                                icon={Sparkles}
+                                title="5. Limpieza Inteligente"
+                                desc="Eliminar prefacios, conclusiones robóticas y ruido de IA del HTML."
+                                active={pipelineClean}
+                                onToggle={() => setPipelineClean(!pipelineClean)}
+                                count={effectiveSelectedCount > 0 ? effectiveSelectedCount : stats.needHuman}
+                                color="indigo"
+                                isLast={true}
+                            />
+                        )}
+                        
+                        </div>
 
-                        <div className="p-3 bg-slate-100/50 rounded-2xl border border-slate-200/50 mt-3">
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle2 size={12} className="text-slate-400" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Estatus Final</span>
-                                </div>
-                                <span className="text-[8px] uppercase tracking-widest text-slate-400 font-bold">Post-proceso</span>
+                        <div className="pt-3 mt-1 border-t border-slate-100/60">
+                            <div className="flex items-center justify-between mb-2 px-1">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Estatus Final</span>
                             </div>
                             <div className="relative">
                                 <select 
@@ -369,22 +384,26 @@ export default function NousAssistantMenu({
     );
 }
 
-function PipelineToggle({ icon: Icon, title, desc, active, onToggle, count, color }: any) {
-    const colors: Record<string, string> = {
-        indigo: "bg-indigo-50 text-indigo-600 border-indigo-200 ring-indigo-500/30",
-        purple: "bg-purple-50 text-purple-600 border-purple-200 ring-purple-500/30",
-        rose: "bg-rose-50 text-rose-600 border-rose-200 ring-rose-500/30",
-        emerald: "bg-emerald-50 text-emerald-600 border-emerald-200 ring-emerald-500/30",
-        slate: "bg-slate-50 text-slate-600 border-slate-200 ring-slate-500/30"
+function PipelineToggle({ icon: Icon, title, desc, active, onToggle, count, color, isLast = false }: any) {
+    const textColors: Record<string, string> = {
+        indigo: "text-indigo-600",
+        purple: "text-purple-600",
+        rose: "text-rose-600",
+        emerald: "text-emerald-600",
+        slate: "text-slate-600"
+    };
+
+    const bgColors: Record<string, string> = {
+        indigo: "bg-indigo-500",
+        purple: "bg-purple-500",
+        rose: "bg-rose-500",
+        emerald: "bg-emerald-500",
+        slate: "bg-slate-500"
     };
 
     return (
-        <label className={cn(
-            "flex items-start gap-3 p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden",
-            active ? colors[color].split(' ')[0] + " " + colors[color].split(' ')[2] : "bg-white border-slate-100 hover:bg-slate-50/80",
-            active && "ring-2 " + colors[color].split(' ')[3]
-        )}>
-            <div className="flex items-center pt-0.5 z-10">
+        <label className="flex items-stretch gap-3 cursor-pointer group relative px-1">
+            <div className="flex flex-col items-center pt-0.5">
                 <input 
                     type="checkbox" 
                     checked={active} 
@@ -392,31 +411,35 @@ function PipelineToggle({ icon: Icon, title, desc, active, onToggle, count, colo
                     className="hidden" 
                 />
                 <div className={cn(
-                    "w-5 h-5 rounded-[6px] flex items-center justify-center border transition-all shadow-sm",
-                    active ? "bg-indigo-500 border-indigo-500" : "bg-white border-slate-300"
+                    "w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all z-10",
+                    active ? bgColors[color] + " shadow-sm" : "bg-white border-2 border-slate-200 group-hover:border-slate-300"
                 )}>
-                    {active && <CheckCircle2 size={12} className="text-white" />}
+                    {active && <CheckCircle2 size={8} className="text-white" />}
                 </div>
+                {!isLast && (
+                    <div className={cn(
+                        "w-[2px] h-full mt-1 rounded-full",
+                        active ? bgColors[color] + " opacity-20" : "bg-slate-100"
+                    )} />
+                )}
             </div>
             
-            <div className="flex-1 min-w-0 z-10">
-                <div className="flex items-center gap-2 mb-1">
-                    <Icon size={12} className={active ? colors[color].split(' ')[1] : "text-slate-400"} />
-                    <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", active ? colors[color].split(' ')[1] : "text-slate-600")}>
-                        {title}
-                    </span>
+            <div className="flex-1 pb-4 pt-[1px]">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Icon size={11} className={active ? textColors[color] : "text-slate-400"} />
+                        <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none transition-colors", active ? textColors[color] : "text-slate-600 group-hover:text-slate-700")}>
+                            {title}
+                        </span>
+                    </div>
+                    {count > 0 && (
+                        <div className={cn("text-[9px] font-black tabular-nums transition-colors", active ? textColors[color] : "text-slate-400")}>
+                            {count}
+                        </div>
+                    )}
                 </div>
-                <p className="text-[9px] text-slate-500 leading-[1.4] pr-4">{desc}</p>
+                <p className={cn("text-[9px] mt-1.5 leading-[1.4] pr-2 transition-colors", active ? "text-slate-500" : "text-slate-400/80")}>{desc}</p>
             </div>
-
-            {count > 0 && (
-                <div className={cn(
-                    "absolute top-3 right-3 text-[9px] font-black px-1.5 py-0.5 rounded-md tabular-nums border z-10 transition-colors",
-                    active ? "bg-white/80 border-transparent text-indigo-700 shadow-sm" : "bg-slate-100 border-slate-200 text-slate-500"
-                )}>
-                    {count}
-                </div>
-            )}
         </label>
     );
 }
