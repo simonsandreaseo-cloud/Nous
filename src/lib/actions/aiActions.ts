@@ -684,13 +684,13 @@ export const runSurgicalEditorPipeline = async (
 
     // Calcular el total de palabras en todos los bloques extraídos
     const allText = Object.values(textBlocks).map(t => t.replace(/<[^>]*>/g, '')).join(' ');
-    const wordCount = allText.split(/\\s+/).filter(w => w.length > 0).length;
+    const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
     const editLimit = Math.max(1, Math.floor(wordCount * 0.20));
 
     safeStatus(`Se extrajeron ${numBlocks} bloques. Límite de edición: ${editLimit} palabras. Enviando al modelo...`);
 
     try {
-        const processedBlocks = await executeHumanizerWithRetry(async (ai) => {
+        const processedBlocks = await libExecuteWithKeyRotation(async (ai) => {
             const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
 --- PERSONA: EDITOR QUIRÚRGICO ---
 Actúa como un editor experto. Tu objetivo es mejorar la legibilidad, fluidez y estilo de un texto que fue previamente "humanizado" para evadir detectores de IA. El texto actual puede tener oraciones torpes o excesivamente informales, pero no queremos perder su esencia humana.
@@ -741,7 +741,7 @@ DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde l
                 console.error("[SurgicalEditor-Parser] Fallo catastrófico al parsear JSON. Raw preview:", cleaned.substring(0, 100) + "...");
                 throw e;
             }
-        }, safeStatus, `Edición Quirúrgica de ${numBlocks} bloques`, modelName);
+        }, modelName, undefined, undefined, undefined, true, `Edición Quirúrgica de ${numBlocks} bloques`, 180000);
         
         safeStatus(`Reconstruyendo el HTML...`);
         for (const [id, editedText] of Object.entries(processedBlocks as Record<string, string>)) {
