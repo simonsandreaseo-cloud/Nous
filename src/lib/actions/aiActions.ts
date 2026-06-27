@@ -644,7 +644,7 @@ export const runSurgicalEditorPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus?: (msg: string) => void,
-    modelName: string = 'gemini-3.1-flash-lite', 
+    modelName: string = 'gemini-3.1-flash-lite-preview', 
     onChunk?: (chunkHtml: string) => void
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
@@ -652,8 +652,8 @@ export const runSurgicalEditorPipeline = async (
         else console.log(`[SurgicalEditor-Status] ${msg}`);
     };
 
-    if (modelName !== 'gemini-3.1-flash-lite') {
-        modelName = 'gemini-3.1-flash-lite';
+    if (modelName !== 'gemini-3.1-flash-lite-preview') {
+        modelName = 'gemini-3.1-flash-lite-preview';
     }
 
     safeStatus(`Iniciando edición quirúrgica estructural con Cheerio y modelo ${modelName}...`);
@@ -682,33 +682,28 @@ export const runSurgicalEditorPipeline = async (
         return { html: cleanAndFormatHtml(html) };
     }
 
-    // Calcular el total de palabras en todos los bloques extraídos
-    const allText = Object.values(textBlocks).map(t => t.replace(/<[^>]*>/g, '')).join(' ');
-    const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
-    const editLimit = Math.max(1, Math.floor(wordCount * 0.20));
+    let totalWords = 0;
+    Object.values(textBlocks).forEach(text => {
+        totalWords += (text.match(/\s+/g) || []).length + 1;
+    });
+    const editLimit = Math.max(10, Math.floor(totalWords * (intensity / 100)));
 
-    safeStatus(`Se extrajeron ${numBlocks} bloques. Límite de edición: ${editLimit} palabras. Enviando al modelo...`);
+    safeStatus(`Se extrajeron ${numBlocks} bloques. (Limit recomendado: ${editLimit} palabras). Enviando al modelo...`);
 
     try {
         const processedBlocks = await libExecuteWithKeyRotation(async (ai) => {
-            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
---- PERSONA: EDITOR QUIRÚRGICO ---
-Actúa como un editor experto. Tu objetivo es mejorar la legibilidad, fluidez y estilo de un texto que fue previamente "humanizado" para evadir detectores de IA. El texto actual puede tener oraciones torpes o excesivamente informales, pero no queremos perder su esencia humana.
+            const systemInstructionStr = `--- PERSONA: EDITOR QUIRÚRGICO ---
+Actúa como un editor experto. Tu objetivo es mejorar la legibilidad y estilo de un texto que fue previamente "humanizado".
 
---- REGLA DE PRESUPUESTO ESTRICTO (VITAL) ---
-Tienes un presupuesto de palabras estricto para modificar.
-Puedes editar, reemplazar, eliminar o crear UN MÁXIMO DE ${editLimit} PALABRAS en total para todo el texto.
-El ~80% restante del texto original DEBE PERMANECER EXACTAMENTE IGUAL.
-Usa tu presupuesto sabiamente para corregir los errores más graves de informalidad, estilo, o palabras mal usadas.
-
---- CONTEXTO ---
-Nicho/Tópico: ${config.niche || 'N/A'}
-Público Objetivo: ${config.audience || 'N/A'}
+--- REGLA DE INTERVENCIÓN MÍNIMA (VITAL) ---
+NO reescribas el texto completo. Tu tarea es hacer una "edición quirúrgica".
+Busca únicamente las frases excesivamente informales, redundantes o torpes y mejóralas.
+Conserva la gran mayoría del texto original intacto. Si un párrafo ya suena bien, déjalo tal cual.
 
 REGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):
 Te entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.
 MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).
-DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos editados. No devuelvas markdown ni otra cosa.`;
+DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta.`;
 
             const model = ai.getGenerativeModel({ 
                 model: modelName, 
@@ -718,7 +713,7 @@ DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde l
                 }
             });
             
-            const languageInstruction = config.language ? `\\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
+            const languageInstruction = config.language ? `\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
             
             const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n\\n${languageInstruction}\\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA. RECUERDA: SÓLO PUEDES MODIFICAR ${editLimit} PALABRAS.`;
             
