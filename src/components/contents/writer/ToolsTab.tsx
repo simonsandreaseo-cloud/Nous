@@ -242,6 +242,26 @@ export function ToolsTab() {
         setTimeout(() => setLastCopied(null), 2000);
     };
 
+    const handleCopyRichText = async (html: string, text: string) => {
+        if (!document.hasFocus()) {
+            store.setStatus("⚠️ Enfoca la ventana para copiar al portapapeles.");
+            return;
+        }
+        try {
+            const clipboardItem = new ClipboardItem({
+                'text/html': new Blob([html], { type: 'text/html' }),
+                'text/plain': new Blob([text], { type: 'text/plain' })
+            });
+            await navigator.clipboard.write([clipboardItem]);
+            setLastCopied(text); // Guardamos text como identificador
+            setTimeout(() => setLastCopied(null), 2000);
+        } catch (error) {
+            console.error("Error al copiar al portapapeles:", error);
+            // Fallback en caso de error
+            handleCopyValue(text);
+        }
+    };
+
     return (
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 pt-2 pb-24">
             <div className="space-y-4">
@@ -411,8 +431,8 @@ export function ToolsTab() {
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
                                                                     <button 
-                                                                        onClick={() => handleCopyValue(chunk.text)}
-                                                                        title="Copiar Texto Plano"
+                                                                        onClick={() => handleCopyRichText(chunk.html, chunk.text)}
+                                                                        title="Copiar Contenido"
                                                                         className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
                                                                     >
                                                                         {lastCopied === chunk.text ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
