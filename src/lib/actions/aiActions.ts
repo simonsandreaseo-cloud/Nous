@@ -747,16 +747,21 @@ ${SURGICAL_EXAMPLE}`;
             safeStatus(`[DEBUG] Enviando Prompt. Modelo: ${modelName}, Límite editLimit: ${editLimit}`);
             
             let response;
+            const startTime = Date.now();
             try {
                 response = await model.generateContent(prompt);
             } catch (apiError: any) {
-                safeStatus(`[DEBUG-ERROR] Falló la llamada a la API de Google/Groq: ${apiError.message}`);
+                const duration = Date.now() - startTime;
+                safeStatus(`[DEBUG-ERROR] Falló la llamada a la API tras ${duration}ms: ${apiError.message}`);
+                console.error("[SurgicalEditor-API Error]", apiError);
                 throw apiError; // Re-lanzar para que key rotation funcione
             }
 
+            const duration = Date.now() - startTime;
             const raw = response.response.text();
             
-            safeStatus(`[DEBUG] RAW RESPONSE (primeros 200 chars): ${raw.substring(0, 200)}...`);
+            safeStatus(`[DEBUG] Respuesta recibida en ${duration}ms. Longitud: ${raw.length} chars.`);
+            console.log(`\n\n=== [DEBUG] FULL RAW RESPONSE ===\n${raw}\n=================================\n\n`);
             
             let cleaned = raw;
             cleaned = cleaned.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();
@@ -780,12 +785,29 @@ ${SURGICAL_EXAMPLE}`;
         }, modelName, undefined, undefined, undefined, true, `Edición Quirúrgica de ${numBlocks} bloques`, 180000);
         
         safeStatus(`Reconstruyendo el HTML...`);
+        let modifiedBlocksCount = 0;
+        let identicalBlocksCount = 0;
+
         for (const [id, editedText] of Object.entries(processedBlocks as Record<string, string>)) {
             const el = $(`[data-surgical-id="${id}"]`);
             if (el.length > 0 && typeof editedText === 'string') {
+                const originalText = el.html() || '';
+                
+                // Check if AI actually modified the text
+                const isIdentical = originalText.trim() === editedText.trim();
+                if (isIdentical) {
+                    identicalBlocksCount++;
+                    console.warn(`[DEBUG-CHECK] El bloque ${id} fue devuelto EXACTAMENTE IGUAL por la IA. (Fallo de Prompt)`);
+                } else {
+                    modifiedBlocksCount++;
+                    console.log(`[DEBUG-CHECK] El bloque ${id} fue MODIFICADO correctamente.`);
+                }
+
                 el.html(editedText);
             }
         }
+        
+        safeStatus(`[DEBUG] Resumen de validación: ${modifiedBlocksCount} modificados, ${identicalBlocksCount} idénticos.`);
 
     } catch (e: any) {
         safeStatus(`Error durante la edición quirúrgica: ${e.message}. Devolviendo original.`);
