@@ -178,6 +178,9 @@ export function useWriterActions() {
         if (!store.strategyH1 && !store.keyword) return alert('Necesitas un H1 o keyword objetivo.');
         
         store.setGenerating(true);
+        if (store.content?.trim().length > 0) {
+            await store.saveTaskVersion(`Pre-Generación`, store.content);
+        }
         store.setContent('');
         store.setStatus('Redactando artículo completo…');
         try {
@@ -454,6 +457,7 @@ export function useWriterActions() {
         const unifiedLinks = Array.from(uniqueLinksMap.values());
 
         try {
+            await store.saveTaskVersion(`Pre-Humanización`, store.content);
             const config: any = {
                 projectName: store.projectName, 
                 niche: store.detectedNiche || store.humanizerConfig.niche || 'General', 
@@ -597,6 +601,8 @@ export function useWriterActions() {
         store.setSurgicalEditStatus('Iniciando edición quirúrgica...');
         
         try {
+            await store.saveTaskVersion(`Pre-Edición Quirúrgica`, store.content);
+
             const config: any = {
                 projectName: store.projectName, 
                 niche: store.detectedNiche || store.humanizerConfig.niche || 'General', 
@@ -740,6 +746,7 @@ export function useWriterActions() {
         
         try {
             const originalContent = store.content;
+            await store.saveTaskVersion(`Pre-Limpieza`, originalContent);
             
             const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
                 const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
