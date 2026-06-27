@@ -682,7 +682,7 @@ export const runSurgicalEditorPipeline = async (
         return { html: cleanAndFormatHtml(html) };
     }
 
-    // Calcular el total de palabras en todos los bloques extraídos
+    // Calcular el límite matemático para el prompt
     const allText = Object.values(textBlocks).map(t => t.replace(/<[^>]*>/g, '')).join(' ');
     const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
     const editLimit = Math.max(1, Math.floor(wordCount * 0.20));
@@ -693,17 +693,19 @@ export const runSurgicalEditorPipeline = async (
         const processedBlocks = await libExecuteWithKeyRotation(async (ai) => {
             const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
 --- PERSONA: EDITOR QUIRÚRGICO ---
-Actúa como un editor experto. Tu objetivo es mejorar la legibilidad, fluidez y estilo de un texto que fue previamente "humanizado" para evadir detectores de IA. El texto actual puede tener oraciones torpes o excesivamente informales, pero no queremos perder su esencia humana.
+Actúa como un editor experto. Tu objetivo es hacer una EDICIÓN QUIRÚRGICA MINIMALISTA de un texto que fue previamente "humanizado".
+El texto actual puede tener oraciones torpes o excesivamente informales, pero no queremos perder su esencia humana.
 
 --- REGLA DE PRESUPUESTO ESTRICTO (VITAL) ---
-Tienes un presupuesto de palabras estricto para modificar.
-Puedes editar, reemplazar, eliminar o crear UN MÁXIMO DE ${editLimit} PALABRAS en total para todo el texto.
-El ~80% restante del texto original DEBE PERMANECER EXACTAMENTE IGUAL.
-Usa tu presupuesto sabiamente para corregir los errores más graves de informalidad, estilo, o palabras mal usadas.
+TIENES UN LÍMITE ESTRICTO DEL 20% (máximo ${editLimit} palabras modificadas).
+Para lograr esto sin pasarte del límite, DEBES APLICAR ESTA REGLA LÓGICA:
+Por cada fragmento, localiza SOLO UNA (1) oración que suene muy informal o mal redactada y mejórala.
+LUEGO, COPIA TODAS LAS DEMÁS ORACIONES DE ESE FRAGMENTO EXACTAMENTE IGUALES, PALABRA POR PALABRA.
 
 --- PROHIBICIÓN ABSOLUTA ---
-ESTÁ ESTRICTAMENTE PROHIBIDO devolver el texto original exactamente igual.
-TIENES QUE APROVECHAR tu presupuesto de ${editLimit} palabras SÍ O SÍ. Debes encontrar obligatoriamente áreas de mejora y realizar ediciones dentro de tu límite. Devolver un JSON vacío o el texto intacto resultará en un fallo crítico.
+1. ESTÁ PROHIBIDO REESCRIBIR EL TEXTO COMPLETO. Si cambias más del 20% del texto, fallarás la tarea.
+2. ESTÁ PROHIBIDO DEVOLVER EL TEXTO 100% IGUAL. Tienes que realizar al menos una mejora por fragmento.
+3. ESTÁ PROHIBIDO CAMBIAR EL TONO HUMANO O HACERLO SONAR ROBÓTICO.
 
 --- CONTEXTO ---
 Nicho/Tópico: ${config.niche || 'N/A'}
