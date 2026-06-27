@@ -49,7 +49,7 @@ const StepIcon = ({ active, done, icon: Icon, label }: any) => (
 
 export default function WriterEditor() {
     const { 
-        content, setContent, isGenerating, isHumanizing, isRefining, editorTab,
+        content, setContent, isGenerating, isHumanizing, isSurgicalEditing, isRefining, editorTab,
         strategyOutline, setEditor,
         statusMessage, linkedTaskId, isRemoteUpdate,
         setWordCountReal, draftId, currentLanguage, contentVersions
@@ -58,6 +58,7 @@ export default function WriterEditor() {
         setContent: state.setContent,
         isGenerating: state.isGenerating,
         isHumanizing: state.isHumanizing,
+        isSurgicalEditing: state.isSurgicalEditing,
         isRefining: state.isRefining,
         editorTab: state.editorTab,
         strategyOutline: state.strategyOutline,
@@ -340,32 +341,26 @@ export default function WriterEditor() {
         const currentHtml = editor.getHTML();
         if (content !== currentHtml) {
             // Solo actualizamos el editor si:
-            // 1. Estamos generando (streaming IA) o humanizando/refinando
+            // 1. Estamos generando (streaming IA) o humanizando/refinando/surgical
             // 2. Es una actualización remota (colaboración o comando forzado)
             // 3. El editor está vacío (caso carga inicial demorada)
             // 4. Estamos en modo código (el textarea text es la fuente de verdad y Tiptap está background)
             const isEmpty = currentHtml === '<p></p>' || currentHtml === '';
 
-            if (isGenerating || isHumanizing || isRefining || isRemoteUpdate || isEmpty || editorTab === 'code') {
+            if (isGenerating || isHumanizing || isSurgicalEditing || isRefining || isRemoteUpdate || isEmpty || editorTab === 'code') {
                const { from, to } = editor.state.selection;
-               editor.commands.setContent(content, { emitUpdate: false });
-
-               // Restore selection if focused to avoid cursor jump
-               if (editor.isFocused && !isEmpty) {
-                   try {
-                       editor.commands.setTextSelection({ from, to });
-                   } catch (e) {
-                       // Ignore selection errors on major content replaces
-                   }
+               editor.commands.setContent(content, false, { preserveWhitespace: 'full' });
+               try {
+                   editor.commands.setTextSelection({ from, to });
+               } catch (e) {
+                   editor.commands.setTextSelection(editor.state.doc.content.size);
                }
-
-               // Reset remote update flag if it was processed
                if (isRemoteUpdate) {
                    useWriterStore.getState().setIsRemoteUpdate(false);
                }
             }
         }
-    }, [content, editor, isGenerating, isHumanizing, isRefining, isRemoteUpdate, editorTab]);
+    }, [content, editor, isGenerating, isHumanizing, isSurgicalEditing, isRefining, isRemoteUpdate, editorTab]);
 
     if (!editor) return null;
 
