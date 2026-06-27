@@ -61,6 +61,20 @@ Salida Esperada:
 
 const HTML_RULE_INTERNAL = "ERES UN REDACTOR HUMANO. REGLA CRÍTICA: NO RESUMAS. NO OMITAS NADA. El bloque de salida debe tener el mismo número de elementos que la entrada.";
 
+const SURGICAL_EXAMPLE = `
+<<<EJEMPLO_EDICION_QUIRURGICA_JSON>>>
+Entrada:
+{
+  "block_0": "Si te quieres ver así como bohemio ahora que llega el verano, pues puedes mezclar las cosas que saca Etnia Barcelona, que tienen ese rollo mediterráneo, y luego lo juntas con lo que hace Chloé en París."
+}
+
+Salida Esperada (Nota cómo las oraciones mantienen su estructura, solo cambian un par de palabras por oración):
+{
+  "block_0": "Si deseas lucir más bohemio ahora que llega el verano, puedes mezclar las piezas que lanza Etnia Barcelona, que tienen ese aire mediterráneo, y luego lo combinas con lo que crea Chloé en París."
+}
+<<<FIN_EJEMPLO>>>
+`;
+
 
 const cleanAndFormatHtml = (html: string) => {
     return html.trim();
@@ -715,7 +729,8 @@ Público Objetivo: ${config.audience || 'N/A'}
 REGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):
 Te entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.
 MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).
-DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos editados. No devuelvas markdown ni otra cosa.`;
+DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos editados. No devuelvas markdown ni otra cosa.
+${SURGICAL_EXAMPLE}`;
 
             const model = ai.getGenerativeModel({ 
                 model: modelName, 
