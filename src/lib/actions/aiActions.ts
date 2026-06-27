@@ -699,13 +699,13 @@ El texto actual puede tener oraciones torpes o excesivamente informales, pero no
 --- REGLA DE PRESUPUESTO ESTRICTO (VITAL) ---
 TIENES UN LÍMITE ESTRICTO DEL 20% (máximo ${editLimit} palabras modificadas).
 Para lograr esto, DEBES APLICAR ESTA REGLA LÓGICA DE EDICIÓN:
-NO REESCRIBAS ORACIONES COMPLETAS. En su lugar, haz MICRO-EDICIONES a lo largo de todo el fragmento.
-Cambia una palabra por un sinónimo más elegante, elimina una palabra redundante, o arregla un conector torpe.
+Haz MICRO-EDICIONES distribuidas a lo largo de TODO el fragmento.
+OBLIGATORIO: Debes hacer AL MENOS UN (1) cambio pequeño en CADA ORACIÓN del fragmento (cambiar una palabra por un sinónimo, eliminar una muletilla, arreglar un conector).
 Mantén la estructura original de todas las oraciones intacta, solo "pule" palabras individuales.
 
 --- PROHIBICIÓN ABSOLUTA ---
-1. ESTÁ PROHIBIDO REESCRIBIR ORACIONES COMPLETAS. Si cambias la estructura de las frases, fallarás la tarea. Solo puedes hacer cambios a nivel de palabra (micro-ediciones).
-2. ESTÁ PROHIBIDO DEVOLVER EL TEXTO 100% IGUAL. Tienes que realizar pequeños pulidos en el fragmento.
+1. ESTÁ PROHIBIDO REESCRIBIR ORACIONES COMPLETAS. Si cambias la estructura estructural de las frases, fallarás la tarea. Solo puedes hacer cambios a nivel de palabra.
+2. ESTÁ PROHIBIDO DEVOLVER EL TEXTO 100% IGUAL. No puedes dejar ninguna oración exactamente igual a la original. Tienes que pulir cada una de ellas.
 3. ESTÁ PROHIBIDO CAMBIAR EL TONO HUMANO O HACERLO SONAR ROBÓTICO.
 
 --- CONTEXTO ---
