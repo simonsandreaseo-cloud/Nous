@@ -396,10 +396,17 @@ export function EditorialCalendar() {
                 }
             }
 
-            const { error } = await supabase.from('task_contents').upsert({ id: task.id, content_body: accumulatedHtml });
-            if (error) throw error;
+            const updates: Partial<Task> = {
+                content_body: accumulatedHtml,
+                metadata: { ...(task.metadata as object), is_cleaned: true, cleaned_at: new Date().toISOString() }
+            };
+            const { error: tErr } = await supabase.from('tasks').update(updates).eq('id', task.id);
+            if (tErr) throw tErr;
 
-            updateTask(task.id, { status: task.status }); // Trigger refresh
+            const { error: tcErr } = await supabase.from('task_contents').upsert({ id: task.id, content_body: accumulatedHtml });
+            if (tcErr) throw tcErr;
+
+            updateTask(task.id, updates); 
             setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
             onLog(task.id, 'Limpieza', '✅ Limpieza inteligente completada exitosamente.');
         } catch (e: any) {
@@ -467,10 +474,17 @@ export function EditorialCalendar() {
                 }
             }
 
-            const { error } = await supabase.from('task_contents').upsert({ id: task.id, content_body: accumulatedHtml });
-            if (error) throw error;
+            const updates: Partial<Task> = {
+                content_body: accumulatedHtml,
+                metadata: { ...(task.metadata as object), is_surgical_edited: true, surgical_edited_at: new Date().toISOString() }
+            };
+            const { error: tErr } = await supabase.from('tasks').update(updates).eq('id', task.id);
+            if (tErr) throw tErr;
 
-            updateTask(task.id, { status: task.status }); // Trigger refresh
+            const { error: tcErr } = await supabase.from('task_contents').upsert({ id: task.id, content_body: accumulatedHtml });
+            if (tcErr) throw tcErr;
+
+            updateTask(task.id, updates); 
             setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
             onLog(task.id, 'Edición Quirúrgica', '✅ Edición quirúrgica completada exitosamente.');
         } catch (e: any) {
