@@ -298,6 +298,31 @@ export function EditorialCalendar() {
         }
     };
 
+    const saveBatchTaskVersion = async (taskId: string, baseName: string, contentBody: string) => {
+        try {
+            const { data: versions } = await supabase
+                .from('task_versions')
+                .select('process_name')
+                .eq('task_id', taskId)
+                .order('created_at', { ascending: false });
+
+            let finalName = baseName;
+            if (versions && versions.length > 0) {
+                const sameProcess = versions.filter(v => v.process_name.startsWith(baseName));
+                if (sameProcess.length > 0) {
+                    finalName = `${baseName} x${sameProcess.length + 1}`;
+                }
+            }
+            await supabase.rpc('save_task_version', {
+                p_task_id: taskId,
+                p_content_body: contentBody,
+                p_process_name: finalName
+            });
+        } catch (e) {
+            console.error("Error saving batch task version", e);
+        }
+    };
+
     const runTaskDraftPipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
         setBatchResearchStatus(prev => ({ ...prev, [task.id]: 50 }));
         try {
@@ -309,6 +334,9 @@ export function EditorialCalendar() {
             );
             if (res.success && res.updates) {
                 updateTask(task.id, res.updates);
+                if (res.updates.content_body) {
+                    await saveBatchTaskVersion(task.id, 'Generación Inicial', res.updates.content_body);
+                }
                 setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
             } else {
                 setBatchResearchStatus(prev => ({ ...prev, [task.id]: -1 }));
@@ -336,6 +364,9 @@ export function EditorialCalendar() {
             );
             if (res.success && res.updates) {
                 updateTask(task.id, res.updates);
+                if (res.updates.content_body) {
+                    await saveBatchTaskVersion(task.id, 'Humanizada', res.updates.content_body);
+                }
                 setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
             } else {
                 setBatchResearchStatus(prev => ({ ...prev, [task.id]: -1 }));
@@ -407,6 +438,7 @@ export function EditorialCalendar() {
             if (tcErr) throw tcErr;
 
             updateTask(task.id, updates); 
+            await saveBatchTaskVersion(task.id, 'Limpieza IA', accumulatedHtml);
             setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
             onLog(task.id, 'Limpieza', '✅ Limpieza inteligente completada exitosamente.');
         } catch (e: any) {
@@ -485,6 +517,7 @@ export function EditorialCalendar() {
             if (tcErr) throw tcErr;
 
             updateTask(task.id, updates); 
+            await saveBatchTaskVersion(task.id, 'Edición Quirúrgica', accumulatedHtml);
             setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
             onLog(task.id, 'Edición Quirúrgica', '✅ Edición quirúrgica completada exitosamente.');
         } catch (e: any) {
