@@ -72,7 +72,7 @@ import {
 import { executeDraftPipeline, executeHumanizePipeline } from '@/lib/services/writer/pipeline';
 import OrbConfirmationModal, { OrbPipelinePlan } from './OrbConfirmationModal';
 import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
-import { streamFinalCleanup } from '@/lib/services/writer/ai-streaming';
+import { streamFinalCleanup, streamSurgicalEdit } from '@/lib/services/writer/ai-streaming';
 import { streamGenerate, streamSEOPostProcess, streamHumanize } from '@/lib/services/writer/ai-streaming';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 import { formatTasksToTSV, formatTasksToCSV } from "@/utils/exportUtils";
@@ -409,6 +409,77 @@ export function EditorialCalendar() {
         }
     };
 
+    const runTaskSurgicalEditPipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
+        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 50 }));
+        try {
+            const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+            const content = taskContent?.content_body || task.content_body;
+            if (!content) throw new Error("No hay contenido para edición quirúrgica.");
+
+            onLog(task.id, 'Edición Quirúrgica', 'Iniciando edición quirúrgica por fragmentos...');
+            
+            const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
+                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
+                const chunks = [];
+                for (let i = 0; i < elements.length; i += chunkSize) {
+                    chunks.push(elements.slice(i, i + chunkSize).join(''));
+                }
+                return chunks;
+            };
+
+            const chunks = chunkHtml(content, 4);
+            let accumulatedHtml = '';
+            const config = {
+                projectName: activeProject.name,
+                niche: activeProject.niche || 'General',
+                audience: 'Público General',
+                language: activeProject.settings?.content_preferences?.default_content_language || 'es'
+            };
+            
+            for (let i = 0; i < chunks.length; i++) {
+                let success = false;
+                let attempts = 0;
+                const MAX_ATTEMPTS = 3;
+
+                while (!success && attempts < MAX_ATTEMPTS) {
+                    try {
+                        onLog(task.id, 'Edición Quirúrgica', `Editando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
+                        
+                        const chunkResult = await streamSurgicalEdit(
+                            chunks[i], 
+                            config,
+                            50,
+                            () => {},
+                            (msg) => {}
+                        );
+                        
+                        accumulatedHtml += chunkResult.html + '\n';
+                        success = true;
+                    } catch (err: any) {
+                        attempts++;
+                        if (attempts >= MAX_ATTEMPTS) {
+                            throw new Error(`Fallo definitivo en la edición del chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                        }
+                        
+                        onLog(task.id, 'Edición Quirúrgica', `Error en Edición Chunk ${i + 1}. Reintentando en 10s... (${attempts}/${MAX_ATTEMPTS})`);
+                        await new Promise(resolve => setTimeout(resolve, 10000));
+                    }
+                }
+            }
+
+            const { error } = await supabase.from('task_contents').upsert({ id: task.id, content_body: accumulatedHtml });
+            if (error) throw error;
+
+            updateTask(task.id, { status: task.status }); // Trigger refresh
+            setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
+            onLog(task.id, 'Edición Quirúrgica', '✅ Edición quirúrgica completada exitosamente.');
+        } catch (e: any) {
+            setBatchResearchStatus(prev => ({ ...prev, [task.id]: -1 }));
+            onLog(task.id, 'Error', `❌ Error edición: ${e.message}`);
+            throw e;
+        }
+    };
+
     const handleUnitAction = async (taskId: string, action: string) => {
         if (!activeProject) return;
         const task = tasks.find(t => t.id === taskId);
@@ -622,6 +693,11 @@ export function EditorialCalendar() {
                 const planToHumanize = humanize
                     ? targetTasks.filter(t => tasksWithContent.has(t.id) || draft)
                     : [];
+
+                // Cascade: Surgical Edit items if they have content, or drafted/humanized in this run.
+                const planToSurgicalEdit = surgicalEdit
+                    ? targetTasks.filter(t => tasksWithContent.has(t.id) || draft || humanize)
+                    : [];
                 
                 // Cascade: Translate items if they already have content, or if they WILL be drafted in this run.
                 const planToTranslate = translate
@@ -638,6 +714,7 @@ export function EditorialCalendar() {
                     toDraft: planToDraft.map(t => ({ id: t.id, title: t.title })),
                     toRewrite: planToRewrite.map(t => ({ id: t.id, title: t.title })),
                     toHumanize: planToHumanize.map(t => ({ id: t.id, title: t.title })),
+                    toSurgicalEdit: planToSurgicalEdit.map(t => ({ id: t.id, title: t.title })),
                     toTranslate: planToTranslate.map(t => ({ id: t.id, title: t.title })),
                     toClean: planToClean.map(t => ({ id: t.id, title: t.title })),
                     translateLanguages,
@@ -656,7 +733,7 @@ export function EditorialCalendar() {
 
             // ── Actual pipeline execution (called after modal confirm) ──
             if (action === '__execute_batch_pipeline__') {
-                const { research, draft, humanize, clean, translate, finalStatus, _plan, _targetTasks } = config || {};
+                const { research, draft, humanize, surgicalEdit, clean, translate, finalStatus, _plan, _targetTasks } = config || {};
                 const targetTasks = _targetTasks || [];
 
                 let taskCount = 0;
@@ -727,6 +804,19 @@ export function EditorialCalendar() {
                             successSoFar = false;
                             setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
                             onLog(t.id, 'Error', `❌ Error humanizando: ${e.message}`);
+                        }
+                    }
+
+                    // 3.5 Surgical Edit
+                    const shouldSurgicalEdit = (_plan?.toSurgicalEdit || []).some((p: any) => p.id === t.id);
+                    if (surgicalEdit && successSoFar && shouldSurgicalEdit) {
+                        try {
+                            await runTaskSurgicalEditPipeline(latestTask, onLog);
+                            latestTask = useProjectStore.getState().tasks.find(tk => tk.id === t.id) || latestTask;
+                        } catch (e: any) {
+                            successSoFar = false;
+                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
+                            onLog(t.id, 'Error', `❌ Error edición: ${e.message}`);
                         }
                     }
 

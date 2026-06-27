@@ -51,6 +51,7 @@ export default function NousAssistantMenu({
     const [pipelineResearch, setPipelineResearch] = useState(true);
     const [pipelineDraft, setPipelineDraft] = useState(true);
     const [pipelineHumanize, setPipelineHumanize] = useState(false);
+    const [pipelineSurgicalEdit, setPipelineSurgicalEdit] = useState(false);
     const [pipelineClean, setPipelineClean] = useState(false);
     const [pipelineTranslate, setPipelineTranslate] = useState(false);
     const [pipelineFinalStatus, setPipelineFinalStatus] = useState<string>('keep_current');
@@ -267,8 +268,18 @@ export default function NousAssistantMenu({
                         />
 
                         <PipelineToggle 
+                            icon={Edit3}
+                            title="4. Edición Quirúrgica"
+                            desc="Mejorar la legibilidad sin perder la humanización (edición ~20% del texto)."
+                            active={pipelineSurgicalEdit}
+                            onToggle={() => setPipelineSurgicalEdit(!pipelineSurgicalEdit)}
+                            count={effectiveSelectedCount > 0 ? effectiveSelectedCount : stats.needHuman}
+                            color="purple"
+                        />
+
+                        <PipelineToggle 
                             icon={Sparkles}
-                            title="4. Limpieza Inteligente"
+                            title="5. Limpieza Inteligente"
                             desc="Eliminar prefacios, conclusiones robóticas y ruido de IA del HTML."
                             active={pipelineClean}
                             onToggle={() => setPipelineClean(!pipelineClean)}
@@ -279,7 +290,7 @@ export default function NousAssistantMenu({
                         {i18nLanguages.length > 0 && (
                             <PipelineToggle 
                                 icon={Globe}
-                                title="5. Traducir Contenido"
+                                title="6. Traducir Contenido"
                                 desc={`Generar versiones en ${i18nLanguages.length} idiomas configurados.`}
                                 active={pipelineTranslate}
                                 onToggle={() => setPipelineTranslate(!pipelineTranslate)}
@@ -332,6 +343,7 @@ export default function NousAssistantMenu({
                                     research: pipelineResearch,
                                     draft: pipelineDraft,
                                     humanize: pipelineHumanize,
+                                    surgicalEdit: pipelineSurgicalEdit,
                                     clean: pipelineClean,
                                     translate: pipelineTranslate,
                                     finalStatus: pipelineFinalStatus

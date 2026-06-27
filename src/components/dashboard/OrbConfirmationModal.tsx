@@ -27,6 +27,8 @@ export interface OrbPipelinePlan {
     toRewrite: { id: string; title: string }[];
     /** Tasks that will be humanized */
     toHumanize: { id: string; title: string }[];
+    /** Tasks that will undergo surgical edit */
+    toSurgicalEdit: { id: string; title: string }[];
     /** How many translation languages are configured */
     translateLanguages: number;
     /** Tasks that will be translated */
@@ -44,6 +46,7 @@ const CREDIT_RATES = {
     draft: 10,
     rewrite: 10,
     humanize: 15,
+    surgicalEdit: 10,
     translate: 5,   // per language
     clean: 5,
     image: 12,
@@ -55,6 +58,7 @@ function computeTotalCredits(plan: OrbPipelinePlan): number {
         plan.toDraft.length * CREDIT_RATES.draft +
         plan.toRewrite.length * CREDIT_RATES.rewrite +
         plan.toHumanize.length * CREDIT_RATES.humanize +
+        (plan.toSurgicalEdit?.length || 0) * CREDIT_RATES.surgicalEdit +
         plan.toTranslate.length * plan.translateLanguages * CREDIT_RATES.translate +
         plan.toClean.length * CREDIT_RATES.clean +
         (plan.generateImages ? plan.toDraft.length * CREDIT_RATES.image : 0)
@@ -145,6 +149,7 @@ export default function OrbConfirmationModal({
         (plan?.toDraft.length ?? 0) > 0 ||
         (plan?.toRewrite.length ?? 0) > 0 ||
         (plan?.toHumanize.length ?? 0) > 0 ||
+        (plan?.toSurgicalEdit?.length ?? 0) > 0 ||
         (plan?.toTranslate.length ?? 0) > 0 ||
         (plan?.toClean.length ?? 0) > 0;
 
@@ -245,6 +250,15 @@ export default function OrbConfirmationModal({
                                                         count={plan.toHumanize.length}
                                                         color="emerald"
                                                         credits={plan.toHumanize.length * CREDIT_RATES.humanize}
+                                                    />
+                                                )}
+                                                {plan.toSurgicalEdit && plan.toSurgicalEdit.length > 0 && (
+                                                    <ActionRow
+                                                        icon={Wand2}
+                                                        label="Edición quirúrgica"
+                                                        count={plan.toSurgicalEdit.length}
+                                                        color="purple"
+                                                        credits={plan.toSurgicalEdit.length * CREDIT_RATES.surgicalEdit}
                                                     />
                                                 )}
                                                 {plan.toTranslate.length > 0 && plan.translateLanguages > 0 && (
