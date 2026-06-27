@@ -304,6 +304,9 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
+            if (panel.getSize() === 0) {
+                panel.resize(25);
+            }
         } else {
             panel.collapse();
         }

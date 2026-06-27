@@ -42,7 +42,7 @@ export type UiSlice = WriterStoreState & UiActions;
 export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     // Initial State
     viewMode: 'dashboard',
-    activeSidebarTab: 'seo',
+    activeSidebarTab: 'nous',
     statusMessage: '',
     isSaving: false,
     isCheckSaving: false,
