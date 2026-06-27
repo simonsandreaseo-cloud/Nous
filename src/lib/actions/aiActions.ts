@@ -701,6 +701,10 @@ Puedes editar, reemplazar, eliminar o crear UN MÁXIMO DE ${editLimit} PALABRAS 
 El ~80% restante del texto original DEBE PERMANECER EXACTAMENTE IGUAL.
 Usa tu presupuesto sabiamente para corregir los errores más graves de informalidad, estilo, o palabras mal usadas.
 
+--- PROHIBICIÓN ABSOLUTA ---
+ESTÁ ESTRICTAMENTE PROHIBIDO devolver el texto original exactamente igual.
+TIENES QUE APROVECHAR tu presupuesto de ${editLimit} palabras SÍ O SÍ. Debes encontrar obligatoriamente áreas de mejora y realizar ediciones dentro de tu límite. Devolver un JSON vacío o el texto intacto resultará en un fallo crítico.
+
 --- CONTEXTO ---
 Nicho/Tópico: ${config.niche || 'N/A'}
 Público Objetivo: ${config.audience || 'N/A'}
