@@ -296,11 +296,11 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
-            setTimeout(() => {
+            requestAnimationFrame(() => {
                 if (panel.getSize() < 15) {
                     panel.resize(20);
                 }
-            }, 10);
+            });
         } else {
             panel.collapse();
         }
@@ -311,11 +311,11 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
-            setTimeout(() => {
-                if (panel.getSize() < 15) {
+            requestAnimationFrame(() => {
+                if (panel.getSize() < 20) {
                     panel.resize(25);
                 }
-            }, 10);
+            });
         } else {
             panel.collapse();
         }
@@ -865,7 +865,7 @@ export default function WriterStudio() {
                     <Panel 
                         id="writer-left-panel"
                         panelRef={leftPanelRef} 
-                        defaultSize={20} minSize={0} 
+                        defaultSize={20} minSize={15} 
                         collapsible={true} 
                         onCollapse={() => setIsLeftPanelCollapsed(true)}
                         onExpand={() => setIsLeftPanelCollapsed(false)}
@@ -899,7 +899,7 @@ export default function WriterStudio() {
                     <Panel 
                         id="writer-right-panel"
                         panelRef={rightPanelRef}
-                        defaultSize={0} minSize={0}
+                        defaultSize={0} minSize={15}
                         collapsible={true} 
                         onCollapse={() => setIsRightPanelCollapsed(true)}
                         onExpand={() => setIsRightPanelCollapsed(false)}
