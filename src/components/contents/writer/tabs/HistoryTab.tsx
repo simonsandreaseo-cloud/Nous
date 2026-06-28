@@ -13,6 +13,7 @@ export const HistoryTab: React.FC = () => {
         fetchTaskVersions, 
         restoreTaskVersion,
         isSaving,
+        content
     } = useWriterStore();
     
     const [isRestoring, setIsRestoring] = useState(false);
@@ -55,12 +56,23 @@ export const HistoryTab: React.FC = () => {
                     </div>
                 ) : (
                     <div className="relative border-l border-slate-700/50 ml-3 pl-5 space-y-6">
-                        {taskVersions.map((version, idx) => (
+                        {taskVersions.map((version, idx) => {
+                            const isActive = version.content_body === content;
+                            
+                            return (
                             <div key={version.id} className="relative group">
                                 {/* Timeline dot */}
-                                <div className="absolute -left-[25px] top-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-slate-900 group-hover:bg-indigo-400 transition-colors" />
+                                <div className={cn(
+                                    "absolute -left-[25px] top-1.5 w-2 h-2 rounded-full ring-4 ring-slate-900 transition-colors",
+                                    isActive ? "bg-emerald-400 group-hover:bg-emerald-300" : "bg-indigo-500 group-hover:bg-indigo-400"
+                                )} />
                                 
-                                <div className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-lg p-3 transition-all">
+                                <div className={cn(
+                                    "rounded-lg p-3 transition-all",
+                                    isActive 
+                                        ? "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/50 hover:border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]" 
+                                        : "bg-slate-800/50 hover:bg-slate-800 border-slate-700/50 hover:border-slate-600 border"
+                                )}>
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="font-medium text-slate-200 text-sm">
                                             {version.process_name || 'Versión Guardada'}
@@ -72,20 +84,28 @@ export const HistoryTab: React.FC = () => {
                                     
                                     <div className="text-xs text-slate-500 mb-3 flex items-center justify-between">
                                         <span>{(version.content_body?.length || 0).toLocaleString()} caracteres</span>
-                                        {idx === 0 && <span className="text-indigo-400/80 bg-indigo-500/10 px-1.5 py-0.5 rounded text-[10px]">Última guardada</span>}
+                                        <div className="flex gap-2">
+                                            {isActive && <span className="text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[10px] border border-emerald-500/20">Viendo Actual</span>}
+                                            {idx === 0 && !isActive && <span className="text-indigo-400/80 bg-indigo-500/10 px-1.5 py-0.5 rounded text-[10px]">Última guardada</span>}
+                                        </div>
                                     </div>
 
                                     <button
                                         onClick={() => handleRestore(version.id)}
                                         disabled={isRestoring || isSaving}
-                                        className="w-full flex items-center justify-center gap-2 py-1.5 px-3 bg-slate-700/30 hover:bg-slate-700/60 text-slate-300 hover:text-white rounded text-xs transition-colors disabled:opacity-50"
+                                        className={cn(
+                                            "w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded text-xs transition-colors disabled:opacity-50",
+                                            isActive 
+                                                ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" 
+                                                : "bg-slate-700/30 hover:bg-slate-700/60 text-slate-300 hover:text-white"
+                                        )}
                                     >
                                         <RotateCcw size={12} className={isRestoring ? "animate-spin" : ""} />
-                                        Restaurar esta versión
+                                        {isActive ? "Versión Actual" : "Restaurar esta versión"}
                                     </button>
                                 </div>
                             </div>
-                        ))}
+                        )})}
                     </div>
                 )}
             </div>

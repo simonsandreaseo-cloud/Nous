@@ -9,7 +9,9 @@ import {
     CheckCircle2,
     ChevronDown,
     BrainCircuit,
-    Edit3
+    Edit3,
+    ToggleLeft,
+    ToggleRight
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Task } from '@/types/project';
@@ -114,7 +116,6 @@ export default function NousAssistantMenu({
                             label="Investigación SEO" 
                             color="indigo"
                             onClick={() => onWriterAction?.('seo')}
-                            disabled={effectiveIsProcessing}
                         />
                         {strategyOutline.length > 0 && (
                             <ActionButton 
@@ -122,7 +123,6 @@ export default function NousAssistantMenu({
                                 label="Redactar Contenido" 
                                 color="rose"
                                 onClick={() => onWriterAction?.('generate')}
-                                disabled={effectiveIsProcessing}
                             />
                         )}
                         
@@ -136,7 +136,6 @@ export default function NousAssistantMenu({
                                     label="Humanizar" 
                                     color="emerald"
                                     onClick={() => onWriterAction?.('humanize')}
-                                    disabled={effectiveIsProcessing}
                                 />
                                 <button 
                                     onClick={() => setIsHumanizerExpanded(!isHumanizerExpanded)}
@@ -200,7 +199,6 @@ export default function NousAssistantMenu({
                             label="Edición Quirúrgica" 
                             color="violet"
                             onClick={() => onWriterAction?.('surgical_edit')}
-                            disabled={effectiveIsProcessing}
                         />
 
                         <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
@@ -209,7 +207,6 @@ export default function NousAssistantMenu({
                                 label="Refinamiento Inteligente" 
                                 color="purple"
                                 onClick={() => onWriterAction?.('refine')}
-                                disabled={effectiveIsProcessing}
                             />
                         </div>
                         
@@ -219,7 +216,6 @@ export default function NousAssistantMenu({
                                 label="Limpiar Ruido IA" 
                                 color="indigo"
                                 onClick={() => onWriterAction?.('clean')}
-                                disabled={effectiveIsProcessing}
                             />
                         </div>
                     </div>
@@ -231,13 +227,13 @@ export default function NousAssistantMenu({
                     <div className="h-2" />
                     <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 px-2 block">Acciones Inteligentes</label>
                     
-                    <div className="bg-white/40 rounded-[20px] p-3 border border-slate-100/50 mt-2">
-                        <div className="mb-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-800 leading-none">Flujo de Trabajo</p>
+                    <div className="bg-transparent mt-2">
+                        <div className="mb-4 px-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-800 leading-none">Plan de Trabajo Múltiple</p>
                             <p className="text-[9px] text-slate-500 mt-1.5 leading-snug">Se procesarán {effectiveSelectedCount > 0 ? effectiveSelectedCount : (stats.ideas + stats.needOutline + stats.needDraft + stats.needHuman)} artículos.</p>
                         </div>
                         
-                        <div className="flex flex-col">
+                        <div className="flex flex-col gap-1">
                         
                         <PipelineToggle 
                             icon={Search}
@@ -393,54 +389,50 @@ function PipelineToggle({ icon: Icon, title, desc, active, onToggle, count, colo
         slate: "text-slate-600"
     };
 
-    const bgColors: Record<string, string> = {
-        indigo: "bg-indigo-500",
-        purple: "bg-purple-500",
-        rose: "bg-rose-500",
-        emerald: "bg-emerald-500",
-        slate: "bg-slate-500"
+    const toggleColors: Record<string, string> = {
+        indigo: "text-indigo-500",
+        purple: "text-purple-500",
+        rose: "text-rose-500",
+        emerald: "text-emerald-500",
+        slate: "text-slate-500"
     };
 
     return (
-        <label className="flex items-stretch gap-3 cursor-pointer group relative px-1">
-            <div className="flex flex-col items-center pt-0.5">
-                <input 
-                    type="checkbox" 
-                    checked={active} 
-                    onChange={onToggle} 
-                    className="hidden" 
-                />
-                <div className={cn(
-                    "w-3.5 h-3.5 rounded-full flex items-center justify-center transition-all z-10",
-                    active ? bgColors[color] + " shadow-sm" : "bg-white border-2 border-slate-200 group-hover:border-slate-300"
-                )}>
-                    {active && <CheckCircle2 size={8} className="text-white" />}
-                </div>
-                {!isLast && (
-                    <div className={cn(
-                        "w-[2px] h-full mt-1 rounded-full",
-                        active ? bgColors[color] + " opacity-20" : "bg-slate-100"
-                    )} />
-                )}
-            </div>
-            
-            <div className="flex-1 pb-4 pt-[1px]">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Icon size={11} className={active ? textColors[color] : "text-slate-400"} />
-                        <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none transition-colors", active ? textColors[color] : "text-slate-600 group-hover:text-slate-700")}>
-                            {title}
-                        </span>
-                    </div>
+        <button 
+            onClick={onToggle}
+            className={cn(
+                "w-full flex flex-col p-3 rounded-xl border text-left transition-all group",
+                active 
+                    ? "bg-white border-slate-200 shadow-sm" 
+                    : "bg-white/50 border-slate-100 hover:bg-white"
+            )}
+        >
+            <div className="flex items-start justify-between w-full">
+                <div className="flex items-center gap-2">
+                    <Icon size={14} className={active ? textColors[color] : "text-slate-400"} />
+                    <span className={cn("text-[11px] font-black uppercase tracking-widest leading-none transition-colors mt-0.5", active ? "text-slate-800" : "text-slate-600 group-hover:text-slate-700")}>
+                        {title}
+                    </span>
                     {count > 0 && (
-                        <div className={cn("text-[9px] font-black tabular-nums transition-colors", active ? textColors[color] : "text-slate-400")}>
+                        <span className={cn("text-[9px] font-black tabular-nums transition-colors px-1.5 py-0.5 rounded-md", active ? `bg-${color}-50 ${textColors[color]}` : "bg-slate-100 text-slate-500")}>
                             {count}
-                        </div>
+                        </span>
                     )}
                 </div>
-                <p className={cn("text-[9px] mt-1.5 leading-[1.4] pr-2 transition-colors", active ? "text-slate-500" : "text-slate-400/80")}>{desc}</p>
+                
+                <div className="transition-transform group-active:scale-95">
+                    {active ? (
+                        <ToggleRight className={toggleColors[color]} size={24} />
+                    ) : (
+                        <ToggleLeft className="text-slate-300" size={24} />
+                    )}
+                </div>
             </div>
-        </label>
+            
+            <p className={cn("text-[10px] mt-2 leading-[1.4] transition-colors", active ? "text-slate-500" : "text-slate-400/80")}>
+                {desc}
+            </p>
+        </button>
     );
 }
 

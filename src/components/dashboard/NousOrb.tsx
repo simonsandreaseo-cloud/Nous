@@ -331,7 +331,6 @@ export default function NousOrb({
                                 onAction?.(action, config);
                             }}
                             onWriterAction={(action) => {
-                                setIsMenuOpen(false);
                                 onWriterAction?.(action);
                             }}
                             isProcessing={effectiveIsProcessing}
