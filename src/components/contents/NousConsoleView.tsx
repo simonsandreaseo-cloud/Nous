@@ -4,7 +4,7 @@ import { Terminal, Cpu, Activity, ListTodo, Loader2, Play, CheckCircle2, AlertCi
 import { useQueueStore, QueueTask } from "@/store/useQueueStore";
 import { cn } from "@/utils/cn";
 
-function ConsoleLine({ text, type = 'info' }: { text: string, type?: 'info' | 'success' | 'error' | 'warning' }) {
+function ConsoleLine({ text, type = 'info', timestamp }: { text: string, type?: 'info' | 'success' | 'error' | 'warning', timestamp: Date }) {
     const colorMap = {
         info: 'text-indigo-400',
         success: 'text-emerald-400',
@@ -18,7 +18,7 @@ function ConsoleLine({ text, type = 'info' }: { text: string, type?: 'info' | 's
             animate={{ opacity: 1, x: 0 }}
             className="flex items-start gap-3 font-mono text-[11px] mb-1.5"
         >
-            <span className="text-slate-600 select-none shrink-0">{new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            <span className="text-slate-600 select-none shrink-0">{new Date(timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
             <span className="text-slate-500 select-none shrink-0">❯</span>
             <span className={cn(colorMap[type], "leading-relaxed")}>{text}</span>
         </motion.div>
@@ -27,26 +27,7 @@ function ConsoleLine({ text, type = 'info' }: { text: string, type?: 'info' | 's
 
 export default function NousConsoleView() {
     const { queue, activeTask, isProcessingQueue, clearQueue, dequeueTask } = useQueueStore();
-    const [lines, setLines] = useState<{ id: string, text: string, type: 'info' | 'success' | 'error' | 'warning' }[]>([]);
-
-    // Simulate logs when active task changes
-    useEffect(() => {
-        if (activeTask) {
-            const newLines = [
-                { id: crypto.randomUUID(), text: `Iniciando tarea: [${activeTask.type.toUpperCase()}] ${activeTask.title}`, type: 'info' as const },
-                ...(activeTask.description ? [{ id: crypto.randomUUID(), text: `Detalles: ${activeTask.description}`, type: 'warning' as const }] : []),
-                { id: crypto.randomUUID(), text: `Estado actual: ${activeTask.status.toUpperCase()}`, type: 'info' as const }
-            ];
-            
-            if (activeTask.progress) {
-                newLines.push({ id: crypto.randomUUID(), text: `Progreso: ${Math.round(activeTask.progress)}%`, type: 'success' as const });
-            }
-
-            setLines(prev => [...prev.slice(-40), ...newLines]);
-        } else if (isProcessingQueue) {
-            setLines(prev => [...prev, { id: crypto.randomUUID(), text: 'Esperando siguientes instrucciones...', type: 'info' as const }]);
-        }
-    }, [activeTask, isProcessingQueue, activeTask?.progress, activeTask?.status]);
+    const displayLogs = activeTask?.logs || [];
 
     const getStatusIcon = (status: QueueTask['status']) => {
         switch (status) {
@@ -164,14 +145,14 @@ export default function NousConsoleView() {
                     {/* Logs output */}
                     <div className="flex-1 bg-[#09090b] border border-slate-800 rounded-xl p-4 overflow-y-auto custom-scrollbar shadow-inner relative flex flex-col">
                         <div className="flex-1">
-                            {lines.length === 0 && !activeTask && (
+                            {displayLogs.length === 0 && !activeTask && (
                                 <div className="text-slate-600 font-mono text-[11px] italic">
                                     Nous OS v2.0 initialized.<br/>
                                     Waiting for incoming tasks...
                                 </div>
                             )}
-                            {lines.map(line => (
-                                <ConsoleLine key={line.id} text={line.text} type={line.type} />
+                            {displayLogs.map(log => (
+                                <ConsoleLine key={log.id} text={log.text} type={log.type} timestamp={log.timestamp} />
                             ))}
                             {isProcessingQueue && (
                                 <div className="flex items-center gap-2 mt-2">

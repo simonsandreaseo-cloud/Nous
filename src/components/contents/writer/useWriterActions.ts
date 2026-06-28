@@ -491,12 +491,55 @@ export function useWriterActions() {
 
     // --- Humanize ---
     const handleHumanize = useCallback(() => {
-        const { enqueueTask } = useQueueStore.getState();
+        const { enqueueTask, addLogToTask } = useQueueStore.getState();
         
         const outerStore = store;
         const targetTaskId = store.draftId;
         const targetProjectId = activeProject?.id;
-        enqueueTask('humanize', 'Humanizando artículo', async () => {
+        const snapshotTitle = store.articleTitle || store.keyword || 'Artículo';
+        
+        if (!hasAccess) {
+            console.log("[DEBUG-Humanize] Access denied");
+            return alert('No tienes permisos.');
+        }
+        if (!store.content) {
+            console.log("[DEBUG-Humanize] No content found in store.");
+            return;
+        }
+
+        // --- Toma de Snapshot Síncrono ---
+        const originalContent = store.content;
+        
+        // Unify links for humanizer
+        const allLinks = [
+            ...(store.strategyLinks || []),
+            ...(store.strategyInternalLinks || []),
+            ...(store.rawSeoData?.suggestedInternalLinks || [])
+        ];
+        const uniqueLinksMap = new Map();
+        allLinks.forEach(l => {
+            if (!l.url) return;
+            if (!uniqueLinksMap.has(l.url)) {
+                uniqueLinksMap.set(l.url, { url: l.url, title: l.title || l.url });
+            }
+        });
+        const unifiedLinks = Array.from(uniqueLinksMap.values());
+
+        const config: any = {
+            projectName: store.projectName, 
+            niche: store.detectedNiche || store.humanizerConfig.niche || 'General', 
+            audience: store.humanizerConfig.audience || 'Público General',
+            keywords: store.keyword, 
+            notes: store.humanizerConfig.notes || '',
+            lsiKeywords: store.strategyLSI.map(l => l.keyword).concat(store.strategyLongTail),
+            links: unifiedLinks, 
+            questions: store.strategyQuestions,
+            mode: store.humanizerConfig.mode || 'unified',
+            language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
+        };
+
+        // Encolar tarea con el snapshot
+        enqueueTask('humanize', `Humanizando: ${snapshotTitle}`, async (queueTaskId: string) => {
             const store = new Proxy(outerStore, {
                 get(target: any, prop: string) {
                     if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
@@ -513,49 +556,12 @@ export function useWriterActions() {
                 }
             });
             console.log("[DEBUG-Humanize] Action triggered");
-        if (!hasAccess) {
-            console.log("[DEBUG-Humanize] Access denied");
-            return alert('No tienes permisos.');
-        }
-        if (!store.content) {
-            console.log("[DEBUG-Humanize] No content found in store. Current content length:", store.content?.length);
-            return;
-        }
         
-        console.log("[DEBUG-Humanize] Starting pipeline for content length:", store.content.length);
+        console.log("[DEBUG-Humanize] Starting pipeline for content length:", originalContent.length);
         store.setHumanizing(true);
         store.setHumanizerStatus('Iniciando humanización...');
-        // Unify links for humanizer
-        const allLinks = [
-            ...(store.strategyLinks || []),
-            ...(store.strategyInternalLinks || []),
-            ...(store.rawSeoData?.suggestedInternalLinks || [])
-        ];
-        const uniqueLinksMap = new Map();
-        allLinks.forEach(l => {
-            if (!l.url) return;
-            if (!uniqueLinksMap.has(l.url)) {
-                uniqueLinksMap.set(l.url, { url: l.url, title: l.title || l.url });
-            }
-        });
-        const unifiedLinks = Array.from(uniqueLinksMap.values());
-
         try {
-            await store.saveTaskVersion(`Pre-Humanización`, store.content);
-            const config: any = {
-                projectName: store.projectName, 
-                niche: store.detectedNiche || store.humanizerConfig.niche || 'General', 
-                audience: store.humanizerConfig.audience || 'Público General',
-                keywords: store.keyword, 
-                notes: store.humanizerConfig.notes || '',
-                lsiKeywords: store.strategyLSI.map(l => l.keyword).concat(store.strategyLongTail),
-                links: unifiedLinks, 
-                questions: store.strategyQuestions,
-                mode: store.humanizerConfig.mode || 'unified',
-                language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
-            };
-
-            const originalContent = store.content;
+            await store.saveTaskVersion(`Pre-Humanización`, originalContent);
 
             const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
                 const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
@@ -570,6 +576,7 @@ export function useWriterActions() {
             const rawChunks = chunkHtml(originalContent, 4);
             console.log(`[DEBUG-Humanize] Documento dividido en ${rawChunks.length} chunks.`);
             store.setHumanizerStatus(`Documento dividido en ${rawChunks.length} partes...`);
+            addLogToTask(queueTaskId, `Documento dividido en ${rawChunks.length} partes para procesar.`, 'info');
             
             // In-place chunking: envolver todos los chunks inicialmente
             let currentDocumentChunks = rawChunks.map((chunk, index) => 
@@ -591,6 +598,7 @@ export function useWriterActions() {
                 while (!success && attempts < MAX_ATTEMPTS) {
                     try {
                         store.setHumanizerStatus(`Humanizando Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
+                        addLogToTask(queueTaskId, `Procesando chunk ${i + 1} de ${rawChunks.length}${attempts > 0 ? ` (Reintento ${attempts})` : ''}...`, 'info');
                         
                         const chunkResult = await streamHumanize(
                             rawChunks[i],
@@ -600,6 +608,8 @@ export function useWriterActions() {
                             (msg) => console.log(`[Chunk ${i+1}] ${msg}`)
                         );
                         
+                        addLogToTask(queueTaskId, `Chunk ${i + 1} completado.`, 'success');
+                        
                         // Reemplazar el chunk original con el HTML finalizado
                         currentDocumentChunks[i] = chunkResult.html;
                         store.setContent(currentDocumentChunks.join('\n'));
@@ -607,15 +617,19 @@ export function useWriterActions() {
                     } catch (err: any) {
                         attempts++;
                         console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
+                        addLogToTask(queueTaskId, `Error en chunk ${i + 1}: ${err.message}`, 'error');
                         
                         if (attempts >= MAX_ATTEMPTS) {
                             throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
                         }
                         
                         store.setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
+                        addLogToTask(queueTaskId, `Esperando 60s antes de reintentar chunk ${i + 1}...`, 'warning');
                         await new Promise(resolve => setTimeout(resolve, 60000));
                     }
                 }
+                
+                useQueueStore.getState().setTaskStatus(queueTaskId, 'processing', ((i + 1) / rawChunks.length) * 100);
             }
 
             const finalResult = { html: currentDocumentChunks.join('\n') };
@@ -663,6 +677,7 @@ export function useWriterActions() {
         } catch (e: any) {
             console.error(e);
             store.setHumanizerStatus('❌ Error: ' + e.message);
+            addLogToTask(queueTaskId, `Error crítico: ${e.message}`, 'error');
         } finally {
             store.setHumanizing(false);
         }

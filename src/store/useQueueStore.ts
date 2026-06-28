@@ -11,17 +11,25 @@ export type QueueActionType =
   | 'planner_nous_action'
   | string;
 
+export interface QueueTaskLog {
+    id: string;
+    text: string;
+    type: 'info' | 'success' | 'error' | 'warning';
+    timestamp: Date;
+}
+
 export interface QueueTask {
     id: string;
     type: QueueActionType;
     title: string;
     description?: string;
-    execute: () => Promise<void>;
+    execute: (taskId: string) => Promise<void>;
     status: 'pending' | 'processing' | 'completed' | 'error';
     progress?: number;
     createdAt: Date;
     projectId?: string;
     taskId?: string; // Si pertenece a un documento o borrador específico
+    logs: QueueTaskLog[];
 }
 
 interface QueueStore {
@@ -33,7 +41,7 @@ interface QueueStore {
     enqueueTask: (
         type: QueueActionType, 
         title: string, 
-        executeFn: () => Promise<void>,
+        executeFn: (taskId: string) => Promise<void>,
         options?: { description?: string; taskId?: string; projectId?: string }
     ) => string;
     dequeueTask: (id: string) => void;
@@ -42,6 +50,7 @@ interface QueueStore {
     // Internal state updates
     setActiveTask: (task: QueueTask | null) => void;
     setTaskStatus: (id: string, status: QueueTask['status'], progress?: number) => void;
+    addLogToTask: (id: string, text: string, type?: QueueTaskLog['type']) => void;
     setIsProcessingQueue: (isProcessing: boolean) => void;
     shiftQueue: () => QueueTask | undefined;
 }
@@ -62,7 +71,8 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
             createdAt: new Date(),
             description: options?.description,
             taskId: options?.taskId,
-            projectId: options?.projectId
+            projectId: options?.projectId,
+            logs: []
         };
 
         set((state) => ({
@@ -96,6 +106,27 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
             // Update in queue list if present (usually we shift it out, but just in case)
             const newQueue = state.queue.map(t => 
                 t.id === id ? { ...t, status, ...(progress !== undefined && { progress }) } : t
+            );
+
+            return { activeTask: newActiveTask, queue: newQueue };
+        });
+    },
+
+    addLogToTask: (id, text, type = 'info') => {
+        const newLog: QueueTaskLog = {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+            text,
+            type,
+            timestamp: new Date()
+        };
+
+        set((state) => {
+            const newActiveTask = state.activeTask?.id === id 
+                ? { ...state.activeTask, logs: [...state.activeTask.logs, newLog] } 
+                : state.activeTask;
+
+            const newQueue = state.queue.map(t => 
+                t.id === id ? { ...t, logs: [...t.logs, newLog] } : t
             );
 
             return { activeTask: newActiveTask, queue: newQueue };
