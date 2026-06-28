@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
+import { useQueueStore } from '@/store/useQueueStore';
 import { SectionLabel } from './SidebarCommon';
 import { Button } from '@/components/dom/Button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -61,96 +62,103 @@ export function ToolsTab() {
       */
     const handleExecuteExtractor = async (widget: any) => {
         if (!store.editor) return;
-        setExecutingId(widget.id);
-        store.setStatus(`Escaneando enlaces para ${widget.name}...`);
+        
+        const { enqueueTask } = useQueueStore.getState();
+        
+        enqueueTask('planner_nous_action', `Extractor: ${widget.name}`, async () => {
+            const currentStore = useWriterStore.getState();
+            setExecutingId(widget.id);
+            currentStore.setStatus(`Escaneando enlaces para ${widget.name}...`);
 
-        try {
-            const editor = store.editor;
-            const links: { url: string; text: string; pos: number; originalUrl?: string }[] = [];
+            try {
+                const editor = currentStore.editor;
+                if (!editor) return;
+                
+                const links: { url: string; text: string; pos: number; originalUrl?: string }[] = [];
 
-            editor.state.doc.descendants((node: any, pos: number) => {
-                const linkMark = node.marks.find((m: any) => m.type.name === 'link');
-                if (linkMark) {
-                    const href = linkMark.attrs.href;
-                    if (href && /^https?:\/\//i.test(href)) {
-                        links.push({
-                            url: href,
-                            text: node.text || "",
-                            pos: pos,
-                            originalUrl: linkMark.attrs['data-original-url']
+                editor.state.doc.descendants((node: any, pos: number) => {
+                    const linkMark = node.marks.find((m: any) => m.type.name === 'link');
+                    if (linkMark) {
+                        const href = linkMark.attrs.href;
+                        if (href && /^https?:\/\//i.test(href)) {
+                            links.push({
+                                url: href,
+                                text: node.text || "",
+                                pos: pos,
+                                originalUrl: linkMark.attrs['data-original-url']
+                            });
+                        }
+                    }
+                    return true;
+                });
+
+                if (links.length === 0) {
+                    currentStore.setStatus("❌ No se encontraron enlaces para procesar.");
+                    setExecutingId(null);
+                    return;
+                }
+
+                const activeRules = (widget.config?.rules || []).filter((r: any) => r.is_active !== false);
+                const newFindings: any[] = [];
+                let totalFound = 0;
+                const insertions: { pos: number; endPos: number; value: string; placement: string }[] = [];
+
+                for (const link of links) {
+                    const response = await NousExtractorService.extract(link.originalUrl || link.url, activeRules);
+                    
+                    if (response.success && response.results.length > 0) {
+                        response.results.forEach(res => {
+                            if (res.success) {
+                                const rule = activeRules.find((r: any) => r.id === res.rule_id);
+                                const placement = rule?.placement_mode || 'inline';
+
+                                newFindings.push({
+                                    url: link.url,
+                                    originalUrl: link.originalUrl,
+                                    text: link.text,
+                                    pos: link.pos,
+                                    value: res.formatted,
+                                    success: true
+                                });
+
+                                insertions.push({
+                                    pos: link.pos,
+                                    endPos: link.pos + (link.text?.length || 0),
+                                    value: res.formatted,
+                                    placement
+                                });
+
+                                totalFound++;
+                            }
                         });
                     }
                 }
-                return true;
-            });
 
-            if (links.length === 0) {
-                store.setStatus("❌ No se encontraron enlaces para procesar.");
-                setExecutingId(null);
-                return;
-            }
+                insertions.sort((a, b) => b.endPos - a.endPos).forEach(ins => {
+                    if (ins.placement === 'inline') {
+                        editor.chain().insertContentAt(ins.endPos, ` ${ins.value}`).run();
+                    } else if (ins.placement === 'new_line') {
+                        editor.chain().insertContentAt(ins.endPos, `<br>${ins.value}`).run();
+                    } else if (ins.placement === 'new_paragraph') {
+                        editor.chain().insertContentAt(ins.endPos, `<p>${ins.value}</p>`).run();
+                    }
+                });
 
-            const activeRules = (widget.config?.rules || []).filter((r: any) => r.is_active !== false);
-            const newFindings: any[] = [];
-            let totalFound = 0;
-            const insertions: { pos: number; endPos: number; value: string; placement: string }[] = [];
-
-            for (const link of links) {
-                // Use the service which now handles data-original-url via priority
-                const response = await NousExtractorService.extract(link.originalUrl || link.url, activeRules);
+                const currentFindings = useWriterStore.getState().extractorFindings;
+                currentStore.setNousExtractorFindings({ ...currentFindings, [widget.id]: newFindings });
                 
-                if (response.success && response.results.length > 0) {
-                    response.results.forEach(res => {
-                        if (res.success) {
-                            const rule = activeRules.find((r: any) => r.id === res.rule_id);
-                            const placement = rule?.placement_mode || 'inline';
-
-                            newFindings.push({
-                                url: link.url,
-                                originalUrl: link.originalUrl,
-                                text: link.text,
-                                pos: link.pos,
-                                value: res.formatted,
-                                success: true
-                            });
-
-                            insertions.push({
-                                pos: link.pos,
-                                endPos: link.pos + (link.text?.length || 0),
-                                value: res.formatted,
-                                placement
-                            });
-
-                            totalFound++;
-                        }
-                    });
+                if (totalFound > 0) {
+                    setExpandedIds(prev => prev.includes(widget.id) ? prev : [...prev, widget.id]);
+                    currentStore.setStatus(`✅ Extracción completada. ${totalFound} hallazgos.`);
+                } else {
+                    currentStore.setStatus("Información incompleta: No se detectaron patrones.");
                 }
+            } catch (e: any) {
+                useWriterStore.getState().setStatus(`❌ Error: ${e.message}`);
+            } finally {
+                setExecutingId(null);
             }
-
-            // Aplicar inserciones al editor (de abajo hacia arriba para no alterar posiciones previas)
-            insertions.sort((a, b) => b.endPos - a.endPos).forEach(ins => {
-                if (ins.placement === 'inline') {
-                    editor.chain().insertContentAt(ins.endPos, ` ${ins.value}`).run();
-                } else if (ins.placement === 'new_line') {
-                    editor.chain().insertContentAt(ins.endPos, `<br>${ins.value}`).run();
-                } else if (ins.placement === 'new_paragraph') {
-                    editor.chain().insertContentAt(ins.endPos, `<p>${ins.value}</p>`).run();
-                }
-            });
-
-            store.setNousExtractorFindings({ ...extractorFindings, [widget.id]: newFindings });
-            
-            if (totalFound > 0) {
-                setExpandedIds(prev => prev.includes(widget.id) ? prev : [...prev, widget.id]);
-                store.setStatus(`✅ Extracción completada. ${totalFound} hallazgos.`);
-            } else {
-                store.setStatus("Información incompleta: No se detectaron patrones.");
-            }
-        } catch (e: any) {
-            store.setStatus(`❌ Error: ${e.message}`);
-        } finally {
-            setExecutingId(null);
-        }
+        });
     };
 
     /**
@@ -158,32 +166,41 @@ export function ToolsTab() {
      */
     const handleExecutePatcher = async (widget: any, mode: 'simulate' | 'apply' = 'simulate') => {
         if (!store.editor) return;
-        setExecutingId(widget.id);
-        store.setStatus(mode === 'simulate' ? 'Simulando parcheo de enlaces...' : 'Aplicando parcheo de enlaces...');
+        
+        const { enqueueTask } = useQueueStore.getState();
+        const actionTitle = mode === 'apply' ? `Parcheando: ${widget.name}` : `Simulando: ${widget.name}`;
+        
+        enqueueTask('planner_nous_action', actionTitle, async () => {
+            const currentStore = useWriterStore.getState();
+            setExecutingId(widget.id);
+            currentStore.setStatus(mode === 'simulate' ? 'Simulando parcheo de enlaces...' : 'Aplicando parcheo de enlaces...');
 
-        try {
-            const response = await LinkPatcherService.processEditorLinks(store.editor, widget, mode);
-            
-            if (response.success) {
-                store.setPatcherFindings({ ...patcherFindings, [widget.id]: response.results });
-                const modifiedCount = response.results.filter(r => r.isModified).length;
+            try {
+                if (!currentStore.editor) return;
+                const response = await LinkPatcherService.processEditorLinks(currentStore.editor, widget, mode);
+                
+                if (response.success) {
+                    const currentPatcherFindings = useWriterStore.getState().patcherFindings;
+                    currentStore.setPatcherFindings({ ...currentPatcherFindings, [widget.id]: response.results });
+                    const modifiedCount = response.results.filter(r => r.isModified).length;
 
-                if (mode === 'apply') {
-                    store.setStatus(`✅ Enlaces parchados: ${modifiedCount} cambios aplicados.`);
-                } else {
-                    store.setStatus(`🔍 Simulación: ${modifiedCount} enlaces detectados para parchar.`);
-                    if (modifiedCount > 0) {
-                        setExpandedIds(prev => prev.includes(widget.id) ? prev : [...prev, widget.id]);
+                    if (mode === 'apply') {
+                        currentStore.setStatus(`✅ Enlaces parchados: ${modifiedCount} cambios aplicados.`);
+                    } else {
+                        currentStore.setStatus(`🔍 Simulación: ${modifiedCount} enlaces detectados para parchar.`);
+                        if (modifiedCount > 0) {
+                            setExpandedIds(prev => prev.includes(widget.id) ? prev : [...prev, widget.id]);
+                        }
                     }
+                } else {
+                    currentStore.setStatus(`❌ Error: ${response.error}`);
                 }
-            } else {
-                store.setStatus(`❌ Error: ${response.error}`);
+            } catch (e: any) {
+                useWriterStore.getState().setStatus(`❌ Error: ${e.message}`);
+            } finally {
+                setExecutingId(null);
             }
-        } catch (e: any) {
-            store.setStatus(`❌ Error: ${e.message}`);
-        } finally {
-            setExecutingId(null);
-        }
+        });
     };
 
     /**
@@ -191,31 +208,38 @@ export function ToolsTab() {
      */
     const handleExecuteSplitter = async (widget: any) => {
         if (!store.editor) return;
-        setExecutingId(widget.id);
-        store.setStatus(`Dividiendo contenido con ${widget.name}...`);
+        
+        const { enqueueTask } = useQueueStore.getState();
+        
+        enqueueTask('planner_nous_action', `Splitter: ${widget.name}`, async () => {
+            const currentStore = useWriterStore.getState();
+            setExecutingId(widget.id);
+            currentStore.setStatus(`Dividiendo contenido con ${widget.name}...`);
 
-        try {
-            const html = store.editor.getHTML();
-            const options: SplitOptions = {
-                limitType: widget.config?.limitType || 'words',
-                limitMode: widget.config?.limitMode || 'max_h2',
-                limitValue: widget.config?.limitValue || 1000
-            };
-            
-            const chunks = ContentSplitterService.splitContent(html, options);
-            setSplitterChunks(prev => ({ ...prev, [widget.id]: chunks }));
-            
-            if (chunks.length > 0) {
-                setExpandedIds(prev => prev.includes(widget.id) ? prev : [...prev, widget.id]);
-                store.setStatus(`✅ Contenido dividido en ${chunks.length} partes.`);
-            } else {
-                store.setStatus("⚠️ No se pudo dividir el contenido.");
+            try {
+                if (!currentStore.editor) return;
+                const html = currentStore.editor.getHTML();
+                const options: SplitOptions = {
+                    limitType: widget.config?.limitType || 'words',
+                    limitMode: widget.config?.limitMode || 'max_h2',
+                    limitValue: widget.config?.limitValue || 1000
+                };
+                
+                const chunks = ContentSplitterService.splitContent(html, options);
+                setSplitterChunks(prev => ({ ...prev, [widget.id]: chunks }));
+                
+                if (chunks.length > 0) {
+                    setExpandedIds(prev => prev.includes(widget.id) ? prev : [...prev, widget.id]);
+                    currentStore.setStatus(`✅ Contenido dividido en ${chunks.length} partes.`);
+                } else {
+                    currentStore.setStatus("⚠️ No se pudo dividir el contenido.");
+                }
+            } catch (e: any) {
+                useWriterStore.getState().setStatus(`❌ Error al dividir: ${e.message}`);
+            } finally {
+                setExecutingId(null);
             }
-        } catch (e: any) {
-            store.setStatus(`❌ Error al dividir: ${e.message}`);
-        } finally {
-            setExecutingId(null);
-        }
+        });
     };
 
     const handleScrollToLink = (pos: number) => {
