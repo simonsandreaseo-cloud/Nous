@@ -52,7 +52,25 @@ export function useWriterActions() {
     // --- SEO Research ---
     const handleSEO = useCallback(() => {
         const { enqueueTask } = useQueueStore.getState();
+        const outerStore = store;
+        const targetTaskId = store.draftId;
+        const targetProjectId = activeProject?.id;
         enqueueTask('seo', 'Investigando SEO', async () => {
+            const store = new Proxy(outerStore, {
+                get(target: any, prop: string) {
+                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
+                        return (...args: any[]) => {
+                            if (useWriterStore.getState().draftId === targetTaskId) {
+                                return target[prop](...args);
+                            }
+                        }
+                    }
+                    if (prop === 'saveTaskVersion') {
+                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
+                    }
+                    return target[prop];
+                }
+            });
         if (!store.keyword) return alert('Ingresa una palabra clave primero.');
         store.setAnalyzingSEO(true);
         store.setStatus('Realizando análisis profundo de SEO...');
@@ -132,13 +150,31 @@ export function useWriterActions() {
         } finally {
             store.setAnalyzingSEO(false);
         }
-        });
+        }, { taskId: targetTaskId, projectId: targetProjectId });
     }, [store, hasAccess, activeProject]);
 
     // --- Plan Structure (REGENERATION) ---
     const handleRegenerateOutline = useCallback(async () => {
         const { enqueueTask } = useQueueStore.getState();
+        const outerStore = store;
+        const targetTaskId = store.draftId;
+        const targetProjectId = activeProject?.id;
         enqueueTask('seo', 'Regenerando estructura', async () => {
+            const store = new Proxy(outerStore, {
+                get(target: any, prop: string) {
+                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
+                        return (...args: any[]) => {
+                            if (useWriterStore.getState().draftId === targetTaskId) {
+                                return target[prop](...args);
+                            }
+                        }
+                    }
+                    if (prop === 'saveTaskVersion') {
+                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
+                    }
+                    return target[prop];
+                }
+            });
         if (!store.rawSeoData) return alert('Realiza el análisis SEO primero.');
         store.setPlanningStructure(true);
         store.setStatus('Regenerando outline estratégico con Gemini 3.1 Flash Lite...');
@@ -176,13 +212,31 @@ export function useWriterActions() {
         } finally {
             store.setPlanningStructure(false);
         }
-        });
+        }, { taskId: targetTaskId, projectId: targetProjectId });
     }, [store]);
 
     // --- Generate Content ---
     const handleGenerate = useCallback(() => {
         const { enqueueTask } = useQueueStore.getState();
+        const outerStore = store;
+        const targetTaskId = store.draftId;
+        const targetProjectId = activeProject?.id;
         enqueueTask('generate', 'Generando borrador inicial', async () => {
+            const store = new Proxy(outerStore, {
+                get(target: any, prop: string) {
+                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
+                        return (...args: any[]) => {
+                            if (useWriterStore.getState().draftId === targetTaskId) {
+                                return target[prop](...args);
+                            }
+                        }
+                    }
+                    if (prop === 'saveTaskVersion') {
+                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
+                    }
+                    return target[prop];
+                }
+            });
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.strategyH1 && !store.keyword) return alert('Necesitas un H1 o keyword objetivo.');
         
@@ -253,8 +307,7 @@ export function useWriterActions() {
                         else placementText = "Coloca el dato extraído inmediatamente después del enlace (inline).";
                         
                         return `- Para reglas "${r.name}": ${placementText} (Pattern: ${r.extraction_value})`;
-                    }).join('\n'),
-                language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
+                    }).join('\n')
             };
 
             // Helper to chunk the outline
@@ -433,14 +486,32 @@ export function useWriterActions() {
         } finally {
             store.setGenerating(false);
         }
-        });
+        }, { taskId: targetTaskId, projectId: targetProjectId });
     }, [store, hasAccess, activeProject, hasTokens, consumeTokens, getTokensLimit, selectTopRelevantLinks]);
 
     // --- Humanize ---
     const handleHumanize = useCallback(() => {
         const { enqueueTask } = useQueueStore.getState();
         
+        const outerStore = store;
+        const targetTaskId = store.draftId;
+        const targetProjectId = activeProject?.id;
         enqueueTask('humanize', 'Humanizando artículo', async () => {
+            const store = new Proxy(outerStore, {
+                get(target: any, prop: string) {
+                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
+                        return (...args: any[]) => {
+                            if (useWriterStore.getState().draftId === targetTaskId) {
+                                return target[prop](...args);
+                            }
+                        }
+                    }
+                    if (prop === 'saveTaskVersion') {
+                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
+                    }
+                    return target[prop];
+                }
+            });
             console.log("[DEBUG-Humanize] Action triggered");
         if (!hasAccess) {
             console.log("[DEBUG-Humanize] Access denied");
@@ -595,13 +666,31 @@ export function useWriterActions() {
         } finally {
             store.setHumanizing(false);
         }
-        });
+        }, { taskId: targetTaskId, projectId: targetProjectId });
     }, [store, hasAccess, activeProject]);
 
     // --- Refine ---
     const handleSurgicalEdit = useCallback(() => {
         const { enqueueTask } = useQueueStore.getState();
+        const outerStore = store;
+        const targetTaskId = store.draftId;
+        const targetProjectId = activeProject?.id;
         enqueueTask('surgical_edit', 'Edición Quirúrgica', async () => {
+            const store = new Proxy(outerStore, {
+                get(target: any, prop: string) {
+                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
+                        return (...args: any[]) => {
+                            if (useWriterStore.getState().draftId === targetTaskId) {
+                                return target[prop](...args);
+                            }
+                        }
+                    }
+                    if (prop === 'saveTaskVersion') {
+                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
+                    }
+                    return target[prop];
+                }
+            });
         console.log("[DEBUG-SurgicalEdit] Action triggered");
         if (!hasAccess) {
             console.log("[DEBUG-SurgicalEdit] Access denied");
@@ -718,12 +807,30 @@ export function useWriterActions() {
             
             console.log("[DEBUG-SurgicalEdit] Process finished");
         }
-        });
+        }, { taskId: targetTaskId, projectId: targetProjectId });
     }, [hasAccess, store, activeProject, refineStyling]);
 
     const handleRefine = useCallback(() => {
         const { enqueueTask } = useQueueStore.getState();
+        const outerStore = store;
+        const targetTaskId = store.draftId;
+        const targetProjectId = activeProject?.id;
         enqueueTask('refine', 'Refinando texto', async () => {
+            const store = new Proxy(outerStore, {
+                get(target: any, prop: string) {
+                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
+                        return (...args: any[]) => {
+                            if (useWriterStore.getState().draftId === targetTaskId) {
+                                return target[prop](...args);
+                            }
+                        }
+                    }
+                    if (prop === 'saveTaskVersion') {
+                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
+                    }
+                    return target[prop];
+                }
+            });
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.content || !store.refinementInstructions) return;
         store.setRefining(true);
@@ -753,13 +860,31 @@ export function useWriterActions() {
         } finally {
             store.setRefining(false);
         }
-        });
+        }, { taskId: targetTaskId, projectId: targetProjectId });
     }, [store, hasAccess]);
 
     // --- Clean ---
     const handleClean = useCallback(() => {
         const { enqueueTask } = useQueueStore.getState();
+        const outerStore = store;
+        const targetTaskId = store.draftId;
+        const targetProjectId = activeProject?.id;
         enqueueTask('clean', 'Limpiando huellas IA', async () => {
+            const store = new Proxy(outerStore, {
+                get(target: any, prop: string) {
+                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
+                        return (...args: any[]) => {
+                            if (useWriterStore.getState().draftId === targetTaskId) {
+                                return target[prop](...args);
+                            }
+                        }
+                    }
+                    if (prop === 'saveTaskVersion') {
+                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
+                    }
+                    return target[prop];
+                }
+            });
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.content) return;
         
@@ -845,7 +970,7 @@ export function useWriterActions() {
         } finally {
             store.setRefining(false);
         }
-        });
+        }, { taskId: targetTaskId, projectId: targetProjectId });
     }, [store, hasAccess]);
 
     return {
