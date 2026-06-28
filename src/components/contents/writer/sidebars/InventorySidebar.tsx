@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
@@ -12,10 +12,12 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
 import { useProjectStore, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
+import { useQueueStore } from '@/store/useQueueStore';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useShallow } from 'zustand/react/shallow';
 
 export function InventorySidebar() {
+    const { activeTask, queue } = useQueueStore();
     const { projectId, loadContentById, draftId, projectContents, loadProjectContents } = useWriterStore();
     const { activeTeam, activeProjectIds } = useProjectStore();
     
@@ -179,3 +181,4 @@ export function InventorySidebar() {
         </div>
     );
 }
+

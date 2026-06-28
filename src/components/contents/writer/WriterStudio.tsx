@@ -296,9 +296,11 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
-            if (panel.getSize() < 15) {
-                panel.resize(20);
-            }
+            setTimeout(() => {
+                if (panel.getSize() < 15) {
+                    panel.resize(20);
+                }
+            }, 10);
         } else {
             panel.collapse();
         }
@@ -309,9 +311,11 @@ export default function WriterStudio() {
         if (!panel) return;
         if (panel.isCollapsed()) {
             panel.expand();
-            if (panel.getSize() < 15) {
-                panel.resize(25);
-            }
+            setTimeout(() => {
+                if (panel.getSize() < 15) {
+                    panel.resize(25);
+                }
+            }, 10);
         } else {
             panel.collapse();
         }

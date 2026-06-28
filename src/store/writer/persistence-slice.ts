@@ -16,7 +16,7 @@ export interface PersistenceActions {
     deleteVersion: (taskId: string) => Promise<void>;
     setVersionStatus: (langCode: string, taskId: string | null) => void;
     fetchTaskVersions: (taskId: string) => Promise<void>;
-    saveTaskVersion: (processName: string, contentBody?: string) => Promise<void>;
+    saveTaskVersion: (processName: string, contentBody?: string, taskIdOverride?: string) => Promise<void>;
     restoreTaskVersion: (versionId: string) => Promise<void>;
 }
 
@@ -206,7 +206,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
             strategySlug: slug,
             strategyDesc: desc,
             strategyExcerpt: excerpt,
-            activeSidebarTab: 'generate',
+            activeSidebarTab: state.activeSidebarTab,
             researchDossier: dossier,
             rawSeoData: dossier,
             seoResults: dossier,
@@ -418,22 +418,26 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         }
     },
 
-    saveTaskVersion: async (processName: string, contentBody?: string) => {
+    saveTaskVersion: async (processName: string, contentBody?: string, taskIdOverride?: string) => {
         const { supabase } = require('@/lib/supabase');
         const { draftId, content, fetchTaskVersions } = get() as any;
         
-        if (!draftId) return;
+        const targetTaskId = taskIdOverride || draftId;
+        if (!targetTaskId) return;
 
         const bodyToSave = contentBody !== undefined ? contentBody : content;
 
         const { error } = await supabase.rpc('save_task_version', {
-            p_task_id: draftId,
+            p_task_id: targetTaskId,
             p_content_body: bodyToSave,
             p_process_name: processName
         });
 
         if (!error) {
-            await fetchTaskVersions(draftId);
+            // Solo actualizamos la vista local de versiones si estamos viendo esta misma tarea
+            if (targetTaskId === draftId) {
+                await fetchTaskVersions(draftId);
+            }
         } else {
             console.error('[Persistence] Error saving task version:', error);
         }

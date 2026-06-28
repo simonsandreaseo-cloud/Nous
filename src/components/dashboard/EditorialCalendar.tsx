@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
@@ -813,8 +813,7 @@ export function EditorialCalendar() {
                             onLog: (s, m, r) => onLog(t.id, s, m, r),
                             taskId: t.id,
                             linkPlannedContents,
-                            linkPlannedStatuses
-                        });
+                            linkPlannedStatuses } , { taskId: t.id });
                         if (result) {
                             const statusToSet = (finalStatus === 'keep_current') ? latestTask.status : result.status;
                             await updateTask(t.id, {
@@ -937,8 +936,7 @@ export function EditorialCalendar() {
                         onLog: (s, m, r) => onLog(t.id, s, m, r),
                         taskId: t.id,
                         linkPlannedContents,
-                        linkPlannedStatuses
-                    });
+                        linkPlannedStatuses } , { taskId: t.id });
                     if (result) await updateTask(t.id, { 
                         title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title, 
                         research_dossier: result.research_dossier, 
@@ -966,8 +964,7 @@ export function EditorialCalendar() {
                         updateTask(t.id, res.updates);
                         onLog(t.id, 'Outline', res.msg!);
                     }
-                    setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
-                    });
+                    setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 })); } , { taskId: t.id });
                 }
                 NotificationService.success('En cola', `Nous ha añadido ${filtered.length} outlines a la cola.`);
             } else if (action === 'redaccion_masiva') {
@@ -984,8 +981,7 @@ export function EditorialCalendar() {
                     } catch (e: any) {
                         setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
                         onLog(t.id, 'Error', `❌ Error: ${e.message}`);
-                    }
-                    });
+                    } } , { taskId: t.id });
                 }
                 NotificationService.success('En cola', `Nous ha añadido ${filtered.length} redacciones a la cola.`);
             } else if (action === 'humanizacion_masiva') {
@@ -1006,8 +1002,7 @@ export function EditorialCalendar() {
                     } catch (e: any) {
                         setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
                         onLog(t.id, 'Error', `❌ Error: ${e.message}`);
-                    }
-                    });
+                    } } , { taskId: t.id });
                 }
                 NotificationService.success('En cola', `Nous ha añadido ${filtered.length} humanizaciones a la cola.`);
             } else if (action === 'traduccion_masiva') {
@@ -1022,8 +1017,7 @@ export function EditorialCalendar() {
                     for (const lang of targetLangs) {
                         const res = await processTaskTranslationAction(t.id, lang);
                         if (res.success) onLog(t.id, 'Traducción', res.msg!);
-                    }
-                    });
+                    } } , { taskId: t.id });
                 }
                 NotificationService.success('En cola', `Nous ha añadido ${filtered.length} traducciones a la cola.`);
             }
@@ -1949,3 +1943,4 @@ async function saveContentAndLink(taskId: string, html: string, userId?: string)
 }
 
 export default EditorialCalendar;
+
