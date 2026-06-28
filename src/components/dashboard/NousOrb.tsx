@@ -91,7 +91,6 @@ export default function NousOrb({
         researchPhaseId
     } = useWriterStore();
 
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const { activeProject } = useProjectStore();
     const i18nLanguages = activeProject?.i18n_settings?.languages || [];
