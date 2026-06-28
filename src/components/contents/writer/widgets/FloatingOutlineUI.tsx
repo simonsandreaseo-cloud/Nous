@@ -10,8 +10,11 @@ export default function FloatingOutlineUI() {
 
     if (!strategyOutline || strategyOutline.length === 0) {
         return (
-            <div className="absolute top-4 left-4 z-[9999] bg-red-500 text-white p-2 text-xs rounded-md shadow-2xl">
+            <div className="absolute top-4 left-4 z-[9999] bg-red-500 text-white p-2 text-xs rounded-md shadow-2xl overflow-auto max-h-96 max-w-lg">
                 DEBUG: strategyOutline is {strategyOutline === undefined ? 'undefined' : strategyOutline === null ? 'null' : 'empty'}
+                <pre className="mt-2 text-[10px] whitespace-pre-wrap">
+                    {useWriterStore.getState().debugLastEmptyStack || 'No stack trace available'}
+                </pre>
             </div>
         );
     }

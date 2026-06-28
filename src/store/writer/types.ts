@@ -93,7 +93,7 @@ export interface WriterStoreState {
     strategyExcerpt: string;
     strategyWordCount: string;
     strategyTone: string;
-    strategyOutline: StrategyOutlineItem[];
+    strategyOutline: StrategyOutlineItem[]; debugLastEmptyStack?: string;
     strategyCompetitors: string;
     strategyNotes: string;
     strategyLinks: ContentItem[];
