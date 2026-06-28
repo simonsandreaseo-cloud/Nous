@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
@@ -132,17 +132,24 @@ export function InventorySidebar() {
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 italic">No hay resultados</span>
                     </div>
                 ) : (
-                    filteredTasks.map((task) => (
+                    filteredTasks.map((task) => {
+                        const isExecuting = activeTask?.taskId === task.id || queue.some(q => q.taskId === task.id);
+
+                        return (
                         <button
                             key={task.id}
                             onClick={() => loadContentById(task.id)}
                             className={cn(
-                                "w-full p-4 rounded-[20px] text-left transition-all border group relative",
+                                "w-full p-4 rounded-[20px] text-left transition-all border group relative overflow-hidden",
                                 draftId === task.id 
                                     ? "bg-white border-indigo-100 shadow-xl shadow-indigo-100/50 scale-[1.02] z-10" 
-                                    : "bg-transparent border-transparent hover:bg-white/60 text-slate-500 hover:border-slate-200/50"
+                                    : "bg-transparent border-transparent hover:bg-white/60 text-slate-500 hover:border-slate-200/50",
+                                isExecuting && "animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                             )}
                         >
+                            {isExecuting && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/5 to-transparent animate-[shimmer_2s_infinite] pointer-events-none" />
+                            )}
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                     <div className={cn(
@@ -162,19 +169,25 @@ export function InventorySidebar() {
                             </div>
 
                             <h4 className={cn(
-                                "text-[11px] font-black leading-tight uppercase italic tracking-tight line-clamp-2 transition-colors",
+                                "text-[11px] font-black leading-tight uppercase italic tracking-tight line-clamp-2 transition-colors relative z-10",
                                 draftId === task.id ? "text-slate-900" : "text-slate-500 group-hover:text-slate-700"
                             )}>
                                 {task.title || 'Sin Título'}
                             </h4>
 
-                            {draftId === task.id && (
+                            {isExecuting && (
                                 <div className="absolute right-4 bottom-4 text-indigo-500">
+                                    <Loader2 size={14} className="animate-spin" />
+                                </div>
+                            )}
+                            
+                            {draftId === task.id && !isExecuting && (
+                                <div className="absolute right-4 bottom-4 text-indigo-500 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">
                                     <ArrowUpRight size={14} />
                                 </div>
                             )}
                         </button>
-                    ))
+                    )})
                 )}
             </div>
 

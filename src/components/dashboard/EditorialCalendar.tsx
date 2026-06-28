@@ -921,34 +921,10 @@ export function EditorialCalendar() {
                 let processedCount = 0;
                 const { enqueueTask } = useQueueStore.getState();
                 for (const t of candidates) {
-                    enqueueTask(`research_${t.id}_${Date.now()}`, `Investigando: ${t.title}`, async () => {
-                    NotificationService.notify('Investigando', t.title);
-                    setBatchResearchStatus(prev => ({ ...prev, [t.id]: 5 }));
-                    const result = await StrategyService.runDeepSEOAnalysis({
-                        projectId: activeProject.id, keyword: t.target_keyword || t.title,
-                        onProgress: (p) => {
-                            const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
-                            const prog = progressMap[p] || 10;
-                            setResearchProgress(prog);
-                            setBatchResearchStatus(prev => ({ ...prev, [t.id]: prog }));
-                            setResearchPhaseId(p);
-                            setResearchTopic(t.target_keyword || t.title);
-                        },
-                        onLog: (s, m, r) => onLog(t.id, s, m, r),
-                        taskId: t.id,
-                        linkPlannedContents,
-                        linkPlannedStatuses } , { taskId: t.id });
-                    if (result) await updateTask(t.id, { 
-                        title: improveTitleWithNous && result.seo_title ? result.seo_title : t.title, 
-                        research_dossier: result.research_dossier, 
-                        seo_title: t.seo_title || result.seo_title, 
-                        meta_description: t.meta_description || result.meta_description, 
-                        target_url_slug: t.target_url_slug || result.target_url_slug, 
-                        status: result.status,
-                        observaciones: t.observaciones || result.observaciones
-                    });
-                    setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 }));
-                    });
+                    enqueueTask('batch_research', `Investigando: ${t.title}`, 
+                        { targetTaskId: t.id, keyword: t.target_keyword || t.title, projectId: activeProject.id, linkPlannedContents, linkPlannedStatuses, improveTitleWithNous, currentTitle: t.title },
+                        { taskId: t.id }
+                    );
                 }
                 NotificationService.success('En cola', `Nous ha añadido ${candidates.length} investigaciones a la cola.`);
             } else if (action === 'generar_outlines') {
@@ -956,16 +932,12 @@ export function EditorialCalendar() {
                 let filtered = tasks.filter(t => t.status === 'en_investigacion');
                 if (selectedTaskIds.length > 0) filtered = tasks.filter(t => selectedTaskIds.includes(t.id));
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay tareas investigadas que necesiten un outline.'); return; }
-                let pCount = 0;
                 const { enqueueTask } = useQueueStore.getState();
                 for (const t of filtered) {
-                    enqueueTask(`outline_${t.id}_${Date.now()}`, `Outline: ${t.title}`, async () => {
-                    const res = await processTaskOutlineAction(t.id, csvData);
-                    if (res.success && res.updates) {
-                        updateTask(t.id, res.updates);
-                        onLog(t.id, 'Outline', res.msg!);
-                    }
-                    setBatchResearchStatus(prev => ({ ...prev, [t.id]: 100 })); } , { taskId: t.id });
+                    enqueueTask('batch_outline', `Outline: ${t.title}`, 
+                        { targetTaskId: t.id, keyword: t.target_keyword || t.title, projectId: activeProject.id, researchDossier: t.research_dossier, recommendedWordCount: t.target_word_count },
+                        { taskId: t.id }
+                    );
                 }
                 NotificationService.success('En cola', `Nous ha añadido ${filtered.length} outlines a la cola.`);
             } else if (action === 'redaccion_masiva') {
@@ -973,16 +945,12 @@ export function EditorialCalendar() {
                 let filtered = tasks.filter(t => t.status === 'por_redactar');
                 if (selectedTaskIds.length > 0) filtered = tasks.filter(t => selectedTaskIds.includes(t.id));
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay outlines listos para redactar.'); return; }
-                let pCount = 0;
                 const { enqueueTask } = useQueueStore.getState();
                 for (const t of filtered) {
-                    enqueueTask(`draft_${t.id}_${Date.now()}`, `Redactando: ${t.title}`, async () => {
-                    try {
-                        await runTaskDraftPipeline(t, onLog);
-                    } catch (e: any) {
-                        setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
-                        onLog(t.id, 'Error', `❌ Error: ${e.message}`);
-                    } } , { taskId: t.id });
+                    enqueueTask('batch_generate', `Redactando: ${t.title}`, 
+                        { targetTask: t, activeProject },
+                        { taskId: t.id }
+                    );
                 }
                 NotificationService.success('En cola', `Nous ha añadido ${filtered.length} redacciones a la cola.`);
             } else if (action === 'humanizacion_masiva') {
@@ -994,16 +962,12 @@ export function EditorialCalendar() {
                     filtered = tasks.filter(t => selectedTaskIds.includes(t.id) && validIds.has(t.id));
                 }
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'Ninguno de los artículos seleccionados tiene contenido válido para humanizar.'); return; }
-                let pCount = 0;
                 const { enqueueTask } = useQueueStore.getState();
                 for (const t of filtered) {
-                    enqueueTask(`humanize_${t.id}_${Date.now()}`, `Humanizando: ${t.title}`, async () => {
-                    try {
-                        await runTaskHumanizePipeline(t, onLog);
-                    } catch (e: any) {
-                        setBatchResearchStatus(prev => ({ ...prev, [t.id]: -1 }));
-                        onLog(t.id, 'Error', `❌ Error: ${e.message}`);
-                    } } , { taskId: t.id });
+                    enqueueTask('batch_humanize', `Humanizando: ${t.title}`, 
+                        { targetTask: t, activeProject, content: t.content_body },
+                        { taskId: t.id }
+                    );
                 }
                 NotificationService.success('En cola', `Nous ha añadido ${filtered.length} humanizaciones a la cola.`);
             } else if (action === 'traduccion_masiva') {
@@ -1011,14 +975,12 @@ export function EditorialCalendar() {
                 if (targetLangs.length === 0) { NotificationService.warn('Configuración requerida', 'Debes configurar idiomas de traducción en los ajustes del proyecto.'); return; }
                 let filtered = (selectedTaskIds && selectedTaskIds.length > 0) ? tasks.filter(t => selectedTaskIds.includes(t.id)) : tasks;
                 if (filtered.length === 0) { NotificationService.notify('Sin tareas', 'No hay contenidos seleccionados para traducir.'); return; }
-                let pCount = 0;
                 const { enqueueTask } = useQueueStore.getState();
                 for (const t of filtered) {
-                    enqueueTask(`translate_${t.id}_${Date.now()}`, `Traduciendo: ${t.title}`, async () => {
-                    for (const lang of targetLangs) {
-                        const res = await processTaskTranslationAction(t.id, lang);
-                        if (res.success) onLog(t.id, 'Traducción', res.msg!);
-                    } } , { taskId: t.id });
+                    enqueueTask('batch_translate', `Traduciendo: ${t.title}`, 
+                        { targetTaskId: t.id, targetLangs },
+                        { taskId: t.id }
+                    );
                 }
                 NotificationService.success('En cola', `Nous ha añadido ${filtered.length} traducciones a la cola.`);
             }

@@ -63,12 +63,9 @@ export function ToolsTab() {
     const handleExecuteExtractor = async (widget: any) => {
         if (!store.editor) return;
         
-        const { enqueueTask } = useQueueStore.getState();
-        
-        enqueueTask('planner_nous_action', `Extractor: ${widget.name}`, async () => {
-            const currentStore = useWriterStore.getState();
-            setExecutingId(widget.id);
-            currentStore.setStatus(`Escaneando enlaces para ${widget.name}...`);
+        const currentStore = useWriterStore.getState();
+        setExecutingId(widget.id);
+        currentStore.setStatus(`Escaneando enlaces para ${widget.name}...`);
 
             try {
                 const editor = currentStore.editor;
@@ -158,7 +155,6 @@ export function ToolsTab() {
             } finally {
                 setExecutingId(null);
             }
-        });
     };
 
     /**
@@ -167,13 +163,11 @@ export function ToolsTab() {
     const handleExecutePatcher = async (widget: any, mode: 'simulate' | 'apply' = 'simulate') => {
         if (!store.editor) return;
         
-        const { enqueueTask } = useQueueStore.getState();
         const actionTitle = mode === 'apply' ? `Parcheando: ${widget.name}` : `Simulando: ${widget.name}`;
         
-        enqueueTask('planner_nous_action', actionTitle, async () => {
-            const currentStore = useWriterStore.getState();
-            setExecutingId(widget.id);
-            currentStore.setStatus(mode === 'simulate' ? 'Simulando parcheo de enlaces...' : 'Aplicando parcheo de enlaces...');
+        const currentStore = useWriterStore.getState();
+        setExecutingId(widget.id);
+        currentStore.setStatus(mode === 'simulate' ? 'Simulando parcheo de enlaces...' : 'Aplicando parcheo de enlaces...');
 
             try {
                 if (!currentStore.editor) return;
@@ -200,7 +194,6 @@ export function ToolsTab() {
             } finally {
                 setExecutingId(null);
             }
-        });
     };
 
     /**
@@ -209,12 +202,9 @@ export function ToolsTab() {
     const handleExecuteSplitter = async (widget: any) => {
         if (!store.editor) return;
         
-        const { enqueueTask } = useQueueStore.getState();
-        
-        enqueueTask('planner_nous_action', `Splitter: ${widget.name}`, async () => {
-            const currentStore = useWriterStore.getState();
-            setExecutingId(widget.id);
-            currentStore.setStatus(`Dividiendo contenido con ${widget.name}...`);
+        const currentStore = useWriterStore.getState();
+        setExecutingId(widget.id);
+        currentStore.setStatus(`Dividiendo contenido con ${widget.name}...`);
 
             try {
                 if (!currentStore.editor) return;
@@ -239,7 +229,6 @@ export function ToolsTab() {
             } finally {
                 setExecutingId(null);
             }
-        });
     };
 
     const handleScrollToLink = (pos: number) => {

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 export type QueueActionType = 
   | 'surgical_edit'
   | 'humanize'
@@ -23,12 +24,12 @@ export interface QueueTask {
     type: QueueActionType;
     title: string;
     description?: string;
-    execute: (taskId: string) => Promise<void>;
     status: 'pending' | 'processing' | 'completed' | 'error';
     progress?: number;
     createdAt: Date;
     projectId?: string;
     taskId?: string; // Si pertenece a un documento o borrador específico
+    payload?: Record<string, any>; // Serializable data needed to resume the task
     logs: QueueTaskLog[];
 }
 
@@ -41,7 +42,7 @@ interface QueueStore {
     enqueueTask: (
         type: QueueActionType, 
         title: string, 
-        executeFn: (taskId: string) => Promise<void>,
+        payload?: Record<string, any>,
         options?: { description?: string; taskId?: string; projectId?: string }
     ) => string;
     dequeueTask: (id: string) => void;
@@ -55,32 +56,34 @@ interface QueueStore {
     shiftQueue: () => QueueTask | undefined;
 }
 
-export const useQueueStore = create<QueueStore>((set, get) => ({
-    queue: [],
-    activeTask: null,
-    isProcessingQueue: false,
+export const useQueueStore = create<QueueStore>()(
+    persist(
+        (set, get) => ({
+            queue: [],
+            activeTask: null,
+            isProcessingQueue: false,
 
-    enqueueTask: (type, title, executeFn, options) => {
-        const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
-        const newTask: QueueTask = {
-            id,
-            type,
-            title,
-            execute: executeFn,
-            status: 'pending',
-            createdAt: new Date(),
-            description: options?.description,
-            taskId: options?.taskId,
-            projectId: options?.projectId,
-            logs: []
-        };
+            enqueueTask: (type, title, payload, options) => {
+                const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+                const newTask: QueueTask = {
+                    id,
+                    type,
+                    title,
+                    status: 'pending',
+                    createdAt: new Date(),
+                    description: options?.description,
+                    taskId: options?.taskId,
+                    projectId: options?.projectId,
+                    payload,
+                    logs: []
+                };
 
-        set((state) => ({
-            queue: [...state.queue, newTask]
-        }));
-        
-        return id;
-    },
+                set((state) => ({
+                    queue: [...state.queue, newTask]
+                }));
+                
+                return id;
+            },
 
     dequeueTask: (id) => {
         set((state) => ({
@@ -148,4 +151,20 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
         
         return nextTask;
     }
-}));
+        }),
+        {
+            name: 'nous-queue-storage',
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({ 
+                queue: state.queue.map(q => ({
+                    ...q,
+                    status: q.status === 'processing' ? 'pending' : q.status // Reset processing tasks to pending on reload
+                })),
+                activeTask: state.activeTask ? {
+                    ...state.activeTask,
+                    status: 'pending' // Reset active task to pending
+                } : null
+            }),
+        }
+    )
+);

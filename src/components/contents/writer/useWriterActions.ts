@@ -52,442 +52,50 @@ export function useWriterActions() {
     // --- SEO Research ---
     const handleSEO = useCallback(() => {
         const { enqueueTask } = useQueueStore.getState();
-        const outerStore = store;
         const targetTaskId = store.draftId;
         const targetProjectId = activeProject?.id;
-        enqueueTask('seo', 'Investigando SEO', async () => {
-            const store = new Proxy(outerStore, {
-                get(target: any, prop: string) {
-                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
-                        return (...args: any[]) => {
-                            if (useWriterStore.getState().draftId === targetTaskId) {
-                                return target[prop](...args);
-                            }
-                        }
-                    }
-                    if (prop === 'saveTaskVersion') {
-                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
-                    }
-                    return target[prop];
-                }
-            });
+        
         if (!store.keyword) return alert('Ingresa una palabra clave primero.');
-        store.setAnalyzingSEO(true);
-        store.setStatus('Realizando análisis profundo de SEO...');
-        try {
-            const modelToUse = store.researchMode === 'rapid' ? 'gemma-4-31b-it' : 'gemma-4-31b-it';
-            const res = await ResearchOrchestrator.runDeepAnalysis({
-                keyword: store.keyword,
-                projectId: activeProject?.id,
-                onProgress: (phase) => store.setStatus(phase),
-                modelName: modelToUse,
-                language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
-            });
-
-
-            // 1. Sync store with research results
-            store.setRawSeoData(res);
-            if (res.nicheDetected) store.setDetectedNiche(res.nicheDetected);
-            if (res.lsiKeywords) store.setStrategyLSI(res.lsiKeywords);
-            if (res.frequentQuestions) store.setStrategyQuestions(res.frequentQuestions);
-            if (res.suggestedInternalLinks) store.setStrategyLinks(res.suggestedInternalLinks || []);
-            
-            // Hypothetical keyword ideas
-            if (res.keywordIdeas) store.setStrategyKeywords(res.keywordIdeas);
-            
-            // Volume & Difficulty mapping
-            if (res.searchVolume || res.volume) store.setStrategyVolume(String(res.searchVolume || res.volume));
-            if (res.keywordDifficulty) store.setStrategyDifficulty(res.keywordDifficulty);
-
-            // New: Cannibalization handling
-            const cannibalUrls = (res as any).cannibalizationUrls || [];
-            store.setStrategyCannibalization(cannibalUrls);
-            if (cannibalUrls.length > 0) {
-                store.setIsConsoleOpen(true);
-            }
-
-            const brief = generateBriefingText(res);
-            store.setStrategyNotes(brief);
-
-            // 2. Persist to DB (Dossier + Top level columns)
-            if (store.draftId) {
-                console.log("[useWriterActions] Persisting Comprehensive SEO Strategy to DB for task:", store.draftId);
-                const { error: updateError } = await supabase
-                    .from('tasks')
-                    .update({
-                        seo_data: res, 
-                        h1: res.h1,
-                        seo_title: res.seo_title,
-                        meta_description: res.meta_description,
-                        excerpt: res.extracto,
-                        target_url_slug: res.target_url_slug,
-                        target_word_count: res.target_word_count,
-                        outline_structure: res.strategyOutline || [],
-                        status: 'por_redactar'
-                    })
-                    .eq('id', store.draftId);
-                
-                if (updateError) console.error("[useWriterActions] Error persisting research:", updateError.message);
-            }
-
-            // 3. Populate specific strategy fields for immediate UI feedback
-            if (res.strategyOutline) {
-                store.setStrategyOutline(res.strategyOutline);
-            }
-
-            if (res.h1) store.setStrategyH1(res.h1);
-            if (res.seo_title) store.setStrategyTitle(res.seo_title);
-            if (res.target_url_slug) store.setStrategySlug(res.target_url_slug);
-            if (res.meta_description) store.setStrategyDesc(res.meta_description);
-            if (res.extracto) store.setStrategyExcerpt(res.extracto);
-            if (res.target_word_count) store.setStrategyWordCount(String(res.target_word_count));
-            
-            store.setStatus('✅ Análisis SEO y Arquitectura completados.');
-            store.setSidebarTab('seo'); // Switching to SEO/Strategy tab
-        } catch (e: any) {
-            console.error(e);
-            store.setStatus('❌ Error SEO: ' + e.message);
-        } finally {
-            store.setAnalyzingSEO(false);
-        }
-        }, { taskId: targetTaskId, projectId: targetProjectId });
+        
+        enqueueTask('seo', 'Investigando SEO', 
+            { taskId: targetTaskId, projectId: targetProjectId, keyword: store.keyword },
+            { taskId: targetTaskId, projectId: targetProjectId }
+        );
     }, [store, hasAccess, activeProject]);
 
     // --- Plan Structure (REGENERATION) ---
     const handleRegenerateOutline = useCallback(async () => {
         const { enqueueTask } = useQueueStore.getState();
-        const outerStore = store;
         const targetTaskId = store.draftId;
         const targetProjectId = activeProject?.id;
-        enqueueTask('seo', 'Regenerando estructura', async () => {
-            const store = new Proxy(outerStore, {
-                get(target: any, prop: string) {
-                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
-                        return (...args: any[]) => {
-                            if (useWriterStore.getState().draftId === targetTaskId) {
-                                return target[prop](...args);
-                            }
-                        }
-                    }
-                    if (prop === 'saveTaskVersion') {
-                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
-                    }
-                    return target[prop];
-                }
-            });
+        
         if (!store.rawSeoData) return alert('Realiza el análisis SEO primero.');
-        store.setPlanningStructure(true);
-        store.setStatus('Regenerando outline estratégico con Gemini 3.1 Flash Lite...');
-        try {
-            const res = await OutlineEngine.generate({
-                keyword: store.keyword,
-                seoMetadata: {
-                    h1: store.strategyH1,
-                    seo_title: store.strategyTitle,
-                    slug: store.strategySlug,
-                    meta_description: store.strategyDesc,
-                    extracto: store.strategyExcerpt,
-                    recommendedWordCount: store.strategyWordCount
-                },
-                cleanedLSI: store.strategyLSI,
-                suggestedLinks: store.strategyLinks,
-                validCompetitors: (store.rawSeoData as any).competitors || [],
-                wordCountGoal: parseInt(String(store.strategyWordCount)) || 1500
-            });
-
-            
-            store.setStrategyOutline(res);
-            store.addDebugPrompt('Regeneración de Outline', `Nuevo outline generado para: ${store.keyword}`, JSON.stringify(res));
-            
-            if (store.draftId) {
-                await supabase.from('tasks').update({
-                    outline_structure: res
-                }).eq('id', store.draftId);
-            }
-            
-            store.setStatus('✅ Outline regenerado con éxito.');
-        } catch (e: any) {
-            console.error(e);
-            store.setStatus('❌ Error Regeneración: ' + e.message);
-        } finally {
-            store.setPlanningStructure(false);
-        }
-        }, { taskId: targetTaskId, projectId: targetProjectId });
+        
+        enqueueTask('outline', 'Regenerando estructura', 
+            { taskId: targetTaskId, projectId: targetProjectId },
+            { taskId: targetTaskId, projectId: targetProjectId }
+        );
     }, [store]);
 
     // --- Generate Content ---
-    const handleGenerate = useCallback(() => {
+    const handleGenerate = useCallback(async () => {
         const { enqueueTask } = useQueueStore.getState();
-        const outerStore = store;
         const targetTaskId = store.draftId;
         const targetProjectId = activeProject?.id;
-        enqueueTask('generate', 'Generando borrador inicial', async () => {
-            const store = new Proxy(outerStore, {
-                get(target: any, prop: string) {
-                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
-                        return (...args: any[]) => {
-                            if (useWriterStore.getState().draftId === targetTaskId) {
-                                return target[prop](...args);
-                            }
-                        }
-                    }
-                    if (prop === 'saveTaskVersion') {
-                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
-                    }
-                    return target[prop];
-                }
-            });
+        
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.strategyH1 && !store.keyword) return alert('Necesitas un H1 o keyword objetivo.');
-        
-        store.setGenerating(true);
-        if (store.content?.trim().length > 0) {
-            await store.saveTaskVersion(`Pre-Generación`, store.content);
+        if (activeProject && !hasTokens(1)) {
+            return alert(`Has superado tu límite de ${getTokensLimit()} tokens.`);
         }
-        store.setContent('');
-        store.setStatus('Redactando artículo completo…');
-        try {
-            const h1 = store.strategyH1 || store.keyword;
-            
-            // Unify links from strategy and research
-            const allLinks = [
-                ...(store.strategyLinks || []),
-                ...(store.strategyInternalLinks || []),
-                ...(store.rawSeoData?.suggestedInternalLinks || [])
-            ];
-            const uniqueLinksMap = new Map();
-            allLinks.forEach((l: any) => {
-                if (!l.url) return;
-                if (!uniqueLinksMap.has(l.url)) {
-                    uniqueLinksMap.set(l.url, { 
-                        ...l, 
-                        url: l.url, 
-                        title: l.title || l.url,
-                        type: l.type || 'other'
-                    });
-                }
-            });
-            const researchLinks = Array.from(uniqueLinksMap.values()).map(link => {
-                if (!link.category && activeProject?.architecture_rules) {
-                    for (const rule of activeProject.architecture_rules) {
-                        try {
-                            const reg = new RegExp(rule.regex, 'i');
-                            if (reg.test(link.url)) return { ...link, category: rule.name };
-                        } catch (_) { }
-                    }
-                }
-                return link;
-            });
-
-            // Ensure we have at least 15-20 relevant links to provide the AI
-            const finalApprovedLinks = researchLinks.slice(0, 20);
-
-            const config: ArticleConfig = {
-                projectName: store.projectName, niche: store.detectedNiche, topic: h1,
-                metaTitle: store.strategyTitle || h1,
-                keywords: store.rawSeoData?.keywordIdeas?.shortTail?.slice(0, 5).join(', ') || store.keyword,
-                tone: store.strategyTone || 'Profesional',
-                wordCount: store.strategyWordCount,
-                refUrls: store.strategyCompetitors, refContent: store.strategyNotes,
-                csvData: [], outlineStructure: store.strategyOutline,
-                approvedLinks: finalApprovedLinks,
-                questions: store.strategyQuestions,
-                lsiKeywords: store.strategyLSI.map((l) => l.keyword).concat(store.strategyLongTail),
-                contextInstructions: store.contextInstructions,
-                language: activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es',
-                architectureInstructions: activeProject?.architecture_instructions,
-                architectureRules: activeProject?.architecture_rules,
-                isStrictMode: store.isStrictMode, 
-                strictFrequency: store.strictFrequency,
-                extractorInstructions: NousExtractorService.getActiveRulesForPhase(activeProject, 'writer')
-                    .map(r => {
-                        let placementText = "";
-                        if (r.placement_mode === 'new_paragraph') placementText = "OBLIGATORIO: Coloca el dato extraído (ej: RID) en un párrafo INDEPENDIENTE, en una línea él solo, justo después del párrafo donde está el enlace.";
-                        else if (r.placement_mode === 'new_line') placementText = "Coloca el dato extraído en una nueva línea (br) inmediatamente después del enlace.";
-                        else placementText = "Coloca el dato extraído inmediatamente después del enlace (inline).";
-                        
-                        return `- Para reglas "${r.name}": ${placementText} (Pattern: ${r.extraction_value})`;
-                    }).join('\n')
-            };
-
-            // Helper to chunk the outline
-            const chunkOutline = (outline: any[], maxH2: number = 2): any[][] => {
-                const chunks: any[][] = [];
-                let currentChunk: any[] = [];
-                let h2Count = 0;
         
-                for (const item of outline) {
-                    if (item.type === 'H2') {
-                        if (h2Count >= maxH2) {
-                            chunks.push(currentChunk);
-                            currentChunk = [];
-                            h2Count = 0;
-                        }
-                        h2Count++;
-                    }
-                    currentChunk.push(item);
-                }
-                if (currentChunk.length > 0) chunks.push(currentChunk);
-                
-                return chunks.length > 0 ? chunks : [outline];
-            };
-
-            const outlineChunks = chunkOutline(config.outlineStructure || [], 4);
-            store.setStatus(`Documento dividido en ${outlineChunks.length} fragmentos para redacción progresiva...`);
-
-            if (activeProject && !hasTokens(1)) {
-                store.setStatus('❌ Límite de tokens mensual alcanzado.');
-                return alert(`Has superado tu límite de ${getTokensLimit()} tokens.`);
-            }
-
-            store.setStatus('Redactando artículo (1 Token usado)…');
-            if (activeProject) await consumeTokens(1);
-
-            const writingHierarchy = AI_CONFIG.gemini.hierarchies.writing;
-            const modelToUse = 'gemma-4-31b-it'; // Strict rule
-            
-            let finalHtml = "";
-            let previousContext = '';
-
-            for (let i = 0; i < outlineChunks.length; i++) {
-                const chunkConfig = {
-                    ...config,
-                    outlineStructure: outlineChunks[i],
-                    chunkIndex: i,
-                    totalChunks: outlineChunks.length,
-                    previousContext: previousContext
-                };
-
-                const prompt = buildPrompt(chunkConfig);
-                if (i === 0) store.addDebugPrompt('Fase 1: Redacción Inicial', prompt);
-                
-                store.setStatus(`Redactando parte ${i + 1}/${outlineChunks.length}... (Espere unos segundos)`);
-                
-                let chunkHtml = "";
-                try {
-                    chunkHtml = await streamGenerate(
-                        prompt, 
-                        modelToUse, 
-                        writingHierarchy,
-                        (html) => { 
-                            chunkHtml = html; 
-                            store.setContent(finalHtml + html); 
-                        },
-                        (msg) => store.setStatus(`[Parte ${i+1}] ${msg}`)
-                    );
-                } catch (err) {
-                    console.error(`[Generate Chunk ${i+1}] Fallback triggered`, err);
-                    store.setStatus(`⚠️ Interrupción detectada en parte ${i+1}. Reintentando...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    
-                    chunkHtml = await streamGenerate(
-                        prompt, 
-                        modelToUse, 
-                        writingHierarchy,
-                        (html) => { 
-                            chunkHtml = html; 
-                            store.setContent(finalHtml + html); 
-                        },
-                        (msg) => store.setStatus(`[Parte ${i+1}] ${msg}`)
-                    );
-                }
-
-                finalHtml += chunkHtml + '\n\n';
-                previousContext = chunkHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-            }
-
-            store.setStatus('Procesando HTML final...');
-            let cleanHtml = cleanAndFormatHtml(finalHtml);
-            
-            store.setContent(cleanHtml);
-
-            if (cleanHtml.includes('<!-- METADATA_START -->')) {
-                const parts = cleanHtml.split('<!-- METADATA_START -->');
-                cleanHtml = parts[0];
-                try {
-                    const meta = JSON.parse(parts[1].replace(/```json/g, '').replace(/```/g, '').trim());
-                    store.setMetadata(meta);
-                    if (meta.title) store.setTitle(meta.title);
-                } catch (_) { }
-            }
-
-            // --- PHASE 3: SEO POST-PROCESSING & POLISHING ---
-            store.setStatus('Generando vínculos interlinking...');
-            await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
-            
-            const linked = await autoInterlinkAsync(
-                cleanHtml, 
-                finalApprovedLinks,
-                activeProject?.architecture_rules,
-                activeProject?.architecture_instructions,
-                activeProject
-            );
-            
-            await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
-            
-            store.setAnalyzingSEO(true);
-            store.addDebugPrompt('Fase 2: Refinamiento SEO', `Optimizando con keywords: ${config.topic}, LSI: ${config.lsiKeywords?.join(', ')}. Enlaces aprobados: ${finalApprovedLinks.length}`);
-            
-            // --- API ROUTE REPLACEMENT FOR SEO POSTPROCESSOR ---
-            let refinedSEO = linked;
-            // Post-procesado global removido para evitar procesamiento de documento completo
-            
-            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
-            
-            // --- AUTOMATIC EXTRACTION (IF ACTIVE) ---
-            let finalContent = refinedSEO;
-            const activeExtractorRules = NousExtractorService.getActiveRulesForPhase(activeProject, 'writer');
-            if (activeExtractorRules.length > 0) {
-                store.setStatus('Ejecutando extractores de datos...');
-                await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
-                finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
-            }
-
-            // --- FINAL CLEANUP & STORE SYNC (BATCHED) ---
-            const formatted = cleanAndFormatHtml(finalContent);
-            
-            // Batch final state update to avoid multiple re-renders
-            useWriterStore.setState({
-                content: formatted,
-                isAnalyzingSEO: false,
-                hasGenerated: true,
-                statusMessage: '✅ Artículo generado con éxito.',
-                sidebarTab: 'assistant'
-            } as any);
-
-            store.addDebugPrompt('Refinamiento Finalizado', `SEO Post-Procesado y Extractores aplicados con éxito`, formatted.substring(0, 1000));
-            
-            // Save version
-            await store.saveTaskVersion('Generación Inicial', formatted);
-            
-            // --- AUTO-PATCHER ORCHESTRATION ---
-            const patchers = LinkPatcherService.getPatchersForProcess(activeProject, 'writer');
-            if (patchers.length > 0 && store.editor) {
-                store.setStatus('Normalizando URLs con Nous Patcher...');
-                await new Promise(resolve => setTimeout(resolve, 100)); // Yield to UI
-                try {
-                    for (const patcher of patchers) {
-                        await LinkPatcherService.processEditorLinks(store.editor, patcher, 'apply');
-                    }
-                    store.setStatus('✅ Artículo generado y URLs normalizadas.');
-                } catch (pe) {
-                    console.error('[AutoPatcher] Failure:', pe);
-                }
-            }
-
-            setTimeout(() => store.setStatus(''), 5000);
-        } catch (e: any) {
-            console.error(e);
-            useWriterStore.setState({
-                statusMessage: '❌ Error: ' + e.message,
-                isGenerating: false,
-                isAnalyzingSEO: false
-            } as any);
-        } finally {
-            store.setGenerating(false);
-        }
-        }, { taskId: targetTaskId, projectId: targetProjectId });
-    }, [store, hasAccess, activeProject, hasTokens, consumeTokens, getTokensLimit, selectTopRelevantLinks]);
+        if (activeProject) await consumeTokens(1);
+        
+        enqueueTask('generate', 'Generando borrador inicial', 
+            { taskId: targetTaskId, projectId: targetProjectId },
+            { taskId: targetTaskId, projectId: targetProjectId }
+        );
+    }, [store, hasAccess, activeProject, hasTokens, consumeTokens, getTokensLimit]);
 
     // --- Humanize ---
     const handleHumanize = useCallback(() => {

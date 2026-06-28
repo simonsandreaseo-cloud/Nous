@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQueueStore } from '@/store/useQueueStore';
+import { QueueRegistry } from '@/lib/services/queue/registry';
 import { toast } from 'sonner';
 
 export function useQueueProcessor() {
@@ -29,7 +30,13 @@ export function useQueueProcessor() {
             try {
                 console.log(`[QueueProcessor] Starting task: ${nextTask.title}`);
                 addLogToTask(nextTask.id, `Iniciando tarea: ${nextTask.title}`, 'info');
-                await nextTask.execute(nextTask.id);
+                
+                const executor = QueueRegistry.get(nextTask.type);
+                if (!executor) {
+                    throw new Error(`Tipo de acción no reconocido o no registrado: ${nextTask.type}`);
+                }
+                
+                await executor(nextTask.id, nextTask.payload || {});
                 
                 console.log(`[QueueProcessor] Finished task: ${nextTask.title}`);
                 addLogToTask(nextTask.id, `Tarea completada exitosamente`, 'success');
