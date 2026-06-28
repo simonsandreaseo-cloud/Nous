@@ -62,6 +62,7 @@ import { HistoryTab } from './tabs/HistoryTab';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import NousOrb from '@/components/dashboard/NousOrb';
+import { useQueueProcessor } from '@/components/dashboard/useQueueProcessor';
 import NousAssistantMenu from '@/components/dashboard/NousAssistantMenu';
 import { useWriterActions } from './useWriterActions';
 import { deleteImageAction, uploadGeneratedImage, regenerateImageAction } from '@/lib/actions/imageActions';

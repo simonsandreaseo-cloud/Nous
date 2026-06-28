@@ -34,7 +34,6 @@ import NousAssistantMenu from '@/components/dashboard/NousAssistantMenu';
 import { useAppStore } from '@/store/useAppStore';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
-import { useQueueProcessor } from './useQueueProcessor';
 import { useQueueStore } from '@/store/useQueueStore';
 
 const getIconForPhase = (phase: string) => {
@@ -74,8 +73,8 @@ export default function NousOrb({
     viewMode = 'planner',
     variant = 'floating'
 }: NousOrbProps) {
-    useQueueProcessor(); // Montamos el procesador de colas global
     const { activeTask, queue } = useQueueStore(); // Consumimos el estado de la cola
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     
     const { nousMode, setNousMode } = useAppStore();
     

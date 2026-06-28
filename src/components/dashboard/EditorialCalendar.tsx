@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
@@ -62,6 +62,7 @@ import { parseDocx, parseHtml } from "@/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
 import NousOrb from "./NousOrb";
+import { useQueueProcessor } from '@/components/dashboard/useQueueProcessor';
 import { SmartUploaderModal } from "./SmartUploaderModal";
 import SmartSlugGeneratorModal from "./SmartSlugGeneratorModal";
 import { processTaskVisualsAction } from '@/lib/actions/batchActions';
@@ -1814,7 +1815,6 @@ function MassSchedulingModal({ onClose }: { onClose: () => void }) {
 function MassUploadModal({ onClose }: { onClose: () => void }) {
     const [filesWithData, setFilesWithData] = useState<{ file: File, content: string, matchedTaskId: string | null }[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [autoHumanize, setAutoHumanize] = useState(false);
     const { tasks } = useProjectStore();
     const router = useRouter();
 
