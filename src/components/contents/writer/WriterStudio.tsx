@@ -852,7 +852,7 @@ export default function WriterStudio() {
             )}
             
             {redactorUI === 'standard' ? (
-                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v10" id="writer-studio-root" className="w-full h-full">
+                <PanelGroup direction="horizontal" id="writer-studio-root" className="w-full h-full">
                     <Panel 
                         id="writer-left-panel"
                         panelRef={leftPanelRef} 

@@ -70,7 +70,15 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
         set({ strategyWordCount: String(parsed) });
     },
     setStrategyTone: (strategyTone) => set({ strategyTone }),
-    setStrategyOutline: (strategyOutline) => set({ strategyOutline }),
+    setStrategyOutline: (strategyOutline) => {
+        // Guard to prevent accidental outline clearing if it already has items
+        const currentState = get();
+        if (strategyOutline.length === 0 && currentState.strategyOutline && currentState.strategyOutline.length > 0) {
+            console.warn('[Zustand] Attempted to clear strategyOutline to empty array, ignored to prevent outline disappearance.');
+            return;
+        }
+        set({ strategyOutline });
+    },
     setStrategyCompetitors: (strategyCompetitors) => set({ strategyCompetitors }),
     setStrategyNotes: (strategyNotes) => set({ strategyNotes }),
     setStrategyLSI: (strategyLSI) => set({ strategyLSI }),
