@@ -7,6 +7,7 @@ import { ContentsSidebar } from "./ContentsSidebar";
 import { Loader2, Sparkles, Construction } from "lucide-react";
 import { cn } from "@/utils/cn";
 import dynamic from "next/dynamic";
+import { useQueueProcessor } from "@/components/dashboard/useQueueProcessor";
 
 const WriterStudio = dynamic(
     () => import("@/components/contents/writer/WriterStudio"),
@@ -105,6 +106,9 @@ interface ContentsLayoutProps {
 export function ContentsLayout({ initialTool = "planner" }: ContentsLayoutProps) {
     const router = useRouter();
     const [activeTool, setActiveTool] = useState(initialTool);
+
+    // Global queue processor for Nous tasks
+    useQueueProcessor();
 
     // Sync active tool with URL parameter changes
     useEffect(() => {

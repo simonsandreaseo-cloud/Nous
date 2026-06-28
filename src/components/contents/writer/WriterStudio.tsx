@@ -62,7 +62,6 @@ import { HistoryTab } from './tabs/HistoryTab';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import NousOrb from '@/components/dashboard/NousOrb';
-import { useQueueProcessor } from '@/components/dashboard/useQueueProcessor';
 import NousAssistantMenu from '@/components/dashboard/NousAssistantMenu';
 import { useWriterActions } from './useWriterActions';
 import { deleteImageAction, uploadGeneratedImage, regenerateImageAction } from '@/lib/actions/imageActions';
@@ -306,12 +305,8 @@ export default function WriterStudio() {
         const panel = rightPanelRef.current;
         if (!panel) return;
         
-        if (panel.isCollapsed() || panel.getSize() < 24) {
+        if (panel.isCollapsed()) {
             panel.expand();
-            // Force the layout engine to apply the uncollapse before resizing
-            requestAnimationFrame(() => {
-                panel.resize(25);
-            });
         } else {
             panel.collapse();
         }
@@ -576,10 +571,10 @@ export default function WriterStudio() {
         
         return (
             <div className={cn("flex-1 overflow-hidden flex flex-col relative", redactorUI === 'zen' ? "bg-slate-200/50" : "bg-slate-200/50")}>
-                <div className={cn("flex-1 overflow-y-auto custom-scrollbar relative", redactorUI === 'zen' ? "flex justify-center" : "")}>
+                <FloatingOutlineUI />
+                <div className={cn("flex-1 overflow-y-auto custom-scrollbar relative", redactorUI === 'zen' ? "flex justify-center" : "")} id="editor-scroll-container">
                     <div className={cn("mx-auto min-h-full transition-all duration-500", redactorUI === 'zen' ? "w-full max-w-4xl px-4 py-6" : "p-4 md:p-6")}>
                         <div className="relative bg-white shadow-2xl min-h-screen max-w-4xl mx-auto rounded-sm p-6 md:p-10 ring-1 ring-slate-200">
-                            <FloatingOutlineUI />
                             <FeaturedImageSlot taskId={draftId} onFullscreen={setFullscreenAsset} />
                             <WriterEditor key={draftId || 'standard'} />
                         </div>
@@ -895,7 +890,7 @@ export default function WriterStudio() {
                     <Panel 
                         id="writer-right-panel"
                         panelRef={rightPanelRef}
-                        defaultSize={0} minSize={15}
+                        defaultSize={0} minSize={25}
                         collapsible={true} 
                         onCollapse={() => setIsRightPanelCollapsed(true)}
                         onExpand={() => setIsRightPanelCollapsed(false)}
