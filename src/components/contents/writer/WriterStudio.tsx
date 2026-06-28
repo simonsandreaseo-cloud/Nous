@@ -305,8 +305,13 @@ export default function WriterStudio() {
     const toggleRightPanel = useCallback(() => {
         const panel = rightPanelRef.current;
         if (!panel) return;
-        if (panel.isCollapsed()) {
-            panel.resize(25);
+        
+        if (panel.isCollapsed() || panel.getSize() < 24) {
+            panel.expand();
+            // Force the layout engine to apply the uncollapse before resizing
+            requestAnimationFrame(() => {
+                panel.resize(25);
+            });
         } else {
             panel.collapse();
         }
@@ -852,7 +857,7 @@ export default function WriterStudio() {
             )}
             
             {redactorUI === 'standard' ? (
-                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v9" id="writer-studio-root" className="w-full h-full">
+                <PanelGroup direction="horizontal" autoSaveId="writer-studio-layout-v10" id="writer-studio-root" className="w-full h-full">
                     <Panel 
                         id="writer-left-panel"
                         panelRef={leftPanelRef} 
