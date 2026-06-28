@@ -145,7 +145,7 @@ export default function NousConsoleView() {
                                             <motion.div 
                                                 className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
                                                 initial={{ width: 0 }}
-                                                animate={{ width: \`\${activeTask.progress}%\` }}
+                                                animate={{ width: `${activeTask.progress}%` }}
                                                 transition={{ duration: 0.3 }}
                                             />
                                         </div>
