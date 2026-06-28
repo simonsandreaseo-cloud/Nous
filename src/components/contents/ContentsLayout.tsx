@@ -24,6 +24,10 @@ const ImageGenerator = dynamic(
     () => import("@/components/contents/images/ImageGenerator"),
     { loading: () => <ToolLoading name="Imagenes" />, ssr: false }
 );
+const NousConsoleView = dynamic(
+    () => import("@/components/contents/NousConsoleView"),
+    { loading: () => <ToolLoading name="Consola Nous" />, ssr: false }
+);
 const TranslatorView = dynamic(
     () => import("@/components/contents/TranslatorView"),
     { loading: () => <ToolLoading name="Traductor" />, ssr: false }
@@ -78,6 +82,7 @@ function ToolView({ toolId }: { toolId: string }) {
         case "writer": return <WriterStudio />;
         case "planner": return <EditorialCalendar />;
         case "distribution": return <DistributionView />;
+        case "nous": return <NousConsoleView />;
         case "imagenes": return <ImageGenerator />;
         case "translator": return <TranslatorView />;
         default: 
