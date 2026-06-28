@@ -3,7 +3,7 @@ import { useWriterStore } from '@/store/useWriterStore';
 import { History, RotateCcw, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils/cn';
 import { toast } from 'sonner';
 
 export const HistoryTab: React.FC = () => {
