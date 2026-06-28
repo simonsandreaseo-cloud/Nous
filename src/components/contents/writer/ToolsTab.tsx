@@ -271,14 +271,35 @@ export function ToolsTab() {
             store.setStatus("⚠️ Enfoca la ventana para copiar al portapapeles.");
             return;
         }
+        
         try {
-            const clipboardItem = new ClipboardItem({
-                'text/html': new Blob([html], { type: 'text/html' }),
-                'text/plain': new Blob([text], { type: 'text/plain' })
-            });
-            await navigator.clipboard.write([clipboardItem]);
-            setLastCopied(text); // Guardamos text como identificador
-            setTimeout(() => setLastCopied(null), 2000);
+            // Creamos un elemento temporal para que el navegador genere todos los formatos nativos (ej: para Word)
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.top = '-9999px';
+            // Algunos estilos para mantener los encabezados lo más nativos posible
+            tempDiv.style.whiteSpace = 'pre-wrap';
+            document.body.appendChild(tempDiv);
+            
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(tempDiv);
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            
+            const successful = document.execCommand('copy');
+            
+            selection?.removeAllRanges();
+            document.body.removeChild(tempDiv);
+
+            if (successful) {
+                setLastCopied(text);
+                setTimeout(() => setLastCopied(null), 2000);
+            } else {
+                throw new Error("execCommand fallback failed");
+            }
         } catch (error) {
             console.error("Error al copiar al portapapeles:", error);
             // Fallback en caso de error
