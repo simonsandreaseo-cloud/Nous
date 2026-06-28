@@ -306,7 +306,7 @@ export default function WriterStudio() {
         if (!panel) return;
         
         if (panel.isCollapsed()) {
-            panel.expand();
+            panel.expand(30);
         } else {
             panel.collapse();
         }
@@ -316,7 +316,7 @@ export default function WriterStudio() {
         const panel = editorPanelRef.current;
         if (!panel) return;
         if (panel.isCollapsed()) {
-            panel.expand();
+            panel.expand(30);
         } else {
             panel.collapse();
         }
@@ -858,6 +858,7 @@ export default function WriterStudio() {
                         panelRef={leftPanelRef} 
                         defaultSize={20} minSize={15} 
                         collapsible={true} 
+                        collapsedSize={0}
                         onCollapse={() => setIsLeftPanelCollapsed(true)}
                         onExpand={() => setIsLeftPanelCollapsed(false)}
                         className="bg-slate-50 border-r border-slate-200/50 z-20 relative min-w-0 overflow-hidden"

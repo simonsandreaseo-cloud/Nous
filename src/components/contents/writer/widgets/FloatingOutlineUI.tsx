@@ -8,7 +8,13 @@ export default function FloatingOutlineUI() {
     const { strategyOutline, editor } = useWriterStore();
     const [isOpen, setIsOpen] = useState(false);
 
-    if (!strategyOutline || strategyOutline.length === 0) return null;
+    if (!strategyOutline || strategyOutline.length === 0) {
+        return (
+            <div className="absolute top-4 left-4 z-[9999] bg-red-500 text-white p-2 text-xs rounded-md shadow-2xl">
+                DEBUG: strategyOutline is {strategyOutline === undefined ? 'undefined' : strategyOutline === null ? 'null' : 'empty'}
+            </div>
+        );
+    }
 
     const handleInsert = (item: any) => {
         if (!editor) return;
