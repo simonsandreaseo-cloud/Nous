@@ -233,6 +233,7 @@ export async function executeHumanizePipeline(
                     },
                     (msg) => {
                         console.log(`[Chunk ${i+1}] ${msg}`);
+                        onLog(`[Chunk ${i+1}] ${msg}`);
                     }
                 );
                 
