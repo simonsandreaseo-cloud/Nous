@@ -355,10 +355,14 @@ export default function WriterStudio() {
                         ? outline_structure 
                         : (outline_structure?.headers || []);
 
+                    // Preserve existing outline if it has items, to prevent it from disappearing during generation
+                    const currentOutline = useWriterStore.getState().strategyOutline;
+                    const finalOutline = (currentOutline && currentOutline.length > 0) ? currentOutline : parsedOutline;
+
                     // Sync to writer store
                     useWriterStore.setState({
                         rawSeoData: research_dossier || {},
-                        strategyOutline: parsedOutline,
+                        strategyOutline: finalOutline,
                         // Merge other research data if needed
                     } as any);
                 }

@@ -22,24 +22,12 @@ import { createPersistenceSlice, PersistenceSlice } from './writer/persistence-s
 export type WriterStore = UiSlice & ContentSlice & StrategySlice & ConfigSlice & PersistenceSlice;
 
 export const useWriterStore = create<WriterStore>()((set, get, api) => {
-    const customSet: typeof set = (partial, replace) => {
-        const p = typeof partial === 'function' ? (partial as Function)(get()) : partial;
-        if (p && 'strategyOutline' in p) {
-            const out = p.strategyOutline;
-            if (out && out.length === 0) {
-                const stack = new Error().stack;
-                p.debugLastEmptyStack = stack;
-            }
-        }
-        return set(p, replace);
-    };
-    
     return {
-        ...createUiSlice(customSet, get, api),
-        ...createContentSlice(customSet, get, api),
-        ...createStrategySlice(customSet, get, api),
-        ...createConfigSlice(customSet, get, api),
-        ...createPersistenceSlice(customSet, get, api),
+        ...createUiSlice(set, get, api),
+        ...createContentSlice(set, get, api),
+        ...createStrategySlice(set, get, api),
+        ...createConfigSlice(set, get, api),
+        ...createPersistenceSlice(set, get, api),
     };
 });
 
