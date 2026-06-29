@@ -213,7 +213,10 @@ export function useWriterActions() {
                             config,
                             50,
                             () => {}, // Desactivamos el streaming parcial para mantener el DOM estable
-                            (msg) => console.log(`[Chunk ${i+1}] ${msg}`)
+                            (msg) => {
+                                console.log(`[Chunk ${i+1}] ${msg}`);
+                                addLogToTask(queueTaskId, `[Chunk ${i+1}] ${msg}`, 'info');
+                            }
                         );
                         
                         addLogToTask(queueTaskId, `Chunk ${i + 1} completado.`, 'success');
@@ -298,7 +301,7 @@ export function useWriterActions() {
         const outerStore = store;
         const targetTaskId = store.draftId;
         const targetProjectId = activeProject?.id;
-        enqueueTask('surgical_edit', 'Edición Quirúrgica', async () => {
+        enqueueTask('surgical_edit', 'Edición Quirúrgica', async (queueTaskId: string) => {
             const store = new Proxy(outerStore, {
                 get(target: any, prop: string) {
                     if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
@@ -353,6 +356,7 @@ export function useWriterActions() {
             const rawChunks = chunkHtml(originalContent, 4);
             console.log(`[DEBUG-SurgicalEdit] Documento dividido en ${rawChunks.length} chunks.`);
             store.setSurgicalEditStatus(`Documento dividido en ${rawChunks.length} partes...`);
+            addLogToTask(queueTaskId, `Documento dividido en ${rawChunks.length} partes para edición.`, 'info');
             
             // In-place chunking: envolver todos los chunks inicialmente
             let currentDocumentChunks = rawChunks.map((chunk, index) => 
@@ -374,14 +378,20 @@ export function useWriterActions() {
                 while (!success && attempts < MAX_ATTEMPTS) {
                     try {
                         store.setSurgicalEditStatus(`Edición Quirúrgica Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
+                        addLogToTask(queueTaskId, `Procesando chunk ${i + 1} de ${rawChunks.length}${attempts > 0 ? ` (Reintento ${attempts})` : ''}...`, 'info');
                         
                         const chunkResult = await streamSurgicalEdit(
                             rawChunks[i],
                             config,
                             50,
                             () => {}, // Desactivamos el streaming parcial para mantener el DOM estable
-                            (msg) => console.log(`[Chunk ${i+1}] ${msg}`)
+                            (msg) => {
+                                console.log(`[Chunk ${i+1}] ${msg}`);
+                                addLogToTask(queueTaskId, `[Chunk ${i+1}] ${msg}`, 'info');
+                            }
                         );
+                        
+                        addLogToTask(queueTaskId, `Chunk ${i + 1} completado.`, 'success');
                         
                         // Reemplazar el chunk original con el HTML finalizado
                         currentDocumentChunks[i] = chunkResult.html;
@@ -390,15 +400,18 @@ export function useWriterActions() {
                     } catch (err: any) {
                         attempts++;
                         console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
+                        addLogToTask(queueTaskId, `Error en chunk ${i + 1}: ${err.message}`, 'error');
                         
                         if (attempts >= MAX_ATTEMPTS) {
                             throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
                         }
                         
                         store.setSurgicalEditStatus(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
+                        addLogToTask(queueTaskId, `Esperando 60s antes de reintentar chunk ${i + 1}...`, 'warning');
                         await new Promise(resolve => setTimeout(resolve, 60000));
                     }
                 }
+                useQueueStore.getState().setTaskStatus(queueTaskId, 'processing', ((i + 1) / rawChunks.length) * 100);
             }
 
             const finalResult = { html: currentDocumentChunks.join('\n') };
@@ -414,6 +427,7 @@ export function useWriterActions() {
             } as any);
 
             store.addDebugPrompt('Edición Quirúrgica Finalizada', `Contenido mejorado quirúrgicamente con éxito`, refined.substring(0, 1000));
+            addLogToTask(queueTaskId, 'Edición quirúrgica finalizada.', 'success');
             
             // Save version
             await store.saveTaskVersion(getNextProcessName('Edición Quirúrgica'), refined);
@@ -422,6 +436,7 @@ export function useWriterActions() {
             console.error('[SurgicalEdit] Error:', error);
             store.setSurgicalEditStatus(`❌ Error: ${error.message}`);
             store.addDebugPrompt('Error en Edición Quirúrgica', 'Fallo general', error.message);
+            addLogToTask(queueTaskId, `Error crítico: ${error.message}`, 'error');
         } finally {
             store.setSurgicalEditing(false);
             setTimeout(() => {
