@@ -31,7 +31,13 @@ export function useQueueProcessor() {
                 console.log(`[QueueProcessor] Starting task: ${nextTask.title}`);
                 addLogToTask(nextTask.id, `Iniciando tarea: ${nextTask.title}`, 'info');
                 
-                const executor = QueueRegistry.get(nextTask.type);
+                let executor = QueueRegistry.get(nextTask.type);
+                if (!executor && typeof nextTask.payload === 'function') {
+                    executor = async (taskId: string, payload: any) => {
+                        await (nextTask.payload as Function)();
+                    };
+                }
+
                 if (!executor) {
                     throw new Error(`Tipo de acción no reconocido o no registrado: ${nextTask.type}`);
                 }
