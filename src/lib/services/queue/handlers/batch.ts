@@ -96,7 +96,7 @@ export const handleBatchGenerate = async (taskId: string, payload: QueuePayload)
 
     try {
         setTaskStatus(taskId, "processing", 10);
-        addLogToTask(taskId, "Iniciando redaccin masiva...", "info");
+        addLogToTask(taskId, "Iniciando redacción masiva...", "info");
 
         const res = await executeDraftPipeline(
             targetTask, 
@@ -110,16 +110,16 @@ export const handleBatchGenerate = async (taskId: string, payload: QueuePayload)
             if (res.updates.content_body) {
                 await supabase.from("task_versions").insert({
                     task_id: targetTask.id,
-                    process_name: "Generacin Inicial",
+                    process_name: "Generación Inicial",
                     content_snapshot: res.updates.content_body,
                     created_at: new Date().toISOString()
                 });
             }
             setTaskStatus(taskId, "processing", 100);
-            addLogToTask(taskId, "Redaccin completada.", "success");
+            addLogToTask(taskId, "Redacción completada.", "success");
         } else {
             setTaskStatus(taskId, "error", 100);
-            addLogToTask(taskId, "Redaccin fallida sin actualizaciones.", "error");
+            addLogToTask(taskId, "Redacción fallida sin actualizaciones.", "error");
         }
     } catch (e: any) {
         console.error(e);
@@ -129,16 +129,26 @@ export const handleBatchGenerate = async (taskId: string, payload: QueuePayload)
 };
 
 export const handleBatchHumanize = async (taskId: string, payload: QueuePayload) => {
-    const { targetTask, activeProject, content } = payload;
+    const { targetTask, activeProject, content: initialContent } = payload;
     const { addLogToTask, setTaskStatus } = useQueueStore.getState();
 
     try {
         setTaskStatus(taskId, "processing", 10);
-        addLogToTask(taskId, "Iniciando humanizacin masiva...", "info");
+        addLogToTask(taskId, "Iniciando humanización masiva...", "info");
         
+        let content = initialContent;
+        if (!content) {
+            const { data: contentData } = await supabase.from('task_contents').select('content_body').eq('id', targetTask.id).single();
+            content = contentData?.content_body || targetTask.content_body;
+        }
+
+        if (!content) {
+            throw new Error("No hay contenido válido para humanizar.");
+        }
+
         await supabase.from("task_versions").insert({
             task_id: targetTask.id,
-            process_name: "Pre-Humanizacin",
+            process_name: "Pre-Humanización",
             content_snapshot: content,
             created_at: new Date().toISOString()
         });
@@ -160,15 +170,15 @@ export const handleBatchHumanize = async (taskId: string, payload: QueuePayload)
             
             await supabase.from("task_versions").insert({
                 task_id: targetTask.id,
-                process_name: "Post-Humanizacin",
+                process_name: "Post-Humanización",
                 content_snapshot: res.updates.content_body,
                 created_at: new Date().toISOString()
             });
             setTaskStatus(taskId, "processing", 100);
-            addLogToTask(taskId, "Humanizacin completada.", "success");
+            addLogToTask(taskId, "Humanización completada.", "success");
         } else {
             setTaskStatus(taskId, "error", 100);
-            addLogToTask(taskId, "Humanizacin fallida sin actualizaciones.", "error");
+            addLogToTask(taskId, "Humanización fallida sin actualizaciones.", "error");
         }
     } catch (e: any) {
         console.error(e);
@@ -186,7 +196,7 @@ export const handleBatchTranslate = async (taskId: string, payload: QueuePayload
 
     try {
         setTaskStatus(taskId, "processing", 10);
-        addLogToTask(taskId, "Iniciando traduccin masiva...", "info");
+        addLogToTask(taskId, "Iniciando traducción masiva...", "info");
 
         for (const lang of targetLangs) {
             const res = await processTaskTranslationAction(targetTaskId, lang);
@@ -198,7 +208,7 @@ export const handleBatchTranslate = async (taskId: string, payload: QueuePayload
         }
         
         setTaskStatus(taskId, "processing", 100);
-        addLogToTask(taskId, "Traduccin completada.", "success");
+        addLogToTask(taskId, "Traducción completada.", "success");
     } catch (e: any) {
         console.error(e);
         addLogToTask(taskId, `Error: ${e.message}`, "error");
