@@ -197,25 +197,54 @@ export function ToolsTab() {
             const ruleResultsMap: Record<string, string[]> = {};
 
             for (const url of urls) {
-                const response = await NousExtractorService.extract(url, rulesToUse);
-                if (response.success && response.results.length > 0) {
-                    response.results.forEach((res: any) => {
-                        if (res.success) {
-                            const rule = rulesToUse.find((r: any) => r.id === res.rule_id);
-                            if (rule?.batch_mode) {
-                                if (!ruleResultsMap[rule.id]) ruleResultsMap[rule.id] = [];
-                                ruleResultsMap[rule.id].push(res.formatted);
+                try {
+                    const response = await NousExtractorService.extract(url, rulesToUse);
+                    if (response.success && response.results.length > 0) {
+                        response.results.forEach((res: any) => {
+                            if (res.success) {
+                                const rule = rulesToUse.find((r: any) => r.id === res.rule_id);
+                                if (rule?.batch_mode) {
+                                    if (!ruleResultsMap[rule.id]) ruleResultsMap[rule.id] = [];
+                                    ruleResultsMap[rule.id].push(res.formatted);
+                                } else {
+                                    newFindings.push({
+                                        url: url,
+                                        originalUrl: url,
+                                        text: 'Búsqueda Manual',
+                                        pos: -1,
+                                        value: res.formatted,
+                                        success: true
+                                    });
+                                }
                             } else {
                                 newFindings.push({
                                     url: url,
                                     originalUrl: url,
-                                    text: 'Búsqueda Manual',
+                                    text: 'Error de Extracción',
                                     pos: -1,
-                                    value: res.formatted,
-                                    success: true
+                                    value: res.error || 'Patrón no encontrado',
+                                    success: false
                                 });
                             }
-                        }
+                        });
+                    } else {
+                        newFindings.push({
+                            url: url,
+                            originalUrl: url,
+                            text: 'Error de Red/API',
+                            pos: -1,
+                            value: response.error || 'Respuesta vacía',
+                            success: false
+                        });
+                    }
+                } catch (e: any) {
+                    newFindings.push({
+                        url: url,
+                        originalUrl: url,
+                        text: 'Excepción',
+                        pos: -1,
+                        value: e.message || 'Error desconocido',
+                        success: false
                     });
                 }
             }
@@ -245,12 +274,12 @@ export function ToolsTab() {
                     [widget.id]: [...newFindings, ...existingForWidget] 
                 });
                 setManualInputs(prev => ({ ...prev, [widget.id]: '' }));
-                currentStore.setStatus(`✅ Extracción manual completada.`);
+                currentStore.setStatus(`✅ Procesamiento manual completado.`);
             } else {
-                currentStore.setStatus("⚠️ No se detectaron patrones en las URLs provistas.");
+                currentStore.setStatus("⚠️ No se generaron hallazgos.");
             }
         } catch (e: any) {
-            currentStore.setStatus(`❌ Error: ${e.message}`);
+            currentStore.setStatus(`❌ Error crítico: ${e.message}`);
         } finally {
             setIsTestingManual(null);
         }
