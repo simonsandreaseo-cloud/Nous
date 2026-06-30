@@ -37,7 +37,7 @@ export function ToolsTab() {
         
         // NOUS_EXTRACTOR:
         if (w.type === 'nous_extractor') {
-            return w.show_in_writer || w.config?.rules?.some((r: any) => r.target_phases?.includes('writer') && r.is_active !== false);
+            return w.show_in_writer || (w.config?.rules && w.config.rules.length > 0);
         }
 
         // LINK_PATCHER:
