@@ -263,6 +263,15 @@ export function ToolsTab() {
                         value: finalValue,
                         success: true
                     });
+                } else if (rule && ruleResultsMap[ruleId].length === 0) {
+                    newFindings.push({
+                        url: `0 URLs procesadas`,
+                        originalUrl: `Batch: ${rule.name}`,
+                        text: 'Agrupación Batch Fallida',
+                        pos: -1,
+                        value: 'No se encontraron resultados para agrupar.',
+                        success: false
+                    });
                 }
             });
 
@@ -277,6 +286,20 @@ export function ToolsTab() {
                 currentStore.setStatus(`✅ Procesamiento manual completado.`);
             } else {
                 currentStore.setStatus("⚠️ No se generaron hallazgos.");
+                // Forzar un error visual si llegó hasta acá y no generó nada.
+                const currentFindings = useWriterStore.getState().extractorFindings;
+                const existingForWidget = currentFindings[widget.id] || [];
+                currentStore.setNousExtractorFindings({
+                    ...currentFindings,
+                    [widget.id]: [{
+                        url: 'Debugger',
+                        originalUrl: 'N/A',
+                        text: 'Error de Flujo',
+                        pos: -1,
+                        value: `urls.length=${urls.length}, rulesToUse.length=${rulesToUse.length}, ruleResultsMapKeys=${Object.keys(ruleResultsMap).length}`,
+                        success: false
+                    }, ...existingForWidget]
+                });
             }
         } catch (e: any) {
             currentStore.setStatus(`❌ Error crítico: ${e.message}`);
