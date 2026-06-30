@@ -751,7 +751,7 @@ export function ToolsTab() {
                                                                         </span>
                                                                         
                                                                         {!isPatcher && (
-                                                                            <div className="flex items-center gap-1 opacity-0 group-hover/finding:opacity-100 transition-opacity">
+                                                                            <div className="flex items-center gap-1 transition-opacity">
                                                                                 <button 
                                                                                     onClick={() => {
                                                                                         const editor = useWriterStore.getState().editor;
