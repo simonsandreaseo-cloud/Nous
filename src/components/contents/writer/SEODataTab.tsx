@@ -113,20 +113,22 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
 
     const frequentQuestions = strategyQuestions.length > 0 ? strategyQuestions : (researchDossier?.frequentQuestions || seoData?.frequentQuestions || []);
     
+    // Priorizar strategyLinks (manuales) poniéndolos de último, así sobrescriben a los de la IA en el Map
     const allLinksSource = [
-        ...(strategyLinks || []),
-        ...(researchDossier?.suggestedInternalLinks || []),
+        ...(seoData?.suggestedInternalLinks || []),
         ...(researchDossier?.suggested_links || []),
-        ...(seoData?.suggestedInternalLinks || [])
+        ...(researchDossier?.suggestedInternalLinks || []),
+        ...(strategyLinks || [])
     ];
 
-    // Eliminar duplicados por URL de forma limpia
+    // Eliminar duplicados por URL de forma limpia, preservando todas las propiedades del objeto original
     const linkEntries: [string, any][] = allLinksSource
         .filter(l => !!l)
         .map((item): [string, any] => {
             const url = typeof item === 'object' ? (item.url || item.link) : item;
             const title = typeof item === 'object' ? item.title : url;
-            return [url, { title: title || url, url }];
+            const baseObj = typeof item === 'object' ? item : {};
+            return [url, { ...baseObj, title: title || url, url }];
         })
         .filter(([url]) => !!url);
 
