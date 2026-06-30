@@ -657,7 +657,10 @@ export function NousExtractorConfigModal({ isOpen, onClose, widget, onUpdate }: 
                                                                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                                                                     {res.is_batch ? 'Resultado Agrupado (Batch)' : 'Valor Extraído'}
                                                                 </div>
-                                                                <div className="text-[13px] font-bold text-slate-700 break-all">
+                                                                <div 
+                                                                    className="text-[13px] font-bold text-slate-700 line-clamp-3 break-all"
+                                                                    title={res.formatted}
+                                                                >
                                                                     {res.formatted}
                                                                 </div>
                                                             </div>

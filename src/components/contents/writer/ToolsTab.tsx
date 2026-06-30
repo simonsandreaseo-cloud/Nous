@@ -743,15 +743,18 @@ export function ToolsTab() {
                                                                         </div>
                                                                     )}
                                                                     <div className="flex items-center justify-between gap-2">
-                                                                        <span className={cn(
-                                                                            "text-xs font-black tracking-tight",
-                                                                            isPatcher ? (finding.isModified ? "text-emerald-900" : "text-slate-400") : "text-indigo-900"
-                                                                        )}>
+                                                                        <span 
+                                                                            className={cn(
+                                                                                "text-xs font-black tracking-tight truncate flex-1 min-w-0",
+                                                                                isPatcher ? (finding.isModified ? "text-emerald-900" : "text-slate-400") : "text-indigo-900"
+                                                                            )}
+                                                                            title={isPatcher ? finding.patchedUrl : finding.value}
+                                                                        >
                                                                             {isPatcher ? finding.patchedUrl : finding.value}
                                                                         </span>
                                                                         
                                                                         {!isPatcher && (
-                                                                            <div className="flex items-center gap-1 transition-opacity">
+                                                                            <div className="flex items-center gap-1 transition-opacity shrink-0">
                                                                                 <button 
                                                                                     onClick={() => {
                                                                                         const editor = useWriterStore.getState().editor;
