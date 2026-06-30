@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { 
     Wrench, Play, ChevronDown, ChevronUp, Sparkles, Loader2, Info, Eye, 
     Copy, ExternalLink, FileCode, Check, PlusSquare, Link as LinkIcon, 
-    RefreshCcw, AlertCircle, Wand2, Scissors 
+    RefreshCcw, AlertCircle, Wand2, Scissors, Search 
 } from 'lucide-react';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -23,6 +23,8 @@ export function ToolsTab() {
     const [expandedIds, setExpandedIds] = useState<string[]>([]);
     const [executingId, setExecutingId] = useState<string | null>(null);
     const [lastCopied, setLastCopied] = useState<string | null>(null);
+    const [manualInputs, setManualInputs] = useState<Record<string, string>>({});
+    const [isTestingManual, setIsTestingManual] = useState<string | null>(null);
 
     const extractorFindings = store.nousExtractorFindings || {};
     const patcherFindings = store.patcherFindings || {};
@@ -163,6 +165,54 @@ export function ToolsTab() {
             } finally {
                 setExecutingId(null);
             }
+    };
+
+    const handleManualExtract = async (widget: any) => {
+        const url = manualInputs[widget.id];
+        if (!url) return;
+        
+        setIsTestingManual(widget.id);
+        const currentStore = useWriterStore.getState();
+        currentStore.setStatus(`Analizando URL manual...`);
+        try {
+            const activeRules = (widget.config?.rules || []).filter((r: any) => r.is_active !== false);
+            const response = await NousExtractorService.extract(url, activeRules);
+            
+            if (response.success && response.results.length > 0) {
+                const newFindings: any[] = [];
+                response.results.forEach((res: any) => {
+                    if (res.success) {
+                        newFindings.push({
+                            url: url,
+                            originalUrl: url,
+                            text: 'Búsqueda Manual',
+                            pos: -1, // Indicates manual
+                            value: res.formatted,
+                            success: true
+                        });
+                    }
+                });
+                
+                if (newFindings.length > 0) {
+                    const currentFindings = useWriterStore.getState().extractorFindings;
+                    const existingForWidget = currentFindings[widget.id] || [];
+                    currentStore.setNousExtractorFindings({ 
+                        ...currentFindings, 
+                        [widget.id]: [...newFindings, ...existingForWidget] 
+                    });
+                    setManualInputs(prev => ({ ...prev, [widget.id]: '' }));
+                    currentStore.setStatus(`✅ Extracción manual exitosa.`);
+                } else {
+                    currentStore.setStatus("⚠️ No se detectaron patrones en esta URL.");
+                }
+            } else {
+                currentStore.setStatus("⚠️ No se detectaron patrones en esta URL.");
+            }
+        } catch (e: any) {
+            currentStore.setStatus(`❌ Error: ${e.message}`);
+        } finally {
+            setIsTestingManual(null);
+        }
     };
 
     /**
@@ -443,6 +493,27 @@ export function ToolsTab() {
                                         className="border-t border-slate-50 overflow-hidden"
                                     >
                                         <div className="p-4 space-y-4">
+                                            {!isSplitter && !isPatcher && (
+                                                <div className="px-1">
+                                                    <div className="relative">
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="Pegar URL para extraer manualmente..."
+                                                            value={manualInputs[widget.id] || ''}
+                                                            onChange={(e) => setManualInputs(prev => ({ ...prev, [widget.id]: e.target.value }))}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleManualExtract(widget)}
+                                                            className="w-full h-9 pl-3 pr-10 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-600 focus:bg-white focus:border-indigo-200 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none"
+                                                        />
+                                                        <button 
+                                                            onClick={() => handleManualExtract(widget)}
+                                                            disabled={isTestingManual === widget.id || !manualInputs[widget.id]}
+                                                            className="absolute right-1 top-1 w-7 h-7 rounded-lg bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 transition-colors"
+                                                        >
+                                                            {isTestingManual === widget.id ? <Loader2 size={10} className="animate-spin" /> : <Search size={10} />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                             {isSplitter ? (
                                                 chunks.length > 0 ? (
                                                     <div className="space-y-2">
@@ -527,20 +598,28 @@ export function ToolsTab() {
                                                                 "flex items-start gap-3 p-3 bg-white border rounded-2xl transition-all group/finding",
                                                                 isPatcher 
                                                                     ? (finding.isModified ? "border-emerald-100 hover:border-emerald-300" : "border-slate-100 grayscale-[0.5]") 
-                                                                    : "border-indigo-100 hover:border-indigo-300"
+                                                                    : finding.pos === -1 
+                                                                        ? "border-amber-100 hover:border-amber-300 shadow-sm"
+                                                                        : "border-indigo-100 hover:border-indigo-300"
                                                             )}
                                                         >
-                                                            <button 
-                                                                onClick={() => handleScrollToLink(finding.pos)}
-                                                                className={cn(
-                                                                    "mt-1 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm",
-                                                                    isPatcher 
-                                                                        ? "bg-emerald-50 text-emerald-400 hover:bg-emerald-600 hover:text-white"
-                                                                        : "bg-indigo-50 text-indigo-400 hover:bg-indigo-600 hover:text-white"
-                                                                )}
-                                                            >
-                                                                <Eye size={14} />
-                                                            </button>
+                                                            {finding.pos !== -1 ? (
+                                                                <button 
+                                                                    onClick={() => handleScrollToLink(finding.pos)}
+                                                                    className={cn(
+                                                                        "mt-1 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-sm shrink-0",
+                                                                        isPatcher 
+                                                                            ? "bg-emerald-50 text-emerald-400 hover:bg-emerald-600 hover:text-white"
+                                                                            : "bg-indigo-50 text-indigo-400 hover:bg-indigo-600 hover:text-white"
+                                                                    )}
+                                                                >
+                                                                    <Eye size={14} />
+                                                                </button>
+                                                            ) : (
+                                                                <div className="mt-1 w-8 h-8 rounded-full flex items-center justify-center bg-amber-50 text-amber-400 shrink-0">
+                                                                    <Wand2 size={14} />
+                                                                </div>
+                                                            )}
 
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-1.5 mb-1">
