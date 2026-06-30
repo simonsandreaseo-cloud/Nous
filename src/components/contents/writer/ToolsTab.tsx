@@ -550,19 +550,20 @@ export function ToolsTab() {
                                                             ))}
                                                         </select>
                                                     </div>
-                                                    <div className="relative">
+                                                    <div className="flex flex-col gap-2">
                                                         <textarea 
                                                             placeholder="Pegar URLs (una por línea) para extraer manualmente..."
                                                             value={manualInputs[widget.id] || ''}
                                                             onChange={(e) => setManualInputs(prev => ({ ...prev, [widget.id]: e.target.value }))}
-                                                            className="w-full min-h-[60px] max-h-[120px] p-3 pr-10 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-600 focus:bg-white focus:border-indigo-200 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none resize-y custom-scrollbar"
+                                                            className="w-full min-h-[60px] max-h-[120px] p-3 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-600 focus:bg-white focus:border-indigo-200 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none resize-y custom-scrollbar"
                                                         />
                                                         <button 
                                                             onClick={() => handleManualExtract(widget)}
                                                             disabled={isTestingManual === widget.id || !manualInputs[widget.id]}
-                                                            className="absolute right-2 bottom-2 w-7 h-7 rounded-lg bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 transition-colors shadow-sm"
+                                                            className="w-full h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center gap-2 hover:bg-indigo-100 disabled:opacity-50 transition-colors shadow-sm text-[10px] font-black uppercase tracking-wider"
                                                         >
-                                                            {isTestingManual === widget.id ? <Loader2 size={10} className="animate-spin" /> : <Search size={10} />}
+                                                            {isTestingManual === widget.id ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                                                            Procesar URLs Manualmente
                                                         </button>
                                                     </div>
                                                 </div>
