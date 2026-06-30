@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { 
     Wrench, Play, ChevronDown, ChevronUp, Sparkles, Loader2, Info, Eye, 
     Copy, ExternalLink, FileCode, Check, PlusSquare, Link as LinkIcon, 
-    RefreshCcw, AlertCircle, Wand2, Scissors, Search 
+    RefreshCcw, AlertCircle, Wand2, Scissors, Search, PenTool 
 } from 'lucide-react';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
