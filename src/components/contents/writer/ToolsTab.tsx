@@ -24,6 +24,7 @@ export function ToolsTab() {
     const [executingId, setExecutingId] = useState<string | null>(null);
     const [lastCopied, setLastCopied] = useState<string | null>(null);
     const [manualInputs, setManualInputs] = useState<Record<string, string>>({});
+    const [manualRuleSelects, setManualRuleSelects] = useState<Record<string, string>>({});
     const [isTestingManual, setIsTestingManual] = useState<string | null>(null);
 
     const extractorFindings = store.nousExtractorFindings || {};
@@ -168,45 +169,85 @@ export function ToolsTab() {
     };
 
     const handleManualExtract = async (widget: any) => {
-        const url = manualInputs[widget.id];
-        if (!url) return;
+        const inputText = manualInputs[widget.id];
+        if (!inputText) return;
         
+        const urls = inputText.split(/\r?\n/).map(u => u.trim()).filter(u => u.length > 0);
+        if (urls.length === 0) return;
+
         setIsTestingManual(widget.id);
         const currentStore = useWriterStore.getState();
-        currentStore.setStatus(`Analizando URL manual...`);
+        currentStore.setStatus(`Analizando ${urls.length} URL(s) manual(es)...`);
+        
         try {
-            const activeRules = (widget.config?.rules || []).filter((r: any) => r.is_active !== false);
-            const response = await NousExtractorService.extract(url, activeRules);
+            const allRules = widget.config?.rules || [];
+            const selectedRuleId = manualRuleSelects[widget.id];
             
-            if (response.success && response.results.length > 0) {
-                const newFindings: any[] = [];
-                response.results.forEach((res: any) => {
-                    if (res.success) {
-                        newFindings.push({
-                            url: url,
-                            originalUrl: url,
-                            text: 'Búsqueda Manual',
-                            pos: -1, // Indicates manual
-                            value: res.formatted,
-                            success: true
-                        });
-                    }
-                });
-                
-                if (newFindings.length > 0) {
-                    const currentFindings = useWriterStore.getState().extractorFindings;
-                    const existingForWidget = currentFindings[widget.id] || [];
-                    currentStore.setNousExtractorFindings({ 
-                        ...currentFindings, 
-                        [widget.id]: [...newFindings, ...existingForWidget] 
+            const rulesToUse = selectedRuleId 
+                ? allRules.filter((r: any) => r.id === selectedRuleId)
+                : allRules.filter((r: any) => r.is_active !== false);
+
+            if (rulesToUse.length === 0) {
+                currentStore.setStatus("⚠️ No hay reglas seleccionadas o activas.");
+                setIsTestingManual(null);
+                return;
+            }
+
+            const newFindings: any[] = [];
+            const ruleResultsMap: Record<string, string[]> = {};
+
+            for (const url of urls) {
+                const response = await NousExtractorService.extract(url, rulesToUse);
+                if (response.success && response.results.length > 0) {
+                    response.results.forEach((res: any) => {
+                        if (res.success) {
+                            const rule = rulesToUse.find((r: any) => r.id === res.rule_id);
+                            if (rule?.batch_mode) {
+                                if (!ruleResultsMap[rule.id]) ruleResultsMap[rule.id] = [];
+                                ruleResultsMap[rule.id].push(res.formatted);
+                            } else {
+                                newFindings.push({
+                                    url: url,
+                                    originalUrl: url,
+                                    text: 'Búsqueda Manual',
+                                    pos: -1,
+                                    value: res.formatted,
+                                    success: true
+                                });
+                            }
+                        }
                     });
-                    setManualInputs(prev => ({ ...prev, [widget.id]: '' }));
-                    currentStore.setStatus(`✅ Extracción manual exitosa.`);
-                } else {
-                    currentStore.setStatus("⚠️ No se detectaron patrones en esta URL.");
                 }
+            }
+            
+            // Process batched rules
+            Object.keys(ruleResultsMap).forEach(ruleId => {
+                const rule = rulesToUse.find((r: any) => r.id === ruleId);
+                if (rule && ruleResultsMap[ruleId].length > 0) {
+                    const joined = ruleResultsMap[ruleId].join(rule.batch_separator || "");
+                    const finalValue = `${rule.batch_prefix || ""}${joined}${rule.batch_suffix || ""}`;
+                    newFindings.push({
+                        url: `${urls.length} URLs procesadas`,
+                        originalUrl: `Batch: ${rule.name}`,
+                        text: 'Agrupación Batch',
+                        pos: -1,
+                        value: finalValue,
+                        success: true
+                    });
+                }
+            });
+
+            if (newFindings.length > 0) {
+                const currentFindings = useWriterStore.getState().extractorFindings;
+                const existingForWidget = currentFindings[widget.id] || [];
+                currentStore.setNousExtractorFindings({ 
+                    ...currentFindings, 
+                    [widget.id]: [...newFindings, ...existingForWidget] 
+                });
+                setManualInputs(prev => ({ ...prev, [widget.id]: '' }));
+                currentStore.setStatus(`✅ Extracción manual completada.`);
             } else {
-                currentStore.setStatus("⚠️ No se detectaron patrones en esta URL.");
+                currentStore.setStatus("⚠️ No se detectaron patrones en las URLs provistas.");
             }
         } catch (e: any) {
             currentStore.setStatus(`❌ Error: ${e.message}`);
@@ -494,20 +535,32 @@ export function ToolsTab() {
                                     >
                                         <div className="p-4 space-y-4">
                                             {!isSplitter && !isPatcher && (
-                                                <div className="px-1">
+                                                <div className="px-1 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <select
+                                                            value={manualRuleSelects[widget.id] || ""}
+                                                            onChange={(e) => setManualRuleSelects(prev => ({ ...prev, [widget.id]: e.target.value }))}
+                                                            className="text-[9px] font-black text-slate-500 uppercase bg-transparent outline-none cursor-pointer hover:text-indigo-600 transition-colors"
+                                                        >
+                                                            <option value="">Todas las reglas activas</option>
+                                                            {(widget.config?.rules || []).map((r: any) => (
+                                                                <option key={r.id} value={r.id}>
+                                                                    {r.name} {r.is_active ? '' : '(Inactiva)'} {r.batch_mode ? '[BATCH]' : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
                                                     <div className="relative">
-                                                        <input 
-                                                            type="text" 
-                                                            placeholder="Pegar URL para extraer manualmente..."
+                                                        <textarea 
+                                                            placeholder="Pegar URLs (una por línea) para extraer manualmente..."
                                                             value={manualInputs[widget.id] || ''}
                                                             onChange={(e) => setManualInputs(prev => ({ ...prev, [widget.id]: e.target.value }))}
-                                                            onKeyDown={(e) => e.key === 'Enter' && handleManualExtract(widget)}
-                                                            className="w-full h-9 pl-3 pr-10 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-600 focus:bg-white focus:border-indigo-200 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none"
+                                                            className="w-full min-h-[60px] max-h-[120px] p-3 pr-10 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-600 focus:bg-white focus:border-indigo-200 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none resize-y custom-scrollbar"
                                                         />
                                                         <button 
                                                             onClick={() => handleManualExtract(widget)}
                                                             disabled={isTestingManual === widget.id || !manualInputs[widget.id]}
-                                                            className="absolute right-1 top-1 w-7 h-7 rounded-lg bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 transition-colors"
+                                                            className="absolute right-2 bottom-2 w-7 h-7 rounded-lg bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-600 disabled:opacity-50 transition-colors shadow-sm"
                                                         >
                                                             {isTestingManual === widget.id ? <Loader2 size={10} className="animate-spin" /> : <Search size={10} />}
                                                         </button>

@@ -278,6 +278,69 @@ function NousExtractorRow({
                     </select>
                 </div>
             </div>
+
+            {/* Batch Mode Section */}
+            <div className="mt-2 p-5 bg-indigo-50/30 rounded-[24px] border border-indigo-50 space-y-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+                            <Layout size={16} />
+                        </div>
+                        <span className="text-[10px] font-black text-indigo-800 uppercase italic">AGRUPACIÓN BATCH (MÚLTIPLES URLs)</span>
+                    </div>
+                    <button 
+                        onClick={() => onUpdate({ batch_mode: !rule.batch_mode })}
+                        className="p-1"
+                    >
+                        {rule.batch_mode ? <ToggleRight className="text-emerald-500" size={24} /> : <ToggleLeft className="text-slate-300" size={24} />}
+                    </button>
+                </div>
+                
+                {rule.batch_mode && (
+                    <div className="flex flex-wrap items-center gap-4 pt-2">
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Prefijo</span>
+                            <input 
+                                type="text"
+                                value={rule.batch_prefix || ''}
+                                onChange={(e) => onUpdate({ batch_prefix: e.target.value })}
+                                placeholder="[*"
+                                className="h-9 px-3 bg-white border border-slate-100 rounded-xl text-xs font-mono text-slate-700 w-24 outline-none focus:border-indigo-300"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Separador</span>
+                            <input 
+                                type="text"
+                                value={rule.batch_separator || ''}
+                                onChange={(e) => onUpdate({ batch_separator: e.target.value })}
+                                placeholder=","
+                                className="h-9 px-3 bg-white border border-slate-100 rounded-xl text-xs font-mono text-slate-700 w-24 outline-none focus:border-indigo-300"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Sufijo</span>
+                            <input 
+                                type="text"
+                                value={rule.batch_suffix || ''}
+                                onChange={(e) => onUpdate({ batch_suffix: e.target.value })}
+                                placeholder="*]"
+                                className="h-9 px-3 bg-white border border-slate-100 rounded-xl text-xs font-mono text-slate-700 w-24 outline-none focus:border-indigo-300"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Vista Previa</span>
+                            <div className="h-9 px-3 bg-slate-900 rounded-xl text-[11px] font-mono text-white flex items-center overflow-hidden whitespace-nowrap">
+                                <span className="text-emerald-400">{rule.batch_prefix || ''}</span>
+                                <span className="opacity-70">val1</span>
+                                <span className="text-rose-400 font-black px-0.5">{rule.batch_separator || ''}</span>
+                                <span className="opacity-70">val2</span>
+                                <span className="text-emerald-400">{rule.batch_suffix || ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </motion.div>
     );
 }

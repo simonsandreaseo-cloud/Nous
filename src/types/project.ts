@@ -109,6 +109,10 @@ export interface NousExtractorRule {
     target_phases: ('research' | 'planner' | 'writer')[];
     placement_mode?: 'inline' | 'new_line' | 'new_paragraph';
     show_in_writer?: boolean;
+    batch_mode?: boolean;
+    batch_prefix?: string;
+    batch_separator?: string;
+    batch_suffix?: string;
 }
 
 export interface CustomWidget {
