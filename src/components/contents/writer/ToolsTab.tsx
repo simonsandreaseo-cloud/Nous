@@ -753,7 +753,23 @@ export function ToolsTab() {
                                                                         {!isPatcher && (
                                                                             <div className="flex items-center gap-1 opacity-0 group-hover/finding:opacity-100 transition-opacity">
                                                                                 <button 
+                                                                                    onClick={() => {
+                                                                                        const editor = useWriterStore.getState().editor;
+                                                                                        if (editor) {
+                                                                                            editor.chain().focus().insertContent(finding.value).run();
+                                                                                            currentStore.setStatus("✅ Texto insertado en el editor");
+                                                                                        } else {
+                                                                                            currentStore.setStatus("⚠️ No se encontró el editor");
+                                                                                        }
+                                                                                    }}
+                                                                                    title="Insertar en el editor"
+                                                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                                                >
+                                                                                    <PenTool size={12} />
+                                                                                </button>
+                                                                                <button 
                                                                                     onClick={() => handleCopyValue(finding.value)}
+                                                                                    title="Copiar al portapapeles"
                                                                                     className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
                                                                                 >
                                                                                     {lastCopied === finding.value ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
