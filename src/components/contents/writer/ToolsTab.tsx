@@ -137,7 +137,15 @@ export function ToolsTab() {
                     } else if (ins.placement === 'new_line') {
                         editor.chain().insertContentAt(ins.endPos, `<br>${ins.value}`).run();
                     } else if (ins.placement === 'new_paragraph') {
-                        editor.chain().insertContentAt(ins.endPos, `<p>${ins.value}</p>`).run();
+                        // Find the end of the current block to insert the new paragraph after it
+                        const $pos = editor.state.doc.resolve(ins.endPos);
+                        const blockEnd = $pos.end();
+                        // blockEnd is the position right before the closing tag of the current block.
+                        // To insert a new block *after* the current one, we insert at blockEnd + 1.
+                        editor.chain().insertContentAt(blockEnd + 1, {
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: ins.value }]
+                        }).run();
                     }
                 });
 
