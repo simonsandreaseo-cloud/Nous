@@ -276,7 +276,7 @@ export function ToolsTab() {
             });
 
             if (newFindings.length > 0) {
-                const currentFindings = useWriterStore.getState().extractorFindings;
+                const currentFindings = useWriterStore.getState().nousExtractorFindings || {};
                 const existingForWidget = currentFindings[widget.id] || [];
                 currentStore.setNousExtractorFindings({ 
                     ...currentFindings, 
@@ -287,7 +287,7 @@ export function ToolsTab() {
             } else {
                 currentStore.setStatus("⚠️ No se generaron hallazgos.");
                 // Forzar un error visual si llegó hasta acá y no generó nada.
-                const currentFindings = useWriterStore.getState().extractorFindings;
+                const currentFindings = useWriterStore.getState().nousExtractorFindings || {};
                 const existingForWidget = currentFindings[widget.id] || [];
                 currentStore.setNousExtractorFindings({
                     ...currentFindings,
