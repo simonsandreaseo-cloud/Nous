@@ -419,24 +419,72 @@ export function NousExtractorConfigModal({ isOpen, onClose, widget, onUpdate }: 
         setTestResults([]);
 
         try {
-            const activeRules = localRules.filter(r => r.is_active);
-            if (activeRules.length === 0) {
-                setTestError("No hay reglas activas para probar.");
+            const urls = testUrl.split(/\r?\n/).map(u => u.trim()).filter(u => u.length > 0);
+            if (urls.length === 0) return;
+
+            // We test all rules in the sandbox, active or not
+            const rulesToUse = localRules;
+
+            if (rulesToUse.length === 0) {
+                setTestError("No hay reglas configuradas para probar.");
                 return;
             }
 
-            const response = await NousExtractorService.extract(testUrl, activeRules);
-            if (response.success) {
-                if (response.results.length === 0) {
-                    setTestError("La URL no coincide con las condiciones lógicas de ninguna regla activa.");
-                } else {
-                    setTestResults(response.results);
+            const newFindings: any[] = [];
+            const ruleResultsMap: Record<string, string[]> = {};
+
+            for (const url of urls) {
+                try {
+                    const response = await NousExtractorService.extract(url, rulesToUse);
+                    if (response.success && response.results.length > 0) {
+                        response.results.forEach((res: any) => {
+                            if (res.success) {
+                                const rule = rulesToUse.find((r: any) => r.id === res.rule_id);
+                                if (rule?.batch_mode) {
+                                    if (!ruleResultsMap[rule.id]) ruleResultsMap[rule.id] = [];
+                                    ruleResultsMap[rule.id].push(res.formatted);
+                                } else {
+                                    newFindings.push(res);
+                                }
+                            } else {
+                                newFindings.push({
+                                    rule_id: res.rule_id,
+                                    error: `[${url}] ${res.error}`,
+                                    success: false
+                                });
+                            }
+                        });
+                    } else {
+                        setTestError(`[${url}] La API devolvió un error o resultados vacíos.`);
+                    }
+                } catch (e: any) {
+                    setTestError(`[${url}] Error crítico: ${e.message}`);
                 }
-            } else {
-                setTestError(response.error || "Error en el proceso de extracción.");
+            }
+
+            // Process batched rules
+            Object.keys(ruleResultsMap).forEach(ruleId => {
+                const rule = rulesToUse.find((r: any) => r.id === ruleId);
+                if (rule && ruleResultsMap[ruleId].length > 0) {
+                    const joined = ruleResultsMap[ruleId].join(rule.batch_separator || "");
+                    const finalValue = `${rule.batch_prefix || ""}${joined}${rule.batch_suffix || ""}`;
+                    newFindings.push({
+                        rule_id: rule.id,
+                        value: finalValue,
+                        formatted: finalValue,
+                        success: true,
+                        is_batch: true
+                    });
+                }
+            });
+
+            if (newFindings.length > 0) {
+                setTestResults(newFindings);
+            } else if (!testError) {
+                setTestError("La URL no coincide con las condiciones lógicas de ninguna regla o no se encontraron patrones.");
             }
         } catch (e: any) {
-            setTestError("Error crítico: " + e.message);
+            setTestError("Error crítico general: " + e.message);
         } finally {
             setIsTesting(false);
         }
@@ -551,12 +599,11 @@ export function NousExtractorConfigModal({ isOpen, onClose, widget, onUpdate }: 
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">URL de Destino:</label>
                                         <div className="relative group">
-                                            <input 
-                                                type="text" 
-                                                placeholder="https://ejemplo.com/..."
+                                            <textarea 
+                                                placeholder="https://ejemplo.com/... (Puedes pegar múltiples URLs, una por línea)"
                                                 value={testUrl}
                                                 onChange={(e) => setTestUrl(e.target.value)}
-                                                className="w-full h-12 pl-5 pr-12 rounded-2xl border bg-slate-50 text-[13px] font-bold focus:bg-white focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none"
+                                                className="w-full min-h-[120px] p-5 pr-12 rounded-2xl border bg-slate-50 text-[11px] font-bold focus:bg-white focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none resize-y font-mono whitespace-pre text-slate-700"
                                             />
                                             <button 
                                                 onClick={handleTest}
@@ -583,31 +630,55 @@ export function NousExtractorConfigModal({ isOpen, onClose, widget, onUpdate }: 
                                         {testResults.length > 0 && (
                                             <div className="space-y-3">
                                                 {testResults.map((res, i) => (
-                                                    <motion.div 
-                                                        key={i}
-                                                        layout
-                                                        className="p-5 rounded-[32px] bg-white border border-slate-100 shadow-sm space-y-4"
-                                                    >
-                                                        <div className="flex items-center justify-between border-b border-slate-50 pb-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <Check size={14} className="text-emerald-500" />
-                                                                <span className="text-[9px] font-black text-slate-400 uppercase">Coincidencia Exitosa</span>
+                                                    res.success ? (
+                                                        <motion.div 
+                                                            key={i}
+                                                            layout
+                                                            className="p-5 rounded-[32px] bg-white border border-slate-100 shadow-sm space-y-4"
+                                                        >
+                                                            <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Check size={14} className="text-emerald-500" />
+                                                                    <span className="text-[9px] font-black text-slate-400 uppercase">Coincidencia Exitosa</span>
+                                                                </div>
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        if (document.hasFocus()) {
+                                                                            navigator.clipboard.writeText(res.formatted);
+                                                                        }
+                                                                    }}
+                                                                    title="Copiar Resultado"
+                                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                                >
+                                                                    <Copy size={12} />
+                                                                </button>
                                                             </div>
-                                                            <button 
-                                                                onClick={() => {
-                                                                    if (document.hasFocus()) {
-                                                                        navigator.clipboard.writeText(res.formatted);
-                                                                    }
-                                                                }}
-                                                                className="p-2 hover:bg-slate-50 rounded-lg text-slate-400 transition-colors"
-                                                            >
-                                                                <Copy size={12} />
-                                                            </button>
-                                                        </div>
-                                                        <div className="p-3 bg-slate-50 rounded-2xl text-[12px] font-mono text-indigo-600 break-all select-all">
-                                                            {res.formatted}
-                                                        </div>
-                                                    </motion.div>
+                                                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                                                    {res.is_batch ? 'Resultado Agrupado (Batch)' : 'Valor Extraído'}
+                                                                </div>
+                                                                <div className="text-[13px] font-bold text-slate-700 break-all">
+                                                                    {res.formatted}
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    ) : (
+                                                        <motion.div 
+                                                            key={i}
+                                                            layout
+                                                            className="p-5 rounded-[32px] bg-rose-50 border border-rose-100 shadow-sm space-y-4"
+                                                        >
+                                                            <div className="flex items-center gap-2 border-b border-rose-100/50 pb-3">
+                                                                <AlertCircle size={14} className="text-rose-500" />
+                                                                <span className="text-[9px] font-black text-rose-500 uppercase">Error de Extracción</span>
+                                                            </div>
+                                                            <div className="bg-white/50 p-4 rounded-2xl border border-rose-100/50">
+                                                                <div className="text-[11px] font-bold text-rose-700 break-all">
+                                                                    {res.error}
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    )
                                                 ))}
                                             </div>
                                         )}
