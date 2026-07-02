@@ -700,7 +700,7 @@ export const runSurgicalEditorPipeline = async (
 
     // Calcular los límites matemáticos duros para el prompt
     const allText = Object.values(textBlocks).map(t => t.replace(/<[^>]*>/g, '')).join(' ');
-    const wordCount = allText.split(/\\s+/).filter(w => w.length > 0).length;
+    const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
     const limitDelete = Math.max(1, Math.floor(wordCount * 0.09));
     const limitReplace = Math.max(1, Math.floor(wordCount * 0.07));
     const limitAdd = Math.max(1, Math.floor(wordCount * 0.06));
