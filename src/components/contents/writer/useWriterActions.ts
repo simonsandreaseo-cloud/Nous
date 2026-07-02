@@ -344,17 +344,36 @@ export function useWriterActions() {
 
             const originalContent = store.content;
 
-            const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
-                const chunks = [];
-                for (let i = 0; i < elements.length; i += chunkSize) {
-                    const chunk = elements.slice(i, i + chunkSize).join('').trim();
-                    if (chunk) chunks.push(chunk);
+            const chunkHtml = (htmlString: string, maxBlocks: number = 3): string[] => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlString, 'text/html');
+                const chunks: string[] = [];
+                let currentChunk = '';
+                let blockCount = 0;
+                
+                Array.from(doc.body.children).forEach((el) => {
+                    currentChunk += el.outerHTML;
+                    
+                    const tagName = el.tagName.toLowerCase();
+                    if (['p', 'ul', 'ol', 'blockquote', 'table', 'div'].includes(tagName)) {
+                        blockCount++;
+                    }
+                    
+                    if (blockCount >= maxBlocks) {
+                        chunks.push(currentChunk.trim());
+                        currentChunk = '';
+                        blockCount = 0;
+                    }
+                });
+                
+                if (currentChunk.trim()) {
+                    chunks.push(currentChunk.trim());
                 }
-                return chunks;
+                
+                return chunks.length > 0 ? chunks : [htmlString];
             };
 
-            const rawChunks = chunkHtml(originalContent, 4);
+            const rawChunks = chunkHtml(originalContent, 3);
             console.log(`[DEBUG-SurgicalEdit] Documento dividido en ${rawChunks.length} chunks.`);
             store.setSurgicalEditStatus(`Documento dividido en ${rawChunks.length} partes...`);
             addLogToTask(queueTaskId, `Documento dividido en ${rawChunks.length} partes para edición.`, 'info');
@@ -534,17 +553,36 @@ export function useWriterActions() {
             const originalContent = store.content;
             await store.saveTaskVersion(`Pre-Limpieza`, originalContent);
             
-            const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
-                const chunks = [];
-                for (let i = 0; i < elements.length; i += chunkSize) {
-                    const chunk = elements.slice(i, i + chunkSize).join('').trim();
-                    if (chunk) chunks.push(chunk);
+            const chunkHtml = (htmlString: string, maxBlocks: number = 3): string[] => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlString, 'text/html');
+                const chunks: string[] = [];
+                let currentChunk = '';
+                let blockCount = 0;
+                
+                Array.from(doc.body.children).forEach((el) => {
+                    currentChunk += el.outerHTML;
+                    
+                    const tagName = el.tagName.toLowerCase();
+                    if (['p', 'ul', 'ol', 'blockquote', 'table', 'div'].includes(tagName)) {
+                        blockCount++;
+                    }
+                    
+                    if (blockCount >= maxBlocks) {
+                        chunks.push(currentChunk.trim());
+                        currentChunk = '';
+                        blockCount = 0;
+                    }
+                });
+                
+                if (currentChunk.trim()) {
+                    chunks.push(currentChunk.trim());
                 }
-                return chunks;
+                
+                return chunks.length > 0 ? chunks : [htmlString];
             };
 
-            const rawChunks = chunkHtml(originalContent, 4);
+            const rawChunks = chunkHtml(originalContent, 3);
             store.setStatus(`Documento dividido en ${rawChunks.length} partes para limpieza...`);
             
             // In-place chunking: envolver todos los chunks inicialmente
