@@ -749,6 +749,8 @@ MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <st
         }
 
         const raw = response.response.text();
+        console.log('\\n[DEBUG-SURGICAL-RAW-LLM]\\n', raw, '\\n[/DEBUG-SURGICAL-RAW-LLM]\\n');
+        
         let cleaned = raw.replace(/```(json)?/gi, '').trim();
         const jsonStart = cleaned.indexOf('{');
         const jsonEnd = cleaned.lastIndexOf('}');
@@ -1019,6 +1021,7 @@ export const runFinalCleaningLayer = async (
         `;
         const response = await model.generateContent(prompt);
         let raw = response.response.text();
+        console.log('\\n[DEBUG-CLEAN-RAW-LLM]\\n', raw, '\\n[/DEBUG-CLEAN-RAW-LLM]\\n');
         
         let cleaned = raw.replace(/```(json)?/gi, '').trim();
         const jsonStart = cleaned.indexOf('{');
