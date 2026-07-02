@@ -318,6 +318,7 @@ export function useWriterActions() {
                 }
             });
         console.log("[DEBUG-SurgicalEdit] Action triggered");
+        const { addLogToTask } = useQueueStore.getState();
         if (!hasAccess) {
             console.log("[DEBUG-SurgicalEdit] Access denied");
             return alert('No tienes permisos.');
