@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import DOMPurify from 'isomorphic-dompurify';
+import DOMPurify from 'dompurify';
 import { useWriterStore } from '@/store/useWriterStore';
 import { 
     Globe, ExternalLink, AlignLeft, 
@@ -107,7 +107,7 @@ export function CompetitorPanel() {
                             <div className="prose prose-sm dark:prose-invert max-w-none pb-20 prose-headings:font-black prose-headings:text-slate-800 prose-p:text-slate-600 prose-a:text-indigo-500">
                                 {readingContent ? (
                                     readingContent.includes('<') && readingContent.includes('>') ? (
-                                        <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(readingContent || '') }} />
+                                        <div dangerouslySetInnerHTML={{ __html: typeof window !== 'undefined' ? DOMPurify.sanitize(readingContent || '') : readingContent || '' }} />
                                     ) : (
                                         <div className="whitespace-pre-wrap">{readingContent}</div>
                                     )

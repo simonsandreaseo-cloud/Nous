@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import DOMPurify from 'isomorphic-dompurify';
+import DOMPurify from 'dompurify';
 import { BlogPost, GeneratedImage } from '@/types/images';
 import { ImageCard } from './ImageCard';
 
@@ -60,7 +60,7 @@ export const ArticlePreview: React.FC<ArticlePreviewProps> = ({ blogPost, genera
                             <React.Fragment key={index}>
                                 <div 
                                     className="text-slate-600 leading-[1.8] text-xl font-medium tracking-tight prose prose-slate max-w-none"
-                                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(paragraph) }}
+                                    dangerouslySetInnerHTML={{ __html: typeof window !== 'undefined' ? DOMPurify.sanitize(paragraph) : paragraph }}
                                 />
 
                                 {/* Insert Image if it belongs here */}
