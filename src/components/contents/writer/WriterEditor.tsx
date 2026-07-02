@@ -24,6 +24,9 @@ import { FeaturedImageSlot } from './WriterStudio';
 import ImageLightbox from './modals/ImageLightbox';
 import { EditorView } from '@tiptap/pm/view';
 import PresenceAvatars from './PresenceAvatars';
+import beautify from 'js-beautify';
+import CodeMirror from '@uiw/react-codemirror';
+import { html } from '@codemirror/lang-html';
 
 let updateContentTimeout: NodeJS.Timeout | null = null;
 
@@ -196,8 +199,8 @@ export default function WriterEditor() {
             }
         } as any,
         onUpdate: ({ editor }) => {
-            // Only update store from editor if NOT generating
-            if (!isGenerating) {
+            // Only update store from editor if NOT generating and NOT in code tab
+            if (!isGenerating && useWriterStore.getState().editorTab !== 'code') {
                 if (updateContentTimeout) clearTimeout(updateContentTimeout);
                 updateContentTimeout = setTimeout(() => {
                     setContent(editor.getHTML());
@@ -224,6 +227,21 @@ export default function WriterEditor() {
             }
         },
     });
+
+    // Format HTML when switching to code tab
+    useEffect(() => {
+        if (editorTab === 'code' && content) {
+            const formatted = beautify.html(content, { 
+                indent_size: 4, 
+                wrap_line_length: 0, 
+                preserve_newlines: true,
+                max_preserve_newlines: 2 
+            });
+            if (formatted !== content) {
+                setContent(formatted);
+            }
+        }
+    }, [editorTab]);
 
     // --- Sync editor instance with store ---
     useEffect(() => {
@@ -639,12 +657,16 @@ export default function WriterEditor() {
             </div>
 
             <div className={cn("relative animate-in fade-in duration-300", editorTab !== 'code' && 'hidden')}>
-                <textarea 
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    className="w-full min-h-[600px] p-6 bg-slate-900 text-emerald-400 font-mono text-sm rounded-2xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 selection:bg-indigo-500/30 custom-scrollbar resize-none"
-                    spellCheck={false}
-                />
+                <div className="w-full min-h-[600px] bg-[#282c34] rounded-2xl border border-slate-800 overflow-hidden shadow-2xl [&_.cm-editor]:min-h-[600px] [&_.cm-scroller]:custom-scrollbar">
+                    <CodeMirror
+                        value={content}
+                        minHeight="600px"
+                        theme="dark"
+                        extensions={[html()]}
+                        onChange={(value) => setContent(value)}
+                        className="text-[15px] font-mono leading-relaxed"
+                    />
+                </div>
             </div>
 
             {fullscreenImage && (
