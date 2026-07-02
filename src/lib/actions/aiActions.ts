@@ -725,7 +725,8 @@ Devuelve exclusivamente el texto final sin comentarios.
 Recibirás un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.
 Aplica las reglas globales al conjunto del texto, distribuyendo los cambios.
 DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos editados.
-MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>). No devuelvas markdown fuera del JSON.`;
+MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>). No devuelvas markdown fuera del JSON.
+PROHIBICIÓN ESTRICTA: NO generes razonamientos, cálculos, conteos, ni pasos previos. Genera DIRECTAMENTE y ÚNICAMENTE el objeto JSON final sin usar markdown de bloques de código.`;
 
         const model = aiClient.getGenerativeModel({ 
             model: mName, 
@@ -737,7 +738,7 @@ MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <st
         
         const languageInstruction = config.language ? `\\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
         
-        const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n${languageInstruction}\\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA Y LOS LÍMITES (${limitDelete} borrar, ${limitReplace} reemplazar, ${limitAdd} agregar).`;
+        const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n${languageInstruction}\\nDEVUELVE SOLO EL JSON DE SALIDA SIN RAZONAMIENTO PREVIO. RESPETA ESTRICTAMENTE LA ESTRUCTURA Y LOS LÍMITES (${limitDelete} borrar, ${limitReplace} reemplazar, ${limitAdd} agregar).`;
         
         const startTime = Date.now();
         let response;
