@@ -18,6 +18,8 @@ export interface PersistenceActions {
     fetchTaskVersions: (taskId: string) => Promise<void>;
     saveTaskVersion: (processName: string, contentBody?: string, taskIdOverride?: string) => Promise<void>;
     restoreTaskVersion: (versionId: string) => Promise<void>;
+    deleteTaskVersion: (versionId: string) => Promise<boolean>;
+    renameTaskVersion: (versionId: string, newName: string) => Promise<boolean>;
 }
 
 export type PersistenceSlice = WriterStoreState & PersistenceActions;
@@ -419,8 +421,30 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
     },
 
     saveTaskVersion: async (processName: string, contentBody?: string, taskIdOverride?: string) => {
-        // [DESACTIVADO TEMPORALMENTE A PETICIÓN DEL USUARIO PARA EVITAR DESASTRES]
-        return;
+        const { supabase } = require('@/lib/supabase');
+        const { draftId, content, setStatus } = get() as any;
+        
+        const targetId = taskIdOverride || draftId;
+        if (!targetId) return;
+
+        const bodyToSave = contentBody !== undefined ? contentBody : content;
+        if (!bodyToSave) return;
+
+        setStatus(`Guardando versión (${processName})...`);
+        const { error } = await supabase.from('task_versions').insert({
+            task_id: targetId,
+            content_body: bodyToSave,
+            process_name: processName
+        });
+
+        if (error) {
+            console.error('[Persistence] Error saving task version:', error);
+            setStatus(`❌ Error al guardar versión`);
+        } else {
+            setStatus('');
+            // Refresh versions silently
+            await (get() as any).fetchTaskVersions(targetId);
+        }
     },
 
     restoreTaskVersion: async (versionId: string) => {
@@ -447,4 +471,44 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         setStatus('✅ Versión restaurada');
         setTimeout(() => setStatus(''), 2000);
     },
+
+    deleteTaskVersion: async (versionId: string) => {
+        const { supabase } = require('@/lib/supabase');
+        const { draftId, fetchTaskVersions } = get() as any;
+
+        const { error } = await supabase
+            .from('task_versions')
+            .delete()
+            .eq('id', versionId);
+
+        if (error) {
+            console.error('[Persistence] Error deleting version:', error);
+            return false;
+        }
+
+        if (draftId) {
+            await fetchTaskVersions(draftId);
+        }
+        return true;
+    },
+
+    renameTaskVersion: async (versionId: string, newName: string) => {
+        const { supabase } = require('@/lib/supabase');
+        const { draftId, fetchTaskVersions } = get() as any;
+
+        const { error } = await supabase
+            .from('task_versions')
+            .update({ process_name: newName })
+            .eq('id', versionId);
+
+        if (error) {
+            console.error('[Persistence] Error renaming version:', error);
+            return false;
+        }
+
+        if (draftId) {
+            await fetchTaskVersions(draftId);
+        }
+        return true;
+    }
 } as any);

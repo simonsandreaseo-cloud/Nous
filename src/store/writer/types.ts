@@ -33,6 +33,14 @@ export interface TaskVersion {
     created_at: string;
 }
 
+export interface TaskVersionActions {
+    fetchTaskVersions: (taskId: string) => Promise<void>;
+    saveTaskVersion: (processName: string, contentBody?: string, taskIdOverride?: string) => Promise<void>;
+    restoreTaskVersion: (versionId: string) => Promise<void>;
+    deleteTaskVersion: (versionId: string) => Promise<boolean>;
+    renameTaskVersion: (versionId: string, newName: string) => Promise<boolean>;
+}
+
 /**
  * Combined State Interface
  * This will be used by slices to know about the full store shape.
