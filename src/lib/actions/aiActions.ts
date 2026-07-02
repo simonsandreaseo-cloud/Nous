@@ -658,7 +658,7 @@ export const runSurgicalEditorPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus?: (msg: string) => void,
-    modelName: string = 'gemini-3.1-flash-lite-preview', 
+    modelName: string = 'gemma-4-31b-it', 
     onChunk?: (chunkHtml: string) => void
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
@@ -666,10 +666,12 @@ export const runSurgicalEditorPipeline = async (
         else console.log(`[SurgicalEditor-Status] ${msg}`);
     };
 
-    if (modelName !== 'gemini-3.1-flash-lite-preview') {
-        modelName = 'gemini-3.1-flash-lite-preview';
+    if (modelName !== 'gemma-4-31b-it') {
+        safeStatus(`⚠️ Modelo ${modelName} no permitido para edición quirúrgica. Forzando gemma-4-31b-it.`);
+        modelName = 'gemma-4-31b-it';
     }
 
+    const SURGICAL_TIMEOUT = 180000;
     safeStatus(`Iniciando edición quirúrgica estructural con Cheerio y modelo ${modelName}...`);
     const start = Date.now();
     
@@ -696,122 +698,104 @@ export const runSurgicalEditorPipeline = async (
         return { html: cleanAndFormatHtml(html) };
     }
 
-    // Calcular el límite matemático para el prompt
+    // Calcular los límites matemáticos duros para el prompt
     const allText = Object.values(textBlocks).map(t => t.replace(/<[^>]*>/g, '')).join(' ');
-    const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
-    const editLimit = Math.max(1, Math.floor(wordCount * 0.20));
+    const wordCount = allText.split(/\\s+/).filter(w => w.length > 0).length;
+    const limitDelete = Math.max(1, Math.floor(wordCount * 0.09));
+    const limitReplace = Math.max(1, Math.floor(wordCount * 0.07));
+    const limitAdd = Math.max(1, Math.floor(wordCount * 0.06));
 
-    safeStatus(`Se extrajeron ${numBlocks} bloques. Límite de edición: ${editLimit} palabras. Enviando al modelo...`);
+    safeStatus(`Se extrajeron ${numBlocks} bloques. Límites -> Borrar: ${limitDelete}, Reemplazar: ${limitReplace}, Agregar: ${limitAdd}. Enviando al modelo...`);
 
-    try {
-        const processedBlocks = await libExecuteWithKeyRotation(async (ai) => {
-            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
---- PERSONA: EDITOR QUIRÚRGICO ---
-Actúa como un editor experto. Tu objetivo es hacer una EDICIÓN QUIRÚRGICA MINIMALISTA de un texto que fue previamente "humanizado".
-El texto actual puede tener oraciones torpes o excesivamente informales, pero no queremos perder su esencia humana.
+    const runModel = async (aiClient: any, mName: string) => {
+        const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
+Corrige el texto aplicando únicamente estos límites máximos:
 
---- REGLA DE PRESUPUESTO ESTRICTO (VITAL) ---
-TIENES UN LÍMITE ESTRICTO DEL 20% (máximo ${editLimit} palabras modificadas).
-Para lograr esto, DEBES APLICAR ESTA REGLA LÓGICA DE EDICIÓN:
-Haz MICRO-EDICIONES distribuidas a lo largo de TODO el fragmento.
-OBLIGATORIO: Debes hacer AL MENOS UN (1) cambio pequeño en CADA ORACIÓN del fragmento, pero NO PUEDES CAMBIAR MÁS DE TRES (3) PALABRAS por oración (cambiar un sinónimo, eliminar una muletilla, arreglar un conector).
-Mantén la estructura original de todas las oraciones intacta, solo "pule" palabras individuales.
+Borrar: Hasta ${limitDelete} muletillas en total.
 
---- PROHIBICIÓN ABSOLUTA ---
-1. ESTÁ PROHIBIDO REESCRIBIR ORACIONES COMPLETAS. Si cambias la estructura estructural de las frases, fallarás la tarea. Solo puedes hacer cambios a nivel de palabra.
-2. ESTÁ PROHIBIDO DEVOLVER EL TEXTO 100% IGUAL. No puedes dejar ninguna oración exactamente igual a la original. Tienes que pulir cada una de ellas.
-3. ESTÁ PROHIBIDO CAMBIAR EL TONO HUMANO O HACERLO SONAR ROBÓTICO.
+Reemplazar: Hasta ${limitReplace} palabras por sinónimos.
 
---- CONTEXTO ---
-Nicho/Tópico: ${config.niche || 'N/A'}
-Público Objetivo: ${config.audience || 'N/A'}
+Agregar: hasta ${limitAdd} palabras o conectores.
 
-REGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):
-Te entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.
-MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).
-DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos editados. No devuelvas markdown ni otra cosa.
-${SURGICAL_EXAMPLE}`;
+Conservar: No reescribas ni alteres ninguna otra oración.
 
-            const model = ai.getGenerativeModel({ 
-                model: modelName, 
-                systemInstruction: systemInstructionStr,
-                generationConfig: {
-                    responseMimeType: 'application/json'
-                }
-            });
-            
-            const languageInstruction = config.language ? `\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
-            
-            const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n\\n${languageInstruction}\\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA. RECUERDA: SÓLO PUEDES MODIFICAR ${editLimit} PALABRAS.`;
-            
-            safeStatus(`[DEBUG] Enviando Prompt. Modelo: ${modelName}, Límite editLimit: ${editLimit}`);
-            
-            let response;
-            const startTime = Date.now();
-            try {
-                response = await model.generateContent(prompt);
-            } catch (apiError: any) {
-                const duration = Date.now() - startTime;
-                safeStatus(`[DEBUG-ERROR] Falló la llamada a la API tras ${duration}ms: ${apiError.message}`);
-                console.error("[SurgicalEditor-API Error]", apiError);
-                throw apiError; // Re-lanzar para que key rotation funcione
+Devuelve exclusivamente el texto final sin comentarios.
+
+[NOTA DE ESTRUCTURA DEL SISTEMA]:
+Recibirás un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.
+Aplica las reglas globales al conjunto del texto, distribuyendo los cambios.
+DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos editados.
+MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>). No devuelvas markdown fuera del JSON.`;
+
+        const model = aiClient.getGenerativeModel({ 
+            model: mName, 
+            systemInstruction: systemInstructionStr,
+            generationConfig: {
+                responseMimeType: 'application/json'
             }
-
-            const duration = Date.now() - startTime;
-            const raw = response.response.text();
-            
-            safeStatus(`[DEBUG] Respuesta recibida en ${duration}ms. Longitud: ${raw.length} chars.`);
-            console.log(`\n\n=== [DEBUG] FULL RAW RESPONSE ===\n${raw}\n=================================\n\n`);
-            
-            let cleaned = raw;
-            cleaned = cleaned.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();
-            
-            const jsonStart = cleaned.indexOf('{');
-            const jsonEnd = cleaned.lastIndexOf('}');
-            
-            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-                cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
-            }
-            
-            try {
-                const parsed = JSON.parse(cleaned);
-                safeStatus(`[DEBUG] JSON parseado correctamente con ${Object.keys(parsed).length} bloques.`);
-                return parsed;
-            } catch (e: any) {
-                console.error("[SurgicalEditor-Parser] Fallo catastrófico al parsear JSON. Raw preview:", cleaned.substring(0, 100) + "...");
-                safeStatus(`[DEBUG-ERROR] Falló parseo JSON: ${e.message}. RAW: ${cleaned.substring(0, 50)}...`);
-                throw e;
-            }
-        }, modelName, undefined, undefined, undefined, true, `Edición Quirúrgica de ${numBlocks} bloques`, 180000);
+        });
         
-        safeStatus(`Reconstruyendo el HTML...`);
-        let modifiedBlocksCount = 0;
-        let identicalBlocksCount = 0;
+        const languageInstruction = config.language ? `\\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
+        
+        const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n${languageInstruction}\\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA Y LOS LÍMITES (${limitDelete} borrar, ${limitReplace} reemplazar, ${limitAdd} agregar).`;
+        
+        const startTime = Date.now();
+        let response;
+        try {
+            response = await model.generateContent(prompt);
+        } catch (apiError: any) {
+            safeStatus(`[DEBUG-ERROR] Falló la llamada a la API: ${apiError.message}`);
+            throw apiError; 
+        }
 
-        for (const [id, editedText] of Object.entries(processedBlocks as Record<string, string>)) {
-            const el = $(`[data-surgical-id="${id}"]`);
-            if (el.length > 0 && typeof editedText === 'string') {
-                const originalText = el.html() || '';
-                
-                // Check if AI actually modified the text
-                const isIdentical = originalText.trim() === editedText.trim();
-                if (isIdentical) {
-                    identicalBlocksCount++;
-                    console.warn(`[DEBUG-CHECK] El bloque ${id} fue devuelto EXACTAMENTE IGUAL por la IA. (Fallo de Prompt)`);
-                } else {
-                    modifiedBlocksCount++;
-                    console.log(`[DEBUG-CHECK] El bloque ${id} fue MODIFICADO correctamente.`);
-                }
-
-                el.html(editedText);
-            }
+        const raw = response.response.text();
+        let cleaned = raw.replace(/\`\`\`json\\n?/g, '').replace(/\`\`\`\\n?/g, '').trim();
+        const jsonStart = cleaned.indexOf('{');
+        const jsonEnd = cleaned.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+            cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
         }
         
-        safeStatus(`[DEBUG] Resumen de validación: ${modifiedBlocksCount} modificados, ${identicalBlocksCount} idénticos.`);
+        try {
+            return JSON.parse(cleaned);
+        } catch (e: any) {
+            safeStatus(`[DEBUG-ERROR] Falló parseo JSON. RAW: ${cleaned.substring(0, 50)}...`);
+            throw e;
+        }
+    };
 
+    let processedBlocks: any;
+    try {
+        processedBlocks = await libExecuteWithKeyRotation(runModel, modelName, undefined, undefined, undefined, true, `Edición Quirúrgica de ${numBlocks} bloques`, SURGICAL_TIMEOUT);
     } catch (e: any) {
-        safeStatus(`Error durante la edición quirúrgica: ${e.message}. Devolviendo original.`);
+        safeStatus(`⚠️ Error con ${modelName}. Reintentando una vez con modelo alternativo...`);
+        try {
+            processedBlocks = await libExecuteWithKeyRotation(runModel, 'gemma-4-31b-it', undefined, undefined, undefined, true, `Edición Quirúrgica (Reintento)`, SURGICAL_TIMEOUT);
+        } catch (retryError: any) {
+            safeStatus(`Error fatal durante la edición quirúrgica: ${retryError.message}. Devolviendo original.`);
+            processedBlocks = textBlocks;
+        }
     }
+        
+    safeStatus(`Reconstruyendo el HTML...`);
+    let modifiedBlocksCount = 0;
+    let identicalBlocksCount = 0;
+
+    for (const [id, editedText] of Object.entries(processedBlocks as Record<string, string>)) {
+        const el = $(`[data-surgical-id="${id}"]`);
+        if (el.length > 0 && typeof editedText === 'string') {
+            const originalText = el.html() || '';
+            const isIdentical = originalText.trim() === editedText.trim();
+            if (isIdentical) {
+                identicalBlocksCount++;
+            } else {
+                modifiedBlocksCount++;
+            }
+            el.html(editedText);
+        }
+    }
+    
+    safeStatus(`[DEBUG] Resumen de validación: ${modifiedBlocksCount} modificados, ${identicalBlocksCount} idénticos.`);
 
     $('[data-surgical-id]').removeAttr('data-surgical-id');
     const finalHtml = $.html();
@@ -819,6 +803,10 @@ ${SURGICAL_EXAMPLE}`;
     if (onChunk) onChunk(finalHtml);
 
     const duration = (Date.now() - start) / 1000;
+    console.log(`[SurgicalEditor-Perf] Completado en ${duration}s`);
+    
+    return { html: cleanAndFormatHtml(finalHtml) };
+};= (Date.now() - start) / 1000;
     console.log(`[SurgicalEditor-Perf] Completado en ${duration}s`);
     
     return { html: cleanAndFormatHtml(finalHtml) };
@@ -1003,43 +991,58 @@ export const runFinalCleaningLayer = async (
         else console.log(`[FinalCleaning-Status] ${msg}`);
     };
 
-    safeStatus(`Iniciando capa de limpieza final con Gemini 3.1 Flash Lite...`);
+    const CLEANING_TIMEOUT = 180000;
+    const modelName = 'gemma-4-31b-it';
+    safeStatus(`Iniciando capa de limpieza final forzando modelo ${modelName}...`);
     
-    try {
-        const processed = await executeWithKeyRotation(async (ai, currentModel) => {
-            const model = ai.getGenerativeModel({
-                model: currentModel,
-                systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor de Limpieza de HTML.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
-                generationConfig: { 
-                    temperature: 0.1
-                } 
-            });
-            
-            const prompt = `
-            TASK: Elimina toda la basura y texto generado por IA que no pertenezca al contenido principal del artículo. Limita tu respuesta estrictamente al contenido de valor.
-            
-            IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis breve de lo que eliminaste) y 'html' (el artículo limpio final).
-            
-            ARTÍCULO HTML TO CLEAN:
-            ${html}
-            `;
-            const response = await model.generateContent(prompt);
-            let raw = response.response.text();
-            
-            const jsonStart = raw.indexOf('{');
-            const jsonEnd = raw.lastIndexOf('}');
-            if (jsonStart !== -1 && jsonEnd !== -1) {
-                raw = raw.substring(jsonStart, jsonEnd + 1);
-            }
-            
-            try {
-                const parsed = JSON.parse(raw);
-                return parsed.html || html;
-            } catch (e) {
-                return html;
-            }
-        }, AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite-preview', undefined, undefined, false, `Limpieza Final Gemini 3.1 Flash Lite`);
+    const runModel = async (aiClient: any, mName: string) => {
+        const model = aiClient.getGenerativeModel({
+            model: mName,
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Editor de Limpieza de HTML.\nEres un Transformador Determinista. Devuelve ÚNICAMENTE un objeto JSON.`,
+            generationConfig: { 
+                temperature: 0.1,
+                responseMimeType: 'application/json'
+            } 
+        });
         
+        const prompt = `
+        TASK: Elimina toda la basura y texto generado por IA que no pertenezca al contenido principal del artículo. Limita tu respuesta estrictamente al contenido de valor.
+        
+        IMPORTANTE: Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu análisis breve de lo que eliminaste) y 'html' (el artículo limpio final).
+        
+        ARTÍCULO HTML TO CLEAN:
+        ${html}
+        
+        DEVUELVE SOLO EL JSON DIRECTO.
+        `;
+        const response = await model.generateContent(prompt);
+        let raw = response.response.text();
+        
+        let cleaned = raw.replace(/\`\`\`json\n?/g, '').replace(/\`\`\`\n?/g, '').trim();
+        const jsonStart = cleaned.indexOf('{');
+        const jsonEnd = cleaned.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+            cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+        }
+        
+        try {
+            const parsed = JSON.parse(cleaned);
+            return parsed.html || html;
+        } catch (e) {
+            console.error("[FinalCleaning-Parser] Fallo parseo JSON. RAW:", cleaned.substring(0, 50));
+            throw e;
+        }
+    };
+
+    try {
+        let processed = html;
+        try {
+            processed = await executeWithKeyRotation(runModel, modelName, undefined, undefined, undefined, true, `Limpieza Final ${modelName}`, CLEANING_TIMEOUT);
+        } catch (e: any) {
+            safeStatus(`⚠️ Error con ${modelName}. Reintentando una vez con modelo alternativo...`);
+            processed = await executeWithKeyRotation(runModel, modelName, undefined, undefined, undefined, true, `Limpieza Final (Reintento)`, CLEANING_TIMEOUT);
+        }
+
         console.log("\n==========================================");
         console.log("=== LIMPIEZA INTELIGENTE (ANTES) ===");
         console.log("==========================================");
@@ -1052,7 +1055,7 @@ export const runFinalCleaningLayer = async (
 
         return processed;
     } catch (e: any) {
-        safeStatus(`Error en limpieza final: ${e.message}. Devolviendo original por seguridad.`);
+        safeStatus(`Error fatal en limpieza final: ${e.message}. Devolviendo original por seguridad.`);
         return html;
     }
 };;
