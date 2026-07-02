@@ -806,10 +806,6 @@ MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <st
     console.log(`[SurgicalEditor-Perf] Completado en ${duration}s`);
     
     return { html: cleanAndFormatHtml(finalHtml) };
-};= (Date.now() - start) / 1000;
-    console.log(`[SurgicalEditor-Perf] Completado en ${duration}s`);
-    
-    return { html: cleanAndFormatHtml(finalHtml) };
 };
 
 export const runSmartEditor = async (
