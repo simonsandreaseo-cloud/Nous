@@ -749,7 +749,7 @@ MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <st
         }
 
         const raw = response.response.text();
-        let cleaned = raw.replace(/\`\`\`json\\n?/g, '').replace(/\`\`\`\\n?/g, '').trim();
+        let cleaned = raw.replace(/```(json)?/gi, '').trim();
         const jsonStart = cleaned.indexOf('{');
         const jsonEnd = cleaned.lastIndexOf('}');
         if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
@@ -759,8 +759,14 @@ MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <st
         try {
             return JSON.parse(cleaned);
         } catch (e: any) {
-            safeStatus(`[DEBUG-ERROR] Falló parseo JSON. RAW: ${cleaned.substring(0, 50)}...`);
-            throw e;
+            try {
+                // Intento de recuperación: escapar saltos de línea literales que rompen JSON.parse
+                const recovered = cleaned.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+                return JSON.parse(recovered);
+            } catch (retryE: any) {
+                safeStatus(`[DEBUG-ERROR] Falló parseo JSON. RAW: ${cleaned.substring(0, 100)}...`);
+                throw retryE;
+            }
         }
     };
 
@@ -1014,7 +1020,7 @@ export const runFinalCleaningLayer = async (
         const response = await model.generateContent(prompt);
         let raw = response.response.text();
         
-        let cleaned = raw.replace(/\`\`\`json\n?/g, '').replace(/\`\`\`\n?/g, '').trim();
+        let cleaned = raw.replace(/```(json)?/gi, '').trim();
         const jsonStart = cleaned.indexOf('{');
         const jsonEnd = cleaned.lastIndexOf('}');
         if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
@@ -1025,8 +1031,14 @@ export const runFinalCleaningLayer = async (
             const parsed = JSON.parse(cleaned);
             return parsed.html || html;
         } catch (e) {
-            console.error("[FinalCleaning-Parser] Fallo parseo JSON. RAW:", cleaned.substring(0, 50));
-            throw e;
+            try {
+                const recovered = cleaned.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+                const parsed = JSON.parse(recovered);
+                return parsed.html || html;
+            } catch (retryE) {
+                console.error("[FinalCleaning-Parser] Fallo parseo JSON. RAW:", cleaned.substring(0, 100));
+                throw retryE;
+            }
         }
     };
 
