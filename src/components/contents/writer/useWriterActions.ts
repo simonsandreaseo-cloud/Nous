@@ -250,12 +250,10 @@ export function useWriterActions() {
             // result now contains { html, metadata }
             const refined = refineStyling(finalResult.html);
             
-            // Batch updates
-            useWriterStore.setState({
-                content: refined,
-                hasHumanized: true,
-                humanizerStatus: '✅ ¡Humanización completada!'
-            } as any);
+            // Batch updates (safely scoped)
+            store.setContent(refined);
+            store.setHasHumanized(true);
+            store.setHumanizerStatus('✅ ¡Humanización completada!');
 
             store.addDebugPrompt('Humanización Finalizada', `Contenido humanizado con éxito`, refined.substring(0, 1000));
             
@@ -440,11 +438,9 @@ export function useWriterActions() {
 
             const refined = refineStyling(finalResult.html);
             
-            // Batch updates
-            useWriterStore.setState({
-                content: refined,
-                surgicalEditStatus: '✅ ¡Edición Quirúrgica completada!'
-            } as any);
+            // Batch updates (safely scoped)
+            store.setContent(refined);
+            store.setSurgicalEditStatus('✅ ¡Edición Quirúrgica completada!');
 
             store.addDebugPrompt('Edición Quirúrgica Finalizada', `Contenido mejorado quirúrgicamente con éxito`, refined.substring(0, 1000));
             addLogToTask(queueTaskId, 'Edición quirúrgica finalizada.', 'success');
@@ -501,12 +497,10 @@ export function useWriterActions() {
             
             const styled = refineStyling(refined);
             
-            // Batch updates
-            useWriterStore.setState({
-                content: styled,
-                statusMessage: '✅ Refinamiento completado.',
-                refinementInstructions: ''
-            } as any);
+            // Batch updates (safely scoped)
+            store.setContent(styled);
+            store.setStatus('✅ Refinamiento completado.');
+            store.setRefinementInstructions('');
 
             store.addDebugPrompt('Refinamiento Completado', `Instrucciones aplicadas: ${store.refinementInstructions}`, styled.substring(0, 1000));
             
@@ -632,10 +626,9 @@ export function useWriterActions() {
             await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
             
             const accumulatedHtml = currentDocumentChunks.join('\n');
-            useWriterStore.setState({
-                content: accumulatedHtml,
-                statusMessage: '✅ ¡Limpieza mágica aplicada en todo el artículo!'
-            } as any);
+            // Batch updates (safely scoped)
+            store.setContent(accumulatedHtml);
+            store.setStatus('✅ ¡Limpieza mágica aplicada en todo el artículo!');
 
             store.addDebugPrompt('Limpieza Completada', `Ruido IA eliminado con éxito mediante chunks`, accumulatedHtml.substring(0, 1000));
             
