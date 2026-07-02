@@ -753,24 +753,68 @@ PROHIBICIÓN ESTRICTA: NO generes razonamientos, cálculos, conteos, ni pasos pr
         console.log('\\n[DEBUG-SURGICAL-RAW-LLM]\\n', raw, '\\n[/DEBUG-SURGICAL-RAW-LLM]\\n');
         
         let cleaned = raw.replace(/```(json)?/gi, '').trim();
-        const jsonStart = cleaned.indexOf('{');
-        const jsonEnd = cleaned.lastIndexOf('}');
-        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-            cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
-        }
         
+        let parsed: any = null;
+        
+        // Intento 1: Parseo directo
         try {
-            return JSON.parse(cleaned);
-        } catch (e: any) {
-            try {
-                // Intento de recuperación: escapar saltos de línea literales que rompen JSON.parse
-                const recovered = cleaned.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
-                return JSON.parse(recovered);
-            } catch (retryE: any) {
-                safeStatus(`[DEBUG-ERROR] Falló parseo JSON. RAW: ${cleaned.substring(0, 100)}...`);
-                throw retryE;
+            parsed = JSON.parse(cleaned);
+        } catch (e) {}
+        
+        // Intento 2: Desde la última llave de apertura '{' hasta la última '}'
+        if (!parsed) {
+            const lastOpen = cleaned.lastIndexOf('{');
+            const lastClose = cleaned.lastIndexOf('}');
+            if (lastOpen !== -1 && lastClose > lastOpen) {
+                try {
+                    parsed = JSON.parse(cleaned.substring(lastOpen, lastClose + 1));
+                } catch(e) {}
             }
         }
+        
+        // Intento 3: Desde la primera llave de apertura '{' hasta la última '}' (El método anterior que fallaba con múltiples JSONs, pero lo dejamos por si acaso)
+        if (!parsed) {
+            const firstOpen = cleaned.indexOf('{');
+            const lastClose = cleaned.lastIndexOf('}');
+            if (firstOpen !== -1 && lastClose > firstOpen) {
+                try {
+                    parsed = JSON.parse(cleaned.substring(firstOpen, lastClose + 1));
+                } catch(e) {}
+            }
+        }
+        
+        // Intento 4: Rescate final, intentar extraer bloques planos
+        if (!parsed) {
+            const flatObjects = cleaned.match(/\{[^{}]*\}/g);
+            if (flatObjects && flatObjects.length > 0) {
+                // Empezar por el último bloque
+                for (let i = flatObjects.length - 1; i >= 0; i--) {
+                    try {
+                        parsed = JSON.parse(flatObjects[i]);
+                        break;
+                    } catch(e) {}
+                }
+            }
+        }
+        
+        // Intento 5: Escapar saltos de línea (si el error era por formato de strings)
+        if (!parsed) {
+            try {
+                const recovered = cleaned.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+                const lastOpen = recovered.lastIndexOf('{');
+                const lastClose = recovered.lastIndexOf('}');
+                if (lastOpen !== -1 && lastClose > lastOpen) {
+                    parsed = JSON.parse(recovered.substring(lastOpen, lastClose + 1));
+                }
+            } catch (e) {}
+        }
+        
+        if (!parsed) {
+            safeStatus(`[DEBUG-ERROR] Falló parseo JSON. RAW: ${cleaned.substring(0, 100)}...`);
+            throw new Error("No valid JSON found in output");
+        }
+        
+        return parsed;
     };
 
     let processedBlocks: any;
