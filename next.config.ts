@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["jsdom", "html-encoding-sniffer", "cheerio"],
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
