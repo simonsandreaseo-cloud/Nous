@@ -80,8 +80,9 @@ export const FontSize = Extension.create({
 export const getSharedExtensions = (placeholder: string) => [
   StarterKit.configure({
     heading: {
-      levels: [1, 2, 3],
+      levels: [1, 2, 3, 4, 5, 6],
     },
+    link: false,
   }),
   Typography,
   Link.configure({

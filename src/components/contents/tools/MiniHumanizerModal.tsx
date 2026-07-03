@@ -18,20 +18,31 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [wordCount, setWordCount] = useState(0);
 
     const extensions = useMemo(() => getSharedExtensions("Pega tu texto aquí..."), []);
 
     const editor = useEditor({
         extensions,
         content: "<p>Pega tu texto aquí...</p>",
+        onUpdate: ({ editor }) => {
+            setWordCount(editor.storage.characterCount.words());
+        },
         editorProps: {
             attributes: {
-                class: "prose prose-sm max-w-none focus:outline-none min-h-[300px] text-slate-700 bg-white p-4 rounded-xl border border-slate-200",
+                class: cn(
+                    "prose prose-sm prose-indigo focus:outline-none max-w-none min-h-[300px] text-slate-700 bg-white p-6 rounded-xl border border-slate-200 shadow-inner",
+                    "prose-h1:text-3xl prose-h1:font-black prose-h1:text-slate-900 prose-h1:mb-6",
+                    "prose-h2:text-2xl prose-h2:font-black prose-h2:text-slate-800 prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-100",
+                    "prose-h3:text-xl prose-h3:font-bold prose-h3:text-indigo-900 prose-h3:mt-6 prose-h3:mb-3",
+                    "prose-p:text-slate-600 prose-p:leading-relaxed prose-p:mb-4",
+                    "prose-li:text-slate-600 prose-li:leading-relaxed prose-li:mb-1",
+                    "prose-strong:text-slate-900 prose-strong:font-bold"
+                ),
             },
         },
     });
 
-    const wordCount = editor?.storage.characterCount.words() || 0;
     const isOverLimit = wordCount > MAX_WORDS;
 
     const handleHumanize = async () => {

@@ -194,3 +194,13 @@ Las acciones masivas (ej: redacciÃ³n masiva, humanizaciÃ³n masiva) se comple
   - **What**: Implemented a "Mini Tools" dashboard and a "Mini Humanizador" modal using TipTap (500-word limit), integrated with the existing ai-streaming humanization endpoint.
   - **Why**: User requested integration of mini tools and a lightweight humanization interface.
   - **Where**: Mini Tools Dashboard, Mini Humanizador components
+
+## mem_save: Bugfix - TipTap Mini Humanizador stripped formatting on paste
+- **title**: Fixed missing TipTap extensions in MiniHumanizerModal
+- **type**: bugfix
+- **scope**: project
+- **content**:
+  - **What**: Loaded all shared extensions from the main editor via `getSharedExtensions` instead of just StarterKit and CharacterCount in `MiniHumanizerModal`. Also added the `Link` extension to `getSharedExtensions` inside `tiptap-extensions.ts`.
+  - **Why**: TipTap stripped formatting and links on paste because it lacked the required extensions to parse them.
+  - **Where**: `MiniHumanizerModal.tsx`, `tiptap-extensions.ts`
+  - **Learned**: TipTap strips formatting for any node/mark type it doesn't explicitly have an extension loaded for when content is pasted.

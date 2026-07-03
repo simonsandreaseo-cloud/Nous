@@ -136,9 +136,12 @@ export default function WriterEditor() {
 
                 class: cn(
                     'prose prose-lg prose-indigo focus:outline-none max-w-none min-h-[700px] pb-32 transition-all duration-700 mx-auto',
-                    'prose-h1:text-[56px] prose-h1:font-black prose-h1:text-slate-900 prose-h1:mb-12 prose-h1:tracking-tighter prose-h1:leading-[0.9] prose-h1:italic',
-                    'prose-h2:text-[32px] prose-h2:font-black prose-h2:text-slate-800 prose-h2:mt-20 prose-h2:mb-8 prose-h2:pb-4 prose-h2:border-b-2 prose-h2:border-slate-100/50',
-                    'prose-h3:text-[24px] prose-h3:font-black prose-h3:text-indigo-900 prose-h3:mt-14 prose-h3:mb-6',
+                    'prose-h1:text-[56px] prose-h1:font-black prose-h1:text-slate-900 prose-h1:mb-12 prose-h1:tracking-tighter prose-h1:leading-tight',
+                    'prose-h2:text-[36px] prose-h2:font-extrabold prose-h2:text-slate-800 prose-h2:mt-20 prose-h2:mb-8 prose-h2:pb-4 prose-h2:border-b-4 prose-h2:border-slate-100 prose-h2:tracking-tight',
+                    'prose-h3:text-[24px] prose-h3:font-bold prose-h3:text-indigo-600 prose-h3:mt-14 prose-h3:mb-6 prose-h3:uppercase prose-h3:tracking-widest',
+                    'prose-h4:text-[20px] prose-h4:font-semibold prose-h4:text-slate-500 prose-h4:mt-10 prose-h4:mb-4',
+                    'prose-h5:text-[18px] prose-h5:font-medium prose-h5:text-slate-400 prose-h5:mt-8 prose-h5:mb-3',
+                    'prose-h6:text-[16px] prose-h6:font-medium prose-h6:text-slate-400 prose-h6:uppercase prose-h6:tracking-widest prose-h6:mt-8 prose-h6:mb-3',
                     'prose-p:text-slate-600 prose-p:leading-[1.8] prose-p:text-[18px] prose-p:mb-10 prose-p:font-medium',
                     'prose-li:text-slate-600 prose-li:leading-relaxed prose-li:mb-3',
                     'prose-strong:text-slate-900 prose-strong:font-black',
@@ -573,9 +576,6 @@ export default function WriterEditor() {
 
                 <style>{`
                     .ProseMirror p { margin-bottom: 2rem !important; line-height: 1.9 !important; }
-                    .ProseMirror h1 { margin-bottom: 2.5rem !important; font-weight: 900 !important; }
-                    .ProseMirror h2 { margin-top: 4rem !important; margin-bottom: 2rem !important; font-weight: 900 !important; border-bottom: 2px solid #f1f5f9; padding-bottom: 1rem; color: #1e293b; }
-                    .ProseMirror h3 { margin-top: 3rem !important; margin-bottom: 1rem !important; font-weight: 900 !important; color: #334155; }
                     .ProseMirror ul { list-style-type: disc !important; margin-bottom: 2rem !important; padding-left: 2rem !important; }
                     .ProseMirror ol { list-style-type: decimal !important; margin-bottom: 2rem !important; padding-left: 2rem !important; }
                     .ProseMirror li { margin-bottom: 0.75rem !important; line-height: 1.7 !important; color: #475569; }
