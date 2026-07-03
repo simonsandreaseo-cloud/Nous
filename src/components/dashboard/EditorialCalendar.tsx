@@ -354,7 +354,8 @@ export function EditorialCalendar() {
     const runTaskHumanizePipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
         setBatchResearchStatus(prev => ({ ...prev, [task.id]: 50 }));
         try {
-            const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+            const { data: taskContent, error: fetchErr } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+            if (fetchErr) throw fetchErr;
             const content = taskContent?.content_body || task.content_body;
             if (!content) throw new Error("No hay contenido para humanizar.");
             
@@ -386,7 +387,8 @@ export function EditorialCalendar() {
     const runTaskCleanPipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
         setBatchResearchStatus(prev => ({ ...prev, [task.id]: 50 }));
         try {
-            const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+            const { data: taskContent, error: fetchErr } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+            if (fetchErr) throw fetchErr;
             const content = taskContent?.content_body || task.content_body;
             if (!content) throw new Error("No hay contenido para limpiar.");
 
@@ -458,7 +460,8 @@ export function EditorialCalendar() {
     const runTaskSurgicalEditPipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
         setBatchResearchStatus(prev => ({ ...prev, [task.id]: 50 }));
         try {
-            const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+            const { data: taskContent, error: fetchErr } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
+            if (fetchErr) throw fetchErr;
             const content = taskContent?.content_body || task.content_body;
             if (!content) throw new Error("No hay contenido para edición quirúrgica.");
 
@@ -732,10 +735,11 @@ export function EditorialCalendar() {
                 setIsOrbPlanLoading(true);
                 setIsOrbPlanOpen(true);
 
-                const { data: existingContents } = await supabase
+                const { data: existingContents, error: fetchErr } = await supabase
                     .from('task_contents')
                     .select('id, content_body')
                     .in('id', targetTasks.map(t => t.id));
+                if (fetchErr) console.error("Error checking task_contents:", fetchErr);
 
                 const dbTasksWithContent = (existingContents || [])
                     .filter((c: any) => c.content_body && c.content_body.trim().length > 0)
@@ -977,7 +981,8 @@ export function EditorialCalendar() {
                 // Ignore status if manual selection, but STRICTLY require content
                 let filtered = tasks.filter(t => t.status === 'por_corregir' || t.status === 'redactado');
                 if (selectedTaskIds.length > 0) {
-                    const { data: tc } = await supabase.from('task_contents').select('id, content_body').in('id', selectedTaskIds);
+                    const { data: tc, error: fetchErr } = await supabase.from('task_contents').select('id, content_body').in('id', selectedTaskIds);
+                    if (fetchErr) { NotificationService.error('Error de red', 'No se pudieron verificar los contenidos. Verifica tu conexión.'); return; }
                     const validIds = new Set((tc || []).filter((c: any) => c.content_body && c.content_body.trim().length > 0).map((c: any) => c.id));
                     filtered = tasks.filter(t => selectedTaskIds.includes(t.id) && validIds.has(t.id));
                 }

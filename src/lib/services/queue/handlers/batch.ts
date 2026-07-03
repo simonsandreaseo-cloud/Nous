@@ -138,7 +138,8 @@ export const handleBatchHumanize = async (taskId: string, payload: QueuePayload)
         
         let content = initialContent;
         if (!content) {
-            const { data: contentData } = await supabase.from('task_contents').select('content_body').eq('id', targetTask.id).single();
+            const { data: contentData, error: fetchErr } = await supabase.from('task_contents').select('content_body').eq('id', targetTask.id).single();
+            if (fetchErr) throw fetchErr;
             content = contentData?.content_body || targetTask.content_body;
         }
 

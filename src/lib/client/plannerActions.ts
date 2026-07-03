@@ -140,7 +140,8 @@ export async function processTaskTranslationAction(taskId: string, langCode: str
             translatedData = { h1: task.h1, seo_title: task.seo_title, meta_description: task.meta_description, excerpt: task.excerpt, target_url_slug: task.target_url_slug };
         }
 
-        const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', taskId).maybeSingle();
+        const { data: taskContent, error: fetchErr } = await supabase.from('task_contents').select('content_body').eq('id', taskId).maybeSingle();
+        if (fetchErr) throw fetchErr;
         const contentBody = taskContent?.content_body || task.content_body || '';
 
         const translatedBody = await executeTranslationAction(contentBody, langName);

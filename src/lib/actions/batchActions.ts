@@ -28,7 +28,8 @@ export async function processTaskVisualsAction(taskId: string) {
         const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
         if (taskError || !task) throw new Error("Task not found");
 
-        const { data: taskContent } = await supabase.from('task_contents').select('content_body').eq('id', taskId).maybeSingle();
+        const { data: taskContent, error: fetchErr } = await supabase.from('task_contents').select('content_body').eq('id', taskId).maybeSingle();
+        if (fetchErr) throw fetchErr;
         const contentBody = taskContent?.content_body || task.content_body || "";
 
         const { data: project } = await supabase.from('projects').select('settings').eq('id', task.project_id).single();
