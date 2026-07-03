@@ -342,7 +342,7 @@ export function useWriterActions() {
 
             const originalContent = store.content;
 
-            const chunkHtml = (htmlString: string, maxBlocks: number = 3): string[] => {
+            const chunkHtml = (htmlString: string, maxBlocks: number = 2): string[] => {
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(htmlString, 'text/html');
                 const chunks: string[] = [];
@@ -371,7 +371,7 @@ export function useWriterActions() {
                 return chunks.length > 0 ? chunks : [htmlString];
             };
 
-            const rawChunks = chunkHtml(originalContent, 3);
+            const rawChunks = chunkHtml(originalContent, 2);
             console.log(`[DEBUG-SurgicalEdit] Documento dividido en ${rawChunks.length} chunks.`);
             store.setSurgicalEditStatus(`Documento dividido en ${rawChunks.length} partes...`);
             addLogToTask(queueTaskId, `Documento dividido en ${rawChunks.length} partes para edición.`, 'info');
