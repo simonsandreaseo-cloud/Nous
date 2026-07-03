@@ -705,7 +705,10 @@ export const runSurgicalEditorPipeline = async (
     const limitReplace = Math.max(1, Math.floor(wordCount * 0.07));
     const limitAdd = Math.max(1, Math.floor(wordCount * 0.06));
 
-    safeStatus(`Se extrajeron ${numBlocks} bloques. Límites -> Borrar: ${limitDelete}, Reemplazar: ${limitReplace}, Agregar: ${limitAdd}. Enviando al modelo...`);
+    console.log(`[DEBUG-SURGICAL] allText (length: ${allText.length}): "${allText.substring(0, 150)}..."`);
+    console.log(`[DEBUG-SURGICAL] wordCount: ${wordCount} -> Limits: Delete ${limitDelete}, Replace ${limitReplace}, Add ${limitAdd}`);
+
+    safeStatus(`Se extrajeron ${numBlocks} bloques (${wordCount} palabras). Límites -> Borrar: ${limitDelete}, Reemplazar: ${limitReplace}, Agregar: ${limitAdd}.`);
 
     const runModel = async (aiClient: any, mName: string) => {
         const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
