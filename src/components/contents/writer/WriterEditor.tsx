@@ -410,6 +410,52 @@ export default function WriterEditor() {
                     >
 
                         <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-xl shadow-2xl border border-slate-200/50 rounded-2xl p-1.5 animate-in zoom-in-95 duration-200">
+                            {/* Block Type Group */}
+                            <div className="flex items-center gap-1 px-1 border-r border-slate-100 group/block relative">
+                                <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer">
+                                    <Type size={14} className="text-slate-600" />
+                                    <span className="text-[10px] font-black text-slate-700 min-w-[30px] text-center">
+                                        {editor.isActive('heading', { level: 1 }) ? 'H1' :
+                                         editor.isActive('heading', { level: 2 }) ? 'H2' :
+                                         editor.isActive('heading', { level: 3 }) ? 'H3' :
+                                         editor.isActive('heading', { level: 4 }) ? 'H4' : 'Texto'}
+                                    </span>
+                                    <ChevronDown size={10} className="text-slate-400" />
+                                </div>
+                                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 p-1 hidden group-hover/block:flex flex-col min-w-[120px] z-50">
+                                    <button
+                                        onClick={() => editor.chain().focus().setParagraph().run()}
+                                        className={cn("px-3 py-1.5 text-[12px] font-medium rounded-lg text-left transition-colors", editor.isActive('paragraph') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
+                                    >
+                                        Párrafo
+                                    </button>
+                                    <button
+                                        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                                        className={cn("px-3 py-1.5 text-[12px] font-bold rounded-lg text-left transition-colors", editor.isActive('heading', { level: 1 }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
+                                    >
+                                        Título 1 (H1)
+                                    </button>
+                                    <button
+                                        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                                        className={cn("px-3 py-1.5 text-[12px] font-bold rounded-lg text-left transition-colors", editor.isActive('heading', { level: 2 }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
+                                    >
+                                        Título 2 (H2)
+                                    </button>
+                                    <button
+                                        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                                        className={cn("px-3 py-1.5 text-[12px] font-bold rounded-lg text-left transition-colors", editor.isActive('heading', { level: 3 }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
+                                    >
+                                        Título 3 (H3)
+                                    </button>
+                                    <button
+                                        onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+                                        className={cn("px-3 py-1.5 text-[12px] font-bold rounded-lg text-left transition-colors", editor.isActive('heading', { level: 4 }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
+                                    >
+                                        Título 4 (H4)
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* Text Style Group */}
                             <div className="flex items-center gap-0.5 pr-1 border-r border-slate-100">
                                 <button
