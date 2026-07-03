@@ -109,14 +109,18 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
             volume: typeof k === 'string' ? '0' : (k.volume || '0')
         }));
 
+        // Parse word count robustly
+        const parsedWordCount = parseInt(String(seoData.recommendedWordCount || seoData.wordCountGoal || seoData.outline_structure?.totalWordCount || '1500'));
+        const safeWordCount = isNaN(parsedWordCount) ? 1500 : parsedWordCount;
+
         set({
             rawSeoData: seoData,
             seoResults: seoData,
             strategyLSI: seoData.lsiKeywords || [],
-            strategyQuestions: seoData.frequentQuestions || [],
-            strategyWordCount: String(parseInt(String(seoData.recommendedWordCount)) || '1500'),
-            strategyMinWords: String(Math.floor(parseInt(String(seoData.recommendedWordCount || '1500')) * 0.8)),
-            strategyMaxWords: String(Math.floor(parseInt(String(seoData.recommendedWordCount || '1500')) * 1.2)),
+            strategyQuestions: seoData.frequentQuestions || seoData.faqs || [],
+            strategyWordCount: String(safeWordCount),
+            strategyMinWords: String(Math.floor(safeWordCount * 0.8)),
+            strategyMaxWords: String(Math.floor(safeWordCount * 1.2)),
             strategyNotes: brief,
             detectedNiche: seoData.nicheDetected || '',
             strategyCannibalization: (seoData as any).cannibalizationUrls || [],
@@ -132,6 +136,12 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
                 type: 'other' as const,
                 search_index: "0"
             })),
+            // Map SEO Metadata properly
+            strategyH1: seoData.seoMetadata?.h1 || seoData.masterH1 || '',
+            strategyExcerpt: seoData.seoMetadata?.excerpt || seoData.seoMetadata?.meta_description || '',
+            strategySlug: seoData.seoMetadata?.target_url_slug || '',
+            strategyTitle: seoData.seoMetadata?.seo_title || seoData.seoMetadata?.h1 || '',
+            strategyDesc: seoData.seoMetadata?.meta_description || '',
         } as any);
     },
 
