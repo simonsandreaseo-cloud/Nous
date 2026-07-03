@@ -84,6 +84,12 @@ export const getSharedExtensions = (placeholder: string) => [
     },
   }),
   Typography,
+  Link.configure({
+    openOnClick: false,
+    HTMLAttributes: {
+      class: 'text-indigo-600 underline decoration-indigo-600/30 underline-offset-4 cursor-pointer hover:decoration-indigo-600 transition-colors',
+    },
+  }),
   Placeholder.configure({
     placeholder,
   }),

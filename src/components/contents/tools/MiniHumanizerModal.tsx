@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { X, Wand2, Loader2, AlertCircle } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import CharacterCount from "@tiptap/extension-character-count";
 import { streamHumanize } from "@/lib/services/writer/ai-streaming";
 import { cn } from "@/utils/cn";
+import { getSharedExtensions } from "@/lib/tiptap-extensions";
 
 interface MiniHumanizerModalProps {
     onClose: () => void;
@@ -20,13 +19,10 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
     const [statusMessage, setStatusMessage] = useState("");
     const [error, setError] = useState<string | null>(null);
 
+    const extensions = useMemo(() => getSharedExtensions("Pega tu texto aquí..."), []);
+
     const editor = useEditor({
-        extensions: [
-            StarterKit,
-            CharacterCount.configure({
-                limit: null, // Limit handled manually or dynamically
-            }),
-        ],
+        extensions,
         content: "<p>Pega tu texto aquí...</p>",
         editorProps: {
             attributes: {
