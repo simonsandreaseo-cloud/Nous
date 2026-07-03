@@ -204,3 +204,12 @@ Las acciones masivas (ej: redacciÃ³n masiva, humanizaciÃ³n masiva) se comple
   - **Why**: TipTap stripped formatting and links on paste because it lacked the required extensions to parse them.
   - **Where**: `MiniHumanizerModal.tsx`, `tiptap-extensions.ts`
   - **Learned**: TipTap strips formatting for any node/mark type it doesn't explicitly have an extension loaded for when content is pasted.
+
+## mem_save: Pattern - Visually distinct heading styles in TipTap
+- **title**: Updated heading styles with explicit contrast in WriterEditor
+- **type**: pattern
+- **scope**: project
+- **content**:
+  - **What**: Made H1-H6 visually distinct (H1 huge/tight, H2 border-b-4, H3 uppercase indigo, etc.), enabled levels 1-6 in StarterKit config, and removed clashing CSS !important overrides.
+  - **Why**: To provide explicit visual hierarchy and contrast for headings in the editor.
+  - **Where**: WriterEditor.tsx, tiptap-extensions.ts
