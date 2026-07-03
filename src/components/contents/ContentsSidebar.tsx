@@ -54,6 +54,7 @@ export const CONTENT_TOOLS = [
     { id: "writer", label: "Studio", icon: PenLine, color: "text-amber-500", bg: "bg-amber-500" },
     { id: "distribution", label: "Distribución", icon: Share2, color: "text-emerald-500", bg: "bg-emerald-500" },
     { id: "nous", label: "Consola Nous", icon: Terminal, color: "text-violet-500", bg: "bg-violet-500" },
+    { id: "mini_tools", label: "Mini Tools", icon: Sliders, color: "text-sky-500", bg: "bg-sky-500" },
 ];
 
 interface ContentsSidebarProps {

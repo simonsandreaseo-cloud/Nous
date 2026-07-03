@@ -33,6 +33,10 @@ const TranslatorView = dynamic(
     () => import("@/components/contents/TranslatorView"),
     { loading: () => <ToolLoading name="Traductor" />, ssr: false }
 );
+const MiniToolsView = dynamic(
+    () => import("@/components/contents/MiniToolsView"),
+    { loading: () => <ToolLoading name="Mini Tools" />, ssr: false }
+);
 
 // --- Mockup View Component ---
 function MockupView({ toolId }: { toolId: string }) {
@@ -86,6 +90,7 @@ function ToolView({ toolId }: { toolId: string }) {
         case "nous": return <NousConsoleView />;
         case "imagenes": return <ImageGenerator />;
         case "translator": return <TranslatorView />;
+        case "mini_tools": return <MiniToolsView />;
         default: 
             if (["monitor", "oficina", "seo", "estrategia"].includes(toolId)) {
                 return <MockupView toolId={toolId} />;
