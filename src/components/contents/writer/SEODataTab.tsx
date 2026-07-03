@@ -21,7 +21,9 @@ import {
     CheckCircle,
     Trash2,
     RefreshCw,
-    Eraser
+    Eraser,
+    Copy,
+    Bot
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useWriterStore } from '@/store/useWriterStore';
@@ -616,6 +618,16 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                                                     <CheckCircle2 size={10} /> Ok
                                                                 </div>
                                                             )}
+                                                            <button 
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText(link.url);
+                                                                    toast.success("Enlace copiado al portapapeles");
+                                                                }}
+                                                                className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400"
+                                                                title="Copiar enlace"
+                                                            >
+                                                                <Copy size={12} />
+                                                            </button>
                                                             <a href={link.url} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
                                                                 <ExternalLink size={12} />
                                                             </a>
@@ -640,7 +652,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                                 </label>
                                                 <input 
                                                     type="text" 
-                                                    placeholder="Ej: seo local, marketing, agencias..."
+                                                    placeholder="Ej: seo local... (o déjalo vacío para autodetección)"
                                                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20"
                                                     value={interlinkKeywords}
                                                     onChange={e => setInterlinkKeywords(e.target.value)}
@@ -678,6 +690,14 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                                 className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-bold hover:bg-slate-200 transition-colors disabled:opacity-50"
                                             >
                                                 <RefreshCw size={12} className={cn(isRefreshingLinks && "animate-spin")} /> Regenerar
+                                            </button>
+                                            <button 
+                                                onClick={() => useWriterStore.getState().generateInterlinkingKeywordsWithAI(currentContent, interlinkCount)}
+                                                disabled={isRefreshingLinks}
+                                                className="flex items-center gap-2 px-3 py-2 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-bold hover:bg-purple-100 transition-colors disabled:opacity-50"
+                                                title="Extraer entidades semánticas con Gemini 3.5 Flash"
+                                            >
+                                                <Bot size={12} className={cn(isRefreshingLinks && "animate-pulse")} /> Generar con IA
                                             </button>
                                             <button 
                                                 onClick={() => useWriterStore.getState().clearStrategyLinks()}

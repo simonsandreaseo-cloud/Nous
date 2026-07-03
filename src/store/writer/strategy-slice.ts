@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { WriterStoreState, StrategyOutlineItem } from './types';
+import { toast } from 'sonner';
 
 
 export interface StrategyActions {
@@ -21,6 +22,7 @@ export interface StrategyActions {
     updateSectionProgress: (idx: number, count: number) => void;
     updateStrategyFromSeo: (seoData: any) => void;
     refreshInterlinking: (mode?: 'append' | 'overwrite', customKeywords?: string, count?: number) => Promise<void>;
+    generateInterlinkingKeywordsWithAI: (content: string, count?: number) => Promise<void>;
     resetStrategy: () => void;
     setStrategyDensity: (density: number) => void;
 }
@@ -139,6 +141,7 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
             if (!projectId) return;
 
             set({ isRefreshingLinks: true } as any);
+            const toastId = toast.loading("Buscando enlaces relacionados...", { id: "refresh-links" });
 
             const { supabase } = require('@/lib/supabase');
             
@@ -187,8 +190,73 @@ export const createStrategySlice: StateCreator<StrategySlice, [], [], StrategySl
                 research_dossier: { ...dossier, suggestedInternalLinks: finalLinks, suggested_links: finalLinks } 
             });
             
+            toast.success(`Se encontraron ${newLinks.length} enlaces`, { id: "refresh-links" });
+            
         } catch (e) {
             console.error("Error al refrescar interlinking:", e);
+            toast.error("Error al buscar enlaces", { id: "refresh-links" });
+        } finally {
+            set({ isRefreshingLinks: false } as any);
+        }
+    },
+
+    generateInterlinkingKeywordsWithAI: async (content: string, count: number = 5) => {
+        try {
+            if (!content || content.length < 50) {
+                toast.error("Contenido insuficiente para analizar.");
+                return;
+            }
+            
+            set({ isRefreshingLinks: true } as any);
+            toast.loading("Analizando contenido con Gemini 3.5 Flash...", { id: "ai-links" });
+            
+            // Clean content from HTML tags roughly to save tokens, though Gemini handles HTML fine
+            const plainText = content.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').substring(0, 15000); 
+
+            const prompt = `Analiza el siguiente texto y extrae las 10 a 15 entidades, conceptos clave, nombres de productos o temas principales más importantes que serían excelentes textos de anclaje (anchor texts) para enlaces internos. 
+Responde ÚNICAMENTE con un array de strings en formato JSON. Ejemplo: ["marketing digital", "estrategia seo", "zapatillas nike"]. 
+Texto:\n\n${plainText}`;
+
+            const response = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt,
+                    model: 'gemini-3.5-flash',
+                    systemPrompt: 'Eres un experto en arquitectura de información SEO.',
+                    jsonMode: true
+                })
+            });
+
+            if (!response.ok) throw new Error("Error en la API de IA");
+            
+            const data = await response.json();
+            let keywords = [];
+            
+            try {
+                // Parse the response which should be a JSON array
+                keywords = JSON.parse(data.text);
+                if (!Array.isArray(keywords)) throw new Error("Invalid format");
+            } catch (err) {
+                // Fallback parsing just in case
+                const match = data.text.match(/\[.*\]/s);
+                if (match) {
+                    keywords = JSON.parse(match[0]);
+                } else {
+                    throw new Error("No se pudo parsear el JSON de Gemini");
+                }
+            }
+
+            toast.success("Keywords generadas con IA, buscando enlaces...", { id: "ai-links" });
+            
+            // Re-use the existing logic to search using these highly semantic keywords
+            const customKeywordsStr = keywords.join(', ');
+            await (get() as any).refreshInterlinking('overwrite', customKeywordsStr, count);
+            
+            toast.success("Enlaces semánticos actualizados", { id: "ai-links" });
+        } catch (e) {
+            console.error("Error en generateInterlinkingKeywordsWithAI:", e);
+            toast.error("Error al generar enlaces con IA", { id: "ai-links" });
         } finally {
             set({ isRefreshingLinks: false } as any);
         }
