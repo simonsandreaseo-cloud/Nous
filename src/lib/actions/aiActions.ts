@@ -701,9 +701,9 @@ export const runSurgicalEditorPipeline = async (
     // Calcular los límites matemáticos duros para el prompt
     const allText = Object.values(textBlocks).map(t => t.replace(/<[^>]*>/g, '')).join(' ');
     const wordCount = allText.split(/\s+/).filter(w => w.length > 0).length;
-    const limitDelete = Math.max(1, Math.floor(wordCount * 0.09));
-    const limitReplace = Math.max(1, Math.floor(wordCount * 0.07));
-    const limitAdd = Math.max(1, Math.floor(wordCount * 0.06));
+    const limitDelete = Math.max(1, Math.floor(wordCount * 0.075));
+    const limitReplace = Math.max(1, Math.floor(wordCount * 0.055));
+    const limitAdd = Math.max(1, Math.floor(wordCount * 0.045));
 
     console.log(`[DEBUG-SURGICAL] allText (length: ${allText.length}): "${allText.substring(0, 150)}..."`);
     console.log(`[DEBUG-SURGICAL] wordCount: ${wordCount} -> Limits: Delete ${limitDelete}, Replace ${limitReplace}, Add ${limitAdd}`);
