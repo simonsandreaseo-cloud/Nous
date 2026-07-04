@@ -22,15 +22,15 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
 
     const handleSetLink = useCallback(() => {
         if (tempLink) {
-            editor.chain().focus().setLink({ href: tempLink }).run();
+            editor.chain().focus().extendMarkRange('link').setLink({ href: tempLink }).run();
         } else {
-            editor.chain().focus().unsetLink().run();
+            editor.chain().focus().extendMarkRange('link').unsetLink().run();
         }
         setIsEditing(false);
     }, [editor, tempLink]);
 
     const handleUnsetLink = useCallback(() => {
-        editor.chain().focus().unsetLink().run();
+        editor.chain().focus().extendMarkRange('link').unsetLink().run();
     }, [editor]);
 
     return (
