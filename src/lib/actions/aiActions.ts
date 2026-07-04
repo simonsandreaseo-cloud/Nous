@@ -553,6 +553,17 @@ export const runHumanizerPipeline = async (
     safeStatus(`Iniciando humanización estructural con Cheerio y modelo ${modelName}...`);
     const start = Date.now();
     
+    // --- PROTECCIÓN DETERMINISTA DE ENCABEZADOS ---
+    const $pre = cheerio.load(html, { decodeEntities: false }, false);
+    const protectedHeaders: Record<string, string> = {};
+    $pre('h1, h2, h3, h4, h5, h6').each((i, el) => {
+        const id = `hdr_${i}`;
+        $(el).attr('data-sys-hdr', id);
+        protectedHeaders[id] = $(el).html() || '';
+    });
+    const protectedHtml = $pre.html();
+    // ----------------------------------------------
+    
     try {
         const processedHtml = await executeHumanizerWithRetry(async (ai) => {
             const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\nTu respuesta constará de dos partes: tu razonamiento y el HTML final.\n\nREGLAS PARA EL BLOQUE HTML:\nCuando escribas el bloque final \`\`\`html, NO agregues, modifiques, elimines o alteres las etiquetas HTML originales (como <h1>, <p>, <a>, etc.). Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de las etiquetas originales. La estructura de etiquetas debe ser IDÉNTICA al original.\n\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE AL TEXTO) ---\n1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3.  CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4.  MORFOSINTAXIS (EXPLOSIVIDAD):\n    * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n    * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5.  IDIOMA: Usa español neutro panhispánico.\n6.  PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7.  PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n8.  CONSERVACIÓN SEMÁNTICA: Simplifica la forma, no el fondo. Mantén el 100% de la carga conceptual original de cada oración. Prohibido omitir ideas, datos o matices para simplificar el texto.\n9.  FORMATO DE SALIDA (OBLIGATORIO): Eres un modelo analítico. Tienes PERMITIDO y es OBLIGATORIO hacer borradores y "Chain of Thought". \n    Para hacerlo sin romper el HTML, tu respuesta DEBE tener exactamente esta estructura, en este orden:\n    \n    \`\`\`text\n    [AQUÍ ESCRIBE TODO TU RAZONAMIENTO, ANÁLISIS Y BORRADORES]\n    \`\`\`\n    \n    \`\`\`html\n    [AQUÍ ESCRIBE ÚNICAMENTE EL CÓDIGO HTML PROCESADO, RESPETANDO LAS ETIQUETAS ORIGINALES]\n    \`\`\``;
@@ -565,7 +576,7 @@ export const runHumanizerPipeline = async (
             
             const languageInstruction = config.language ? `\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
             
-            const prompt = `--- TAREA ---\nAplica TODAS las reglas de humanización al texto DENTRO de las etiquetas HTML del siguiente bloque. SÉ AGRESIVO al reescribir. Abandona la estructura de la oración original.\n\nPROHIBICIÓN ESTRICTA (ANTI-LEAKAGE): Tu respuesta DEBE estar formada estrictamente por dos bloques markdown (text y html). NUNCA insertes tus pensamientos dentro de las etiquetas HTML. Los pensamientos van SOLO en el bloque text.\n\n--- HTML DE ENTRADA ---\n${html}\n${languageInstruction}`;
+            const prompt = `--- TAREA ---\nAplica TODAS las reglas de humanización al texto DENTRO de las etiquetas HTML del siguiente bloque. SÉ AGRESIVO al reescribir los párrafos y listas. NUNCA modifiques los textos de los encabezados (h1, h2, h3, etc.).\n\nPROHIBICIÓN ESTRICTA (ANTI-LEAKAGE): Tu respuesta DEBE estar formada estrictamente por dos bloques markdown (text y html). NUNCA insertes tus pensamientos dentro de las etiquetas HTML. Los pensamientos van SOLO en el bloque text.\n\n--- HTML DE ENTRADA ---\n${protectedHtml}\n${languageInstruction}`;
             
             const response = await model.generateContent(prompt);
             let raw = response.response.text();
@@ -611,6 +622,18 @@ export const runHumanizerPipeline = async (
         }
         // --------------------------------------------------
         
+        // --- RESTAURACIÓN DETERMINISTA DE ENCABEZADOS ---
+        const $post = cheerio.load(finalHtml, { decodeEntities: false }, false);
+        $post('[data-sys-hdr]').each((_, el) => {
+            const id = $(el).attr('data-sys-hdr');
+            if (id && protectedHeaders[id] !== undefined) {
+                $(el).html(protectedHeaders[id]);
+            }
+            $(el).removeAttr('data-sys-hdr');
+        });
+        finalHtml = $post.html();
+        // ------------------------------------------------
+        
         if (onChunk) onChunk(finalHtml);
         
         const duration = (Date.now() - start) / 1000;
@@ -651,7 +674,8 @@ Devuelve ÚNICAMENTE el código HTML final y limpio. SIN bloques markdown (\`\`\
             systemInstruction: systemInstructionStr,
         });
         
-        const prompt = `Limpia este HTML siguiendo las reglas y devuélvelo puro:\n\n${html}`;
+        // Ensure Flash Lite does NOT remove our data-sys-hdr attributes
+        const prompt = `Limpia este HTML siguiendo las reglas y devuélvelo puro. MUY IMPORTANTE: NO elimines los atributos 'data-sys-hdr' de las etiquetas si existen, son cruciales para el sistema.\n\n${html}`;
         
         const response = await model.generateContent(prompt);
         let cleanHtml = response.response.text();
