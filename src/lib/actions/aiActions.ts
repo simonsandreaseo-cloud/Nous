@@ -24,7 +24,7 @@ import { supabase } from "@/lib/supabase";
 
 // --- UTILS & CONSTANTS ---
 export const buildPrompt = libBuildPrompt;
-const ANTI_LEAKAGE_SYSTEM_BASE = `Eres un Transformador Determinista. Tu única función es procesar la entrada y devolver la salida en el formato exacto solicitado. No uses markdown fuera de lo estrictamente solicitado. Si necesitas planificar o razonar, utiliza el formato de escape que el prompt te exija (ya sea campos JSON o barreras de texto).`;
+const ANTI_LEAKAGE_SYSTEM_BASE = `Eres un Transformador Determinista. Tu única función es procesar la entrada y devolver la salida en el formato exacto solicitado. Si necesitas planificar o razonar, DEBES encapsular tu razonamiento utilizando el formato exacto que el prompt te exija (ya sea JSON o bloques de markdown específicos).`;
 
 const FEW_SHOT_HTML = `
 Ejemplo 1:
@@ -555,7 +555,7 @@ export const runHumanizerPipeline = async (
     
     try {
         const processedHtml = await executeHumanizerWithRetry(async (ai) => {
-            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\nTu salida debe ser el bloque de HTML procesado.\n\nREGLA CRÍTICA DE ESTRUCTURA: A excepción de la etiqueta <scratchpad> (ver regla 9), NO agregues, modifiques, elimines o alteres las etiquetas HTML originales (como <h1>, <p>, <a>, etc.). Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de las etiquetas originales. Fuera de tu scratchpad, la estructura HTML debe ser IDÉNTICA al original.\n\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3.  CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4.  MORFOSINTAXIS (EXPLOSIVIDAD):\n    * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n    * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5.  IDIOMA: Usa español neutro panhispánico.\n6.  PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7.  PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n8.  CONSERVACIÓN SEMÁNTICA: Simplifica la forma, no el fondo. Mantén el 100% de la carga conceptual original de cada oración. Prohibido omitir ideas, datos o matices para simplificar el texto.\n9.  ESPACIO DE RAZONAMIENTO (OBLIGATORIO): Eres un modelo analítico. Tienes PERMITIDO y es OBLIGATORIO hacer borradores y "Chain of Thought". Hazlo en texto plano al inicio de tu respuesta. Una vez que termines de razonar, DEBES escribir exactamente esta barrera: ====START_HTML====. Todo lo que esté después de esa barrera debe ser ÚNICA y EXCLUSIVAMENTE el código HTML procesado.`;
+            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\nTu salida debe ser el bloque de HTML procesado.\n\nREGLA CRÍTICA DE ESTRUCTURA: A excepción de la etiqueta <scratchpad> (ver regla 9), NO agregues, modifiques, elimines o alteres las etiquetas HTML originales (como <h1>, <p>, <a>, etc.). Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de las etiquetas originales. Fuera de tu scratchpad, la estructura HTML debe ser IDÉNTICA al original.\n\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3.  CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4.  MORFOSINTAXIS (EXPLOSIVIDAD):\n    * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n    * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5.  IDIOMA: Usa español neutro panhispánico.\n6.  PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7.  PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n8.  CONSERVACIÓN SEMÁNTICA: Simplifica la forma, no el fondo. Mantén el 100% de la carga conceptual original de cada oración. Prohibido omitir ideas, datos o matices para simplificar el texto.\n9.  ESPACIO DE RAZONAMIENTO (OBLIGATORIO): Eres un modelo analítico. Tienes PERMITIDO y es OBLIGATORIO hacer borradores y "Chain of Thought". Sin embargo, tu respuesta debe tener exactamente dos bloques: Primero, un bloque con tres backticks y la palabra 'text' (\`\`\`text) donde escribirás TODO tu razonamiento. Segundo, un bloque con tres backticks y la palabra 'html' (\`\`\`html) donde escribirás ÚNICAMENTE el código HTML final procesado.`;
 
             const model = ai.getGenerativeModel({ 
                 model: modelName, 
@@ -565,28 +565,31 @@ export const runHumanizerPipeline = async (
             
             const languageInstruction = config.language ? `\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
             
-            const prompt = `--- TAREA ---\nAplica TODAS las reglas de humanización al texto DENTRO de las etiquetas HTML del siguiente bloque. SÉ AGRESIVO al reescribir. Abandona la estructura de la oración original.\n\nPROHIBICIÓN ESTRICTA (ANTI-LEAKAGE): Tu respuesta debe comenzar con tu razonamiento en texto plano, seguido obligatoriamente por la línea ====START_HTML====, y a partir de ahí, SOLAMENTE el HTML final. Cero excepciones.\n\n--- HTML DE ENTRADA ---\n${html}\n${languageInstruction}`;
+            const prompt = `--- TAREA ---\nAplica TODAS las reglas de humanización al texto DENTRO de las etiquetas HTML del siguiente bloque. SÉ AGRESIVO al reescribir. Abandona la estructura de la oración original.\n\nPROHIBICIÓN ESTRICTA (ANTI-LEAKAGE): Tu respuesta DEBE estar formada estrictamente por dos bloques. Un primer bloque \`\`\`text para pensar, y un segundo bloque \`\`\`html con el resultado. Nada fuera de esos bloques.\n\n--- HTML DE ENTRADA ---\n${html}\n${languageInstruction}`;
             
             const response = await model.generateContent(prompt);
             let raw = response.response.text();
             
-            // Limpieza de razonamiento y markdown
-            const parts = raw.split('====START_HTML====');
-            if (parts.length > 1) {
-                raw = parts[1].trim();
+            // Extracción segura del bloque HTML ("Jaula de Oro")
+            const htmlBlockMatch = raw.match(/```html\s*([\s\S]*?)```/i);
+            
+            if (htmlBlockMatch && htmlBlockMatch[1]) {
+                raw = htmlBlockMatch[1].trim();
             } else {
-                // Fallback por si olvidó la barrera pero escupió el scratchpad anterior
-                raw = raw.replace(/<scratchpad>[\s\S]*?<\/scratchpad>/gi, '');
+                // Fallback por si el modelo omitió los backticks y escupió HTML crudo
+                // Intentamos limpiar cualquier bloque de texto (razonamiento) si existe
+                raw = raw.replace(/```text[\s\S]*?```/gi, '').trim();
+                
+                // Mantenemos la guillotina original como red de seguridad final
+                const htmlMatch = raw.match(/(<[hpuotds][1-6a-z]*\b[^>]*>[\s\S]*)/i);
+                if (htmlMatch) {
+                    raw = htmlMatch[1].trim();
+                }
             }
+            
+            // Limpieza final de backticks residuales por si acaso
             raw = raw.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
-            
-            // Regex agresiva extra: si a pesar de todo el modelo imprime texto antes del primer tag HTML válido, 
-            // intentamos capturar desde la primera etiqueta de apertura que coincida con lo que solemos tener (h1, h2, p, table, ul, ol, div, span)
-            const htmlMatch = raw.match(/(<[hpuotds][1-6a-z]*\b[^>]*>[\s\S]*)/i);
-            if (htmlMatch) {
-                raw = htmlMatch[1].trim();
-            }
-            
+
             if (!raw) {
                 throw new Error("El modelo devolvió una respuesta vacía.");
             }
