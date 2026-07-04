@@ -121,40 +121,18 @@ export async function executeHumanizerWithRetry<T>(
         modelName = 'gemma-4-31b-it';
     }
 
-    // Le damos 3 minutos (180000ms) de timeout al Humanizer porque procesa HTML enorme y necesita más tiempo
     const HUMANIZER_TIMEOUT = 180000;
-    const MAX_RETRIES = 4;
-    let lastError: any;
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            if (attempt > 1) {
-                safeStatus(`⚠️ Intento ${attempt}/${MAX_RETRIES} con modelo ${modelName}...`);
-            }
-            return await executeWithKeyRotation(
-                operation,
-                modelName,
-                undefined,
-                undefined,
-                undefined,
-                true,
-                label,
-                HUMANIZER_TIMEOUT
-            );
-        } catch (e: any) {
-            lastError = e;
-            console.error(`[Humanizer-Retry] Error en intento ${attempt}:`, e);
-            if (attempt === MAX_RETRIES) {
-                safeStatus(`❌ Error definitivo tras ${MAX_RETRIES} intentos con ${modelName}.`);
-                throw e;
-            }
-            
-            safeStatus(`⏳ Saturación detectada. Pausando 60 segundos para refrescar llaves antes del intento ${attempt + 1}...`);
-            await new Promise(resolve => setTimeout(resolve, 60000));
-        }
-    }
-    
-    throw lastError;
+    return await executeWithKeyRotation(
+        operation,
+        modelName,
+        undefined,
+        undefined,
+        undefined,
+        true,
+        label,
+        HUMANIZER_TIMEOUT
+    );
 };
 
 // --- CORE ACTIONS ---
@@ -646,7 +624,8 @@ export const runHumanizerPipeline = async (
         }
 
     } catch (e: any) {
-        safeStatus(`Error durante la humanización: ${e.message}. Devolviendo original.`);
+        safeStatus(`Error durante la humanización: ${e.message}. Subiendo el error al frontend...`);
+        throw e;
     }
 
     $('[data-humanize-id]').removeAttr('data-humanize-id');
