@@ -61,7 +61,6 @@ import { NotificationService } from "@/lib/services/notifications";
 import { parseDocx, parseHtml } from "@/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
-import NousOrb from "./NousOrb";
 import { useQueueProcessor } from '@/components/dashboard/useQueueProcessor';
 import { SmartUploaderModal } from "./SmartUploaderModal";
 import SmartSlugGeneratorModal from "./SmartSlugGeneratorModal";
@@ -73,7 +72,8 @@ import {
     processTaskTranslationAction
 } from '@/lib/client/plannerActions';
 import { executeDraftPipeline, executeHumanizePipeline } from '@/lib/services/writer/pipeline';
-import OrbConfirmationModal, { OrbPipelinePlan } from './OrbConfirmationModal';
+import { executePipeline } from '@/lib/client/pipelineExecutor';
+import { NousPipelineModal } from './pipeline/NousPipelineModal';
 import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
 import { streamFinalCleanup, streamSurgicalEdit } from '@/lib/services/writer/ai-streaming';
 import { streamGenerate, streamSEOPostProcess, streamHumanize } from '@/lib/services/writer/ai-streaming';
@@ -162,11 +162,7 @@ export function EditorialCalendar() {
     const [isReinvestigating, setIsReinvestigating] = useState(false);
     const [isCascadeMode, setIsCascadeMode] = useState(true);
 
-    // Orb pre-flight modal
-    const [orbPlan, setOrbPlan] = useState<OrbPipelinePlan | null>(null);
-    const [isOrbPlanOpen, setIsOrbPlanOpen] = useState(false);
-    const [isOrbPlanLoading, setIsOrbPlanLoading] = useState(false);
-    const [pendingOrbConfig, setPendingOrbConfig] = useState<{ action: string; config?: any } | null>(null);
+    const [isPipelineModalOpen, setIsPipelineModalOpen] = useState(false);
 
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -1289,6 +1285,15 @@ export function EditorialCalendar() {
 
             {/* Filter Bar */}
             <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-wrap items-center gap-4 shrink-0">
+                {/* Nous AI Pipeline Button */}
+                <button 
+                    onClick={() => setIsPipelineModalOpen(true)}
+                    className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 hover:bg-indigo-600 hover:shadow-indigo-500/30 transition-all transform hover:-translate-y-0.5"
+                >
+                    <BrainCircuit size={14} />
+                    <span>Nous AI Pipeline</span>
+                </button>
+
                 {/* Search Input */}
                 <div className="relative flex-1 min-w-[200px] max-w-sm">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1488,17 +1493,7 @@ export function EditorialCalendar() {
                 />
             </main>
 
-            {/* Floating Nous Orb */}
-            <NousOrb 
-                tasks={tasks}
-                onAction={handleOrbAction} 
-                isProcessing={isResearching} 
-                processingProgress={researchProgress} 
-                selectedCount={selectedTaskIds.length}
-            />
-
             {/* Modals and Overlays */}
-
             <SmartUploaderModal 
                 isOpen={isSmartUploadModalOpen} 
                 onClose={() => setIsSmartUploadModalOpen(false)}
@@ -1511,13 +1506,53 @@ export function EditorialCalendar() {
                 }}
             />
 
-            {/* Orb Pre-flight Confirmation Modal */}
-            <OrbConfirmationModal
-                isOpen={isOrbPlanOpen}
-                plan={orbPlan}
-                isLoading={isOrbPlanLoading}
-                onConfirm={executeOrbPipeline}
-                onCancel={cancelOrbPipeline}
+            {/* Pipeline Modal */}
+            <NousPipelineModal 
+                isOpen={isPipelineModalOpen}
+                onClose={() => setIsPipelineModalOpen(false)}
+                selectedTaskIds={selectedTaskIds}
+                onExecute={async (blocks, mode) => {
+                    if (!activeProject) {
+                        NotificationService.error("Error", "No hay proyecto activo.");
+                        return;
+                    }
+                    
+                    setIsPipelineModalOpen(false);
+                    setResearching(true);
+                    setResearchProgress(0);
+                    if (!isConsoleOpen) setIsConsoleOpen(true);
+
+                    // Determinar el target base
+                    const targetTasks = mode === 'manual' 
+                        ? tasks.filter(t => selectedTaskIds.includes(t.id))
+                        : tasks;
+                    
+                    if (targetTasks.length === 0) {
+                        NotificationService.error("Información", "No hay contenidos para procesar.");
+                        setResearching(false);
+                        return;
+                    }
+
+                    try {
+                        await executePipeline({
+                            blocks,
+                            mode,
+                            targetTasks,
+                            project: activeProject,
+                            onLog: (taskId, stage, msg) => addStrategyLog(taskId, stage, msg),
+                            onProgress: (taskId, progress) => setResearchProgress(progress)
+                        });
+                        
+                        // Refrescar contenidos y selección al terminar
+                        fetchProjectTasks(activeProject.id);
+                        setSelectedTaskIds([]);
+                    } catch (e: any) {
+                        console.error(e);
+                        NotificationService.error("Error en Pipeline", e.message);
+                    } finally {
+                        setResearching(false);
+                    }
+                }}
             />
 
             <AnimatePresence>
