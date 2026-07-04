@@ -668,9 +668,11 @@ REGLAS DE LIMPIEZA ESTRICTAS:
 FORMATO DE SALIDA:
 Devuelve ÚNICAMENTE el código HTML final y limpio. SIN bloques markdown (\`\`\`html), SIN saludos, SIN explicaciones.`;
 
+    const modelName = AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite-preview';
+
     return executeWithKeyRotation(async (ai) => {
         const model = ai.getGenerativeModel({ 
-            model: AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite-preview',
+            model: modelName,
             systemInstruction: systemInstructionStr,
         });
         
@@ -684,7 +686,7 @@ Devuelve ÚNICAMENTE el código HTML final y limpio. SIN bloques markdown (\`\`\
         cleanHtml = cleanHtml.replace(/```html\s*([\s\S]*?)```/gi, '$1').replace(/```[\s\S]*?```/gi, '').trim();
         
         return cleanHtml;
-    });
+    }, modelName);
 };
 
 export const runSurgicalEditorPipeline = async (
