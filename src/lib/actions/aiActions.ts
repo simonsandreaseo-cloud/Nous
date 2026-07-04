@@ -597,9 +597,19 @@ export const runHumanizerPipeline = async (
             return raw;
         }, safeStatus, `Humanización de chunk de texto`, modelName);
         
-        safeStatus(`Chunk humanizado correctamente.`);
+        safeStatus(`Chunk humanizado correctamente. Sanitizando...`);
         
-        const finalHtml = processedHtml as string;
+        // --- POST-PROCESADO: SANITIZACIÓN CON FLASH LITE ---
+        const rawHumanizedHtml = processedHtml as string;
+        let finalHtml = rawHumanizedHtml;
+        
+        try {
+            finalHtml = await runHtmlSanitizer(rawHumanizedHtml, safeStatus);
+        } catch (sanitizerError) {
+            console.error("[Humanizer] Error en sanitización, usando fallback:", sanitizerError);
+            finalHtml = rawHumanizedHtml; // Fallback if it fails
+        }
+        // --------------------------------------------------
         
         if (onChunk) onChunk(finalHtml);
         
@@ -612,6 +622,45 @@ export const runHumanizerPipeline = async (
         safeStatus(`Error durante la humanización: ${e.message}. Subiendo el error al frontend...`);
         throw e;
     }
+};
+
+const runHtmlSanitizer = async (
+    html: string,
+    safeStatus: (msg: string) => void
+): Promise<string> => {
+    safeStatus(`Sanitizando HTML residual con Gemini Flash Lite...`);
+    const systemInstructionStr = `Eres un filtro de sanitización HTML de precisión. 
+Tu única tarea es recibir un bloque de HTML crudo que fue procesado por otro modelo y "limpiarlo".
+
+REGLAS DE LIMPIEZA ESTRICTAS:
+1. ELIMINAR BASURA DE IA (COGNITIVE LEAKAGE): El modelo anterior a veces "filtra" sus pensamientos dentro de las etiquetas HTML. 
+   - Borra CUALQUIER texto que parezca razonamiento de IA, por ejemplo: "\` * *Segment 1:* \`", "\` * *Key points:*\`", "HTML Constraint:", "Original:", "Mediocre style:", "Applying rules:".
+   - Borra comillas invertidas (\`) sueltas que hayan quedado en el texto.
+2. SANITIZAR ETIQUETAS: 
+   - Elimina TODOS los atributos 'style="..."' de cualquier etiqueta (ej. <table style="..."> -> <table>).
+   - Elimina etiquetas <strong>, <b>, <em> o <i> que estén DENTRO de encabezados (<h1>, <h2>, <h3>, etc.), preservando el texto.
+   - Elimina etiquetas <p> o <div> que estén completamente vacías o solo tengan espacios/saltos de línea.
+3. PRESERVAR EL CONTENIDO VÁLIDO: No alteres el texto real del artículo ni su tono. No elimines etiquetas válidas como <ul>, <li>, <p> con texto real, etc.
+
+FORMATO DE SALIDA:
+Devuelve ÚNICAMENTE el código HTML final y limpio. SIN bloques markdown (\`\`\`html), SIN saludos, SIN explicaciones.`;
+
+    return executeWithKeyRotation(async (ai) => {
+        const model = ai.getGenerativeModel({ 
+            model: AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite-preview',
+            systemInstruction: systemInstructionStr,
+        });
+        
+        const prompt = `Limpia este HTML siguiendo las reglas y devuélvelo puro:\n\n${html}`;
+        
+        const response = await model.generateContent(prompt);
+        let cleanHtml = response.response.text();
+        
+        // Double check to remove markdown blocks if Flash Lite adds them anyway
+        cleanHtml = cleanHtml.replace(/```html\s*([\s\S]*?)```/gi, '$1').replace(/```[\s\S]*?```/gi, '').trim();
+        
+        return cleanHtml;
+    });
 };
 
 export const runSurgicalEditorPipeline = async (
