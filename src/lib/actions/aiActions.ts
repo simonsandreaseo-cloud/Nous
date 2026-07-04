@@ -123,33 +123,35 @@ export async function executeHumanizerWithRetry<T>(
 
     // Le damos 3 minutos (180000ms) de timeout al Humanizer porque procesa HTML enorme y necesita más tiempo
     const HUMANIZER_TIMEOUT = 180000;
+    const MAX_RETRIES = 4;
+    let lastError: any;
 
-    try {
-        return await executeWithKeyRotation(
-            operation,
-            modelName,
-            undefined,
-            undefined,
-            undefined,
-            true,
-            label,
-            HUMANIZER_TIMEOUT
-        );
-    } catch (e: any) {
-        console.error(`[Humanizer-Retry] Error en ejecución de humanizador:`, e);
-        safeStatus(`⚠️ Error con ${modelName}. Reintentando una vez con modelo alternativo...`);
-        // Fallback to a safe known model instead of infinite loop
-        return await executeWithKeyRotation(
-            operation,
-            'gemma-4-31b-it',
-            undefined,
-            undefined,
-            undefined,
-            true,
-            label,
-            HUMANIZER_TIMEOUT
-        );
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            if (attempt > 1) {
+                safeStatus(`⚠️ Intento ${attempt}/${MAX_RETRIES} con modelo ${modelName}...`);
+            }
+            return await executeWithKeyRotation(
+                operation,
+                modelName,
+                undefined,
+                undefined,
+                undefined,
+                true,
+                label,
+                HUMANIZER_TIMEOUT
+            );
+        } catch (e: any) {
+            lastError = e;
+            console.error(`[Humanizer-Retry] Error en intento ${attempt}:`, e);
+            if (attempt === MAX_RETRIES) {
+                safeStatus(`❌ Error definitivo tras ${MAX_RETRIES} intentos con ${modelName}.`);
+                throw e;
+            }
+        }
     }
+    
+    throw lastError;
 };
 
 // --- CORE ACTIONS ---
