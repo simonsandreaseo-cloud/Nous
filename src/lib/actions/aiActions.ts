@@ -148,6 +148,9 @@ export async function executeHumanizerWithRetry<T>(
                 safeStatus(`❌ Error definitivo tras ${MAX_RETRIES} intentos con ${modelName}.`);
                 throw e;
             }
+            
+            safeStatus(`⏳ Saturación detectada. Pausando 60 segundos para refrescar llaves antes del intento ${attempt + 1}...`);
+            await new Promise(resolve => setTimeout(resolve, 60000));
         }
     }
     
