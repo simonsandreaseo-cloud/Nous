@@ -565,7 +565,7 @@ export const runHumanizerPipeline = async (
             
             const languageInstruction = config.language ? `\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
             
-            const prompt = `--- TAREA ---\nAplica TODAS las reglas de humanización al texto DENTRO de las etiquetas HTML del siguiente bloque. SÉ AGRESIVO al reescribir. Abandona la estructura de la oración original.\n\n${html}\n${languageInstruction}`;
+            const prompt = `--- TAREA ---\nAplica TODAS las reglas de humanización al texto DENTRO de las etiquetas HTML del siguiente bloque. SÉ AGRESIVO al reescribir. Abandona la estructura de la oración original.\n\nPROHIBICIÓN ESTRICTA (ANTI-LEAKAGE): Tienes TERMINANTEMENTE PROHIBIDO resumir las reglas, repetir tu rol, o hacer listas (bullet points) con las instrucciones antes de empezar. Tu respuesta debe comenzar INMEDIATAMENTE con el código HTML procesado (o con la etiqueta <scratchpad> si la usas). Ni una sola palabra de prefacio.\n\n--- HTML DE ENTRADA ---\n${html}\n${languageInstruction}`;
             
             const response = await model.generateContent(prompt);
             let raw = response.response.text();
@@ -573,6 +573,13 @@ export const runHumanizerPipeline = async (
             // Limpieza de scratchpad y markdown
             raw = raw.replace(/<scratchpad>[\s\S]*?<\/scratchpad>/gi, ''); // Eliminar pensamientos
             raw = raw.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+            
+            // Regex agresiva extra: si a pesar de todo el modelo imprime texto antes del primer tag HTML válido, 
+            // intentamos capturar desde la primera etiqueta de apertura que coincida con lo que solemos tener (h1, h2, p, table, ul, ol, div, span)
+            const htmlMatch = raw.match(/(<[hpuotds][1-6a-z]*\b[^>]*>[\s\S]*)/i);
+            if (htmlMatch) {
+                raw = htmlMatch[1].trim();
+            }
             
             if (!raw) {
                 throw new Error("El modelo devolvió una respuesta vacía.");
