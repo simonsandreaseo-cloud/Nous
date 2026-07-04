@@ -558,8 +558,8 @@ export const runHumanizerPipeline = async (
     const protectedHeaders: Record<string, string> = {};
     $pre('h1, h2, h3, h4, h5, h6').each((i, el) => {
         const id = `hdr_${i}`;
-        $(el).attr('data-sys-hdr', id);
-        protectedHeaders[id] = $(el).html() || '';
+        $pre(el).attr('data-sys-hdr', id);
+        protectedHeaders[id] = $pre(el).html() || '';
     });
     const protectedHtml = $pre.html();
     // ----------------------------------------------
@@ -625,11 +625,11 @@ export const runHumanizerPipeline = async (
         // --- RESTAURACIÓN DETERMINISTA DE ENCABEZADOS ---
         const $post = cheerio.load(finalHtml, { decodeEntities: false }, false);
         $post('[data-sys-hdr]').each((_, el) => {
-            const id = $(el).attr('data-sys-hdr');
+            const id = $post(el).attr('data-sys-hdr');
             if (id && protectedHeaders[id] !== undefined) {
-                $(el).html(protectedHeaders[id]);
+                $post(el).html(protectedHeaders[id]);
             }
-            $(el).removeAttr('data-sys-hdr');
+            $post(el).removeAttr('data-sys-hdr');
         });
         finalHtml = $post.html();
         // ------------------------------------------------
