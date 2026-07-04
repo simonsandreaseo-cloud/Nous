@@ -61,7 +61,6 @@ import { FloatingToolbox } from './widgets/FloatingToolbox';
 import { HistoryTab } from './tabs/HistoryTab';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
-import NousOrb from '@/components/dashboard/NousOrb';
 import NousAssistantMenu from '@/components/dashboard/NousAssistantMenu';
 import { useWriterActions } from './useWriterActions';
 import { deleteImageAction, uploadGeneratedImage, regenerateImageAction } from '@/lib/actions/imageActions';
@@ -942,12 +941,7 @@ export default function WriterStudio() {
                           activeSidebarTab === 'nous' ? (
                               <div className="h-full flex flex-col p-4 gap-6">
                                   <div className="flex justify-center shrink-0">
-                                      <NousOrb 
-                                          variant="header" 
-                                          viewMode="writer" 
-                                          isProcessing={isProcessingAny} 
-                                          onWriterAction={(type) => { if (type === 'seo') handleSEO(); if (type === 'generate') handleGenerate(); if (type === 'humanize') handleHumanize(); if (type === 'surgical_edit') handleSurgicalEdit(); if (type === 'refine') handleRefine(); if (type === 'clean') handleClean(); }} 
-                                      />
+                                      {/* Orbe eliminado por migración al Pipeline Centralizado */}
                                   </div>
                                   <div className="flex-1 overflow-hidden">
                                        <NousAssistantMenu 

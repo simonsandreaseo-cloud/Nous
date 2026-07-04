@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
 
 export type PipelineActionType = 
     | 'research' 
@@ -90,7 +89,7 @@ export const usePipelineStore = create<PipelineState>()(
             })),
 
             createWorkflow: () => {
-                const id = uuidv4();
+                const id = crypto.randomUUID();
                 set((state) => ({
                     workflows: {
                         ...state.workflows,
@@ -111,7 +110,7 @@ export const usePipelineStore = create<PipelineState>()(
                 
                 // Ensure there is always at least one workflow
                 if (Object.keys(newWorkflows).length === 0) {
-                    const fallbackId = uuidv4();
+                    const fallbackId = crypto.randomUUID();
                     newWorkflows[fallbackId] = { id: fallbackId, name: 'Nuevo WorkFlow', blocks: [] };
                     return { workflows: newWorkflows, activeWorkflowId: fallbackId };
                 }
@@ -128,7 +127,7 @@ export const usePipelineStore = create<PipelineState>()(
 
                 const newBlock: PipelineBlock = {
                     ...blockInfo,
-                    id: uuidv4()
+                    id: crypto.randomUUID()
                 };
 
                 return {
