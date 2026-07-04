@@ -38,7 +38,7 @@ export async function POST(req: Request) {
                         config,
                         intensity || 50,
                         onStatus,
-                        'gemma-4-31b-it',
+                        body.model || 'gemma-4-31b-it',
                         onChunk
                     );
 

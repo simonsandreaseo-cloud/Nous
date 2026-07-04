@@ -19,6 +19,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
     const [statusMessage, setStatusMessage] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [wordCount, setWordCount] = useState(0);
+    const [selectedModel, setSelectedModel] = useState("gemma-4-31b-it");
 
     const extensions = useMemo(() => getSharedExtensions("Pega tu texto aquí..."), []);
 
@@ -69,7 +70,8 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 },
                 (status) => {
                     setStatusMessage(status);
-                }
+                },
+                selectedModel
             );
 
             if (result && result.html) {
@@ -161,14 +163,28 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                             )}
                         </div>
 
-                        <button
-                            onClick={handleHumanize}
-                            disabled={isProcessing || isOverLimit || wordCount === 0}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-slate-900/10"
-                        >
-                            <Wand2 size={16} />
-                            {isProcessing ? "Humanizando..." : "Humanizar Texto"}
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <select
+                                value={selectedModel}
+                                onChange={(e) => setSelectedModel(e.target.value)}
+                                disabled={isProcessing}
+                                className="text-xs font-medium text-slate-600 bg-slate-100 border-none rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
+                            >
+                                <option value="gemma-4-31b-it">Gemma 4 31B IT (Recomendado)</option>
+                                <option value="gemma-4-26b-a4b-it">Gemma 4 26B 24A IT</option>
+                                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                                <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
+                            </select>
+
+                            <button
+                                onClick={handleHumanize}
+                                disabled={isProcessing || isOverLimit || wordCount === 0}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-slate-900/10"
+                            >
+                                <Wand2 size={16} />
+                                {isProcessing ? "Humanizando..." : "Humanizar Texto"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </motion.div>

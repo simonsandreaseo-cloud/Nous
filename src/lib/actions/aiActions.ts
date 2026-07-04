@@ -115,7 +115,8 @@ export async function executeHumanizerWithRetry<T>(
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    if (modelName !== 'gemma-4-31b-it') {
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview'];
+    if (!allowedModels.includes(modelName)) {
         safeStatus(`⚠️ Modelo ${modelName} no permitido para humanización. Forzando gemma-4-31b-it.`);
         modelName = 'gemma-4-31b-it';
     }
@@ -561,7 +562,8 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    if (modelName !== 'gemma-4-31b-it') {
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview'];
+    if (!allowedModels.includes(modelName)) {
         modelName = 'gemma-4-31b-it';
     }
 
