@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
     X, Plus, Settings, BrainCircuit, Activity, Trash2, 
-    ArrowRight, ChevronDown, CheckCircle2, Play, Save, Box, Layers
+    ArrowRight, ChevronDown, CheckCircle2, Play, Save, Box, Layers,
+    Scissors, Image as ImageIcon, Languages, Wand2
 } from 'lucide-react';
 import { PipelineBlock, usePipelineStore, PipelineActionType, ExecutionMode } from '@/store/usePipelineStore';
 import { useProjectStore, Task, STATUS_LABELS } from '@/store/useProjectStore';
@@ -21,8 +21,12 @@ const AVAILABLE_ACTIONS: { id: PipelineActionType; label: string; icon: React.Re
     { id: 'outline', label: 'Estructura', icon: <Layers size={16} />, color: 'bg-rose-100 text-rose-600' },
     { id: 'generate', label: 'Redacción', icon: <BrainCircuit size={16} />, color: 'bg-indigo-100 text-indigo-600' },
     { id: 'humanize', label: 'Humanizar', icon: <CheckCircle2 size={16} />, color: 'bg-emerald-100 text-emerald-600' },
+    { id: 'surgical_edit', label: 'Edición Quirúrgica', icon: <Scissors size={16} />, color: 'bg-fuchsia-100 text-fuchsia-600' },
     { id: 'clean', label: 'Limpiar HTML', icon: <Box size={16} />, color: 'bg-slate-100 text-slate-600' },
-    { id: 'seo', label: 'SEO Data', icon: <Settings size={16} />, color: 'bg-amber-100 text-amber-600' }
+    { id: 'seo', label: 'SEO Data', icon: <Settings size={16} />, color: 'bg-amber-100 text-amber-600' },
+    { id: 'image', label: 'Imágenes', icon: <ImageIcon size={16} />, color: 'bg-blue-100 text-blue-600' },
+    { id: 'translation', label: 'Traducción', icon: <Languages size={16} />, color: 'bg-violet-100 text-violet-600' },
+    { id: 'refine', label: 'Refinamiento', icon: <Wand2 size={16} />, color: 'bg-pink-100 text-pink-600' }
 ];
 
 export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute }: NousPipelineModalProps) {
