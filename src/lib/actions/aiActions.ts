@@ -664,6 +664,7 @@ REGLAS DE LIMPIEZA ESTRICTAS:
    - Elimina etiquetas <strong>, <b>, <em> o <i> que estén DENTRO de encabezados (<h1>, <h2>, <h3>, etc.), preservando el texto.
    - Elimina etiquetas <p> o <div> que estén completamente vacías o solo tengan espacios/saltos de línea.
 3. PRESERVAR EL CONTENIDO VÁLIDO: No alteres el texto real del artículo ni su tono. No elimines etiquetas válidas como <ul>, <li>, <p> con texto real, etc.
+4. RECONSTRUCCIÓN DE TABLAS: Si detectas que una tabla HTML (<table>, <tr>, <td>, <th>, <tbody>, <thead>) está mal formada, rota, o le faltan etiquetas de cierre debido a un error estructural del modelo anterior, RECONSTRÚYELA Y CORRÍGELA para que el HTML sea 100% válido.
 
 FORMATO DE SALIDA:
 Devuelve ÚNICAMENTE el código HTML final y limpio. SIN bloques markdown (\`\`\`html), SIN saludos, SIN explicaciones.`;
