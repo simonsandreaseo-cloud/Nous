@@ -43,7 +43,8 @@ import {
     Zap,
     UploadCloud,
     Settings,
-    Eraser
+    Eraser,
+    BrainCircuit
 } from "lucide-react";
 import { useProjectStore, Task, STATUS_LABELS } from "@/store/useProjectStore";
 import { usePermissions } from '@/hooks/usePermissions';
