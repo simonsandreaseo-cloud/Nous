@@ -19,7 +19,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
     const [statusMessage, setStatusMessage] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [wordCount, setWordCount] = useState(0);
-    const [selectedModel, setSelectedModel] = useState("gemma-4-31b-it");
+    const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
 
     const extensions = useMemo(() => getSharedExtensions("Pega tu texto aquí..."), []);
 
@@ -169,11 +169,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                                 onChange={(e) => setSelectedModel(e.target.value)}
                                 disabled={isProcessing}
                                 className="text-xs font-medium text-slate-600 bg-slate-100 border-none rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
-                            >
-                                <option value="gemma-4-31b-it">Gemma 4 31B IT (Recomendado)</option>
-                                <option value="gemma-4-26b-a4b-it">Gemma 4 26B 24A IT</option>
                                 <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                                <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
                             </select>
 
                             <button

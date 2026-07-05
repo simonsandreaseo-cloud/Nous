@@ -38,7 +38,7 @@ export async function POST(req: Request) {
                         config,
                         intensity || 50,
                         onStatus,
-                        'gemini-3.1-flash-lite',
+                        'gemini-3.5-flash',
                         onChunk
                     );
 

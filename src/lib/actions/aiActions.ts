@@ -723,7 +723,7 @@ export const runSurgicalEditorPipeline = async (
     config: HumanizerConfig,
     intensity: number,
     onStatus?: (msg: string) => void,
-    modelName: string = 'gemma-4-31b-it', 
+    modelName: string = 'gemini-3.5-flash', 
     onChunk?: (chunkHtml: string) => void
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
@@ -731,9 +731,9 @@ export const runSurgicalEditorPipeline = async (
         else console.log(`[SurgicalEditor-Status] ${msg}`);
     };
 
-    if (modelName !== 'gemma-4-31b-it') {
-        safeStatus(`⚠️ Modelo ${modelName} no permitido para edición quirúrgica. Forzando gemma-4-31b-it.`);
-        modelName = 'gemma-4-31b-it';
+    if (modelName !== 'gemini-3.5-flash') {
+        safeStatus(`⚠️ Modelo ${modelName} no permitido para edición quirúrgica. Forzando gemini-3.5-flash.`);
+        modelName = 'gemini-3.5-flash';
     }
 
     const SURGICAL_TIMEOUT = 180000;
@@ -801,7 +801,7 @@ Tienes ESTRICTAMENTE PROHIBIDO hacer borradores, análisis, explicaciones o "Cha
         const model = aiClient.getGenerativeModel({ 
             model: mName, 
             systemInstruction: systemInstructionStr,
-            // Sin responseMimeType para permitir el bloque ```json de la Jaula de Oro
+            responseMimeType: 'application/json'
         });
         
         const languageInstruction = config.language ? `\\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
