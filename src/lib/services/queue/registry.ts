@@ -1,6 +1,7 @@
 import { handleSEOTask } from './handlers/seo';
 import { handleOutlineTask } from './handlers/outline';
 import { handleGenerateTask } from './handlers/generate';
+import { handleSurgicalEditTask } from './handlers/surgicalEdit';
 import { handleBatchResearch, handleBatchOutline, handleBatchGenerate, handleBatchHumanize, handleBatchTranslate } from './handlers/batch';
 
 export type QueuePayload = Record<string, any>;
@@ -28,6 +29,7 @@ export const QueueRegistry = new Registry();
 QueueRegistry.register('seo', handleSEOTask);
 QueueRegistry.register('outline', handleOutlineTask);
 QueueRegistry.register('generate', handleGenerateTask);
+QueueRegistry.register('surgical_edit', handleSurgicalEditTask);
 QueueRegistry.register('batch_research', handleBatchResearch);
 QueueRegistry.register('batch_outline', handleBatchOutline);
 QueueRegistry.register('batch_generate', handleBatchGenerate);

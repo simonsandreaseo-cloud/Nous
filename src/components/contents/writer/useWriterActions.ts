@@ -296,179 +296,27 @@ export function useWriterActions() {
         }, { taskId: targetTaskId, projectId: targetProjectId });
     }, [store, hasAccess, activeProject]);
 
-    // --- Refine ---
+    // --- Edición Quirúrgica ---
     const handleSurgicalEdit = useCallback(() => {
+        if (!hasAccess) return alert('No tienes permisos.');
+        if (!store.content) return;
+
         const { enqueueTask } = useQueueStore.getState();
-        const outerStore = store;
-        const targetTaskId = store.draftId;
-        const targetProjectId = activeProject?.id;
-        enqueueTask('surgical_edit', 'Edición Quirúrgica', async (queueTaskId: string) => {
-            const store = new Proxy(outerStore, {
-                get(target: any, prop: string) {
-                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
-                        return (...args: any[]) => {
-                            if (useWriterStore.getState().draftId === targetTaskId) {
-                                return target[prop](...args);
-                            }
-                        }
-                    }
-                    if (prop === 'saveTaskVersion') {
-                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
-                    }
-                    return target[prop];
-                }
-            });
-        console.log("[DEBUG-SurgicalEdit] Action triggered");
-        const { addLogToTask } = useQueueStore.getState();
-        if (!hasAccess) {
-            console.log("[DEBUG-SurgicalEdit] Access denied");
-            return alert('No tienes permisos.');
-        }
-        if (!store.content) {
-            console.log("[DEBUG-SurgicalEdit] No content found in store. Current content length:", store.content?.length);
-            return;
-        }
-        
-        console.log("[DEBUG-SurgicalEdit] Starting pipeline for content length:", store.content.length);
-        store.setSurgicalEditing(true);
-        store.setSurgicalEditStatus('Iniciando edición quirúrgica...');
-        
-        try {
-            await store.saveTaskVersion(`Pre-Edición Quirúrgica`, store.content);
 
-            const config: any = {
-                projectName: store.projectName, 
-                niche: store.detectedNiche || store.humanizerConfig.niche || 'General', 
-                audience: store.humanizerConfig.audience || 'Público General',
-                language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
-            };
-
-            const originalContent = store.content;
-
-            const chunkHtml = (htmlString: string, maxBlocks: number = 2): string[] => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlString, 'text/html');
-                const chunks: string[] = [];
-                let currentChunk = '';
-                let blockCount = 0;
-                
-                Array.from(doc.body.children).forEach((el) => {
-                    currentChunk += el.outerHTML;
-                    
-                    const tagName = el.tagName.toLowerCase();
-                    if (['p', 'ul', 'ol', 'blockquote', 'table', 'div'].includes(tagName)) {
-                        blockCount++;
-                    }
-                    
-                    if (blockCount >= maxBlocks) {
-                        chunks.push(currentChunk.trim());
-                        currentChunk = '';
-                        blockCount = 0;
-                    }
-                });
-                
-                if (currentChunk.trim()) {
-                    chunks.push(currentChunk.trim());
-                }
-                
-                return chunks.length > 0 ? chunks : [htmlString];
-            };
-
-            const rawChunks = chunkHtml(originalContent, 2);
-            console.log(`[DEBUG-SurgicalEdit] Documento dividido en ${rawChunks.length} chunks.`);
-            store.setSurgicalEditStatus(`Documento dividido en ${rawChunks.length} partes...`);
-            addLogToTask(queueTaskId, `Documento dividido en ${rawChunks.length} partes para edición.`, 'info');
-            
-            // In-place chunking: envolver todos los chunks inicialmente
-            let currentDocumentChunks = rawChunks.map((chunk, index) => 
-                `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
-            );
-            
-            // Publicar el documento intacto pero marcado en el store
-            store.setContent(currentDocumentChunks.join('\n'));
-
-            for (let i = 0; i < rawChunks.length; i++) {
-                let success = false;
-                let attempts = 0;
-                const MAX_ATTEMPTS = 4;
-
-                // Marcar el chunk actual como "processing"
-                currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
-                store.setContent(currentDocumentChunks.join('\n'));
-
-                while (!success && attempts < MAX_ATTEMPTS) {
-                    try {
-                        store.setSurgicalEditStatus(`Edición Quirúrgica Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
-                        addLogToTask(queueTaskId, `Procesando chunk ${i + 1} de ${rawChunks.length}${attempts > 0 ? ` (Reintento ${attempts})` : ''}...`, 'info');
-                        
-                        const chunkResult = await streamSurgicalEdit(
-                            rawChunks[i],
-                            config,
-                            50,
-                            () => {}, // Desactivamos el streaming parcial para mantener el DOM estable
-                            (msg) => {
-                                console.log(`[Chunk ${i+1}] ${msg}`);
-                                addLogToTask(queueTaskId, `[Chunk ${i+1}] ${msg}`, 'info');
-                            }
-                        );
-                        
-                        addLogToTask(queueTaskId, `Chunk ${i + 1} completado.`, 'success');
-                        
-                        // Reemplazar el chunk original con el HTML finalizado
-                        currentDocumentChunks[i] = chunkResult.html;
-                        store.setContent(currentDocumentChunks.join('\n'));
-                        success = true;
-                    } catch (err: any) {
-                        attempts++;
-                        console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
-                        addLogToTask(queueTaskId, `Error en chunk ${i + 1}: ${err.message}`, 'error');
-                        
-                        if (attempts >= MAX_ATTEMPTS) {
-                            addLogToTask(queueTaskId, `Fallo definitivo en chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá original.`, 'error');
-                            currentDocumentChunks[i] = rawChunks[i];
-                            store.setContent(currentDocumentChunks.join('\n'));
-                            break;
-                        }
-                        
-                        store.setSurgicalEditStatus(`Error en Chunk ${i + 1}. Reintentando en 70s... (${attempts}/${MAX_ATTEMPTS})`);
-                        addLogToTask(queueTaskId, `Esperando 70s antes de reintentar chunk ${i + 1}...`, 'warning');
-                        await new Promise(resolve => setTimeout(resolve, 70000));
-                    }
-                }
-                useQueueStore.getState().setTaskStatus(queueTaskId, 'processing', ((i + 1) / rawChunks.length) * 100);
-            }
-
-            const finalResult = { html: currentDocumentChunks.join('\n') };
-
-            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
-
-            const refined = refineStyling(finalResult.html);
-            
-            // Batch updates (safely scoped)
-            store.setContent(refined);
-            store.setSurgicalEditStatus('✅ ¡Edición Quirúrgica completada!');
-
-            store.addDebugPrompt('Edición Quirúrgica Finalizada', `Contenido mejorado quirúrgicamente con éxito`, refined.substring(0, 1000));
-            addLogToTask(queueTaskId, 'Edición quirúrgica finalizada.', 'success');
-            
-            // Save version
-            await store.saveTaskVersion(getNextProcessName('Edición Quirúrgica'), refined);
-            
-        } catch (error: any) {
-            console.error('[SurgicalEdit] Error:', error);
-            store.setSurgicalEditStatus(`❌ Error: ${error.message}`);
-            store.addDebugPrompt('Error en Edición Quirúrgica', 'Fallo general', error.message);
-            addLogToTask(queueTaskId, `Error crítico: ${error.message}`, 'error');
-        } finally {
-            store.setSurgicalEditing(false);
-            setTimeout(() => {
-                store.setSurgicalEditStatus('');
-            }, 5000);
-            
-            console.log("[DEBUG-SurgicalEdit] Process finished");
-        }
-        }, { taskId: targetTaskId, projectId: targetProjectId });
-    }, [hasAccess, store, activeProject, refineStyling]);
+        enqueueTask(
+            'surgical_edit',
+            'Edición Quirúrgica',
+            {
+                draftId:     store.draftId,
+                content:     store.content,
+                projectName: store.projectName,
+                niche:       store.detectedNiche || store.humanizerConfig?.niche || 'General',
+                audience:    store.humanizerConfig?.audience || 'Público General',
+                language:    activeProject?.settings?.content_preferences?.default_content_language || 'es',
+            },
+            { taskId: store.draftId ?? undefined, projectId: activeProject?.id }
+        );
+    }, [hasAccess, store, activeProject]);
 
     const handleRefine = useCallback(() => {
         const { enqueueTask } = useQueueStore.getState();

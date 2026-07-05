@@ -219,11 +219,11 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                     </div>
 
                     {isExecuting ? (
-                        <div className="flex-1 bg-white p-8 flex flex-col relative overflow-hidden">
+                        <div className="flex-1 bg-white p-8 flex flex-col relative overflow-y-auto">
                             {/* Glowing background effect */}
                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none" />
                             
-                            <div className="relative z-10 flex flex-col h-full">
+                            <div className="relative z-10 flex flex-col h-full overflow-y-auto">
                                 <div className="text-center mb-10">
                                     <h3 className="text-2xl font-black text-slate-800 mb-2">Ejecución en Progreso</h3>
                                     <p className="text-slate-500 font-medium">
@@ -238,8 +238,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                     </p>
                                 </div>
                                 
-                                <div className="flex-1 flex flex-col gap-6 max-w-3xl mx-auto w-full">
-                                    <div className="flex-[2] flex flex-col justify-center">
+                                <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
                                     {activeTask ? (
                                         <div className="w-full bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-8 transform transition-all">
                                             <div className="flex items-center gap-4 mb-6">
@@ -270,14 +269,12 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                                     <span className="text-indigo-600 text-sm">{displayProgressStr}%</span>
                                                 </div>
                                                 <div className="h-4 w-full bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                                                    <motion.div 
-                                                        className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 relative"
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: `${displayProgress}%` }}
-                                                        transition={{ duration: 0.8, ease: "easeOut" }}
+                                                    <div 
+                                                        className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 relative transition-all duration-500 ease-out"
+                                                        style={{ width: `${displayProgress}%` }}
                                                     >
                                                         <div className="absolute inset-0 bg-white/20 animate-[pulse_2s_ease-in-out_infinite]" />
-                                                    </motion.div>
+                                                    </div>
                                                 </div>
                                                 <div className="flex justify-between mt-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                                                     <span>{batchCompletedTasks} Tareas Completadas</span>
@@ -292,14 +289,12 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                                     <span className="text-indigo-600">{activeTask.progress || 0}%</span>
                                                 </div>
                                                 <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                    <motion.div 
-                                                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 relative"
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: `${activeTask.progress || 0}%` }}
-                                                        transition={{ duration: 0.5 }}
+                                                    <div 
+                                                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 relative transition-all duration-300 ease-out"
+                                                        style={{ width: `${activeTask.progress || 0}%` }}
                                                     >
                                                         <div className="absolute inset-0 bg-white/20 animate-pulse" />
-                                                    </motion.div>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -338,11 +333,9 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                             )}
                                         </div>
                                     )}
-                                    </div>
 
-                                    {/* Panel Lateral de Métricas — inline bajo el card principal */}
-                                    <div className="flex flex-col gap-3">
-                                        <div className="w-full bg-slate-900 rounded-2xl border border-slate-800 shadow-xl p-5 relative overflow-hidden">
+                                    {/* Live Metrics Panel */}
+                                    <div className="w-full bg-slate-900 rounded-2xl border border-slate-800 shadow-xl p-5 relative overflow-hidden">
                                             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[50px] rounded-full pointer-events-none" />
                                             
                                             <div className="flex items-center gap-3 mb-6 relative z-10">
@@ -373,7 +366,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                     </div>
                                 </div>
 
-                                <div className="mt-auto pt-8 flex justify-center gap-4">
+                                <div className="mt-6 pt-4 flex justify-center gap-4">
                                     <button 
                                         onClick={togglePause}
                                         className={`px-8 py-3 rounded-2xl text-sm font-bold shadow-sm transition-all transform hover:-translate-y-0.5 ${
