@@ -503,6 +503,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                             </button>
                         </div>
                     </div>
+                    </>
                     )}
                 </motion.div>
             </div>
