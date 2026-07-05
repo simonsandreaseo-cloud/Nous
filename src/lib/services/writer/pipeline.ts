@@ -2,7 +2,7 @@ import { Task, Project } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 import { ArticleConfig } from '@/lib/actions/aiActions';
 import { buildPrompt, autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
-import { streamGenerate, streamHumanize, streamSEOPostProcess, streamFinalCleanup } from '@/lib/services/writer/ai-streaming';
+import { streamGenerate, streamHumanize, streamSEOPostProcess, streamFinalCleanup, streamSurgicalEdit } from '@/lib/services/writer/ai-streaming';
 import { sanitizeLLMHtml } from '@/utils/html-parser';
 import { AI_CONFIG } from '@/lib/ai/config';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
@@ -179,6 +179,89 @@ export async function executeDraftPipeline(
     return { success: true, content: formatted, updates };
 }
 
+export async function executeSurgicalEditPipeline(
+    task: Task, 
+    content: string, 
+    activeProject: Project | null,
+    onLog: (msg: string) => void,
+    onChunk: (html: string) => void
+) {
+    onLog('Iniciando edición quirúrgica (streaming)...');
+
+    const config = {
+        activeProject,
+        task
+    };
+
+    const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
+        const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
+        const chunks = [];
+        for (let i = 0; i < elements.length; i += chunkSize) {
+            chunks.push(elements.slice(i, i + chunkSize).join(''));
+        }
+        return chunks;
+    };
+
+    const sanitizedContent = sanitizeLLMHtml(content);
+    // Usamos 8 elementos por chunk para no sobrecargar el límite de tokens (Surgical Edit extrae más contexto)
+    const chunks = chunkHtml(sanitizedContent, 8);
+    onLog(`Documento dividido en ${chunks.length} chunks para edición quirúrgica...`);
+    
+    let accumulatedHtml = '';
+    let humLastUpdateTime = 0;
+
+    for (let i = 0; i < chunks.length; i++) {
+        let success = false;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 3;
+
+        while (!success && attempts < MAX_ATTEMPTS) {
+            try {
+                onLog(`Editando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
+                
+                const chunkResult = await streamSurgicalEdit(
+                    chunks[i],
+                    config,
+                    7, // intensity
+                    (partialHtml) => {
+                        const now = Date.now();
+                        if (now - humLastUpdateTime > 300) {
+                            onChunk(accumulatedHtml + partialHtml);
+                            humLastUpdateTime = now;
+                        }
+                    },
+                    (msg) => {
+                        console.log(`[Chunk ${i+1}] ${msg}`);
+                        onLog(`[Chunk ${i+1}] ${msg}`);
+                    }
+                );
+                
+                accumulatedHtml += (chunkResult.html || chunkResult) + '\n';
+                onChunk(accumulatedHtml);
+                success = true;
+            } catch (err: any) {
+                attempts++;
+                console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
+                
+                if (attempts >= MAX_ATTEMPTS) {
+                    throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                }
+                
+                // Espera exponencial
+                await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts)));
+            }
+        }
+    }
+
+    const formatted = cleanAndFormatHtml(accumulatedHtml);
+    const updates = { 
+        content_body: formatted,
+        metadata: { ...(task.metadata as object), is_surgically_edited: true }
+    };
+
+    onLog('✅ Edición quirúrgica completada.');
+    return { success: true, content: formatted, updates };
+}
 export async function executeHumanizePipeline(
     task: Task, 
     content: string, 

@@ -1,7 +1,11 @@
 import { PipelineBlock, ExecutionMode } from '@/store/usePipelineStore';
 import { Task, useProjectStore } from '@/store/useProjectStore';
 import { supabase } from '@/lib/supabase';
-import { executeDraftPipeline, executeHumanizePipeline } from '@/lib/services/writer/pipeline';
+import { 
+    executeHumanizePipeline, 
+    executeSurgicalEditPipeline,
+    executeDraftPipeline 
+} from '@/lib/services/writer/pipeline';
 import { streamFinalCleanup, streamSurgicalEdit } from '@/lib/services/writer/ai-streaming';
 import { NotificationService } from '@/lib/services/notifications';
 import { useQueueStore } from '@/store/useQueueStore';
@@ -135,20 +139,18 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                 }
                 else if (block.actionType === 'surgical_edit') {
                     if (!newContent) throw new Error("No hay contenido para edición quirúrgica.");
-                    const res = await streamSurgicalEdit(
-                        newContent,
-                        { activeProject: project, task: currentTaskState },
-                        7, // intensity
-                        () => {}, // onChunk (we let it accumulate internally in the pipeline for now)
-                        (msg) => enhancedLog(task.id, 'Edición Quirúrgica', msg) // onStatus
+                    const res = await executeSurgicalEditPipeline(
+                        currentTaskState, 
+                        newContent, 
+                        project, 
+                        (msg) => enhancedLog(task.id, 'Edición Quirúrgica', msg), 
+                        () => {}
                     );
-                    if (res && res.html) {
-                        newContent = res.html;
-                    } else if (res) {
-                        // In case it returns string directly from a fallback
-                        newContent = typeof res === 'string' ? res : res.html || newContent;
+                    if (res.success && res.updates) {
+                        newContent = res.updates.content_body || newContent;
+                        Object.assign(currentTaskState, res.updates);
                     } else {
-                        throw new Error("Fallo en edición quirúrgica (retornó vacío)");
+                        throw new Error("Fallo en edición quirúrgica");
                     }
                 }
                 // (Nota: Outline, Visuals y otros se mapearán aquí según se expandan los servicios core)
