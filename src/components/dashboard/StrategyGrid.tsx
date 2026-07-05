@@ -12,6 +12,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { ProjectBadge } from '@/components/ui/ProjectBadge';
 import { useRouter } from 'next/navigation';
 import { useWriterStore } from '@/store/useWriterStore';
+import { useQueueStore } from '@/store/useQueueStore';
 import CompetitorModal from './CompetitorModal';
 import CascadingSlugModal from './CascadingSlugModal';
 
