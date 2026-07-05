@@ -133,6 +133,24 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                     newContent = cleanHtml;
                     currentTaskState.metadata = { ...(currentTaskState.metadata as object), is_cleaned: true };
                 }
+                else if (block.actionType === 'surgical_edit') {
+                    if (!newContent) throw new Error("No hay contenido para edición quirúrgica.");
+                    const res = await streamSurgicalEdit(
+                        newContent,
+                        { activeProject: project, task: currentTaskState },
+                        7, // intensity
+                        () => {}, // onChunk (we let it accumulate internally in the pipeline for now)
+                        (msg) => enhancedLog(task.id, 'Edición Quirúrgica', msg) // onStatus
+                    );
+                    if (res && res.html) {
+                        newContent = res.html;
+                    } else if (res) {
+                        // In case it returns string directly from a fallback
+                        newContent = typeof res === 'string' ? res : res.html || newContent;
+                    } else {
+                        throw new Error("Fallo en edición quirúrgica (retornó vacío)");
+                    }
+                }
                 // (Nota: Outline, Visuals y otros se mapearán aquí según se expandan los servicios core)
                 
                 // ==========================
