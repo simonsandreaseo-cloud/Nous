@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { supabase } from '@/lib/supabase';
 export type QueueActionType = 
   | 'surgical_edit'
   | 'humanize'
@@ -56,6 +57,37 @@ interface QueueStore {
     shiftQueue: () => QueueTask | undefined;
 }
 
+const syncTimers: Record<string, NodeJS.Timeout> = {};
+
+const syncTaskToSupabase = async (task: QueueTask) => {
+    if (syncTimers[task.id]) clearTimeout(syncTimers[task.id]);
+    syncTimers[task.id] = setTimeout(async () => {
+        try {
+            const { data: userData } = await supabase.auth.getUser();
+            if (!userData.user) return;
+
+            const payload = {
+                id: task.id,
+                user_id: userData.user.id,
+                project_id: task.projectId || null,
+                type: task.type,
+                title: task.title,
+                description: task.description || null,
+                status: task.status,
+                progress: task.progress || 0,
+                logs: task.logs,
+                payload: task.payload || null,
+                created_at: task.createdAt,
+                completed_at: (task.status === 'completed' || task.status === 'error') ? new Date().toISOString() : null
+            };
+
+            await supabase.from('queue_tasks').upsert(payload, { onConflict: 'id' });
+        } catch (e) {
+            console.error('Failed to sync task:', e);
+        }
+    }, 1500);
+};
+
 export const useQueueStore = create<QueueStore>()(
     persist(
         (set, get) => ({
@@ -81,6 +113,8 @@ export const useQueueStore = create<QueueStore>()(
                 set((state) => ({
                     queue: [...state.queue, newTask]
                 }));
+                
+                syncTaskToSupabase(newTask);
                 
                 return id;
             },
@@ -111,6 +145,12 @@ export const useQueueStore = create<QueueStore>()(
                 t.id === id ? { ...t, status, ...(progress !== undefined && { progress }) } : t
             );
 
+            if (newActiveTask && newActiveTask.id === id) syncTaskToSupabase(newActiveTask);
+            else {
+                const updatedTask = newQueue.find(t => t.id === id);
+                if (updatedTask) syncTaskToSupabase(updatedTask);
+            }
+
             return { activeTask: newActiveTask, queue: newQueue };
         });
     },
@@ -131,6 +171,12 @@ export const useQueueStore = create<QueueStore>()(
             const newQueue = state.queue.map(t => 
                 t.id === id ? { ...t, logs: [...t.logs, newLog] } : t
             );
+
+            if (newActiveTask && newActiveTask.id === id) syncTaskToSupabase(newActiveTask);
+            else {
+                const updatedTask = newQueue.find(t => t.id === id);
+                if (updatedTask) syncTaskToSupabase(updatedTask);
+            }
 
             return { activeTask: newActiveTask, queue: newQueue };
         });

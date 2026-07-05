@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Terminal, Cpu, Activity, ListTodo, Loader2, Play, CheckCircle2, AlertCircle, Clock, Trash2, LayoutGrid, Zap } from "lucide-react";
 import { useQueueStore, QueueTask } from "@/store/useQueueStore";
 import { cn } from "@/utils/cn";
+import { supabase } from "@/lib/supabase";
 
 function LogLine({ text, type = 'info', timestamp }: { text: string, type?: 'info' | 'success' | 'error' | 'warning', timestamp: Date }) {
     const colorMap = {
@@ -38,7 +39,40 @@ function LogLine({ text, type = 'info', timestamp }: { text: string, type?: 'inf
 
 export default function NousConsoleView() {
     const { queue, activeTask, isProcessingQueue, clearQueue, dequeueTask } = useQueueStore();
-    const displayLogs = activeTask?.logs || [];
+    
+    const [historicalTasks, setHistoricalTasks] = useState<any[]>([]);
+    const [selectedHistoricalTask, setSelectedHistoricalTask] = useState<any | null>(null);
+    const [sidebarTab, setSidebarTab] = useState<'queue' | 'history'>('queue');
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+    useEffect(() => {
+        if (sidebarTab === 'history') {
+            fetchHistoricalTasks();
+        }
+    }, [sidebarTab]);
+
+    const fetchHistoricalTasks = async () => {
+        setIsLoadingHistory(true);
+        try {
+            const { data, error } = await supabase
+                .from('queue_tasks')
+                .select('*')
+                .in('status', ['completed', 'error'])
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (!error && data) {
+                setHistoricalTasks(data);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
+    const currentDisplayTask = selectedHistoricalTask || activeTask;
+    const displayLogs = currentDisplayTask?.logs || [];
 
     const computedProgress = useMemo(() => {
         if (!activeTask) return 0;
@@ -62,8 +96,8 @@ export default function NousConsoleView() {
             return Math.round((currentChunk / totalChunks) * 100);
         }
         
-        return activeTask.progress || 0;
-    }, [activeTask]);
+        return currentDisplayTask.progress || 0;
+    }, [currentDisplayTask]);
 
     const getStatusIcon = (status: QueueTask['status']) => {
         switch (status) {
@@ -152,7 +186,7 @@ export default function NousConsoleView() {
                                     </div>
                                 </div>
 
-                                {activeTask.progress !== undefined && (
+                                {currentDisplayTask.progress !== undefined && (
                                     <div className="mt-6">
                                         <div className="flex justify-between items-end mb-2">
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -191,19 +225,29 @@ export default function NousConsoleView() {
                             Registro de Operaciones
                         </h3>
                         <div className="flex-1">
-                            {displayLogs.length === 0 && !activeTask && (
+                            {displayLogs.length === 0 && !currentDisplayTask && (
                                 <div className="text-slate-400 text-sm italic flex flex-col items-center justify-center h-full gap-2">
                                     <LayoutGrid size={24} className="text-slate-200" />
                                     <span>Esperando tareas...</span>
                                 </div>
                             )}
-                            {displayLogs.map(log => (
+                            {displayLogs.map((log: any) => (
                                 <LogLine key={log.id} text={log.text} type={log.type} timestamp={log.timestamp} />
                             ))}
-                            {isProcessingQueue && (
+                            {(isProcessingQueue && currentDisplayTask?.status === 'processing') && (
                                 <div className="flex items-center gap-3 mt-4 text-slate-400 text-sm font-medium">
                                     <Loader2 size={14} className="animate-spin text-indigo-400" />
                                     <span>Procesando...</span>
+                                </div>
+                            )}
+                            {selectedHistoricalTask && (
+                                <div className="mt-8 text-center">
+                                    <button 
+                                        onClick={() => setSelectedHistoricalTask(null)}
+                                        className="text-xs text-indigo-600 bg-indigo-50 hover:bg-indigo-100 font-bold px-4 py-2 rounded-lg transition-colors"
+                                    >
+                                        Volver a tarea activa
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -212,19 +256,36 @@ export default function NousConsoleView() {
 
                 {/* Sidebar Queue */}
                 <div className="w-[340px] border-l border-slate-200 bg-slate-50/50 flex flex-col shrink-0">
-                    <div className="p-6 border-b border-slate-200 bg-white">
-                        <h2 className="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] flex items-center gap-2">
-                            <ListTodo size={14} className="text-indigo-500" />
-                            Cola de Espera ({queue.length})
-                        </h2>
+                    <div className="p-4 border-b border-slate-200 bg-white">
+                        <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+                            <button
+                                onClick={() => setSidebarTab('queue')}
+                                className={cn(
+                                    "flex-1 text-xs font-bold py-2 rounded-lg transition-all",
+                                    sidebarTab === 'queue' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                )}
+                            >
+                                Cola ({queue.length})
+                            </button>
+                            <button
+                                onClick={() => setSidebarTab('history')}
+                                className={cn(
+                                    "flex-1 text-xs font-bold py-2 rounded-lg transition-all",
+                                    sidebarTab === 'history' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                )}
+                            >
+                                Historial
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
-                        <AnimatePresence>
-                            {queue.length === 0 ? (
+                        <AnimatePresence mode="popLayout">
+                            {sidebarTab === 'queue' && queue.length === 0 ? (
                                 <motion.div 
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
                                     className="text-center py-12"
                                 >
                                     <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-slate-100">
@@ -232,7 +293,7 @@ export default function NousConsoleView() {
                                     </div>
                                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">La cola está vacía</p>
                                 </motion.div>
-                            ) : (
+                            ) : sidebarTab === 'queue' ? (
                                 queue.map((task, index) => (
                                     <motion.div
                                         key={task.id}
@@ -240,9 +301,10 @@ export default function NousConsoleView() {
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
                                         transition={{ delay: index * 0.05 }}
-                                        className="bg-white border border-slate-200 shadow-sm p-4 rounded-xl group relative overflow-hidden transition-all hover:shadow-md hover:border-indigo-200"
+                                        onClick={() => setSelectedHistoricalTask(null)}
+                                        className="bg-white border border-slate-200 shadow-sm p-4 rounded-xl group relative overflow-hidden transition-all hover:shadow-md hover:border-indigo-200 cursor-pointer"
                                     >
-                                        {task.id === activeTask?.id && (
+                                        {(task.id === activeTask?.id && !selectedHistoricalTask) && (
                                             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
                                         )}
                                         <div className="flex items-start justify-between mb-3">
@@ -256,7 +318,7 @@ export default function NousConsoleView() {
                                                 </span>
                                             </div>
                                             <button 
-                                                onClick={() => dequeueTask(task.id)}
+                                                onClick={(e) => { e.stopPropagation(); dequeueTask(task.id); }}
                                                 className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                                                 title="Eliminar de la cola"
                                             >
@@ -267,7 +329,59 @@ export default function NousConsoleView() {
                                         <p className="text-[11px] font-medium text-slate-400">{new Date(task.createdAt).toLocaleTimeString()}</p>
                                     </motion.div>
                                 ))
-                            )}
+                            ) : null}
+
+                            {sidebarTab === 'history' && isLoadingHistory ? (
+                                <motion.div 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="flex justify-center items-center py-12"
+                                >
+                                    <Loader2 className="animate-spin text-indigo-400" />
+                                </motion.div>
+                            ) : sidebarTab === 'history' && historicalTasks.length === 0 ? (
+                                <motion.div 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="text-center py-12"
+                                >
+                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-slate-100">
+                                        <Clock size={24} className="text-slate-300" />
+                                    </div>
+                                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Sin historial</p>
+                                </motion.div>
+                            ) : sidebarTab === 'history' ? (
+                                historicalTasks.map((task, index) => (
+                                    <motion.div
+                                        key={task.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        onClick={() => setSelectedHistoricalTask(task)}
+                                        className={cn(
+                                            "bg-white border shadow-sm p-4 rounded-xl group relative overflow-hidden transition-all hover:shadow-md cursor-pointer",
+                                            selectedHistoricalTask?.id === task.id ? "border-indigo-400 ring-2 ring-indigo-50" : "border-slate-200 hover:border-slate-300"
+                                        )}
+                                    >
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                {getStatusIcon(task.status)}
+                                                <span className={cn(
+                                                    "text-[10px] font-black uppercase tracking-widest",
+                                                    task.status === 'completed' ? "text-emerald-600" : "text-rose-600"
+                                                )}>
+                                                    {task.type}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <h4 className="text-sm font-bold text-slate-800 leading-snug mb-1">{task.title}</h4>
+                                        <p className="text-[11px] font-medium text-slate-400">{new Date(task.created_at).toLocaleString()}</p>
+                                    </motion.div>
+                                ))
+                            ) : null}
                         </AnimatePresence>
                     </div>
                 </div>
