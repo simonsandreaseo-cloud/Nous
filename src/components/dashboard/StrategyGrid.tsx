@@ -3,7 +3,7 @@
 import { useProjectStore, Task, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { MoreVertical, CheckCircle2, Clock, Calendar, Hash, Tag, Activity, Edit3, Trash2, Plus, Sparkles, X, Globe, FileText, User, UserPlus, ArrowRight, Check, Search, Layout, Zap, BrainCircuit, Loader2, ChevronDown, RefreshCw, Image as ImageIcon, Languages, RotateCcw, Wand2, Lock } from 'lucide-react';
+import { MoreVertical, CheckCircle2, Clock, Calendar, Hash, Tag, Activity, Edit3, Trash2, Plus, Sparkles, X, Globe, FileText, User, UserPlus, ArrowRight, Check, Search, Layout, Zap, BrainCircuit, Loader2, ChevronDown, RefreshCw, Image as ImageIcon, Languages, RotateCcw, Wand2, Lock, Play, Pause } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -57,7 +57,7 @@ export default function StrategyGrid({
     batchProgress = {},
     tasks: externalTasks
 }: StrategyGridProps) {
-    const { queue, activeTask } = useQueueStore();
+    const { queue, activeTask, isPaused, togglePause, clearQueue } = useQueueStore();
     const { tasks: storeTasks, activeProject, activeTeam, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
     const [deletePopupId, setDeletePopupId] = useState<string | null>(null);
@@ -533,45 +533,66 @@ export default function StrategyGrid({
 
                                                 if (isProcessing) {
                                                     return (
-                                                        <div className="flex items-center gap-2.5 py-1.5 px-2 bg-indigo-50/80 border border-indigo-200 rounded-lg shadow-inner w-full min-w-[130px] max-w-[150px] shrink-0 overflow-hidden">
-                                                    <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
-                                                        <svg className="w-full h-full -rotate-90">
-                                                            <circle
-                                                                cx="14"
-                                                                cy="14"
-                                                                r="11"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                strokeWidth="2.5"
-                                                                className="text-indigo-100"
-                                                            />
-                                                            <motion.circle
-                                                                cx="14"
-                                                                cy="14"
-                                                                r="11"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                strokeWidth="2.5"
-                                                                strokeDasharray="69.1"
-                                                                initial={{ strokeDashoffset: 69.1 }}
-                                                                animate={{ strokeDashoffset: 69.1 - (69.1 * displayProgress / 100) }}
-                                                                transition={{ duration: 0.5, ease: "easeOut" }}
-                                                                className="text-indigo-600"
-                                                                strokeLinecap="round"
-                                                            />
-                                                        </svg>
-                                                        <span className="absolute text-[8px] font-black tabular-nums text-indigo-900">{Math.round(displayProgress)}%</span>
-                                                    </div>
-                                                    <div className="flex flex-col min-w-0">
-                                                        <span className="text-[10px] font-black uppercase text-indigo-700 tracking-tighter leading-none truncate">
-                                                            {statusText}
-                                                        </span>
-                                                        <span className="text-[7.5px] font-bold text-indigo-500/80 uppercase tracking-widest leading-tight mt-0.5 truncate">
-                                                            {subText}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            );
+                                                        <div className="group relative flex items-center gap-2.5 py-1.5 px-2 bg-indigo-50/80 border border-indigo-200 rounded-lg shadow-inner w-full min-w-[130px] max-w-[150px] shrink-0 overflow-hidden cursor-pointer">
+                                                            <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
+                                                                <svg className="w-full h-full -rotate-90">
+                                                                    <circle
+                                                                        cx="14"
+                                                                        cy="14"
+                                                                        r="11"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth="2.5"
+                                                                        className="text-indigo-100"
+                                                                    />
+                                                                    <motion.circle
+                                                                        cx="14"
+                                                                        cy="14"
+                                                                        r="11"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth="2.5"
+                                                                        strokeDasharray="69.1"
+                                                                        initial={{ strokeDashoffset: 69.1 }}
+                                                                        animate={{ strokeDashoffset: 69.1 - (69.1 * displayProgress / 100) }}
+                                                                        transition={{ duration: 0.5, ease: "easeOut" }}
+                                                                        className="text-indigo-600"
+                                                                        strokeLinecap="round"
+                                                                    />
+                                                                </svg>
+                                                                <span className="absolute text-[8px] font-black tabular-nums text-indigo-900">{Math.round(displayProgress)}%</span>
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-[10px] font-black uppercase text-indigo-700 tracking-tighter leading-none truncate">
+                                                                    {statusText}
+                                                                </span>
+                                                                <span className="text-[7.5px] font-bold text-indigo-500/80 uppercase tracking-widest leading-tight mt-0.5 truncate">
+                                                                    {subText}
+                                                                </span>
+                                                            </div>
+                                                            
+                                                            {/* Hover Overlay para Pausa/Cancelar */}
+                                                            <div className="absolute inset-0 bg-slate-900/90 hidden group-hover:flex items-center justify-center gap-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 backdrop-blur-sm">
+                                                                {isPaused ? (
+                                                                    <>
+                                                                        <button onClick={(e) => { e.stopPropagation(); togglePause(); }} className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 rounded py-1 px-2 transition-colors border border-emerald-500/30" title="Reanudar">
+                                                                            <Play size={10} className="fill-current" />
+                                                                            <span className="text-[9px] font-bold uppercase tracking-widest">Reanudar</span>
+                                                                        </button>
+                                                                        <button onClick={(e) => { e.stopPropagation(); clearQueue(); }} className="flex items-center gap-1 text-rose-400 hover:text-rose-300 bg-rose-500/20 hover:bg-rose-500/30 rounded py-1 px-2 transition-colors border border-rose-500/30" title="Cancelar">
+                                                                            <X size={10} />
+                                                                            <span className="text-[9px] font-bold uppercase tracking-widest">Cancelar</span>
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <button onClick={(e) => { e.stopPropagation(); togglePause(); }} className="flex items-center gap-1 text-amber-400 hover:text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 rounded py-1 px-3 transition-colors border border-amber-500/30 w-[90%] justify-center" title="Pausar">
+                                                                        <Pause size={10} className="fill-current" />
+                                                                        <span className="text-[9px] font-bold uppercase tracking-widest">Pausar</span>
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
                                         } else if (isQueued) {
                                             const typeMap: Record<string, string> = {
                                                 'seo': 'Investigación',
