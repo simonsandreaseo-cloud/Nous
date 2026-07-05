@@ -45,6 +45,10 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
     }
     
     const queueStore = useQueueStore.getState();
+    // Limpiar estado previo persistido en localStorage antes de arrancar
+    queueStore.setActiveTask(null);
+    queueStore.clearQueue();
+    queueStore.setIsPaused(false);
     queueStore.setIsProcessingQueue(true);
 
     let totalOperations = 0;
@@ -59,6 +63,7 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
         }
     }
     queueStore.setBatchInfo(totalOperations);
+
 
     // =============================================
     // ROUTING: pick loop strategy before execution

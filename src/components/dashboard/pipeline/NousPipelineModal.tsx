@@ -238,7 +238,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                     </p>
                                 </div>
                                 
-                                <div className="flex-1 flex flex-col md:flex-row gap-6 max-w-5xl mx-auto w-full">
+                                <div className="flex-1 flex flex-col gap-6 max-w-3xl mx-auto w-full">
                                     <div className="flex-[2] flex flex-col justify-center">
                                     {activeTask ? (
                                         <div className="w-full bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-8 transform transition-all">
@@ -340,10 +340,9 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                     )}
                                     </div>
 
-                                    
-                                    {/* Panel Lateral de Métricas */}
-                                    <div className="flex-1 flex flex-col justify-start">
-                                        <div className="w-full bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl p-6 relative overflow-hidden h-full">
+                                    {/* Panel Lateral de Métricas — inline bajo el card principal */}
+                                    <div className="flex flex-col gap-3">
+                                        <div className="w-full bg-slate-900 rounded-2xl border border-slate-800 shadow-xl p-5 relative overflow-hidden">
                                             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[50px] rounded-full pointer-events-none" />
                                             
                                             <div className="flex items-center gap-3 mb-6 relative z-10">
