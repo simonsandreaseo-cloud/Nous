@@ -1520,10 +1520,10 @@ export function EditorialCalendar() {
                         return;
                     }
                     
-                    setIsPipelineModalOpen(false);
+                    // setIsPipelineModalOpen(false); // Mantener el modal abierto!
                     setResearching(true);
                     setResearchProgress(0);
-                    if (!isConsoleOpen) setIsConsoleOpen(true);
+                    // if (!isConsoleOpen) setIsConsoleOpen(true); // Ya no abrimos la consola legacy
 
                     // Determinar el target base
                     const targetTasks = mode === 'manual' 

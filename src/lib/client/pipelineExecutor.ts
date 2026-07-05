@@ -97,6 +97,30 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
             const enhancedLog = (tid: string, stage: string, msg: string) => {
                 onLog(tid, stage, msg);
                 queueStore.addLogToTask(queueTaskId, `[${stage}] ${msg}`, 'info');
+
+                // --- Auto-extract metrics from specific logs for execution UI ---
+                if (block.actionType === 'seo' || block.actionType === 'research' || block.actionType === 'outline') {
+                    if (msg.includes('URLs para scraping profundo')) {
+                        const count = parseInt(msg.match(/(\d+)/)?.[0] || '0');
+                        queueStore.setTaskMetrics(queueTaskId, { 'Competidores Scrapeados': count });
+                    }
+                    if (msg.includes('golden keywords de alto valor obtenidas')) {
+                        const count = parseInt(msg.match(/(\d+)/)?.[0] || '0');
+                        queueStore.setTaskMetrics(queueTaskId, { 'Golden Keywords': count });
+                    }
+                    if (msg.includes('LSI únicas')) {
+                        const count = parseInt(msg.match(/(\d+)/)?.[0] || '0');
+                        queueStore.setTaskMetrics(queueTaskId, { 'Keywords LSI Extraídas': count });
+                    }
+                    if (msg.includes('Filtrando') && msg.includes('candidatas crudas')) {
+                        const count = parseInt(msg.match(/(\d+)/)?.[0] || '0');
+                        queueStore.setTaskMetrics(queueTaskId, { 'Resultados Analizados': count });
+                    }
+                    if (msg.includes('Se infirieron') || msg.includes('códigos posibles')) {
+                        const count = parseInt(msg.match(/(\d+)/)?.[0] || '0');
+                        queueStore.setTaskMetrics(queueTaskId, { 'Productos Encontrados': count });
+                    }
+                }
             };
 
             const enhancedProgress = (tid: string, progress: number) => {

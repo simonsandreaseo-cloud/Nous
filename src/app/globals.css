@@ -144,11 +144,21 @@ body {
   top: 0;
   bottom: 0;
   left: 0;
-  background: linear-gradient(to right, transparent, rgba(99, 102, 241, 0.05), transparent);
-  animation: shimmer-from-right 2s linear infinite;
+  right: 0;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.05), transparent);
+  background-size: 200% 100%;
+  animation: shimmer-bg 2s linear infinite;
   pointer-events: none;
   z-index: 0;
-  width: 100%;
+}
+
+@keyframes shimmer-bg {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes progress-bar-stripes {

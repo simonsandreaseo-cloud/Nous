@@ -142,7 +142,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="bg-white rounded-[32px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative"
+                    className="bg-white rounded-[32px] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col relative"
                 >
                     {/* Header */}
                     <div className="px-8 py-6 bg-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -226,10 +226,13 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                             <div className="relative z-10 flex flex-col h-full">
                                 <div className="text-center mb-10">
                                     <h3 className="text-2xl font-black text-slate-800 mb-2">Ejecución en Progreso</h3>
-                                    <p className="text-slate-500 font-medium">Nous AI está procesando tu pipeline paso a paso</p>
+                                    <p className="text-slate-500 font-medium">
+                                        Nous AI está procesando tu pipeline (Paso {batchCompletedTasks + 1} de {batchTotalTasks || 1})
+                                    </p>
                                 </div>
                                 
-                                <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+                                <div className="flex-1 flex flex-col md:flex-row gap-6 max-w-5xl mx-auto w-full">
+                                    <div className="flex-[2] flex flex-col justify-center">
                                     {activeTask ? (
                                         <div className="w-full bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-8 transform transition-all">
                                             <div className="flex items-center gap-4 mb-6">
@@ -241,7 +244,10 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase tracking-widest">
                                                             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                                                            Procesando
+                                                            {activeTask.type === 'seo' || activeTask.type === 'research' ? 'Investigando...' : 
+                                                             activeTask.type === 'generate' ? 'Generando...' : 
+                                                             activeTask.type === 'humanize' ? 'Humanizando...' : 
+                                                             activeTask.type === 'surgical_edit' ? 'Editando...' : 'Procesando...'}
                                                         </div>
                                                         <span className="text-xs font-semibold text-slate-400">
                                                             {queue.length} tareas pendientes
@@ -325,6 +331,39 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                             )}
                                         </div>
                                     )}
+
+                                    
+                                    {/* Panel Lateral de Métricas */}
+                                    <div className="flex-1 flex flex-col justify-start">
+                                        <div className="w-full bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl p-6 relative overflow-hidden h-full">
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[50px] rounded-full pointer-events-none" />
+                                            
+                                            <div className="flex items-center gap-3 mb-6 relative z-10">
+                                                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                                                    <Activity className="text-indigo-400" size={16} />
+                                                </div>
+                                                <h4 className="text-white font-bold tracking-wide">Métricas en Vivo</h4>
+                                            </div>
+
+                                            <div className="space-y-3 relative z-10">
+                                                {activeTask?.metrics && Object.keys(activeTask.metrics).length > 0 ? (
+                                                    Object.entries(activeTask.metrics).map(([key, value]) => (
+                                                        <div key={key} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex items-center justify-between group hover:bg-slate-800 transition-colors">
+                                                            <span className="text-sm font-medium text-slate-300">{key}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-lg font-black text-white">{value}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                                                        <div className="w-10 h-10 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin mb-4" />
+                                                        <p className="text-sm font-medium text-center">Esperando datos<br/>del orquestador...</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="mt-auto pt-8 flex justify-center">

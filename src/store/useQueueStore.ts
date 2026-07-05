@@ -32,6 +32,7 @@ export interface QueueTask {
     taskId?: string; // Si pertenece a un documento o borrador específico
     payload?: Record<string, any>; // Serializable data needed to resume the task
     logs: QueueTaskLog[];
+    metrics?: Record<string, number>;
 }
 
 interface QueueStore {
@@ -57,6 +58,7 @@ interface QueueStore {
     setActiveTask: (task: QueueTask | null) => void;
     setTaskStatus: (id: string, status: QueueTask['status'], progress?: number) => void;
     addLogToTask: (id: string, text: string, type?: QueueTaskLog['type']) => void;
+    setTaskMetrics: (id: string, metrics: Partial<Record<string, number>>) => void;
     setIsProcessingQueue: (isProcessing: boolean) => void;
     shiftQueue: () => QueueTask | undefined;
     

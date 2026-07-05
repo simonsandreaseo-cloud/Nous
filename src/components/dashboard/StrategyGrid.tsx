@@ -19,7 +19,7 @@ import CascadingSlugModal from './CascadingSlugModal';
 export const ALL_COLUMNS = [
     { id: 'project', label: 'Proy.', width: 'min-w-[50px] w-[5%]', defaultVisible: true },
     { id: 'content_type', label: 'Tipo', width: 'min-w-[80px] w-[6%]', defaultVisible: true },
-    { id: 'status', label: 'Estado', width: 'min-w-[100px] w-[8%]', defaultVisible: true },
+    { id: 'status', label: 'Estado', width: 'min-w-[150px] w-[12%]', defaultVisible: true },
     { id: 'date', label: 'Publicación', width: 'min-w-[100px] w-[10%]', defaultVisible: true },
     { id: 'title', label: 'Título', width: 'min-w-[200px] w-[25%]', defaultVisible: true },
     { id: 'seo_title', label: 'SEO Title', width: 'min-w-[150px] w-[15%]', defaultVisible: false },
@@ -391,7 +391,7 @@ export default function StrategyGrid({
                                     className={cn(
                                         "group hover:bg-slate-50/30 even:bg-slate-50/10 transition-all cursor-pointer select-none border-b border-slate-50 last:border-none relative",
                                         selectedTaskIds.includes(task.id) && "bg-indigo-50/40 hover:bg-indigo-50/60",
-                                        isProcessing && "bg-indigo-100/30 tr-shimmer shadow-[inset_0_0_15px_rgba(99,102,241,0.15)] border-y-2 border-indigo-200/50 [&_*]:overflow-visible",
+                                        isProcessing && "bg-indigo-100/30 tr-shimmer shadow-[inset_0_0_15px_rgba(99,102,241,0.15)] border-y-2 border-indigo-200/50",
                                         isQueued && "bg-slate-50/60 border-dashed border-y border-slate-200/50",
                                         hasError && "bg-red-50/20 hover:bg-red-50/30 border-red-200"
                                     )}
@@ -494,7 +494,18 @@ export default function StrategyGrid({
                                                 let displayProgress = isProcessingQueue ? (activeTask.progress || 0) : (isProcessingLegacy ? batchProgress[task.id] : 0);
                                                 
                                                 let statusText = "Procesando";
-                                                if (isProcessing && queuedTask) {
+                                                if (isProcessingQueue && activeTask) {
+                                                    const typeMap: Record<string, string> = {
+                                                        'seo': 'Investigando',
+                                                        'research': 'Investigando',
+                                                        'outline': 'Planificando',
+                                                        'generate': 'Redactando',
+                                                        'humanize': 'Humanizando',
+                                                        'surgical_edit': 'Editando',
+                                                        'clean': 'Limpiando'
+                                                    };
+                                                    statusText = typeMap[activeTask.type] || activeTask.type;
+                                                } else if (isProcessing && queuedTask) {
                                                     const typeMap: Record<string, string> = {
                                                         'seo': 'Investigando',
                                                         'research': 'Investigando',
@@ -522,7 +533,7 @@ export default function StrategyGrid({
 
                                                 if (isProcessing) {
                                                     return (
-                                                        <div className="flex items-center gap-2.5 py-1.5 px-2 bg-indigo-50/80 border border-indigo-200 rounded-lg shadow-inner w-[120px] shrink-0 overflow-hidden">
+                                                        <div className="flex items-center gap-2.5 py-1.5 px-2 bg-indigo-50/80 border border-indigo-200 rounded-lg shadow-inner w-full min-w-[130px] max-w-[150px] shrink-0 overflow-hidden">
                                                     <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
                                                         <svg className="w-full h-full -rotate-90">
                                                             <circle
