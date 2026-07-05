@@ -331,6 +331,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                             )}
                                         </div>
                                     )}
+                                    </div>
 
                                     
                                     {/* Panel Lateral de Métricas */}
