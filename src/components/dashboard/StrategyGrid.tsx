@@ -493,10 +493,6 @@ export default function StrategyGrid({
                                                 
                                                 let displayProgress = isProcessingQueue ? (activeTask.progress || 0) : (isProcessingLegacy ? batchProgress[task.id] : 0);
                                                 
-                                                // Texto a mostrar
-                                                let statusText = "Nous en proceso";
-                                                if (isProcessingQueue) {
-                                                    const rawText = activeTask.title.split(':')[0] || "Procesando";
                                                 let statusText = "Procesando";
                                                 if (isProcessing && queuedTask) {
                                                     const typeMap: Record<string, string> = {
