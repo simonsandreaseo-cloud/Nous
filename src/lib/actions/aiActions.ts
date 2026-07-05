@@ -568,7 +568,7 @@ export const runHumanizerPipeline = async (
     const protectedTables: Record<string, string> = {};
     $pre('table').each((i, el) => {
         const id = `tbl_${i}`;
-        protectedTables[id] = cheerio.html($pre(el));
+        protectedTables[id] = $pre.html(el);
         $pre(el).replaceWith(`<div data-sys-tbl="${id}">[TABLA PROTEGIDA: ${id}]</div>`);
     });
 
