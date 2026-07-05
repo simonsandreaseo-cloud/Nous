@@ -133,7 +133,7 @@ export const sanitizeLLMHtml = (rawHtml: string): string => {
     if (!rawHtml) return '';
     
     // 0. Eliminar bloques <thinking> si existen en el raw HTML
-    let preCleaned = rawHtml.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+    const preCleaned = rawHtml.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
 
     // 1. Cargar HTML (Cheerio arregla etiquetas mal cerradas)
     // El 'false' evita que se agreguen tags html, head y body automáticos.
