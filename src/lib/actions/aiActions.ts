@@ -731,11 +731,6 @@ export const runSurgicalEditorPipeline = async (
         else console.log(`[SurgicalEditor-Status] ${msg}`);
     };
 
-    if (modelName !== 'gemini-3.5-flash') {
-        safeStatus(`⚠️ Modelo ${modelName} no permitido para edición quirúrgica. Forzando gemini-3.5-flash.`);
-        modelName = 'gemini-3.5-flash';
-    }
-
     const SURGICAL_TIMEOUT = 180000;
     safeStatus(`Iniciando edición quirúrgica estructural con Cheerio y modelo ${modelName}...`);
     const start = Date.now();
@@ -801,7 +796,7 @@ Tienes ESTRICTAMENTE PROHIBIDO hacer borradores, análisis, explicaciones o "Cha
         const model = aiClient.getGenerativeModel({ 
             model: mName, 
             systemInstruction: systemInstructionStr,
-            responseMimeType: 'application/json'
+            ...(mName.startsWith('gemini') ? { responseMimeType: 'application/json' } : {})
         });
         
         const languageInstruction = config.language ? `\\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';

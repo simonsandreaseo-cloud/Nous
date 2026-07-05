@@ -213,12 +213,13 @@ export async function streamSurgicalEdit(
     config: any,
     intensity: number,
     onChunk: (html: string) => void,
-    onStatus: (msg: string) => void
+    onStatus: (msg: string) => void,
+    model?: string
 ): Promise<{ html: string; result?: any }> {
     const response = await fetch('/api/surgical-edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, config, intensity })
+        body: JSON.stringify({ content, config, intensity, model })
     });
 
     const contentType = response.headers.get('content-type');
