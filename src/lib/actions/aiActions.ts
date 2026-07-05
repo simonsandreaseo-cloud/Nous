@@ -553,14 +553,25 @@ export const runHumanizerPipeline = async (
     safeStatus(`Iniciando humanización estructural con Cheerio y modelo ${modelName}...`);
     const start = Date.now();
     
-    // --- PROTECCIÓN DETERMINISTA DE ENCABEZADOS ---
+    // --- PROTECCIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
     const $pre = cheerio.load(html, { decodeEntities: false }, false);
+    
+    // 1. Proteger Encabezados
     const protectedHeaders: Record<string, string> = {};
     $pre('h1, h2, h3, h4, h5, h6').each((i, el) => {
         const id = `hdr_${i}`;
         $pre(el).attr('data-sys-hdr', id);
         protectedHeaders[id] = $pre(el).html() || '';
     });
+    
+    // 2. Proteger Tablas (Extracción total)
+    const protectedTables: Record<string, string> = {};
+    $pre('table').each((i, el) => {
+        const id = `tbl_${i}`;
+        protectedTables[id] = cheerio.html($pre(el));
+        $pre(el).replaceWith(`<div data-sys-tbl="${id}">[TABLA PROTEGIDA: ${id}]</div>`);
+    });
+
     const protectedHtml = $pre.html();
     // ----------------------------------------------
     
@@ -622,8 +633,10 @@ export const runHumanizerPipeline = async (
         }
         // --------------------------------------------------
         
-        // --- RESTAURACIÓN DETERMINISTA DE ENCABEZADOS ---
+        // --- RESTAURACIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
         const $post = cheerio.load(finalHtml, { decodeEntities: false }, false);
+        
+        // 1. Restaurar Encabezados
         $post('[data-sys-hdr]').each((_, el) => {
             const id = $post(el).attr('data-sys-hdr');
             if (id && protectedHeaders[id] !== undefined) {
@@ -631,6 +644,15 @@ export const runHumanizerPipeline = async (
             }
             $post(el).removeAttr('data-sys-hdr');
         });
+        
+        // 2. Restaurar Tablas
+        $post('[data-sys-tbl]').each((_, el) => {
+            const id = $post(el).attr('data-sys-tbl');
+            if (id && protectedTables[id] !== undefined) {
+                $post(el).replaceWith(protectedTables[id]);
+            }
+        });
+
         finalHtml = $post.html();
         // ------------------------------------------------
         
@@ -670,6 +692,11 @@ REGLAS DE LIMPIEZA ESTRICTAS:
 FORMATO DE SALIDA:
 Devuelve ÚNICAMENTE el código HTML final y limpio. SIN bloques markdown (\`\`\`html), SIN saludos, SIN explicaciones.`;
 
+    if (!html || html.trim() === '') {
+        safeStatus(`No hay HTML para sanitizar, devolviendo original.`);
+        return html;
+    }
+
     const modelName = AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite-preview';
 
     return executeWithKeyRotation(async (ai) => {
@@ -704,9 +731,10 @@ export const runSurgicalEditorPipeline = async (
         else console.log(`[SurgicalEditor-Status] ${msg}`);
     };
 
-    if (modelName !== 'gemma-4-31b-it') {
-        safeStatus(`⚠️ Modelo ${modelName} no permitido para edición quirúrgica. Forzando gemma-4-31b-it.`);
-        modelName = 'gemma-4-31b-it';
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview'];
+    if (!allowedModels.includes(modelName)) {
+        safeStatus(`⚠️ Modelo ${modelName} no permitido para edición quirúrgica. Forzando gemini-3.5-flash.`);
+        modelName = 'gemini-3.5-flash';
     }
 
     const SURGICAL_TIMEOUT = 180000;
