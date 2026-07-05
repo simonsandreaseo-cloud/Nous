@@ -76,7 +76,7 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                 while (useQueueStore.getState().isPaused) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
-                await executeTaskInBlock({ task, block, blockIndex: i, totalBlocks: blocks.length, project, queueStore, memoryState, onLog, onProgress, enhancedLogFactory, enhancedProgressFactory });
+                await executeTaskInBlock({ task, block, project, queueStore, memoryState, onLog, onProgress });
             }
         }
     } else {
@@ -106,7 +106,7 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                 while (useQueueStore.getState().isPaused) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
-                await executeTaskInBlock({ task, block, blockIndex: i, totalBlocks: blocks.length, project, queueStore, memoryState, onLog, onProgress, enhancedLogFactory, enhancedProgressFactory });
+                await executeTaskInBlock({ task, block, project, queueStore, memoryState, onLog, onProgress });
             }
         }
     }
