@@ -19,7 +19,8 @@ export function useQueueProcessor() {
             // If already processing or queue is empty, do nothing
             if (isProcessingQueue || queue.length === 0) return;
 
-            const nextTask = shiftQueue();
+            // Encontrar la próxima tarea PENDIENTE real (ignorar las que ya se completaron/fallaron por pipelineExecutor)
+            const nextTask = queue.find(t => t.status === 'pending');
             if (!nextTask) return;
 
             setIsProcessingQueue(true);
