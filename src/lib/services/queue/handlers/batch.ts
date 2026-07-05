@@ -24,8 +24,9 @@ export const handleBatchResearch = async (taskId: string, payload: QueuePayload)
             onLog: (s, m, r) => addLogToTask(taskId, m, r === 'success' ? 'success' : (r === 'error' ? 'error' : 'info')),
             taskId: targetTaskId,
             linkPlannedContents,
-            linkPlannedStatuses 
-        }, { taskId: targetTaskId });
+            linkPlannedStatuses,
+            forceRestart: payload.forceRestart 
+        });
 
         if (result) {
             await supabase.from('tasks').update({ 

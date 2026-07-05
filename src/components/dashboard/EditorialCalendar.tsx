@@ -945,7 +945,7 @@ export function EditorialCalendar() {
                 setBatchInfo(candidates.length);
                 for (const t of candidates) {
                     enqueueTask('batch_research', `Investigando: ${t.title}`, 
-                        { targetTaskId: t.id, keyword: t.target_keyword || t.title, projectId: activeProject.id, linkPlannedContents, linkPlannedStatuses, improveTitleWithNous, currentTitle: t.title },
+                        { targetTaskId: t.id, keyword: t.target_keyword || t.title, projectId: activeProject.id, linkPlannedContents, linkPlannedStatuses, improveTitleWithNous, currentTitle: t.title, forceRestart: true },
                         { taskId: t.id }
                     );
                 }
