@@ -197,7 +197,7 @@ export function useWriterActions() {
             for (let i = 0; i < rawChunks.length; i++) {
                 let success = false;
                 let attempts = 0;
-                const MAX_ATTEMPTS = 3;
+                const MAX_ATTEMPTS = 4;
 
                 // Marcar el chunk actual como "processing"
                 currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
@@ -231,7 +231,10 @@ export function useWriterActions() {
                         addLogToTask(queueTaskId, `Error en chunk ${i + 1}: ${err.message}`, 'error');
                         
                         if (attempts >= MAX_ATTEMPTS) {
-                            throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                            addLogToTask(queueTaskId, `Fallo definitivo en chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá original.`, 'error');
+                            currentDocumentChunks[i] = rawChunks[i];
+                            store.setContent(currentDocumentChunks.join('\n'));
+                            break;
                         }
                         
                         store.setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
@@ -387,7 +390,7 @@ export function useWriterActions() {
             for (let i = 0; i < rawChunks.length; i++) {
                 let success = false;
                 let attempts = 0;
-                const MAX_ATTEMPTS = 3;
+                const MAX_ATTEMPTS = 4;
 
                 // Marcar el chunk actual como "processing"
                 currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
@@ -421,7 +424,10 @@ export function useWriterActions() {
                         addLogToTask(queueTaskId, `Error en chunk ${i + 1}: ${err.message}`, 'error');
                         
                         if (attempts >= MAX_ATTEMPTS) {
-                            throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                            addLogToTask(queueTaskId, `Fallo definitivo en chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá original.`, 'error');
+                            currentDocumentChunks[i] = rawChunks[i];
+                            store.setContent(currentDocumentChunks.join('\n'));
+                            break;
                         }
                         
                         store.setSurgicalEditStatus(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
@@ -590,7 +596,7 @@ export function useWriterActions() {
             for (let i = 0; i < rawChunks.length; i++) {
                 let success = false;
                 let attempts = 0;
-                const MAX_ATTEMPTS = 3;
+                const MAX_ATTEMPTS = 4;
 
                 // Marcar el chunk actual como "processing"
                 currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
@@ -614,7 +620,10 @@ export function useWriterActions() {
                         console.error(`[Clean Chunk ${i+1}] Fallo intento ${attempts}:`, err);
                         
                         if (attempts >= MAX_ATTEMPTS) {
-                            throw new Error(`Fallo definitivo en la limpieza del chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                            console.error(`Fallo definitivo en la limpieza del chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá original.`);
+                            currentDocumentChunks[i] = rawChunks[i];
+                            store.setContent(currentDocumentChunks.join('\n'));
+                            break;
                         }
                         
                         store.setStatus(`Error en Limpieza Chunk ${i + 1}. Reintentando en 10s... (${attempts}/${MAX_ATTEMPTS})`);
