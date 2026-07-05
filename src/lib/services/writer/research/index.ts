@@ -511,7 +511,7 @@ REGLAS:
                     systemPrompt: "Eres un experto en catálogos de e-commerce. Tu única función es deducir modelos y códigos de fabricante exactos.",
                     jsonMode: false,
                     label: "Product Hunter AI",
-                    timeoutMs: 60000
+                    timeoutMs: 70000
                 });
                 
                 const rawCodes = productRes.text.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 2);

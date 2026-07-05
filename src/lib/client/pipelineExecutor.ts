@@ -80,6 +80,11 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
         
         // 2. Ejecutar Bloque para los Targets
         for (const task of tasksForThisBlock) {
+            // Check for pause state before starting the next task
+            while (useQueueStore.getState().isPaused) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
             // Encolamos en el store global para que la consola lo muestre en tiempo real
             const queueTaskId = queueStore.enqueueTask(
                 block.actionType,
@@ -268,5 +273,6 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
     
     queueStore.setIsProcessingQueue(false);
     queueStore.setActiveTask(null);
+    queueStore.setIsPaused(false);
     NotificationService.success("Pipeline Completado", "El motor de ejecución ha finalizado todas las tareas.");
 };

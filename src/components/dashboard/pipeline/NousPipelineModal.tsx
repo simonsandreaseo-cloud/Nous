@@ -46,7 +46,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     
     // Execution Monitor State
     const [isExecuting, setIsExecuting] = useState(false);
-    const { queue, activeTask, enqueueTask, isProcessingQueue, batchTotalTasks, batchCompletedTasks } = useQueueStore();
+    const { queue, activeTask, enqueueTask, isProcessingQueue, batchTotalTasks, batchCompletedTasks, isPaused, togglePause } = useQueueStore();
 
     const activeWorkflow = workflows[activeWorkflowId];
 
@@ -227,7 +227,14 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                 <div className="text-center mb-10">
                                     <h3 className="text-2xl font-black text-slate-800 mb-2">Ejecución en Progreso</h3>
                                     <p className="text-slate-500 font-medium">
-                                        Nous AI está procesando tu pipeline (Paso {batchCompletedTasks + 1} de {batchTotalTasks || 1})
+                                        {isPaused ? (
+                                            <span className="text-amber-500 font-bold flex items-center justify-center gap-2">
+                                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                                Ejecución en Pausa - Esperando reanudación
+                                            </span>
+                                        ) : (
+                                            `Nous AI está procesando tu pipeline (Paso ${batchCompletedTasks + 1} de ${batchTotalTasks || 1})`
+                                        )}
                                     </p>
                                 </div>
                                 
@@ -367,7 +374,17 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                     </div>
                                 </div>
 
-                                <div className="mt-auto pt-8 flex justify-center">
+                                <div className="mt-auto pt-8 flex justify-center gap-4">
+                                    <button 
+                                        onClick={togglePause}
+                                        className={`px-8 py-3 rounded-2xl text-sm font-bold shadow-sm transition-all transform hover:-translate-y-0.5 ${
+                                            isPaused 
+                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/30' 
+                                                : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                        }`}
+                                    >
+                                        {isPaused ? 'Reanudar Ejecución' : 'Pausar Ejecución'}
+                                    </button>
                                     <button 
                                         onClick={handleClose}
                                         className="px-8 py-3 rounded-2xl text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 hover:text-slate-700 transition-colors"

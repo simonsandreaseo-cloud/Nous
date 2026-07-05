@@ -43,6 +43,7 @@ interface QueueStore {
     // Global Batch Tracking
     batchTotalTasks: number;
     batchCompletedTasks: number;
+    isPaused: boolean;
     
     // Actions
     enqueueTask: (
@@ -66,6 +67,10 @@ interface QueueStore {
     setBatchInfo: (total: number) => void;
     incrementBatchCompleted: () => void;
     resetBatch: () => void;
+    
+    // Pause Control
+    togglePause: () => void;
+    setIsPaused: (isPaused: boolean) => void;
 }
 
 const syncTimers: Record<string, NodeJS.Timeout> = {};
@@ -107,6 +112,7 @@ export const useQueueStore = create<QueueStore>()(
             isProcessingQueue: false,
             batchTotalTasks: 0,
             batchCompletedTasks: 0,
+            isPaused: false,
 
             enqueueTask: (type, title, payload, options) => {
                 const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
@@ -225,6 +231,14 @@ export const useQueueStore = create<QueueStore>()(
     
     resetBatch: () => {
         set({ batchTotalTasks: 0, batchCompletedTasks: 0 });
+    },
+    
+    togglePause: () => {
+        set((state) => ({ isPaused: !state.isPaused }));
+    },
+    
+    setIsPaused: (isPaused) => {
+        set({ isPaused });
     }
         }),
         {

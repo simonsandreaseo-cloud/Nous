@@ -237,9 +237,9 @@ export function useWriterActions() {
                             break;
                         }
                         
-                        store.setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
-                        addLogToTask(queueTaskId, `Esperando 60s antes de reintentar chunk ${i + 1}...`, 'warning');
-                        await new Promise(resolve => setTimeout(resolve, 60000));
+                        store.setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en 70s... (${attempts}/${MAX_ATTEMPTS})`);
+                        addLogToTask(queueTaskId, `Esperando 70s antes de reintentar chunk ${i + 1}...`, 'warning');
+                        await new Promise(resolve => setTimeout(resolve, 70000));
                     }
                 }
                 
@@ -430,9 +430,9 @@ export function useWriterActions() {
                             break;
                         }
                         
-                        store.setSurgicalEditStatus(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
-                        addLogToTask(queueTaskId, `Esperando 60s antes de reintentar chunk ${i + 1}...`, 'warning');
-                        await new Promise(resolve => setTimeout(resolve, 60000));
+                        store.setSurgicalEditStatus(`Error en Chunk ${i + 1}. Reintentando en 70s... (${attempts}/${MAX_ATTEMPTS})`);
+                        addLogToTask(queueTaskId, `Esperando 70s antes de reintentar chunk ${i + 1}...`, 'warning');
+                        await new Promise(resolve => setTimeout(resolve, 70000));
                     }
                 }
                 useQueueStore.getState().setTaskStatus(queueTaskId, 'processing', ((i + 1) / rawChunks.length) * 100);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Terminal, Cpu, Activity, ListTodo, Loader2, Play, CheckCircle2, AlertCircle, Clock, Trash2, LayoutGrid, Zap } from "lucide-react";
+import { Terminal, Cpu, Activity, ListTodo, Loader2, Play, Pause, CheckCircle2, AlertCircle, Clock, Trash2, LayoutGrid, Zap } from "lucide-react";
 import { useQueueStore, QueueTask } from "@/store/useQueueStore";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
@@ -38,7 +38,7 @@ function LogLine({ text, type = 'info', timestamp }: { text: string, type?: 'inf
 }
 
 export default function NousConsoleView() {
-    const { queue, activeTask, isProcessingQueue, clearQueue, dequeueTask, batchTotalTasks, batchCompletedTasks } = useQueueStore();
+    const { queue, activeTask, isProcessingQueue, clearQueue, dequeueTask, batchTotalTasks, batchCompletedTasks, isPaused, togglePause } = useQueueStore();
     
     const [historicalTasks, setHistoricalTasks] = useState<any[]>([]);
     const [selectedHistoricalTask, setSelectedHistoricalTask] = useState<any | null>(null);
@@ -144,7 +144,7 @@ export default function NousConsoleView() {
                             )}
                         </h1>
                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                            {isProcessingQueue ? "Ejecutando Pipeline Activo" : "Sistema inactivo"}
+                            {isPaused ? "Pipeline en Pausa" : (isProcessingQueue ? "Ejecutando Pipeline Activo" : "Sistema inactivo")}
                         </p>
                     </div>
                 </div>
@@ -154,6 +154,19 @@ export default function NousConsoleView() {
                         <Cpu size={14} />
                         <span>Motor: Pipeline V1</span>
                     </div>
+                    {(isProcessingQueue || isPaused) && (
+                        <button 
+                            onClick={togglePause}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors border text-[11px] font-black uppercase tracking-widest ${
+                                isPaused 
+                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 hover:text-emerald-700' 
+                                    : 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100 hover:text-amber-700'
+                            }`}
+                        >
+                            {isPaused ? <Play size={14} /> : <Pause size={14} />}
+                            {isPaused ? 'Reanudar' : 'Pausar'}
+                        </button>
+                    )}
                     {queue.length > 0 && (
                         <button 
                             onClick={() => clearQueue()}

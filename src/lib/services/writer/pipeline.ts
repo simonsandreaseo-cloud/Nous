@@ -252,8 +252,8 @@ export async function executeSurgicalEditPipeline(
                     break;
                 }
                 
-                onLog(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
-                await new Promise(r => setTimeout(r, 60000));
+                onLog(`Error en Chunk ${i + 1}. Reintentando en 70s... (${attempts}/${MAX_ATTEMPTS})`);
+                await new Promise(r => setTimeout(r, 70000));
             }
         }
     }
@@ -341,8 +341,8 @@ export async function executeHumanizePipeline(
                     break;
                 }
                 
-                onLog(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
-                await new Promise(resolve => setTimeout(resolve, 60000));
+                onLog(`Error en Chunk ${i + 1}. Reintentando en 70s... (${attempts}/${MAX_ATTEMPTS})`);
+                await new Promise(resolve => setTimeout(resolve, 70000));
             }
         }
     }

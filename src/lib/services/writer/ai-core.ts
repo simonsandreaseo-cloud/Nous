@@ -445,6 +445,8 @@ export const executeWithKeyRotation = async <T>(
                     if (onRotation) onRotation(apiKey.slice(-5), isQuota ? "Quota" : (isServerErr ? "Server" : "Invalid"), totalAttempts, MAX_TOTAL_ATTEMPTS);
                     
                     if (isQuota) {
+                        onLog?.('Generación', `Error al generar JSON. Reintentando en 70s... (Intento ${attempts}/${MAX_ATTEMPTS}) - ${error instanceof Error ? error.message : 'Error desconocido'}`);
+                        
                         const isDailyQuota = errorMsg.includes('free_tier_requests') || errorMsg.includes('perday') || errorMsg.includes('daily');
                         
                         if (isDailyQuota) {
@@ -458,8 +460,8 @@ export const executeWithKeyRotation = async <T>(
                         apiKeyPenalties.set(apiKey, Date.now() + 1000 * 60); // 1 minuto de penalización
                         if (quotaRetriesForCurrentKey < MAX_QUOTA_RETRIES_PER_KEY) {
                             quotaRetriesForCurrentKey++;
-                            console.warn(`[AI-ORCHESTRATOR] ⚠️ Cuota/Rate Limit por minuto detectado. Esperando 60s antes de reintentar la misma llave (Intento ${quotaRetriesForCurrentKey}/${MAX_QUOTA_RETRIES_PER_KEY})...`);
-                            await sleep(60000);
+                            console.warn(`[AI-ORCHESTRATOR] ⚠️ Cuota/Rate Limit por minuto detectado. Esperando 70s antes de reintentar la misma llave (Intento ${quotaRetriesForCurrentKey}/${MAX_QUOTA_RETRIES_PER_KEY})...`);
+                            await sleep(70000);
                             kIndex--; // Reintentamos la MISMA llave
                             continue;
                         } else {

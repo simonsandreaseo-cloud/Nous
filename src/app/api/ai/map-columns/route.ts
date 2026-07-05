@@ -107,7 +107,7 @@ Ejemplo de salida realista:
             systemPrompt: "Eres un ingeniero de datos experto mapeando esquemas de bases de datos desde CSVs caóticos. Devuelve estrictamente JSON validado.",
             jsonMode: true,
             label: "Mapeo Inteligente de Columnas Excel/CSV",
-            timeoutMs: 60000
+            timeoutMs: 70000
         });
 
         // Intentar parsear el JSON de la IA de forma segura
