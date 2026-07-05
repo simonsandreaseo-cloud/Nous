@@ -56,6 +56,7 @@ export default function StrategyGrid({
     batchProgress = {},
     tasks: externalTasks
 }: StrategyGridProps) {
+    const { queue, activeTask } = useQueueStore();
     const { tasks: storeTasks, activeProject, activeTeam, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
     const [deletePopupId, setDeletePopupId] = useState<string | null>(null);
@@ -374,14 +375,24 @@ export default function StrategyGrid({
                                 </td>
                             </tr>
                         ) : (
-                            sortedTasks.map((task) => (
+                            sortedTasks.map((task) => {
+                                const isProcessingLegacy = batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100;
+                                const isProcessingQueue = activeTask && (activeTask.payload?.targetTaskId === task.id || activeTask.payload?.taskId === task.id || activeTask.taskId === task.id);
+                                const queuedTask = queue.find(q => q.status === 'pending' && (q.payload?.targetTaskId === task.id || q.payload?.taskId === task.id || q.taskId === task.id));
+                                
+                                const isProcessing = isProcessingLegacy || isProcessingQueue;
+                                const hasError = batchProgress[task.id] === -1;
+                                const isQueued = !isProcessing && !hasError && !!queuedTask;
+
+                                return (
                                 <tr
                                     key={task.id}
                                     className={cn(
                                         "group hover:bg-slate-50/30 even:bg-slate-50/10 transition-all cursor-pointer select-none border-b border-slate-50 last:border-none relative",
                                         selectedTaskIds.includes(task.id) && "bg-indigo-50/40 hover:bg-indigo-50/60",
-                                        batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100 && "bg-indigo-50/20 tr-shimmer [&_*]:overflow-visible",
-                                        batchProgress[task.id] === -1 && "bg-red-50/20 hover:bg-red-50/30 border-red-200"
+                                        isProcessing && "bg-indigo-100/30 tr-shimmer shadow-[inset_0_0_15px_rgba(99,102,241,0.15)] border-y-2 border-indigo-200/50 [&_*]:overflow-visible",
+                                        isQueued && "bg-slate-50/60 border-dashed border-y border-slate-200/50",
+                                        hasError && "bg-red-50/20 hover:bg-red-50/30 border-red-200"
                                     )}
                                     onClick={() => onSelectTask?.(task)}
                                 >
@@ -468,8 +479,33 @@ export default function StrategyGrid({
                                                         <option key={status} value={status}>{status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</option>
                                                     ))}
                                                 </select>
-                                            ) : batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100 ? (
-                                                <div className="flex items-center gap-2.5 py-1">
+                                            ) : (() => {
+                                                const isProcessingLegacy = batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100;
+                                                const hasErrorLegacy = batchProgress[task.id] === -1;
+                                                
+                                                const isProcessingQueue = activeTask && (activeTask.payload?.targetTaskId === task.id || activeTask.payload?.taskId === task.id || activeTask.taskId === task.id);
+                                                const queuedTask = queue.find(q => q.status === 'pending' && (q.payload?.targetTaskId === task.id || q.payload?.taskId === task.id || q.taskId === task.id));
+                                                
+                                                const isProcessing = isProcessingLegacy || isProcessingQueue;
+                                                const hasError = hasErrorLegacy;
+                                                const isQueued = !isProcessing && !hasError && !!queuedTask;
+                                                
+                                                let displayProgress = isProcessingQueue ? (activeTask.progress || 0) : (isProcessingLegacy ? batchProgress[task.id] : 0);
+                                                
+                                                // Texto a mostrar
+                                                let statusText = "Nous en proceso";
+                                                if (isProcessingQueue) {
+                                                    const rawText = activeTask.title.split(':')[0] || "Procesando";
+                                                    statusText = rawText;
+                                                } else if (isProcessingLegacy) {
+                                                    statusText = !task.research_dossier || Object.keys(task.research_dossier).length === 0 ? "Investigando" :
+                                                                 !task.outline_structure || !task.outline_structure.headers || task.outline_structure.headers.length === 0 ? "Planificando" :
+                                                                 (!task.content_body && (!task.word_count_real || task.word_count_real === 0)) ? "Redactando" : "Humanizando";
+                                                }
+                                                
+                                                if (isProcessing) {
+                                                    return (
+                                                        <div className="flex items-center gap-2.5 py-1.5 px-2 bg-indigo-50 border border-indigo-100 rounded-lg shadow-inner">
                                                     <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
                                                         <svg className="w-full h-full -rotate-90">
                                                             <circle
@@ -490,24 +526,38 @@ export default function StrategyGrid({
                                                                 strokeWidth="3"
                                                                 strokeDasharray="69.1"
                                                                 initial={{ strokeDashoffset: 69.1 }}
-                                                                animate={{ strokeDashoffset: 69.1 - (69.1 * batchProgress[task.id] / 100) }}
+                                                                animate={{ strokeDashoffset: 69.1 - (69.1 * displayProgress / 100) }}
                                                                 transition={{ duration: 0.5, ease: "easeOut" }}
-                                                                className="text-indigo-600"
+                                                                className="text-indigo-600 drop-shadow-[0_0_2px_rgba(79,70,229,0.8)]"
                                                                 strokeLinecap="round"
                                                             />
                                                         </svg>
-                                                        <span className="absolute text-[8px] font-black tabular-nums text-slate-900">{Math.round(batchProgress[task.id])}%</span>
+                                                        <span className="absolute text-[8px] font-black tabular-nums text-indigo-900">{Math.round(displayProgress)}%</span>
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[8px] font-black uppercase text-indigo-600 tracking-tighter leading-none animate-pulse">
-                                                            {!task.research_dossier || Object.keys(task.research_dossier).length === 0 ? "Investigando" :
-                                                             !task.outline_structure || !task.outline_structure.headers || task.outline_structure.headers.length === 0 ? "Planificando" :
-                                                             (!task.content_body && (!task.word_count_real || task.word_count_real === 0)) ? "Redactando" : "Humanizando"}
+                                                        <span className="text-[9px] font-black uppercase text-indigo-700 tracking-tighter leading-none animate-pulse drop-shadow-sm">
+                                                            {statusText}
                                                         </span>
-                                                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Nous en proceso</span>
+                                                        <span className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest leading-tight">Ejecutando</span>
                                                     </div>
                                                 </div>
-                                            ) : batchProgress[task.id] === -1 ? (
+                                            );
+                                        } else if (isQueued) {
+                                            return (
+                                                <div className="flex items-center gap-2.5 py-1.5 px-2 bg-slate-50 border border-slate-200 rounded-lg border-dashed">
+                                                    <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                                                        <Clock size={12} className="text-slate-400 animate-[spin_4s_linear_infinite]" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] font-black uppercase text-slate-500 tracking-tighter leading-none">
+                                                            {queuedTask.title.split(':')[0] || "En Cola"}
+                                                        </span>
+                                                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Esperando</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        } else if (hasError) {
+                                            return (
                                                 <div className="flex items-center gap-2.5 py-1 text-red-500">
                                                     <div className="w-7 h-7 flex items-center justify-center shrink-0 rounded-full bg-red-100 text-red-600 font-black text-xs">
                                                         ⚠
@@ -519,7 +569,9 @@ export default function StrategyGrid({
                                                         <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Acción fallida</span>
                                                     </div>
                                                 </div>
-                                            ) : (
+                                            );
+                                        } else {
+                                            return (
                                                 <div className={cn(
                                                     "px-1.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 border transition-colors hover:border-indigo-300",
                                                     STATUS_COLORS[task.status]?.bg || 'bg-slate-50',
@@ -532,7 +584,8 @@ export default function StrategyGrid({
                                                     )} />
                                                     {statusLabelsMap[task.status] || (task.status ? task.status.replace(/_/g, ' ') : '—')}
                                                 </div>
-                                            )}
+                                            );
+                                        })()}
                                         </td>
                                     )}
 
@@ -1211,7 +1264,8 @@ export default function StrategyGrid({
                                         </td>
                                     )}
                                 </tr>
-                            ))
+                                );
+                            })
                         )}
 
                         {canCreateOrDelete() && (

@@ -9,6 +9,7 @@ import { PipelineBlock, usePipelineStore, PipelineActionType, ExecutionMode } fr
 import { useProjectStore, Task, STATUS_LABELS } from '@/store/useProjectStore';
 import { PipelineBlockConfig } from './PipelineBlockConfig';
 import { cn } from '@/utils/cn';
+import { useQueueStore, QueueTask } from '@/store/useQueueStore';
 
 interface NousPipelineModalProps {
     isOpen: boolean;
@@ -42,6 +43,10 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     const [configBlock, setConfigBlock] = useState<PipelineBlock | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
+    
+    // Execution Monitor State
+    const [isExecuting, setIsExecuting] = useState(false);
+    const { queue, activeTask, enqueueTask, isProcessingQueue, batchTotalTasks, batchCompletedTasks } = useQueueStore();
 
     const activeWorkflow = workflows[activeWorkflowId];
 
@@ -100,8 +105,29 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     const handleExecute = () => {
         if (!activeWorkflow || activeWorkflow.blocks.length === 0) return;
         onExecute(activeWorkflow.blocks, executionMode);
+        setIsExecuting(true);
+    };
+
+    const handleClose = () => {
+        setIsExecuting(false);
         onClose();
     };
+
+    // Calcular Progreso Global
+    let globalProgress = 0;
+    if (batchTotalTasks > 0) {
+        const completedContribution = (batchCompletedTasks / batchTotalTasks) * 100;
+        const activeContribution = activeTask ? ((activeTask.progress || 0) / 100) * (100 / batchTotalTasks) : 0;
+        globalProgress = completedContribution + activeContribution;
+    }
+    
+    // Capear a 99.99% mientras procesa
+    let displayProgress = Math.min(99.99, globalProgress);
+    if (!isProcessingQueue && batchTotalTasks > 0 && batchCompletedTasks >= batchTotalTasks) {
+        displayProgress = 100;
+    }
+    
+    const displayProgressStr = displayProgress.toFixed(2);
 
     if (!isOpen || !activeWorkflow) return null;
 
@@ -183,13 +209,134 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                 <p className="text-slate-400 text-xs mt-1">Motor de Orquestación Visual Nous AI</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="absolute top-6 right-8 text-slate-400 hover:text-white transition-colors p-2 bg-slate-800 rounded-full">
+                        <button onClick={handleClose} className="absolute top-6 right-8 text-slate-400 hover:text-white transition-colors p-2 bg-slate-800 rounded-full">
                             <X size={18} />
                         </button>
                     </div>
 
-                    {/* Mode Selector */}
-                    <div className="px-8 py-4 bg-slate-50 flex items-center gap-4 border-b border-slate-100 shrink-0">
+                    {isExecuting ? (
+                        <div className="flex-1 bg-white p-8 flex flex-col relative overflow-hidden">
+                            {/* Glowing background effect */}
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none" />
+                            
+                            <div className="relative z-10 flex flex-col h-full">
+                                <div className="text-center mb-10">
+                                    <h3 className="text-2xl font-black text-slate-800 mb-2">Ejecución en Progreso</h3>
+                                    <p className="text-slate-500 font-medium">Nous AI está procesando tu pipeline paso a paso</p>
+                                </div>
+                                
+                                <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+                                    {activeTask ? (
+                                        <div className="w-full bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 p-8 transform transition-all">
+                                            <div className="flex items-center gap-4 mb-6">
+                                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
+                                                    <BrainCircuit className="text-indigo-600" size={24} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="text-lg font-bold text-slate-800 truncate">{activeTask.title}</h4>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase tracking-widest">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                                                            Procesando
+                                                        </div>
+                                                        <span className="text-xs font-semibold text-slate-400">
+                                                            {queue.length} tareas pendientes
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Global Progress Bar */}
+                                            <div className="mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
+                                                <div className="flex items-center justify-between text-xs font-bold mb-3">
+                                                    <span className="text-slate-600 uppercase tracking-wider">Progreso Global del Lote</span>
+                                                    <span className="text-indigo-600 text-sm">{displayProgressStr}%</span>
+                                                </div>
+                                                <div className="h-4 w-full bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                                                    <motion.div 
+                                                        className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 relative"
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${displayProgress}%` }}
+                                                        transition={{ duration: 0.8, ease: "easeOut" }}
+                                                    >
+                                                        <div className="absolute inset-0 bg-white/20 animate-[pulse_2s_ease-in-out_infinite]" />
+                                                    </motion.div>
+                                                </div>
+                                                <div className="flex justify-between mt-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                                    <span>{batchCompletedTasks} Tareas Completadas</span>
+                                                    <span>{batchTotalTasks} Operaciones en Total</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Specific Progress Bar */}
+                                            <div className="mb-4">
+                                                <div className="flex items-center justify-between text-xs font-bold mb-2">
+                                                    <span className="text-slate-500">Progreso de la Tarea Actual</span>
+                                                    <span className="text-indigo-600">{activeTask.progress || 0}%</span>
+                                                </div>
+                                                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                    <motion.div 
+                                                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 relative"
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${activeTask.progress || 0}%` }}
+                                                        transition={{ duration: 0.5 }}
+                                                    >
+                                                        <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                                                    </motion.div>
+                                                </div>
+                                            </div>
+
+                                            {/* Last Log */}
+                                            {activeTask.logs && activeTask.logs.length > 0 && (
+                                                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mt-6">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className={cn(
+                                                            "w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                                                            activeTask.logs[activeTask.logs.length - 1].type === 'error' ? 'bg-rose-100 text-rose-600' :
+                                                            activeTask.logs[activeTask.logs.length - 1].type === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                                                            'bg-blue-100 text-blue-600'
+                                                        )}>
+                                                            <Activity size={12} />
+                                                        </div>
+                                                        <p className="text-sm font-medium text-slate-600 leading-relaxed">
+                                                            {activeTask.logs[activeTask.logs.length - 1].text}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center text-slate-400">
+                                            {queue.length === 0 ? (
+                                                <>
+                                                    <CheckCircle2 size={48} className="text-emerald-500 mb-4" />
+                                                    <h4 className="text-xl font-bold text-slate-800 mb-2">¡Pipeline Completado!</h4>
+                                                    <p className="text-slate-500">Todas las tareas han sido procesadas exitosamente.</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Activity size={48} className="animate-pulse mb-4 opacity-50" />
+                                                    <p className="font-medium">Esperando siguiente tarea...</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mt-auto pt-8 flex justify-center">
+                                    <button 
+                                        onClick={handleClose}
+                                        className="px-8 py-3 rounded-2xl text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                                    >
+                                        Cerrar y ver en consola
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Mode Selector */}
+                            <div className="px-8 py-4 bg-slate-50 flex items-center gap-4 border-b border-slate-100 shrink-0">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Modo de Ejecución:</span>
                         <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
                             <button 
@@ -342,7 +489,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
 
                         <div className="flex items-center gap-3">
                             <button 
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="px-6 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors"
                             >
                                 Cancelar
@@ -356,6 +503,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                             </button>
                         </div>
                     </div>
+                    )}
                 </motion.div>
             </div>
 

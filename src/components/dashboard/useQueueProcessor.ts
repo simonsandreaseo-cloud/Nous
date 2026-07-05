@@ -11,7 +11,8 @@ export function useQueueProcessor() {
         shiftQueue, 
         setActiveTask, 
         setIsProcessingQueue,
-        setTaskStatus
+        setTaskStatus,
+        incrementBatchCompleted
     } = useQueueStore();
 
     useEffect(() => {
@@ -57,12 +58,14 @@ export function useQueueProcessor() {
                 console.log(`[QueueProcessor] Finished task: ${nextTask.title}`);
                 addLogToTask(nextTask.id, `Tarea completada exitosamente`, 'success');
                 setTaskStatus(nextTask.id, 'completed', 100);
+                incrementBatchCompleted();
                 toast.success(`${nextTask.title} completado`);
             } catch (error: any) {
                 console.error(`[QueueProcessor] Error in task ${nextTask.title}:`, error);
-                addLogToTask(nextTask.id, `Error en la tarea: ${error.message || 'Error desconocido'}`, 'error');
+                addLogToTask(nextTask.id, `Error del sistema: ${(error as Error).message}`, 'error');
                 setTaskStatus(nextTask.id, 'error');
-                toast.error(`Error en ${nextTask.title}: ${error.message || 'Error desconocido'}`);
+                incrementBatchCompleted();
+                toast.error(`Error en ${nextTask.title}: ${(error as Error).message}`);
             } finally {
                 // Wait a tiny bit before taking the next one to allow UI to breathe
                 setTimeout(() => {

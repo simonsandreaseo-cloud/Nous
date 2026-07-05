@@ -3,7 +3,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { useQueueStore } from '@/store/useQueueStore';
 import { supabase } from '@/lib/supabase';
 import { OutlineEngine } from '@/lib/services/writer/research/outline-engine';
-import { QueuePayload } from '../registry';
+import type { QueuePayload } from '../registry';
 
 export const handleOutlineTask = async (taskId: string, payload: QueuePayload) => {
     const store = useWriterStore.getState();

@@ -38,7 +38,7 @@ function LogLine({ text, type = 'info', timestamp }: { text: string, type?: 'inf
 }
 
 export default function NousConsoleView() {
-    const { queue, activeTask, isProcessingQueue, clearQueue, dequeueTask } = useQueueStore();
+    const { queue, activeTask, isProcessingQueue, clearQueue, dequeueTask, batchTotalTasks, batchCompletedTasks } = useQueueStore();
     
     const [historicalTasks, setHistoricalTasks] = useState<any[]>([]);
     const [selectedHistoricalTask, setSelectedHistoricalTask] = useState<any | null>(null);
@@ -98,6 +98,22 @@ export default function NousConsoleView() {
         
         return currentDisplayTask.progress || 0;
     }, [currentDisplayTask]);
+
+    // Calcular Progreso Global
+    let globalProgress = 0;
+    if (batchTotalTasks > 0) {
+        const completedContribution = (batchCompletedTasks / batchTotalTasks) * 100;
+        const activeContribution = activeTask ? ((computedProgress || 0) / 100) * (100 / batchTotalTasks) : 0;
+        globalProgress = completedContribution + activeContribution;
+    }
+    
+    // Capear a 99.99% mientras procesa
+    let displayProgress = Math.min(99.99, globalProgress);
+    if (!isProcessingQueue && batchTotalTasks > 0 && batchCompletedTasks >= batchTotalTasks) {
+        displayProgress = 100;
+    }
+    
+    const displayProgressStr = displayProgress.toFixed(2);
 
     const getStatusIcon = (status: QueueTask['status']) => {
         switch (status) {
@@ -160,6 +176,30 @@ export default function NousConsoleView() {
                             Tarea en Progreso
                         </h2>
                         
+                        {/* Global Progress Bar */}
+                        {(batchTotalTasks > 0 || isProcessingQueue) && (
+                            <div className="mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
+                                <div className="flex items-center justify-between text-xs font-bold mb-3">
+                                    <span className="text-slate-600 uppercase tracking-wider">Progreso Global del Lote</span>
+                                    <span className="text-indigo-600 text-sm">{displayProgressStr}%</span>
+                                </div>
+                                <div className="h-4 w-full bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                                    <motion.div 
+                                        className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 relative"
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${displayProgress}%` }}
+                                        transition={{ duration: 0.8, ease: "easeOut" }}
+                                    >
+                                        <div className="absolute inset-0 bg-white/20 animate-[pulse_2s_ease-in-out_infinite]" />
+                                    </motion.div>
+                                </div>
+                                <div className="flex justify-between mt-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                    <span>{batchCompletedTasks} Tareas Completadas</span>
+                                    <span>{batchTotalTasks} Operaciones en Total</span>
+                                </div>
+                            </div>
+                        )}
+                        
                         {activeTask ? (
                             <div className="bg-white border border-slate-200/60 shadow-lg shadow-slate-200/20 rounded-2xl p-6 relative overflow-hidden">
                                 {/* Decoración de fondo */}
@@ -190,7 +230,7 @@ export default function NousConsoleView() {
                                     <div className="mt-6">
                                         <div className="flex justify-between items-end mb-2">
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                                Progreso Total
+                                                Progreso de Tarea Actual
                                             </span>
                                             <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
                                                 {computedProgress}%

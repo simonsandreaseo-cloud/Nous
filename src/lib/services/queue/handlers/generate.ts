@@ -7,7 +7,7 @@ import { streamGenerate } from '@/lib/services/writer/ai-streaming';
 import { AI_CONFIG } from '@/lib/ai/config';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 import { LinkPatcherService } from '@/lib/services/link-patcher';
-import { QueuePayload } from '../registry';
+import type { QueuePayload } from '../registry';
 
 export const handleGenerateTask = async (taskId: string, payload: QueuePayload) => {
     const store = useWriterStore.getState();

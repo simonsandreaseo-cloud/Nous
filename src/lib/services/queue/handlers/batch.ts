@@ -3,7 +3,7 @@ import { useQueueStore } from '@/store/useQueueStore';
 import { supabase } from '@/lib/supabase';
 import { StrategyService } from '@/lib/services/strategy';
 import { OutlineEngine } from '@/lib/services/writer/research/outline-engine';
-import { QueuePayload } from '../registry';
+import type { QueuePayload } from '../registry';
 
 // Extracted from EditorialCalendar.tsx
 export const handleBatchResearch = async (taskId: string, payload: QueuePayload) => {

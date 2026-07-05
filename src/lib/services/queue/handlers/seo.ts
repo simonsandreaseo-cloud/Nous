@@ -4,7 +4,7 @@ import { useQueueStore } from '@/store/useQueueStore';
 import { supabase } from '@/lib/supabase';
 import { ResearchOrchestrator } from '@/lib/services/writer/research';
 import { generateBriefingText } from '@/components/tools/writer/services';
-import { QueuePayload } from '../registry';
+import type { QueuePayload } from '../registry';
 
 export const handleSEOTask = async (taskId: string, payload: QueuePayload) => {
     const store = useWriterStore.getState();

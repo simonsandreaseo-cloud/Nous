@@ -39,6 +39,10 @@ interface QueueStore {
     activeTask: QueueTask | null;
     isProcessingQueue: boolean;
     
+    // Global Batch Tracking
+    batchTotalTasks: number;
+    batchCompletedTasks: number;
+    
     // Actions
     enqueueTask: (
         type: QueueActionType, 
@@ -55,6 +59,11 @@ interface QueueStore {
     addLogToTask: (id: string, text: string, type?: QueueTaskLog['type']) => void;
     setIsProcessingQueue: (isProcessing: boolean) => void;
     shiftQueue: () => QueueTask | undefined;
+    
+    // Batch updates
+    setBatchInfo: (total: number) => void;
+    incrementBatchCompleted: () => void;
+    resetBatch: () => void;
 }
 
 const syncTimers: Record<string, NodeJS.Timeout> = {};
@@ -94,6 +103,8 @@ export const useQueueStore = create<QueueStore>()(
             queue: [],
             activeTask: null,
             isProcessingQueue: false,
+            batchTotalTasks: 0,
+            batchCompletedTasks: 0,
 
             enqueueTask: (type, title, payload, options) => {
                 const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
@@ -187,15 +198,31 @@ export const useQueueStore = create<QueueStore>()(
     },
 
     shiftQueue: () => {
-        const { queue } = get();
-        if (queue.length === 0) return undefined;
-        
-        const nextTask = queue[0];
-        set((state) => ({
-            queue: state.queue.slice(1) // Quitar el primero
-        }));
-        
+        let nextTask: QueueTask | undefined;
+        set((state) => {
+            if (state.queue.length === 0) return state;
+            
+            const [first, ...rest] = state.queue;
+            nextTask = first;
+            
+            return {
+                queue: rest,
+                activeTask: first
+            };
+        });
         return nextTask;
+    },
+
+    setBatchInfo: (total) => {
+        set({ batchTotalTasks: total, batchCompletedTasks: 0 });
+    },
+    
+    incrementBatchCompleted: () => {
+        set((state) => ({ batchCompletedTasks: state.batchCompletedTasks + 1 }));
+    },
+    
+    resetBatch: () => {
+        set({ batchTotalTasks: 0, batchCompletedTasks: 0 });
     }
         }),
         {

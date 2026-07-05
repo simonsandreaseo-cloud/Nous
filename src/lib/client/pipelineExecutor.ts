@@ -46,6 +46,19 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
     const queueStore = useQueueStore.getState();
     queueStore.setIsProcessingQueue(true);
 
+    let totalOperations = 0;
+    for (let i = 0; i < blocks.length; i++) {
+        const block = blocks[i];
+        for (const [id, task] of memoryState.entries()) {
+            if (mode === 'manual') {
+                totalOperations++;
+            } else if (mode === 'status' && task.status === block.inputStatus) {
+                totalOperations++;
+            }
+        }
+    }
+    queueStore.setBatchInfo(totalOperations);
+
     for (let i = 0; i < blocks.length; i++) {
         const block = blocks[i];
         
@@ -182,12 +195,14 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                 enhancedProgress(task.id, 100);
                 enhancedLog(task.id, block.actionType.toUpperCase(), `✅ Completado exitosamente.`);
                 queueStore.setTaskStatus(queueTaskId, 'completed', 100);
+                queueStore.incrementBatchCompleted();
 
             } catch (err: any) {
                 console.error(`Error in block ${block.actionType} for task ${task.id}:`, err);
                 enhancedLog(task.id, 'Error', `❌ Fallo en ${block.actionType}: ${err.message}`);
                 enhancedProgress(task.id, -1);
                 queueStore.setTaskStatus(queueTaskId, 'error', -1);
+                queueStore.incrementBatchCompleted();
                 // IMPORTANTE: Al fallar, NO modificamos el estatus de la memoria, 
                 // evitando que herede al siguiente bloque.
             }

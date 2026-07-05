@@ -813,7 +813,8 @@ export function EditorialCalendar() {
                 const { research, draft, humanize, surgicalEdit, clean, translate, finalStatus, _plan, _targetTasks } = config || {};
                 const targetTasks = _targetTasks || [];
 
-                const { enqueueTask } = useQueueStore.getState();
+                const { enqueueTask, setBatchInfo } = useQueueStore.getState();
+                setBatchInfo(targetTasks.length);
                 for (const t of targetTasks) {
                     enqueueTask(`batch_${t.id}_${Date.now()}`, `Pipeline: ${t.title}`, async () => {
                     let latestTask = useProjectStore.getState().tasks.find(tk => tk.id === t.id) || t;
@@ -940,7 +941,8 @@ export function EditorialCalendar() {
                     return;
                 }
                 let processedCount = 0;
-                const { enqueueTask } = useQueueStore.getState();
+                const { enqueueTask, setBatchInfo } = useQueueStore.getState();
+                setBatchInfo(candidates.length);
                 for (const t of candidates) {
                     enqueueTask('batch_research', `Investigando: ${t.title}`, 
                         { targetTaskId: t.id, keyword: t.target_keyword || t.title, projectId: activeProject.id, linkPlannedContents, linkPlannedStatuses, improveTitleWithNous, currentTitle: t.title },
