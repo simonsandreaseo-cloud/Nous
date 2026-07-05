@@ -40,7 +40,16 @@ export function useQueueProcessor() {
                 }
 
                 if (!executor) {
-                    throw new Error(`Tipo de acción no reconocido o no registrado: ${nextTask.type}`);
+                    // Silently clear "ghost" tasks from previous sessions that required an in-memory function
+                    console.log(`[QueueProcessor] Removing ghost task without executor: ${nextTask.type}`);
+                    const { dequeueTask } = useQueueStore.getState();
+                    dequeueTask(nextTask.id);
+                    // Skip to next tick
+                    setTimeout(() => {
+                        setActiveTask(null);
+                        setIsProcessingQueue(false);
+                    }, 50);
+                    return;
                 }
                 
                 await executor(nextTask.id, nextTask.payload || {});

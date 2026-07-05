@@ -122,7 +122,8 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                         newContent, 
                         project, 
                         (msg) => enhancedLog(task.id, 'Humanización', msg), 
-                        () => {}
+                        () => {},
+                        block.model
                     );
                     if (res.success && res.updates) {
                         newContent = res.updates.content_body || newContent;
@@ -144,7 +145,8 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                         newContent, 
                         project, 
                         (msg) => enhancedLog(task.id, 'Edición Quirúrgica', msg), 
-                        () => {}
+                        () => {},
+                        block.model
                     );
                     if (res.success && res.updates) {
                         newContent = res.updates.content_body || newContent;

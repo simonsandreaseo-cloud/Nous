@@ -184,7 +184,8 @@ export async function executeSurgicalEditPipeline(
     content: string, 
     activeProject: Project | null,
     onLog: (msg: string) => void,
-    onChunk: (html: string) => void
+    onChunk: (html: string) => void,
+    model?: string
 ) {
     onLog('Iniciando edición quirúrgica (streaming)...');
 
@@ -213,7 +214,7 @@ export async function executeSurgicalEditPipeline(
     for (let i = 0; i < chunks.length; i++) {
         let success = false;
         let attempts = 0;
-        const MAX_ATTEMPTS = 3;
+        const MAX_ATTEMPTS = 4;
 
         while (!success && attempts < MAX_ATTEMPTS) {
             try {
@@ -233,7 +234,8 @@ export async function executeSurgicalEditPipeline(
                     (msg) => {
                         console.log(`[Chunk ${i+1}] ${msg}`);
                         onLog(`[Chunk ${i+1}] ${msg}`);
-                    }
+                    },
+                    model
                 );
                 
                 accumulatedHtml += (chunkResult.html || chunkResult) + '\n';
@@ -244,11 +246,14 @@ export async function executeSurgicalEditPipeline(
                 console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
                 
                 if (attempts >= MAX_ATTEMPTS) {
-                    throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                    onLog(`Fallo definitivo en Chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Saltando chunk. Error: ${err.message}`);
+                    accumulatedHtml += chunks[i] + '\n';
+                    onChunk(accumulatedHtml);
+                    break;
                 }
                 
-                // Espera exponencial
-                await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts)));
+                onLog(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
+                await new Promise(r => setTimeout(r, 60000));
             }
         }
     }
@@ -267,7 +272,8 @@ export async function executeHumanizePipeline(
     content: string, 
     activeProject: Project | null,
     onLog: (msg: string) => void,
-    onChunk: (html: string) => void
+    onChunk: (html: string) => void,
+    model?: string
 ) {
     onLog('Iniciando humanización (streaming)...');
 
@@ -297,7 +303,7 @@ export async function executeHumanizePipeline(
     for (let i = 0; i < chunks.length; i++) {
         let success = false;
         let attempts = 0;
-        const MAX_ATTEMPTS = 3;
+        const MAX_ATTEMPTS = 4;
 
         while (!success && attempts < MAX_ATTEMPTS) {
             try {
@@ -317,7 +323,8 @@ export async function executeHumanizePipeline(
                     (msg) => {
                         console.log(`[Chunk ${i+1}] ${msg}`);
                         onLog(`[Chunk ${i+1}] ${msg}`);
-                    }
+                    },
+                    model
                 );
                 
                 accumulatedHtml += chunkResult.html + '\n';
@@ -328,7 +335,10 @@ export async function executeHumanizePipeline(
                 console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
                 
                 if (attempts >= MAX_ATTEMPTS) {
-                    throw new Error(`Fallo definitivo en el chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos: ${err.message}`);
+                    onLog(`Fallo definitivo en Chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Saltando chunk para no romper el artículo. Error: ${err.message}`);
+                    accumulatedHtml += chunks[i] + '\n';
+                    onChunk(accumulatedHtml);
+                    break;
                 }
                 
                 onLog(`Error en Chunk ${i + 1}. Reintentando en 60s... (${attempts}/${MAX_ATTEMPTS})`);
