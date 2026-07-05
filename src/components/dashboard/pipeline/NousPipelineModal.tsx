@@ -5,7 +5,7 @@ import {
     ArrowRight, ChevronDown, CheckCircle2, Play, Save, Box, Layers,
     Scissors, Image as ImageIcon, Languages, Wand2
 } from 'lucide-react';
-import { PipelineBlock, usePipelineStore, PipelineActionType, ExecutionMode } from '@/store/usePipelineStore';
+import { PipelineBlock, usePipelineStore, PipelineActionType, ExecutionMode, ExecutionStrategy } from '@/store/usePipelineStore';
 import { useProjectStore, Task, STATUS_LABELS } from '@/store/useProjectStore';
 import { PipelineBlockConfig } from './PipelineBlockConfig';
 import { cn } from '@/utils/cn';
@@ -15,7 +15,7 @@ interface NousPipelineModalProps {
     isOpen: boolean;
     onClose: () => void;
     selectedTaskIds: string[];
-    onExecute: (blocks: PipelineBlock[], mode: ExecutionMode) => void;
+    onExecute: (blocks: PipelineBlock[], mode: ExecutionMode, strategy: ExecutionStrategy) => void;
 }
 
 const AVAILABLE_ACTIONS: { id: PipelineActionType; label: string; icon: React.ReactNode; color: string }[] = [
@@ -33,8 +33,8 @@ const AVAILABLE_ACTIONS: { id: PipelineActionType; label: string; icon: React.Re
 
 export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute }: NousPipelineModalProps) {
     const { 
-        workflows, activeWorkflowId, executionMode, 
-        setExecutionMode, setActiveWorkflow, updateWorkflowName, 
+        workflows, activeWorkflowId, executionMode, executionStrategy,
+        setExecutionMode, setExecutionStrategy, setActiveWorkflow, updateWorkflowName, 
         createWorkflow, deleteWorkflow, addBlock, removeBlock 
     } = usePipelineStore();
     
@@ -104,7 +104,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
 
     const handleExecute = () => {
         if (!activeWorkflow || activeWorkflow.blocks.length === 0) return;
-        onExecute(activeWorkflow.blocks, executionMode);
+        onExecute(activeWorkflow.blocks, executionMode, executionStrategy);
         setIsExecuting(true);
     };
 
@@ -420,6 +420,33 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                 Auto (IA Decide)
                             </button>
                         </div>
+                    </div>
+
+                    {/* Strategy Toggle */}
+                    <div className="px-8 py-3 bg-white flex items-center justify-between border-b border-slate-100 shrink-0">
+                        <div className="flex flex-col">
+                            <span className="text-xs font-black text-slate-700">
+                                {executionStrategy === 'by-type' ? '🌊 En Olas' : '🎯 Uno a Uno'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 leading-tight">
+                                {executionStrategy === 'by-type'
+                                    ? 'Completa cada etapa para todos los contenidos'
+                                    : 'Lleva cada contenido a su estado final'}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => setExecutionStrategy(executionStrategy === 'by-type' ? 'by-content' : 'by-type')}
+                            className={cn(
+                                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none',
+                                executionStrategy === 'by-content' ? 'bg-indigo-600' : 'bg-slate-200'
+                            )}
+                            aria-label="Cambiar estrategia de ejecución"
+                        >
+                            <span className={cn(
+                                'inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform',
+                                executionStrategy === 'by-content' ? 'translate-x-6' : 'translate-x-1'
+                            )} />
+                        </button>
                     </div>
 
                     <div className="flex flex-1 min-h-0">

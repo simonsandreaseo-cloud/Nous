@@ -37,14 +37,17 @@ export interface PipelineWorkflow {
 }
 
 export type ExecutionMode = 'manual' | 'status' | 'auto';
+export type ExecutionStrategy = 'by-type' | 'by-content';
 
 interface PipelineState {
     workflows: Record<string, PipelineWorkflow>;
     activeWorkflowId: string;
     executionMode: ExecutionMode;
+    executionStrategy: ExecutionStrategy;
 
     // Setters
     setExecutionMode: (mode: ExecutionMode) => void;
+    setExecutionStrategy: (strategy: ExecutionStrategy) => void;
     setActiveWorkflow: (id: string) => void;
     updateWorkflowName: (id: string, name: string) => void;
     
@@ -73,8 +76,10 @@ export const usePipelineStore = create<PipelineState>()(
             },
             activeWorkflowId: DEFAULT_WORKFLOW_ID,
             executionMode: 'manual',
+            executionStrategy: 'by-type',
 
             setExecutionMode: (mode) => set({ executionMode: mode }),
+            setExecutionStrategy: (strategy) => set({ executionStrategy: strategy }),
             
             setActiveWorkflow: (id) => set({ activeWorkflowId: id }),
 

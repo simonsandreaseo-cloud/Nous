@@ -1514,7 +1514,7 @@ export function EditorialCalendar() {
                 isOpen={isPipelineModalOpen}
                 onClose={() => setIsPipelineModalOpen(false)}
                 selectedTaskIds={selectedTaskIds}
-                onExecute={async (blocks, mode) => {
+                onExecute={async (blocks, mode, strategy) => {
                     if (!activeProject) {
                         NotificationService.error("Error", "No hay proyecto activo.");
                         return;
@@ -1540,6 +1540,7 @@ export function EditorialCalendar() {
                         await executePipeline({
                             blocks,
                             mode,
+                            strategy,
                             targetTasks,
                             project: activeProject,
                             onLog: (taskId, stage, msg) => addStrategyLog(taskId, stage, msg),
