@@ -585,6 +585,7 @@ export default function StrategyGrid({
                                                     {statusLabelsMap[task.status] || (task.status ? task.status.replace(/_/g, ' ') : '—')}
                                                 </div>
                                             );
+                                        }
                                         })()}
                                         </td>
                                     )}
