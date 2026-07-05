@@ -13,7 +13,7 @@ import {
     CheckCircle2, Search, Layout, FileText, Zap, Loader2,
     Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
     Type, Palette, Highlighter, ChevronDown, Link as LinkIcon, X, Trash2, Languages,
-    Send, ChevronLeft, ChevronRight
+    Send, ChevronLeft, ChevronRight, ImagePlus
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { getSharedExtensions } from '@/lib/tiptap-extensions';
@@ -27,6 +27,7 @@ import PresenceAvatars from './PresenceAvatars';
 import beautify from 'js-beautify';
 import CodeMirror from '@uiw/react-codemirror';
 import { html } from '@codemirror/lang-html';
+import { useImageUpload } from '@/hooks/useImageUpload';
 
 let updateContentTimeout: NodeJS.Timeout | null = null;
 
@@ -78,6 +79,15 @@ export default function WriterEditor() {
 
     const { updateTask } = useProjectStore();
     const { handleRegenerateOutline, handleGenerate, handleHumanize } = useWriterActions();
+
+    // --- Image Upload ---
+    const { isUploading: isUploadingImage, openFilePicker, handlePaste: handleImagePaste, handleFileDrop } = useImageUpload({
+        folder: `editor-uploads/${draftId || 'draft'}`,
+        onSuccess: (url, fileName) => {
+            if (!editor) return;
+            editor.chain().focus().setImage({ src: url, alt: fileName, title: fileName }).run();
+        },
+    });
 
     const targetLanguages = useProjectStore(useShallow(state => 
         state.activeProject?.settings?.content_preferences?.default_translator_languages || []
@@ -177,6 +187,7 @@ export default function WriterEditor() {
             },
             handleDrop: (view: EditorView, event: DragEvent) => {
                 setDropLinePos(null);
+                // 1. Try Nous asset drop first
                 const data = event.dataTransfer?.getData('application/nous-asset');
                 if (data && editor) {
                     event.preventDefault();
@@ -198,9 +209,13 @@ export default function WriterEditor() {
                     }).run();
                     return true;
                 }
-                return false;
+                // 2. Try local image file drop
+                return handleFileDrop(event);
             }
         } as any,
+        handlePaste: (_view: any, event: ClipboardEvent) => {
+            return handleImagePaste(event);
+        },
         onUpdate: ({ editor }) => {
             // Only update store from editor if NOT generating and NOT in code tab
             if (!isGenerating && useWriterStore.getState().editorTab !== 'code') {
@@ -613,8 +628,20 @@ export default function WriterEditor() {
                             <button
                                 onClick={() => editor.chain().focus().toggleBlockquote().run()}
                                 className={cn("p-1.5 rounded hover:bg-slate-100 text-slate-600", editor.isActive('blockquote') && 'bg-slate-200 text-slate-900')}
+                                title="Cita"
                             >
                                 <Quote size={16} />
+                            </button>
+                            <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+                            <button
+                                onClick={openFilePicker}
+                                disabled={isUploadingImage}
+                                className="p-1.5 rounded hover:bg-indigo-100 text-indigo-600 disabled:opacity-50 disabled:cursor-wait transition-colors"
+                                title="Insertar imagen (sube a Supabase)"
+                            >
+                                {isUploadingImage
+                                    ? <Loader2 size={16} className="animate-spin" />
+                                    : <ImagePlus size={16} />}
                             </button>
                         </div>
                     </FloatingMenu>
