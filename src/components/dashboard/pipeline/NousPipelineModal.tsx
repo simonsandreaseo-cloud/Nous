@@ -396,58 +396,54 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                         </div>
                     ) : (
                         <>
-                            {/* Mode Selector */}
-                            <div className="px-8 py-4 bg-slate-50 flex items-center gap-4 border-b border-slate-100 shrink-0">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Modo de Ejecución:</span>
-                        <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
-                            <button 
-                                onClick={() => setExecutionMode('manual')}
-                                className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-all", executionMode === 'manual' ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50")}
-                            >
-                                Selección Manual ({selectedTaskIds.length})
-                            </button>
-                            <button 
-                                onClick={() => setExecutionMode('status')}
-                                className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-all", executionMode === 'status' ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50")}
-                            >
-                                Cascada por Estatus
-                            </button>
-                            <button 
-                                disabled
-                                className="px-4 py-1.5 rounded-lg text-xs font-bold text-slate-300 opacity-50 cursor-not-allowed"
-                                title="Próximamente"
-                            >
-                                Auto (IA Decide)
-                            </button>
-                        </div>
-                    </div>
+                            {/* Mode Selector + Strategy Toggle — single compact bar */}
+                            <div className="px-8 py-3 bg-slate-50 flex items-center gap-4 border-b border-slate-100 shrink-0">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest shrink-0">Modo:</span>
+                                <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1">
+                                    <button 
+                                        onClick={() => setExecutionMode('manual')}
+                                        className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all", executionMode === 'manual' ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50")}
+                                    >
+                                        Manual ({selectedTaskIds.length})
+                                    </button>
+                                    <button 
+                                        onClick={() => setExecutionMode('status')}
+                                        className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all", executionMode === 'status' ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50")}
+                                    >
+                                        Por Estatus
+                                    </button>
+                                    <button 
+                                        disabled
+                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 opacity-50 cursor-not-allowed"
+                                        title="Próximamente"
+                                    >
+                                        Auto (IA)
+                                    </button>
+                                </div>
 
-                    {/* Strategy Toggle */}
-                    <div className="px-8 py-3 bg-white flex items-center justify-between border-b border-slate-100 shrink-0">
-                        <div className="flex flex-col">
-                            <span className="text-xs font-black text-slate-700">
-                                {executionStrategy === 'by-type' ? '🌊 En Olas' : '🎯 Uno a Uno'}
-                            </span>
-                            <span className="text-[10px] text-slate-400 leading-tight">
-                                {executionStrategy === 'by-type'
-                                    ? 'Completa cada etapa para todos los contenidos'
-                                    : 'Lleva cada contenido a su estado final'}
-                            </span>
-                        </div>
-                        <button
-                            onClick={() => setExecutionStrategy(executionStrategy === 'by-type' ? 'by-content' : 'by-type')}
-                            className={cn(
-                                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none',
-                                executionStrategy === 'by-content' ? 'bg-indigo-600' : 'bg-slate-200'
-                            )}
-                            aria-label="Cambiar estrategia de ejecución"
-                        >
-                            <span className={cn(
-                                'inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform',
-                                executionStrategy === 'by-content' ? 'translate-x-6' : 'translate-x-1'
-                            )} />
-                        </button>
-                    </div>
+                                {/* Divider */}
+                                <div className="h-5 w-px bg-slate-200 shrink-0" />
+
+                                {/* Strategy Toggle — inline, compact */}
+                                <button
+                                    onClick={() => setExecutionStrategy(executionStrategy === 'by-type' ? 'by-content' : 'by-type')}
+                                    className="flex items-center gap-2 group"
+                                    title={executionStrategy === 'by-type' ? 'En Olas: completa cada etapa para todos los contenidos' : 'Uno a Uno: lleva cada contenido a su estado final'}
+                                >
+                                    <span className="text-xs font-bold text-slate-600 group-hover:text-indigo-600 transition-colors select-none">
+                                        {executionStrategy === 'by-type' ? '🌊 En Olas' : '🎯 Uno a Uno'}
+                                    </span>
+                                    <div className={cn(
+                                        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                                        executionStrategy === 'by-content' ? 'bg-indigo-600' : 'bg-slate-300'
+                                    )}>
+                                        <span className={cn(
+                                            'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform',
+                                            executionStrategy === 'by-content' ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                                        )} />
+                                    </div>
+                                </button>
+                            </div>
 
                     <div className="flex flex-1 min-h-0">
                         {/* Available Blocks Sidebar */}
