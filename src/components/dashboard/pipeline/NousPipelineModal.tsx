@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
     X, Plus, Settings, BrainCircuit, Activity, Trash2, 
     ArrowRight, ChevronDown, CheckCircle2, Play, Save, Box, Layers,
     Scissors, Image as ImageIcon, Languages, Wand2
