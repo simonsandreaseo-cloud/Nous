@@ -731,10 +731,9 @@ export const runSurgicalEditorPipeline = async (
         else console.log(`[SurgicalEditor-Status] ${msg}`);
     };
 
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview'];
-    if (!allowedModels.includes(modelName)) {
-        safeStatus(`⚠️ Modelo ${modelName} no permitido para edición quirúrgica. Forzando gemini-3.5-flash.`);
-        modelName = 'gemini-3.5-flash';
+    if (modelName !== 'gemma-4-31b-it') {
+        safeStatus(`⚠️ Modelo ${modelName} no permitido para edición quirúrgica. Forzando gemma-4-31b-it.`);
+        modelName = 'gemma-4-31b-it';
     }
 
     const SURGICAL_TIMEOUT = 180000;
@@ -794,20 +793,20 @@ Devuelve exclusivamente el texto final sin comentarios.
 Recibirás un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.
 Aplica las reglas globales al conjunto del texto, distribuyendo los cambios.
 DEBES devolver UNICAMENTE un objeto JSON con la misma estructura exacta, donde las claves son los mismos IDs y los valores son los fragmentos editados.
-MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>). No devuelvas markdown fuera del JSON.
-PROHIBICIÓN ESTRICTA: NO generes razonamientos, cálculos, conteos, ni pasos previos. Genera DIRECTAMENTE y ÚNICAMENTE el objeto JSON final sin usar markdown de bloques de código.`;
+MANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).
+
+--- REGLA DE FORMATO CRÍTICA (CERO RAZONAMIENTO) ---
+Tienes ESTRICTAMENTE PROHIBIDO hacer borradores, análisis, explicaciones o "Chain of Thought". Eres un modelo de ejecución directa. Tu respuesta debe ser ÚNICAMENTE el código JSON final, envuelto en un bloque \`\`\`json. Si escribes una sola palabra fuera del bloque JSON, fallarás.`;
 
         const model = aiClient.getGenerativeModel({ 
             model: mName, 
             systemInstruction: systemInstructionStr,
-            generationConfig: {
-                responseMimeType: 'application/json'
-            }
+            // Sin responseMimeType para permitir el bloque ```json de la Jaula de Oro
         });
         
         const languageInstruction = config.language ? `\\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
         
-        const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n${languageInstruction}\\nDEVUELVE SOLO EL JSON DE SALIDA SIN RAZONAMIENTO PREVIO. RESPETA ESTRICTAMENTE LA ESTRUCTURA Y LOS LÍMITES (${limitDelete} borrar, ${limitReplace} reemplazar, ${limitAdd} agregar).`;
+        const prompt = `JSON DE ENTRADA CON BLOQUES:\\n${JSON.stringify(textBlocks)}\\n${languageInstruction}\\nPROHIBICIÓN ESTRICTA: CERO RAZONAMIENTO. Devuelve SOLO el bloque \`\`\`json final con los límites aplicados (${limitDelete} borrar, ${limitReplace} reemplazar, ${limitAdd} agregar).`;
         
         const startTime = Date.now();
         let response;
@@ -818,10 +817,24 @@ PROHIBICIÓN ESTRICTA: NO generes razonamientos, cálculos, conteos, ni pasos pr
             throw apiError; 
         }
 
-        const raw = response.response.text();
+        let raw = response.response.text();
         console.log('\\n[DEBUG-SURGICAL-RAW-LLM]\\n', raw, '\\n[/DEBUG-SURGICAL-RAW-LLM]\\n');
         
-        let cleaned = raw.replace(/```(json)?/gi, '').trim();
+        // Extracción segura del bloque JSON ("Jaula de Oro")
+        const jsonBlockMatch = raw.match(/```json\s*([\s\S]*?)```/i);
+        
+        if (jsonBlockMatch && jsonBlockMatch[1]) {
+            raw = jsonBlockMatch[1].trim();
+        } else {
+            // Fallback: buscar la primera llave abierta y la última cerrada
+            const startIdx = raw.indexOf('{');
+            const endIdx = raw.lastIndexOf('}');
+            if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+                raw = raw.substring(startIdx, endIdx + 1);
+            }
+        }
+        
+        let cleaned = raw.trim();
         
         let parsed: any = null;
         
