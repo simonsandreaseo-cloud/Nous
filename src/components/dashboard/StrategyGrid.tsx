@@ -511,42 +511,53 @@ export default function StrategyGrid({
                                                                  (!task.content_body && (!task.word_count_real || task.word_count_real === 0)) ? "Redactando" : "Humanizando";
                                                 }
                                                 
+                                                let subText = "Ejecutando";
+                                                if (isProcessingQueue && activeTask && activeTask.logs && activeTask.logs.length > 0) {
+                                                    const lastLog = activeTask.logs[activeTask.logs.length - 1];
+                                                    subText = lastLog.text.replace(/^\[.*?\]\s*/, '');
+                                                    if (subText.length > 20) {
+                                                        subText = subText.substring(0, 18) + '...';
+                                                    }
+                                                }
+
                                                 if (isProcessing) {
                                                     return (
-                                                        <div className="flex items-center gap-2.5 py-2 px-3 bg-indigo-50/80 border border-indigo-200 rounded-lg shadow-[inset_0_2px_4px_rgba(79,70,229,0.1)]">
-                                                    <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
+                                                        <div className="flex items-center gap-2.5 py-1.5 px-2 bg-indigo-50/80 border border-indigo-200 rounded-lg shadow-inner w-[120px] shrink-0 overflow-hidden">
+                                                    <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
                                                         <svg className="w-full h-full -rotate-90">
                                                             <circle
-                                                                cx="16"
-                                                                cy="16"
-                                                                r="13"
+                                                                cx="14"
+                                                                cy="14"
+                                                                r="11"
                                                                 fill="none"
                                                                 stroke="currentColor"
-                                                                strokeWidth="3.5"
+                                                                strokeWidth="2.5"
                                                                 className="text-indigo-100"
                                                             />
                                                             <motion.circle
-                                                                cx="16"
-                                                                cy="16"
-                                                                r="13"
+                                                                cx="14"
+                                                                cy="14"
+                                                                r="11"
                                                                 fill="none"
                                                                 stroke="currentColor"
-                                                                strokeWidth="3.5"
-                                                                strokeDasharray="81.68"
-                                                                initial={{ strokeDashoffset: 81.68 }}
-                                                                animate={{ strokeDashoffset: 81.68 - (81.68 * displayProgress / 100) }}
+                                                                strokeWidth="2.5"
+                                                                strokeDasharray="69.1"
+                                                                initial={{ strokeDashoffset: 69.1 }}
+                                                                animate={{ strokeDashoffset: 69.1 - (69.1 * displayProgress / 100) }}
                                                                 transition={{ duration: 0.5, ease: "easeOut" }}
-                                                                className="text-indigo-600 drop-shadow-[0_0_4px_rgba(79,70,229,0.6)]"
+                                                                className="text-indigo-600"
                                                                 strokeLinecap="round"
                                                             />
                                                         </svg>
-                                                        <span className="absolute text-[9px] font-black tabular-nums text-indigo-900">{Math.round(displayProgress)}%</span>
+                                                        <span className="absolute text-[8px] font-black tabular-nums text-indigo-900">{Math.round(displayProgress)}%</span>
                                                     </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black uppercase text-indigo-700 tracking-tighter leading-none animate-[pulse_1.5s_ease-in-out_infinite] drop-shadow-sm">
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-[10px] font-black uppercase text-indigo-700 tracking-tighter leading-none truncate">
                                                             {statusText}
                                                         </span>
-                                                        <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest leading-tight mt-0.5">Ejecutando</span>
+                                                        <span className="text-[7.5px] font-bold text-indigo-500/80 uppercase tracking-widest leading-tight mt-0.5 truncate">
+                                                            {subText}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             );

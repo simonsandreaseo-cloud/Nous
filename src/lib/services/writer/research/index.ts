@@ -763,15 +763,16 @@ REGLAS:
         
         // Phase 1: SERP
         if (startIndex <= 0) {
-            if (onProgress) onProgress("serp");
+            if (onProgress) onProgress(1); // 1%
             const res = await this.runSerpPhase(config, onLog);
+            if (onProgress) onProgress(5); // 5%
             dossier = await saveCheckpoint('serp_done', res);
             if (phaseToRun === 'serp_done' && !cascade) return dossier;
         }
 
         // Phase 2: Scraping
         if (startIndex <= 1) {
-            if (onProgress) onProgress("scraping");
+            if (onProgress) onProgress(7); // 7%
             const scraped = await this.runScrapingPhase(config, dossier, onLog);
             const scrapedWithPos = scraped.map((r: any) => {
                 const original = (dossier.rankedPool || []).find((p: any) => p.url === r.url || p.link === r.url);
@@ -800,7 +801,7 @@ REGLAS:
 
         // Phase 3: LSI
         if (startIndex <= 2) {
-            if (onProgress) onProgress("keywords");
+            if (onProgress) onProgress(8); // 8%
             const lsi = await this.runLSIPhase(dossier.validSEO || [], keyword, onLog);
             dossier = await saveCheckpoint('lsi_done', { lsiKeywords: lsi });
             dossier.cleanedLSI = lsi;
@@ -809,7 +810,7 @@ REGLAS:
 
         // Phase 3.5: ASK
         if (startIndex <= 3) {
-            if (onProgress) onProgress("keywords");
+            if (onProgress) onProgress(9); // 9%
             const { askKeywords } = await this.runASKPhase(dossier.validSEO || [], keyword, onLog);
             dossier = await saveCheckpoint('ask_done', { askKeywords });
             dossier.askKeywords = askKeywords;
@@ -818,7 +819,7 @@ REGLAS:
 
         // Phase 3.8: Golden Keywords
         if (startIndex <= 4) {
-            if (onProgress) onProgress("keywords");
+            if (onProgress) onProgress(11); // 11%
             // Belt-and-suspenders: ensure context_cache is always an object before accessing it
             dossier.context_cache = dossier.context_cache || {};
             const { realKeywords, sniperUrls } = await this.runGoldenKeywordsPhase(dossier.validSEO || [], keyword, onLog, dossier.context_cache?.sniperUrls);
@@ -830,7 +831,7 @@ REGLAS:
 
         // Phase 4: Metadata
         if (startIndex <= 5 && !['metadata_done', 'interlinking_done', 'outline_done'].includes(phaseToRun || '')) {
-            if (onProgress) onProgress("metadata");
+            if (onProgress) onProgress(22); // 22% (Metadata takes ~36s)
             const { seoMetadata, wordCountGoal } = await this.runMetadataPhase(config.keyword, dossier.cleanedLSI || [], dossier.validSEO || [], onLog, dossier.masterH1, dossier.masterIntent, dossier.task_context);
             dossier = await saveCheckpoint('metadata_done', { seoMetadata, wordCountGoal });
             dossier.seoMetadata = seoMetadata;
@@ -840,7 +841,7 @@ REGLAS:
 
         // Phase 5: Interlinking
         if (startIndex <= 6) {
-            if (onProgress) onProgress("interlinking");
+            if (onProgress) onProgress(29); // 29% (Interlinking takes ~18s)
             const links = await this.runInterlinkingPhase(config, dossier, dossier.seoMetadata || {}, dossier.cleanedLSI || [], dossier.askKeywords || [], dossier.realKeywords || [], onLog);
             dossier = await saveCheckpoint('interlinking_done', { suggestedInternalLinks: links });
             dossier.suggestedInternalLinks = links;
@@ -849,9 +850,10 @@ REGLAS:
 
         // Phase 6: Outline
         if (startIndex <= 7) {
-            if (onProgress) onProgress("outline");
+            if (onProgress) onProgress(60); // Outline Generation starts (Takes 70% of time)
             const outline = await this.runOutlinePhase(config, dossier, dossier.seoMetadata || {}, dossier.cleanedLSI || [], dossier.askKeywords || [], dossier.realKeywords || [], dossier.suggestedInternalLinks || [], dossier.validSEO || [], dossier.wordCountGoal || 1500, onLog);
             dossier = await saveCheckpoint('outline_done', { outline_structure: outline });
+            if (onProgress) onProgress(99); // 99.99% is handled by pipeline orchestrator
             dossier.outline_structure = outline;
             if (phaseToRun === 'outline_done' && !cascade) return dossier;
         }

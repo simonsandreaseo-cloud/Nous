@@ -105,7 +105,7 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
             };
 
             try {
-                enhancedProgress(task.id, 50);
+                enhancedProgress(task.id, 0);
                 enhancedLog(task.id, block.actionType.toUpperCase(), `Iniciando proceso... (Modelo: ${block.model})`);
                 
                 let currentTaskState = memoryState.get(task.id)!;
