@@ -168,7 +168,40 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                         throw new Error("Fallo en edición quirúrgica");
                     }
                 }
-                // (Nota: Outline, Visuals y otros se mapearán aquí según se expandan los servicios core)
+                else if (block.actionType === 'seo' || block.actionType === 'research' || block.actionType === 'outline') {
+                    // Requires dynamic import to avoid circular dependencies in client-side code if StrategyService relies on server logic
+                    const { StrategyService } = await import('@/lib/services/strategy');
+                    
+                    const res = await StrategyService.runDeepSEOAnalysis({
+                        projectId: project.id,
+                        keyword: currentTaskState.target_keyword || currentTaskState.title,
+                        taskId: task.id,
+                        forceRestart: true,
+                        cascade: true,
+                        onLog: (stage, msg, type) => {
+                            enhancedLog(task.id, 'Research', msg);
+                        },
+                        onProgress: (p) => {
+                            // Map string progress to numeric or just rely on orchestrator internals
+                            if (typeof p === 'number') enhancedProgress(task.id, p);
+                        }
+                    });
+                    
+                    if (res.status === 'error' || res.status === 'idea') {
+                        throw new Error(res.brief || "Fallo en la investigación SEO");
+                    }
+                    
+                    // Update state from research results
+                    currentTaskState.title = res.title || currentTaskState.title;
+                    currentTaskState.target_keyword = res.target_keyword || currentTaskState.target_keyword;
+                    currentTaskState.volume = res.volume || currentTaskState.volume;
+                    currentTaskState.target_word_count = res.word_count || currentTaskState.target_word_count;
+                    currentTaskState.brief = res.brief || currentTaskState.brief;
+                    
+                    // Outline is stored in task_research table, not in tasks directly, 
+                    // so we don't map it to newContent. newContent remains unchanged for SEO phases.
+                }
+                // (Nota: Visuals y otros se mapearán aquí según se expandan los servicios core)
                 
                 // ==========================
                 // ACTUALIZACIÓN DE ESTADO EXITOSA

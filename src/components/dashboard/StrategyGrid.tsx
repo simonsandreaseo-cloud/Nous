@@ -497,7 +497,18 @@ export default function StrategyGrid({
                                                 let statusText = "Nous en proceso";
                                                 if (isProcessingQueue) {
                                                     const rawText = activeTask.title.split(':')[0] || "Procesando";
-                                                    statusText = rawText;
+                                                let statusText = "Procesando";
+                                                if (isProcessing && queuedTask) {
+                                                    const typeMap: Record<string, string> = {
+                                                        'seo': 'Investigando',
+                                                        'research': 'Investigando',
+                                                        'outline': 'Planificando',
+                                                        'generate': 'Redactando',
+                                                        'humanize': 'Humanizando',
+                                                        'surgical_edit': 'Editando',
+                                                        'clean': 'Limpiando'
+                                                    };
+                                                    statusText = typeMap[queuedTask.type] || queuedTask.type;
                                                 } else if (isProcessingLegacy) {
                                                     statusText = !task.research_dossier || Object.keys(task.research_dossier).length === 0 ? "Investigando" :
                                                                  !task.outline_structure || !task.outline_structure.headers || task.outline_structure.headers.length === 0 ? "Planificando" :
@@ -506,54 +517,65 @@ export default function StrategyGrid({
                                                 
                                                 if (isProcessing) {
                                                     return (
-                                                        <div className="flex items-center gap-2.5 py-1.5 px-2 bg-indigo-50 border border-indigo-100 rounded-lg shadow-inner">
-                                                    <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
+                                                        <div className="flex items-center gap-2.5 py-2 px-3 bg-indigo-50/80 border border-indigo-200 rounded-lg shadow-[inset_0_2px_4px_rgba(79,70,229,0.1)]">
+                                                    <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
                                                         <svg className="w-full h-full -rotate-90">
                                                             <circle
-                                                                cx="14"
-                                                                cy="14"
-                                                                r="11"
+                                                                cx="16"
+                                                                cy="16"
+                                                                r="13"
                                                                 fill="none"
                                                                 stroke="currentColor"
-                                                                strokeWidth="3"
-                                                                className="text-slate-100"
+                                                                strokeWidth="3.5"
+                                                                className="text-indigo-100"
                                                             />
                                                             <motion.circle
-                                                                cx="14"
-                                                                cy="14"
-                                                                r="11"
+                                                                cx="16"
+                                                                cy="16"
+                                                                r="13"
                                                                 fill="none"
                                                                 stroke="currentColor"
-                                                                strokeWidth="3"
-                                                                strokeDasharray="69.1"
-                                                                initial={{ strokeDashoffset: 69.1 }}
-                                                                animate={{ strokeDashoffset: 69.1 - (69.1 * displayProgress / 100) }}
+                                                                strokeWidth="3.5"
+                                                                strokeDasharray="81.68"
+                                                                initial={{ strokeDashoffset: 81.68 }}
+                                                                animate={{ strokeDashoffset: 81.68 - (81.68 * displayProgress / 100) }}
                                                                 transition={{ duration: 0.5, ease: "easeOut" }}
-                                                                className="text-indigo-600 drop-shadow-[0_0_2px_rgba(79,70,229,0.8)]"
+                                                                className="text-indigo-600 drop-shadow-[0_0_4px_rgba(79,70,229,0.6)]"
                                                                 strokeLinecap="round"
                                                             />
                                                         </svg>
-                                                        <span className="absolute text-[8px] font-black tabular-nums text-indigo-900">{Math.round(displayProgress)}%</span>
+                                                        <span className="absolute text-[9px] font-black tabular-nums text-indigo-900">{Math.round(displayProgress)}%</span>
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[9px] font-black uppercase text-indigo-700 tracking-tighter leading-none animate-pulse drop-shadow-sm">
+                                                        <span className="text-[10px] font-black uppercase text-indigo-700 tracking-tighter leading-none animate-[pulse_1.5s_ease-in-out_infinite] drop-shadow-sm">
                                                             {statusText}
                                                         </span>
-                                                        <span className="text-[7px] font-bold text-indigo-400 uppercase tracking-widest leading-tight">Ejecutando</span>
+                                                        <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest leading-tight mt-0.5">Ejecutando</span>
                                                     </div>
                                                 </div>
                                             );
                                         } else if (isQueued) {
+                                            const typeMap: Record<string, string> = {
+                                                'seo': 'Investigación',
+                                                'research': 'Investigación',
+                                                'outline': 'Planificación',
+                                                'generate': 'Redacción',
+                                                'humanize': 'Humanización',
+                                                'surgical_edit': 'Edición',
+                                                'clean': 'Limpieza'
+                                            };
+                                            const queueAction = queuedTask ? (typeMap[queuedTask.type] || queuedTask.type) : "Cola";
+
                                             return (
-                                                <div className="flex items-center gap-2.5 py-1.5 px-2 bg-slate-50 border border-slate-200 rounded-lg border-dashed">
+                                                <div className="flex items-center gap-2.5 py-1.5 px-3 bg-slate-50 border border-slate-300 rounded-lg border-dashed opacity-80 shadow-sm">
                                                     <div className="w-5 h-5 flex items-center justify-center shrink-0">
-                                                        <Clock size={12} className="text-slate-400 animate-[spin_4s_linear_infinite]" />
+                                                        <Clock size={14} className="text-slate-500 animate-[spin_3s_linear_infinite]" />
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[9px] font-black uppercase text-slate-500 tracking-tighter leading-none">
-                                                            {queuedTask.title.split(':')[0] || "En Cola"}
+                                                        <span className="text-[9px] font-black uppercase text-slate-600 tracking-tighter leading-none">
+                                                            En Cola: {queueAction}
                                                         </span>
-                                                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Esperando</span>
+                                                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-tight mt-0.5">Esperando</span>
                                                     </div>
                                                 </div>
                                             );

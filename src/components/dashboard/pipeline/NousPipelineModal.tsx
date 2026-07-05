@@ -114,15 +114,19 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     };
 
     // Calcular Progreso Global
+    const currentTaskProgress = activeTask?.progress || 0;
     let globalProgress = 0;
     if (batchTotalTasks > 0) {
-        const completedContribution = (batchCompletedTasks / batchTotalTasks) * 100;
-        const activeContribution = activeTask ? ((activeTask.progress || 0) / 100) * (100 / batchTotalTasks) : 0;
-        globalProgress = completedContribution + activeContribution;
+        globalProgress = ((batchCompletedTasks / batchTotalTasks) * 100) + (currentTaskProgress / 100) * (100 / batchTotalTasks);
     }
+    if (globalProgress >= 100 && isProcessingQueue) {
+        globalProgress = 99.99; // Never show 100% until truly done
+    }
+    const completedContribution = globalProgress;
+    const formattedContribution = globalProgress.toFixed(2);
     
     // Capear a 99.99% mientras procesa
-    let displayProgress = Math.min(99.99, globalProgress);
+    let displayProgress = globalProgress;
     if (!isProcessingQueue && batchTotalTasks > 0 && batchCompletedTasks >= batchTotalTasks) {
         displayProgress = 100;
     }
