@@ -348,30 +348,38 @@ export const executeWithKeyRotation = async <T>(
             continue;
         }
 
-        // Ordenar currentKeys para probar siempre primero las que NO están penalizadas
-        currentKeys.sort((a, b) => {
-            const penA = apiKeyPenalties.get(a) || 0;
-            const penB = apiKeyPenalties.get(b) || 0;
-            return penA - penB;
-        });
-
         let allKeysFailedRotationReason = true;
         let allKeysFailedQuota = true;
+        let kIndex = 0; // Mantenemos variable para compatibilidad de logs
 
-        for (let kIndex = 0; kIndex < currentKeys.length; kIndex++) {
-            const apiKey = currentKeys[kIndex];
+        while (totalAttempts < MAX_TOTAL_ATTEMPTS) {
+            // Ordenar en CADA iteración para asegurar que tomamos la llave con menos penalización actual
+            currentKeys.sort((a, b) => {
+                const penA = apiKeyPenalties.get(a) || 0;
+                const penB = apiKeyPenalties.get(b) || 0;
+                return penA - penB;
+            });
             
-            // Si la mejor llave disponible sigue penalizada, debemos esperar a que se libere.
+            const apiKey = currentKeys[0];
+            
+            // Si la MEJOR llave disponible sigue penalizada, evaluamos si esperamos o saltamos de proveedor
             const penaltyExpiry = apiKeyPenalties.get(apiKey) || 0;
             const now = Date.now();
             if (now < penaltyExpiry) {
                 const waitTime = penaltyExpiry - now;
+                
+                // Si el cooldown mínimo es mayor a 120s, es mejor saltar al siguiente proveedor (fallback)
+                if (waitTime > 120000) {
+                    console.log(`[AI-ORCHESTRATOR] ⏳ Tiempo de espera excesivo (${Math.ceil(waitTime/1000)}s) en ${step.provider}. Abortando este proveedor...`);
+                    break;
+                }
+                
                 console.log(`[AI-ORCHESTRATOR] ⏳ Todas las llaves en cooldown para ${step.provider}. Esperando ${Math.ceil(waitTime/1000)}s por la llave ${apiKey.slice(-5)}...`);
                 await sleep(waitTime);
             }
 
             totalAttempts++;
-            if (totalAttempts > MAX_TOTAL_ATTEMPTS) break;
+            kIndex++;
 
             try {
                 let client: any;
@@ -473,7 +481,11 @@ export const executeWithKeyRotation = async <T>(
                         console.warn(`[AI-ORCHESTRATOR] ⚠️ Cuota excedida. Llave ${apiKey.slice(-5)} penalizada por ${Math.ceil(delayMs/1000)}s.`);
                         continue;
                     } else if (isServerErr) {
-                        await sleep(500 * (kIndex + 1));
+                        await sleep(500 * (kIndex % currentKeys.length + 1));
+                        apiKeyPenalties.set(apiKey, Date.now() + 2000); // Pequeña penalización para forzar rotación
+                    } else if (isInvalid || isSize) {
+                        // Para errores de payload (413) o request inválido (400), iterar por llaves no sirve de nada. Abortar.
+                        break; 
                     }
                     
                     if (!isQuota) allKeysFailedQuota = false;
@@ -488,7 +500,8 @@ export const executeWithKeyRotation = async <T>(
                     break;
                 }
 
-                // For other errors (networking, etc), try next key but don't mark as quota fail
+                // Error no catalogado: penalizar levemente para rotar de llave y no caer en loop infinito
+                apiKeyPenalties.set(apiKey, Date.now() + 1000);
                 continue;
             }
         }
