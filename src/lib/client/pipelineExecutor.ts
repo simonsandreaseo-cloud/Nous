@@ -182,13 +182,13 @@ async function executeTaskInBlock({
         let newContent = currentTaskState.content_body || '';
 
         if (block.actionType === 'generate') {
-            const res = await executeDraftPipeline(currentTaskState, project, (msg) => enhancedLog(task.id, 'Generación', msg), () => {}, checkPause, (p) => enhancedProgress(task.id, p));
+            const res = await executeDraftPipeline(currentTaskState, project, (msg) => enhancedLog(task.id, 'Generación', msg), () => {}, checkPause, (p) => enhancedProgress(task.id, p), block.model);
             if (res.success && res.updates) { newContent = res.updates.content_body || newContent; Object.assign(currentTaskState, res.updates); }
             else throw new Error(res.error || 'Fallo en generación');
         }
         else if (block.actionType === 'humanize') {
             if (!newContent) throw new Error('No hay contenido para humanizar.');
-            const res = await executeHumanizePipeline(currentTaskState, newContent, project, (msg) => enhancedLog(task.id, 'Humanización', msg), () => {}, block.model, checkPause, (p) => enhancedProgress(task.id, p));
+            const res = await executeHumanizePipeline(currentTaskState, newContent, project, (msg) => enhancedLog(task.id, 'Humanización', msg), () => {}, checkPause, (p) => enhancedProgress(task.id, p), block.model);
             if (res.success && res.updates) { newContent = res.updates.content_body || newContent; Object.assign(currentTaskState, res.updates); }
             else throw new Error(res.error || 'Fallo en humanización');
         }
@@ -199,7 +199,7 @@ async function executeTaskInBlock({
         }
         else if (block.actionType === 'surgical_edit') {
             if (!newContent) throw new Error('No hay contenido para edición quirúrgica.');
-            const res = await executeSurgicalEditPipeline(currentTaskState, newContent, project, (msg) => enhancedLog(task.id, 'Edición Quirúrgica', msg), () => {}, block.model, checkPause, (p) => enhancedProgress(task.id, p));
+            const res = await executeSurgicalEditPipeline(currentTaskState, newContent, project, (msg) => enhancedLog(task.id, 'Edición Quirúrgica', msg), () => {}, checkPause, (p) => enhancedProgress(task.id, p), block.model);
             if (res.success && res.updates) { newContent = res.updates.content_body || newContent; Object.assign(currentTaskState, res.updates); }
             else throw new Error('Fallo en edición quirúrgica');
         }
