@@ -101,7 +101,7 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                 }
             }
             
-            if (tasksForThisBlock.length === 0) continue;
+            console.log('Tasks for block', block.actionType, tasksForThisBlock.length); if (tasksForThisBlock.length === 0) continue;
             
             onLog('SYSTEM', 'Info', `Iniciando bloque ${i + 1}/${blocks.length}: ${block.actionType.toUpperCase()}`);
             
