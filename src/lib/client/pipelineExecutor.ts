@@ -71,22 +71,26 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
     if (strategy === 'by-content') {
         // 🎯 Modo Uno a Uno: each task goes through ALL blocks before moving to the next
         for (const [, task] of memoryState.entries()) {
+            if (!useQueueStore.getState().isProcessingQueue) break;
             onLog('SYSTEM', 'Info', `▶ Iniciando contenido completo: "${task.title}"`);
             for (let i = 0; i < blocks.length; i++) {
+                if (!useQueueStore.getState().isProcessingQueue) break;
                 const block = blocks[i];
                 // Check eligibility for this block
                 const eligible = (mode === 'manual') || (mode === 'status' && task.status === block.inputStatus);
                 if (!eligible) continue;
 
-                while (useQueueStore.getState().isPaused) {
+                while (useQueueStore.getState().isPaused && useQueueStore.getState().isProcessingQueue) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
+                if (!useQueueStore.getState().isProcessingQueue) break;
                 await executeTaskInBlock({ task, block, project, queueStore, memoryState, onLog, onProgress });
             }
         }
     } else {
         // 🌊 Modo En Olas (default): all tasks per block before next block
         for (let i = 0; i < blocks.length; i++) {
+            if (!useQueueStore.getState().isProcessingQueue) break;
             const block = blocks[i];
             
             // 1. Determinar Targets del Bloque
@@ -101,16 +105,18 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                 }
             }
             
-            console.log('Tasks for block', block.actionType, tasksForThisBlock.length); if (tasksForThisBlock.length === 0) continue;
+            if (tasksForThisBlock.length === 0) continue;
             
             onLog('SYSTEM', 'Info', `Iniciando bloque ${i + 1}/${blocks.length}: ${block.actionType.toUpperCase()}`);
             
             // 2. Ejecutar Bloque para los Targets
             for (const task of tasksForThisBlock) {
+                if (!useQueueStore.getState().isProcessingQueue) break;
                 // Check for pause state before starting the next task
-                while (useQueueStore.getState().isPaused) {
+                while (useQueueStore.getState().isPaused && useQueueStore.getState().isProcessingQueue) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
+                if (!useQueueStore.getState().isProcessingQueue) break;
                 await executeTaskInBlock({ task, block, project, queueStore, memoryState, onLog, onProgress });
             }
         }
@@ -169,8 +175,11 @@ async function executeTaskInBlock({
     };
 
     const checkPause = async () => {
-        while (useQueueStore.getState().isPaused) {
+        while (useQueueStore.getState().isPaused && useQueueStore.getState().isProcessingQueue) {
             await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        if (!useQueueStore.getState().isProcessingQueue) {
+            throw new Error("Ejecución cancelada por el usuario");
         }
     };
 

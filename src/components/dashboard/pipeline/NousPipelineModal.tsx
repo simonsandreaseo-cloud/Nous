@@ -230,7 +230,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                         {isPaused ? (
                                             <span className="text-amber-500 font-bold flex items-center justify-center gap-2">
                                                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                                                Ejecución en Pausa - Esperando reanudación
+                                                Ejecución en Pausa - Pausado (o terminará operación actual)
                                             </span>
                                         ) : (
                                             `Nous AI está procesando tu pipeline (Paso ${batchCompletedTasks + 1} de ${batchTotalTasks || 1})`

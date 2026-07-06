@@ -337,34 +337,26 @@ export default function WriterStudio() {
         const loadHeavyData = async () => {
             if (!draftId) return;
             
-            // Check if we already have the content in the writer store
-            const currentStoreContent = useWriterStore.getState().content;
-            if (!currentStoreContent || currentStoreContent.length < 10) {
-                const [contentBody, researchData] = await Promise.all([
-                    fetchTaskContent(draftId),
-                    fetchTaskResearch(draftId)
-                ]);
+            const [contentBody, researchData] = await Promise.all([
+                fetchTaskContent(draftId),
+                fetchTaskResearch(draftId)
+            ]);
 
-                if (contentBody !== null) useWriterStore.getState().setContent(contentBody || '');
-                if (researchData) {
-                    const { research_dossier, outline_structure, seo_data, schemas } = researchData;
-                    
-                    // Manejar formato antiguo (objeto con headers) o nuevo (array plano)
-                    const parsedOutline = Array.isArray(outline_structure) 
-                        ? outline_structure 
-                        : (outline_structure?.headers || []);
+            if (contentBody !== null) useWriterStore.getState().setContent(contentBody || '');
+            if (researchData) {
+                const { research_dossier, outline_structure, seo_data, schemas } = researchData;
+                
+                // Manejar formato antiguo (objeto con headers) o nuevo (array plano)
+                const parsedOutline = Array.isArray(outline_structure) 
+                    ? outline_structure 
+                    : (outline_structure?.headers || []);
 
-                    // Preserve existing outline if it has items, to prevent it from disappearing during generation
-                    const currentOutline = useWriterStore.getState().strategyOutline;
-                    const finalOutline = (currentOutline && currentOutline.length > 0) ? currentOutline : parsedOutline;
-
-                    // Sync to writer store
-                    useWriterStore.setState({
-                        rawSeoData: research_dossier || {},
-                        strategyOutline: finalOutline,
-                        // Merge other research data if needed
-                    } as any);
-                }
+                // Sync to writer store, overriding previous state
+                useWriterStore.setState({
+                    rawSeoData: research_dossier || {},
+                    strategyOutline: parsedOutline,
+                    // Merge other research data if needed
+                } as any);
             }
         };
 
