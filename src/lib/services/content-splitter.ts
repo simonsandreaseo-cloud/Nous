@@ -2,7 +2,7 @@ export interface SplitOptions {
     limitType: 'words' | 'characters';
     limitMode: 'exact' | 'max_h2';
     limitValue: number;
-    excludeRegex?: string;
+    excludeRegex?: string | string[];
 }
 
 export interface SplitChunk {
@@ -20,14 +20,19 @@ export class ContentSplitterService {
 
         if (options.excludeRegex) {
             try {
-                const regex = new RegExp(options.excludeRegex, 'g');
-                const walk = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null);
-                let textNode = walk.nextNode();
-                while (textNode) {
-                    if (textNode.nodeValue) {
-                        textNode.nodeValue = textNode.nodeValue.replace(regex, '');
+                const regexes = Array.isArray(options.excludeRegex) ? options.excludeRegex : [options.excludeRegex];
+                
+                for (const regexStr of regexes) {
+                    if (!regexStr.trim()) continue;
+                    const regex = new RegExp(regexStr, 'g');
+                    const walk = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null);
+                    let textNode = walk.nextNode();
+                    while (textNode) {
+                        if (textNode.nodeValue) {
+                            textNode.nodeValue = textNode.nodeValue.replace(regex, '');
+                        }
+                        textNode = walk.nextNode();
                     }
-                    textNode = walk.nextNode();
                 }
             } catch (e) {
                 console.warn("Invalid regex in ContentSplitterService:", e);

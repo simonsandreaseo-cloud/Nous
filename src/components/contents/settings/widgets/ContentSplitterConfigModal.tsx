@@ -18,9 +18,15 @@ export function ContentSplitterConfigModal({ isOpen, onClose, widget, onUpdate }
     const [limitType, setLimitType] = useState<'words' | 'characters'>(widget.config?.limitType || 'words');
     const [limitMode, setLimitMode] = useState<'exact' | 'max_h2'>(widget.config?.limitMode || 'max_h2');
     const [limitValue, setLimitValue] = useState<number>(widget.config?.limitValue || 1000);
-    const [excludeRegex, setExcludeRegex] = useState<string>(widget.config?.excludeRegex || '');
+    const [excludeRegex, setExcludeRegex] = useState<string>(
+        Array.isArray(widget.config?.excludeRegex)
+            ? widget.config.excludeRegex.join('\n')
+            : (widget.config?.excludeRegex || '')
+    );
 
     const handleSave = () => {
+        const regexArray = excludeRegex.split('\n').map(r => r.trim()).filter(r => r.length > 0);
+        
         onUpdate({
             name: localName,
             config: {
@@ -28,7 +34,7 @@ export function ContentSplitterConfigModal({ isOpen, onClose, widget, onUpdate }
                 limitType,
                 limitMode,
                 limitValue,
-                excludeRegex
+                excludeRegex: regexArray
             }
         });
         onClose();
@@ -164,17 +170,17 @@ export function ContentSplitterConfigModal({ isOpen, onClose, widget, onUpdate }
 
                             <div className="pt-4 border-t border-slate-100 mt-6">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">
-                                    Regex de Exclusión (Opcional)
+                                    Regex de Exclusión (Opcional - Una por línea)
                                 </label>
-                                <input
-                                    type="text"
+                                <textarea
                                     value={excludeRegex}
                                     onChange={(e) => setExcludeRegex(e.target.value)}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-mono"
-                                    placeholder="Ej: \[.*?\]"
+                                    rows={3}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-mono resize-none"
+                                    placeholder="Ej: \[.*?\]&#10;\{.*?\}"
                                 />
                                 <p className="text-[10px] text-slate-500 mt-2 font-medium">
-                                    El texto que coincida con esta expresión regular será excluido de las partes copiadas (el documento original no se verá afectado).
+                                    El texto que coincida con estas expresiones regulares será excluido de las partes copiadas. Coloca una regex por línea (el documento original no se verá afectado).
                                 </p>
                             </div>
                         </div>
