@@ -228,6 +228,9 @@ async function executeTaskInBlock({
         enhancedLog(task.id, block.actionType.toUpperCase(), '✅ Completado exitosamente.');
         queueStore.setTaskStatus(queueTaskId, 'completed', 100);
         queueStore.incrementBatchCompleted();
+        setTimeout(() => {
+            useQueueStore.getState().dequeueTask(queueTaskId);
+        }, 2000);
 
     } catch (err: any) {
         console.error(`Error in block ${block.actionType} for task ${task.id}:`, err);
@@ -235,5 +238,8 @@ async function executeTaskInBlock({
         enhancedProgress(task.id, -1);
         queueStore.setTaskStatus(queueTaskId, 'error', -1);
         queueStore.incrementBatchCompleted();
+        setTimeout(() => {
+            useQueueStore.getState().dequeueTask(queueTaskId);
+        }, 3000);
     }
 }

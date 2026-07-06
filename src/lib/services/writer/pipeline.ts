@@ -189,6 +189,17 @@ export async function executeSurgicalEditPipeline(
 ) {
     onLog('Iniciando edición quirúrgica (streaming)...');
 
+    try {
+        await supabase.from("task_versions").insert({
+            task_id: task.id,
+            process_name: "Pre-Edición Quirúrgica",
+            content_snapshot: content,
+            created_at: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error("No se pudo guardar la versión Pre-Edición:", e);
+    }
+
     const config = {
         activeProject,
         task
@@ -264,6 +275,17 @@ export async function executeSurgicalEditPipeline(
         metadata: { ...(task.metadata as object), is_surgically_edited: true }
     };
 
+    try {
+        await supabase.from("task_versions").insert({
+            task_id: task.id,
+            process_name: "Post-Edición Quirúrgica",
+            content_snapshot: formatted,
+            created_at: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error("No se pudo guardar la versión Post-Edición:", e);
+    }
+
     onLog('✅ Edición quirúrgica completada.');
     return { success: true, content: formatted, updates };
 }
@@ -276,6 +298,17 @@ export async function executeHumanizePipeline(
     model?: string
 ) {
     onLog('Iniciando humanización (streaming)...');
+
+    try {
+        await supabase.from("task_versions").insert({
+            task_id: task.id,
+            process_name: "Pre-Humanización",
+            content_snapshot: content,
+            created_at: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error("No se pudo guardar la versión Pre-Humanización:", e);
+    }
 
     const config = {
         niche: task.metadata?.niche || 'General', 
@@ -355,6 +388,17 @@ export async function executeHumanizePipeline(
         content_body: newContent,
         metadata: { ...task.metadata, is_humanized: true, humanized_at: new Date().toISOString() }
     };
+
+    try {
+        await supabase.from("task_versions").insert({
+            task_id: task.id,
+            process_name: "Post-Humanización",
+            content_snapshot: newContent,
+            created_at: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error("No se pudo guardar la versión Post-Humanización:", e);
+    }
 
     // Save to tasks
     const { error: tErr } = await supabase.from('tasks').update(updates).eq('id', task.id);
