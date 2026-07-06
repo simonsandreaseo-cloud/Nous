@@ -363,7 +363,8 @@ export function ToolsTab() {
                 const options: SplitOptions = {
                     limitType: widget.config?.limitType || 'words',
                     limitMode: widget.config?.limitMode || 'max_h2',
-                    limitValue: widget.config?.limitValue || 1000
+                    limitValue: widget.config?.limitValue || 1000,
+                    excludeRegex: widget.config?.excludeRegex
                 };
                 
                 const chunks = ContentSplitterService.splitContent(html, options);

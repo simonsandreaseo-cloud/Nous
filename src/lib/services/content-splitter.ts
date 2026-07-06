@@ -2,6 +2,7 @@ export interface SplitOptions {
     limitType: 'words' | 'characters';
     limitMode: 'exact' | 'max_h2';
     limitValue: number;
+    excludeRegex?: string;
 }
 
 export interface SplitChunk {
@@ -16,6 +17,23 @@ export class ContentSplitterService {
     static splitContent(html: string, options: SplitOptions): SplitChunk[] {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
+
+        if (options.excludeRegex) {
+            try {
+                const regex = new RegExp(options.excludeRegex, 'g');
+                const walk = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null);
+                let textNode = walk.nextNode();
+                while (textNode) {
+                    if (textNode.nodeValue) {
+                        textNode.nodeValue = textNode.nodeValue.replace(regex, '');
+                    }
+                    textNode = walk.nextNode();
+                }
+            } catch (e) {
+                console.warn("Invalid regex in ContentSplitterService:", e);
+            }
+        }
+
         const nodes = Array.from(doc.body.childNodes);
         
         const chunks: SplitChunk[] = [];

@@ -18,6 +18,7 @@ export function ContentSplitterConfigModal({ isOpen, onClose, widget, onUpdate }
     const [limitType, setLimitType] = useState<'words' | 'characters'>(widget.config?.limitType || 'words');
     const [limitMode, setLimitMode] = useState<'exact' | 'max_h2'>(widget.config?.limitMode || 'max_h2');
     const [limitValue, setLimitValue] = useState<number>(widget.config?.limitValue || 1000);
+    const [excludeRegex, setExcludeRegex] = useState<string>(widget.config?.excludeRegex || '');
 
     const handleSave = () => {
         onUpdate({
@@ -26,7 +27,8 @@ export function ContentSplitterConfigModal({ isOpen, onClose, widget, onUpdate }
                 ...widget.config,
                 limitType,
                 limitMode,
-                limitValue
+                limitValue,
+                excludeRegex
             }
         });
         onClose();
@@ -158,6 +160,22 @@ export function ContentSplitterConfigModal({ isOpen, onClose, widget, onUpdate }
                                         </div>
                                     </button>
                                 </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 mt-6">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">
+                                    Regex de Exclusión (Opcional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={excludeRegex}
+                                    onChange={(e) => setExcludeRegex(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-mono"
+                                    placeholder="Ej: \[.*?\]"
+                                />
+                                <p className="text-[10px] text-slate-500 mt-2 font-medium">
+                                    El texto que coincida con esta expresión regular será excluido de las partes copiadas (el documento original no se verá afectado).
+                                </p>
                             </div>
                         </div>
                     </div>
