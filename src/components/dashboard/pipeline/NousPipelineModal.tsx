@@ -378,6 +378,16 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                         {isPaused ? 'Reanudar Ejecución' : 'Pausar Ejecución'}
                                     </button>
                                     <button 
+                                        onClick={() => {
+                                            useQueueStore.getState().setIsProcessingQueue(false);
+                                            useQueueStore.getState().clearQueue();
+                                            handleClose();
+                                        }}
+                                        className="px-8 py-3 rounded-2xl text-sm font-bold text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors"
+                                    >
+                                        Cancelar Ejecución
+                                    </button>
+                                    <button 
                                         onClick={handleClose}
                                         className="px-8 py-3 rounded-2xl text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 hover:text-slate-700 transition-colors"
                                     >

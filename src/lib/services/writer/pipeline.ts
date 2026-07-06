@@ -11,7 +11,9 @@ export async function executeDraftPipeline(
     task: Task, 
     activeProject: Project | null,
     onLog: (msg: string) => void,
-    onChunk: (html: string) => void
+    onChunk: (html: string) => void,
+    checkPause?: () => Promise<void>,
+    onProgress?: (progress: number) => void
 ) {
     onLog('Generando prompt y estructura...');
 
@@ -95,6 +97,8 @@ export async function executeDraftPipeline(
             previousContext: previousContext
         };
 
+        if (checkPause) await checkPause();
+        if (onProgress) onProgress((i / outlineChunks.length) * 100);
         const prompt = buildPrompt(chunkConfig);
         onLog(`Redactando parte ${i + 1}/${outlineChunks.length} (streaming)...`);
 
@@ -166,8 +170,9 @@ export async function executeDraftPipeline(
     // 2. Save updates
     const updates: Partial<Task> = { content_body: formatted, status: 'por_corregir' };
     
-    // Save to tasks
-    const { error: tErr } = await supabase.from('tasks').update(updates).eq('id', task.id);
+    // Save to tasks (omit content_body)
+    const { content_body: _, ...tasksUpdate } = updates;
+    const { error: tErr } = await supabase.from('tasks').update(tasksUpdate).eq('id', task.id);
     if (tErr) throw tErr;
 
     // Save to task_contents
@@ -185,6 +190,8 @@ export async function executeSurgicalEditPipeline(
     activeProject: Project | null,
     onLog: (msg: string) => void,
     onChunk: (html: string) => void,
+    checkPause?: () => Promise<void>,
+    onProgress?: (progress: number) => void,
     model?: string
 ) {
     onLog('Iniciando edición quirúrgica (streaming)...');
@@ -193,7 +200,7 @@ export async function executeSurgicalEditPipeline(
         await supabase.from("task_versions").insert({
             task_id: task.id,
             process_name: "Pre-Edición Quirúrgica",
-            content_snapshot: content,
+            content_body: content,
             created_at: new Date().toISOString()
         });
     } catch (e) {
@@ -223,6 +230,8 @@ export async function executeSurgicalEditPipeline(
     let humLastUpdateTime = 0;
 
     for (let i = 0; i < chunks.length; i++) {
+        if (checkPause) await checkPause();
+        if (onProgress) onProgress((i / chunks.length) * 100);
         let success = false;
         let attempts = 0;
         const MAX_ATTEMPTS = 4;
@@ -279,7 +288,7 @@ export async function executeSurgicalEditPipeline(
         await supabase.from("task_versions").insert({
             task_id: task.id,
             process_name: "Post-Edición Quirúrgica",
-            content_snapshot: formatted,
+            content_body: formatted,
             created_at: new Date().toISOString()
         });
     } catch (e) {
@@ -295,6 +304,8 @@ export async function executeHumanizePipeline(
     activeProject: Project | null,
     onLog: (msg: string) => void,
     onChunk: (html: string) => void,
+    checkPause?: () => Promise<void>,
+    onProgress?: (progress: number) => void,
     model?: string
 ) {
     onLog('Iniciando humanización (streaming)...');
@@ -304,7 +315,7 @@ export async function executeHumanizePipeline(
         await supabase.from('task_versions').insert({
             task_id: task.id,
             process_name: "Pre-Humanización",
-            content_snapshot: content,
+            content_body: content,
             created_at: new Date().toISOString()
         });
     } catch (e) {
@@ -336,7 +347,10 @@ export async function executeHumanizePipeline(
     let humLastUpdateTime = 0;
 
     const BATCH_SIZE = 6;
+    const totalBatches = Math.ceil(chunks.length / BATCH_SIZE);
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        if (checkPause) await checkPause();
+        if (onProgress) onProgress(((i / BATCH_SIZE) / totalBatches) * 100);
         const batchChunks = chunks.slice(i, i + BATCH_SIZE);
         const batchContent = batchChunks.join('');
         let success = false;
@@ -403,7 +417,7 @@ export async function executeHumanizePipeline(
         await supabase.from('task_versions').insert({
             task_id: task.id,
             process_name: "Post-Humanización",
-            content_snapshot: newContent,
+            content_body: newContent,
             created_at: new Date().toISOString()
         });
     } catch (e) {
@@ -411,7 +425,8 @@ export async function executeHumanizePipeline(
     }
 
     // Update tasks table
-    const { error: tErr } = await supabase.from('tasks').update(updates).eq('id', task.id);
+    const { content_body: _, ...tasksUpdate } = updates;
+    const { error: tErr } = await supabase.from('tasks').update(tasksUpdate).eq('id', task.id);
     if (tErr) throw tErr;
 
     // Update task_contents
