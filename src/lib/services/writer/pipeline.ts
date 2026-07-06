@@ -290,8 +290,8 @@ export async function executeSurgicalEditPipeline(
     return { success: true, content: formatted, updates };
 }
 export async function executeHumanizePipeline(
-    task: Task, 
-    content: string, 
+    task: Task,
+    content: string,
     activeProject: Project | null,
     onLog: (msg: string) => void,
     onChunk: (html: string) => void,
@@ -299,24 +299,26 @@ export async function executeHumanizePipeline(
 ) {
     onLog('Iniciando humanización (streaming)...');
 
+    // Guardar versión pre-humanización
     try {
-        await supabase.from("task_versions").insert({
+        await supabase.from('task_versions').insert({
             task_id: task.id,
             process_name: "Pre-Humanización",
             content_snapshot: content,
             created_at: new Date().toISOString()
         });
     } catch (e) {
-        console.error("No se pudo guardar la versión Pre-Humanización:", e);
+        console.error('No se pudo guardar la versión Pre-Humanización:', e);
     }
 
     const config = {
-        niche: task.metadata?.niche || 'General', 
-        audience: 'General', 
-        keywords: task.target_keyword || '', 
-        language: task.language || activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es' 
+        niche: task.metadata?.niche || 'General',
+        audience: 'General',
+        keywords: task.target_keyword || '',
+        language: task.language || activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es'
     };
 
+    // Split sanitized content into elements (default 4 per chunk)
     const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
         const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
         const chunks = [];
@@ -329,21 +331,22 @@ export async function executeHumanizePipeline(
     const sanitizedContent = sanitizeLLMHtml(content);
     const chunks = chunkHtml(sanitizedContent, 4);
     onLog(`Documento dividido en ${chunks.length} chunks de 4 elementos HTML...`);
-    
+
     let accumulatedHtml = '';
     let humLastUpdateTime = 0;
 
-    for (let i = 0; i < chunks.length; i++) {
+    const BATCH_SIZE = 6;
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batchChunks = chunks.slice(i, i + BATCH_SIZE);
+        const batchContent = batchChunks.join('');
         let success = false;
         let attempts = 0;
         const MAX_ATTEMPTS = 4;
-
         while (!success && attempts < MAX_ATTEMPTS) {
             try {
-                onLog(`Humanizando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
-                
-                const chunkResult = await streamHumanize(
-                    chunks[i],
+                onLog(`Humanizando batch ${Math.floor(i / BATCH_SIZE) + 1} (chunks ${i + 1}-${Math.min(i + BATCH_SIZE, chunks.length)}) (Intento ${attempts + 1})...`);
+                const batchResult = await streamHumanize(
+                    batchContent,
                     config,
                     50,
                     (partialHtml) => {
@@ -354,61 +357,67 @@ export async function executeHumanizePipeline(
                         }
                     },
                     (msg) => {
-                        console.log(`[Chunk ${i+1}] ${msg}`);
-                        onLog(`[Chunk ${i+1}] ${msg}`);
+                        console.log(`[Batch ${Math.floor(i / BATCH_SIZE) + 1}] ${msg}`);
+                        onLog(`[Batch ${Math.floor(i / BATCH_SIZE) + 1}] ${msg}`);
                     },
                     model
                 );
-                
-                accumulatedHtml += chunkResult.html + '\n';
+                accumulatedHtml += batchResult.html + '\n';
                 onChunk(accumulatedHtml);
                 success = true;
             } catch (err: any) {
                 attempts++;
-                console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
-                
+                console.error(`Error en batch ${Math.floor(i / BATCH_SIZE) + 1} intento ${attempts}:`, err);
                 if (attempts >= MAX_ATTEMPTS) {
-                    onLog(`Fallo definitivo en Chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Saltando chunk para no romper el artículo. Error: ${err.message}`);
-                    accumulatedHtml += chunks[i] + '\n';
+                    onLog(`Fallo definitivo en batch ${Math.floor(i / BATCH_SIZE) + 1} tras ${MAX_ATTEMPTS} intentos. Continuando con siguiente batch.`);
+                    // Append raw batch content to preserve flow
+                    accumulatedHtml += batchContent + '\n';
                     onChunk(accumulatedHtml);
                     break;
                 }
-                
-                onLog(`Error en Chunk ${i + 1}. Reintentando en 70s... (${attempts}/${MAX_ATTEMPTS})`);
-                await new Promise(resolve => setTimeout(resolve, 70000));
+                onLog(`Reintentando batch ${Math.floor(i / BATCH_SIZE) + 1} en 70s... (${attempts}/${MAX_ATTEMPTS})`);
+                await new Promise(r => setTimeout(r, 70000));
             }
         }
     }
 
-    const finalResult = { html: accumulatedHtml };
+    // Cleanup HTML after all batches
+    onLog('Ejecutando limpieza final del HTML post-humanización...');
+    let cleanedHtml = '';
+    try {
+        cleanedHtml = await streamFinalCleanup(accumulatedHtml, onLog);
+    } catch (cleanupErr: any) {
+        onLog(`⚠️ Error en limpieza final: ${cleanupErr.message}. Se usará HTML sin limpiar.`);
+        cleanedHtml = accumulatedHtml;
+    }
 
-    const newContent = finalResult.html;
+    const newContent = cleanedHtml;
 
     const updates: Partial<Task> = {
         content_body: newContent,
         metadata: { ...task.metadata, is_humanized: true, humanized_at: new Date().toISOString() }
     };
 
+    // Guardar versión post-humanización
     try {
-        await supabase.from("task_versions").insert({
+        await supabase.from('task_versions').insert({
             task_id: task.id,
             process_name: "Post-Humanización",
             content_snapshot: newContent,
             created_at: new Date().toISOString()
         });
     } catch (e) {
-        console.error("No se pudo guardar la versión Post-Humanización:", e);
+        console.error('No se pudo guardar la versión Post-Humanización:', e);
     }
 
-    // Save to tasks
+    // Update tasks table
     const { error: tErr } = await supabase.from('tasks').update(updates).eq('id', task.id);
     if (tErr) throw tErr;
 
-    // Save to task_contents
-    const { error: tcErr } = await supabase.from('task_contents')
-        .upsert({ id: task.id, content_body: newContent });
+    // Update task_contents
+    const { error: tcErr } = await supabase.from('task_contents').upsert({ id: task.id, content_body: newContent });
     if (tcErr) throw tcErr;
 
-    onLog('✅ Humanización completada.');
+    onLog('✅ Humanización completada y HTML limpiado.');
     return { success: true, content: newContent, updates };
 }
