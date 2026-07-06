@@ -385,7 +385,6 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                     </button>
                                 </div>
                             </div>
-                        </div>
                     ) : (
                         <>
                             {/* Mode Selector + Strategy Toggle — single compact bar */}
