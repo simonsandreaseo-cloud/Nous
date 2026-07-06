@@ -348,14 +348,28 @@ export const executeWithKeyRotation = async <T>(
             continue;
         }
 
+        // Ordenar currentKeys para probar siempre primero las que NO están penalizadas
+        currentKeys.sort((a, b) => {
+            const penA = apiKeyPenalties.get(a) || 0;
+            const penB = apiKeyPenalties.get(b) || 0;
+            return penA - penB;
+        });
 
         let allKeysFailedRotationReason = true;
         let allKeysFailedQuota = true;
-        let quotaRetriesForCurrentKey = 0;
-        const MAX_QUOTA_RETRIES_PER_KEY = 2; // Esperar 60s hasta 2 veces por llave
 
         for (let kIndex = 0; kIndex < currentKeys.length; kIndex++) {
             const apiKey = currentKeys[kIndex];
+            
+            // Si la mejor llave disponible sigue penalizada, debemos esperar a que se libere.
+            const penaltyExpiry = apiKeyPenalties.get(apiKey) || 0;
+            const now = Date.now();
+            if (now < penaltyExpiry) {
+                const waitTime = penaltyExpiry - now;
+                console.log(`[AI-ORCHESTRATOR] ⏳ Todas las llaves en cooldown para ${step.provider}. Esperando ${Math.ceil(waitTime/1000)}s por la llave ${apiKey.slice(-5)}...`);
+                await sleep(waitTime);
+            }
+
             totalAttempts++;
             if (totalAttempts > MAX_TOTAL_ATTEMPTS) break;
 
@@ -445,28 +459,19 @@ export const executeWithKeyRotation = async <T>(
                     if (onRotation) onRotation(apiKey.slice(-5), isQuota ? "Quota" : (isServerErr ? "Server" : "Invalid"), totalAttempts, MAX_TOTAL_ATTEMPTS);
                     
                     if (isQuota) {
-                        onLog?.('Generación', `Error al generar JSON. Reintentando en 70s... (Intento ${attempts}/${MAX_ATTEMPTS}) - ${error instanceof Error ? error.message : 'Error desconocido'}`);
+                        let delayMs = 0;
+                        const delayMatch = errorMsg.match(/retry(?:delay|\s+in)?\s*"?:?\s*"?(\d+(?:\.\d+)?)\s*s"?/i);
                         
-                        const isDailyQuota = errorMsg.includes('free_tier_requests') || errorMsg.includes('perday') || errorMsg.includes('daily');
-                        
-                        if (isDailyQuota) {
-                             apiKeyPenalties.set(apiKey, Date.now() + 1000 * 60 * 60 * 24); // 24 horas al fondo de la fila
-                             console.warn(`[AI-ORCHESTRATOR] ⚠️ Límite DIARIO detectado para la llave terminada en ${apiKey.slice(-5)}. Movida al final de la fila.`);
-                             quotaRetriesForCurrentKey = 0;
-                             continue; // Saltamos a la siguiente llave sin sleep
+                        if (delayMatch && delayMatch[1]) {
+                            delayMs = Math.ceil(parseFloat(delayMatch[1])) * 1000;
+                        } else {
+                            const isDailyQuota = errorMsg.includes('perday') || errorMsg.includes('daily') || (errorMsg.includes('free_tier_requests') && !errorMsg.includes('retry'));
+                            delayMs = isDailyQuota ? (1000 * 60 * 60 * 24) : 60000; // 24h o 60s
                         }
 
-                        // Si es cuota por minuto, penalizamos levemente e intentamos sleep
-                        apiKeyPenalties.set(apiKey, Date.now() + 1000 * 60); // 1 minuto de penalización
-                        if (quotaRetriesForCurrentKey < MAX_QUOTA_RETRIES_PER_KEY) {
-                            quotaRetriesForCurrentKey++;
-                            console.warn(`[AI-ORCHESTRATOR] ⚠️ Cuota/Rate Limit por minuto detectado. Esperando 70s antes de reintentar la misma llave (Intento ${quotaRetriesForCurrentKey}/${MAX_QUOTA_RETRIES_PER_KEY})...`);
-                            await sleep(70000);
-                            kIndex--; // Reintentamos la MISMA llave
-                            continue;
-                        } else {
-                            quotaRetriesForCurrentKey = 0; // Agotó los reintentos, pasamos a la siguiente llave
-                        }
+                        apiKeyPenalties.set(apiKey, Date.now() + delayMs);
+                        console.warn(`[AI-ORCHESTRATOR] ⚠️ Cuota excedida. Llave ${apiKey.slice(-5)} penalizada por ${Math.ceil(delayMs/1000)}s.`);
+                        continue;
                     } else if (isServerErr) {
                         await sleep(500 * (kIndex + 1));
                     }
