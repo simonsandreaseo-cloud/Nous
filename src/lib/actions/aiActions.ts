@@ -791,7 +791,7 @@ Notas Adicionales: ${config.notes || 'N/A'}
 
             currentMd = await executeStep(currentMd, systemInstructionStr, "MiniHumanización (Modo Estándar)");
 
-        } else if (mode === 'lipograma') {
+        } else if (mode === 'lipograma_1') {
             const baseContext = `REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas MD. Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.
 --- CONTEXTO ---
 Nicho/Tópico: ${config.niche || 'N/A'}
@@ -808,6 +808,13 @@ Notas Adicionales: ${config.notes || 'N/A'}`;
 
             currentMd = await executeStep(currentMd, layer1Rules, "Capa 1/3 (Esqueleto)");
 
+        } else if (mode === 'lipograma_2') {
+            const baseContext = `REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas MD. Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.
+--- CONTEXTO ---
+Nicho/Tópico: ${config.niche || 'N/A'}
+Público Objetivo: ${config.audience || 'N/A'}
+Notas Adicionales: ${config.notes || 'N/A'}`;
+
             const layer2Rules = `${baseContext}
 
 --- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) —
@@ -817,6 +824,13 @@ Aplica estas reglas sobre el texto que recibes.
 3. EL BLOQUEO DEL SUJETO INICIAL (Syntax Lipogram): Exactamente la MITAD (50%) de tus oraciones NO pueden comenzar con el sujeto directo de la acción. Debes empezarlas con un verbo, un adverbio, una preposición o una circunstancia de tiempo/lugar. La otra mitad puede empezar normal.`;
 
             currentMd = await executeStep(currentMd, layer2Rules, "Capa 2/3 (Anomalías)");
+
+        } else if (mode === 'lipograma_3') {
+            const baseContext = `REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas MD. Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.
+--- CONTEXTO ---
+Nicho/Tópico: ${config.niche || 'N/A'}
+Público Objetivo: ${config.audience || 'N/A'}
+Notas Adicionales: ${config.notes || 'N/A'}`;
 
             const layer3Rules = `${baseContext}
 

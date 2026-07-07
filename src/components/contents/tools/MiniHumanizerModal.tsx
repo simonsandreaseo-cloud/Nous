@@ -62,22 +62,52 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 language: "es", // Enforce spanish by default
             };
 
-            const result = await streamMiniHumanize(
-                currentHtml,
-                config,
-                50, // Default intensity
-                (chunk) => {
-                    // Reemplazo directo al final
-                },
-                (status) => {
-                    setStatusMessage(status);
-                },
-                selectedModel,
-                mode
-            );
+            if (mode === 'lipograma') {
+                let stepHtml = currentHtml;
+                
+                setStatusMessage("Iniciando Capa 1/3 (Esqueleto)...");
+                const result1 = await streamMiniHumanize(
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_1'
+                );
+                if (result1 && result1.html) {
+                    editor.commands.setContent(result1.html);
+                    stepHtml = result1.html;
+                }
 
-            if (result && result.html) {
-                editor.commands.setContent(result.html);
+                setStatusMessage("Iniciando Capa 2/3 (Anomalías)...");
+                const result2 = await streamMiniHumanize(
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_2'
+                );
+                if (result2 && result2.html) {
+                    editor.commands.setContent(result2.html);
+                    stepHtml = result2.html;
+                }
+
+                setStatusMessage("Iniciando Capa 3/3 (Cierre)...");
+                const result3 = await streamMiniHumanize(
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_3'
+                );
+                if (result3 && result3.html) {
+                    editor.commands.setContent(result3.html);
+                }
+            } else {
+                const result = await streamMiniHumanize(
+                    currentHtml,
+                    config,
+                    50, // Default intensity
+                    (chunk) => {
+                        // Reemplazo directo al final
+                    },
+                    (status) => {
+                        setStatusMessage(status);
+                    },
+                    selectedModel,
+                    mode
+                );
+
+                if (result && result.html) {
+                    editor.commands.setContent(result.html);
+                }
             }
         } catch (err: any) {
             setError(err.message || "Ocurrió un error al procesar el texto.");
