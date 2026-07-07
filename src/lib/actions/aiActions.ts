@@ -2,6 +2,8 @@
 
 
 import * as cheerio from 'cheerio';
+import TurndownService from 'turndown';
+import { marked } from 'marked';
 import { aiRouter } from "@/lib/ai/router";
 export type { 
     ArticleConfig, 
@@ -665,6 +667,152 @@ export const runHumanizerPipeline = async (
 
     } catch (e: any) {
         safeStatus(`Error durante la humanización: ${e.message}. Subiendo el error al frontend...`);
+        throw e;
+    }
+};
+
+export const runMiniHumanizerPipeline = async (
+    html: string,
+    config: HumanizerConfig,
+    intensity: number,
+    onStatus?: (msg: string) => void,
+    modelName: string = 'gemini-3.5-flash', 
+    onChunk?: (chunkHtml: string) => void,
+    onLog?: (msg: string) => void
+): Promise<{ html: string; metadata?: any }> => {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else onLog?.(`[MiniHumanizer-Status] ${msg}`) || console.log(`[MiniHumanizer-Status] ${msg}`);
+    };
+
+    safeStatus(`Iniciando mini-humanización estructural con Cheerio y modelo ${modelName}...`);
+    const start = Date.now();
+    
+    // --- PROTECCIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
+    const $pre = cheerio.load(html, { decodeEntities: false }, false);
+    
+    // 1. Proteger Encabezados
+    const protectedHeaders: Record<string, string> = {};
+    $pre('h1, h2, h3, h4, h5, h6').each((i, el) => {
+        const id = `hdr_${i}`;
+        $pre(el).attr('data-sys-hdr', id);
+        protectedHeaders[id] = $pre(el).html() || '';
+    });
+    
+    // 2. Proteger Tablas (Extracción total)
+    const protectedTables: Record<string, string> = {};
+    $pre('table').each((i, el) => {
+        const id = `tbl_${i}`;
+        protectedTables[id] = $pre.html(el);
+        $pre(el).replaceWith(`<div data-sys-tbl="${id}">[TABLA PROTEGIDA: ${id}]</div>`);
+    });
+
+    const protectedHtml = $pre.html();
+    
+    // CONVERSIÓN A MARKDOWN PARA EL PROMPT
+    const turndownService = new TurndownService({ headingStyle: 'atx' });
+    const protectedMd = turndownService.turndown(protectedHtml);
+    // ----------------------------------------------
+    
+    try {
+        const processedHtml = await executeHumanizerWithRetry(async (ai) => {
+            const systemInstructionStr = `REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas MD. Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizar la simplicidad sobre la elegancia.\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2. COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3. CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," etc.\n4. MORFOSINTAXIS (EXPLOSIVIDAD):\n  * Usa oraciones cortas (Sujeto-Verbo-Predicado) más que largas.\n  * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5. IDIOMA: Usa español neutro panhispánico.\n6. PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7. PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. Evitar un estilo 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea fluida.\n8. CONSERVACIÓN SEMÁNTICA: no resumas, no omitas ideas, no reduzcas el tamaño del texto, en caso tal aumentalo.`;
+
+            const model = ai.getGenerativeModel({ 
+                model: modelName, 
+                systemInstruction: systemInstructionStr,
+            });
+            
+            const languageInstruction = config.language ? `\n\n[Idioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}]` : '';
+            
+            const prompt = `Devuelve el texto procesado completo sin comentarios ni razonamientos:\n\n${protectedMd}${languageInstruction}`;
+            
+            if (onLog) {
+                onLog('=== [MINI-HUMANIZADOR] ENVIANDO A LA IA ===\n' +
+                      'System Instruction:\n' + systemInstructionStr + 
+                      '\n\nPrompt:\n' + prompt + 
+                      '\n============================================');
+            }
+
+            const response = await model.generateContent(prompt);
+            let raw = response.response.text();
+            
+            if (onLog) {
+                onLog('=== [MINI-HUMANIZADOR] RESPUESTA CRUDA DE LA IA ===\n' + 
+                      raw + 
+                      '\n====================================================');
+            }
+            
+            // Extracción segura del bloque Markdown
+            const mdBlockMatch = raw.match(/```(?:markdown|md)\s*([\s\S]*?)```/i);
+            
+            if (mdBlockMatch && mdBlockMatch[1]) {
+                raw = mdBlockMatch[1].trim();
+            } else {
+                raw = raw.replace(/```text[\s\S]*?```/gi, '').trim();
+                raw = raw.replace(/```(?:markdown|md)\n?/gi, '').replace(/```\n?/g, '').trim();
+            }
+            
+            if (!raw) {
+                throw new Error("El modelo devolvió una respuesta vacía.");
+            }
+            
+            // CONVERSIÓN DE VUELTA A HTML
+            let finalOutputHtml = await marked.parse(raw);
+            
+            if (onLog) {
+                onLog('=== [MINI-HUMANIZADOR] MD PARSEADO A HTML ===\n' + 
+                      finalOutputHtml + 
+                      '\n=============================================');
+            }
+
+            return finalOutputHtml;
+        }, safeStatus, `MiniHumanización de chunk de texto`, modelName);
+        
+        safeStatus(`Chunk mini-humanizado correctamente. Sanitizando...`);
+        
+        // --- POST-PROCESADO: SANITIZACIÓN CON FLASH LITE ---
+        const rawHumanizedHtml = processedHtml as string;
+        let finalHtml = rawHumanizedHtml;
+        
+        try {
+            finalHtml = await runHtmlSanitizer(rawHumanizedHtml, safeStatus);
+        } catch (sanitizerError) {
+            console.error("[MiniHumanizer] Error en sanitización, usando fallback:", sanitizerError);
+            finalHtml = rawHumanizedHtml; // Fallback if it fails
+        }
+        // --------------------------------------------------
+        
+        // --- RESTAURACIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
+        const $post = cheerio.load(finalHtml, { decodeEntities: false }, false);
+        
+        $post('[data-sys-hdr]').each((_, el) => {
+            const id = $post(el).attr('data-sys-hdr');
+            if (id && protectedHeaders[id] !== undefined) {
+                $post(el).html(protectedHeaders[id]);
+            }
+            $post(el).removeAttr('data-sys-hdr');
+        });
+        
+        $post('[data-sys-tbl]').each((_, el) => {
+            const id = $post(el).attr('data-sys-tbl');
+            if (id && protectedTables[id] !== undefined) {
+                $post(el).replaceWith(protectedTables[id]);
+            }
+        });
+
+        finalHtml = $post.html();
+        // ------------------------------------------------
+        
+        if (onChunk) onChunk(finalHtml);
+        
+        const duration = (Date.now() - start) / 1000;
+        console.log(`[MiniHumanizer-Perf] Completado en ${duration}s`);
+        
+        return { html: cleanAndFormatHtml(finalHtml) };
+
+    } catch (e: any) {
+        safeStatus(`Error durante la mini-humanización: ${e.message}. Subiendo el error al frontend...`);
         throw e;
     }
 };

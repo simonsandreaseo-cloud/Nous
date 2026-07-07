@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { X, Wand2, Loader2, AlertCircle } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { streamHumanize } from "@/lib/services/writer/ai-streaming";
+import { streamMiniHumanize } from "@/lib/services/writer/ai-streaming";
 import { cn } from "@/utils/cn";
 import { getSharedExtensions } from "@/lib/tiptap-extensions";
 
@@ -61,7 +61,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 language: "es", // Enforce spanish by default
             };
 
-            const result = await streamHumanize(
+            const result = await streamMiniHumanize(
                 currentHtml,
                 config,
                 50, // Default intensity

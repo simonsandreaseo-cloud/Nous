@@ -213,3 +213,5 @@ Las acciones masivas (ej: redacciÃ³n masiva, humanizaciÃ³n masiva) se comple
   - **What**: Made H1-H6 visually distinct (H1 huge/tight, H2 border-b-4, H3 uppercase indigo, etc.), enabled levels 1-6 in StarterKit config, and removed clashing CSS !important overrides.
   - **Why**: To provide explicit visual hierarchy and contrast for headings in the editor.
   - **Where**: WriterEditor.tsx, tiptap-extensions.ts
+m e m _ s a v e :   S e p a r a c i � n   d e   p i p e l i n e   p a r a   M i n i   H u m a n i z a d o r  
+ 
