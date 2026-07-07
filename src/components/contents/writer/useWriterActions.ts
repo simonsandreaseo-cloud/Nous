@@ -254,6 +254,7 @@ export function useWriterActions() {
             const refined = refineStyling(finalResult.html);
             
             // Batch updates (safely scoped)
+            store.setIsRemoteUpdate(true);
             store.setContent(refined);
             store.setHasHumanized(true);
             store.setHumanizerStatus('✅ ¡Humanización completada!');
@@ -352,6 +353,7 @@ export function useWriterActions() {
             const styled = refineStyling(refined);
             
             // Batch updates (safely scoped)
+            store.setIsRemoteUpdate(true);
             store.setContent(styled);
             store.setStatus('✅ Refinamiento completado.');
             store.setRefinementInstructions('');
@@ -484,6 +486,7 @@ export function useWriterActions() {
             
             const accumulatedHtml = currentDocumentChunks.join('\n');
             // Batch updates (safely scoped)
+            store.setIsRemoteUpdate(true);
             store.setContent(accumulatedHtml);
             store.setStatus('✅ ¡Limpieza mágica aplicada en todo el artículo!');
 
