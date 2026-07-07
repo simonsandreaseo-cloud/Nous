@@ -146,166 +146,20 @@ export function useWriterActions() {
             language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
         };
 
+        const payload = {
+            taskId: targetTaskId,
+            content: store.content,
+            config: config
+        };
+
         // Encolar tarea con el snapshot
-        enqueueTask('humanize', `Humanizando: ${snapshotTitle}`, async (queueTaskId: string) => {
-            const store = new Proxy(outerStore, {
-                get(target: any, prop: string) {
-                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
-                        return (...args: any[]) => {
-                            if (useWriterStore.getState().draftId === targetTaskId) {
-                                return target[prop](...args);
-                            }
-                        }
-                    }
-                    if (prop === 'saveTaskVersion') {
-                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
-                    }
-                    return target[prop];
-                }
-            });
-            console.log("[DEBUG-Humanize] Action triggered");
-        
-        console.log("[DEBUG-Humanize] Starting pipeline for content length:", originalContent.length);
-        store.setHumanizing(true);
-        store.setHumanizerStatus('Iniciando humanización...');
-        try {
-            await store.saveTaskVersion(`Pre-Humanización`, originalContent);
+        enqueueTask(
+            'humanize', 
+            `Humanizando: ${snapshotTitle}`, 
+            payload, 
+            { taskId: targetTaskId, projectId: targetProjectId }
+        );
 
-            const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
-                const chunks = [];
-                for (let i = 0; i < elements.length; i += chunkSize) {
-                    const chunk = elements.slice(i, i + chunkSize).join('').trim();
-                    if (chunk) chunks.push(chunk);
-                }
-                return chunks;
-            };
-
-            const rawChunks = chunkHtml(originalContent, 4);
-            console.log(`[DEBUG-Humanize] Documento dividido en ${rawChunks.length} chunks.`);
-            store.setHumanizerStatus(`Documento dividido en ${rawChunks.length} partes...`);
-            addLogToTask(queueTaskId, `Documento dividido en ${rawChunks.length} partes para procesar.`, 'info');
-            
-            // In-place chunking: envolver todos los chunks inicialmente
-            let currentDocumentChunks = rawChunks.map((chunk, index) => 
-                `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
-            );
-            
-            // Publicar el documento intacto pero marcado en el store
-            store.setContent(currentDocumentChunks.join('\n'));
-
-            for (let i = 0; i < rawChunks.length; i++) {
-                let success = false;
-                let attempts = 0;
-                const MAX_ATTEMPTS = 4;
-
-                // Marcar el chunk actual como "processing"
-                currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
-                store.setContent(currentDocumentChunks.join('\n'));
-
-                while (!success && attempts < MAX_ATTEMPTS) {
-                    try {
-                        store.setHumanizerStatus(`Humanizando Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
-                        addLogToTask(queueTaskId, `Procesando chunk ${i + 1} de ${rawChunks.length}${attempts > 0 ? ` (Reintento ${attempts})` : ''}...`, 'info');
-                        
-                        const chunkResult = await streamHumanize(
-                            rawChunks[i],
-                            config,
-                            50,
-                            (partialHtml) => {
-                                // Enable DOM updates for partial html to provide real-time streaming feedback
-                                currentDocumentChunks[i] = partialHtml;
-                                store.setIsRemoteUpdate(true);
-                                store.setContent(currentDocumentChunks.join('\n'));
-                            },
-                            (msg) => {
-                                console.log(`[Chunk ${i+1}] ${msg}`);
-                                addLogToTask(queueTaskId, `[Chunk ${i+1}] ${msg}`, 'info');
-                            },
-                            undefined, // model
-                            (batchProgress) => {
-                                const baseProgress = (i / rawChunks.length) * 100;
-                                const additionalProgress = (batchProgress / 100) * (1 / rawChunks.length) * 100;
-                                useQueueStore.getState().setTaskStatus(queueTaskId, 'processing', Number((baseProgress + additionalProgress).toFixed(2)));
-                            }
-                        );
-                        
-                        addLogToTask(queueTaskId, `Chunk ${i + 1} completado.`, 'success');
-                        
-                        // Reemplazar el chunk original con el HTML finalizado
-                        currentDocumentChunks[i] = chunkResult.html;
-                        store.setContent(currentDocumentChunks.join('\n'));
-                        success = true;
-                    } catch (err: any) {
-                        attempts++;
-                        console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
-                        addLogToTask(queueTaskId, `Error en chunk ${i + 1}: ${err.message}`, 'error');
-                        
-                        if (attempts >= MAX_ATTEMPTS) {
-                            addLogToTask(queueTaskId, `Fallo definitivo en chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá original.`, 'error');
-                            currentDocumentChunks[i] = rawChunks[i];
-                            store.setContent(currentDocumentChunks.join('\n'));
-                            break;
-                        }
-                        
-                        store.setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en 70s... (${attempts}/${MAX_ATTEMPTS})`);
-                        addLogToTask(queueTaskId, `Esperando 70s antes de reintentar chunk ${i + 1}...`, 'warning');
-                        await new Promise(resolve => setTimeout(resolve, 70000));
-                    }
-                }
-                
-                useQueueStore.getState().setTaskStatus(queueTaskId, 'processing', ((i + 1) / rawChunks.length) * 100);
-            }
-
-            const finalResult = { html: currentDocumentChunks.join('\n') };
-
-            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
-
-            // result now contains { html, metadata }
-            const refined = refineStyling(finalResult.html);
-            
-            // Batch updates (safely scoped)
-            store.setIsRemoteUpdate(true);
-            store.setContent(refined);
-            store.setHasHumanized(true);
-            store.setHumanizerStatus('✅ ¡Humanización completada!');
-
-            store.addDebugPrompt('Humanización Finalizada', `Contenido humanizado con éxito`, refined.substring(0, 1000));
-            
-            // Save version
-            await store.saveTaskVersion(getNextProcessName('Humanizada'), refined);
-            
-            // Update humanization metadata in DB
-            if (store.draftId) {
-                const { data: taskData } = await supabase
-                    .from('tasks')
-                    .select('metadata')
-                    .eq('id', store.draftId)
-                    .single();
-
-                const newMetadata = { 
-                    ...(taskData?.metadata || {}), 
-                    is_humanized: true, 
-                    humanized_at: new Date().toISOString() 
-                };
-
-                const { error: humanizeError } = await supabase
-                    .from('tasks')
-                    .update({ metadata: newMetadata })
-                    .eq('id', store.draftId);
-                
-                if (humanizeError) console.error("[useWriterActions] Error updating humanization metadata:", humanizeError.message);
-            }
-
-            setTimeout(() => store.setHumanizerStatus(''), 3000);
-        } catch (e: any) {
-            console.error(e);
-            store.setHumanizerStatus('❌ Error: ' + e.message);
-            addLogToTask(queueTaskId, `Error crítico: ${e.message}`, 'error');
-        } finally {
-            store.setHumanizing(false);
-        }
-        }, { taskId: targetTaskId, projectId: targetProjectId });
     }, [store, hasAccess, activeProject]);
 
     // --- Edición Quirúrgica ---
@@ -335,51 +189,23 @@ export function useWriterActions() {
         const outerStore = store;
         const targetTaskId = store.draftId;
         const targetProjectId = activeProject?.id;
-        enqueueTask('refine', 'Refinando texto', async () => {
-            const store = new Proxy(outerStore, {
-                get(target: any, prop: string) {
-                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
-                        return (...args: any[]) => {
-                            if (useWriterStore.getState().draftId === targetTaskId) {
-                                return target[prop](...args);
-                            }
-                        }
-                    }
-                    if (prop === 'saveTaskVersion') {
-                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
-                    }
-                    return target[prop];
-                }
-            });
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.content || !store.refinementInstructions) return;
-        store.setRefining(true);
-        store.setStatus('Refinando artículo…');
-        try {
-            const modelToUse = store.researchMode === 'rapid' ? 'gemma-4-31b-it' : 'gemma-4-31b-it';
-            const refined = await refineArticleContent(store.content, store.refinementInstructions, modelToUse);
-            
-            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
-            
-            const styled = refineStyling(refined);
-            
-            // Batch updates (safely scoped)
-            store.setIsRemoteUpdate(true);
-            store.setContent(styled);
-            store.setStatus('✅ Refinamiento completado.');
-            store.setRefinementInstructions('');
 
-            store.addDebugPrompt('Refinamiento Completado', `Instrucciones aplicadas: ${store.refinementInstructions}`, styled.substring(0, 1000));
-            
-            // Save version
-            await store.saveTaskVersion(getNextProcessName('Refinada'), styled);
-        } catch (e: any) {
-            console.error(e);
-            store.setStatus('❌ Error: ' + e.message);
-        } finally {
-            store.setRefining(false);
-        }
-        }, { taskId: targetTaskId, projectId: targetProjectId });
+        const payload = {
+            taskId: targetTaskId,
+            content: store.content,
+            instructions: store.refinementInstructions,
+            researchMode: store.researchMode
+        };
+
+        enqueueTask(
+            'refine', 
+            'Refinando texto', 
+            payload, 
+            { taskId: targetTaskId, projectId: targetProjectId }
+        );
+
     }, [store, hasAccess]);
 
     // --- Clean ---
@@ -388,130 +214,20 @@ export function useWriterActions() {
         const outerStore = store;
         const targetTaskId = store.draftId;
         const targetProjectId = activeProject?.id;
-        enqueueTask('clean', 'Limpiando huellas IA', async () => {
-            const store = new Proxy(outerStore, {
-                get(target: any, prop: string) {
-                    if (typeof target[prop] === 'function' && (prop.startsWith('set') || prop.startsWith('add') || prop === 'setStatus')) {
-                        return (...args: any[]) => {
-                            if (useWriterStore.getState().draftId === targetTaskId) {
-                                return target[prop](...args);
-                            }
-                        }
-                    }
-                    if (prop === 'saveTaskVersion') {
-                        return (name: string, content?: string) => target.saveTaskVersion(name, content, targetTaskId);
-                    }
-                    return target[prop];
-                }
-            });
         if (!hasAccess) return alert('No tienes permisos.');
         if (!store.content) return;
+
+        const payload = {
+            taskId: targetTaskId,
+            content: store.content
+        };
         
-        store.setRefining(true);
-        store.setStatus('Limpiando ruido IA del artículo…');
-        
-        try {
-            const originalContent = store.content;
-            await store.saveTaskVersion(`Pre-Limpieza`, originalContent);
-            
-            const chunkHtml = (htmlString: string, maxBlocks: number = 3): string[] => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlString, 'text/html');
-                const chunks: string[] = [];
-                let currentChunk = '';
-                let blockCount = 0;
-                
-                Array.from(doc.body.children).forEach((el) => {
-                    currentChunk += el.outerHTML;
-                    
-                    const tagName = el.tagName.toLowerCase();
-                    if (['p', 'ul', 'ol', 'blockquote', 'table', 'div'].includes(tagName)) {
-                        blockCount++;
-                    }
-                    
-                    if (blockCount >= maxBlocks) {
-                        chunks.push(currentChunk.trim());
-                        currentChunk = '';
-                        blockCount = 0;
-                    }
-                });
-                
-                if (currentChunk.trim()) {
-                    chunks.push(currentChunk.trim());
-                }
-                
-                return chunks.length > 0 ? chunks : [htmlString];
-            };
-
-            const rawChunks = chunkHtml(originalContent, 3);
-            store.setStatus(`Documento dividido en ${rawChunks.length} partes para limpieza...`);
-            
-            // In-place chunking: envolver todos los chunks inicialmente
-            let currentDocumentChunks = rawChunks.map((chunk, index) => 
-                `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
-            );
-            
-            // Publicar el documento intacto pero marcado en el store
-            store.setContent(currentDocumentChunks.join('\n'));
-            
-            for (let i = 0; i < rawChunks.length; i++) {
-                let success = false;
-                let attempts = 0;
-                const MAX_ATTEMPTS = 4;
-
-                // Marcar el chunk actual como "processing"
-                currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
-                store.setContent(currentDocumentChunks.join('\n'));
-
-                while (!success && attempts < MAX_ATTEMPTS) {
-                    try {
-                        store.setStatus(`Limpiando Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
-                        
-                        const chunkResult = await streamFinalCleanup(
-                            rawChunks[i],
-                            (msg) => console.log(`[Clean Chunk ${i+1}] ${msg}`)
-                        );
-                        
-                        // Reemplazar el chunk original con el HTML finalizado
-                        currentDocumentChunks[i] = chunkResult;
-                        store.setContent(currentDocumentChunks.join('\n'));
-                        success = true;
-                    } catch (err: any) {
-                        attempts++;
-                        console.error(`[Clean Chunk ${i+1}] Fallo intento ${attempts}:`, err);
-                        
-                        if (attempts >= MAX_ATTEMPTS) {
-                            console.error(`Fallo definitivo en la limpieza del chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá original.`);
-                            currentDocumentChunks[i] = rawChunks[i];
-                            store.setContent(currentDocumentChunks.join('\n'));
-                            break;
-                        }
-                        
-                        store.setStatus(`Error en Limpieza Chunk ${i + 1}. Reintentando en 10s... (${attempts}/${MAX_ATTEMPTS})`);
-                        await new Promise(resolve => setTimeout(resolve, 10000));
-                    }
-                }
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
-            
-            const accumulatedHtml = currentDocumentChunks.join('\n');
-            // Batch updates (safely scoped)
-            store.setIsRemoteUpdate(true);
-            store.setContent(accumulatedHtml);
-            store.setStatus('✅ ¡Limpieza mágica aplicada en todo el artículo!');
-
-            store.addDebugPrompt('Limpieza Completada', `Ruido IA eliminado con éxito mediante chunks`, accumulatedHtml.substring(0, 1000));
-            
-            // Save version
-            await store.saveTaskVersion(getNextProcessName('Limpieza IA'), accumulatedHtml);
-        } catch (e: any) {
-            console.error(e);
-            store.setStatus('❌ Error en limpieza: ' + e.message);
-        } finally {
-            store.setRefining(false);
-        }
-        }, { taskId: targetTaskId, projectId: targetProjectId });
+        enqueueTask(
+            'clean', 
+            'Limpiando huellas IA', 
+            payload, 
+            { taskId: targetTaskId, projectId: targetProjectId }
+        );
     }, [store, hasAccess]);
 
     return {

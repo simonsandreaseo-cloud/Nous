@@ -3,6 +3,9 @@ import { handleOutlineTask } from './handlers/outline';
 import { handleGenerateTask } from './handlers/generate';
 import { handleSurgicalEditTask } from './handlers/surgicalEdit';
 import { handleBatchResearch, handleBatchOutline, handleBatchGenerate, handleBatchHumanize, handleBatchTranslate } from './handlers/batch';
+import { handleHumanizeTask } from './handlers/humanize';
+import { handleRefineTask } from './handlers/refine';
+import { handleCleanTask } from './handlers/clean';
 
 export type QueuePayload = Record<string, any>;
 
@@ -35,3 +38,6 @@ QueueRegistry.register('batch_outline', handleBatchOutline);
 QueueRegistry.register('batch_generate', handleBatchGenerate);
 QueueRegistry.register('batch_humanize', handleBatchHumanize);
 QueueRegistry.register('batch_translate', handleBatchTranslate);
+QueueRegistry.register('humanize', handleHumanizeTask);
+QueueRegistry.register('refine', handleRefineTask);
+QueueRegistry.register('clean', handleCleanTask);

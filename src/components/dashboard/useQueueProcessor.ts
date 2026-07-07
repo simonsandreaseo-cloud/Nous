@@ -36,7 +36,7 @@ export function useQueueProcessor() {
                 let executor = QueueRegistry.get(nextTask.type);
                 if (!executor && typeof nextTask.payload === 'function') {
                     executor = async (taskId: string, payload: any) => {
-                        await (nextTask.payload as Function)();
+                        await (nextTask.payload as Function)(nextTask.id);
                     };
                 }
 
