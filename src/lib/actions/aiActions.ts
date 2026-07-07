@@ -555,120 +555,90 @@ export const runHumanizerPipeline = async (
     safeStatus(`Iniciando humanización estructural con Cheerio y modelo ${modelName}...`);
     const start = Date.now();
     
-    // --- PROTECCIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
-    const $pre = cheerio.load(html, { decodeEntities: false }, false);
-    
-    // 1. Proteger Encabezados
-    const protectedHeaders: Record<string, string> = {};
-    $pre('h1, h2, h3, h4, h5, h6').each((i, el) => {
-        const id = `hdr_${i}`;
-        $pre(el).attr('data-sys-hdr', id);
-        protectedHeaders[id] = $pre(el).html() || '';
-    });
-    
-    // 2. Proteger Tablas (Extracción total)
-    const protectedTables: Record<string, string> = {};
-    $pre('table').each((i, el) => {
-        const id = `tbl_${i}`;
-        protectedTables[id] = $pre.html(el);
-        $pre(el).replaceWith(`<div data-sys-tbl="${id}">[TABLA PROTEGIDA: ${id}]</div>`);
+    const $ = cheerio.load(html, { decodeEntities: false }, false);
+    const textBlocks: Record<string, string> = {};
+    let counter = 0;
+
+    const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th';
+    $(blockSelectors).each((_, el) => {
+        if ($(el).children(blockSelectors).length === 0) {
+            const innerHtml = $(el).html()?.trim();
+            if (innerHtml && innerHtml.replace(/<[^>]*>/g, '').trim().length > 5) {
+                const id = `block_${counter++}`;
+                textBlocks[id] = innerHtml;
+                $(el).attr('data-humanize-id', id);
+            }
+        }
     });
 
-    const protectedHtml = $pre.html();
-    // ----------------------------------------------
-    
+    const numBlocks = Object.keys(textBlocks).length;
+    if (numBlocks === 0) {
+        safeStatus(`No se encontraron bloques de texto válidos. Devolviendo original.`);
+        if (onChunk) onChunk(html);
+        return { html: cleanAndFormatHtml(html) };
+    }
+
+    safeStatus(`Se extrajeron ${numBlocks} bloques. Enviando al modelo...`);
+
     try {
-        const processedHtml = await executeHumanizerWithRetry(async (ai) => {
-            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\nREGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas HTML (como <h1>, <h2>, <p>, <table>, <tr>, <td>, <strong>, <a>). Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.\n\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2. COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3. CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4. MORFOSINTAXIS (EXPLOSIVIDAD):\n   * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n   * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5. IDIOMA: Usa español neutro panhispánico.\n6. PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7. PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n8. CONSERVACIÓN SEMÁNTICA: Simplifica la forma, no el fondo. Mantén la carga conceptual.\n\n--- REGLA DE FORMATO CRÍTICA (CERO RAZONAMIENTO) ---\nTienes ESTRICTAMENTE PROHIBIDO hacer borradores, análisis, explicaciones o "Chain of Thought". Eres un modelo de ejecución directa. Tu respuesta debe ser ÚNICAMENTE el código HTML modificado, envuelto en un bloque \`\`\`html. Si escribes una sola palabra fuera del bloque HTML, o si insertas tus pensamientos dentro del HTML, fallarás.`;
+        const processedBlocks = await executeHumanizerWithRetry(async (ai) => {
+            const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común.\n2. COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite pequeños saltos conceptuales.\n3. CONECTORES PROHIBIDOS: Evita conectores formales como "Sin embargo,", "Por lo tanto,", "En conclusión,".\n4. MORFOSINTAXIS: Usa frases cortas predominantemente. Mezcla con algunas frases largas para ser impredecible.\n5. IDIOMA: Usa español neutro panhispánico.\n6. VOZ ACTIVA: Prioriza la voz activa.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON con la clave obligatoria 'razonamiento_interno' (tu análisis y justificación) y luego las claves originales (ej 'block_1', etc) con los valores humanizados en crudo.`;
 
             const model = ai.getGenerativeModel({ 
                 model: modelName, 
                 systemInstruction: systemInstructionStr,
-                // Eliminamos responseMimeType: 'application/json' para que devuelva texto puro
+                generationConfig: {
+                    responseMimeType: 'application/json'
+                }
             });
             
             const languageInstruction = config.language ? `\nIdioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}.` : '';
             
-            const prompt = `--- TAREA ---\nAplica TODAS las reglas de humanización al texto DENTRO de las etiquetas HTML del siguiente bloque. SÉ AGRESIVO al reescribir. Abandona la estructura de la oración original.\n\nPROHIBICIÓN ESTRICTA: CERO RAZONAMIENTO. Devuelve SOLO el bloque \`\`\`html final.\n\n--- HTML DE ENTRADA ---\n\`\`\`html\n${protectedHtml}\n\`\`\`\n${languageInstruction}`;
+            const prompt = `JSON DE ENTRADA CON BLOQUES:\n${JSON.stringify(textBlocks)}\n\n${languageInstruction}\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA.`;
             
             const response = await model.generateContent(prompt);
             let raw = response.response.text();
             
-            // Extracción segura del bloque HTML ("Jaula de Oro")
-            const htmlBlockMatch = raw.match(/```html\s*([\s\S]*?)```/i);
+            let cleaned = raw;
+            cleaned = cleaned.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
             
-            if (htmlBlockMatch && htmlBlockMatch[1]) {
-                raw = htmlBlockMatch[1].trim();
-            } else {
-                // Fallback por si el modelo omitió los backticks y escupió HTML crudo
-                // Intentamos limpiar cualquier bloque de texto (razonamiento) si existe
-                raw = raw.replace(/```text[\s\S]*?```/gi, '').trim();
-                
-                // Mantenemos la guillotina original como red de seguridad final
-                const htmlMatch = raw.match(/(<[hpuotds][1-6a-z]*\b[^>]*>[\s\S]*)/i);
-                if (htmlMatch) {
-                    raw = htmlMatch[1].trim();
-                }
+            const jsonStart = cleaned.indexOf('{');
+            const jsonEnd = cleaned.lastIndexOf('}');
+            
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
             }
             
-            // Limpieza final de backticks residuales por si acaso
-            raw = raw.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
-
-            if (!raw) {
-                throw new Error("El modelo devolvió una respuesta vacía.");
+            try {
+                return JSON.parse(cleaned);
+            } catch (e) {
+                console.error("[Humanizer-Parser] Fallo catastrófico al parsear JSON. Raw preview:", cleaned.substring(0, 100) + "...");
+                throw e;
             }
-            
-            return raw;
-        }, safeStatus, `Humanización de chunk de texto`, modelName);
+        }, safeStatus, `Humanización de ${numBlocks} bloques`, modelName);
         
-        safeStatus(`Chunk humanizado correctamente. Sanitizando...`);
-        
-        // --- POST-PROCESADO: SANITIZACIÓN CON FLASH LITE ---
-        const rawHumanizedHtml = processedHtml as string;
-        let finalHtml = rawHumanizedHtml;
-        
-        try {
-            finalHtml = await runHtmlSanitizer(rawHumanizedHtml, safeStatus);
-        } catch (sanitizerError) {
-            console.error("[Humanizer] Error en sanitización, usando fallback:", sanitizerError);
-            finalHtml = rawHumanizedHtml; // Fallback if it fails
+        safeStatus(`Reconstruyendo el HTML...`);
+        for (const [id, humanizedText] of Object.entries(processedBlocks as Record<string, string>)) {
+            if (id === 'razonamiento_interno') continue;
+            const el = $(`[data-humanize-id="${id}"]`);
+            if (el.length > 0 && typeof humanizedText === 'string') {
+                el.html(humanizedText);
+            }
         }
-        // --------------------------------------------------
-        
-        // --- RESTAURACIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
-        const $post = cheerio.load(finalHtml, { decodeEntities: false }, false);
-        
-        // 1. Restaurar Encabezados
-        $post('[data-sys-hdr]').each((_, el) => {
-            const id = $post(el).attr('data-sys-hdr');
-            if (id && protectedHeaders[id] !== undefined) {
-                $post(el).html(protectedHeaders[id]);
-            }
-            $post(el).removeAttr('data-sys-hdr');
-        });
-        
-        // 2. Restaurar Tablas
-        $post('[data-sys-tbl]').each((_, el) => {
-            const id = $post(el).attr('data-sys-tbl');
-            if (id && protectedTables[id] !== undefined) {
-                $post(el).replaceWith(protectedTables[id]);
-            }
-        });
-
-        finalHtml = $post.html();
-        // ------------------------------------------------
-        
-        if (onChunk) onChunk(finalHtml);
-        
-        const duration = (Date.now() - start) / 1000;
-        console.log(`[Humanizer-Perf] Completado en ${duration}s`);
-        
-        return { html: cleanAndFormatHtml(finalHtml) };
 
     } catch (e: any) {
-        safeStatus(`Error durante la humanización: ${e.message}. Subiendo el error al frontend...`);
-        throw e;
+        safeStatus(`Error durante la humanización: ${e.message}. Devolviendo original.`);
     }
+
+    $('[data-humanize-id]').removeAttr('data-humanize-id');
+    const finalHtml = $.html();
+    
+    if (onChunk) onChunk(finalHtml);
+
+    const duration = (Date.now() - start) / 1000;
+    console.log(`[Humanizer-Perf] Completado en ${duration}s`);
+    
+    return { html: cleanAndFormatHtml(finalHtml) };
 };
 
 export const runMiniHumanizerPipeline = async (
