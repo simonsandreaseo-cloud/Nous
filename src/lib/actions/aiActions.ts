@@ -758,7 +758,105 @@ export const runMiniHumanizerPipeline = async (
             }, safeStatus, stepName, modelName);
         };
 
-        if (mode === 'standard') {
+        if (mode === 'legacy_json') {
+            safeStatus(`Ejecutando Modo JSON Dictionary...`);
+            const $ = cheerio.load(protectedHtml, { decodeEntities: false }, false);
+            const textBlocks: Record<string, string> = {};
+            let counter = 0;
+            
+            const blockSelectors = 'p, li, td, th';
+            $(blockSelectors).each((_, el) => {
+                if ($(el).children(blockSelectors).length === 0) {
+                    const innerHtml = $(el).html()?.trim();
+                    if (innerHtml && innerHtml.replace(/<[^>]*>/g, '').trim().length > 5) {
+                        const id = `block_${counter++}`;
+                        textBlocks[id] = innerHtml;
+                        $(el).attr('data-humanize-id', id);
+                    }
+                }
+            });
+            
+            const numBlocks = Object.keys(textBlocks).length;
+            if (numBlocks === 0) {
+                safeStatus(`No se encontraron bloques de texto válidos.`);
+                return { html: protectedHtml };
+            }
+            
+            safeStatus(`Se extrajeron ${numBlocks} bloques. Enviando al modelo...`);
+            
+            const processedBlocks = await executeHumanizerWithRetry(async (ai) => {
+                const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1.  ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2.  COHERENCIA ROTA: Rompe la coherencia lineal perfecta. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3.  CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4.  MORFOSINTAXIS (EXPLOSIVIDAD):\n    * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n    * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5.  IDIOMA: Usa español neutro panhispánico.\n6.  PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7.  PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON que incluya obligatoriamente una clave "razonamiento_interno" con tu análisis inicial (Chain-of-Thought), y luego el resto de claves deben ser exactamente los mismos IDs originales con sus valores humanizados.`;
+                
+                const model = ai.getGenerativeModel({ 
+                    model: modelName, 
+                    systemInstruction: systemInstructionStr,
+                    generationConfig: {
+                        responseMimeType: 'application/json'
+                    }
+                });
+                
+                const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nJSON DE ENTRADA CON BLOQUES:\n${JSON.stringify(textBlocks)}\n${languageInstruction}\nIMPORTANTE: Devuelve un objeto JSON con la clave obligatoria 'razonamiento_interno' (tu análisis y justificación) y luego las claves originales (ej 'block_1', etc) con los valores humanizados en crudo.`;
+                
+                if (onLog) {
+                    onLog(`=== [MINI-HUMANIZADOR JSON] ENVIANDO A LA IA ===\nPrompt:\n${prompt}\n============================================`);
+                }
+                
+                const response = await model.generateContent(prompt);
+                let raw = response.response.text();
+                
+                if (onLog) {
+                    onLog(`=== [MINI-HUMANIZADOR JSON] RESPUESTA ===\n${raw}\n===========================================`);
+                }
+                
+                let cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                const jsonStart = cleaned.indexOf('{');
+                const jsonEnd = cleaned.lastIndexOf('}');
+                
+                if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+                }
+                
+                try {
+                    return JSON.parse(cleaned);
+                } catch (e) {
+                    console.error("[Humanizer-Parser] Fallo catastrófico al parsear JSON.", e);
+                    throw e;
+                }
+            }, safeStatus, "Humanización JSON", modelName);
+            
+            safeStatus(`Reconstruyendo el HTML...`);
+            for (const [id, humanizedText] of Object.entries(processedBlocks as Record<string, string>)) {
+                const el = $(`[data-humanize-id="${id}"]`);
+                if (el.length > 0 && typeof humanizedText === 'string') {
+                    el.html(humanizedText);
+                }
+            }
+            $('[data-humanize-id]').removeAttr('data-humanize-id');
+            const legacyHtmlOutput = $.html();
+            
+            const $post = cheerio.load(legacyHtmlOutput, { decodeEntities: false }, false);
+            
+            $post('[data-sys-hdr]').each((_, el) => {
+                const id = $post(el).attr('data-sys-hdr');
+                if (id && protectedHeaders[id] !== undefined) {
+                    $post(el).html(protectedHeaders[id]);
+                    $post(el).removeAttr('data-sys-hdr');
+                }
+            });
+            
+            $post('[data-sys-tbl]').each((_, el) => {
+                const id = $post(el).attr('data-sys-tbl');
+                if (id && protectedTables[id] !== undefined) {
+                    $post(el).replaceWith(protectedTables[id]);
+                }
+            });
+            
+            const finalHtml = $post.html();
+            if (onChunk) onChunk(finalHtml);
+            const duration = (Date.now() - start) / 1000;
+            console.log(`[Humanizer-Perf] Completado en ${duration}s`);
+            return { html: cleanAndFormatHtml(finalHtml) };
+        } else if (mode === 'standard') {
             const systemInstructionStr = `REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas MD. Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.
 
 --- PERSONA: REDACTOR MEDIOCRE ---

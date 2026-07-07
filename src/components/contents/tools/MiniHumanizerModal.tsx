@@ -225,6 +225,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                                 <option value="standard">Estándar</option>
                                 <option value="lipograma">Lipograma Positivo (Cascada)</option>
                                 <option value="babel">Torre de Babel (Traducción Inversa)</option>
+                                <option value="legacy_json">Diccionario JSON (Legacy)</option>
                             </select>
 
                             <select
