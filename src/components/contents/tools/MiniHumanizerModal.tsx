@@ -20,6 +20,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
     const [error, setError] = useState<string | null>(null);
     const [wordCount, setWordCount] = useState(0);
     const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
+    const [mode, setMode] = useState("standard");
 
     const extensions = useMemo(() => getSharedExtensions("Pega tu texto aquí..."), []);
 
@@ -71,7 +72,8 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 (status) => {
                     setStatusMessage(status);
                 },
-                selectedModel
+                selectedModel,
+                mode
             );
 
             if (result && result.html) {
@@ -164,6 +166,16 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <select
+                                value={mode}
+                                onChange={(e) => setMode(e.target.value)}
+                                disabled={isProcessing}
+                                className="text-xs font-medium text-slate-600 bg-slate-100 border-none rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
+                            >
+                                <option value="standard">Estándar</option>
+                                <option value="lipograma">Lipograma Positivo (Cascada)</option>
+                            </select>
+
                             <select
                                 value={selectedModel}
                                 onChange={(e) => setSelectedModel(e.target.value)}

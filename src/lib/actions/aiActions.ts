@@ -678,14 +678,15 @@ export const runMiniHumanizerPipeline = async (
     onStatus?: (msg: string) => void,
     modelName: string = 'gemini-3.5-flash', 
     onChunk?: (chunkHtml: string) => void,
-    onLog?: (msg: string) => void
+    onLog?: (msg: string) => void,
+    mode: string = 'standard'
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
         else onLog?.(`[MiniHumanizer-Status] ${msg}`) || console.log(`[MiniHumanizer-Status] ${msg}`);
     };
 
-    safeStatus(`Iniciando mini-humanización estructural con Cheerio y modelo ${modelName}...`);
+    safeStatus(`Iniciando mini-humanización estructural con Cheerio (Modo: ${mode}) y modelo ${modelName}...`);
     const start = Date.now();
     
     // --- PROTECCIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
@@ -711,11 +712,53 @@ export const runMiniHumanizerPipeline = async (
     
     // CONVERSIÓN A MARKDOWN PARA EL PROMPT
     const turndownService = new TurndownService({ headingStyle: 'atx' });
-    const protectedMd = turndownService.turndown(protectedHtml);
+    let currentMd = turndownService.turndown(protectedHtml);
     // ----------------------------------------------
     
     try {
-        const processedHtml = await executeHumanizerWithRetry(async (ai) => {
+        const languageInstruction = config.language ? `\n\n[Idioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}]` : '';
+
+        const executeStep = async (stepMd: string, systemInstruction: string, stepName: string): Promise<string> => {
+            safeStatus(`Ejecutando ${stepName}...`);
+            return await executeHumanizerWithRetry(async (ai) => {
+                const model = ai.getGenerativeModel({ 
+                    model: modelName, 
+                    systemInstruction: systemInstruction,
+                });
+                
+                const prompt = `Devuelve el texto procesado completo sin comentarios ni razonamientos:\n\n${stepMd}${languageInstruction}`;
+                
+                if (onLog) {
+                    onLog(`=== [MINI-HUMANIZADOR] ENVIANDO A LA IA (${stepName}) ===\n` +
+                          'System Instruction:\n' + systemInstruction + 
+                          '\n\nPrompt:\n' + prompt + 
+                          '\n============================================');
+                }
+
+                const response = await model.generateContent(prompt);
+                let raw = response.response.text();
+                
+                if (onLog) {
+                    onLog(`=== [MINI-HUMANIZADOR] RESPUESTA CRUDA DE LA IA (${stepName}) ===\n` + 
+                          raw + 
+                          '\n====================================================');
+                }
+                
+                const mdBlockMatch = raw.match(/```(?:markdown|md)\s*([\s\S]*?)```/i);
+                
+                if (mdBlockMatch && mdBlockMatch[1]) {
+                    raw = mdBlockMatch[1].trim();
+                } else {
+                    raw = raw.replace(/```text[\s\S]*?```/gi, '').trim();
+                    raw = raw.replace(/```(?:markdown|md)\n?/gi, '').replace(/```\n?/g, '').trim();
+                }
+                
+                if (!raw) throw new Error(`El modelo devolvió una respuesta vacía en ${stepName}.`);
+                return raw;
+            }, safeStatus, stepName, modelName);
+        };
+
+        if (mode === 'standard') {
             const systemInstructionStr = `REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas MD. Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.
 
 --- PERSONA: REDACTOR MEDIOCRE ---
@@ -746,70 +789,63 @@ Notas Adicionales: ${config.notes || 'N/A'}
 
 8. CONSERVACIÓN SEMÁNTICA: no resumas, no omitas ideas, no reduzcas el tamaño del texto, en caso tal aumentalo.`;
 
-            const model = ai.getGenerativeModel({ 
-                model: modelName, 
-                systemInstruction: systemInstructionStr,
-            });
-            
-            const languageInstruction = config.language ? `\n\n[Idioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}]` : '';
-            
-            const prompt = `Devuelve el texto procesado completo sin comentarios ni razonamientos:\n\n${protectedMd}${languageInstruction}`;
-            
-            if (onLog) {
-                onLog('=== [MINI-HUMANIZADOR] ENVIANDO A LA IA ===\n' +
-                      'System Instruction:\n' + systemInstructionStr + 
-                      '\n\nPrompt:\n' + prompt + 
-                      '\n============================================');
-            }
+            currentMd = await executeStep(currentMd, systemInstructionStr, "MiniHumanización (Modo Estándar)");
 
-            const response = await model.generateContent(prompt);
-            let raw = response.response.text();
-            
-            if (onLog) {
-                onLog('=== [MINI-HUMANIZADOR] RESPUESTA CRUDA DE LA IA ===\n' + 
-                      raw + 
-                      '\n====================================================');
-            }
-            
-            // Extracción segura del bloque Markdown
-            const mdBlockMatch = raw.match(/```(?:markdown|md)\s*([\s\S]*?)```/i);
-            
-            if (mdBlockMatch && mdBlockMatch[1]) {
-                raw = mdBlockMatch[1].trim();
-            } else {
-                raw = raw.replace(/```text[\s\S]*?```/gi, '').trim();
-                raw = raw.replace(/```(?:markdown|md)\n?/gi, '').replace(/```\n?/g, '').trim();
-            }
-            
-            if (!raw) {
-                throw new Error("El modelo devolvió una respuesta vacía.");
-            }
-            
-            // CONVERSIÓN DE VUELTA A HTML
-            let finalOutputHtml = await marked.parse(raw);
-            
-            if (onLog) {
-                onLog('=== [MINI-HUMANIZADOR] MD PARSEADO A HTML ===\n' + 
-                      finalOutputHtml + 
-                      '\n=============================================');
-            }
+        } else if (mode === 'lipograma') {
+            const baseContext = `REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas MD. Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.
+--- CONTEXTO ---
+Nicho/Tópico: ${config.niche || 'N/A'}
+Público Objetivo: ${config.audience || 'N/A'}
+Notas Adicionales: ${config.notes || 'N/A'}`;
 
-            return finalOutputHtml;
-        }, safeStatus, `MiniHumanización de chunk de texto`, modelName);
+            const layer1Rules = `${baseContext}
+
+--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) —
+1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria y la sensibilidad, el texto no debe ser emocionante, debe ser plano, aburrido y objetivo.
+2. CONSERVACIÓN SEMÁNTICA: no resumas, no omitas ideas, no reduzcas el tamaño del texto, en caso tal aumentalo.
+3. LONGITUD ASIMÉTRICA OBLIGATORIA (Word-Count Forcing): De cada tres oraciones que escribas, una de ellas DEBE tener exactamente 5 palabras o menos. Ni una más. Las otras dos oraciones que la rodean deben tener longitudes completamente diferentes entre sí.
+4. EL TABÚ DE LAS TERMINACIONES (Sufix Lipogram): Queda ESTRICTAMENTE PROHIBIDO usar cualquier palabra que termine con el sufijo '-mente' (ej: rápidamente, exactamente) y está prohibido usar más de una palabra por párrafo que termine en '-ción'. Debes reescribir esas ideas usando verbos crudos.`;
+
+            currentMd = await executeStep(currentMd, layer1Rules, "Capa 1/3 (Esqueleto)");
+
+            const layer2Rules = `${baseContext}
+
+--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) —
+Aplica estas reglas sobre el texto que recibes.
+1. CONSERVACIÓN SEMÁNTICA: no resumas, no omitas ideas, no reduzcas el tamaño del texto, en caso tal aumentalo.
+2. EL MANDATO DE LAS 3 MUTACIONES: Identifica exactamente 3 palabras clave en cada oración (adjetivos, verbos o sustantivos) y reemplázalas por los sinónimos más inusuales y de muy baja frecuencia estadística que encajen perfectamente en el contexto. El texto NO debe quedar vulgar ni coloquial, simplemente inusual y profesional. Jamás uses lenguaje académico corporativo.
+3. EL BLOQUEO DEL SUJETO INICIAL (Syntax Lipogram): Exactamente la MITAD (50%) de tus oraciones NO pueden comenzar con el sujeto directo de la acción. Debes empezarlas con un verbo, un adverbio, una preposición o una circunstancia de tiempo/lugar. La otra mitad puede empezar normal.`;
+
+            currentMd = await executeStep(currentMd, layer2Rules, "Capa 2/3 (Anomalías)");
+
+            const layer3Rules = `${baseContext}
+
+--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) —
+Aplica esta regla sobre el texto que recibes.
+1. CONSERVACIÓN SEMÁNTICA: no resumas, no omitas ideas, no reduzcas el tamaño del texto, en caso tal aumentalo.
+2. EL CIERRE MONOSILÁBICO (Positional Forcing): El 30% de las oraciones de tu texto deben terminar obligatoriamente con una palabra de UNA SOLA SÍLABA (ej: sol, vez, fin, dar, ver, luz, más). Debes alterar la estructura de la oración original para lograr que esta palabra monosílaba quede justo antes del punto final.`;
+
+            currentMd = await executeStep(currentMd, layer3Rules, "Capa 3/3 (Cierre)");
+        }
+
+        // CONVERSIÓN DE VUELTA A HTML
+        let finalOutputHtml = await marked.parse(currentMd);
         
-        safeStatus(`Chunk mini-humanizado correctamente. Sanitizando...`);
+        if (onLog) {
+            onLog('=== [MINI-HUMANIZADOR] MD PARSEADO A HTML ===\n' + 
+                  finalOutputHtml + 
+                  '\n=============================================');
+        }
         
-        // --- POST-PROCESADO: SANITIZACIÓN CON FLASH LITE ---
-        const rawHumanizedHtml = processedHtml as string;
+        const rawHumanizedHtml = finalOutputHtml;
         let finalHtml = rawHumanizedHtml;
         
         try {
             finalHtml = await runHtmlSanitizer(rawHumanizedHtml, safeStatus);
         } catch (sanitizerError) {
             console.error("[MiniHumanizer] Error en sanitización, usando fallback:", sanitizerError);
-            finalHtml = rawHumanizedHtml; // Fallback if it fails
+            finalHtml = rawHumanizedHtml;
         }
-        // --------------------------------------------------
         
         // --- RESTAURACIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
         const $post = cheerio.load(finalHtml, { decodeEntities: false }, false);

@@ -127,12 +127,13 @@ export async function streamMiniHumanize(
     intensity: number,
     onChunk: (html: string) => void,
     onStatus: (msg: string) => void,
-    model?: string
+    model?: string,
+    mode?: string
 ): Promise<{ html: string; result?: any }> {
     const response = await fetch('/api/mini-humanize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, config, intensity, model })
+        body: JSON.stringify({ content, config, intensity, model, mode })
     });
 
     const contentType = response.headers.get('content-type');
