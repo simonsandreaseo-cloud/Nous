@@ -147,6 +147,7 @@ export interface HumanizerConfig {
     niche: string;
     audience: string;
     keywords: string;
+    chunkSize?: number;
     notes?: string;
     lsiKeywords?: string[];
     links?: ContentItem[];

@@ -583,7 +583,7 @@ export const runHumanizerPipeline = async (
 
     try {
         const entries = Object.entries(textBlocks);
-        const chunkSize = 2;
+        const chunkSize = config.chunkSize || 2;
         let allProcessedBlocks: Record<string, string> = {};
 
         for (let i = 0; i < entries.length; i += chunkSize) {
@@ -782,7 +782,7 @@ export const runMiniHumanizerPipeline = async (
             safeStatus(`Se extrajeron ${numBlocks} bloques. Enviando al modelo...`);
             
             const entries = Object.entries(textBlocks);
-            const chunkSize = 2;
+            const chunkSize = config.chunkSize || 2;
             let allProcessedBlocks: Record<string, string> = {};
 
             for (let i = 0; i < entries.length; i += chunkSize) {

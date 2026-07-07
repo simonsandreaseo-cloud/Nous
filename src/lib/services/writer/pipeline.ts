@@ -13,7 +13,9 @@ export async function executeDraftPipeline(
     onLog: (msg: string) => void,
     onChunk: (html: string) => void,
     checkPause?: () => Promise<void>,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    model?: string,
+    chunkSize?: number
 ) {
     onLog('Generando prompt y estructura...');
 
@@ -80,7 +82,7 @@ export async function executeDraftPipeline(
         return chunks.length > 0 ? chunks : [outline];
     };
 
-    const outlineChunks = chunkOutline(config.outlineStructure || [], 2);
+    const outlineChunks = chunkOutline(config.outlineStructure || [], chunkSize || 2);
     onLog(`Documento dividido en ${outlineChunks.length} fragmentos para redacción progresiva...`);
 
     let finalHtml = '';
@@ -192,7 +194,8 @@ export async function executeSurgicalEditPipeline(
     onChunk: (html: string) => void,
     checkPause?: () => Promise<void>,
     onProgress?: (progress: number) => void,
-    model?: string
+    model?: string,
+    chunkSize?: number
 ) {
     onLog('Iniciando edición quirúrgica (streaming)...');
 
@@ -223,7 +226,7 @@ export async function executeSurgicalEditPipeline(
 
     const sanitizedContent = sanitizeLLMHtml(content);
     // Usamos 8 elementos por chunk para no sobrecargar el límite de tokens (Surgical Edit extrae más contexto)
-    const chunks = chunkHtml(sanitizedContent, 8);
+    const chunks = chunkHtml(sanitizedContent, chunkSize || 8);
     onLog(`Documento dividido en ${chunks.length} chunks para edición quirúrgica...`);
     
     let accumulatedHtml = '';
@@ -306,7 +309,8 @@ export async function executeHumanizePipeline(
     onChunk: (html: string) => void,
     checkPause?: () => Promise<void>,
     onProgress?: (progress: number) => void,
-    model?: string
+    model?: string,
+    chunkSize?: number
 ) {
     onLog('Iniciando humanización (streaming)...');
 
@@ -340,8 +344,8 @@ export async function executeHumanizePipeline(
     };
 
     const sanitizedContent = sanitizeLLMHtml(content);
-    const chunks = chunkHtml(sanitizedContent, 4);
-    onLog(`Documento dividido en ${chunks.length} chunks de 4 elementos HTML...`);
+    const chunks = chunkHtml(sanitizedContent, chunkSize || 4);
+    onLog(`Documento dividido en ${chunks.length} chunks de ${chunkSize || 4} elementos HTML...`);
 
     let accumulatedHtml = '';
     let humLastUpdateTime = 0;
