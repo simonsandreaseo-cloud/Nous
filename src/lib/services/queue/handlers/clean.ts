@@ -1,6 +1,6 @@
 import { useWriterStore } from '@/store/useWriterStore';
 import { useQueueStore } from '@/store/useQueueStore';
-import { streamFinalCleanup } from '@/components/tools/writer/services';
+import { streamFinalCleanup } from '@/lib/services/writer/ai-streaming';
 import type { QueuePayload } from '../registry';
 
 export const handleCleanTask = async (taskId: string, payload: QueuePayload) => {

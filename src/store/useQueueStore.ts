@@ -154,14 +154,16 @@ export const useQueueStore = create<QueueStore>()(
 
     setTaskStatus: (id, status, progress) => {
         set((state) => {
+            const roundedProgress = progress !== undefined ? Number(progress.toFixed(2)) : undefined;
+
             // Update active task if it's the one
             const newActiveTask = state.activeTask?.id === id 
-                ? { ...state.activeTask, status, ...(progress !== undefined && { progress }) } 
+                ? { ...state.activeTask, status, ...(roundedProgress !== undefined && { progress: roundedProgress }) } 
                 : state.activeTask;
 
             // Update in queue list if present (usually we shift it out, but just in case)
             const newQueue = state.queue.map(t => 
-                t.id === id ? { ...t, status, ...(progress !== undefined && { progress }) } : t
+                t.id === id ? { ...t, status, ...(roundedProgress !== undefined && { progress: roundedProgress }) } : t
             );
 
             if (newActiveTask && newActiveTask.id === id) syncTaskToSupabase(newActiveTask);

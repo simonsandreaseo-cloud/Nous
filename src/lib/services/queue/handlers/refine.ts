@@ -1,6 +1,7 @@
 import { useWriterStore } from '@/store/useWriterStore';
 import { useQueueStore } from '@/store/useQueueStore';
-import { refineArticleContent, refineStyling } from '@/components/tools/writer/services';
+import { refineArticleContent } from '@/lib/actions/aiActions';
+import { refineStyling } from '@/components/tools/writer/services';
 import type { QueuePayload } from '../registry';
 
 export const handleRefineTask = async (taskId: string, payload: QueuePayload) => {
