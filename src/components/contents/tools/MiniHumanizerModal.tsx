@@ -90,7 +90,27 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 if (result3 && result3.html) {
                     editor.commands.setContent(result3.html);
                 }
-            } else {
+        } else if (mode === 'babel') {
+            let stepHtml = currentHtml;
+            const steps = [
+                { mode: 'babel_1', msg: "Capa 1/5: Traduciendo al Alemán (Estructurando)..." },
+                { mode: 'babel_2', msg: "Capa 2/5: Traduciendo al Japonés (Invirtiendo)..." },
+                { mode: 'babel_3', msg: "Capa 3/5: Traduciendo al Ruso (Declinando)..." },
+                { mode: 'babel_4', msg: "Capa 4/5: Traduciendo al Chino (Aislando)..." },
+                { mode: 'babel_5', msg: "Capa 5/5: Recuperando al Español (Cierre)..." }
+            ];
+
+            for (const s of steps) {
+                setStatusMessage(s.msg);
+                const result = await streamMiniHumanize(
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, s.mode
+                );
+                if (result && result.html) {
+                    editor.commands.setContent(result.html);
+                    stepHtml = result.html;
+                }
+            }
+        } else {
                 const result = await streamMiniHumanize(
                     currentHtml,
                     config,
@@ -204,6 +224,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                             >
                                 <option value="standard">Estándar</option>
                                 <option value="lipograma">Lipograma Positivo (Cascada)</option>
+                                <option value="babel">Torre de Babel (Traducción Inversa)</option>
                             </select>
 
                             <select

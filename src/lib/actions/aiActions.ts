@@ -840,6 +840,62 @@ Aplica esta regla sobre el texto que recibes.
 2. EL CIERRE MONOSILÁBICO (Positional Forcing): El 30% de las oraciones de tu texto deben terminar obligatoriamente con una palabra de UNA SOLA SÍLABA (ej: sol, vez, fin, dar, ver, luz, más). Debes alterar la estructura de la oración original para lograr que esta palabra monosílaba quede justo antes del punto final.`;
 
             currentMd = await executeStep(currentMd, layer3Rules, "Capa 3/3 (Cierre)");
+        } else if (mode.startsWith('babel_')) {
+            // Babel Mode: Translation Degradation
+            const step = mode.split('_')[1];
+            const baseContext = `REGLA CRÍTICA DE ESTRUCTURA: NO MODIFIQUES, elimines o alteres las etiquetas MD. Tu trabajo es reescribir ÚNICAMENTE el texto que está DENTRO de estas etiquetas.`;
+            
+            let babelRules = "";
+            let stepName = "";
+
+            if (step === '1') {
+                stepName = "Traduciendo al Alemán";
+                babelRules = `${baseContext}
+Eres un traductor automático de muy baja calidad de los años 90. Traduce el texto al ALEMÁN.
+REGLAS CRÍTICAS:
+1. Traduce de forma extremadamente LITERAL y torpe. Palabra por palabra.
+2. NO adaptes modismos, frases hechas ni expresiones idiomáticas. Tradúcelos de forma directa aunque no tengan sentido en alemán.
+3. NO mejores la redacción. Mantén cualquier rareza o ambigüedad.
+4. Conserva el formato y etiquetas Markdown exactas.`;
+            } else if (step === '2') {
+                stepName = "Traduciendo al Japonés";
+                babelRules = `${baseContext}
+Eres un traductor automático de muy baja calidad de los años 90. Traduce el texto al JAPONÉS.
+REGLAS CRÍTICAS:
+1. Traduce de forma extremadamente LITERAL y torpe. Palabra por palabra.
+2. NO adaptes modismos, frases hechas ni expresiones idiomáticas. Tradúcelos de forma directa aunque no tengan sentido en japonés.
+3. NO mejores la redacción. Mantén cualquier rareza o ambigüedad.
+4. Conserva el formato y etiquetas Markdown exactas.`;
+            } else if (step === '3') {
+                stepName = "Traduciendo al Ruso";
+                babelRules = `${baseContext}
+Eres un traductor automático de muy baja calidad de los años 90. Traduce el texto al RUSO.
+REGLAS CRÍTICAS:
+1. Traduce de forma extremadamente LITERAL y torpe. Palabra por palabra.
+2. NO adaptes modismos, frases hechas ni expresiones idiomáticas. Tradúcelos de forma directa aunque no tengan sentido en ruso.
+3. NO mejores la redacción. Mantén cualquier rareza o ambigüedad.
+4. Conserva el formato y etiquetas Markdown exactas.`;
+            } else if (step === '4') {
+                stepName = "Traduciendo al Chino Mandarín";
+                babelRules = `${baseContext}
+Eres un traductor automático de muy baja calidad de los años 90. Traduce el texto al CHINO MANDARÍN.
+REGLAS CRÍTICAS:
+1. Traduce de forma extremadamente LITERAL y torpe. Palabra por palabra.
+2. NO adaptes modismos, frases hechas ni expresiones idiomáticas. Tradúcelos de forma directa aunque no tengan sentido en chino.
+3. NO mejores la redacción. Mantén cualquier rareza o ambigüedad.
+4. Conserva el formato y etiquetas Markdown exactas.`;
+            } else if (step === '5') {
+                stepName = "Recuperando al Español";
+                babelRules = `${baseContext}
+Eres un redactor mediocre. Traduce este texto de vuelta al ESPAÑOL. 
+REGLAS CRÍTICAS:
+1. Mantén la estructura gramatical exacta que tiene el texto de origen, aunque suene antinatural, extraña o como el maestro Yoda en español.
+2. NO intentes hacerlo sonar elegante. Usa un vocabulario súper simple y llano.
+3. NO resumas ni omitas ideas.
+4. Conserva el formato y etiquetas Markdown exactas.`;
+            }
+
+            currentMd = await executeStep(currentMd, babelRules, stepName);
         }
 
         // CONVERSIÓN DE VUELTA A HTML
