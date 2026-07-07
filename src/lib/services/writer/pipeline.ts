@@ -350,21 +350,18 @@ export async function executeHumanizePipeline(
     let accumulatedHtml = '';
     let humLastUpdateTime = 0;
 
-    const BATCH_SIZE = 6;
-    const totalBatches = Math.ceil(chunks.length / BATCH_SIZE);
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+    for (let i = 0; i < chunks.length; i++) {
         if (checkPause) await checkPause();
-        if (onProgress) onProgress(((i / BATCH_SIZE) / totalBatches) * 100);
-        const batchChunks = chunks.slice(i, i + BATCH_SIZE);
-        const batchContent = batchChunks.join('');
+        if (onProgress) onProgress((i / chunks.length) * 100);
+        const chunkContent = chunks[i];
         let success = false;
         let attempts = 0;
         const MAX_ATTEMPTS = 4;
         while (!success && attempts < MAX_ATTEMPTS) {
             try {
-                onLog(`Humanizando batch ${Math.floor(i / BATCH_SIZE) + 1} (chunks ${i + 1}-${Math.min(i + BATCH_SIZE, chunks.length)}) (Intento ${attempts + 1})...`);
-                const batchResult = await streamHumanize(
-                    batchContent,
+                onLog(`Humanizando fragmento ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
+                const chunkResult = await streamHumanize(
+                    chunkContent,
                     config,
                     50,
                     (partialHtml) => {
@@ -375,30 +372,30 @@ export async function executeHumanizePipeline(
                         }
                     },
                     (msg) => {
-                        console.log(`[Batch ${Math.floor(i / BATCH_SIZE) + 1}] ${msg}`);
-                        onLog(`[Batch ${Math.floor(i / BATCH_SIZE) + 1}] ${msg}`);
+                        console.log(`[Fragmento ${i + 1}] ${msg}`);
+                        onLog(`[Fragmento ${i + 1}] ${msg}`);
                     },
                     model,
-                    (batchProgress) => {
+                    (chunkProgress) => {
                         const baseProgress = (i / chunks.length) * 100;
-                        const additionalProgress = (batchProgress / 100) * (BATCH_SIZE / chunks.length) * 100;
+                        const additionalProgress = (chunkProgress / 100) * (1 / chunks.length) * 100;
                         if (onProgress) onProgress(Number((baseProgress + additionalProgress).toFixed(2)));
                     }
                 );
-                accumulatedHtml += batchResult.html + '\n';
+                accumulatedHtml += chunkResult.html + '\n';
                 onChunk(accumulatedHtml);
                 success = true;
             } catch (err: any) {
                 attempts++;
-                console.error(`Error en batch ${Math.floor(i / BATCH_SIZE) + 1} intento ${attempts}:`, err);
+                console.error(`Error en fragmento ${i + 1} intento ${attempts}:`, err);
                 if (attempts >= MAX_ATTEMPTS) {
-                    onLog(`Fallo definitivo en batch ${Math.floor(i / BATCH_SIZE) + 1} tras ${MAX_ATTEMPTS} intentos. Continuando con siguiente batch.`);
-                    // Append raw batch content to preserve flow
-                    accumulatedHtml += batchContent + '\n';
+                    onLog(`Fallo definitivo en fragmento ${i + 1} tras ${MAX_ATTEMPTS} intentos. Continuando con siguiente fragmento.`);
+                    // Append raw chunk content to preserve flow
+                    accumulatedHtml += chunkContent + '\n';
                     onChunk(accumulatedHtml);
                     break;
                 }
-                onLog(`Reintentando batch ${Math.floor(i / BATCH_SIZE) + 1} en 70s... (${attempts}/${MAX_ATTEMPTS})`);
+                onLog(`Reintentando fragmento ${i + 1} en 70s... (${attempts}/${MAX_ATTEMPTS})`);
                 await new Promise(r => setTimeout(r, 70000));
             }
         }

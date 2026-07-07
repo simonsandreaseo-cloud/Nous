@@ -590,7 +590,7 @@ export const runHumanizerPipeline = async (
             const chunkEntries = entries.slice(i, i + chunkSize);
             const chunkObj = Object.fromEntries(chunkEntries);
             
-            safeStatus(`Procesando lote ${Math.floor(i/chunkSize) + 1} de ${Math.ceil(entries.length/chunkSize)} (${chunkEntries.length} bloques)...`);
+            safeStatus(`Procesando fragmento ${Math.floor(i/chunkSize) + 1} de ${Math.ceil(entries.length/chunkSize)} (${chunkEntries.length} bloques)...`);
             
             const processedChunk = await executeHumanizerWithRetry(async (ai) => {
                 const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2. COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3. CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4. MORFOSINTAXIS (EXPLOSIVIDAD):\n   * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n   * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5. IDIOMA: Usa español neutro panhispánico.\n6. PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7. PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON con la clave obligatoria 'razonamiento_interno' (tu análisis y justificación) y luego las claves originales (ej 'block_1', etc) con los valores humanizados en crudo.`;
@@ -626,7 +626,7 @@ export const runHumanizerPipeline = async (
                     console.error("[Humanizer-Parser] Fallo catastrófico al parsear JSON. Raw preview:", cleaned.substring(0, 100) + "...");
                     throw e;
                 }
-            }, safeStatus, `Humanización de lote de ${chunkEntries.length} bloques`, modelName);
+            }, safeStatus, `Humanización de fragmento de ${chunkEntries.length} bloques`, modelName);
             
             allProcessedBlocks = { ...allProcessedBlocks, ...(processedChunk as any) };
             for (const [id, humanizedText] of Object.entries(processedChunk as any)) {
@@ -789,7 +789,7 @@ export const runMiniHumanizerPipeline = async (
                 const chunkEntries = entries.slice(i, i + chunkSize);
                 const chunkObj = Object.fromEntries(chunkEntries);
                 
-                safeStatus(`Procesando lote ${Math.floor(i/chunkSize) + 1} de ${Math.ceil(entries.length/chunkSize)} (${chunkEntries.length} bloques)...`);
+                safeStatus(`Procesando fragmento ${Math.floor(i/chunkSize) + 1} de ${Math.ceil(entries.length/chunkSize)} (${chunkEntries.length} bloques)...`);
                 
                 const processedChunk = await executeHumanizerWithRetry(async (ai) => {
                     const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2. COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3. CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4. MORFOSINTAXIS (EXPLOSIVIDAD):\n   * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n   * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5. IDIOMA: Usa español neutro panhispánico.\n6. PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7. PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON que incluya obligatoriamente una clave "razonamiento_interno" con tu análisis inicial (Chain-of-Thought), y luego el resto de claves deben ser exactamente los mismos IDs originales con sus valores humanizados en crudo.`;
@@ -829,7 +829,7 @@ export const runMiniHumanizerPipeline = async (
                         console.error("[Humanizer-Parser] Fallo catastrófico al parsear JSON.", e);
                         throw e;
                     }
-                }, safeStatus, `Humanización JSON lote de ${chunkEntries.length}`, modelName);
+                }, safeStatus, `Humanización de fragmento de ${chunkEntries.length} bloques`, modelName);
                 
                 allProcessedBlocks = { ...allProcessedBlocks, ...(processedChunk as any) };
                 for (const [id, humanizedText] of Object.entries(processedChunk as any)) {
