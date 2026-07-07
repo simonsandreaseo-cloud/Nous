@@ -56,7 +56,8 @@ export async function streamHumanize(
     intensity: number,
     onChunk: (html: string) => void,
     onStatus: (msg: string) => void,
-    model?: string
+    model?: string,
+    onProgress?: (percent: number) => void
 ): Promise<{ html: string; result?: any }> {
     const response = await fetch('/api/humanize', {
         method: 'POST',
@@ -100,8 +101,22 @@ export async function streamHumanize(
                 if (parsed.type === 'status') {
                     onStatus(parsed.message);
                 } else if (parsed.type === 'chunk') {
-                    newContent += parsed.html + '\n';
+                    // El API ahora puede enviar chunks de todo el HTML reconstruido 
+                    // No concatenar, simplemente reemplazar para mostrar el progreso!
+                    // Wait, runHumanizerPipeline passes the whole HTML?
+                    // YES! `onChunk(tmp.html())` in aiActions sends the *entire* HTML so far.
+                    // Oh, wait. In runHumanizerPipeline:
+                    // `onChunk(tmp.html());` inside the loop.
+                    // If we do `newContent += parsed.html`, it will duplicate!
+                    // Let's replace the whole `newContent` with `parsed.html`?
+                    // Actually, the original implementation was `newContent += parsed.html + '\n';`.
+                    // But in original aiActions.ts it called `onChunk(finalHtml)` only once at the end!
+                    // Now it calls it multiple times with the FULL HTML updated so far.
+                    // Therefore we MUST NOT append! We must REPLACE!
+                    newContent = parsed.html;
                     onChunk(newContent);
+                } else if (parsed.type === 'progress') {
+                    if (onProgress) onProgress(parsed.percent);
                 } else if (parsed.type === 'error') {
                     throw new Error(parsed.error);
                 } else if (parsed.type === 'done') {

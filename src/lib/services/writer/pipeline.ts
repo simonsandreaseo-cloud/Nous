@@ -374,7 +374,12 @@ export async function executeHumanizePipeline(
                         console.log(`[Batch ${Math.floor(i / BATCH_SIZE) + 1}] ${msg}`);
                         onLog(`[Batch ${Math.floor(i / BATCH_SIZE) + 1}] ${msg}`);
                     },
-                    model
+                    model,
+                    (batchProgress) => {
+                        const baseProgress = (i / chunks.length) * 100;
+                        const additionalProgress = (batchProgress / 100) * (BATCH_SIZE / chunks.length) * 100;
+                        if (onProgress) onProgress(Number((baseProgress + additionalProgress).toFixed(2)));
+                    }
                 );
                 accumulatedHtml += batchResult.html + '\n';
                 onChunk(accumulatedHtml);
@@ -395,17 +400,7 @@ export async function executeHumanizePipeline(
         }
     }
 
-    // Cleanup HTML after all batches
-    onLog('Ejecutando limpieza final del HTML post-humanización...');
-    let cleanedHtml = '';
-    try {
-        cleanedHtml = await streamFinalCleanup(accumulatedHtml, onLog);
-    } catch (cleanupErr: any) {
-        onLog(`⚠️ Error en limpieza final: ${cleanupErr.message}. Se usará HTML sin limpiar.`);
-        cleanedHtml = accumulatedHtml;
-    }
-
-    const newContent = cleanedHtml;
+    const newContent = accumulatedHtml;
 
     const updates: Partial<Task> = {
         content_body: newContent,

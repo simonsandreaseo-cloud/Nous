@@ -212,10 +212,21 @@ export function useWriterActions() {
                             rawChunks[i],
                             config,
                             50,
-                            () => {}, // Desactivamos el streaming parcial para mantener el DOM estable
+                            (partialHtml) => {
+                                // Enable DOM updates for partial html to provide real-time streaming feedback
+                                currentDocumentChunks[i] = partialHtml;
+                                store.setIsRemoteUpdate(true);
+                                store.setContent(currentDocumentChunks.join('\n'));
+                            },
                             (msg) => {
                                 console.log(`[Chunk ${i+1}] ${msg}`);
                                 addLogToTask(queueTaskId, `[Chunk ${i+1}] ${msg}`, 'info');
+                            },
+                            undefined, // model
+                            (batchProgress) => {
+                                const baseProgress = (i / rawChunks.length) * 100;
+                                const additionalProgress = (batchProgress / 100) * (1 / rawChunks.length) * 100;
+                                useQueueStore.getState().setTaskStatus(queueTaskId, 'processing', Number((baseProgress + additionalProgress).toFixed(2)));
                             }
                         );
                         
