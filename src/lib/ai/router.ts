@@ -4,7 +4,18 @@ import { AIRequest, AIResponse } from './types';
 
 class AIRouter {
     async generate(request: AIRequest): Promise<AIResponse> {
-        const { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode, label: callerLabel, forceModel = false, timeoutMs, provider } = request;
+        let { model, prompt, systemPrompt, temperature = 0.7, maxTokens, jsonMode, label: callerLabel, forceModel = false, timeoutMs, provider } = request;
+
+        // Automatically resolve model suffixes to model name and provider
+        if (model) {
+            if (model.endsWith('-vertex')) {
+                model = model.slice(0, -7);
+                provider = 'vertex-ai';
+            } else if (model.endsWith('-gas')) {
+                model = model.slice(0, -4);
+                provider = 'google-ai-studio';
+            }
+        }
 
         // CRITICAL: Use the caller's label to activate the correct hierarchy.
         // Fall back to intent-based detection only if no label is provided.

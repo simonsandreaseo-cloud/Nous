@@ -26,6 +26,21 @@ import { supabase } from "@/lib/supabase";
 
 // --- UTILS & CONSTANTS ---
 export const buildPrompt = libBuildPrompt;
+
+export function parseModelAndProvider(modelName: string, provider?: 'google-ai-studio' | 'vertex-ai' | 'auto') {
+    let resolvedModel = modelName;
+    let resolvedProvider = provider || 'auto';
+
+    if (modelName.endsWith('-vertex')) {
+        resolvedModel = modelName.slice(0, -7);
+        resolvedProvider = 'vertex-ai';
+    } else if (modelName.endsWith('-gas')) {
+        resolvedModel = modelName.slice(0, -4);
+        resolvedProvider = 'google-ai-studio';
+    }
+
+    return { resolvedModel, resolvedProvider };
+}
 const ANTI_LEAKAGE_SYSTEM_BASE = `Eres un Transformador Determinista. Tu única función es procesar la entrada y devolver la salida en el formato exacto solicitado.`;
 
 const FEW_SHOT_HTML = `
@@ -118,24 +133,28 @@ export async function executeHumanizerWithRetry<T>(
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001'];
-    if (!allowedModels.includes(modelName)) {
-        safeStatus(`⚠️ Modelo ${modelName} no permitido para humanización. Forzando gemma-4-31b-it.`);
-        modelName = 'gemma-4-31b-it';
+    const parsed = parseModelAndProvider(modelName, provider);
+    let resolvedModel = parsed.resolvedModel;
+    const resolvedProvider = parsed.resolvedProvider;
+
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview'];
+    if (!allowedModels.includes(resolvedModel)) {
+        safeStatus(`⚠️ Modelo ${resolvedModel} no permitido para humanización. Forzando gemma-4-31b-it.`);
+        resolvedModel = 'gemma-4-31b-it';
     }
 
     const HUMANIZER_TIMEOUT = 180000;
 
     return await executeWithKeyRotation(
-        operation,
-        modelName,
-        undefined,
-        undefined,
-        undefined,
-        true,
-        label,
-        HUMANIZER_TIMEOUT,
-        provider
+         operation,
+         resolvedModel,
+         undefined,
+         undefined,
+         undefined,
+         true,
+         label,
+         HUMANIZER_TIMEOUT,
+         resolvedProvider
     );
 };
 
@@ -550,12 +569,16 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview'];
-    if (!allowedModels.includes(modelName)) {
-        modelName = 'gemma-4-31b-it';
+    const parsed = parseModelAndProvider(modelName);
+    let resolvedModel = parsed.resolvedModel;
+    const resolvedProvider = parsed.resolvedProvider;
+
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview'];
+    if (!allowedModels.includes(resolvedModel)) {
+        resolvedModel = 'gemma-4-31b-it';
     }
 
-    safeStatus(`Iniciando humanización estructural con Cheerio y modelo ${modelName}...`);
+    safeStatus(`Iniciando humanización estructural con Cheerio y modelo ${resolvedModel}...`);
     const start = Date.now();
     
     const $ = cheerio.load(html, { decodeEntities: false }, false);
@@ -598,7 +621,7 @@ export const runHumanizerPipeline = async (
                 const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2. COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3. CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4. MORFOSINTAXIS (EXPLOSIVIDAD):\n   * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n   * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5. IDIOMA: Usa español neutro panhispánico.\n6. PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7. PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON con la clave obligatoria 'razonamiento_interno' (tu análisis y justificación) y luego las claves originales (ej 'block_1', etc) con los valores humanizados en crudo.`;
 
                 const model = ai.getGenerativeModel({ 
-                    model: modelName, 
+                    model: resolvedModel, 
                     systemInstruction: systemInstructionStr,
                     generationConfig: {
                         responseMimeType: 'application/json'
@@ -628,7 +651,7 @@ export const runHumanizerPipeline = async (
                     console.error("[Humanizer-Parser] Fallo catastrófico al parsear JSON. Raw preview:", cleaned.substring(0, 100) + "...");
                     throw e;
                 }
-            }, safeStatus, `Humanización de fragmento de ${chunkEntries.length} bloques`, modelName);
+            }, safeStatus, `Humanización de fragmento de ${chunkEntries.length} bloques`, resolvedModel, resolvedProvider);
             
             allProcessedBlocks = { ...allProcessedBlocks, ...(processedChunk as any) };
             for (const [id, humanizedText] of Object.entries(processedChunk as any)) {
@@ -1546,6 +1569,10 @@ export async function executeCustomTransformWithRetry<T>(
         else console.log(`[CustomTransform-Status] ${msg}`);
     };
 
+    const parsed = parseModelAndProvider(modelName, provider);
+    let resolvedModel = parsed.resolvedModel;
+    const resolvedProvider = parsed.resolvedProvider;
+
     const allowedModels = [
         'gemini-3.5-flash', 
         'gemini-3.5-pro', 
@@ -1553,26 +1580,27 @@ export async function executeCustomTransformWithRetry<T>(
         'gemini-3.1-flash-lite-preview', 
         'gemma-4-31b-it', 
         'gemma-4-26b-a4b-it',
-        'gemini-1.5-flash-001'
+        'gemini-1.5-flash-001',
+        'gemini-3-flash-preview'
     ];
     
-    if (!allowedModels.includes(modelName)) {
-        safeStatus(`⚠️ Modelo ${modelName} no permitido. Forzando gemini-3.5-flash.`);
-        modelName = 'gemini-3.5-flash';
+    if (!allowedModels.includes(resolvedModel)) {
+        safeStatus(`⚠️ Modelo ${resolvedModel} no permitido. Forzando gemini-3.5-flash.`);
+        resolvedModel = 'gemini-3.5-flash';
     }
 
     const TRANSFORM_TIMEOUT = 180000; // 3 minutos
 
     return await executeWithKeyRotation(
         operation,
-        modelName,
+        resolvedModel,
         undefined,
         undefined,
         undefined,
         true, // isStrictModel
         label,
         TRANSFORM_TIMEOUT,
-        provider
+        resolvedProvider
     );
 }
 
@@ -1590,7 +1618,11 @@ export const runCustomTransformPipeline = async (
         else console.log(`[CustomTransform-Status] ${msg}`);
     };
 
-    safeStatus(`Iniciando transformación estructural de HTML completo con modelo ${modelName}...`);
+    const parsed = parseModelAndProvider(modelName, provider);
+    const resolvedModel = parsed.resolvedModel;
+    const resolvedProvider = parsed.resolvedProvider;
+
+    safeStatus(`Iniciando transformación estructural de HTML completo con modelo ${resolvedModel}...`);
 
     const resultHtml = await executeCustomTransformWithRetry(async (ai, currentModel) => {
         const systemInstruction = `
@@ -1623,7 +1655,7 @@ ${userInstructions}
         cleaned = cleaned.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
 
         return cleaned;
-    }, safeStatus, 'Transformación HTML Custom', modelName, provider);
+    }, safeStatus, 'Transformación HTML Custom', resolvedModel, resolvedProvider);
 
     if (onChunk) onChunk(resultHtml);
 

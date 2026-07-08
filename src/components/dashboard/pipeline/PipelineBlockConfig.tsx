@@ -13,29 +13,28 @@ interface PipelineBlockConfigProps {
     isStatusMode: boolean;
 }
 
-const AI_MODELS: { id: AIModelType; label: string; description: string; providerSpecific?: AIProviderType }[] = [
-    { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: 'Flujos complejos y agentic workflows' },
-    { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', description: 'Alta capacidad (Solo Vertex)', providerSpecific: 'vertex-ai' },
-    { id: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash-Lite', description: 'Tareas volumétricas de bajo costo' },
-    { id: 'gemma-4-31b-it', label: 'Gemma 4 (31B)', description: 'Alta precisión local y razonamiento' },
-    { id: 'gemma-4-26b-a4b-it', label: 'Gemma 4 (26B MoE)', description: 'Velocidad y eficiencia' },
+const AI_MODELS: { id: AIModelType; label: string; description: string }[] = [
+    { id: 'gemini-3.5-flash-gas', label: 'Gemini 3.5 Flash (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3.5-flash-vertex', label: 'Gemini 3.5 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemini-3-flash-preview-gas', label: 'Gemini 3 Flash (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3-flash-preview-vertex', label: 'Gemini 3 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemini-3.1-pro-preview-gas', label: 'Gemini 3.1 Pro (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3.1-pro-preview-vertex', label: 'Gemini 3.1 Pro (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemini-3.1-flash-lite-preview-gas', label: 'Gemini 3.1 Flash-Lite (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3.1-flash-lite-preview-vertex', label: 'Gemini 3.1 Flash-Lite (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemma-4-31b-it', label: 'Gemma 4 (31B) (GAS)', description: 'Alta precisión local y razonamiento' },
+    { id: 'gemma-4-26b-a4b-it', label: 'Gemma 4 (26B MoE) (GAS)', description: 'Velocidad y eficiencia' },
     { id: 'default', label: 'Por Defecto', description: 'Usa la configuración general' }
 ];
 
-const AI_PROVIDERS: { id: AIProviderType; label: string }[] = [
-    { id: 'auto', label: 'Automático' },
-    { id: 'google-ai-studio', label: 'Google AI Studio' },
-    { id: 'vertex-ai', label: 'Google Cloud Vertex AI' }
-];
-
 const RESEARCH_PHASES = [
-    { id: 'serp', label: 'Análisis SERP' },
-    { id: 'lsi', label: 'Palabras LSI' },
-    { id: 'ask', label: 'Jerga / ASK' },
-    { id: 'golden_kws', label: 'Golden KWs' },
-    { id: 'metadata', label: 'Metadatos' },
-    { id: 'interlinking', label: 'Interlinking' },
-    { id: 'outline', label: 'Estructura (Outline)' }
+    { id: 'serp', label: 'Análisis de Competidores (SERP)' },
+    { id: 'lsi', label: 'Extracción Semántica LSI (Palabras Clave)' },
+    { id: 'ask', label: 'Detección de Intenciones de Búsqueda (ASK)' },
+    { id: 'golden_kws', label: 'Descubrimiento de Oportunidades (Golden Keywords)' },
+    { id: 'metadata', label: 'Generación de Metadatos de Artículos (SEO)' },
+    { id: 'interlinking', label: 'Estrategia de Enlazado Interno (Interlinking)' },
+    { id: 'outline', label: 'Planificación y Estructura (Generador de Outline)' }
 ];
 
 export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStatusMode }: PipelineBlockConfigProps) {
@@ -208,14 +207,18 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                                         return (
                                             <div key={phase.id} className="flex flex-col gap-1.5 p-3 bg-slate-50 border border-slate-100 rounded-xl">
                                                 <span className="text-[10px] font-bold text-slate-700">{phase.label}</span>
-                                                <div className="grid grid-cols-2 gap-2">
+                                                <div className="w-full">
                                                     <select 
-                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] text-slate-700 outline-none"
+                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px] text-slate-700 outline-none"
                                                         value={currentConfig.model}
                                                         onChange={(e) => {
                                                             const newModel = e.target.value;
-                                                            const selectedModelObj = AI_MODELS.find(m => m.id === newModel);
-                                                            const newProvider = selectedModelObj?.providerSpecific || currentConfig.provider;
+                                                            let newProvider = 'auto';
+                                                            if (newModel.endsWith('-vertex')) {
+                                                                newProvider = 'vertex-ai';
+                                                            } else if (newModel.endsWith('-gas')) {
+                                                                newProvider = 'google-ai-studio';
+                                                            }
                                                             
                                                             setLocalBlock({
                                                                 ...localBlock,
@@ -223,7 +226,7 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                                                                     ...localBlock.additionalConfig,
                                                                     phaseModels: {
                                                                         ...(localBlock.additionalConfig?.phaseModels || {}),
-                                                                        [phase.id]: { ...currentConfig, model: newModel, provider: newProvider }
+                                                                        [phase.id]: { model: newModel, provider: newProvider }
                                                                     }
                                                                 }
                                                             });
@@ -231,27 +234,6 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                                                     >
                                                         {AI_MODELS.map((model) => (
                                                             <option key={model.id} value={model.id}>{model.label}</option>
-                                                        ))}
-                                                    </select>
-                                                    <select 
-                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] text-slate-700 outline-none"
-                                                        value={currentConfig.provider}
-                                                        disabled={AI_MODELS.find(m => m.id === currentConfig.model)?.providerSpecific !== undefined}
-                                                        onChange={(e) => {
-                                                            setLocalBlock({
-                                                                ...localBlock,
-                                                                additionalConfig: {
-                                                                    ...localBlock.additionalConfig,
-                                                                    phaseModels: {
-                                                                        ...(localBlock.additionalConfig?.phaseModels || {}),
-                                                                        [phase.id]: { ...currentConfig, provider: e.target.value }
-                                                                    }
-                                                                }
-                                                            });
-                                                        }}
-                                                    >
-                                                        {AI_PROVIDERS.map((provider) => (
-                                                            <option key={provider.id} value={provider.id}>{provider.label}</option>
                                                         ))}
                                                     </select>
                                                 </div>

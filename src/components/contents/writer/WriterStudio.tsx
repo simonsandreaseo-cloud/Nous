@@ -555,33 +555,34 @@ export default function WriterStudio() {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = contentHtml;
 
-        // 1. Transform Tiptap custom tags (<nous-asset>, div[data-type="nousAsset"], etc.) into standard img tags
-        const customAssets = tempDiv.querySelectorAll('nous-asset, div[data-type="nousAsset"], figure[data-nous-asset="true"]');
+        // 1. Transform Tiptap custom tags into standard HTML
+        const customAssets = tempDiv.querySelectorAll('nous-asset, div[data-type="nousAsset"], figure[data-nous-asset="true"], div.nous-image-slot, div[data-type="imageSlot"]');
         customAssets.forEach((asset) => {
             const url = asset.getAttribute('url') || asset.getAttribute('data-url') || asset.querySelector('img')?.getAttribute('src');
             const alt = asset.getAttribute('alt') || asset.getAttribute('data-alt') || asset.querySelector('img')?.getAttribute('alt') || '';
             const titleText = asset.getAttribute('title') || asset.getAttribute('data-title') || '';
             const align = asset.getAttribute('align') || asset.getAttribute('data-align') || 'center';
             const width = asset.getAttribute('width') || asset.getAttribute('data-width') || '100%';
+            const status = asset.getAttribute('data-status') || asset.getAttribute('status') || 'final';
 
-            if (url) {
+            if (url && status !== 'pending') {
                 const figure = document.createElement('figure');
-                figure.className = 'my-8 flex flex-col items-center justify-center';
+                figure.className = 'my-12 flex flex-col items-center justify-center clear-both';
                 
                 // Manage alignment layout classes matching modern site web templates
                 if (align === 'left') {
-                    figure.className = 'my-4 md:float-left md:mr-6 max-w-sm';
+                    figure.className = 'my-8 md:float-left md:mr-8 max-w-sm clear-none';
                 } else if (align === 'right') {
-                    figure.className = 'my-4 md:float-right md:ml-6 max-w-sm';
+                    figure.className = 'my-8 md:float-right md:ml-8 max-w-sm clear-none';
                 } else if (align === 'full') {
-                    figure.className = 'my-8 w-full clear-both';
+                    figure.className = 'my-12 w-full clear-both';
                 }
 
                 const img = document.createElement('img');
                 img.src = url;
                 img.alt = alt;
                 img.title = titleText;
-                img.className = 'rounded-2xl shadow-lg border border-slate-200/60 max-w-full';
+                img.className = 'rounded-[2rem] shadow-2xl border border-slate-200/60 max-w-full hover:scale-[1.01] transition-transform duration-500';
                 img.style.width = width;
                 img.style.height = 'auto';
 
@@ -589,20 +590,29 @@ export default function WriterStudio() {
 
                 if (titleText) {
                     const figcaption = document.createElement('figcaption');
-                    figcaption.className = 'mt-2 text-center text-xs text-slate-400 font-medium italic';
+                    figcaption.className = 'mt-4 text-center text-sm text-slate-400 font-medium italic';
                     figcaption.textContent = titleText;
                     figure.appendChild(figcaption);
                 }
 
                 asset.parentNode?.replaceChild(figure, asset);
+            } else if (status === 'pending') {
+                // If it's a pending slot, show a refined placeholder
+                const placeholder = document.createElement('div');
+                placeholder.className = 'w-full aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center text-slate-400 my-12';
+                placeholder.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-4 opacity-50"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    <p class="text-sm font-semibold uppercase tracking-widest">Imagen en proceso...</p>
+                `;
+                asset.parentNode?.replaceChild(placeholder, asset);
             }
         });
 
         // 2. Transform general image slots and missing custom tags
-        const images = tempDiv.querySelectorAll('img');
+        const images = tempDiv.querySelectorAll('img:not(figure img)');
         images.forEach((img) => {
             if (!img.className) {
-                img.className = 'rounded-2xl shadow-lg border border-slate-200/60 max-w-full my-8 mx-auto block';
+                img.className = 'rounded-[2rem] shadow-2xl border border-slate-200/60 max-w-full my-12 mx-auto block';
             }
         });
 
@@ -649,46 +659,96 @@ export default function WriterStudio() {
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #fafafa;
+            background-color: #f8fafc;
+            color: #1e293b;
         }
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Outfit', sans-serif !important;
         }
-        /* Tiptap Table Custom Styling */
-        table {
+
+        /* ProseMirror Compatibility & Custom Styles */
+        .ProseMirror p { margin-bottom: 1.5rem !important; line-height: 1.8 !important; }
+        .ProseMirror ul { list-style-type: disc !important; margin-bottom: 1.5rem !important; padding-left: 1.5rem !important; }
+        .ProseMirror ol { list-style-type: decimal !important; margin-bottom: 1.5rem !important; padding-left: 1.5rem !important; }
+        .ProseMirror li { margin-bottom: 0.5rem !important; line-height: 1.7 !important; color: #475569; }
+        .ProseMirror li strong { color: #0f172a; font-weight: 800; }
+        .ProseMirror strong { font-weight: 900 !important; color: #0f172a; }
+        
+        .ProseMirror a { 
+            color: #2563eb !important; 
+            text-decoration: underline !important; 
+            text-underline-offset: 4px !important;
+            text-decoration-thickness: 2px !important;
+            font-weight: 700 !important;
+            transition: all 0.2s ease;
+        }
+        .ProseMirror a:hover { 
+            color: #1d4ed8 !important; 
+            background-color: #eff6ff;
+            text-decoration-thickness: 3px !important;
+        }
+
+        .ProseMirror blockquote {
+            border-left: 4px solid #6366f1 !important;
+            background-color: #f5f3ff !important;
+            padding: 1.5rem 2rem !important;
+            border-radius: 0 1rem 1rem 0 !important;
+            font-style: normal !important;
+            color: #4338ca !important;
+            margin: 2rem 0 !important;
+        }
+
+        /* Tiptap Table Styling */
+        .ProseMirror table {
             border-collapse: collapse;
-            margin: 2.5rem 0;
+            table-layout: fixed;
             width: 100%;
+            margin: 2rem 0;
             overflow: hidden;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-            border: 1px solid #f1f5f9;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
         }
-        th, td {
-            border: 1px solid #f1f5f9;
-            padding: 1rem;
+        .ProseMirror table td,
+        .ProseMirror table th {
+            min-width: 1em;
+            border: 1px solid #e2e8f0;
+            padding: 12px 16px;
+            vertical-align: top;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .ProseMirror table th {
+            font-weight: 700;
             text-align: left;
-            font-size: 0.95rem;
-        }
-        th {
             background-color: #f8fafc;
-            font-weight: 800;
-            color: #0f172a;
+            color: #1e293b;
         }
-        tr:nth-child(even) {
+        .ProseMirror tr:nth-child(even) {
             background-color: #fcfcfc;
         }
-        /* Custom formatting inside tables */
-        table p {
-            margin: 0 !important;
-            line-height: 1.5 !important;
+
+        /* Images & Figures */
+        .ProseMirror img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+        
+        figure {
+            margin: 2.5rem 0 !important;
+        }
+
+        /* Typography spacing fix */
+        .prose :where(ul > li):not(:where([class~="not-prose"],[class~="not-prose"] *))::marker {
+            color: #6366f1;
         }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen py-12 px-4 md:px-8">
-    <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-100 p-8 md:p-12">
+    <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 md:p-16">
         ${heroHtml}
-        <article class="prose prose-lg prose-indigo max-w-none 
+        <article class="ProseMirror prose prose-lg prose-indigo max-w-none 
             prose-h1:text-4xl prose-h1:md:text-5xl prose-h1:font-extrabold prose-h1:text-slate-900 prose-h1:mb-8 prose-h1:tracking-tight prose-h1:leading-tight
             prose-h2:text-3xl prose-h2:font-bold prose-h2:text-slate-800 prose-h2:mt-12 prose-h2:mb-6 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-200 prose-h2:tracking-tight
             prose-h3:text-2xl prose-h3:font-semibold prose-h3:text-indigo-600 prose-h3:mt-8 prose-h3:mb-4 prose-h3:tracking-normal

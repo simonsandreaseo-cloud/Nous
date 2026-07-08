@@ -332,12 +332,16 @@ export function CustomTransformModal({ onClose }: CustomTransformModalProps) {
                             disabled={isProcessing}
                             className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500"
                         >
-                            <option value="gemini-3.5-flash">Gemini 3.5 Flash (Por defecto)</option>
-                            <option value="gemini-3.5-pro">Gemini 3.5 Pro (Vertex)</option>
-                            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Vertex Preview)</option>
-                            <option value="gemma-4-31b-it">Gemma 4 31B IT</option>
-                            <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT</option>
-                            <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
+                            <option value="gemini-3.5-flash-gas">Gemini 3.5 Flash (GAS)</option>
+                            <option value="gemini-3.5-flash-vertex">Gemini 3.5 Flash (Vertex)</option>
+                            <option value="gemini-3-flash-preview-gas">Gemini 3 Flash (GAS)</option>
+                            <option value="gemini-3-flash-preview-vertex">Gemini 3 Flash (Vertex)</option>
+                            <option value="gemini-3.1-pro-preview-gas">Gemini 3.1 Pro (GAS)</option>
+                            <option value="gemini-3.1-pro-preview-vertex">Gemini 3.1 Pro (Vertex)</option>
+                            <option value="gemini-3.1-flash-lite-preview-gas">Gemini 3.1 Flash Lite (GAS)</option>
+                            <option value="gemini-3.1-flash-lite-preview-vertex">Gemini 3.1 Flash Lite (Vertex)</option>
+                            <option value="gemma-4-31b-it">Gemma 4 31B IT (GAS)</option>
+                            <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT (GAS)</option>
                         </select>
                     </div>
 

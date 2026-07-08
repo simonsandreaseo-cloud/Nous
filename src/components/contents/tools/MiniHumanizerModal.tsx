@@ -19,7 +19,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
     const [statusMessage, setStatusMessage] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [wordCount, setWordCount] = useState(0);
-    const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
+    const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash-gas");
     const [mode, setMode] = useState("standard");
 
     const extensions = useMemo(() => getSharedExtensions("Pega tu texto aquí..."), []);
@@ -62,13 +62,23 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 language: "es", // Enforce spanish by default
             };
 
+            let modelToSend = selectedModel;
+            let providerToSend: "google-ai-studio" | "vertex-ai" | undefined = undefined;
+            if (selectedModel.endsWith("-vertex")) {
+                modelToSend = selectedModel.slice(0, -7);
+                providerToSend = "vertex-ai";
+            } else if (selectedModel.endsWith("-gas")) {
+                modelToSend = selectedModel.slice(0, -4);
+                providerToSend = "google-ai-studio";
+            }
+
             if (mode === 'lipograma') {
                 let stepHtml = currentHtml;
                 
                 setStatusMessage("Iniciando Capa 1/3 (Esqueleto)...");
                 const result1 = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_1',
-                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
+                    stepHtml, config, 50, () => {}, setStatusMessage, modelToSend, 'lipograma_1',
+                    providerToSend
                 );
                 if (result1 && result1.html) {
                     editor.commands.setContent(result1.html);
@@ -77,8 +87,8 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
 
                 setStatusMessage("Iniciando Capa 2/3 (Anomalías)...");
                 const result2 = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_2',
-                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
+                    stepHtml, config, 50, () => {}, setStatusMessage, modelToSend, 'lipograma_2',
+                    providerToSend
                 );
                 if (result2 && result2.html) {
                     editor.commands.setContent(result2.html);
@@ -87,34 +97,34 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
 
                 setStatusMessage("Iniciando Capa 3/3 (Cierre)...");
                 const result3 = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_3',
-                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
+                    stepHtml, config, 50, () => {}, setStatusMessage, modelToSend, 'lipograma_3',
+                    providerToSend
                 );
                 if (result3 && result3.html) {
                     editor.commands.setContent(result3.html);
                 }
-        } else if (mode === 'babel') {
-            let stepHtml = currentHtml;
-            const steps = [
-                { mode: 'babel_1', msg: "Capa 1/5: Traduciendo al Alemán (Estructurando)..." },
-                { mode: 'babel_2', msg: "Capa 2/5: Traduciendo al Japonés (Invirtiendo)..." },
-                { mode: 'babel_3', msg: "Capa 3/5: Traduciendo al Ruso (Declinando)..." },
-                { mode: 'babel_4', msg: "Capa 4/5: Traduciendo al Chino (Aislando)..." },
-                { mode: 'babel_5', msg: "Capa 5/5: Recuperando al Español (Cierre)..." }
-            ];
+            } else if (mode === 'babel') {
+                let stepHtml = currentHtml;
+                const steps = [
+                    { mode: 'babel_1', msg: "Capa 1/5: Traduciendo al Alemán (Estructurando)..." },
+                    { mode: 'babel_2', msg: "Capa 2/5: Traduciendo al Japonés (Invirtiendo)..." },
+                    { mode: 'babel_3', msg: "Capa 3/5: Traduciendo al Ruso (Declinando)..." },
+                    { mode: 'babel_4', msg: "Capa 4/5: Traduciendo al Chino (Aislando)..." },
+                    { mode: 'babel_5', msg: "Capa 5/5: Recuperando al Español (Cierre)..." }
+                ];
 
-            for (const s of steps) {
-                setStatusMessage(s.msg);
-                const result = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, s.mode,
-                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
-                );
-                if (result && result.html) {
-                    editor.commands.setContent(result.html);
-                    stepHtml = result.html;
+                for (const s of steps) {
+                    setStatusMessage(s.msg);
+                    const result = await streamMiniHumanize(
+                        stepHtml, config, 50, () => {}, setStatusMessage, modelToSend, s.mode,
+                        providerToSend
+                    );
+                    if (result && result.html) {
+                        editor.commands.setContent(result.html);
+                        stepHtml = result.html;
+                    }
                 }
-            }
-        } else {
+            } else {
                 const result = await streamMiniHumanize(
                     currentHtml,
                     config,
@@ -125,9 +135,9 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                     (status) => {
                         setStatusMessage(status);
                     },
-                    selectedModel,
+                    modelToSend,
                     mode,
-                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
+                    providerToSend
                 );
 
                 if (result && result.html) {
@@ -239,11 +249,16 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                                 disabled={isProcessing}
                                 className="text-xs font-medium text-slate-600 bg-slate-100 border-none rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
                             >
-                                <option value="gemini-3.5-flash">Gemini 3.5 Flash (Vertex)</option>
-                                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Vertex)</option>
+                                <option value="gemini-3.5-flash-gas">Gemini 3.5 Flash (GAS)</option>
+                                <option value="gemini-3.5-flash-vertex">Gemini 3.5 Flash (Vertex)</option>
+                                <option value="gemini-3-flash-preview-gas">Gemini 3 Flash (GAS)</option>
+                                <option value="gemini-3-flash-preview-vertex">Gemini 3 Flash (Vertex)</option>
+                                <option value="gemini-3.1-pro-preview-gas">Gemini 3.1 Pro (GAS)</option>
+                                <option value="gemini-3.1-pro-preview-vertex">Gemini 3.1 Pro (Vertex)</option>
+                                <option value="gemini-3.1-flash-lite-preview-gas">Gemini 3.1 Flash Lite (GAS)</option>
+                                <option value="gemini-3.1-flash-lite-preview-vertex">Gemini 3.1 Flash Lite (Vertex)</option>
                                 <option value="gemma-4-31b-it">Gemma 4 31B IT</option>
-                                <option value="gemma-4-26b-a4b-it">Gemma 4 26B 24A IT</option>
-                                <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
+                                <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT</option>
                             </select>
 
                             <button

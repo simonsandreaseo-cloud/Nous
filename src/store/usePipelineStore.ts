@@ -14,13 +14,7 @@ export type PipelineActionType =
     | 'seo'
     | 'custom_transform';
 
-export type AIModelType = 
-    | 'gemma-4-31b-it' 
-    | 'gemma-4-26b-a4b-it' 
-    | 'gemini-3.5-flash' 
-    | 'gemini-3.1-flash-lite-preview' 
-    | 'gemini-3.1-pro-preview'
-    | 'default';
+export type AIModelType = string;
 
 export type AIProviderType = 'google-ai-studio' | 'vertex-ai' | 'auto';
 
