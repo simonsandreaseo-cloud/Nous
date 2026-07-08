@@ -6,7 +6,7 @@ import {
     executeSurgicalEditPipeline,
     executeDraftPipeline 
 } from '@/lib/services/writer/pipeline';
-import { streamFinalCleanup, streamSurgicalEdit } from '@/lib/services/writer/ai-streaming';
+import { streamFinalCleanup, streamSurgicalEdit, streamCustomTransform } from '@/lib/services/writer/ai-streaming';
 import { NotificationService } from '@/lib/services/notifications';
 import { useQueueStore } from '@/store/useQueueStore';
 
@@ -235,6 +235,26 @@ async function executeTaskInBlock({
             if (res.success && res.updates) { newContent = res.updates.content_body || newContent; Object.assign(currentTaskState, res.updates); }
             else throw new Error('Fallo en edición quirúrgica');
         }
+        else if (block.actionType === 'custom_transform') {
+            if (!newContent) throw new Error('No hay contenido HTML para maquetar.');
+            // Usar directrices permanentes del proyecto; si no hay, usar string vacío
+            const projectGuidelines = project?.settings?.custom_transform_guidelines || '';
+            enhancedLog(task.id, 'Maquetador', `Iniciando maquetación HTML con directrices del proyecto...`);
+            const result = await streamCustomTransform(
+                newContent,
+                projectGuidelines,
+                '',
+                (html) => { newContent = html; enhancedProgress(task.id, 50); },
+                (msg) => enhancedLog(task.id, 'Maquetador', msg),
+                block.model !== 'default' ? block.model : 'gemini-3.5-flash',
+                undefined
+            );
+            if (result?.html) {
+                newContent = result.html;
+            } else {
+                throw new Error('El maquetador no devolvió HTML válido.');
+            }
+        }
         else if (block.actionType === 'seo' || block.actionType === 'research' || block.actionType === 'outline') {
             const { StrategyService } = await import('@/lib/services/strategy');
             const res = await StrategyService.runDeepSEOAnalysis({
@@ -253,7 +273,7 @@ async function executeTaskInBlock({
         }
 
         // --- MÉTRICAS DE EDICIÓN EN VIVO ---
-        const isEditingBlock = ['generate', 'humanize', 'clean', 'surgical_edit'].includes(block.actionType);
+        const isEditingBlock = ['generate', 'humanize', 'clean', 'surgical_edit', 'custom_transform'].includes(block.actionType);
         const originalContent = currentTaskState.content_body || '';
         
         if (isEditingBlock && newContent && newContent !== originalContent) {

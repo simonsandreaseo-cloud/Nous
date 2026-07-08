@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Plus, Settings, BrainCircuit, Activity, Trash2, 
     ArrowRight, ChevronDown, CheckCircle2, Play, Save, Box, Layers,
-    Scissors, Image as ImageIcon, Languages, Wand2
+    Scissors, Image as ImageIcon, Languages, Wand2, LayoutTemplate
 } from 'lucide-react';
 import { PipelineBlock, usePipelineStore, PipelineActionType, ExecutionMode, ExecutionStrategy } from '@/store/usePipelineStore';
 import { useProjectStore, Task, STATUS_LABELS } from '@/store/useProjectStore';
@@ -28,7 +28,8 @@ const AVAILABLE_ACTIONS: { id: PipelineActionType; label: string; icon: React.Re
     { id: 'seo', label: 'SEO Data', icon: <Settings size={16} />, color: 'bg-amber-100 text-amber-600' },
     { id: 'image', label: 'Imágenes', icon: <ImageIcon size={16} />, color: 'bg-blue-100 text-blue-600' },
     { id: 'translation', label: 'Traducción', icon: <Languages size={16} />, color: 'bg-violet-100 text-violet-600' },
-    { id: 'refine', label: 'Refinamiento', icon: <Wand2 size={16} />, color: 'bg-pink-100 text-pink-600' }
+    { id: 'refine', label: 'Refinamiento', icon: <Wand2 size={16} />, color: 'bg-pink-100 text-pink-600' },
+    { id: 'custom_transform', label: 'Maquetador', icon: <LayoutTemplate size={16} />, color: 'bg-orange-100 text-orange-600' }
 ];
 
 export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute }: NousPipelineModalProps) {

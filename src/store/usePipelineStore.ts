@@ -11,7 +11,8 @@ export type PipelineActionType =
     | 'clean' 
     | 'image' 
     | 'translation' 
-    | 'seo';
+    | 'seo'
+    | 'custom_transform';
 
 export type AIModelType = 
     | 'gemma-4-31b-it' 

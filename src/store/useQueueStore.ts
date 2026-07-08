@@ -34,6 +34,10 @@ export interface QueueTask {
     payload?: Record<string, any>; // Serializable data needed to resume the task
     logs: QueueTaskLog[];
     metrics?: Record<string, number>;
+    costUsd?: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
 }
 
 interface QueueStore {
@@ -63,6 +67,7 @@ interface QueueStore {
     setTaskMetrics: (id: string, metrics: Partial<Record<string, number>>) => void;
     setIsProcessingQueue: (isProcessing: boolean) => void;
     shiftQueue: () => QueueTask | undefined;
+    addUsageToTask: (id: string, usage: { promptTokens: number, completionTokens: number, totalTokens: number, costUsd: number }) => void;
     
     // Batch updates
     setBatchInfo: (total: number) => void;
@@ -95,7 +100,11 @@ const syncTaskToSupabase = async (task: QueueTask) => {
                 logs: task.logs,
                 payload: task.payload || null,
                 created_at: task.createdAt,
-                completed_at: (task.status === 'completed' || task.status === 'error') ? new Date().toISOString() : null
+                completed_at: (task.status === 'completed' || task.status === 'error') ? new Date().toISOString() : null,
+                prompt_tokens: task.promptTokens || 0,
+                completion_tokens: task.completionTokens || 0,
+                total_tokens: task.totalTokens || 0,
+                cost_usd: task.costUsd || 0
             };
 
             await supabase.from('queue_tasks').upsert(payload, { onConflict: 'id' });
@@ -216,6 +225,34 @@ export const useQueueStore = create<QueueStore>()(
 
             // Supabase sync for metrics is optional, but we'll include it in payload if needed
             // Currently syncTaskToSupabase doesn't persist metrics to db, but that's fine for Live Metrics
+
+            return { activeTask: newActiveTask, queue: newQueue };
+        });
+    },
+
+    addUsageToTask: (id, usage) => {
+        set((state) => {
+            const updateTask = (t: QueueTask) => ({
+                ...t,
+                promptTokens: (t.promptTokens || 0) + usage.promptTokens,
+                completionTokens: (t.completionTokens || 0) + usage.completionTokens,
+                totalTokens: (t.totalTokens || 0) + usage.totalTokens,
+                costUsd: (t.costUsd || 0) + usage.costUsd
+            });
+
+            const newActiveTask = state.activeTask?.id === id 
+                ? updateTask(state.activeTask)
+                : state.activeTask;
+
+            const newQueue = state.queue.map(t => 
+                t.id === id ? updateTask(t) : t
+            );
+
+            if (newActiveTask && newActiveTask.id === id) syncTaskToSupabase(newActiveTask);
+            else {
+                const updatedTask = newQueue.find(t => t.id === id);
+                if (updatedTask) syncTaskToSupabase(updatedTask);
+            }
 
             return { activeTask: newActiveTask, queue: newQueue };
         });
