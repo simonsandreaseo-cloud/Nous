@@ -79,7 +79,7 @@ export const OutlineEngine = {
 
         try {
             // PHASE 1: Structural Synthesis (H2/H3 Skeleton)
-            const faqsText = faqs.slice(0, 5).map(f => `- ${f.question || f.title || JSON.stringify(f)}`).join('\n');
+            const faqsText = faqs.slice(0, 5).map(f => typeof f === 'string' ? `- ${f}` : `- ${f.question || f.title || JSON.stringify(f)}`).join('\n');
             const linksContext = suggestedLinks && suggestedLinks.length > 0 
                 ? suggestedLinks.map(l => `- ${l.title || l.url}`).join('\n') 
                 : "Ninguno.";

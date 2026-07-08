@@ -113,27 +113,32 @@ FORMATO OBLIGATORIO:
     /**
      * Extracts niche jargon, acronyms, and expert argot from top competitors.
      */
-    async extractASKKeywords(texts: string[], targetKeyword: string, onLog?: (p: string, m: string) => void, phaseConfig?: { model?: string, provider?: any }): Promise<any[]> {
-        if (texts.length === 0) return [];
+    async extractASKKeywords(texts: string[], targetKeyword: string, onLog?: (p: string, m: string) => void, phaseConfig?: { model?: string, provider?: any }): Promise<{ askKeywords: any[], frequentQuestions: string[] }> {
+        if (texts.length === 0) return { askKeywords: [], frequentQuestions: [] };
         
-        if (onLog) onLog("Fase 3 (ASK)", "Extrayendo argot experto y jerga de nicho...");
+        if (onLog) onLog("Fase 3 (ASK)", "Extrayendo argot experto, jerga de nicho y preguntas frecuentes...");
         
         // Strip HTML and limit length to avoid massive token count
         const cleanTexts = texts.map(t => t.replace(/<[^>]+>/g, ' ').substring(0, 8000));
         const combinedText = cleanTexts.join("\n\n---\n\n");
 
         const askPrompt = `Analiza el siguiente texto extraído de los mejores competidores para el tema "${targetKeyword}".
-Tu objetivo es extraer la "Jerga de Nicho", acrónimos, términos técnicos avanzados y el "argot" que solo un verdadero experto en la materia utilizaría.
+Tu objetivo es realizar dos tareas:
+1. Extraer la "Jerga de Nicho", acrónimos, términos técnicos avanzados y el "argot" que solo un verdadero experto en la materia utilizaría.
+2. Extraer las preguntas más frecuentes (FAQs o dudas comunes de los usuarios) encontradas o deducidas del texto que la gente se formula sobre este tema.
 
 TEXTO:
 ${combinedText}
 
 REGLAS:
-1. Extrae términos técnicos, siglas, y vocabulario altamente especializado.
-2. Ignora palabras comunes, genéricas o explicaciones básicas.
-3. Devuelve ÚNICAMENTE un array de strings en formato JSON con los términos extraídos.
+1. Para las keywords: Extrae términos técnicos, siglas y vocabulario altamente especializado de nicho. Evita palabras genéricas.
+2. Para las preguntas: Extrae entre 3 y 8 preguntas reales o dudas frecuentes del usuario sobre el tema.
+3. Devuelve ÚNICAMENTE un objeto JSON con las claves "keywords" y "frequentQuestions".
 4. FORMATO OBLIGATORIO:
-{"keywords": ["termino 1", "termino 2", "termino 3"]}`;
+{
+  "keywords": ["termino 1", "termino 2"],
+  "frequentQuestions": ["¿Pregunta 1?", "¿Pregunta 2?"]
+}`;
 
         const askRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: askPrompt,
@@ -147,10 +152,11 @@ REGLAS:
             explicitHierarchy: ['gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview']
         }), "Fase 3 (ASK)", onLog);
 
-        const extractedJson = safeJsonExtract<{keywords: string[]}>(askRes.text, {keywords: []});
+        const extractedJson = safeJsonExtract<{keywords: string[], frequentQuestions?: string[]}>(askRes.text, {keywords: [], frequentQuestions: []});
         const extractedTerms = (extractedJson.keywords || []).map(t => t.trim()).filter(t => t.length > 2);
+        const frequentQuestions = (extractedJson.frequentQuestions || []).map(q => q.trim()).filter(q => q.length > 5);
         
-        if (extractedTerms.length === 0) return [];
+        if (extractedTerms.length === 0) return { askKeywords: [], frequentQuestions };
 
         // Count frequency in texts
         const termFrequency = extractedTerms.map(term => {
@@ -180,9 +186,12 @@ REGLAS:
             };
         });
 
-        if (onLog) onLog("Fase 3 (ASK)", `IA extrajo ${rankedTerms.length} términos de argot experto.`);
+        if (onLog) onLog("Fase 3 (ASK)", `IA extrajo ${rankedTerms.length} términos de argot experto y ${frequentQuestions.length} preguntas frecuentes.`);
 
-        return rankedTerms.slice(0, 30);
+        return {
+            askKeywords: rankedTerms.slice(0, 30),
+            frequentQuestions: frequentQuestions.slice(0, 10)
+        };
     },
 
     /**

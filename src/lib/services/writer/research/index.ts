@@ -287,10 +287,10 @@ Responde ÚNICAMENTE en JSON:
         return await KeywordAnalyzer.extractLSIKeywords(validSEO.map(v => v.content), keyword, onLog, phaseConfig);
     },
 
-    async runASKPhase(validSEO: any[], keyword: string, onLog?: any, phaseConfig?: any): Promise<{ askKeywords: any[] }> {
+    async runASKPhase(validSEO: any[], keyword: string, onLog?: any, phaseConfig?: any): Promise<{ askKeywords: any[], frequentQuestions: string[] }> {
         const top3Texts = validSEO.slice(0, 3).map(v => v.content);
-        const askKeywords = await KeywordAnalyzer.extractASKKeywords(top3Texts, keyword, onLog, phaseConfig);
-        return { askKeywords };
+        const { askKeywords, frequentQuestions } = await KeywordAnalyzer.extractASKKeywords(top3Texts, keyword, onLog, phaseConfig);
+        return { askKeywords, frequentQuestions };
     },
 
     async runGoldenKeywordsPhase(validSEO: any[], keyword: string, onLog?: any, sniperUrlsCache?: string[], phaseConfig?: any): Promise<{ realKeywords: any[], sniperUrls: string[] }> {
@@ -624,7 +624,7 @@ REGLAS:
         return await OutlineEngine.generate({
             keyword: config.keyword, seoMetadata, cleanedLSI,
             suggestedLinks, validCompetitors: validSEO, wordCountGoal,
-            faqs: baseResult.faqs,
+            faqs: baseResult.frequentQuestions || baseResult.faqs || [],
             askKeywords,
             realKeywords,
             masterIntent: baseResult.masterIntent,
@@ -821,9 +821,10 @@ REGLAS:
         // Phase 3.5: ASK
         if (startIndex <= 3) {
             if (onProgress) onProgress(9); // 9%
-            const { askKeywords } = await this.runASKPhase(dossier.validSEO || [], keyword, onLog, config.phaseModels?.ask);
-            dossier = await saveCheckpoint('ask_done', { askKeywords });
+            const { askKeywords, frequentQuestions } = await this.runASKPhase(dossier.validSEO || [], keyword, onLog, config.phaseModels?.ask);
+            dossier = await saveCheckpoint('ask_done', { askKeywords, frequentQuestions });
             dossier.askKeywords = askKeywords;
+            dossier.frequentQuestions = frequentQuestions;
             if (phaseToRun === 'ask_done' && !cascade) return dossier;
         }
 

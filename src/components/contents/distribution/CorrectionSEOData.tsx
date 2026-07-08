@@ -14,7 +14,8 @@ import {
     Target,
     Layout,
     ExternalLink,
-    Circle
+    Circle,
+    BrainCircuit
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/utils/cn";
@@ -31,6 +32,7 @@ export function CorrectionSEOData({ task }: CorrectionSEODataProps) {
         lsi: false,
         links: false,
         questions: false,
+        jargon: false,
     });
 
     const toggleAccordion = (key: string) => {
@@ -191,6 +193,37 @@ export function CorrectionSEOData({ task }: CorrectionSEODataProps) {
                                     );
                                 }) : (
                                     <p className="text-[10px] text-slate-400 italic">No hay LSI disponibles.</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* JARGON ACCORDION */}
+                <div className="bg-white border border-slate-200 rounded-[24px] overflow-hidden shadow-sm">
+                    <div 
+                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                        onClick={() => toggleAccordion('jargon')}
+                    >
+                        <div className="flex items-center gap-3">
+                            <BrainCircuit size={16} className="text-indigo-500" />
+                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-700">Jerga de Nicho (ASK)</h4>
+                        </div>
+                        <ChevronDown size={14} className={cn("text-slate-400 transition-transform", openAccordions.jargon && "rotate-180")} />
+                    </div>
+                    {openAccordions.jargon && (
+                        <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+                            <div className="flex flex-wrap gap-2">
+                                {(task.research_dossier?.askKeywords || []).length > 0 ? (task.research_dossier.askKeywords as any[]).map((k: any, i: number) => {
+                                    const kw = typeof k === 'string' ? k : k?.keyword;
+                                    if (!kw) return null;
+                                    return (
+                                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[10px] font-bold text-slate-600">
+                                            {kw}
+                                        </div>
+                                    );
+                                }) : (
+                                    <p className="text-[10px] text-slate-400 italic">No hay jerga disponible.</p>
                                 )}
                             </div>
                         </div>

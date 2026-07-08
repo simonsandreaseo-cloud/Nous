@@ -23,7 +23,8 @@ import {
     RefreshCw,
     Eraser,
     Copy,
-    Bot
+    Bot,
+    BrainCircuit
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useWriterStore } from '@/store/useWriterStore';
@@ -88,6 +89,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
         lsi: false,
         links: false,
         questions: false,
+        jargon: false,
     });
 
     const toggleAccordion = (key: string) => {
@@ -852,6 +854,65 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                                             {q}
                                                         </span>
                                                     </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* JARGON ACCORDION */}
+                    <div className="bg-white border border-slate-200 rounded-[24px] overflow-hidden shadow-sm mt-3">
+                        <div
+                            className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50 transition-colors"
+                            onClick={() => toggleAccordion('jargon')}
+                        >
+                            <div className="flex items-center gap-3">
+                                <BrainCircuit size={16} className="text-indigo-500" />
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-700">Jerga de Nicho (ASK)</h4>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600")}>
+                                    {(researchDossier?.askKeywords || []).length} Términos
+                                </span>
+                                <ChevronDown size={16} className={cn("text-slate-400 transition-transform duration-300", openAccordions.jargon && "rotate-180")} />
+                            </div>
+                        </div>
+                        <AnimatePresence>
+                            {openAccordions.jargon && (
+                                <motion.div
+                                    initial={{ height: 0 }}
+                                    animate={{ height: 'auto' }}
+                                    exit={{ height: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex flex-wrap gap-2">
+                                        {!(researchDossier?.askKeywords) || researchDossier.askKeywords.length === 0 ? (
+                                             <p className="text-[11px] text-slate-500 w-full">No hay jerga técnica detectada.</p>
+                                        ) : (
+                                            (researchDossier.askKeywords as any[]).map((k: any, idx: number) => {
+                                                const keywordStr = typeof k === 'string' ? k : k.keyword;
+                                                const countStr = typeof k === 'string' ? 'Bajo' : k.count || 'Bajo';
+                                                
+                                                return (
+                                                    <span
+                                                        key={`jargon-${idx}`}
+                                                        className={cn(
+                                                            "px-3 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 shadow-sm bg-white border-slate-200 text-slate-600",
+                                                        )}
+                                                    >
+                                                        {keywordStr}
+                                                        <span className={cn(
+                                                            "text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider",
+                                                            countStr === 'Alto' ? "bg-rose-50 text-rose-600" :
+                                                            countStr === 'Medio' ? "bg-amber-50 text-amber-600" :
+                                                            "bg-slate-100 text-slate-500"
+                                                        )}>
+                                                            {countStr}
+                                                        </span>
+                                                    </span>
                                                 );
                                             })
                                         )}
