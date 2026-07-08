@@ -31,7 +31,8 @@ import {
     Sliders,
     Settings2,
     ChevronsRight,
-    Terminal
+    Terminal,
+    ReceiptText
 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 
@@ -55,6 +56,7 @@ export const CONTENT_TOOLS = [
     { id: "distribution", label: "Distribución", icon: Share2, color: "text-emerald-500", bg: "bg-emerald-500" },
     { id: "nous", label: "Consola Nous", icon: Terminal, color: "text-violet-500", bg: "bg-violet-500" },
     { id: "mini_tools", label: "Mini Tools", icon: Sliders, color: "text-sky-500", bg: "bg-sky-500" },
+    { id: "facturacion", label: "Facturación", icon: ReceiptText, color: "text-rose-500", bg: "bg-rose-500" },
 ];
 
 interface ContentsSidebarProps {

@@ -41,6 +41,7 @@ import {
     Eye
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
+import { CustomTransformModal } from '@/components/contents/tools/CustomTransformModal';
 
 import { Button } from '@/components/dom/Button';
 import { cn } from '@/utils/cn';
@@ -400,6 +401,7 @@ export default function WriterStudio() {
     
     const presenceBuffer = useRef<Record<string, { user: any, lastSeen: number }>>({});
     const { handleSEO, handleGenerate, handleHumanize, handleSurgicalEdit, handleRefine, handleClean } = useWriterActions();
+    const [isCustomTransformOpen, setIsCustomTransformOpen] = useState(false);
     const isProcessingAny = isGenerating || isAnalyzingSEO || isPlanningStructure || isHumanizing || isRefining;
     const { user: localUser } = useAuthStore();
 
@@ -1122,6 +1124,7 @@ export default function WriterStudio() {
                                                if (type === 'surgical_edit') handleSurgicalEdit();
                                                if (type === 'refine') handleRefine(); 
                                                if (type === 'clean') handleClean();
+                                               if (type === 'custom_transform') setIsCustomTransformOpen(true);
                                            }} 
                                        />
                                   </div>
@@ -1135,6 +1138,7 @@ export default function WriterStudio() {
             ) : renderMainContent()}
             
             <ImageLightbox isOpen={!!fullscreenAsset} onClose={() => setFullscreenAsset(null)} asset={fullscreenAsset} />
+            {isCustomTransformOpen && <CustomTransformModal onClose={() => setIsCustomTransformOpen(false)} />}
         </div>
     );
 }

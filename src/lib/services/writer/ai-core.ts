@@ -3,6 +3,66 @@ import { AI_CONFIG } from "../../ai/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from 'openai';
 
+// --- TOKEN ACCUMULATOR ---
+// Each compatibility layer pushes usage here; the executor reads it after each successful call.
+interface TokenUsage {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+}
+
+let _pendingUsage: TokenUsage | null = null;
+
+const pushUsage = (usage: TokenUsage | null | undefined) => {
+    if (!usage) return;
+    if (_pendingUsage) {
+        _pendingUsage.promptTokens += usage.promptTokens;
+        _pendingUsage.completionTokens += usage.completionTokens;
+        _pendingUsage.totalTokens += usage.totalTokens;
+    } else {
+        _pendingUsage = { ...usage };
+    }
+};
+
+const popUsage = (): TokenUsage | null => {
+    const u = _pendingUsage;
+    _pendingUsage = null;
+    return u;
+};
+
+// Gemini pricing per 1M tokens (USD) — as of July 2026
+// Source: Google AI Studio pricing images provided by user
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+    // Gemini 3.1 Pro (all input sizes)
+    'gemini-3.1-pro': { input: 1.25, output: 10.00 },
+    'gemini-3.1-pro-preview': { input: 1.25, output: 10.00 },
+    // Gemini 3.5 Flash
+    'gemini-3.5-flash': { input: 0.15, output: 0.60 },
+    'gemini-3.5-flash-preview': { input: 0.15, output: 0.60 },
+    // Gemini 3.1 Flash Lite
+    'gemini-3.1-flash-lite': { input: 0.01, output: 0.04 },
+    'gemini-3.1-flash-lite-preview': { input: 0.01, output: 0.04 },
+    // Gemini 3.1 Flash
+    'gemini-3.1-flash': { input: 0.15, output: 0.60 },
+    'gemini-3.1-flash-preview': { input: 0.15, output: 0.60 },
+    // Gemma models (free / near-free, use Groq proxy — approx cost)
+    'gemma': { input: 0.00, output: 0.00 },
+};
+
+const getPricing = (model: string): { input: number; output: number } => {
+    const lm = model.toLowerCase();
+    for (const [key, pricing] of Object.entries(MODEL_PRICING)) {
+        if (lm.includes(key)) return pricing;
+    }
+    // Fallback — unknown model, use conservative flash pricing
+    return { input: 0.15, output: 0.60 };
+};
+
+const calcCostUsd = (model: string, promptTokens: number, completionTokens: number): number => {
+    const { input, output } = getPricing(model);
+    return (promptTokens / 1_000_000) * input + (completionTokens / 1_000_000) * output;
+};
+
 
 // --- COMPATIBILITY LAYER FOR GROQ (Mocking Gemini SDK) ---
 
@@ -42,6 +102,14 @@ class GroqGenerativeModelCompatibility {
         }
 
         const completion = await this.groq.chat.completions.create(requestPayload);
+
+        if (completion.usage) {
+            pushUsage({
+                promptTokens: completion.usage.prompt_tokens,
+                completionTokens: completion.usage.completion_tokens,
+                totalTokens: completion.usage.total_tokens
+            });
+        }
 
         return {
             response: {
@@ -134,6 +202,14 @@ class OpenRouterGenerativeModelCompatibility {
 
         const completion = await this.client.chat.completions.create(requestPayload);
 
+        if (completion.usage) {
+            pushUsage({
+                promptTokens: completion.usage.prompt_tokens,
+                completionTokens: completion.usage.completion_tokens,
+                totalTokens: completion.usage.total_tokens
+            });
+        }
+
         return {
             response: {
                 text: () => completion.choices[0]?.message?.content || '',
@@ -183,6 +259,14 @@ class CerebrasGenerativeModelCompatibility {
         }
 
         const completion = await this.client.chat.completions.create(requestPayload);
+
+        if (completion.usage) {
+            pushUsage({
+                promptTokens: completion.usage.prompt_tokens,
+                completionTokens: completion.usage.completion_tokens,
+                totalTokens: completion.usage.total_tokens
+            });
+        }
 
         return {
             response: {
@@ -444,6 +528,13 @@ export const executeWithKeyRotation = async <T>(
                                             model: config.model,
                                             contents: finalPrompt
                                         });
+                                        if (result.usageMetadata) {
+                                            pushUsage({
+                                                promptTokens: result.usageMetadata.promptTokenCount || 0,
+                                                completionTokens: result.usageMetadata.candidatesTokenCount || 0,
+                                                totalTokens: result.usageMetadata.totalTokenCount || 0
+                                            });
+                                        }
                                         return {
                                             response: {
                                                 text: () => result.text
@@ -489,7 +580,15 @@ export const executeWithKeyRotation = async <T>(
                                             if (sysInst && typeof prompt === 'string') {
                                                 finalPrompt = `${sysInst}\n\n${prompt}`;
                                             }
-                                            return nativeModel.generateContent(finalPrompt);
+                                            const res = await nativeModel.generateContent(finalPrompt);
+                                            if (res.response?.usageMetadata) {
+                                                pushUsage({
+                                                    promptTokens: res.response.usageMetadata.promptTokenCount || 0,
+                                                    completionTokens: res.response.usageMetadata.candidatesTokenCount || 0,
+                                                    totalTokens: res.response.usageMetadata.totalTokenCount || 0
+                                                });
+                                            }
+                                            return res;
                                         },
                                         generateContentStream: async (prompt: any) => {
                                             let finalPrompt = prompt;
@@ -500,7 +599,22 @@ export const executeWithKeyRotation = async <T>(
                                         }
                                     };
                                 }
-                                return rawGoogleClient.getGenerativeModel(config);
+                                // Wrap standard model to intercept usageMetadata
+                                const nativeModel = rawGoogleClient.getGenerativeModel(config);
+                                return {
+                                    ...nativeModel,
+                                    generateContent: async (prompt: any) => {
+                                        const res = await nativeModel.generateContent(prompt);
+                                        if (res.response?.usageMetadata) {
+                                            pushUsage({
+                                                promptTokens: res.response.usageMetadata.promptTokenCount || 0,
+                                                completionTokens: res.response.usageMetadata.candidatesTokenCount || 0,
+                                                totalTokens: res.response.usageMetadata.totalTokenCount || 0
+                                            });
+                                        }
+                                        return res;
+                                    }
+                                };
                             }
                         };
                     }
@@ -537,6 +651,21 @@ export const executeWithKeyRotation = async <T>(
                     operation(client, step.model),
                     timeoutPromise
                 ]) as T;
+
+                // Capture and forward token usage to the queue store
+                const usage = popUsage();
+                if (usage) {
+                    try {
+                        // Dynamic import to avoid circular deps in SSR context
+                        const { useQueueStore } = await import('@/store/useQueueStore');
+                        const { activeTask, addUsageToTask } = useQueueStore.getState();
+                        if (activeTask) {
+                            const costUsd = calcCostUsd(step.model, usage.promptTokens, usage.completionTokens);
+                            addUsageToTask(activeTask.id, { ...usage, costUsd });
+                            console.log(`[AI-BILLING] ${step.model} | prompt:${usage.promptTokens} comp:${usage.completionTokens} cost:$${costUsd.toFixed(6)}`);
+                        }
+                    } catch (_) { /* non-critical */ }
+                }
 
                 return result;
 

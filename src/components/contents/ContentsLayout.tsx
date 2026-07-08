@@ -37,6 +37,10 @@ const MiniToolsView = dynamic(
     () => import("@/components/contents/MiniToolsView"),
     { loading: () => <ToolLoading name="Mini Tools" />, ssr: false }
 );
+const FacturacionView = dynamic(
+    () => import("@/components/contents/FacturacionView"),
+    { loading: () => <ToolLoading name="Facturación" />, ssr: false }
+);
 
 // --- Mockup View Component ---
 function MockupView({ toolId }: { toolId: string }) {
@@ -91,6 +95,7 @@ function ToolView({ toolId }: { toolId: string }) {
         case "imagenes": return <ImageGenerator />;
         case "translator": return <TranslatorView />;
         case "mini_tools": return <MiniToolsView />;
+        case "facturacion": return <FacturacionView />;
         default: 
             if (["monitor", "oficina", "seo", "estrategia"].includes(toolId)) {
                 return <MockupView toolId={toolId} />;

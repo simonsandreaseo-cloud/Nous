@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Terminal, Cpu, Activity, ListTodo, Loader2, Play, Pause, CheckCircle2, AlertCircle, Clock, Trash2, LayoutGrid, Zap, Plus } from "lucide-react";
+import { Terminal, Cpu, Activity, ListTodo, Loader2, Play, Pause, CheckCircle2, AlertCircle, Clock, Trash2, LayoutGrid, Zap, Plus, DollarSign } from "lucide-react";
 import { useQueueStore, QueueTask } from "@/store/useQueueStore";
 import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
@@ -35,6 +35,27 @@ function LogLine({ text, type = 'info', timestamp }: { text: string, type?: 'inf
             </div>
             <span className={cn(colorMap[type], "leading-relaxed break-words")}>{text}</span>
         </motion.div>
+    );
+}
+
+// Mini badge showing cost and token count
+function TokenCostBadge({ totalTokens, costUsd }: { totalTokens?: number, costUsd?: number }) {
+    if (!totalTokens && !costUsd) return null;
+    const formattedCost = costUsd !== undefined ? `$${costUsd.toFixed(4)}` : null;
+    const formattedTokens = totalTokens ? `${totalTokens.toLocaleString()} tok` : null;
+    return (
+        <div className="flex items-center gap-1.5 mt-2">
+            {formattedTokens && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-600 text-[10px] font-bold border border-violet-100">
+                    <Activity size={9} />{formattedTokens}
+                </span>
+            )}
+            {formattedCost && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold border border-emerald-100">
+                    <DollarSign size={9} />{formattedCost}
+                </span>
+            )}
+        </div>
     );
 }
 
@@ -471,6 +492,7 @@ export default function NousConsoleView() {
                                         </div>
                                         <h4 className="text-sm font-bold text-slate-800 leading-snug mb-1">{task.title}</h4>
                                         <p className="text-[11px] font-medium text-slate-400">{new Date(task.createdAt).toLocaleTimeString()}</p>
+                                        <TokenCostBadge totalTokens={task.totalTokens} costUsd={task.costUsd} />
                                     </motion.div>
                                 ))
                             ) : null}
@@ -523,6 +545,7 @@ export default function NousConsoleView() {
                                         </div>
                                         <h4 className="text-sm font-bold text-slate-800 leading-snug mb-1">{task.title}</h4>
                                         <p className="text-[11px] font-medium text-slate-400">{new Date(task.created_at).toLocaleString()}</p>
+                                        <TokenCostBadge totalTokens={task.total_tokens} costUsd={task.cost_usd} />
                                     </motion.div>
                                 ))
                             ) : null}

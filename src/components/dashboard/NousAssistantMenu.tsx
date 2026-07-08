@@ -11,7 +11,8 @@ import {
     BrainCircuit,
     Edit3,
     ToggleLeft,
-    ToggleRight
+    ToggleRight,
+    LayoutTemplate
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Task } from '@/types/project';
@@ -23,7 +24,7 @@ interface NousAssistantMenuProps {
     viewMode?: 'planner' | 'writer';
     tasks?: Task[];
     onAction?: (actionType: string, config?: any) => void;
-    onWriterAction?: (actionType: 'seo' | 'outline' | 'generate' | 'refine' | 'humanize' | 'surgical_edit' | 'clean') => void;
+    onWriterAction?: (actionType: 'seo' | 'outline' | 'generate' | 'refine' | 'humanize' | 'surgical_edit' | 'clean' | 'custom_transform') => void;
     isProcessing?: boolean;
     processingProgress?: number;
     selectedCount?: number;
@@ -216,6 +217,15 @@ export default function NousAssistantMenu({
                                 label="Limpiar Ruido IA" 
                                 color="indigo"
                                 onClick={() => onWriterAction?.('clean')}
+                            />
+                        </div>
+
+                        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
+                            <ActionButton 
+                                icon={LayoutTemplate} 
+                                label="Maquetador HTML/CSS" 
+                                color="orange"
+                                onClick={() => onWriterAction?.('custom_transform')}
                             />
                         </div>
                     </div>
