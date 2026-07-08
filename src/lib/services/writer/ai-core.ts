@@ -343,6 +343,16 @@ export const executeWithKeyRotation = async <T>(
     const errorLog: string[] = [];
 
     for (const step of finalHierarchy) {
+        let useVertex = false;
+        if (step.provider === 'google') {
+            useVertex = !!process.env.GCP_SERVICE_ACCOUNT;
+            if (providerOverride === 'vertex-ai') {
+                useVertex = true;
+            } else if (providerOverride === 'google-ai-studio') {
+                useVertex = false;
+            }
+        }
+
         const currentKeys = step.provider === 'google' ? googleKeys : (step.provider === 'groq' ? groqKeys : (step.provider === 'cerebras' ? cerebrasKeys : openRouterKeys));
         if (!currentKeys || currentKeys.length === 0) {
             console.warn(`[AI-ORCHESTRATOR] ⚠️ Saltando ${step.provider} porque no hay llaves configuradas.`);
@@ -385,13 +395,6 @@ export const executeWithKeyRotation = async <T>(
             try {
                 let client: any;
                 if (step.provider === 'google') {
-                    let useVertex = !!process.env.GCP_SERVICE_ACCOUNT;
-                    if (providerOverride === 'vertex-ai') {
-                        useVertex = true;
-                    } else if (providerOverride === 'google-ai-studio') {
-                        useVertex = false;
-                    }
-
                     if (useVertex) {
                         // Para Vertex AI, extraemos el project_id y pasamos las credenciales directamente via googleAuthOptions
                         let projectId = 'nous-seo-447514';
@@ -410,7 +413,7 @@ export const executeWithKeyRotation = async <T>(
                         const { GoogleGenAI } = await import('@google/genai');
                         
                         let vertexLocation = 'us-central1';
-                        if (model.includes('gemini-3.5') || model.includes('gemini-3.1')) {
+                        if (step.model.includes('gemini-3.5') || step.model.includes('gemini-3.1')) {
                             vertexLocation = 'global';
                         }
                         
@@ -541,6 +544,11 @@ export const executeWithKeyRotation = async <T>(
                 lastError = e;
                 const errorMsg = e.message?.toLowerCase() || "";
                 console.warn(`[AI-ORCHESTRATOR] Fallo en ${step.provider}/${step.model}: ${errorMsg}`);
+
+                if (useVertex) {
+                    console.warn(`[AI-ORCHESTRATOR] ⚠️ Fallo en modelo Vertex. Omitiendo rotación de llaves para Vertex.`);
+                    break;
+                }
 
                 const isQuota = e.status === 429 || errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('rate limit');
                 const isServerErr = e.status >= 500 || errorMsg.includes('500') || errorMsg.includes('502') || errorMsg.includes('503') || errorMsg.includes('504') || errorMsg.includes('timeout') || errorMsg.includes('deadline');
