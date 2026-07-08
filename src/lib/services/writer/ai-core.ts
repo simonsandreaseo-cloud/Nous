@@ -346,7 +346,7 @@ export const executeWithKeyRotation = async <T>(
         let useVertex = false;
         if (step.provider === 'google') {
             useVertex = !!process.env.GCP_SERVICE_ACCOUNT;
-            if (providerOverride === 'vertex-ai') {
+            if (providerOverride === 'vertex-ai' || step.model === 'gemini-3.1-pro-preview') {
                 useVertex = true;
             } else if (providerOverride === 'google-ai-studio') {
                 useVertex = false;
