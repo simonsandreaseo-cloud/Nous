@@ -409,12 +409,17 @@ export const executeWithKeyRotation = async <T>(
 
                         const { GoogleGenAI } = await import('@google/genai');
                         
+                        let vertexLocation = 'us-central1';
+                        if (model.includes('gemini-3.5') || model.includes('gemini-3.1')) {
+                            vertexLocation = 'global';
+                        }
+                        
                         const genAiConfig: any = {
                             project: projectId,
-                            location: 'us-central1',
+                            location: vertexLocation,
                             vertexai: {
                                 project: projectId,
-                                location: 'us-central1'
+                                location: vertexLocation
                             }
                         };
                         
