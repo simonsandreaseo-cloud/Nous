@@ -110,7 +110,8 @@ export async function executeHumanizerWithRetry<T>(
     operation: (client: any, currentModel: string) => Promise<T>,
     onStatus?: (msg: string) => void,
     label: string = 'Redacción Humanización',
-    modelName: string = 'gemma-4-31b-it'
+    modelName: string = 'gemma-4-31b-it',
+    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
 ): Promise<T> {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -133,7 +134,8 @@ export async function executeHumanizerWithRetry<T>(
         undefined,
         true,
         label,
-        HUMANIZER_TIMEOUT
+        HUMANIZER_TIMEOUT,
+        provider
     );
 };
 
@@ -676,7 +678,8 @@ export const runMiniHumanizerPipeline = async (
     onChunk?: (chunkHtml: string) => void,
     onLog?: (msg: string) => void,
     mode: string = 'standard',
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -761,7 +764,7 @@ export const runMiniHumanizerPipeline = async (
                 
                 if (!raw) throw new Error(`El modelo devolvió una respuesta vacía en ${stepName}.`);
                 return raw;
-            }, safeStatus, stepName, modelName);
+            }, safeStatus, stepName, modelName, provider);
         };
 
         if (mode === 'standard') {

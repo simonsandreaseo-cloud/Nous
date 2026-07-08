@@ -67,7 +67,8 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 
                 setStatusMessage("Iniciando Capa 1/3 (Esqueleto)...");
                 const result1 = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_1'
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_1',
+                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
                 );
                 if (result1 && result1.html) {
                     editor.commands.setContent(result1.html);
@@ -76,7 +77,8 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
 
                 setStatusMessage("Iniciando Capa 2/3 (Anomalías)...");
                 const result2 = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_2'
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_2',
+                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
                 );
                 if (result2 && result2.html) {
                     editor.commands.setContent(result2.html);
@@ -85,7 +87,8 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
 
                 setStatusMessage("Iniciando Capa 3/3 (Cierre)...");
                 const result3 = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_3'
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_3',
+                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
                 );
                 if (result3 && result3.html) {
                     editor.commands.setContent(result3.html);
@@ -103,7 +106,8 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
             for (const s of steps) {
                 setStatusMessage(s.msg);
                 const result = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, s.mode
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, s.mode,
+                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
                 );
                 if (result && result.html) {
                     editor.commands.setContent(result.html);
@@ -122,7 +126,8 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                         setStatusMessage(status);
                     },
                     selectedModel,
-                    mode
+                    mode,
+                    selectedModel.includes('gemini-3.5') || selectedModel.includes('gemini-3.1-pro') ? 'vertex-ai' : undefined
                 );
 
                 if (result && result.html) {
