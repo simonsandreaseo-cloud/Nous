@@ -51,6 +51,7 @@ export const AI_CONFIG = {
         apiKeys: geminiKeys,
         models: {
             flash3_5: 'gemini-3.5-flash',
+            flash3_1_pro: 'gemini-3.1-pro-preview',
             flash3_1_lite: 'gemini-3.1-flash-lite-preview',
             flash3: 'gemini-3-flash-preview',
             gemma4_31b: 'gemma-4-31b-it',

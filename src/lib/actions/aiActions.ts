@@ -118,7 +118,7 @@ export async function executeHumanizerWithRetry<T>(
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001'];
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001'];
     if (!allowedModels.includes(modelName)) {
         safeStatus(`⚠️ Modelo ${modelName} no permitido para humanización. Forzando gemma-4-31b-it.`);
         modelName = 'gemma-4-31b-it';
@@ -550,7 +550,7 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview'];
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview'];
     if (!allowedModels.includes(modelName)) {
         modelName = 'gemma-4-31b-it';
     }
@@ -690,7 +690,7 @@ export const runMiniHumanizerPipeline = async (
         modelName += '-it';
     }
     
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001'];
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001'];
     if (!allowedModels.includes(modelName)) {
         modelName = 'gemini-3.5-flash';
     }
@@ -1136,7 +1136,7 @@ export const runSurgicalEditorPipeline = async (
         modelName += '-it';
     }
     
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview'];
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview'];
     if (!allowedModels.includes(modelName)) {
         modelName = 'gemini-3.5-flash';
     }

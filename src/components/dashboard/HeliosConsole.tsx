@@ -144,9 +144,11 @@ export default function HeliosConsole() {
                             onChange={(e) => setModel(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500/20"
                         >
-                            <option value="gemini-3-flash-preview">Gemini 3 Flash (Next Gen)</option>
-                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Stable)</option>
-                            <option value="gpt-4o">GPT-4o (Architect)</option>
+                            <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+                            <option value="gemma-4-31b-it">Gemma 4 31B</option>
+                            <option value="gemma-4-26b-a4b-it">Gemma 4 26B</option>
+                            <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
                         </select>
                     </div>
 

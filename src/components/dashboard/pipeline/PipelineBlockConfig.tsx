@@ -16,9 +16,9 @@ interface PipelineBlockConfigProps {
 const AI_MODELS: { id: AIModelType; label: string; description: string; providerSpecific?: AIProviderType }[] = [
     { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: 'Flujos complejos y agentic workflows' },
     { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', description: 'Alta capacidad (Solo Vertex)', providerSpecific: 'vertex-ai' },
-    { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', description: 'Tareas volumétricas de bajo costo' },
-    { id: 'gemma-4-31b', label: 'Gemma 4 (31B)', description: 'Alta precisión local y razonamiento' },
-    { id: 'gemma-4-26b-moe', label: 'Gemma 4 (26B MoE)', description: 'Velocidad y eficiencia' },
+    { id: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash-Lite', description: 'Tareas volumétricas de bajo costo' },
+    { id: 'gemma-4-31b-it', label: 'Gemma 4 (31B)', description: 'Alta precisión local y razonamiento' },
+    { id: 'gemma-4-26b-a4b-it', label: 'Gemma 4 (26B MoE)', description: 'Velocidad y eficiencia' },
     { id: 'default', label: 'Por Defecto', description: 'Usa la configuración general' }
 ];
 

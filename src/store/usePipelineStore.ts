@@ -14,10 +14,10 @@ export type PipelineActionType =
     | 'seo';
 
 export type AIModelType = 
-    | 'gemma-4-31b' 
-    | 'gemma-4-26b-moe' 
+    | 'gemma-4-31b-it' 
+    | 'gemma-4-26b-a4b-it' 
     | 'gemini-3.5-flash' 
-    | 'gemini-3.1-flash-lite' 
+    | 'gemini-3.1-flash-lite-preview' 
     | 'gemini-3.1-pro-preview'
     | 'default';
 
