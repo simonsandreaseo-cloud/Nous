@@ -32,13 +32,16 @@ export default function ProjectToolsView() {
     
     // States for Management
     const [instructions, setInstructions] = useState("");
+    const [htmlGuidelines, setHtmlGuidelines] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [isSavingHTML, setIsSavingHTML] = useState(false);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [editingWidgetId, setEditingWidgetId] = useState<string | null>(null);
 
     useEffect(() => {
         if (activeProject) {
             setInstructions(activeProject.architecture_instructions || "");
+            setHtmlGuidelines(activeProject.settings?.custom_transform_guidelines || "");
         }
     }, [activeProject]);
 
@@ -127,6 +130,22 @@ export default function ProjectToolsView() {
         }
     };
 
+    const handleSaveHTMLGuidelines = async () => {
+        if (!activeProject) return;
+        setIsSavingHTML(true);
+        try {
+            const currentSettings = activeProject.settings || {};
+            await updateProject(activeProject.id, {
+                settings: {
+                    ...currentSettings,
+                    custom_transform_guidelines: htmlGuidelines
+                }
+            });
+        } finally {
+            setIsSavingHTML(false);
+        }
+    };
+
     if (!activeProject) return null;
 
     return (
@@ -167,6 +186,40 @@ export default function ProjectToolsView() {
                             rows={8}
                             className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-violet-500/10 transition-all resize-none font-mono"
                             placeholder="Define el tono, estilo, reglas de enlazado interno, y cualquier instrucción específica de la marca..."
+                        />
+                    </div>
+                </section>
+
+                {/* Directrices de Maquetación HTML Section */}
+                <section className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 shadow-sm">
+                                <Code size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-black text-slate-900 uppercase italic">Directrices de Maquetación HTML / CSS</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Reglas permanentes de diseño para la IA</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={handleSaveHTMLGuidelines}
+                            disabled={isSavingHTML}
+                            className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
+                        >
+                            {isSavingHTML ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}
+                            Guardar Directrices
+                        </button>
+                    </div>
+
+                    <div className="space-y-3">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Reglas permanentes del proyecto</label>
+                        <textarea 
+                            value={htmlGuidelines}
+                            onChange={(e) => setHtmlGuidelines(e.target.value)}
+                            rows={8}
+                            className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none font-mono"
+                            placeholder="Ej. NUNCA generes etiquetas h1. Usa CSS Grid de 12 columnas para overlaps. Resetea los bordes en las tablas, etc..."
                         />
                     </div>
                 </section>

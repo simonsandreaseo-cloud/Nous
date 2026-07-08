@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ChevronRight, Wand2, Edit3, LayoutGrid } from "lucide-react";
+import { Sparkles, ChevronRight, Wand2, Edit3, LayoutGrid, Sliders } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { MiniHumanizerModal } from "./tools/MiniHumanizerModal";
 import { MiniEditorModal } from "./tools/MiniEditorModal";
+import { CustomTransformModal } from "./tools/CustomTransformModal";
 
 export default function MiniToolsView() {
     const [activeTool, setActiveTool] = useState<string | null>(null);
@@ -20,6 +21,16 @@ export default function MiniToolsView() {
             bg: "bg-gradient-to-br from-amber-400 to-orange-500",
             border: "border-amber-200/50 hover:border-amber-400",
             glow: "group-hover:shadow-[0_0_30px_-5px_rgba(245,158,11,0.4)]"
+        },
+        {
+            id: "custom_transform",
+            name: "Maquetador Custom",
+            description: "Transformá HTML completo aplicando guías editoriales (ej. Bassol) y directrices personalizadas sin límites.",
+            icon: Sliders,
+            color: "text-purple-500",
+            bg: "bg-gradient-to-br from-indigo-500 to-purple-600",
+            border: "border-purple-200/50 hover:border-purple-400",
+            glow: "group-hover:shadow-[0_0_30px_-5px_rgba(168,85,247,0.4)]"
         },
         {
             id: "editor",
@@ -118,6 +129,9 @@ export default function MiniToolsView() {
             <AnimatePresence>
                 {activeTool === "humanizer" && (
                     <MiniHumanizerModal onClose={() => setActiveTool(null)} />
+                )}
+                {activeTool === "custom_transform" && (
+                    <CustomTransformModal onClose={() => setActiveTool(null)} />
                 )}
                 {activeTool === "editor" && (
                     <MiniEditorModal onClose={() => setActiveTool(null)} />

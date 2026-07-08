@@ -1533,3 +1533,99 @@ export const runContentCleaning = async (html: string, onStatus?: (msg: string) 
     if (onStatus) onStatus('Omitiendo limpieza HTML (desactivado)...');
     return html;
 };
+
+export async function executeCustomTransformWithRetry<T>(
+    operation: (client: any, currentModel: string) => Promise<T>,
+    onStatus?: (msg: string) => void,
+    label: string = 'Transformación HTML Custom',
+    modelName: string = 'gemini-3.5-flash',
+    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+): Promise<T> {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else console.log(`[CustomTransform-Status] ${msg}`);
+    };
+
+    const allowedModels = [
+        'gemini-3.5-flash', 
+        'gemini-3.5-pro', 
+        'gemini-3.1-pro-preview', 
+        'gemini-3.1-flash-lite-preview', 
+        'gemma-4-31b-it', 
+        'gemma-4-26b-a4b-it',
+        'gemini-1.5-flash-001'
+    ];
+    
+    if (!allowedModels.includes(modelName)) {
+        safeStatus(`⚠️ Modelo ${modelName} no permitido. Forzando gemini-3.5-flash.`);
+        modelName = 'gemini-3.5-flash';
+    }
+
+    const TRANSFORM_TIMEOUT = 180000; // 3 minutos
+
+    return await executeWithKeyRotation(
+        operation,
+        modelName,
+        undefined,
+        undefined,
+        undefined,
+        true, // isStrictModel
+        label,
+        TRANSFORM_TIMEOUT,
+        provider
+    );
+}
+
+export const runCustomTransformPipeline = async (
+    html: string,
+    presetInstructions: string,
+    userInstructions: string,
+    onStatus?: (msg: string) => void,
+    modelName: string = 'gemini-3.5-flash',
+    onChunk?: (chunkHtml: string) => void,
+    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+): Promise<{ html: string; metadata?: any }> => {
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+        else console.log(`[CustomTransform-Status] ${msg}`);
+    };
+
+    safeStatus(`Iniciando transformación estructural de HTML completo con modelo ${modelName}...`);
+
+    const resultHtml = await executeCustomTransformWithRetry(async (ai, currentModel) => {
+        const systemInstruction = `
+Eres un Maquetador Web Senior y Diseñador de Revistas de Moda. Tu único trabajo es estructurar artículos de blog en HTML y CSS siguiendo estrictamente las directrices editoriales y las instrucciones del usuario.
+
+--- DIRECTRICES EDITORIALES DE LA MARCA (OBLIGATORIO) ---
+${presetInstructions}
+
+--- INSTRUCCIONES AD-HOC DEL USUARIO (OBLIGATORIO) ---
+${userInstructions}
+
+--- REGLAS CRÍTICAS DE INTEGRIDAD ---
+1. Preserva el copywriting de los textos de manera intacta a menos que se te pida explícitamente reescribir algo.
+2. Preserva intactos los shortcodes de Shopify en su formato original (ej. [*12345*] o {*12345*}). No alteres sus IDs.
+3. Coloca todo el CSS generado dentro de una etiqueta <style> al inicio del HTML usando selectores específicos y namespaces únicos para evitar colisiones.
+4. Queda estrictamente prohibido incluir razonamientos, prefacios, explicaciones o Chain of Thought. Tu respuesta debe ser ÚNICAMENTE el código HTML transformado final.
+`;
+
+        const model = ai.getGenerativeModel({
+            model: currentModel,
+            systemInstruction
+        });
+
+        const prompt = `CÓDIGO HTML ORIGINAL A TRANSFORMAR:\n${html}\n\nDEVUELVE SOLO EL HTML TRANSFORMADO SIN NINGÚN COMENTARIO NI TEXTO ADICIONAL.`;
+        
+        const response = await model.generateContent(prompt);
+        let raw = response.response.text();
+
+        let cleaned = raw;
+        cleaned = cleaned.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
+
+        return cleaned;
+    }, safeStatus, 'Transformación HTML Custom', modelName, provider);
+
+    if (onChunk) onChunk(resultHtml);
+
+    return { html: cleanAndFormatHtml(resultHtml) };
+};

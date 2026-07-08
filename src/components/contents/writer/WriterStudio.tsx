@@ -547,15 +547,81 @@ export default function WriterStudio() {
 
     const handlePreview = () => {
         const title = strategyH1 || keyword || "Vista Previa de Nous Studio";
-        const contentHtml = content || "";
+        let contentHtml = content || "";
         
+        // Create a temporary DOM parser to transform custom Tiptap/Nous elements to standard HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = contentHtml;
+
+        // 1. Transform Tiptap custom tags (<nous-asset>, div[data-type="nousAsset"], etc.) into standard img tags
+        const customAssets = tempDiv.querySelectorAll('nous-asset, div[data-type="nousAsset"], figure[data-nous-asset="true"]');
+        customAssets.forEach((asset) => {
+            const url = asset.getAttribute('url') || asset.getAttribute('data-url') || asset.querySelector('img')?.getAttribute('src');
+            const alt = asset.getAttribute('alt') || asset.getAttribute('data-alt') || asset.querySelector('img')?.getAttribute('alt') || '';
+            const titleText = asset.getAttribute('title') || asset.getAttribute('data-title') || '';
+            const align = asset.getAttribute('align') || asset.getAttribute('data-align') || 'center';
+            const width = asset.getAttribute('width') || asset.getAttribute('data-width') || '100%';
+
+            if (url) {
+                const figure = document.createElement('figure');
+                figure.className = 'my-8 flex flex-col items-center justify-center';
+                
+                // Manage alignment layout classes matching modern site web templates
+                if (align === 'left') {
+                    figure.className = 'my-4 md:float-left md:mr-6 max-w-sm';
+                } else if (align === 'right') {
+                    figure.className = 'my-4 md:float-right md:ml-6 max-w-sm';
+                } else if (align === 'full') {
+                    figure.className = 'my-8 w-full clear-both';
+                }
+
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = alt;
+                img.title = titleText;
+                img.className = 'rounded-2xl shadow-lg border border-slate-200/60 max-w-full';
+                img.style.width = width;
+                img.style.height = 'auto';
+
+                figure.appendChild(img);
+
+                if (titleText) {
+                    const figcaption = document.createElement('figcaption');
+                    figcaption.className = 'mt-2 text-center text-xs text-slate-400 font-medium italic';
+                    figcaption.textContent = titleText;
+                    figure.appendChild(figcaption);
+                }
+
+                asset.parentNode?.replaceChild(figure, asset);
+            }
+        });
+
+        // 2. Transform general image slots and missing custom tags
+        const images = tempDiv.querySelectorAll('img');
+        images.forEach((img) => {
+            if (!img.className) {
+                img.className = 'rounded-2xl shadow-lg border border-slate-200/60 max-w-full my-8 mx-auto block';
+            }
+        });
+
+        const processedHtml = tempDiv.innerHTML;
+
         // Find hero image
         const featured = useWriterStore.getState().taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured');
         const heroHtml = featured && featured.url ? `
-            <div style="margin-bottom: 2.5rem; border-radius: 2rem; overflow: hidden; aspect-ratio: 21/9; width: 100%; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);">
-                <img src="${featured.url}" alt="${featured.alt_text || ''}" style="width: 100%; height: 100%; object-fit: cover;" />
-            </div>
-        ` : '';
+            <header class="mb-10">
+                <div class="relative w-full aspect-[21/9] overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/40 shadow-2xl mb-8">
+                    <img src="${featured.url}" alt="${featured.alt_text || ''}" class="w-full h-full object-cover" />
+                </div>
+                <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4 font-title">${title}</h1>
+                <div class="w-20 h-1 bg-indigo-500 rounded-full"></div>
+            </header>
+        ` : `
+            <header class="mb-10">
+                <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4 font-title">${title}</h1>
+                <div class="w-20 h-1 bg-indigo-500 rounded-full"></div>
+            </header>
+        `;
 
         const previewHtml = `
 <!DOCTYPE html>
@@ -586,6 +652,35 @@ export default function WriterStudio() {
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Outfit', sans-serif !important;
         }
+        /* Tiptap Table Custom Styling */
+        table {
+            border-collapse: collapse;
+            margin: 2.5rem 0;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f1f5f9;
+        }
+        th, td {
+            border: 1px solid #f1f5f9;
+            padding: 1rem;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+        th {
+            background-color: #f8fafc;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+        /* Custom formatting inside tables */
+        table p {
+            margin: 0 !important;
+            line-height: 1.5 !important;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen py-12 px-4 md:px-8">
@@ -599,7 +694,7 @@ export default function WriterStudio() {
             prose-li:text-slate-600 prose-li:text-lg prose-li:leading-relaxed prose-li:mb-2
             prose-strong:text-slate-900 prose-strong:font-bold
             prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/50 prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:rounded-r-xl prose-blockquote:not-italic prose-blockquote:text-slate-700 prose-blockquote:text-lg prose-blockquote:font-medium">
-            ${contentHtml}
+            ${processedHtml}
         </article>
     </div>
 </body>

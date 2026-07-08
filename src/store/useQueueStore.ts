@@ -11,6 +11,7 @@ export type QueueActionType =
   | 'outline'
   | 'planner_batch'
   | 'planner_nous_action'
+  | 'custom_transform'
   | string;
 
 export interface QueueTaskLog {

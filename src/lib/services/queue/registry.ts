@@ -6,8 +6,10 @@ import { handleBatchResearch, handleBatchOutline, handleBatchGenerate, handleBat
 import { handleHumanizeTask } from './handlers/humanize';
 import { handleRefineTask } from './handlers/refine';
 import { handleCleanTask } from './handlers/clean';
+import { handleCustomTransformTask } from './handlers/customTransform';
 
 export type QueuePayload = Record<string, any>;
+
 
 type QueueHandler = (taskId: string, payload: QueuePayload) => Promise<void>;
 
@@ -41,3 +43,4 @@ QueueRegistry.register('batch_translate', handleBatchTranslate);
 QueueRegistry.register('humanize', handleHumanizeTask);
 QueueRegistry.register('refine', handleRefineTask);
 QueueRegistry.register('clean', handleCleanTask);
+QueueRegistry.register('custom_transform', handleCustomTransformTask);
