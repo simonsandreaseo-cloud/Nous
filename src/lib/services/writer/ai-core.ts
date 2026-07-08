@@ -222,7 +222,8 @@ export const executeWithKeyRotation = async <T>(
     onRotation?: (failedKey: string, reason: string, attempt: number, max: number) => void,
     isStrictModel: boolean = false,
     label: string = 'Operación AI',
-    timeoutMs: number = 20000
+    timeoutMs: number = 20000,
+    providerOverride?: 'google-ai-studio' | 'vertex-ai' | 'auto'
 ): Promise<T> => {
     // 1. Determine Hierarchy based on label/intent
     type Step = { provider: 'google' | 'groq' | 'openrouter' | 'cerebras', model: string };
@@ -384,24 +385,46 @@ export const executeWithKeyRotation = async <T>(
             try {
                 let client: any;
                 if (step.provider === 'google') {
-                    if (process.env.GCP_SERVICE_ACCOUNT) {
-                        const { GoogleGenAI } = await import('@google/genai');
-                        let credentials;
-                        try {
-                            credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT);
-                        } catch(e) {
-                            console.error("[AI-ORCHESTRATOR] Error parseando GCP_SERVICE_ACCOUNT");
-                            throw new Error("GCP_SERVICE_ACCOUNT malformado.");
+                    let useVertex = !!process.env.GCP_SERVICE_ACCOUNT;
+                    if (providerOverride === 'vertex-ai') {
+                        useVertex = true;
+                    } else if (providerOverride === 'google-ai-studio') {
+                        useVertex = false;
+                    }
+
+                    if (useVertex) {
+                        // Para Vertex AI, extraemos el project_id de la cuenta de servicio y seteamos credenciales por defecto (ADC)
+                        let projectId = 'nous-seo-447514';
+                        if (process.env.GCP_SERVICE_ACCOUNT) {
+                            try {
+                                const creds = JSON.parse(process.env.GCP_SERVICE_ACCOUNT);
+                                if (creds.project_id) projectId = creds.project_id;
+                                
+                                if (typeof window === 'undefined') {
+                                    try {
+                                        const fsMod = await import(/* webpackIgnore: true */ 'fs');
+                                        const osMod = await import(/* webpackIgnore: true */ 'os');
+                                        const pathMod = await import(/* webpackIgnore: true */ 'path');
+                                        
+                                        const tmpFilePath = pathMod.join(osMod.tmpdir(), 'gcp-credentials.json');
+                                        if (!fsMod.existsSync(tmpFilePath)) {
+                                            fsMod.writeFileSync(tmpFilePath, process.env.GCP_SERVICE_ACCOUNT, 'utf8');
+                                        }
+                                        process.env.GOOGLE_APPLICATION_CREDENTIALS = tmpFilePath;
+                                    } catch (fsErr) {
+                                        console.warn("[executeWithKeyRotation] Failed to write GCP credentials file via fs", fsErr);
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn("[executeWithKeyRotation] Error parsing GCP_SERVICE_ACCOUNT", e);
+                            }
                         }
 
+                        const { GoogleGenAI } = await import('@google/genai');
                         const rawGoogleClient = new GoogleGenAI({
                             vertexai: {
-                                project: credentials.project_id,
-                                location: 'us-central1',
-                                credentials: {
-                                    client_email: credentials.client_email,
-                                    private_key: credentials.private_key,
-                                }
+                                project: projectId,
+                                location: 'us-central1'
                             }
                         });
 

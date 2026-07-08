@@ -20,7 +20,7 @@ export const handleSurgicalEditTask = async (taskId: string, payload: QueuePaylo
     }
     
     const config = payload.config;
-    const originalContent = payload.content;
+    const originalContent = payload.content || store.content;
 
     console.log("[DEBUG-SurgicalEdit Handler] Starting pipeline for content length:", originalContent?.length);
     useWriterStore.getState().setSurgicalEditing(true);
