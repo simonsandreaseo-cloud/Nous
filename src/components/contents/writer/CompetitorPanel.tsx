@@ -30,14 +30,19 @@ export function CompetitorPanel() {
             if (draftId) {
                 const { data } = await supabase
                     .from('task_competitors')
-                    .select('content')
-                    .eq('task_id', draftId)
-                    .eq('url', comp.url)
-                    .single();
+                    .select('url, content')
+                    .eq('task_id', draftId);
 
-                if (data?.content) {
-                    setReadingContent(data.content);
-                    return;
+                if (data && data.length > 0) {
+                    const cleanCompUrl = comp.url.split('?')[0].replace(/\/$/, '').toLowerCase();
+                    const match = data.find((d: any) => {
+                        const cleanDbUrl = d.url.split('?')[0].replace(/\/$/, '').toLowerCase();
+                        return cleanDbUrl === cleanCompUrl;
+                    });
+                    if (match?.content) {
+                        setReadingContent(match.content);
+                        return;
+                    }
                 }
             }
             

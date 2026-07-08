@@ -11,7 +11,8 @@ const LIGHT_TASK_COLUMNS = `
     word_count, target_word_count, word_count_real, ai_percentage, docs_url, layout_status,
     creator_id, researcher_id, writer_id, corrector_id, assigned_to, 
     assigned_at, completed_at, created_at,
-    seo_title, meta_description, h1, excerpt, language, associated_url, refs
+    seo_title, meta_description, h1, excerpt, language, associated_url, refs,
+    outline_structure
 `;
 
 export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = (set, get) => ({
@@ -203,7 +204,7 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
             if (key === 'content_body') {
                 contentUpdates[key] = value;
                 taskUpdates[key] = value; // Keep legacy tasks column in sync for UI rehydration
-            } else if (['research_dossier', 'outline_structure', 'seo_data', 'schemas'].includes(key)) {
+            } else if (['research_dossier', 'seo_data', 'schemas'].includes(key)) {
                 researchUpdates[key] = value;
             } else {
                 taskUpdates[key] = value;
@@ -255,7 +256,6 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
         const lightUpdates = { ...finalUpdates };
         delete lightUpdates.content_body;
         delete lightUpdates.research_dossier;
-        delete lightUpdates.outline_structure;
         delete lightUpdates.seo_data;
         delete lightUpdates.schemas;
 

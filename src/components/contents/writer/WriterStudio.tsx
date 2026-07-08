@@ -37,7 +37,8 @@ import {
     PanelLeft,
     PanelRightClose,
     PanelRight,
-    History
+    History,
+    Eye
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
 
@@ -544,6 +545,75 @@ export default function WriterStudio() {
         }
     };
 
+    const handlePreview = () => {
+        const title = strategyH1 || keyword || "Vista Previa de Nous Studio";
+        const contentHtml = content || "";
+        
+        // Find hero image
+        const featured = useWriterStore.getState().taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured');
+        const heroHtml = featured && featured.url ? `
+            <div style="margin-bottom: 2.5rem; border-radius: 2rem; overflow: hidden; aspect-ratio: 21/9; width: 100%; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);">
+                <img src="${featured.url}" alt="${featured.alt_text || ''}" style="width: 100%; height: 100%; object-fit: cover;" />
+            </div>
+        ` : '';
+
+        const previewHtml = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        title: ['Outfit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #fafafa;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Outfit', sans-serif !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen py-12 px-4 md:px-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-100 p-8 md:p-12">
+        ${heroHtml}
+        <article class="prose prose-lg prose-indigo max-w-none 
+            prose-h1:text-4xl prose-h1:md:text-5xl prose-h1:font-extrabold prose-h1:text-slate-900 prose-h1:mb-8 prose-h1:tracking-tight prose-h1:leading-tight
+            prose-h2:text-3xl prose-h2:font-bold prose-h2:text-slate-800 prose-h2:mt-12 prose-h2:mb-6 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-200 prose-h2:tracking-tight
+            prose-h3:text-2xl prose-h3:font-semibold prose-h3:text-indigo-600 prose-h3:mt-8 prose-h3:mb-4 prose-h3:tracking-normal
+            prose-p:text-slate-600 prose-p:leading-[1.8] prose-p:text-[17px] prose-p:mb-6
+            prose-li:text-slate-600 prose-li:text-lg prose-li:leading-relaxed prose-li:mb-2
+            prose-strong:text-slate-900 prose-strong:font-bold
+            prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/50 prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:rounded-r-xl prose-blockquote:not-italic prose-blockquote:text-slate-700 prose-blockquote:text-lg prose-blockquote:font-medium">
+            ${contentHtml}
+        </article>
+    </div>
+</body>
+</html>
+        `;
+
+        const newWin = window.open();
+        if (newWin) {
+            newWin.document.open();
+            newWin.document.write(previewHtml);
+            newWin.document.close();
+        }
+    };
+
     useEffect(() => { if (redactorUI === 'standard' && viewMode === 'dashboard') setViewMode('workspace'); }, [redactorUI, viewMode, setViewMode]);
 
     // Resizing handled by react-resizable-panels
@@ -704,6 +774,13 @@ export default function WriterStudio() {
                                     title={isSaving ? "Guardando..." : "Sincronizado (Click para forzar guardado)"}
                                 >
                                     {isSaving ? <Cloud className="text-amber-500 animate-pulse" size={14} /> : <Cloud className="text-emerald-500" size={14} />}
+                                </button>
+                                <button 
+                                    onClick={handlePreview}
+                                    className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 active:scale-95 transition-all text-slate-500 hover:text-slate-800" 
+                                    title="Vista previa del artículo"
+                                >
+                                    <Eye size={14} />
                                 </button>
                             </div>
                             
