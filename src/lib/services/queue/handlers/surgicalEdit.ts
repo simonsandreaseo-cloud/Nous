@@ -1,152 +1,157 @@
 import { useWriterStore } from '@/store/useWriterStore';
+import { useProjectStore } from '@/store/useProjectStore';
 import { useQueueStore } from '@/store/useQueueStore';
+import { supabase } from '@/lib/supabase';
 import { streamSurgicalEdit } from '@/lib/services/writer/ai-streaming';
 import { refineStyling } from '@/components/tools/writer/services';
 import type { QueuePayload } from '../registry';
 
-/**
- * Handler registrable para el tipo 'surgical_edit'.
- *
- * Todos los datos que necesita vienen en el payload serializable,
- * nunca desde un closure capturado al momento del enqueue.
- *
- * Payload esperado:
- *   - draftId:      string  — ID del borrador a editar
- *   - content:      string  — HTML original en el momento del dispatch
- *   - projectName:  string
- *   - niche:        string
- *   - audience:     string
- *   - language:     string
- */
-export const handleSurgicalEditTask = async (taskId: string, payload: QueuePayload): Promise<void> => {
+export const handleSurgicalEditTask = async (taskId: string, payload: QueuePayload) => {
+    const store = useWriterStore.getState();
+    const activeProject = useProjectStore.getState().activeProject;
     const { addLogToTask, setTaskStatus } = useQueueStore.getState();
-    const writerStore = useWriterStore.getState();
-
-    const { draftId, content, projectName, niche, audience, language } = payload;
-
-    // Guardar versión previa sólo si el borrador activo es el mismo
-    if (writerStore.draftId === draftId) {
-        await writerStore.saveTaskVersion('Pre-Edición Quirúrgica', content);
-        writerStore.setSurgicalEditing(true);
-        writerStore.setSurgicalEditStatus('Iniciando edición quirúrgica...');
+    
+    const draftId = payload.taskId || store.draftId;
+    
+    // Si no estamos en el borrador correcto, abortar
+    if (store.draftId !== draftId) {
+        addLogToTask(taskId, `Draft ID mismatch, expected ${store.draftId} but got ${draftId}. Aborting.`, 'error');
+        throw new Error('Draft ID mismatch');
     }
+    
+    const config = payload.config;
+    const originalContent = payload.content;
 
-    const config = { projectName, niche, audience, language };
-
-    const chunkHtml = (htmlString: string, maxBlocks = 2): string[] => {
-        if (typeof window === 'undefined') return [htmlString];
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlString, 'text/html');
-        const chunks: string[] = [];
-        let currentChunk = '';
-        let blockCount = 0;
-
-        Array.from(doc.body.children).forEach((el) => {
-            currentChunk += el.outerHTML;
-            if (['p', 'ul', 'ol', 'blockquote', 'table', 'div'].includes(el.tagName.toLowerCase())) {
-                blockCount++;
-            }
-            if (blockCount >= maxBlocks) {
-                chunks.push(currentChunk.trim());
-                currentChunk = '';
-                blockCount = 0;
-            }
-        });
-
-        if (currentChunk.trim()) chunks.push(currentChunk.trim());
-        return chunks.length > 0 ? chunks : [htmlString];
-    };
-
-    const rawChunks = chunkHtml(content, 2);
-    addLogToTask(taskId, `Documento dividido en ${rawChunks.length} partes para edición.`, 'info');
-
-    // Inicializar chunks con marcadores de estado
-    let currentDocumentChunks = rawChunks.map(
-        (chunk, index) => `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
-    );
-
-    const syncContent = (chunks: string[]) => {
-        const fresh = useWriterStore.getState();
-        if (fresh.draftId === draftId) {
-            fresh.setContent(chunks.join('\n'));
-        }
-    };
-
-    syncContent(currentDocumentChunks);
-
+    console.log("[DEBUG-SurgicalEdit Handler] Starting pipeline for content length:", originalContent?.length);
+    useWriterStore.getState().setSurgicalEditing(true);
+    useWriterStore.getState().setSurgicalEditStatus('Iniciando edición quirúrgica...');
+    
     try {
+        await useWriterStore.getState().saveTaskVersion(`Pre-Edición Quirúrgica`, originalContent);
+
+        const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
+            const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
+            const chunks = [];
+            for (let i = 0; i < elements.length; i += chunkSize) {
+                const chunk = elements.slice(i, i + chunkSize).join('').trim();
+                if (chunk) chunks.push(chunk);
+            }
+            return chunks;
+        };
+
+        const rawChunks = chunkHtml(originalContent, 4);
+        console.log(`[DEBUG-SurgicalEdit Handler] Documento dividido en ${rawChunks.length} chunks.`);
+        useWriterStore.getState().setSurgicalEditStatus(`Documento dividido en ${rawChunks.length} partes...`);
+        addLogToTask(taskId, `Documento dividido en ${rawChunks.length} partes para edición.`, 'info');
+        
+        let currentDocumentChunks = rawChunks.map((chunk, index) => 
+            `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
+        );
+        
+        useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
+
         for (let i = 0; i < rawChunks.length; i++) {
             let success = false;
             let attempts = 0;
             const MAX_ATTEMPTS = 4;
 
             currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
-            syncContent(currentDocumentChunks);
+            useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
 
             while (!success && attempts < MAX_ATTEMPTS) {
                 try {
+                    useWriterStore.getState().setSurgicalEditStatus(`Editando Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
                     addLogToTask(taskId, `Procesando chunk ${i + 1} de ${rawChunks.length}${attempts > 0 ? ` (Reintento ${attempts})` : ''}...`, 'info');
-
+                    
                     const chunkResult = await streamSurgicalEdit(
                         rawChunks[i],
                         config,
                         50,
-                        () => {}, // Streaming parcial desactivado para DOM estable
-                        (msg) => addLogToTask(taskId, `[Chunk ${i + 1}] ${msg}`, 'info')
+                        (partialHtml) => {
+                            currentDocumentChunks[i] = partialHtml;
+                            useWriterStore.getState().setIsRemoteUpdate(true);
+                            useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
+                        },
+                        (msg) => {
+                            console.log(`[Chunk ${i+1}] ${msg}`);
+                            addLogToTask(taskId, `[Chunk ${i+1}] ${msg}`, 'info');
+                        },
+                        undefined,
+                        (batchProgress) => {
+                            const baseProgress = (i / rawChunks.length) * 100;
+                            const additionalProgress = (batchProgress / 100) * (1 / rawChunks.length) * 100;
+                            setTaskStatus(taskId, 'processing', Number((baseProgress + additionalProgress).toFixed(2)));
+                        }
                     );
-
+                    
                     addLogToTask(taskId, `Chunk ${i + 1} completado.`, 'success');
+                    
                     currentDocumentChunks[i] = chunkResult.html;
-                    syncContent(currentDocumentChunks);
+                    useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
                     success = true;
                 } catch (err: any) {
                     attempts++;
+                    console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
                     addLogToTask(taskId, `Error en chunk ${i + 1}: ${err.message}`, 'error');
-
+                    
                     if (attempts >= MAX_ATTEMPTS) {
-                        addLogToTask(taskId, `Fallo definitivo en chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá el original.`, 'error');
+                        addLogToTask(taskId, `Fallo definitivo en chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá original.`, 'error');
                         currentDocumentChunks[i] = rawChunks[i];
-                        syncContent(currentDocumentChunks);
+                        useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
                         break;
                     }
-
+                    
+                    useWriterStore.getState().setSurgicalEditStatus(`Error en Chunk ${i + 1}. Reintentando en 70s... (${attempts}/${MAX_ATTEMPTS})`);
                     addLogToTask(taskId, `Esperando 70s antes de reintentar chunk ${i + 1}...`, 'warning');
-                    await new Promise(resolve => setTimeout(resolve, 70_000));
+                    await new Promise(resolve => setTimeout(resolve, 70000));
                 }
             }
-
+            
             setTaskStatus(taskId, 'processing', ((i + 1) / rawChunks.length) * 100);
         }
 
+        const finalResult = { html: currentDocumentChunks.join('\n') };
+
         await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
 
-        const refined = refineStyling(currentDocumentChunks.join('\n'));
+        const refined = refineStyling(finalResult.html);
+        
+        useWriterStore.getState().setIsRemoteUpdate(true);
+        useWriterStore.getState().setContent(refined);
+        useWriterStore.getState().setSurgicalEditStatus('✅ ¡Edición Quirúrgica completada!');
 
-        const freshStore = useWriterStore.getState();
-        if (freshStore.draftId === draftId) {
-            freshStore.setContent(refined);
-            freshStore.setSurgicalEditStatus('✅ ¡Edición Quirúrgica completada!');
-            freshStore.addDebugPrompt('Edición Quirúrgica Finalizada', 'Contenido mejorado quirúrgicamente con éxito', refined.substring(0, 1000));
-            await freshStore.saveTaskVersion('Edición Quirúrgica', refined);
+        useWriterStore.getState().addDebugPrompt('Edición Quirúrgica Finalizada', `Contenido mejorado quirúrgicamente con éxito`, refined.substring(0, 1000));
+        
+        await useWriterStore.getState().saveTaskVersion(`Edición Quirúrgica`, refined);
+        
+        if (draftId) {
+            const { data: taskData } = await supabase
+                .from('tasks')
+                .select('metadata')
+                .eq('id', draftId)
+                .single();
+
+            const newMetadata = { 
+                ...(taskData?.metadata || {}), 
+                is_surgically_edited: true, 
+                surgically_edited_at: new Date().toISOString() 
+            };
+
+            const { error: surgicalError } = await supabase
+                .from('tasks')
+                .update({ metadata: newMetadata })
+                .eq('id', draftId);
+            
+            if (surgicalError) console.error("[SurgicalEdit Handler] Error updating metadata:", surgicalError.message);
         }
 
-        addLogToTask(taskId, 'Edición quirúrgica finalizada.', 'success');
-    } catch (error: any) {
-        console.error('[SurgicalEdit] Error:', error);
-        addLogToTask(taskId, `Error crítico: ${error.message}`, 'error');
-
-        const freshStore = useWriterStore.getState();
-        if (freshStore.draftId === draftId) {
-            freshStore.setSurgicalEditStatus(`❌ Error: ${error.message}`);
-            freshStore.addDebugPrompt('Error en Edición Quirúrgica', 'Fallo general', error.message);
-        }
-
-        throw error; // Re-throw para que el QueueProcessor lo marque como 'error'
+        setTimeout(() => useWriterStore.getState().setSurgicalEditStatus(''), 3000);
+    } catch (e: any) {
+        console.error(e);
+        useWriterStore.getState().setSurgicalEditStatus('❌ Error: ' + e.message);
+        addLogToTask(taskId, `Error crítico: ${e.message}`, 'error');
+        throw e;
     } finally {
-        const freshStore = useWriterStore.getState();
-        if (freshStore.draftId === draftId) {
-            freshStore.setSurgicalEditing(false);
-            setTimeout(() => freshStore.setSurgicalEditStatus(''), 5000);
-        }
+        useWriterStore.getState().setSurgicalEditing(false);
     }
 };

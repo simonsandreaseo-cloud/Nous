@@ -26,7 +26,7 @@ import { supabase } from "@/lib/supabase";
 
 // --- UTILS & CONSTANTS ---
 export const buildPrompt = libBuildPrompt;
-const ANTI_LEAKAGE_SYSTEM_BASE = `Eres un Transformador Determinista. Tu única función es procesar la entrada y devolver la salida en el formato exacto solicitado. Si necesitas planificar o razonar, DEBES encapsular tu razonamiento utilizando el formato exacto que el prompt te exija (ya sea JSON o bloques de markdown específicos).`;
+const ANTI_LEAKAGE_SYSTEM_BASE = `Eres un Transformador Determinista. Tu única función es procesar la entrada y devolver la salida en el formato exacto solicitado.`;
 
 const FEW_SHOT_HTML = `
 Ejemplo 1:
@@ -1195,7 +1195,7 @@ export const runSurgicalEditorPipeline = async (
         const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
 Corrige el texto aplicando únicamente estos límites máximos:
 
-Borrar: Hasta ${limitDelete} muletillas en total.
+Borrar: Hasta ${limitDelete} palabras en total.
 
 Reemplazar: Hasta ${limitReplace} palabras por sinónimos.
 
