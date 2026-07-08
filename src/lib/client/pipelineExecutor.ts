@@ -52,13 +52,20 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
     queueStore.setIsProcessingQueue(true);
 
     let totalOperations = 0;
+    const preQueueIds: { taskId: string; blockIndex: number; queueTaskId: string }[] = [];
+
     for (let i = 0; i < blocks.length; i++) {
         const block = blocks[i];
         for (const [id, task] of memoryState.entries()) {
-            if (mode === 'manual') {
+            if (mode === 'manual' || (mode === 'status' && task.status === block.inputStatus)) {
                 totalOperations++;
-            } else if (mode === 'status' && task.status === block.inputStatus) {
-                totalOperations++;
+                const queueTaskId = queueStore.enqueueTask(
+                    block.actionType,
+                    `${block.actionType.toUpperCase()}: ${task.title}`,
+                    { isPipelineMode: true },
+                    { taskId: task.id, projectId: project?.id }
+                );
+                preQueueIds.push({ taskId: task.id, blockIndex: i, queueTaskId });
             }
         }
     }
@@ -80,11 +87,21 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
                 const eligible = (mode === 'manual') || (mode === 'status' && task.status === block.inputStatus);
                 if (!eligible) continue;
 
+                const qInfo = preQueueIds.find(q => q.taskId === task.id && q.blockIndex === i);
+                if (!qInfo) continue;
+
+                const stillInQueue = useQueueStore.getState().queue.some(t => t.id === qInfo.queueTaskId);
+                if (!stillInQueue) {
+                    onLog('SYSTEM', 'Info', `⚠ Tarea omitida (eliminada de la cola): ${block.actionType.toUpperCase()} - ${task.title}`);
+                    queueStore.incrementBatchCompleted();
+                    continue;
+                }
+
                 while (useQueueStore.getState().isPaused && useQueueStore.getState().isProcessingQueue) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
                 if (!useQueueStore.getState().isProcessingQueue) break;
-                await executeTaskInBlock({ task, block, project, queueStore, memoryState, onLog, onProgress });
+                await executeTaskInBlock({ task, block, project, queueStore, memoryState, onLog, onProgress, queueTaskId: qInfo.queueTaskId });
             }
         }
     } else {
@@ -112,12 +129,23 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
             // 2. Ejecutar Bloque para los Targets
             for (const task of tasksForThisBlock) {
                 if (!useQueueStore.getState().isProcessingQueue) break;
+
+                const qInfo = preQueueIds.find(q => q.taskId === task.id && q.blockIndex === i);
+                if (!qInfo) continue;
+
+                const stillInQueue = useQueueStore.getState().queue.some(t => t.id === qInfo.queueTaskId);
+                if (!stillInQueue) {
+                    onLog('SYSTEM', 'Info', `⚠ Tarea omitida (eliminada de la cola): ${block.actionType.toUpperCase()} - ${task.title}`);
+                    queueStore.incrementBatchCompleted();
+                    continue;
+                }
+
                 // Check for pause state before starting the next task
                 while (useQueueStore.getState().isPaused && useQueueStore.getState().isProcessingQueue) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
                 if (!useQueueStore.getState().isProcessingQueue) break;
-                await executeTaskInBlock({ task, block, project, queueStore, memoryState, onLog, onProgress });
+                await executeTaskInBlock({ task, block, project, queueStore, memoryState, onLog, onProgress, queueTaskId: qInfo.queueTaskId });
             }
         }
     }
@@ -132,7 +160,7 @@ export const executePipeline = async (options: PipelineExecutionOptions) => {
 // HELPER: Executes one task through one block — shared by both strategies
 // ===================================================================
 async function executeTaskInBlock({
-    task, block, project, queueStore, memoryState, onLog, onProgress,
+    task, block, project, queueStore, memoryState, onLog, onProgress, queueTaskId
 }: {
     task: Task;
     block: PipelineBlock;
@@ -145,13 +173,8 @@ async function executeTaskInBlock({
     onProgress: (tid: string, progress: number) => void;
     enhancedLogFactory?: any;
     enhancedProgressFactory?: any;
+    queueTaskId: string;
 }) {
-    const queueTaskId = queueStore.enqueueTask(
-        block.actionType,
-        `${block.actionType.toUpperCase()}: ${task.title}`,
-        undefined,
-        { taskId: task.id, projectId: project?.id }
-    );
 
     const qTask = useQueueStore.getState().queue.find(t => t.id === queueTaskId);
     if (qTask) queueStore.setActiveTask(qTask);
@@ -227,6 +250,82 @@ async function executeTaskInBlock({
             currentTaskState.volume = res.volume || currentTaskState.volume;
             currentTaskState.target_word_count = res.word_count || currentTaskState.target_word_count;
             currentTaskState.brief = res.brief || currentTaskState.brief;
+        }
+
+        // --- MÉTRICAS DE EDICIÓN EN VIVO ---
+        const isEditingBlock = ['generate', 'humanize', 'clean', 'surgical_edit'].includes(block.actionType);
+        const originalContent = currentTaskState.content_body || '';
+        
+        if (isEditingBlock && newContent && newContent !== originalContent) {
+            enhancedLog(task.id, 'Analítica', 'Extrayendo métricas matemáticas de la edición...');
+            try {
+                // Strip HTML tags to get pure text
+                const cleanOriginal = originalContent.replace(/<[^>]*>?/gm, '').trim();
+                const cleanEdited = newContent.replace(/<[^>]*>?/gm, '').trim();
+                
+                // Split into words
+                const wordsOriginal = cleanOriginal.split(/\s+/).filter(w => w.length > 0);
+                const wordsEdited = cleanEdited.split(/\s+/).filter(w => w.length > 0);
+                
+                const totalOriginal = wordsOriginal.length;
+                const totalEdited = wordsEdited.length;
+                
+                const charsOriginal = cleanOriginal.length;
+                const charsEdited = cleanEdited.length;
+                
+                // Longest Common Subsequence (LCS) para medir similitud secuencial exacta
+                // Usamos un array 1D para optimizar memoria
+                const m = wordsOriginal.length;
+                const n = wordsEdited.length;
+                
+                // Si el texto es abismalmente grande (>5000 palabras), usar una aproximación rápida para no bloquear el hilo
+                let retainedWords = 0;
+                
+                if (m * n > 25000000) {
+                    // Fallback rápido (Sets) para textos gigantes
+                    const setOriginal = new Set(wordsOriginal);
+                    let match = 0;
+                    for (const w of wordsEdited) {
+                        if (setOriginal.has(w)) match++;
+                    }
+                    retainedWords = match;
+                } else {
+                    // LCS exacto
+                    let prev = new Array(n + 1).fill(0);
+                    let curr = new Array(n + 1).fill(0);
+                    
+                    for (let i = 1; i <= m; i++) {
+                        for (let j = 1; j <= n; j++) {
+                            if (wordsOriginal[i - 1] === wordsEdited[j - 1]) {
+                                curr[j] = prev[j - 1] + 1;
+                            } else {
+                                curr[j] = Math.max(prev[j], curr[j - 1]);
+                            }
+                        }
+                        const temp = prev;
+                        prev = curr;
+                        curr = temp;
+                    }
+                    retainedWords = prev[n];
+                }
+                
+                const replacedOrAdded = totalEdited - retainedWords;
+                const deleted = totalOriginal - retainedWords;
+                const similarity = totalEdited > 0 ? Math.round((retainedWords / totalEdited) * 100) : 0;
+                
+                const metrics = {
+                    'Palabras Retenidas': retainedWords,
+                    'Nuevas / Modificadas': replacedOrAdded,
+                    'Palabras Eliminadas': deleted,
+                    'Similitud': similarity // Esto se mostrará como número, idealmente con un %
+                };
+
+                if (Object.keys(metrics).length > 0) {
+                    queueStore.setTaskMetrics(queueTaskId, metrics);
+                }
+            } catch (metricsErr) {
+                console.warn('[Metrics] Fallo al extraer métricas', metricsErr);
+            }
         }
 
         currentTaskState.content_body = newContent;

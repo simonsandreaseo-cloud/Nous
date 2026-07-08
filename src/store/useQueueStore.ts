@@ -203,6 +203,23 @@ export const useQueueStore = create<QueueStore>()(
         });
     },
 
+    setTaskMetrics: (id, metrics) => {
+        set((state) => {
+            const newActiveTask = state.activeTask?.id === id 
+                ? { ...state.activeTask, metrics: { ...(state.activeTask.metrics || {}), ...metrics } } 
+                : state.activeTask;
+
+            const newQueue = state.queue.map(t => 
+                t.id === id ? { ...t, metrics: { ...(t.metrics || {}), ...metrics } } : t
+            );
+
+            // Supabase sync for metrics is optional, but we'll include it in payload if needed
+            // Currently syncTaskToSupabase doesn't persist metrics to db, but that's fine for Live Metrics
+
+            return { activeTask: newActiveTask, queue: newQueue };
+        });
+    },
+
     setIsProcessingQueue: (isProcessing) => {
         set({ isProcessingQueue: isProcessing });
     },

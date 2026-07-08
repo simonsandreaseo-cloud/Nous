@@ -234,7 +234,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                                 disabled={isProcessing}
                                 className="text-xs font-medium text-slate-600 bg-slate-100 border-none rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
                             >
-                                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                                <option value="gemini-3.5-flash">Gemini 3.5 Flash (Vertex)</option>
                                 <option value="gemma-4-31b-it">Gemma 4 31B IT</option>
                                 <option value="gemma-4-26b-a4b-it">Gemma 4 26B 24A IT</option>
                                 <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>

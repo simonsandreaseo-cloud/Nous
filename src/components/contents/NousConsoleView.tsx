@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Terminal, Cpu, Activity, ListTodo, Loader2, Play, Pause, CheckCircle2, AlertCircle, Clock, Trash2, LayoutGrid, Zap } from "lucide-react";
+import { Terminal, Cpu, Activity, ListTodo, Loader2, Play, Pause, CheckCircle2, AlertCircle, Clock, Trash2, LayoutGrid, Zap, Plus } from "lucide-react";
 import { useQueueStore, QueueTask } from "@/store/useQueueStore";
+import { useProjectStore } from "@/store/useProjectStore";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
 
@@ -44,6 +45,11 @@ export default function NousConsoleView() {
     const [selectedHistoricalTask, setSelectedHistoricalTask] = useState<any | null>(null);
     const [sidebarTab, setSidebarTab] = useState<'queue' | 'history'>('queue');
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+    const [isAddingTask, setIsAddingTask] = useState(false);
+    const [newTaskTarget, setNewTaskTarget] = useState("");
+    const [newTaskAction, setNewTaskAction] = useState("");
+    const { activeProject, tasks: projectTasks } = useProjectStore();
 
     useEffect(() => {
         if (sidebarTab === 'history') {
@@ -334,6 +340,89 @@ export default function NousConsoleView() {
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
                         <AnimatePresence mode="popLayout">
+                            {sidebarTab === 'queue' && (
+                                <div className="mb-4">
+                                    {!isAddingTask ? (
+                                        <button 
+                                            onClick={() => setIsAddingTask(true)}
+                                            className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl border border-dashed border-indigo-200 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 hover:border-indigo-300 transition-colors text-xs font-bold"
+                                        >
+                                            <Plus size={14} />
+                                            Añadir a la cola
+                                        </button>
+                                    ) : (
+                                        <motion.div 
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="bg-white border border-indigo-200 shadow-sm p-4 rounded-xl relative"
+                                        >
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Nueva Tarea</h4>
+                                            
+                                            <select 
+                                                value={newTaskTarget}
+                                                onChange={(e) => setNewTaskTarget(e.target.value)}
+                                                className="w-full mb-3 text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            >
+                                                <option value="">Seleccionar Documento...</option>
+                                                {projectTasks.map((t: any) => (
+                                                    <option key={t.id} value={t.id}>{t.title || 'Sin Título'}</option>
+                                                ))}
+                                            </select>
+
+                                            <select 
+                                                value={newTaskAction}
+                                                onChange={(e) => setNewTaskAction(e.target.value)}
+                                                className="w-full mb-4 text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            >
+                                                <option value="">Seleccionar Acción...</option>
+                                                <option value="batch_research">Research (Deep SEO)</option>
+                                                <option value="batch_outline">Estructura (Outline)</option>
+                                                <option value="batch_generate">Generar Borrador</option>
+                                                <option value="batch_humanize">Humanizar</option>
+                                            </select>
+
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => setIsAddingTask(false)}
+                                                    className="flex-1 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition-colors"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        if (!newTaskTarget || !newTaskAction || !activeProject) return;
+                                                        const tTask = projectTasks.find((t: any) => t.id === newTaskTarget);
+                                                        if (!tTask) return;
+                                                        
+                                                        const actionLabels: Record<string, string> = {
+                                                            'batch_research': 'RESEARCH',
+                                                            'batch_outline': 'OUTLINE',
+                                                            'batch_generate': 'GENERATE',
+                                                            'batch_humanize': 'HUMANIZE'
+                                                        };
+
+                                                        useQueueStore.getState().enqueueTask(
+                                                            newTaskAction,
+                                                            `${actionLabels[newTaskAction]}: ${tTask.title}`,
+                                                            { targetTask: tTask, activeProject, targetTaskId: tTask.id, projectId: activeProject.id, keyword: tTask.target_keyword },
+                                                            { taskId: tTask.id, projectId: activeProject.id }
+                                                        );
+                                                        setIsAddingTask(false);
+                                                        setNewTaskTarget("");
+                                                        setNewTaskAction("");
+                                                    }}
+                                                    disabled={!newTaskTarget || !newTaskAction}
+                                                    className="flex-1 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-xs font-bold transition-colors"
+                                                >
+                                                    Encolar
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </div>
+                            )}
+
                             {sidebarTab === 'queue' && queue.length === 0 ? (
                                 <motion.div 
                                     initial={{ opacity: 0 }}
@@ -370,13 +459,15 @@ export default function NousConsoleView() {
                                                     {task.type}
                                                 </span>
                                             </div>
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); dequeueTask(task.id); }}
-                                                className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                                                title="Eliminar de la cola"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                            {task.status === 'pending' && (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); dequeueTask(task.id); }}
+                                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                                    title="Eliminar de la cola"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
                                         </div>
                                         <h4 className="text-sm font-bold text-slate-800 leading-snug mb-1">{task.title}</h4>
                                         <p className="text-[11px] font-medium text-slate-400">{new Date(task.createdAt).toLocaleTimeString()}</p>

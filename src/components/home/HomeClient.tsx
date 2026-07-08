@@ -7,8 +7,10 @@ import { NousOrb } from "@/components/canvas/NousOrb";
 import { LoadingScreen } from "@/components/dom/LoadingScreen";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/store/useAppStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { cn } from "@/utils/cn";
 import { HomeHeader } from "@/components/home/HomeHeader";
+import { SummaryDashboard } from "@/components/home/SummaryDashboard";
 
 const SceneLayout = dynamic(
     () => import("@/components/canvas/SceneLayout"),
@@ -18,6 +20,8 @@ const SceneLayout = dynamic(
 export default function HomeClient() {
     const isLoaded = useAppStore((state) => state.isLoaded);
     const setMode = useAppStore((state) => state.setMode);
+    const { user } = useAuthStore();
+
     useEffect(() => {
         setMode('home');
     }, [setMode]);
@@ -62,13 +66,13 @@ export default function HomeClient() {
                         </motion.div>
 
                         {/* MAIN CONTENT LAYER */}
-                        <div className="relative flex flex-col h-full w-full px-8 md:px-16 lg:px-24 z-30 justify-center">
+                        <div className="relative flex flex-col lg:flex-row h-full w-full px-8 md:px-16 lg:px-24 z-30 items-center justify-between">
                             
                             <motion.div
                                 initial={{ opacity: 0, y: 30 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 1.2, delay: 0.6 }}
-                                className="pointer-events-auto flex flex-col items-start max-w-2xl mt-12"
+                                className="pointer-events-auto flex flex-col items-start max-w-2xl"
                             >
                                 <h1 className="text-5xl md:text-7xl lg:text-[5rem] xl:text-[5.5rem] leading-[1.1] font-medium text-[#111] tracking-tight mb-6">
                                     Tu mente en la estrategia.<br />
@@ -81,10 +85,10 @@ export default function HomeClient() {
                                 
                                 <div className="flex flex-col items-start gap-4">
                                     <Link
-                                        href="/auth"
+                                        href={user ? "/contents?tool=dashboard" : "/auth"}
                                         className="relative overflow-hidden group px-10 py-4 rounded-full bg-gradient-to-r from-[#62cff4] to-[#3b82f6] text-white text-lg font-bold tracking-wide shadow-[0_8px_25px_-8px_rgba(59,130,246,0.5)] hover:shadow-[0_8px_30px_-5px_rgba(59,130,246,0.6)] hover:-translate-y-0.5 transition-all duration-300 pointer-events-auto"
                                     >
-                                        <span className="relative z-10 uppercase">Iniciar proyecto</span>
+                                        <span className="relative z-10 uppercase">{user ? "Ir al Dashboard" : "Iniciar proyecto"}</span>
                                         {/* Hover shine effect */}
                                         <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:animate-[shimmer_1.5s_infinite]" />
                                     </Link>
@@ -95,6 +99,18 @@ export default function HomeClient() {
                                 </div>
 
                             </motion.div>
+
+                            {/* CONDITIONAL DASHBOARD FOR LOGGED IN USERS */}
+                            {user && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 1, delay: 0.8 }}
+                                    className="pointer-events-auto hidden lg:flex relative z-30"
+                                >
+                                    <SummaryDashboard />
+                                </motion.div>
+                            )}
 
                         </div>
                     </div>

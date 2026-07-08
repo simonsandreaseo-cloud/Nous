@@ -384,38 +384,99 @@ export const executeWithKeyRotation = async <T>(
             try {
                 let client: any;
                 if (step.provider === 'google') {
-                    const rawGoogleClient = new GoogleGenerativeAI(apiKey);
-                    client = {
-                        getGenerativeModel: (config: any) => {
-                            if (config.model.includes('gemma')) {
-                                const newConfig = { ...config };
-                                const sysInst = newConfig.systemInstruction;
-                                delete newConfig.systemInstruction;
-                                if (newConfig.generationConfig) {
-                                    delete newConfig.generationConfig.responseSchema;
-                                    delete newConfig.generationConfig.responseMimeType;
+                    if (process.env.GCP_SERVICE_ACCOUNT) {
+                        const { GoogleGenAI } = await import('@google/genai');
+                        let credentials;
+                        try {
+                            credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT);
+                        } catch(e) {
+                            console.error("[AI-ORCHESTRATOR] Error parseando GCP_SERVICE_ACCOUNT");
+                            throw new Error("GCP_SERVICE_ACCOUNT malformado.");
+                        }
+
+                        const rawGoogleClient = new GoogleGenAI({
+                            vertexai: {
+                                project: credentials.project_id,
+                                location: 'us-central1',
+                                credentials: {
+                                    client_email: credentials.client_email,
+                                    private_key: credentials.private_key,
                                 }
-                                const nativeModel = rawGoogleClient.getGenerativeModel(newConfig);
+                            }
+                        });
+
+                        client = {
+                            getGenerativeModel: (config: any) => {
                                 return {
                                     generateContent: async (prompt: any) => {
                                         let finalPrompt = prompt;
-                                        if (sysInst && typeof prompt === 'string') {
-                                            finalPrompt = `${sysInst}\n\n${prompt}`;
+                                        if (config.systemInstruction && typeof prompt === 'string') {
+                                            finalPrompt = `${config.systemInstruction}\n\n${prompt}`;
                                         }
-                                        return nativeModel.generateContent(finalPrompt);
+                                        const result = await rawGoogleClient.models.generateContent({
+                                            model: config.model,
+                                            contents: finalPrompt
+                                        });
+                                        return {
+                                            response: {
+                                                text: () => result.text
+                                            }
+                                        };
                                     },
                                     generateContentStream: async (prompt: any) => {
                                         let finalPrompt = prompt;
-                                        if (sysInst && typeof prompt === 'string') {
-                                            finalPrompt = `${sysInst}\n\n${prompt}`;
+                                        if (config.systemInstruction && typeof prompt === 'string') {
+                                            finalPrompt = `${config.systemInstruction}\n\n${prompt}`;
                                         }
-                                        return nativeModel.generateContentStream(finalPrompt);
+                                        const resultStream = await rawGoogleClient.models.generateContentStream({
+                                            model: config.model,
+                                            contents: finalPrompt
+                                        });
+                                        return {
+                                            stream: (async function* () {
+                                                for await (const chunk of resultStream) {
+                                                    yield { text: () => chunk.text };
+                                                }
+                                            })()
+                                        };
                                     }
                                 };
                             }
-                            return rawGoogleClient.getGenerativeModel(config);
-                        }
-                    };
+                        };
+                    } else {
+                        const rawGoogleClient = new GoogleGenerativeAI(apiKey);
+                        client = {
+                            getGenerativeModel: (config: any) => {
+                                if (config.model.includes('gemma')) {
+                                    const newConfig = { ...config };
+                                    const sysInst = newConfig.systemInstruction;
+                                    delete newConfig.systemInstruction;
+                                    if (newConfig.generationConfig) {
+                                        delete newConfig.generationConfig.responseSchema;
+                                        delete newConfig.generationConfig.responseMimeType;
+                                    }
+                                    const nativeModel = rawGoogleClient.getGenerativeModel(newConfig);
+                                    return {
+                                        generateContent: async (prompt: any) => {
+                                            let finalPrompt = prompt;
+                                            if (sysInst && typeof prompt === 'string') {
+                                                finalPrompt = `${sysInst}\n\n${prompt}`;
+                                            }
+                                            return nativeModel.generateContent(finalPrompt);
+                                        },
+                                        generateContentStream: async (prompt: any) => {
+                                            let finalPrompt = prompt;
+                                            if (sysInst && typeof prompt === 'string') {
+                                                finalPrompt = `${sysInst}\n\n${prompt}`;
+                                            }
+                                            return nativeModel.generateContentStream(finalPrompt);
+                                        }
+                                    };
+                                }
+                                return rawGoogleClient.getGenerativeModel(config);
+                            }
+                        };
+                    }
                 } else if (step.provider === 'groq') {
                     const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
                     client = new GroqClientCompatibility(groq);
