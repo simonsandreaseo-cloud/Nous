@@ -94,7 +94,7 @@ export const ResearchOrchestrator = {
     /**
      * Phase 1: Rapid SEO Analysis (SERP + Intent)
      */
-    async runInitialAnalysis(keyword: string, projectId?: string, onLog?: (p: string, m: string, r?: string) => void, language: string = 'es'): Promise<any> {
+    async runInitialAnalysis(keyword: string, projectId?: string, onLog?: (p: string, m: string, r?: string) => void, language: string = 'es', phaseConfig?: { model?: string, provider?: any }): Promise<any> {
         if (onLog) onLog("Serper", "Buscando SERP", `Query directa: ${keyword} (Idioma: ${language})`);
         
         let gl = language;
@@ -132,7 +132,9 @@ Responde ÚNICAMENTE en JSON:
 
         const analysisRes = await aiRouter.generate({
             prompt: serpAnalysisPrompt,
-            model: "gemini-3.1-flash-lite-preview",
+            model: phaseConfig?.model || "gemini-3.1-flash-lite-preview",
+            provider: phaseConfig?.provider,
+            forceModel: !!phaseConfig?.model,
             systemPrompt: "Analista SEO Senior. Tu objetivo es diseccionar el SERP y elegir las fuentes de mayor calidad para investigación profunda. Devuelves SOLO JSON.",
             jsonMode: true,
             label: "Análisis de SERP",
@@ -185,7 +187,8 @@ Responde ÚNICAMENTE en JSON:
             
             const profileRes = await aiRouter.generate({
                 prompt: profilePrompt,
-                model: "gemini-3.1-flash-lite",
+                model: phaseConfig?.model || "gemini-3.1-flash-lite",
+                provider: phaseConfig?.provider,
                 systemPrompt: "Arquitecto de Silos SEO y Experto en UX de Conversión.",
                 jsonMode: true,
                 label: "Linking Profile"
@@ -215,7 +218,7 @@ Responde ÚNICAMENTE en JSON:
      * Phase Logic Methods (Decoupled)
      */
     async runSerpPhase(config: DeepSEOConfig, onLog?: any): Promise<any> {
-        return await this.runInitialAnalysis(config.keyword, config.projectId, onLog, config.language);
+        return await this.runInitialAnalysis(config.keyword, config.projectId, onLog, config.language, config.phaseModels?.serp);
     },
 
     async runScrapingPhase(config: DeepSEOConfig, baseResult: any, onLog?: any): Promise<any[]> {
@@ -280,17 +283,17 @@ Responde ÚNICAMENTE en JSON:
         return [];
     },
 
-    async runLSIPhase(validSEO: any[], keyword: string, onLog?: any): Promise<any[]> {
-        return await KeywordAnalyzer.extractLSIKeywords(validSEO.map(v => v.content), keyword, onLog);
+    async runLSIPhase(validSEO: any[], keyword: string, onLog?: any, phaseConfig?: any): Promise<any[]> {
+        return await KeywordAnalyzer.extractLSIKeywords(validSEO.map(v => v.content), keyword, onLog, phaseConfig);
     },
 
-    async runASKPhase(validSEO: any[], keyword: string, onLog?: any): Promise<{ askKeywords: any[] }> {
+    async runASKPhase(validSEO: any[], keyword: string, onLog?: any, phaseConfig?: any): Promise<{ askKeywords: any[] }> {
         const top3Texts = validSEO.slice(0, 3).map(v => v.content);
-        const askKeywords = await KeywordAnalyzer.extractASKKeywords(top3Texts, keyword, onLog);
+        const askKeywords = await KeywordAnalyzer.extractASKKeywords(top3Texts, keyword, onLog, phaseConfig);
         return { askKeywords };
     },
 
-    async runGoldenKeywordsPhase(validSEO: any[], keyword: string, onLog?: any, sniperUrlsCache?: string[]): Promise<{ realKeywords: any[], sniperUrls: string[] }> {
+    async runGoldenKeywordsPhase(validSEO: any[], keyword: string, onLog?: any, sniperUrlsCache?: string[], phaseConfig?: any): Promise<{ realKeywords: any[], sniperUrls: string[] }> {
         const top5Candidates = (validSEO || []).filter(v => v.originalPosition <= 5);
         let sniperUrls: string[] = sniperUrlsCache && sniperUrlsCache.length > 0 ? sniperUrlsCache : [];
 
@@ -311,7 +314,8 @@ Responde ÚNICAMENTE en JSON:
             const sniperPrompt = `OBJETIVO: Eres un Francotirador SEO. Tienes que elegir los 3 competidores cuyo H1/Título se parezca más a nuestra intención.\n\nNUESTRO H1: ${keyword}\n\nCANDIDATOS:\n${top5Candidates.map((c, i) => `[ID: ${i}] Título: ${c.title}`).join('\n')}\n\nRESPONDE ÚNICAMENTE CON UN ARRAY JSON ESTRICTO con los 3 IDs elegidos: [0, 2, 4]`;
             const sniperRes = await aiRouter.generate({
                 prompt: sniperPrompt,
-                model: "gemini-3.1-flash-lite",
+                model: phaseConfig?.model || "gemini-3.1-flash-lite",
+                provider: phaseConfig?.provider,
                 systemPrompt: "Eres un Francotirador SEO estricto. Devuelves SOLO un array JSON con números.",
                 jsonMode: true,
                 label: "Sniper Mode"
@@ -329,7 +333,7 @@ Responde ÚNICAMENTE en JSON:
                 const rawKws = await DataForSeoService.getRankedKeywordsForUrls(sniperUrls);
                 if (rawKws && rawKws.length > 0) {
                     if (onLog) onLog("INFO", "Análisis SEO", `Filtrando ${rawKws.length} candidatas crudas contra el H1...`);
-                    realKeywords = await KeywordAnalyzer.filterRealKeywords(rawKws, keyword, onLog);
+                    realKeywords = await KeywordAnalyzer.filterRealKeywords(rawKws, keyword, onLog, phaseConfig);
                     if (onLog) onLog("SUCCESS", "Golden Keywords", `Extracción exitosa: ${realKeywords.length} golden keywords de alto valor obtenidas.`);
                 } else {
                     if (onLog) onLog("WARN", "DataForSEO", "No se encontraron keywords posicionadas para estos competidores.");
@@ -341,7 +345,7 @@ Responde ÚNICAMENTE en JSON:
         return { realKeywords, sniperUrls };
     },
 
-    async runMetadataPhase(keyword: string, cleanedLSI: any[], validSEO: any[], onLog?: any, masterH1?: string, masterIntent?: string, taskContext?: any): Promise<{ seoMetadata: any, wordCountGoal: number }> {
+    async runMetadataPhase(keyword: string, cleanedLSI: any[], validSEO: any[], onLog?: any, masterH1?: string, masterIntent?: string, taskContext?: any, phaseConfig?: any): Promise<{ seoMetadata: any, wordCountGoal: number }> {
         if (onLog) onLog("Fase 5 (Metadata)", "Diseñando arquitectura de metadatos y estrategia E-E-A-T...");
         let wordCountGoal = 1500;
         
@@ -389,7 +393,9 @@ Retorna ÚNICAMENTE este formato JSON válido:
 }`;
         const metaRes = await aiRouter.generate({
             prompt: metadataPrompt,
-            model: "gemini-3.1-flash-lite-preview",
+            model: phaseConfig?.model || "gemini-3.1-flash-lite-preview",
+            provider: phaseConfig?.provider,
+            forceModel: !!phaseConfig?.model,
             systemPrompt: "Eres el Director de Estrategia SEO de más alto nivel. Tu única función es devolver objetos JSON estables respetando escrupulosamente los límites de caracteres (60 para title, 155 para meta).",
             jsonMode: true,
             label: "Estrategia Writing",
@@ -507,7 +513,8 @@ REGLAS:
             try {
                 const productRes = await aiRouter.generate({
                     prompt: productPrompt,
-                    model: "gemini-3.1-flash-lite-preview",
+                    model: config.phaseModels?.interlinking?.model || "gemini-3.1-flash-lite-preview",
+                    provider: config.phaseModels?.interlinking?.provider,
                     systemPrompt: "Eres un experto en catálogos de e-commerce. Tu única función es deducir modelos y códigos de fabricante exactos.",
                     jsonMode: false,
                     label: "Product Hunter AI",
@@ -588,7 +595,9 @@ REGLAS:
 
             const linkRes = await aiRouter.generate({
                 prompt: `Keyword artículo: "${config.keyword}"\nPerfil Estratégico: "${lProfile.profile}"\nCategorías del Sitio: ${distinctCategories.join(', ')}\n\nCATÁLOGO (${combinedUnits.length} artículos):\n${JSON.stringify(combinedUnits)}\n\nOBJETIVO: Selecciona EXACTAMENTE ${finalMaxLinks} artículos.\n\nREGLAS:\n1. 'ecommerce_heavy' -> Venta. 2. 'pure_content' -> Blog. 3. Diversidad. 4. Anchor Text naturales.${vipRule}${argotRule}\n\nJSON:\n{"links": [{"url", "title", "anchor_text"}]}`,
-                model: "gemini-3.1-flash-lite",
+                model: config.phaseModels?.interlinking?.model || "gemini-3.1-flash-lite",
+                provider: config.phaseModels?.interlinking?.provider,
+                forceModel: !!config.phaseModels?.interlinking?.model,
                 systemPrompt: "Arquitecto de Silos SEO.",
                 jsonMode: true,
                 label: "Optimización Interlinking",
@@ -621,7 +630,8 @@ REGLAS:
             masterIntent: baseResult.masterIntent,
             serpReport: baseResult.serpReport,
             taskContext: baseResult.task_context,
-            timeoutMs: 150000 // 2.5 minutes for deep outline
+            timeoutMs: 150000, // 2.5 minutes for deep outline
+            phaseConfig: config.phaseModels?.outline
         });
     },
 
@@ -802,7 +812,7 @@ REGLAS:
         // Phase 3: LSI
         if (startIndex <= 2) {
             if (onProgress) onProgress(8); // 8%
-            const lsi = await this.runLSIPhase(dossier.validSEO || [], keyword, onLog);
+            const lsi = await this.runLSIPhase(dossier.validSEO || [], keyword, onLog, config.phaseModels?.lsi);
             dossier = await saveCheckpoint('lsi_done', { lsiKeywords: lsi });
             dossier.cleanedLSI = lsi;
             if (phaseToRun === 'lsi_done' && !cascade) return dossier;
@@ -811,7 +821,7 @@ REGLAS:
         // Phase 3.5: ASK
         if (startIndex <= 3) {
             if (onProgress) onProgress(9); // 9%
-            const { askKeywords } = await this.runASKPhase(dossier.validSEO || [], keyword, onLog);
+            const { askKeywords } = await this.runASKPhase(dossier.validSEO || [], keyword, onLog, config.phaseModels?.ask);
             dossier = await saveCheckpoint('ask_done', { askKeywords });
             dossier.askKeywords = askKeywords;
             if (phaseToRun === 'ask_done' && !cascade) return dossier;
@@ -822,7 +832,7 @@ REGLAS:
             if (onProgress) onProgress(11); // 11%
             // Belt-and-suspenders: ensure context_cache is always an object before accessing it
             dossier.context_cache = dossier.context_cache || {};
-            const { realKeywords, sniperUrls } = await this.runGoldenKeywordsPhase(dossier.validSEO || [], keyword, onLog, dossier.context_cache?.sniperUrls);
+            const { realKeywords, sniperUrls } = await this.runGoldenKeywordsPhase(dossier.validSEO || [], keyword, onLog, dossier.context_cache?.sniperUrls, config.phaseModels?.golden_kws);
             dossier.context_cache.sniperUrls = sniperUrls;
             dossier = await saveCheckpoint('real_kws_done', { realKeywords, context_cache: dossier.context_cache });
             dossier.realKeywords = realKeywords;
@@ -832,7 +842,7 @@ REGLAS:
         // Phase 4: Metadata
         if (startIndex <= 5 && !['metadata_done', 'interlinking_done', 'outline_done'].includes(phaseToRun || '')) {
             if (onProgress) onProgress(22); // 22% (Metadata takes ~36s)
-            const { seoMetadata, wordCountGoal } = await this.runMetadataPhase(config.keyword, dossier.cleanedLSI || [], dossier.validSEO || [], onLog, dossier.masterH1, dossier.masterIntent, dossier.task_context);
+            const { seoMetadata, wordCountGoal } = await this.runMetadataPhase(config.keyword, dossier.cleanedLSI || [], dossier.validSEO || [], onLog, dossier.masterH1, dossier.masterIntent, dossier.task_context, config.phaseModels?.metadata);
             dossier = await saveCheckpoint('metadata_done', { seoMetadata, wordCountGoal });
             dossier.seoMetadata = seoMetadata;
             dossier.wordCountGoal = wordCountGoal;

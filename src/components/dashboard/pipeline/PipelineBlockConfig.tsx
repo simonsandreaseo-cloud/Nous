@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Settings, BrainCircuit, Box, SlidersHorizontal, AlertCircle } from 'lucide-react';
-import { PipelineBlock, usePipelineStore, AIModelType } from '@/store/usePipelineStore';
+import { PipelineBlock, usePipelineStore, AIModelType, AIProviderType } from '@/store/usePipelineStore';
 import { STATUS_LABELS } from '@/store/useProjectStore';
 import { cn } from '@/utils/cn';
 
@@ -13,12 +13,29 @@ interface PipelineBlockConfigProps {
     isStatusMode: boolean;
 }
 
-const AI_MODELS: { id: AIModelType; label: string; description: string }[] = [
+const AI_MODELS: { id: AIModelType; label: string; description: string; providerSpecific?: AIProviderType }[] = [
     { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: 'Flujos complejos y agentic workflows' },
+    { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', description: 'Alta capacidad (Solo Vertex)', providerSpecific: 'vertex-ai' },
     { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', description: 'Tareas volumétricas de bajo costo' },
     { id: 'gemma-4-31b', label: 'Gemma 4 (31B)', description: 'Alta precisión local y razonamiento' },
     { id: 'gemma-4-26b-moe', label: 'Gemma 4 (26B MoE)', description: 'Velocidad y eficiencia' },
     { id: 'default', label: 'Por Defecto', description: 'Usa la configuración general' }
+];
+
+const AI_PROVIDERS: { id: AIProviderType; label: string }[] = [
+    { id: 'auto', label: 'Automático' },
+    { id: 'google-ai-studio', label: 'Google AI Studio' },
+    { id: 'vertex-ai', label: 'Google Cloud Vertex AI' }
+];
+
+const RESEARCH_PHASES = [
+    { id: 'serp', label: 'Análisis SERP' },
+    { id: 'lsi', label: 'Palabras LSI' },
+    { id: 'ask', label: 'Jerga / ASK' },
+    { id: 'golden_kws', label: 'Golden KWs' },
+    { id: 'metadata', label: 'Metadatos' },
+    { id: 'interlinking', label: 'Interlinking' },
+    { id: 'outline', label: 'Estructura (Outline)' }
 ];
 
 export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStatusMode }: PipelineBlockConfigProps) {
@@ -177,24 +194,71 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                             </div>
                         </div>
 
-                        {/* Extra Config depending on action type */}
-                        {localBlock.actionType === 'humanize' && (
-                            <div className="space-y-3 pt-4 border-t border-slate-100">
-                                <label className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
-                                    Modo de Humanización
-                                </label>
-                                <select 
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-                                    value={localBlock.additionalConfig?.humanizeMode || 'balanced'}
-                                    onChange={(e) => setLocalBlock({ 
-                                        ...localBlock, 
-                                        additionalConfig: { ...localBlock.additionalConfig, humanizeMode: e.target.value } 
+                        {/* Extra Config for Research */}
+                        {localBlock.actionType === 'research' && (
+                            <div className="space-y-4 pt-4 border-t border-slate-100">
+                                <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                    Modelos por Fase (Opcional)
+                                </h4>
+                                <p className="text-[10px] text-slate-500">Puedes especificar el modelo y proveedor de IA para cada fase de la investigación independientemente.</p>
+                                <div className="space-y-2">
+                                    {RESEARCH_PHASES.map((phase) => {
+                                        const currentConfig = localBlock.additionalConfig?.phaseModels?.[phase.id] || { model: 'default', provider: 'auto' };
+                                        
+                                        return (
+                                            <div key={phase.id} className="flex flex-col gap-1.5 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                                                <span className="text-[10px] font-bold text-slate-700">{phase.label}</span>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <select 
+                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] text-slate-700 outline-none"
+                                                        value={currentConfig.model}
+                                                        onChange={(e) => {
+                                                            const newModel = e.target.value;
+                                                            const selectedModelObj = AI_MODELS.find(m => m.id === newModel);
+                                                            const newProvider = selectedModelObj?.providerSpecific || currentConfig.provider;
+                                                            
+                                                            setLocalBlock({
+                                                                ...localBlock,
+                                                                additionalConfig: {
+                                                                    ...localBlock.additionalConfig,
+                                                                    phaseModels: {
+                                                                        ...(localBlock.additionalConfig?.phaseModels || {}),
+                                                                        [phase.id]: { ...currentConfig, model: newModel, provider: newProvider }
+                                                                    }
+                                                                }
+                                                            });
+                                                        }}
+                                                    >
+                                                        {AI_MODELS.map((model) => (
+                                                            <option key={model.id} value={model.id}>{model.label}</option>
+                                                        ))}
+                                                    </select>
+                                                    <select 
+                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] text-slate-700 outline-none"
+                                                        value={currentConfig.provider}
+                                                        disabled={AI_MODELS.find(m => m.id === currentConfig.model)?.providerSpecific !== undefined}
+                                                        onChange={(e) => {
+                                                            setLocalBlock({
+                                                                ...localBlock,
+                                                                additionalConfig: {
+                                                                    ...localBlock.additionalConfig,
+                                                                    phaseModels: {
+                                                                        ...(localBlock.additionalConfig?.phaseModels || {}),
+                                                                        [phase.id]: { ...currentConfig, provider: e.target.value }
+                                                                    }
+                                                                }
+                                                            });
+                                                        }}
+                                                    >
+                                                        {AI_PROVIDERS.map((provider) => (
+                                                            <option key={provider.id} value={provider.id}>{provider.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        );
                                     })}
-                                >
-                                    <option value="balanced">Equilibrado (Recomendado)</option>
-                                    <option value="aggressive">Agresivo (Bypass estricto)</option>
-                                    <option value="subtle">Sutil (Mantener SEO puro)</option>
-                                </select>
+                                </div>
                             </div>
                         )}
 

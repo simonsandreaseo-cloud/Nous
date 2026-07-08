@@ -393,40 +393,36 @@ export const executeWithKeyRotation = async <T>(
                     }
 
                     if (useVertex) {
-                        // Para Vertex AI, extraemos el project_id de la cuenta de servicio y seteamos credenciales por defecto (ADC)
+                        // Para Vertex AI, extraemos el project_id y pasamos las credenciales directamente via googleAuthOptions
                         let projectId = 'nous-seo-447514';
+                        let vertexCredentials = undefined;
+
                         if (process.env.GCP_SERVICE_ACCOUNT) {
                             try {
                                 const creds = JSON.parse(process.env.GCP_SERVICE_ACCOUNT);
                                 if (creds.project_id) projectId = creds.project_id;
-                                
-                                if (typeof window === 'undefined') {
-                                    try {
-                                        const fsMod = await import(/* webpackIgnore: true */ 'fs');
-                                        const osMod = await import(/* webpackIgnore: true */ 'os');
-                                        const pathMod = await import(/* webpackIgnore: true */ 'path');
-                                        
-                                        const tmpFilePath = pathMod.join(osMod.tmpdir(), 'gcp-credentials.json');
-                                        if (!fsMod.existsSync(tmpFilePath)) {
-                                            fsMod.writeFileSync(tmpFilePath, process.env.GCP_SERVICE_ACCOUNT, 'utf8');
-                                        }
-                                        process.env.GOOGLE_APPLICATION_CREDENTIALS = tmpFilePath;
-                                    } catch (fsErr) {
-                                        console.warn("[executeWithKeyRotation] Failed to write GCP credentials file via fs", fsErr);
-                                    }
-                                }
+                                vertexCredentials = creds;
                             } catch (e) {
                                 console.warn("[executeWithKeyRotation] Error parsing GCP_SERVICE_ACCOUNT", e);
                             }
                         }
 
                         const { GoogleGenAI } = await import('@google/genai');
-                        const rawGoogleClient = new GoogleGenAI({
+                        
+                        const genAiConfig: any = {
+                            project: projectId,
+                            location: 'us-central1',
                             vertexai: {
                                 project: projectId,
                                 location: 'us-central1'
                             }
-                        });
+                        };
+                        
+                        if (vertexCredentials) {
+                            genAiConfig.googleAuthOptions = { credentials: vertexCredentials };
+                        }
+                        
+                        const rawGoogleClient = new GoogleGenAI(genAiConfig);
 
                         client = {
                             getGenerativeModel: (config: any) => {

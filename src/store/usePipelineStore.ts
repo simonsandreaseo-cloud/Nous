@@ -18,7 +18,10 @@ export type AIModelType =
     | 'gemma-4-26b-moe' 
     | 'gemini-3.5-flash' 
     | 'gemini-3.1-flash-lite' 
+    | 'gemini-3.1-pro-preview'
     | 'default';
+
+export type AIProviderType = 'google-ai-studio' | 'vertex-ai' | 'auto';
 
 export interface PipelineBlock {
     id: string; 

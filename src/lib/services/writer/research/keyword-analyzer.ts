@@ -36,7 +36,7 @@ export const KeywordAnalyzer = {
     /**
      * Extracts and curates LSI keywords from a set of texts.
      */
-    async extractLSIKeywords(texts: string[], targetKeyword: string, onLog?: (p: string, m: string) => void): Promise<any[]> {
+    async extractLSIKeywords(texts: string[], targetKeyword: string, onLog?: (p: string, m: string) => void, phaseConfig?: { model?: string, provider?: any }): Promise<any[]> {
         if (texts.length === 0) return [];
         
         if (onLog) onLog("Fase 2 (LSI)", "Calculando relevancia semántica (TF-IDF)...");
@@ -67,7 +67,9 @@ FORMATO OBLIGATORIO:
 
         const lsiRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: lsiPrompt,
-            model: "gemini-3.1-flash-lite-preview", // Fast and efficient model
+            model: phaseConfig?.model || "gemini-3.1-flash-lite-preview", // Fast and efficient model
+            provider: phaseConfig?.provider,
+            forceModel: !!phaseConfig?.model,
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios LSI. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "LSI Technical",
@@ -111,7 +113,7 @@ FORMATO OBLIGATORIO:
     /**
      * Extracts niche jargon, acronyms, and expert argot from top competitors.
      */
-    async extractASKKeywords(texts: string[], targetKeyword: string, onLog?: (p: string, m: string) => void): Promise<any[]> {
+    async extractASKKeywords(texts: string[], targetKeyword: string, onLog?: (p: string, m: string) => void, phaseConfig?: { model?: string, provider?: any }): Promise<any[]> {
         if (texts.length === 0) return [];
         
         if (onLog) onLog("Fase 3 (ASK)", "Extrayendo argot experto y jerga de nicho...");
@@ -135,7 +137,9 @@ REGLAS:
 
         const askRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: askPrompt,
-            model: "gemini-3.1-flash-lite-preview",
+            model: phaseConfig?.model || "gemini-3.1-flash-lite-preview",
+            provider: phaseConfig?.provider,
+            forceModel: !!phaseConfig?.model,
             systemPrompt: "Eres un experto analista de lingüística técnica. Respondes exclusivamente con JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "ASK Extraction",
@@ -185,7 +189,7 @@ REGLAS:
      * Filters raw DataForSEO keywords to discard branded terms and navigation words,
      * keeping only golden semantic keywords while preserving their search volume.
      */
-    async filterRealKeywords(rawKeywords: {keyword: string, search_volume?: number, volume?: number}[], targetKeyword: string, onLog?: (p: string, m: string) => void): Promise<any[]> {
+    async filterRealKeywords(rawKeywords: {keyword: string, search_volume?: number, volume?: number}[], targetKeyword: string, onLog?: (p: string, m: string) => void, phaseConfig?: { model?: string, provider?: any }): Promise<any[]> {
         if (!rawKeywords || rawKeywords.length === 0) return [];
 
         if (onLog) onLog("Fase 4 (Golden KWs)", `Filtrando ${rawKeywords.length} palabras clave crudas...`);
@@ -216,7 +220,9 @@ FORMATO OBLIGATORIO:
 
         const filterRes = await this.executeWithRetry(() => aiRouter.generate({
             prompt: filterPrompt,
-            model: "gemini-3.1-flash-lite-preview",
+            model: phaseConfig?.model || "gemini-3.1-flash-lite-preview",
+            provider: phaseConfig?.provider,
+            forceModel: !!phaseConfig?.model,
             systemPrompt: "Eres un ingeniero Semántico especializado en curación de diccionarios SEO. Solo devuelves JSON válido, sin explicaciones.",
             jsonMode: true,
             label: "Golden Keywords Filter",

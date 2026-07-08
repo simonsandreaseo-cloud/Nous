@@ -98,6 +98,7 @@ export default function StrategyGrid({
     const { initializeFromTask } = useWriterStore();
     const [outlinePopupId, setOutlinePopupId] = useState<string | null>(null);
     const [isRegeneratingOutline, setIsRegeneratingOutline] = useState(false);
+    const [previewTask, setPreviewTask] = useState<Task | null>(null);
 
     const tasksToUse = externalTasks || storeTasks;
 
@@ -1170,8 +1171,7 @@ export default function StrategyGrid({
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    initializeFromTask(task, activeProject);
-                                                    router.push('/contents/writer');
+                                                    setPreviewTask(task);
                                                 }}
                                                 className={cn(
                                                     "p-2 rounded-xl transition-all border",
@@ -1224,8 +1224,7 @@ export default function StrategyGrid({
                                                     isProcessing={!!batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100}
                                                     onAction={async (action) => {
                                                         if (action === 'writer') {
-                                                            initializeFromTask(task, activeProject);
-                                                            router.push('/contents/writer');
+                                                            setPreviewTask(task);
                                                         } else {
                                                             onRunAction?.(task.id, action);
                                                         }
@@ -1466,6 +1465,70 @@ export default function StrategyGrid({
                             )}
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* Panel lateral de Vista Previa */}
+            <AnimatePresence>
+                {previewTask && (
+                    <>
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewTask(null);
+                            }}
+                            className="fixed inset-0 z-[60] bg-slate-900/20 backdrop-blur-sm pointer-events-auto"
+                        />
+                        <motion.div
+                            initial={{ x: "100%", opacity: 0.5 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: "100%", opacity: 0 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            className="fixed right-0 top-0 bottom-0 w-[40%] bg-white z-[70] shadow-2xl border-l border-slate-100 flex flex-col pointer-events-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between p-6 border-b border-slate-50 bg-slate-50/50">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight line-clamp-1">{previewTask.title || "Vista Previa"}</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Modo Lectura</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            initializeFromTask(previewTask, activeProject);
+                                            router.push('/contents/writer');
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                                    >
+                                        <Edit3 size={14} />
+                                        Abrir en Studio
+                                    </button>
+                                    <button 
+                                        onClick={() => setPreviewTask(null)}
+                                        className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                                {previewTask.content_body ? (
+                                    <div 
+                                        className="prose prose-sm prose-slate max-w-none font-sans"
+                                        dangerouslySetInnerHTML={{ __html: previewTask.content_body }}
+                                    />
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                        <FileText size={48} className="mb-4 opacity-20" />
+                                        <p className="text-sm font-medium">No hay contenido generado aún.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
                 )}
             </AnimatePresence>
         </div>

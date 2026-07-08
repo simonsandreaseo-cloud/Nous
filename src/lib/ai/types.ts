@@ -11,6 +11,7 @@ export interface AIRequest {
     forceModel?: boolean; // Bypasses the label-based hierarchy and strictly uses the requested model
     timeoutMs?: number;
     explicitHierarchy?: string[];
+    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto';
 }
 
 export interface AIResponse {

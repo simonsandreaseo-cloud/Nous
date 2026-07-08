@@ -173,4 +173,5 @@ export interface DeepSEOConfig {
     language?: string;
     linkPlannedContents?: boolean;
     linkPlannedStatuses?: string[];
+    phaseModels?: Record<string, { model: string, provider: string }>;
 }

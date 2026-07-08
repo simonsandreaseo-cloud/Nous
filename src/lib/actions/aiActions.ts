@@ -1184,11 +1184,13 @@ export const runSurgicalEditorPipeline = async (
         const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}
 Corrige el texto aplicando únicamente estos límites máximos:
 
-Borrar: Hasta ${limitDelete} palabras en total.
+Borrar: Hasta ${limitDelete} palabras en total. Elimina palabras o frases que desmejoren la calidad del estilo, redundancias o muletillas.
 
-Reemplazar: Hasta ${limitReplace} palabras por sinónimos.
+Reemplazar: Hasta ${limitReplace} palabras. Reemplaza palabras informales o imprecisas (como "cosa", "bueno") por términos más adecuados y precisos.
 
-Agregar: hasta ${limitAdd} palabras o conectores.
+Agregar: Hasta ${limitAdd} palabras o conectores. Agrega elementos que hagan más fluida la lectura y mejoren la cohesión.
+
+Estilo: Mantén un tono natural. Sé creativo para arreglar el texto dentro de estas restricciones y consigue la mayor calidad de estilo posible.
 
 Conservar: No reescribas ni alteres ninguna otra oración.
 

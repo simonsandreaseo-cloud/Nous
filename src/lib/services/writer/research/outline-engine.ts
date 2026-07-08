@@ -22,9 +22,10 @@ export const OutlineEngine = {
         masterIntent?: string,
         serpReport?: any,
         taskContext?: any,
-        timeoutMs?: number
+        timeoutMs?: number,
+        phaseConfig?: { model?: string, provider?: any }
     }): Promise<any[]> {
-        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors, wordCountGoal, faqs = [], askKeywords = [], realKeywords = [], masterIntent = "", serpReport = {}, taskContext = {}, timeoutMs = 120000 } = params;
+        const { keyword, seoMetadata, cleanedLSI, suggestedLinks, validCompetitors, wordCountGoal, faqs = [], askKeywords = [], realKeywords = [], masterIntent = "", serpReport = {}, taskContext = {}, timeoutMs = 120000, phaseConfig } = params;
         
         // Build competitor headers string safely to avoid token explosion
         const competitorHeaders = validCompetitors.slice(0, 6).map(v => {
@@ -132,13 +133,15 @@ FORMATO PREFERIDO:
             let skeleton: any[] = [];
             
             try {
-                // Paso 1: Generación de contenido con Gemma 4
+                // Paso 1: Generación de contenido con modelo principal
                 const phase1ResGemma = await aiRouter.generate({
                     prompt: phase1Prompt,
-                    model: "gemma-4-31b-it",
+                    model: phaseConfig?.model || "gemma-4-31b-it",
+                    provider: phaseConfig?.provider,
+                    forceModel: !!phaseConfig?.model,
                     systemPrompt: "Eres un Arquitecto de Contenidos. Diseña el esqueleto H2/H3/H4 detalladamente.",
                     jsonMode: false,
-                    label: `Outline P1 (Gemma 4)`,
+                    label: `Outline P1`,
                     temperature: 0.2,
                     timeoutMs
                 });
@@ -158,6 +161,7 @@ FORMATO PREFERIDO:
                 const phase1Res = await aiRouter.generate({
                     prompt: formatterPrompt,
                     model: "gemini-3.1-flash-lite-preview",
+                    provider: phaseConfig?.provider,
                     systemPrompt: "Eres un formateador JSON estricto. Devuelves el esqueleto H2/H3/H4 en formato JSON sin errores.",
                     jsonMode: true,
                     label: `Outline P1 Formatter (3.1 flash lite)`,
@@ -214,13 +218,15 @@ Redacta este análisis sección por sección con lujo de detalles (no te preocup
             let enrichmentData: Record<string, any> = {};
             
             try {
-                // Paso 1: Generación de instrucciones con Gemma 4
+                // Paso 1: Generación de instrucciones con modelo principal
                 const enrichResGemma = await aiRouter.generate({
                     prompt: phase2Prompt,
-                    model: "gemma-4-31b-it",
+                    model: phaseConfig?.model || "gemma-4-31b-it",
+                    provider: phaseConfig?.provider,
+                    forceModel: !!phaseConfig?.model,
                     systemPrompt: "Eres un Editor Senior E-E-A-T. Genera pautas detalladas para cada sección basándote en la información provista.",
                     jsonMode: false,
-                    label: `Outline P2 (Gemma 4)`,
+                    label: `Outline P2`,
                     temperature: 0.3,
                     timeoutMs
                 });
@@ -244,6 +250,7 @@ FORMATO DE SALIDA ESTRICTO:
                 const enrichRes = await aiRouter.generate({
                     prompt: enrichFormatterPrompt,
                     model: "gemini-3.1-flash-lite-preview",
+                    provider: phaseConfig?.provider,
                     systemPrompt: "Eres un formateador JSON estricto. Devuelves el JSON exacto con las pautas por sección sin explicaciones.",
                     jsonMode: true,
                     label: `Outline P2 Formatter (3.1 flash lite)`,
