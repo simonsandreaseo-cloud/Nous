@@ -2,10 +2,10 @@ import { Task } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 import { 
     generateOutlineStrategy, 
-    buildPrompt,
     ArticleConfig,
     executeTranslationAction
 } from '@/lib/actions/aiActions';
+import { buildPrompt } from '@/lib/services/writer/prompts';
 import { mdToHtml } from '@/utils/markdown';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
