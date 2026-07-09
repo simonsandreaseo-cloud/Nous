@@ -23,6 +23,7 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
     
     // UI states
     const [format, setFormat] = useState<'zip' | 'html'>('zip');
+    const [exportMode, setExportMode] = useState<'full' | 'embedded'>('full');
     const [includeH1, setIncludeH1] = useState(true);
     const [includeCover, setIncludeCover] = useState(true);
     const [includeBodyImages, setIncludeBodyImages] = useState(true);
@@ -227,7 +228,9 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
                     </header>`;
                 }
 
-                const fullHtml = `<!DOCTYPE html>
+                let finalOutput = '';
+                if (exportMode === 'full') {
+                    finalOutput = `<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -267,12 +270,34 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
     </main>
 </body>
 </html>`;
+                } else {
+                    finalOutput = `
+<style>
+    .nous-embedded-container {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        color: #1e293b;
+        line-height: 1.8;
+    }
+    .nous-embedded-container h1, .nous-embedded-container h2, .nous-embedded-container h3, .nous-embedded-container h4, .nous-embedded-container h5, .nous-embedded-container h6 {
+        font-family: 'Outfit', sans-serif !important;
+    }
+    .nous-embedded-container .prose-img {
+        border-radius: 2rem;
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    }
+</style>
+<div class="nous-embedded-container prose prose-slate prose-lg max-w-none prose-headings:font-black prose-headings:tracking-tight prose-a:text-indigo-600 hover:prose-a:text-indigo-500 prose-img:rounded-[2rem] prose-img:shadow-2xl">
+    ${heroHtml}
+    ${processedHtml}
+</div>`;
+                }
 
-                zip.file(`${cleanSlug}.html`, fullHtml);
+                zip.file(`${cleanSlug}.html`, finalOutput);
                 
                 setStatusMessage('📦 Creando empaquetado comprimido...');
                 const zipBlob = await zip.generateAsync({ type: "blob" });
                 saveAs(zipBlob, `${cleanSlug}.zip`);
+
 
             } else {
                 // HTML Puro Format (images point to remote cloud urls)
@@ -298,7 +323,9 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
                     </header>`;
                 }
 
-                const fullHtml = `<!DOCTYPE html>
+                let finalOutput = '';
+                if (exportMode === 'full') {
+                    finalOutput = `<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -338,9 +365,31 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
     </main>
 </body>
 </html>`;
+                } else {
+                    finalOutput = `
+<style>
+    .nous-embedded-container {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        color: #1e293b;
+        line-height: 1.8;
+    }
+    .nous-embedded-container h1, .nous-embedded-container h2, .nous-embedded-container h3, .nous-embedded-container h4, .nous-embedded-container h5, .nous-embedded-container h6 {
+        font-family: 'Outfit', sans-serif !important;
+    }
+    .nous-embedded-container .prose-img {
+        border-radius: 2rem;
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    }
+</style>
+<div class="nous-embedded-container prose prose-slate prose-lg max-w-none prose-headings:font-black prose-headings:tracking-tight prose-a:text-indigo-600 hover:prose-a:text-indigo-500 prose-img:rounded-[2rem] prose-img:shadow-2xl">
+    ${heroHtml}
+    ${processedHtml}
+</div>`;
+                }
 
-                const htmlBlob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+                const htmlBlob = new Blob([finalOutput], { type: 'text/html;charset=utf-8' });
                 saveAs(htmlBlob, `${cleanSlug}.html`);
+
             }
 
             setSuccessMessage('¡Exportación completada de forma magistral, hermano!');
@@ -481,8 +530,27 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
                                     exit={{ height: 0, opacity: 0 }}
                                     className="space-y-4 overflow-hidden"
                                 >
-                                    {/* Switch: Incluir Título como H1 */}
-                                    <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/40 border border-slate-100/30">
+                                     {/* Switch: Modo de Exportación */}
+                                     <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/40 border border-slate-100/30">
+                                         <div className="space-y-0.5">
+                                             <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight">Modo de Código</span>
+                                             <p className="text-[9px] text-slate-400 font-medium max-w-sm leading-normal">
+                                                 {exportMode === 'full' 
+                                                     ? 'HTML Completo: Incluye estructura de documento, scripts de Tailwind y fuentes.' 
+                                                     : 'Código Incrustado: Solo estilos y contenido, ideal para CMS (WordPress, Ghost, etc.).'}
+                                             </p>
+                                         </div>
+                                         <button 
+                                             disabled={isExporting}
+                                             onClick={() => setExportMode(exportMode === 'full' ? 'embedded' : 'full')}
+                                             className={`transition-colors p-1 rounded-full ${exportMode === 'full' ? 'text-indigo-600' : 'text-slate-300'}`}
+                                         >
+                                             {exportMode === 'full' ? <ToggleRight size={28} className="stroke-[1.5]" /> : <ToggleLeft size={28} className="stroke-[1.5]" />}
+                                         </button>
+                                     </div>
+
+                                     {/* Switch: Incluir Título como H1 */}
+                                     <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/40 border border-slate-100/30">
                                         <div className="space-y-0.5">
                                             <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight">Incluir Título como H1</span>
                                             <p className="text-[9px] text-slate-400 font-medium max-w-sm leading-normal">Inserta una cabecera h1 estilizada al inicio del documento HTML.</p>
