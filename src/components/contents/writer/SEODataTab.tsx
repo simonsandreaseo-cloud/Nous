@@ -677,6 +677,7 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                             </div>
                                         </div>
                                     </div>
+                                </motion.div>
                             )}
                         </AnimatePresence>
                     </div>
