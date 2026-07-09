@@ -24,7 +24,7 @@ export const handleRefineTask = async (taskId: string, payload: QueuePayload) =>
     addLogToTask(taskId, 'Iniciando refinamiento...', 'info');
 
     try {
-        const modelToUse = researchMode === 'rapid' ? 'gemma-4-31b-it' : 'gemma-4-31b-it';
+        const modelToUse = payload.model || payload.config?.model || (researchMode === 'rapid' ? 'gemma-4-31b-it' : 'gemma-4-31b-it');
         addLogToTask(taskId, `Llamando al modelo de IA (${modelToUse})...`, 'info');
         
         setTaskStatus(taskId, 'processing', 20);

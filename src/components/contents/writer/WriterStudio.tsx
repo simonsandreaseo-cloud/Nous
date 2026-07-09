@@ -44,7 +44,11 @@ import {
     Check,
     X,
     BrainCircuit,
-    Activity
+    Activity,
+    Settings,
+    SlidersHorizontal,
+    Box,
+    AlertCircle
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
 import { CustomTransformModal } from '@/components/contents/tools/CustomTransformModal';
@@ -198,9 +202,19 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
 };
 
 
-const EMPTY_ARRAY: any[] = [];
-
-// STATUS_OPTIONS is now computed dynamically inside the component
+const AI_MODELS = [
+    { id: 'gemini-3.5-flash-gas', label: 'Gemini 3.5 Flash (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3.5-flash-vertex', label: 'Gemini 3.5 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemini-3-flash-preview-gas', label: 'Gemini 3 Flash (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3-flash-preview-vertex', label: 'Gemini 3 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemini-3.1-pro-preview-gas', label: 'Gemini 3.1 Pro (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3.1-pro-preview-vertex', label: 'Gemini 3.1 Pro (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemini-3.1-flash-lite-preview-gas', label: 'Gemini 3.1 Flash-Lite (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3.1-flash-lite-preview-vertex', label: 'Gemini 3.1 Flash-Lite (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemma-4-31b-it', label: 'Gemma 4 (31B) (GAS)', description: 'Alta precisión local y razonamiento' },
+    { id: 'gemma-4-26b-a4b-it', label: 'Gemma 4 (26B MoE) (GAS)', description: 'Velocidad y eficiencia' },
+    { id: 'default', label: 'Por Defecto', description: 'Usa la configuración general' }
+];
 
 export default function WriterStudio() {
     const {
@@ -424,6 +438,10 @@ export default function WriterStudio() {
     const [pipelineIndex, setPipelineIndex] = useState<number | null>(null);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     
+    // Configuración de Acciones Locales (Popup)
+    const [editingAction, setEditingAction] = useState<LocalAction | null>(null);
+    const [localConfig, setLocalConfig] = useState<any>({});
+    
     const localActionsQueue = useMemo(() => {
         return draftId ? (queuesByDraft[draftId] || []) : [];
     }, [queuesByDraft, draftId]);
@@ -459,6 +477,32 @@ export default function WriterStudio() {
             };
         });
     }, [draftId]);
+
+    const saveActionConfig = useCallback((actionId: string, newConfig: any) => {
+        if (!draftId) return;
+        setQueuesByDraft(prev => {
+            const currentQueue = prev[draftId] || [];
+            return {
+                ...prev,
+                [draftId]: currentQueue.map(a => a.id === actionId ? { ...a, config: newConfig } : a)
+            };
+        });
+    }, [draftId]);
+
+    useEffect(() => {
+        if (editingAction) {
+            setLocalConfig({
+                model: editingAction.config?.model || 'default',
+                chunkSize: editingAction.config?.chunkSize || 3,
+                niche: editingAction.config?.niche || 'General',
+                audience: editingAction.config?.audience || 'Público General',
+                mode: editingAction.config?.mode || 'unified',
+                instructions: editingAction.config?.instructions || '',
+                notes: editingAction.config?.notes || '',
+                researchMode: editingAction.config?.researchMode || 'rapid'
+            });
+        }
+    }, [editingAction]);
 
     const removeActionFromQueue = useCallback((actionId: string) => {
         if (!draftId) return;
@@ -621,13 +665,21 @@ export default function WriterStudio() {
                         links: unifiedLinks, 
                         questions: store.strategyQuestions,
                         mode: humConfig.mode || 'unified',
-                        language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
+                        language: activeProject?.settings?.content_preferences?.default_content_language || 'es',
+                        model: humConfig.model || undefined,
+                        chunkSize: humConfig.chunkSize || undefined
                     };
 
                     globalTaskId = enqueueTask(
                         'humanize', 
                         `Humanizando: ${store.articleTitle || store.keyword || 'Artículo'}`, 
-                        { taskId: draftId, content: contentToHumanize, config }, 
+                        { 
+                            taskId: draftId, 
+                            content: contentToHumanize, 
+                            config,
+                            model: humConfig.model !== 'default' ? humConfig.model : undefined,
+                            chunkSize: humConfig.chunkSize
+                        }, 
                         { taskId: draftId, projectId: activeProject?.id }
                     );
                 }
@@ -652,6 +704,8 @@ export default function WriterStudio() {
                             niche:       surgConfig.niche || store.detectedNiche || 'General',
                             audience:    surgConfig.audience || 'Público General',
                             language:    activeProject?.settings?.content_preferences?.default_content_language || 'es',
+                            model:       surgConfig.model !== 'default' ? surgConfig.model : undefined,
+                            chunkSize:   surgConfig.chunkSize
                         },
                         { taskId: draftId, projectId: activeProject?.id }
                     );
@@ -669,7 +723,12 @@ export default function WriterStudio() {
                     globalTaskId = enqueueTask(
                         'clean', 
                         'Limpiando huellas IA', 
-                        { taskId: draftId, content: contentToClean }, 
+                        { 
+                            taskId: draftId, 
+                            content: contentToClean,
+                            model: action.config?.model !== 'default' ? action.config?.model : undefined,
+                            chunkSize: action.config?.chunkSize
+                        }, 
                         { taskId: draftId, projectId: activeProject?.id }
                     );
                 }
@@ -697,21 +756,46 @@ export default function WriterStudio() {
                             taskId: draftId,
                             content: contentToRefine,
                             instructions: refConfig.instructions,
-                            researchMode: refConfig.researchMode || 'rapid'
+                            researchMode: refConfig.researchMode || 'rapid',
+                            model: refConfig.model !== 'default' ? refConfig.model : undefined,
+                            chunkSize: refConfig.chunkSize
                         }, 
                         { taskId: draftId, projectId: activeProject?.id }
                     );
                 }
                 else if (action.type === 'custom_transform') {
+                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const contentToTransform = currentTask?.content_body || store.content;
+                    
+                    if (!contentToTransform) {
+                        alert('No hay contenido para maquetar.');
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+
                     const customConfig = action.config || {};
                     if (!customConfig.instructions) {
                         alert('Ingresa las instrucciones de maquetación primero.');
                         updateActionStatus(action.id, 'error');
                         break;
                     }
-                    setIsCustomTransformOpen(true);
-                    updateActionStatus(action.id, 'completed');
-                    continue;
+
+                    const projectGuidelines = activeProject?.settings?.custom_transform_guidelines || '';
+
+                    globalTaskId = enqueueTask(
+                        'custom_transform',
+                        'Maquetador HTML/CSS',
+                        {
+                            taskId: draftId,
+                            content: contentToTransform,
+                            presetInstructions: projectGuidelines,
+                            userInstructions: customConfig.instructions,
+                            model: customConfig.model !== 'default' ? customConfig.model : (activeProject?.settings?.ai_model || 'gemini-3.5-flash'),
+                            provider: 'vertex',
+                            chunkSize: customConfig.chunkSize
+                        },
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
                 }
 
                 if (globalTaskId) {
@@ -1672,6 +1756,17 @@ export default function WriterStudio() {
                                                                            <X size={10} /> Error
                                                                        </span>
                                                                    )}
+                                                                    
+                                                                   {/* Configure Button */}
+                                                                   {action.status === 'idle' && !isProcessingPipeline && (
+                                                                       <button 
+                                                                           onClick={() => setEditingAction(action)}
+                                                                           className="text-slate-400 hover:text-indigo-600 transition-colors p-1"
+                                                                           title="Configurar parámetros avanzados"
+                                                                       >
+                                                                           <Settings size={13} />
+                                                                       </button>
+                                                                   )}
 
                                                                    {/* Delete Button */}
                                                                    {!isProcessingPipeline && (
@@ -1794,7 +1889,14 @@ export default function WriterStudio() {
                                                            ].map(item => (
                                                                <button
                                                                    key={item.type}
-                                                                   onClick={() => addActionToQueue(item.type as any)}
+                                                                   onClick={() => {
+                                                                       if (item.type === 'custom_transform') {
+                                                                           setIsCustomTransformOpen(true);
+                                                                           setIsSelectorOpen(false);
+                                                                       } else {
+                                                                           addActionToQueue(item.type as any);
+                                                                       }
+                                                                   }}
                                                                    className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
                                                                >
                                                                    <div className={cn("p-1.5 rounded-lg bg-slate-50 border border-slate-100 shrink-0", item.color)}>
@@ -1844,6 +1946,246 @@ export default function WriterStudio() {
             
             <ImageLightbox isOpen={!!fullscreenAsset} onClose={() => setFullscreenAsset(null)} asset={fullscreenAsset} />
             {isCustomTransformOpen && <CustomTransformModal onClose={() => setIsCustomTransformOpen(false)} editorMode={true} />}
+
+            {/* Modal de Configuración de Acción Local */}
+            <AnimatePresence>
+                {editingAction && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col border border-slate-100"
+                        >
+                            {/* Header */}
+                            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                        <Settings size={16} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-tight">Configurar Acción</h3>
+                                        <p className="text-[10px] text-slate-500 font-medium">Acción: {editingAction.type}</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setEditingAction(null)} 
+                                    className="text-slate-400 hover:text-slate-700 transition-colors p-2 bg-white rounded-full border border-slate-200"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-6 overflow-y-auto max-h-[60vh] space-y-6">
+                                
+                                {/* 1. IA Model Selection */}
+                                <div className="space-y-3">
+                                    <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                        <BrainCircuit size={12} /> Motor de IA
+                                    </h4>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {AI_MODELS.map((model) => (
+                                            <button
+                                                key={model.id}
+                                                onClick={() => setLocalConfig({ ...localConfig, model: model.id })}
+                                                className={cn(
+                                                    "flex flex-col items-start p-3 rounded-xl border text-left transition-all",
+                                                    localConfig.model === model.id 
+                                                        ? "bg-indigo-50 border-indigo-200" 
+                                                        : "bg-white border-slate-200 hover:border-indigo-100 hover:bg-slate-50/50"
+                                                )}
+                                            >
+                                                <span className={cn(
+                                                    "text-xs font-bold",
+                                                    localConfig.model === model.id ? "text-indigo-700" : "text-slate-700"
+                                                )}>{model.label}</span>
+                                                <span className="text-[10px] text-slate-500 mt-0.5">{model.description}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* 2. Procesamiento por Fragmentos (Chunks) */}
+                                <div className="space-y-4 pt-4 border-t border-slate-100">
+                                    <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                        <Box size={12} /> Procesamiento por Fragmentos (Chunks)
+                                    </h4>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-semibold text-slate-700">Tamaño del Fragmento</label>
+                                            <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                                {localConfig.chunkSize} párrafos
+                                            </span>
+                                        </div>
+                                        <input 
+                                            type="range" 
+                                            min="1" max="10" step="1"
+                                            value={localConfig.chunkSize}
+                                            onChange={(e) => setLocalConfig({ ...localConfig, chunkSize: parseInt(e.target.value) })}
+                                            className="w-full accent-indigo-500"
+                                        />
+                                        <p className="text-[10px] text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                            Define la longitud de los fragmentos que se enviarán a la IA. Chunks más pequeños mejoran la precisión analítica pero aumentan el tiempo de proceso global.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* 3. Action-Specific Configurations */}
+                                {editingAction.type === 'humanize' && (
+                                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                                        <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                            <SlidersHorizontal size={12} /> Ajustes de Humanización
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-slate-700">Nicho de Redacción</label>
+                                                <select 
+                                                    value={localConfig.niche}
+                                                    onChange={(e) => setLocalConfig({ ...localConfig, niche: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none"
+                                                >
+                                                    <option value="General">General</option>
+                                                    <option value="Tecnología">Tecnología</option>
+                                                    <option value="Finanzas">Finanzas</option>
+                                                    <option value="Salud">Salud</option>
+                                                    <option value="Moda">Moda</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-slate-700">Modo de Humanización</label>
+                                                <select 
+                                                    value={localConfig.mode}
+                                                    onChange={(e) => setLocalConfig({ ...localConfig, mode: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none"
+                                                >
+                                                    <option value="unified">Unified</option>
+                                                    <option value="creative">Vibrante</option>
+                                                    <option value="technical">Especializado</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-semibold text-slate-700">Audiencia Objetivo</label>
+                                            <input 
+                                                type="text"
+                                                value={localConfig.audience}
+                                                onChange={(e) => setLocalConfig({ ...localConfig, audience: e.target.value })}
+                                                placeholder="Ej: Emprendedores, Médicos, Estudiantes"
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-semibold text-slate-700">Notas Adicionales (Opcional)</label>
+                                            <textarea 
+                                                value={localConfig.notes}
+                                                onChange={(e) => setLocalConfig({ ...localConfig, notes: e.target.value })}
+                                                placeholder="Notas o pautas adicionales para el humanizador..."
+                                                rows={2}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {editingAction.type === 'surgical_edit' && (
+                                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                                        <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                            <SlidersHorizontal size={12} /> Ajustes de Edición Quirúrgica
+                                        </h4>
+                                        <div className="space-y-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-slate-700">Nicho de Redacción</label>
+                                                <select 
+                                                    value={localConfig.niche}
+                                                    onChange={(e) => setLocalConfig({ ...localConfig, niche: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none"
+                                                >
+                                                    <option value="General">General</option>
+                                                    <option value="Tecnología">Tecnología</option>
+                                                    <option value="Finanzas">Finanzas</option>
+                                                    <option value="Salud">Salud</option>
+                                                    <option value="Moda">Moda</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-slate-700">Audiencia Objetivo</label>
+                                                <input 
+                                                    type="text"
+                                                    value={localConfig.audience}
+                                                    onChange={(e) => setLocalConfig({ ...localConfig, audience: e.target.value })}
+                                                    placeholder="Ej: Emprendedores, Médicos, Estudiantes"
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {editingAction.type === 'refine' && (
+                                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                                        <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                            <SlidersHorizontal size={12} /> Ajustes de Refinamiento
+                                        </h4>
+                                        <div className="space-y-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-slate-700">Instrucciones de Refinamiento</label>
+                                                <textarea 
+                                                    value={localConfig.instructions}
+                                                    onChange={(e) => setLocalConfig({ ...localConfig, instructions: e.target.value })}
+                                                    placeholder="Ej: Reescribe el segundo párrafo para hacerlo más cercano..."
+                                                    rows={3}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {editingAction.type === 'custom_transform' && (
+                                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                                        <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                            <SlidersHorizontal size={12} /> Ajustes de Maquetación HTML/CSS
+                                        </h4>
+                                        <div className="space-y-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-slate-700">Instrucciones del Maquetador</label>
+                                                <textarea 
+                                                    value={localConfig.instructions}
+                                                    onChange={(e) => setLocalConfig({ ...localConfig, instructions: e.target.value })}
+                                                    placeholder="Ej: Aplica un diseño de tabla comparativa de precios..."
+                                                    rows={3}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-4 bg-white border-t border-slate-100 flex justify-end gap-2 shrink-0">
+                                <button 
+                                    onClick={() => setEditingAction(null)}
+                                    className="px-4 py-2 border border-slate-200 hover:border-slate-300 text-slate-600 rounded-xl text-xs font-bold transition-all"
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        saveActionConfig(editingAction.id, localConfig);
+                                        setEditingAction(null);
+                                    }}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-indigo-500/20 transition-all"
+                                >
+                                    Guardar Cambios
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

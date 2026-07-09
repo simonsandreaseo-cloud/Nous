@@ -85,6 +85,15 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
         }
     }, [selectedPreset, allPresets]);
 
+    useEffect(() => {
+        if (editorMode) {
+            const store = useWriterStore.getState();
+            if (store.content) {
+                setInputHtml(store.content);
+            }
+        }
+    }, [editorMode]);
+
     const handleCopy = () => {
         navigator.clipboard.writeText(outputHtml);
         setCopied(true);
@@ -92,38 +101,6 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
     };
 
     const handleTransform = async () => {
-        if (editorMode) {
-            const store = useWriterStore.getState();
-            if (!store.content) {
-                setError("El editor está vacío. Agrega contenido antes de maquetar.");
-                return;
-            }
-
-            const { enqueueTask } = useQueueStore.getState();
-            const targetTaskId = store.draftId;
-            const targetProjectId = activeProject?.id;
-
-            const provider = selectedModel.includes("gemini-3.5") || selectedModel.includes("gemini-3.1-pro")
-                ? "vertex-ai"
-                : "google-ai-studio";
-
-            enqueueTask(
-                'custom_transform',
-                'Maquetador HTML/CSS',
-                {
-                    taskId: targetTaskId,
-                    content: store.content,
-                    presetInstructions: brandGuidelines,
-                    userInstructions: userInstructions,
-                    model: selectedModel,
-                    provider: provider
-                },
-                { taskId: targetTaskId, projectId: targetProjectId }
-            );
-
-            onClose();
-            return;
-        }
 
         if (!inputHtml.trim()) return;
 
@@ -178,10 +155,7 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
                 initial={{ opacity: 0, scale: 0.98, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.98, y: 15 }}
-                className={cn(
-                    "relative w-full bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col",
-                    editorMode ? "max-w-2xl h-auto max-h-[85vh]" : "max-w-7xl h-[90vh]"
-                )}
+                className="relative w-full bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-w-7xl h-[90vh]"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-8 py-5 bg-slate-900 border-b border-slate-800 relative z-10">
@@ -208,216 +182,159 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
                 </div>
 
                 {/* Main Body */}
-                <div className={cn(
-                    "flex-1 overflow-y-auto bg-slate-950 p-6 flex flex-col gap-5",
-                    !editorMode && "grid grid-cols-1 lg:grid-cols-2 overflow-hidden"
-                )}>
-                    {editorMode ? (
-                        <>
-                            {error && (
-                                <div className="flex items-center gap-3 p-4 bg-red-950/40 text-red-400 text-sm font-medium rounded-xl border border-red-900/50">
-                                    <AlertCircle size={18} className="shrink-0" />
-                                    <span>{error}</span>
+                <div className="flex-1 overflow-y-auto bg-slate-950 p-6 flex flex-col lg:grid lg:grid-cols-2 overflow-hidden gap-5">
+                    {/* Left Column: Inputs & Instructions */}
+                    <div className="flex flex-col border-r border-slate-800 overflow-y-auto p-6 gap-5 bg-slate-900/40">
+                        {error && (
+                            <div className="flex items-center gap-3 p-4 bg-red-950/40 text-red-400 text-sm font-medium rounded-xl border border-red-900/50">
+                                <AlertCircle size={18} className="shrink-0" />
+                                <span>{error}</span>
+                            </div>
+                        )}
+
+                        {/* Preset Selector */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Directrices Editoriales (Preset)</label>
+                            <select
+                                value={selectedPreset}
+                                onChange={(e) => setSelectedPreset(e.target.value)}
+                                disabled={isProcessing}
+                                className="text-sm font-medium text-slate-200 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+                            >
+                                {allPresets.map((p) => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Brand Guidelines Area */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <FileText size={14} className="text-indigo-400" />
+                                Reglas de Diseño y Estructura
+                            </label>
+                            <textarea
+                                value={brandGuidelines}
+                                onChange={(e) => setBrandGuidelines(e.target.value)}
+                                disabled={isProcessing}
+                                className="text-xs font-mono text-slate-300 bg-slate-950 border border-slate-800 rounded-xl p-4 h-44 resize-none outline-none focus:border-indigo-500/80 transition-colors leading-relaxed"
+                            />
+                        </div>
+
+                        {/* User Instructions (Ad-hoc) */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Instrucciones Ad-hoc para esta corrida (Opcional)</label>
+                            <textarea
+                                value={userInstructions}
+                                onChange={(e) => setUserInstructions(e.target.value)}
+                                placeholder="Ej: 'Alineá el catálogo de Balenciaga a la izquierda en una tabla de 2 columnas' o 'Cambiá el espaciado entre mosaicos a 90px'..."
+                                disabled={isProcessing}
+                                className="text-xs font-medium text-slate-300 bg-slate-950 border border-slate-800 rounded-xl p-4 h-24 resize-none outline-none focus:border-indigo-500/80 transition-colors placeholder:text-slate-600"
+                            />
+                        </div>
+
+                        {/* HTML Input Area */}
+                        <div className="flex flex-col gap-2 flex-1 min-h-[250px]">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">HTML Original</label>
+                            <textarea
+                                value={inputHtml}
+                                onChange={(e) => setInputHtml(e.target.value)}
+                                placeholder="Pega el código HTML completo aquí..."
+                                disabled={isProcessing}
+                                className="flex-1 text-xs font-mono text-slate-300 bg-slate-950 border border-slate-800 rounded-xl p-4 resize-none outline-none focus:border-indigo-500/80 transition-colors leading-normal placeholder:text-slate-600"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Right Column: Output & Live Preview */}
+                    <div className="flex flex-col overflow-hidden relative">
+                        {/* Tabs Bar */}
+                        <div className="flex items-center justify-between px-6 py-4 bg-slate-900 border-b border-slate-800 z-10 shrink-0">
+                            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+                                <button
+                                    onClick={() => setActiveTab("code")}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                                        activeTab === "code" ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10" : "text-slate-400 hover:text-slate-200"
+                                    )}
+                                >
+                                    <Code size={14} />
+                                    Código Resultante
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("preview")}
+                                    className={cn(
+                                        "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                                        activeTab === "preview" ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10" : "text-slate-400 hover:text-slate-200"
+                                    )}
+                                >
+                                    <Eye size={14} />
+                                    Vista Previa
+                                </button>
+                            </div>
+
+                            {outputHtml && (
+                                <button
+                                    onClick={handleCopy}
+                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-colors border border-slate-800"
+                                >
+                                    {copied ? (
+                                        <>
+                                            <Check size={14} className="text-emerald-500" />
+                                            ¡Copiado!
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy size={14} />
+                                            Copiar Código
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="flex-1 bg-slate-950 overflow-hidden relative">
+                            {activeTab === "code" ? (
+                                <textarea
+                                    value={outputHtml}
+                                    readOnly
+                                    placeholder="Aquí aparecerá el HTML transformado de manera progresiva..."
+                                    className="w-full h-full text-xs font-mono text-indigo-300 bg-slate-950 p-6 resize-none border-none outline-none leading-relaxed select-all"
+                                />
+                            ) : (
+                                <div className="w-full h-full p-4 bg-white">
+                                    {outputHtml ? (
+                                        <iframe
+                                            title="Transform Preview"
+                                            srcDoc={outputHtml}
+                                            className="w-full h-full border-none rounded-xl bg-white"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2 bg-slate-950">
+                                            <Eye size={36} className="text-slate-650" />
+                                            <span className="text-xs font-bold tracking-wider uppercase text-slate-600">Sin renderizado disponible</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
-                            {/* Preset Selector */}
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Directrices Editoriales (Preset)</label>
-                                <select
-                                    value={selectedPreset}
-                                    onChange={(e) => setSelectedPreset(e.target.value)}
-                                    disabled={isProcessing}
-                                    className="text-sm font-medium text-slate-200 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
-                                >
-                                    {allPresets.map((p) => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Brand Guidelines Area */}
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                                    <FileText size={14} className="text-indigo-400" />
-                                    Reglas de Diseño y Estructura
-                                </label>
-                                <textarea
-                                    value={brandGuidelines}
-                                    onChange={(e) => setBrandGuidelines(e.target.value)}
-                                    disabled={isProcessing}
-                                    className="text-xs font-mono text-slate-300 bg-slate-950 border border-slate-800 rounded-xl p-4 h-40 resize-none outline-none focus:border-indigo-500/80 transition-colors leading-relaxed"
-                                />
-                            </div>
-
-                            {/* User Instructions (Ad-hoc) */}
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Instrucciones Ad-hoc para esta corrida (Opcional)</label>
-                                <textarea
-                                    value={userInstructions}
-                                    onChange={(e) => setUserInstructions(e.target.value)}
-                                    placeholder="Ej: 'Alineá el catálogo de Balenciaga a la izquierda en una tabla de 2 columnas' o 'Cambiá el espaciado entre mosaicos a 90px'..."
-                                    disabled={isProcessing}
-                                    className="text-xs font-medium text-slate-300 bg-slate-950 border border-slate-800 rounded-xl p-4 h-24 resize-none outline-none focus:border-indigo-500/80 transition-colors placeholder:text-slate-600"
-                                />
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            {/* Left Column: Inputs & Instructions */}
-                            <div className="flex flex-col border-r border-slate-800 overflow-y-auto p-6 gap-5 bg-slate-900/40">
-                                {error && (
-                                    <div className="flex items-center gap-3 p-4 bg-red-950/40 text-red-400 text-sm font-medium rounded-xl border border-red-900/50">
-                                        <AlertCircle size={18} className="shrink-0" />
-                                        <span>{error}</span>
+                            {/* Processing Overlay */}
+                            {isProcessing && (
+                                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-4 z-25">
+                                    <div className="p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5 animate-pulse">
+                                        <Loader2 size={36} className="text-indigo-500 animate-spin" />
                                     </div>
-                                )}
-
-                                {/* Preset Selector */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Directrices Editoriales (Preset)</label>
-                                    <select
-                                        value={selectedPreset}
-                                        onChange={(e) => setSelectedPreset(e.target.value)}
-                                        disabled={isProcessing}
-                                        className="text-sm font-medium text-slate-200 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
-                                    >
-                                        {allPresets.map((p) => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Brand Guidelines Area */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                                        <FileText size={14} className="text-indigo-400" />
-                                        Reglas de Diseño y Estructura
-                                    </label>
-                                    <textarea
-                                        value={brandGuidelines}
-                                        onChange={(e) => setBrandGuidelines(e.target.value)}
-                                        disabled={isProcessing}
-                                        className="text-xs font-mono text-slate-300 bg-slate-950 border border-slate-800 rounded-xl p-4 h-44 resize-none outline-none focus:border-indigo-500/80 transition-colors leading-relaxed"
-                                    />
-                                </div>
-
-                                {/* User Instructions (Ad-hoc) */}
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Instrucciones Ad-hoc para esta corrida (Opcional)</label>
-                                    <textarea
-                                        value={userInstructions}
-                                        onChange={(e) => setUserInstructions(e.target.value)}
-                                        placeholder="Ej: 'Alineá el catálogo de Balenciaga a la izquierda en una tabla de 2 columnas' o 'Cambiá el espaciado entre mosaicos a 90px'..."
-                                        disabled={isProcessing}
-                                        className="text-xs font-medium text-slate-300 bg-slate-950 border border-slate-800 rounded-xl p-4 h-24 resize-none outline-none focus:border-indigo-500/80 transition-colors placeholder:text-slate-600"
-                                    />
-                                </div>
-
-                                {/* HTML Input Area */}
-                                <div className="flex flex-col gap-2 flex-1 min-h-[250px]">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">HTML Original</label>
-                                    <textarea
-                                        value={inputHtml}
-                                        onChange={(e) => setInputHtml(e.target.value)}
-                                        placeholder="Pega el código HTML completo aquí..."
-                                        disabled={isProcessing}
-                                        className="flex-1 text-xs font-mono text-slate-300 bg-slate-950 border border-slate-800 rounded-xl p-4 resize-none outline-none focus:border-indigo-500/80 transition-colors leading-normal placeholder:text-slate-600"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Right Column: Output & Live Preview */}
-                            <div className="flex flex-col overflow-hidden relative">
-                                {/* Tabs Bar */}
-                                <div className="flex items-center justify-between px-6 py-4 bg-slate-900 border-b border-slate-800 z-10 shrink-0">
-                                    <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
-                                        <button
-                                            onClick={() => setActiveTab("code")}
-                                            className={cn(
-                                                "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
-                                                activeTab === "code" ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10" : "text-slate-400 hover:text-slate-200"
-                                            )}
-                                        >
-                                            <Code size={14} />
-                                            Código Resultante
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveTab("preview")}
-                                            className={cn(
-                                                "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all",
-                                                activeTab === "preview" ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10" : "text-slate-400 hover:text-slate-200"
-                                            )}
-                                        >
-                                            <Eye size={14} />
-                                            Vista Previa
-                                        </button>
+                                    <div className="text-center">
+                                        <span className="block text-sm font-black text-white uppercase tracking-wider mb-1 animate-pulse">
+                                            {statusMessage || "Procesando HTML..."}
+                                        </span>
+                                        <span className="text-xs text-slate-400 font-medium">Esto puede demorar de 20 a 50 segundos.</span>
                                     </div>
-
-                                    {outputHtml && (
-                                        <button
-                                            onClick={handleCopy}
-                                            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-colors border border-slate-800"
-                                        >
-                                            {copied ? (
-                                                <>
-                                                    <Check size={14} className="text-emerald-500" />
-                                                    ¡Copiado!
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Copy size={14} />
-                                                    Copiar Código
-                                                </>
-                                            )}
-                                        </button>
-                                    )}
                                 </div>
-
-                                {/* Content Area */}
-                                <div className="flex-1 bg-slate-950 overflow-hidden relative">
-                                    {activeTab === "code" ? (
-                                        <textarea
-                                            value={outputHtml}
-                                            readOnly
-                                            placeholder="Aquí aparecerá el HTML transformado de manera progresiva..."
-                                            className="w-full h-full text-xs font-mono text-indigo-300 bg-slate-950 p-6 resize-none border-none outline-none leading-relaxed select-all"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full p-4 bg-white">
-                                            {outputHtml ? (
-                                                <iframe
-                                                    title="Transform Preview"
-                                                    srcDoc={outputHtml}
-                                                    className="w-full h-full border-none rounded-xl bg-white"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2 bg-slate-950">
-                                                    <Eye size={36} className="text-slate-650" />
-                                                    <span className="text-xs font-bold tracking-wider uppercase text-slate-600">Sin renderizado disponible</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* Processing Overlay */}
-                                    {isProcessing && (
-                                        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-4 z-25">
-                                            <div className="p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5 animate-pulse">
-                                                <Loader2 size={36} className="text-indigo-500 animate-spin" />
-                                            </div>
-                                            <div className="text-center">
-                                                <span className="block text-sm font-black text-white uppercase tracking-wider mb-1 animate-pulse">
-                                                    {statusMessage || "Procesando HTML..."}
-                                                </span>
-                                                <span className="text-xs text-slate-400 font-medium">Esto puede demorar de 20 a 50 segundos.</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </>
-                    )}
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Footer Controls */}
@@ -443,13 +360,26 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
                     </div>
 
                     <div className="flex items-center gap-4">
+                        {editorMode && outputHtml && !isProcessing && (
+                            <button
+                                onClick={() => {
+                                    const store = useWriterStore.getState();
+                                    store.setContent(outputHtml);
+                                    onClose();
+                                }}
+                                className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/25 active:scale-[0.98]"
+                            >
+                                <Check size={16} />
+                                Aplicar al Editor
+                            </button>
+                        )}
                         <button
                             onClick={handleTransform}
-                            disabled={isProcessing || (!editorMode && !inputHtml.trim())}
+                            disabled={isProcessing || !inputHtml.trim()}
                             className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/25 active:scale-[0.98]"
                         >
                             <Sparkles size={16} />
-                            {isProcessing ? "Transformando..." : editorMode ? "Maquetar Artículo" : "Transformar HTML completo"}
+                            {isProcessing ? "Transformando..." : "Maquetar Artículo"}
                         </button>
                     </div>
                 </div>

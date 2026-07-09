@@ -39,7 +39,8 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
             return chunks;
         };
 
-        const rawChunks = chunkHtml(originalContent, 4);
+        const chunkSize = payload.chunkSize || payload.config?.chunkSize || 4;
+        const rawChunks = chunkHtml(originalContent, chunkSize);
         console.log(`[DEBUG-Humanize Handler] Documento dividido en ${rawChunks.length} chunks.`);
         
         if (isCurrentDraft()) {
@@ -58,7 +59,7 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
         for (let i = 0; i < rawChunks.length; i++) {
             let success = false;
             let attempts = 0;
-            const MAX_ATTEMPTS = 4;
+            const MAX_ATTEMPTS = 2;
 
             currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
             if (isCurrentDraft()) {
@@ -87,7 +88,7 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
                             console.log(`[Chunk ${i+1}] ${msg}`);
                             addLogToTask(taskId, `[Chunk ${i+1}] ${msg}`, 'info');
                         },
-                        undefined,
+                        payload.model || payload.config?.model || undefined,
                         (batchProgress) => {
                             const baseProgress = (i / rawChunks.length) * 100;
                             const additionalProgress = (batchProgress / 100) * (1 / rawChunks.length) * 100;

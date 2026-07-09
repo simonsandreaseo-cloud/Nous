@@ -39,7 +39,8 @@ export const handleSurgicalEditTask = async (taskId: string, payload: QueuePaylo
             return chunks;
         };
 
-        const rawChunks = chunkHtml(originalContent, 4);
+        const chunkSize = payload.chunkSize || payload.config?.chunkSize || 4;
+        const rawChunks = chunkHtml(originalContent, chunkSize);
         console.log(`[DEBUG-SurgicalEdit Handler] Documento dividido en ${rawChunks.length} chunks.`);
         
         if (isCurrentDraft()) {
@@ -87,7 +88,7 @@ export const handleSurgicalEditTask = async (taskId: string, payload: QueuePaylo
                             console.log(`[Chunk ${i+1}] ${msg}`);
                             addLogToTask(taskId, `[Chunk ${i+1}] ${msg}`, 'info');
                         },
-                        undefined,
+                        payload.model || payload.config?.model || undefined,
                         (batchProgress) => {
                             const baseProgress = (i / rawChunks.length) * 100;
                             const additionalProgress = (batchProgress / 100) * (1 / rawChunks.length) * 100;

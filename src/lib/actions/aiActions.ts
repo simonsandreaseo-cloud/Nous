@@ -1670,7 +1670,11 @@ ${userInstructions}
 --- REGLAS CRÍTICAS DE INTEGRIDAD ---
 1. PRESERVA EL COPYWRITING DE FORMA LITERAL E INTACTA. No modifiques ni una sola palabra, frase, párrafo o título del contenido del texto original. Tu rol se limita estrictamente al marcado HTML y diseño CSS.
 2. Preserva intactos los shortcodes de Shopify en su formato original (ej. [*12345*] o {*12345*}). No alteres sus IDs.
-3. Coloca todo el CSS generado dentro de una etiqueta <style> al inicio del HTML usando selectores específicos y namespaces únicos para evitar colisiones.
+3. CENTRALIZACIÓN DE CSS (PROHIBIDO CLASES INLINE REPETITIVAS Y TAILWIND UTILITIES):
+   Queda terminantemente PROHIBIDO usar o abusar de clases inline de utilería (como "text-slate-900", "font-bold", "leading-relaxed", "mb-6", "text-lg", "tracking-tight", "md:text-4xl") en cada título, párrafo o elemento de texto del contenido.
+   ¿Y sabes por qué? Porque cuando el HTML se exporta a Shopify u otras plataformas que no tienen Tailwind cargado, el texto se renderiza como una abominación plana y sin ningún tipo de estilo.
+   En su lugar, CENTRALIZA todo el CSS generado dentro de una etiqueta <style> única al inicio del HTML de este bloque. Usa selectores de contexto (ejemplo: .custom-article h2, .custom-article p), selectores semánticos limpios, o nombres de clases estructuradas y limpias (como .section-title, .article-p, .highlight-box) y asócialos al bloque <style>.
+   Las etiquetas de texto deben quedar perfectamente limpias, sin clases utilitarias redundantes. Toda la elegancia visual debe emanar del bloque <style>.
 4. Queda estrictamente prohibido incluir razonamientos, prefacios, explicaciones o Chain of Thought. Tu respuesta debe ser ÚNICAMENTE el código HTML transformado final.
 `;
 
@@ -1749,7 +1753,8 @@ Analiza con detenimiento el flujo narrativo y visual del artículo. Determina qu
 Debes devolver un objeto JSON con la clave "plan" que contenga un array con exactamente ${chunks.length} elementos en orden estricto (uno para cada sección). Cada elemento debe tener exactamente estas propiedades:
 - "index": número de sección (de 0 a ${chunks.length - 1}).
 - "focus": resumen breve del contenido de esta sección (ej: "Sección de bienvenida y primer párrafo con overlap").
-- "pautasEspecificas": pautas visuales sumamente específicas y detalladas para el maquetador de esta sección, indicando qué clases usar, qué CSS inyectar, cómo resetear las tablas si las hay, o si hay que aplicar el hack de Splide para productos de Shopify.
+- "pautasEspecificas": pautas visuales sumamente específicas y detalladas para el maquetador de esta sección.
+  ⚠️ REGLA CRÍTICA DE DISEÑO: Debes indicar expresamente al maquetador que NO utilice clases inline de utilería de Tailwind CSS (como "text-slate-900", "font-bold", "leading-relaxed", etc. repetidos en cada párrafo o título). Exígele centralizar todos los estilos CSS dentro de un bloque <style> único al inicio de la sección, usando selectores semánticos limpios, de modo que cuando el HTML se exporte a Shopify (u otras plataformas que no cargan Tailwind) el diseño se vea espectacular e intacto.
 
 REQUISITO DE FORMATO: Devuelve exclusivamente un objeto JSON válido con la siguiente estructura:
 {

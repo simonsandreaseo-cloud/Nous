@@ -62,7 +62,8 @@ export const handleCleanTask = async (taskId: string, payload: QueuePayload) => 
             return chunks.length > 0 ? chunks : [htmlString];
         };
 
-        const rawChunks = chunkHtml(originalContent, 3);
+        const chunkSize = payload.chunkSize || payload.config?.chunkSize || 3;
+        const rawChunks = chunkHtml(originalContent, chunkSize);
         
         if (isCurrentDraft()) {
             useWriterStore.getState().setStatus(`Documento dividido en ${rawChunks.length} partes para limpieza...`);

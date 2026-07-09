@@ -32,10 +32,27 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
     
     const draftId = payload.taskId || store.draftId;
     const originalContent = payload.content;
-    const presetInstructions = payload.presetInstructions;
     const userInstructions = payload.userInstructions;
     const model = payload.model || 'gemini-3.5-flash';
     const provider = payload.provider;
+
+    const defaultGuidelines = `--- MANUAL DE BUENAS PRÁCTICAS DE DISEÑO EDITORIAL PREMIUM ---
+1. LÍMITES DE ACCIÓN: NUNCA generes etiquetas <h1> ni banners hero principales (.hero). Inicia el código directamente con texto introductorio, grillas o un título <h2> elegante.
+2. PROHIBICIÓN DE ESTILOS Y CLASES INLINE (PROHIBIDO TAILWIND INLINE): Queda terminantemente PROHIBIDO utilizar clases en línea de utilería de Tailwind CSS (como "text-slate-900", "font-bold", "leading-relaxed", "mb-6", etc.) repetidas en cada párrafo, título o elemento del texto. En su lugar, CENTRALIZA todo el CSS generado dentro de una etiqueta <style> única al inicio de este bloque de HTML. Utiliza selectores de contexto (ejemplo: .custom-article h2, .custom-article p) o clases personalizadas únicas y bien estructuradas (como .section-title, .article-p, .highlight-box) y asócialas al bloque <style>. Las etiquetas HTML del texto deben quedar perfectamente limpias, sin clases utilitarias redundantes.
+3. DISEÑO DE REVISTA ASIMÉTRICO (OVERLAPS):
+   - Diseña estructuras donde el texto flote sobre un costado de la imagen utilizando propiedades de posicionamiento absoluto y pseudo-elementos, aplicando fondos translúcidos elegantes y filtros de desenfoque (backdrop-filter: blur(12px)) con bordes sutiles y z-index controlado.
+   - Es sumamente OBLIGATORIO asegurar el comportamiento responsive (@media (max-width: 900px)) para que estas estructuras se conviertan en flujos verticales limpios donde el texto no colisione con la imagen de fondo ni se encime de forma ilegible.
+4. BANNERS Y HÉROES INTERNOS: Crea portadas o separadores de sección utilizando imágenes de fondo fluidas (background-size: cover; background-position: center;) con cajas de texto alineadas de forma asimétrica, garantizando un contraste de color e impecable legibilidad.
+5. TABLAS TÉCNICAS SUTILES Y MODERNAS:
+   - Para descripciones técnicas de productos o comparativas de materiales, estructúralas en tablas HTML minimalistas con bordes de color negro o gris oscuro bien definidos, tipografías imponentes y marcadas para los encabezados y efectos interactivos (:hover) suaves para las filas.
+   - Aplica reset de bordes cuando las directrices de la marca lo demanden para un aspecto limpio.
+6. DISEÑO MULTICOLUMNA EDITORIAL:
+   - Para secciones de lectura corrida, divide los párrafos en estructuras de 2 o 3 columnas utilizando CSS Grid (ejemplo: grid-template-columns: repeat(3, 1fr)) con márgenes amplios (gap: 40px).
+   - Utiliza Letra Capital (Drop Cap) estilizada para la primera letra del párrafo introductorio (ejemplo: .column p:first-child::first-letter { font-size: 3rem; font-weight: 900; color: #FF0000; float: left; ... }) para elevar la jerarquía y carácter editorial del texto.
+7. VIÑETAS Y LISTADOS DE ALTO IMPACTO: Reemplaza los círculos aburridos de las listas por defecto con marcadores personalizados de diseño de la marca (como finas líneas horizontales o pequeños acentos de color vibrante usando pseudo-elementos li::before y posicionamiento relativo).
+8. CONTENEDORES SEMÁNTICOS: Envuelve todo el contenido bajo un contenedor de clase único y representativo (ejemplo: .brand-article-container) para asegurar un namespace de estilos sólido y evitar colisiones con el tema global del sitio.`;
+
+    const presetInstructions = payload.presetInstructions || defaultGuidelines;
 
     console.log("[DEBUG-CustomTransform Handler] Starting chunked transform for length:", originalContent?.length);
     addLogToTask(taskId, `Iniciando maquetación inteligente con Jefe de Diseño + Chunks...`, 'info');
@@ -46,10 +63,18 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
         setTaskStatus(taskId, 'processing', 5);
         
         // 1. Chunking
-        const chunks = chunkHtmlContent(originalContent);
+        const chunkSize = payload.chunkSize || payload.config?.chunkSize || 3;
+        const maxChunkLength = chunkSize * 1500;
+        const chunks = chunkHtmlContent(originalContent, maxChunkLength);
         const chunkResults = [...chunks];
         addLogToTask(taskId, `El artículo fue dividido en ${chunks.length} bloques lógicos para garantizar máxima precisión y evitar timeouts.`, 'info');
         setTaskStatus(taskId, 'processing', 10);
+
+        // Add start debug prompt
+        store.addDebugPrompt(
+            "🎨 Jefe de Diseño - Inicio",
+            `Iniciando planificación con ${chunks.length} bloques.\nDirectrices de Maquetación: ${payload.presetInstructions ? 'Cargadas del Proyecto' : 'Usando Valores por Defecto'}\nInstrucciones del Cliente: ${userInstructions || 'Ninguna'}`
+        );
 
         // 2. Chief Designer Planning
         setTaskStatus(taskId, 'processing', 15);
@@ -67,6 +92,12 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
         
         setTaskStatus(taskId, 'processing', 25);
         addLogToTask(taskId, `✨ ¡Plan de maquetación y diseño completado! Iniciando ejecución de bloques...`, 'success');
+
+        // Add plan debug prompt
+        store.addDebugPrompt(
+            "🎨 Jefe de Diseño - Plan",
+            `Planificación completada:\n${JSON.stringify(plan, null, 2)}`
+        );
 
         // 3. Sequential Worker Steps with Vision
         for (let i = 0; i < chunks.length; i++) {
@@ -106,6 +137,13 @@ ${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : '
 
             chunkResults[i] = result.html;
 
+            // Add chunk execution to debug log
+            store.addDebugPrompt(
+                `🧱 Maquetador - Bloque ${i + 1}/${chunks.length}`,
+                `Focus: ${planningItem.focus}\nPautas de diseño de este bloque:\n${planningItem.pautasEspecificas}`,
+                result.html
+            );
+
             // Progressive Real-time updates in the editor!
             if (store.draftId === draftId) {
                 store.setIsRemoteUpdate(true);
@@ -127,6 +165,12 @@ ${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : '
             store.setContent(finalHtml);
             await store.saveTaskVersion(`Transformación Custom`, finalHtml);
         }
+
+        // Add final debug prompt
+        store.addDebugPrompt(
+            "🎉 Maquetador - Completado",
+            `¡Maquetación finalizada con éxito! Total de bloques procesados: ${chunks.length}.`
+        );
 
         setTaskStatus(taskId, 'completed', 100);
         addLogToTask(taskId, `✅ ¡El artículo ha sido maquetado con éxito siguiendo el plan del Jefe de Diseño!`, 'success');
