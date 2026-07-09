@@ -33,15 +33,15 @@ export default function SettingsLayout({
     if (!user) return null;
 
     return (
-        <div className="flex h-screen w-full overflow-hidden bg-[#F8FAFC]">
+        <div className="flex h-screen w-full overflow-hidden bg-[#F8FAFC] relative">
+            {/* Minimalist Background Deco placed on the stable, overflow-hidden outer container */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-radial from-indigo-50/20 to-transparent pointer-events-none -mr-48 -mt-48 opacity-60 z-0" />
+
             {/* Full Vertical Sidebar */}
             <SettingsSidebar />
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-y-auto custom-scrollbar relative">
-                {/* Minimalist Background Deco */}
-                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-radial from-indigo-50/20 to-transparent pointer-events-none -mr-48 -mt-48 opacity-60" />
-                
+            <div className="flex-1 flex flex-col min-w-0 overflow-y-auto custom-scrollbar relative z-10">
                 <main className="relative z-10 p-8 md:p-12 lg:p-16 max-w-[1200px]">
                     {children}
                 </main>

@@ -586,6 +586,14 @@ export const executeWithKeyRotation = async <T>(
                                         return {
                                             stream: (async function* () {
                                                 for await (const chunk of resultStream) {
+                                                    const usage = chunk.usageMetadata || chunk.response?.usageMetadata;
+                                                    if (usage) {
+                                                        pushUsage({
+                                                            promptTokens: usage.promptTokenCount || 0,
+                                                            completionTokens: usage.candidatesTokenCount || 0,
+                                                            totalTokens: usage.totalTokenCount || 0
+                                                        });
+                                                    }
                                                     yield { text: () => chunk.text };
                                                 }
                                             })()
@@ -628,7 +636,34 @@ export const executeWithKeyRotation = async <T>(
                                             if (sysInst && typeof prompt === 'string') {
                                                 finalPrompt = `${sysInst}\n\n${prompt}`;
                                             }
-                                            return nativeModel.generateContentStream(finalPrompt);
+                                            const resultStream = await nativeModel.generateContentStream(finalPrompt);
+                                            return {
+                                                ...resultStream,
+                                                stream: (async function* () {
+                                                    for await (const chunk of resultStream.stream) {
+                                                        const usage = chunk.usageMetadata || chunk.response?.usageMetadata;
+                                                        if (usage) {
+                                                            pushUsage({
+                                                                promptTokens: usage.promptTokenCount || 0,
+                                                                completionTokens: usage.candidatesTokenCount || 0,
+                                                                totalTokens: usage.totalTokenCount || 0
+                                                            });
+                                                        }
+                                                        yield chunk;
+                                                    }
+                                                    try {
+                                                        const res = await resultStream.response;
+                                                        const usage = res.usageMetadata;
+                                                        if (usage) {
+                                                            pushUsage({
+                                                                promptTokens: usage.promptTokenCount || 0,
+                                                                completionTokens: usage.candidatesTokenCount || 0,
+                                                                totalTokens: usage.totalTokenCount || 0
+                                                            });
+                                                        }
+                                                    } catch (_) {}
+                                                })()
+                                            };
                                         }
                                     };
                                 }
@@ -646,6 +681,36 @@ export const executeWithKeyRotation = async <T>(
                                             });
                                         }
                                         return res;
+                                    },
+                                    generateContentStream: async (prompt: any) => {
+                                        const resultStream = await nativeModel.generateContentStream(prompt);
+                                        return {
+                                            ...resultStream,
+                                            stream: (async function* () {
+                                                for await (const chunk of resultStream.stream) {
+                                                    const usage = chunk.usageMetadata || chunk.response?.usageMetadata;
+                                                    if (usage) {
+                                                        pushUsage({
+                                                            promptTokens: usage.promptTokenCount || 0,
+                                                            completionTokens: usage.candidatesTokenCount || 0,
+                                                            totalTokens: usage.totalTokenCount || 0
+                                                        });
+                                                    }
+                                                    yield chunk;
+                                                }
+                                                try {
+                                                    const res = await resultStream.response;
+                                                    const usage = res.usageMetadata;
+                                                    if (usage) {
+                                                        pushUsage({
+                                                            promptTokens: usage.promptTokenCount || 0,
+                                                            completionTokens: usage.candidatesTokenCount || 0,
+                                                            totalTokens: usage.totalTokenCount || 0
+                                                        });
+                                                    }
+                                                } catch (_) {}
+                                            })()
+                                        };
                                     }
                                 };
                             }
