@@ -1710,10 +1710,9 @@ ${userInstructions}
     return { html: cleanAndFormatHtml(resultHtml) };
 };
 
-export interface ChiefDesignerPlanItem {
-    index: number;
-    focus: string;
-    pautasEspecificas: string;
+export interface ChiefDesignerPlanningResult {
+    stylesheet: string;
+    plan: ChiefDesignerPlanItem[];
 }
 
 export const runChiefDesignerPlanning = async (
@@ -1722,7 +1721,7 @@ export const runChiefDesignerPlanning = async (
     userInstructions: string,
     modelName: string = 'gemini-3.1-pro',
     provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
-): Promise<ChiefDesignerPlanItem[]> => {
+): Promise<ChiefDesignerPlanningResult> => {
     const parsed = parseModelAndProvider(modelName, provider);
     const resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
@@ -1730,39 +1729,44 @@ export const runChiefDesignerPlanning = async (
     const label = `Planificación del Jefe de Diseño`;
 
     try {
-        const plan = await executeCustomTransformWithRetry(async (ai, currentModel) => {
+        const result = await executeCustomTransformWithRetry(async (ai, currentModel) => {
             const model = ai.getGenerativeModel({
                 model: currentModel,
                 generationConfig: { responseMimeType: 'application/json' }
             });
 
             const prompt = `
-Eres el JEFE DE DISEÑO EDITORIAL y Director de Arte Senior de una prestigiosa marca y revista de modas internacional. Tu trabajo es analizar la estructura global de un artículo dividido en secciones (chunks) y trazar un PLAN DE MAQUETACIÓN GLOBAL de vanguardia, determinando pautas visuales específicas y consistentes para que cada sección sea maquetada con la máxima sofisticación.
+Eres el JEFE DE DISEÑO EDITORIAL, Director de Arte Senior y Arquitecto Visual de una prestigiosa marca internacional de modas y tendencias.
+Tu misión de hoy es diseñar una HOJA DE ESTILOS CSS UNIFICADA (stylesheet) espectacular y trazar un PLAN DE MAQUETACIÓN ESTRUCTURAL para un artículo de fondo que ha sido segmentado en secciones (chunks).
 
---- DIRECTRICES EDITORIALES DE LA MARCA ---
+--- DIRECTRICES EDITORIALES DE DISEÑO ---
 ${presetInstructions}
 
---- INSTRUCCIONES AD-HOC DEL CLIENTE ---
+--- INSTRUCCIONES ESPECÍFICAS O CAMBIOS DEL CLIENTE ---
 ${userInstructions}
 
 --- SECCIONES DEL ARTÍCULO ORIGINAL ---
 ${chunks.map((c, i) => `[SECCIÓN ${i}]\n${c}\n`).join('\n---\n')}
 
-Analiza con detenimiento el flujo narrativo y visual del artículo. Determina qué tipo de componente o diseño asimétrico le corresponde a cada sección (ej. splits, grids, overlaps, alineaciones, resets de tabla, hack de Splide si contiene shortcodes de Shopify) para que los diseñadores maqueten cada sección de forma perfecta.
+TAREAS EXIGIDAS:
+1. Diseñar el sistema visual unificado de este artículo. Crea un stylesheet CSS puro completo y funcional, dándole valores hermosos y de ultralujo a todas las clases CSS necesarias (ej: tipografía premium, grillas, contenedores asimétricos, espaciados, tablas sutiles con hover, pseudo-elementos li, de marcas como Prada Linea Rossa).
+2. Para cada sección del artículo, define un plan estructural de maquetación detallado que le indique al maquetador exactamente qué clases del CSS unificado utilizar y cómo estructurar el HTML semánticamente (no generes nuevos estilos CSS en el chunk, solo usa el stylesheet global).
 
-Debes devolver un objeto JSON con la clave "plan" que contenga un array con exactamente ${chunks.length} elementos en orden estricto (uno para cada sección). Cada elemento debe tener exactamente estas propiedades:
-- "index": número de sección (de 0 a ${chunks.length - 1}).
-- "focus": resumen breve del contenido de esta sección (ej: "Sección de bienvenida y primer párrafo con overlap").
-- "pautasEspecificas": pautas visuales sumamente específicas y detalladas para el maquetador de esta sección.
-  ⚠️ REGLA CRÍTICA DE DISEÑO: Debes indicar expresamente al maquetador que NO utilice clases inline de utilería de Tailwind CSS (como "text-slate-900", "font-bold", "leading-relaxed", etc. repetidos en cada párrafo o título). Exígele centralizar todos los estilos CSS dentro de un bloque <style> único al inicio de la sección, usando selectores semánticos limpios, de modo que cuando el HTML se exporte a Shopify (u otras plataformas que no cargan Tailwind) el diseño se vea espectacular e intacto.
+⚠️ REGLA CRÍTICA DE FORMATO: Debes devolver un objeto JSON único y válido con exactamente estas dos propiedades raíz:
+- "stylesheet": El código CSS unificado completo (sin etiquetas <style>, solo las reglas de CSS puras). No uses placeholders; todo el código de diseño debe estar 100% definido y ser funcional y detallado.
+- "plan": Un array con exactamente ${chunks.length} elementos (en orden de index del 0 al ${chunks.length - 1}), donde cada elemento contiene:
+  - "index": número de sección.
+  - "focus": título/resumen del bloque.
+  - "pautasEspecificas": el prompt estructural detallado para maquetar esta sección usando las clases definidas en "stylesheet".
 
-REQUISITO DE FORMATO: Devuelve exclusivamente un objeto JSON válido con la siguiente estructura:
+Ejemplo de la estructura de retorno requerida:
 {
+  "stylesheet": "/* Estilos globales y clases de ultralujo aquí */\\n.brand-article-container { ... }",
   "plan": [
     {
       "index": 0,
       "focus": "...",
-      "pautasEspecificas": "..."
+      "pautasEspecificas": "Usa la clase .brand-article-container como envoltura y aplica .red-line-header para el título..."
     }
   ]
 }
@@ -1771,17 +1775,92 @@ REQUISITO DE FORMATO: Devuelve exclusivamente un objeto JSON válido con la sigu
             const response = await model.generateContent(prompt);
             const text = response.response.text();
             const parsedJson = JSON.parse(text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim());
-            return parsedJson.plan as ChiefDesignerPlanItem[];
+            return {
+                stylesheet: parsedJson.stylesheet || '',
+                plan: parsedJson.plan || []
+            } as ChiefDesignerPlanningResult;
         }, () => {}, label, resolvedModel, resolvedProvider);
 
-        return plan || [];
+        return result || { stylesheet: '', plan: [] };
     } catch (e) {
         console.error("[ChiefDesigner] Error planning layout:", e);
         // Fallback default empty plans
-        return chunks.map((_, i) => ({
+        const fallbackPlan = chunks.map((_, i) => ({
             index: i,
             focus: `Sección ${i + 1}`,
             pautasEspecificas: `${presetInstructions}\n\n${userInstructions}`
         }));
+        return { stylesheet: '', plan: fallbackPlan };
+    }
+};
+
+export const runSingleChunkTransform = async (
+    chunk: string,
+    stylesheet: string,
+    pautasEspecificas: string,
+    onStatus?: (msg: string) => void,
+    modelName: string = 'gemini-3.5-flash',
+    onChunk?: (chunkHtml: string) => void,
+    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+): Promise<{ html: string }> => {
+    const parsed = parseModelAndProvider(modelName, provider);
+    const resolvedModel = parsed.resolvedModel;
+    const resolvedProvider = parsed.resolvedProvider;
+
+    const label = `Maquetador Atómico - Fragmento`;
+    const safeStatus = (msg: string) => {
+        if (typeof onStatus === 'function') onStatus(msg);
+    };
+
+    try {
+        const resultHtml = await executeCustomTransformWithRetry(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({
+                model: currentModel,
+                generationConfig: { responseMimeType: 'text/html' }
+            });
+
+            const prompt = `
+Eres un Maquetador Frontend Senior y Diseñador de Interfaces Editorial de ultralujo. Tu único objetivo en esta tarea es transformar el bloque de texto o HTML original que se te proporciona en una estructura HTML5 semántica y visualmente deslumbrante, aplicando EXACTAMENTE las directrices de diseño y clases CSS definidas en la hoja de estilos unificada de referencia.
+
+--- HOJA DE ESTILOS UNIFICADA DE REFERENCIA (CSS GLOBAL) ---
+${stylesheet}
+
+--- PLAN DE DISEÑO ESPECÍFICO PARA ESTA SECCIÓN ---
+${pautasEspecificas}
+
+--- TEXTO / HTML ORIGINAL DE ESTA SECCIÓN ---
+${chunk}
+
+REGLAS DE OBLIGADO CUMPLIMIENTO:
+1. Devuelve únicamente código HTML semántico válido (como <section>, <div>, <p>, <h2>, <ul>, etc.) que envuelva el contenido original transformado.
+2. Usa de forma precisa las clases CSS predefinidas en el CSS global que se te proporcionó de referencia para darle estilo al HTML.
+3. ⚠️ PROHIBICIÓN ABSOLUTA DE CSS ADICIONAL: Queda totalmente PROHIBIDO que crees nuevas reglas de CSS, metas etiquetas <style> adicionales, o uses estilos inline con el atributo style="..." o clases utilitarias repetitivas (como clases directas de Tailwind de tipo utilitario). El código HTML final debe estar perfectamente limpio y asociar únicamente las clases de la hoja de estilos global.
+4. Conserva intactos todos los textos, títulos y enlaces del contenido original. No inventes información nueva.
+
+Devuelve EXCLUSIVAMENTE el código HTML transformado. No incluyes explicaciones, prefacios, ni bloques de código formateados con markdown.
+`;
+
+            const promptParts: any[] = [prompt];
+            
+            const imageUrls = extractImgUrls(chunk).slice(0, 3);
+            if (imageUrls.length > 0) {
+                safeStatus(`[Vision] Descargando y analizando ${imageUrls.length} imágenes para este bloque...`);
+                for (const url of imageUrls) {
+                    const imgPart = await fetchImagePart(url);
+                    if (imgPart) promptParts.push(imgPart);
+                }
+            }
+
+            const response = await model.generateContent(promptParts);
+            return response.response.text();
+        }, safeStatus, label, resolvedModel, resolvedProvider);
+
+        const cleanHtml = cleanAndFormatHtml(resultHtml);
+        if (onChunk) onChunk(cleanHtml);
+        return { html: cleanHtml };
+    } catch (e) {
+        console.error("[SingleChunkTransform] Error in chunk transform:", e);
+        if (onChunk) onChunk(chunk);
+        return { html: chunk }; // Fallback original content
     }
 };

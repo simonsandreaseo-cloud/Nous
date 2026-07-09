@@ -449,3 +449,114 @@ export async function streamCustomTransform(
 
     return finalResult;
 }
+
+export async function fetchCustomTransformPlan(
+    chunks: string[],
+    presetInstructions: string,
+    userInstructions: string,
+    model?: string,
+    provider?: string
+): Promise<{ stylesheet: string; plan: { index: number; focus: string; pautasEspecificas: string }[] }> {
+    const response = await fetch('/api/custom-transform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'plan',
+            chunks,
+            presetInstructions,
+            userInstructions,
+            model,
+            provider
+        })
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error obteniendo plan del diseñador (${response.status})`);
+    }
+
+    return response.json();
+}
+
+export async function streamCustomTransformChunk(
+    chunk: string,
+    stylesheet: string,
+    pautasEspecificas: string,
+    onChunk: (html: string) => void,
+    onStatus: (msg: string) => void,
+    model?: string,
+    provider?: string
+): Promise<{ html: string }> {
+    const response = await fetch('/api/custom-transform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'process-chunk',
+            chunk,
+            stylesheet,
+            pautasEspecificas,
+            model,
+            provider
+        })
+    });
+
+    const contentType = response.headers.get('content-type');
+    if (!response.ok) {
+        if (response.status === 504) {
+            throw new Error("El servidor tardó demasiado en responder (Timeout).");
+        }
+        if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        } else {
+            throw new Error(`Error del servidor (${response.status}): La respuesta no es JSON válido.`);
+        }
+    }
+
+    if (!response.body) throw new Error("No se pudo iniciar el stream del servidor.");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let newContent = '';
+    let finalResult = null;
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+                const parsed = JSON.parse(line);
+                if (parsed.type === 'status') {
+                    onStatus(parsed.message);
+                } else if (parsed.type === 'chunk') {
+                    newContent = parsed.html;
+                    onChunk(newContent);
+                } else if (parsed.type === 'done') {
+                    finalResult = parsed.result;
+                    if (finalResult && finalResult.html) {
+                        newContent = finalResult.html;
+                    }
+                } else if (parsed.type === 'error') {
+                    throw new Error(parsed.error);
+                }
+            } catch (e: any) {
+                if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
+                    throw e;
+                }
+            }
+        }
+    }
+
+    if (!finalResult) {
+        throw new Error("El servidor terminó la conexión sin enviar el resultado final.");
+    }
+
+    return finalResult;
+}

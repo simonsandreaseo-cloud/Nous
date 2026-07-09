@@ -1,7 +1,6 @@
 import { useWriterStore } from '@/store/useWriterStore';
 import { useQueueStore } from '@/store/useQueueStore';
-import { runChiefDesignerPlanning } from '@/lib/actions/aiActions';
-import { streamCustomTransform } from '@/lib/services/writer/ai-streaming';
+import { fetchCustomTransformPlan, streamCustomTransformChunk } from '@/lib/services/writer/ai-streaming';
 import type { QueuePayload } from '../registry';
 
 const chunkHtmlContent = (html: string, maxChunkLength: number = 5000): string[] => {
@@ -75,82 +74,78 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
 
     const presetInstructions = payload.presetInstructions || defaultGuidelines;
 
-    console.log("[DEBUG-CustomTransform Handler] Starting chunked transform for length:", originalContent?.length);
+    console.log("[DEBUG-CustomTransform Handler] Starting 2-phase premium layout pipeline for length:", originalContent?.length);
     addLogToTask(taskId, `Iniciando maquetación inteligente con Jefe de Diseño + Chunks...`, 'info');
     
     try {
         await useWriterStore.getState().saveTaskVersion(`Pre-Transformación Custom`, originalContent, draftId);
         
-        setTaskStatus(taskId, 'processing', 5);
-        
-        // 1. Chunking
+        // 1. Chunking del contenido
         const chunkSize = payload.chunkSize || payload.config?.chunkSize || 3;
         const maxChunkLength = chunkSize * 1500;
         const chunks = chunkHtmlContent(originalContent, maxChunkLength);
         const chunkResults = [...chunks];
-        addLogToTask(taskId, `El artículo fue dividido en ${chunks.length} bloques lógicos para garantizar máxima precisión y evitar timeouts.`, 'info');
-        setTaskStatus(taskId, 'processing', 10);
+        
+        // El número total de pasos de progreso = 1 (para planificación de arquitectura global) + chunks.length
+        const totalSteps = 1 + chunks.length;
+        let currentStep = 0;
+        
+        setTaskStatus(taskId, 'processing', Math.round((currentStep / totalSteps) * 100));
+        addLogToTask(taskId, `El artículo fue dividido en ${chunks.length} bloques lógicos para garantizar máxima cohesión y estilo editorial premium.`, 'info');
 
-        // Add start debug prompt
+        // Registro del inicio en los prompts de depuración
         store.addDebugPrompt(
             "🎨 Jefe de Diseño - Inicio",
             `Iniciando planificación con ${chunks.length} bloques.\nDirectrices de Maquetación: ${payload.presetInstructions ? 'Cargadas del Proyecto' : 'Usando Valores por Defecto'}\nInstrucciones del Cliente: ${userInstructions || 'Ninguna'}`
         );
 
-        // 2. Chief Designer Planning
-        setTaskStatus(taskId, 'processing', 15);
-        addLogToTask(taskId, `🧠 El Jefe de Diseño está trazando la estrategia editorial y planificando el diseño de cada bloque...`, 'info');
+        // FASE 1: Planificación del Arquitecto (Chief Designer Planning)
+        addLogToTask(taskId, `🧠 Fase 1: El Arquitecto de Diseño está definiendo el sistema visual global y creando las clases CSS...`, 'info');
         
-        // Use Gemini 3.1 Pro or selected model for planning
         const planningModel = model.includes('pro') ? model : 'gemini-3.1-pro-preview-gas';
-        const plan = await runChiefDesignerPlanning(
+        const result = await fetchCustomTransformPlan(
             chunks, 
             presetInstructions, 
             userInstructions, 
             planningModel, 
             provider
         );
-        
-        setTaskStatus(taskId, 'processing', 25);
-        addLogToTask(taskId, `✨ ¡Plan de maquetación y diseño completado! Iniciando ejecución de bloques...`, 'success');
 
-        // Add plan debug prompt
+        const { stylesheet, plan } = result;
+        currentStep = 1;
+        
+        // Actualizamos el progreso de barra tras completar la fase de planificación
+        setTaskStatus(taskId, 'processing', Math.round((currentStep / totalSteps) * 100));
+        addLogToTask(taskId, `✨ ¡Hoja de estilos global consolidada exitosamente!`, 'success');
+
+        // Registro del plan del diseñador en depuración
         store.addDebugPrompt(
-            "🎨 Jefe de Diseño - Plan",
-            `Planificación completada:\n${JSON.stringify(plan, null, 2)}`
+            "🎨 Jefe de Diseño - CSS Global & Plan",
+            `Stylesheet:\n${stylesheet}\n\nPlan por Bloques:\n${JSON.stringify(plan, null, 2)}`
         );
 
-        // 3. Sequential Worker Steps with Vision
+        // FASE 2: Ejecución secuencial de cada fragmento (Chunk execution)
+        addLogToTask(taskId, `🧱 Fase 2: Aplicando estilos individualmente a cada uno de los ${chunks.length} bloques...`, 'info');
+
         for (let i = 0; i < chunks.length; i++) {
             const chunk = chunks[i];
             const planningItem = plan.find(p => p.index === i) || { 
                 index: i, 
                 focus: `Bloque ${i + 1}`, 
-                pautasEspecificas: `${presetInstructions}\n\n${userInstructions}` 
+                pautasEspecificas: `Maqueta de manera limpia y semántica utilizando el CSS global.` 
             };
             
-            // Calculate starting percentage for this chunk (linearly from 25% to 95%)
-            const progressPct = Math.round(25 + (i / chunks.length) * 70);
-            setTaskStatus(taskId, 'processing', progressPct);
+            addLogToTask(taskId, `[Bloque ${i + 1}/${chunks.length}] Maquetando: ${planningItem.focus}...`, 'info');
             
-            addLogToTask(taskId, `[${progressPct}%] [Bloque ${i + 1}/${chunks.length}] Diseñando: ${planningItem.focus}...`, 'info');
-            
-            const mergedInstructions = `
-PAUTAS ESPECÍFICAS DE DISEÑO PARA ESTE BLOQUE:
-${planningItem.pautasEspecificas}
-
-${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : ''}
-`;
-
-            const result = await streamCustomTransform(
+            const chunkResult = await streamCustomTransformChunk(
                 chunk,
-                presetInstructions,
-                mergedInstructions,
+                stylesheet,
+                planningItem.pautasEspecificas,
                 (chunkHtml) => {
                     chunkResults[i] = chunkHtml;
                     if (isCurrentDraft()) {
                         useWriterStore.getState().setIsRemoteUpdate(true);
-                        useWriterStore.getState().setContent(chunkResults.join('\n'));
+                        useWriterStore.getState().setContent(`<style>\n${stylesheet}\n</style>\n` + chunkResults.join('\n'));
                     }
                 },
                 (statusMsg) => {
@@ -162,32 +157,26 @@ ${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : '
                 provider
             );
 
-            chunkResults[i] = result.html;
+            chunkResults[i] = chunkResult.html;
+            currentStep = 1 + (i + 1); // Progreso incremental por cada chunk finalizado
 
-            // Add chunk execution to debug log
+            // Registro del fragmento procesado en depuración
             store.addDebugPrompt(
                 `🧱 Maquetador - Bloque ${i + 1}/${chunks.length}`,
-                `Focus: ${planningItem.focus}\nPautas de diseño de este bloque:\n${planningItem.pautasEspecificas}`,
-                result.html
+                `Focus: ${planningItem.focus}\nInstrucciones estructurales:\n${planningItem.pautasEspecificas}`,
+                chunkResult.html
             );
 
-            // Progressive Real-time updates in the editor!
-            if (isCurrentDraft()) {
-                useWriterStore.getState().setIsRemoteUpdate(true);
-                useWriterStore.getState().setContent(chunkResults.join('\n'));
-            }
-
-            // Set ending percentage for this chunk
-            const endProgressPct = Math.round(25 + ((i + 1) / chunks.length) * 70);
-            setTaskStatus(taskId, 'processing', endProgressPct);
+            // Actualización progresiva en tiempo real en la barra de progreso
+            setTaskStatus(taskId, 'processing', Math.round((currentStep / totalSteps) * 100));
         }
 
-        const finalHtml = chunkResults.join('\n');
+        // FASE 3: Ensamblado y guardado final
+        const finalHtml = `<style>\n${stylesheet}\n</style>\n` + chunkResults.join('\n');
 
-        setTaskStatus(taskId, 'processing', 98);
-        addLogToTask(taskId, `Guardando diseño final...`, 'success');
+        addLogToTask(taskId, `Guardando maquetación premium finalizada...`, 'success');
 
-        // 1. Guardar la versión de la tarea en la base de datos de manera agnóstica al borrador activo
+        // 1. Guardar la versión de la tarea en el historial
         await useWriterStore.getState().saveTaskVersion(`Transformación Custom`, finalHtml, draftId);
 
         // 2. Persistir directamente en las tablas de Supabase
@@ -210,7 +199,7 @@ ${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : '
         setTaskStatus(taskId, 'completed', 100);
         addLogToTask(taskId, `✅ ¡El artículo ha sido maquetado con éxito siguiendo el plan del Jefe de Diseño!`, 'success');
     } catch (e: any) {
-        console.error(e);
+        console.error("[CustomTransformTask] Critical failure in premium transform task:", e);
         addLogToTask(taskId, `Error crítico durante la maquetación: ${e.message}`, 'error');
         setTaskStatus(taskId, 'error', -1);
         throw e;
