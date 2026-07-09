@@ -145,7 +145,7 @@ export class LinkPatcherService {
 
     /**
      * Executes the patcher on the editor content.
-     * Optimized to use a single Tiptap transaction for all updates.
+     * Enhanced to support both text links (<a>) and image tags (<img>) or custom assets.
      */
     static async processEditorLinks(
         editor: any, 
@@ -160,69 +160,88 @@ export class LinkPatcherService {
         const results: PatcherResult[] = [];
 
         try {
-            const links: { url: string; originalUrl: string; text: string; pos: number; node: any }[] = [];
+            // Get current editor HTML content (captures raw HTML, custom tags and standard node elements)
+            const html = editor.getHTML();
+            if (!html) {
+                return { success: true, results: [] };
+            }
 
-            // 1. Collect all links from the editor
-            editor.state.doc.descendants((node: any, pos: number) => {
-                const linkMark = node.marks.find((m: any) => m.type.name === 'link');
-                if (linkMark) {
-                    links.push({
-                        url: linkMark.attrs.href,
-                        originalUrl: linkMark.attrs['data-original-url'],
-                        text: node.text || "",
-                        pos: pos,
-                        node: node
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const urlTargets: { element: Element; attr: string; originalUrl: string; label: string }[] = [];
+
+            // 1. Gather all standard links (<a> tags)
+            const links = Array.from(doc.querySelectorAll('a'));
+            links.forEach(el => {
+                const href = el.getAttribute('href');
+                if (href && href.startsWith('http')) {
+                    urlTargets.push({ 
+                        element: el, 
+                        attr: 'href', 
+                        originalUrl: href,
+                        label: el.textContent || 'Enlace'
                     });
                 }
-                return true;
             });
 
-            if (mode === 'apply') {
-                // Use a single chain for all updates to avoid multiple re-renders
-                let chain = editor.chain().focus();
-                let hasChanges = false;
-
-                for (const link of links) {
-                    const patchedUrl = this.patchUrl(link.url, rules);
-                    const isModified = patchedUrl !== link.url;
-
-                    results.push({
-                        originalUrl: link.url,
-                        patchedUrl: patchedUrl,
-                        text: link.text,
-                        pos: link.pos,
-                        success: true,
-                        isModified: isModified
+            // 2. Gather all image elements (<img> tags)
+            const imgs = Array.from(doc.querySelectorAll('img'));
+            imgs.forEach(el => {
+                const src = el.getAttribute('src');
+                if (src && src.startsWith('http')) {
+                    const alt = el.getAttribute('alt') || '';
+                    urlTargets.push({ 
+                        element: el, 
+                        attr: 'src', 
+                        originalUrl: src,
+                        label: `Imagen: ${alt ? (alt.length > 25 ? alt.substring(0, 22) + '...' : alt) : 'Sin alt'}`
                     });
+                }
+            });
 
-                    if (isModified) {
-                        hasChanges = true;
-                        chain = chain
-                            .setTextSelection({ from: link.pos, to: link.pos + link.text.length })
-                            .extendMarkRange('link')
-                            .setLink({ 
-                                href: patchedUrl, 
-                                'data-original-url': link.originalUrl || link.url 
-                            } as any);
+            // 3. Gather all custom nous assets
+            const customAssets = Array.from(doc.querySelectorAll('nous-asset, [data-nous-asset]'));
+            customAssets.forEach(el => {
+                const url = el.getAttribute('url') || el.getAttribute('src');
+                if (url && url.startsWith('http')) {
+                    urlTargets.push({ 
+                        element: el, 
+                        attr: el.hasAttribute('url') ? 'url' : 'src', 
+                        originalUrl: url,
+                        label: `Nous Asset: ${el.getAttribute('id') || 'no-id'}`
+                    });
+                }
+            });
+
+            let hasChanges = false;
+
+            urlTargets.forEach((target, index) => {
+                const patchedUrl = this.patchUrl(target.originalUrl, rules);
+                const isModified = patchedUrl !== target.originalUrl;
+
+                results.push({
+                    originalUrl: target.originalUrl,
+                    patchedUrl: patchedUrl,
+                    text: target.label,
+                    pos: index,
+                    success: true,
+                    isModified: isModified
+                });
+
+                if (isModified) {
+                    hasChanges = true;
+                    target.element.setAttribute(target.attr, patchedUrl);
+                    // Also store the original URL for safety inside custom attributes if it is a link
+                    if (target.attr === 'href' && !target.element.getAttribute('data-original-url')) {
+                        target.element.setAttribute('data-original-url', target.originalUrl);
                     }
                 }
+            });
 
-                if (hasChanges) {
-                    chain.run();
-                }
-            } else {
-                // Simulation mode: only collect results
-                for (const link of links) {
-                    const patchedUrl = this.patchUrl(link.url, rules);
-                    results.push({
-                        originalUrl: link.url,
-                        patchedUrl: patchedUrl,
-                        text: link.text,
-                        pos: link.pos,
-                        success: true,
-                        isModified: patchedUrl !== link.url
-                    });
-                }
+            if (mode === 'apply' && hasChanges) {
+                // Update Tiptap content seamlessly in a single shot
+                editor.commands.setContent(doc.body.innerHTML, false);
             }
 
             return { success: true, results };
