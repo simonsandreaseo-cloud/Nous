@@ -40,6 +40,7 @@ import {
     PanelRight,
     History,
     Eye,
+    Download,
     Plus,
     Check,
     X,
@@ -327,6 +328,7 @@ export default function WriterStudio() {
     const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
     const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
     const [isEditorCollapsed, setIsEditorCollapsed] = useState(false);
+    const [isDownloadingZip, setIsDownloadingZip] = useState(false);
 
     const toggleLeftPanel = useCallback(() => {
         const panel = leftPanelRef.current;
@@ -1029,6 +1031,227 @@ export default function WriterStudio() {
         }
     };
 
+    const getCleanFilename = (text: string) => {
+        return text
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // remove accents
+            .replace(/[^a-z0-9]+/g, "-") // replace non-alphanumeric characters with hyphens
+            .replace(/(^-|-$)+/g, ""); // trim trailing and leading hyphens
+    };
+
+    const handleDownloadZip = async () => {
+        if (isDownloadingZip) return;
+        setIsDownloadingZip(true);
+        setStatus('📦 Preparando empaquetado ZIP...');
+        
+        try {
+            const titleText = strategyH1 || keyword || "articulo-nous";
+            const cleanSlug = getCleanFilename(titleText) || "articulo";
+
+            const JSZip = (await import('jszip')).default;
+            const zip = new JSZip();
+
+            // 1. Get raw HTML and set up DOM Parser for transformation
+            let contentHtml = content || "";
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = contentHtml;
+
+            // Transform custom Tiptap/Nous elements to standard HTML
+            const customAssets = tempDiv.querySelectorAll('nous-asset, div[data-type="nousAsset"], figure[data-nous-asset="true"], div.nous-image-slot, div[data-type="imageSlot"]');
+            customAssets.forEach((asset) => {
+                const url = asset.getAttribute('url') || asset.getAttribute('data-url') || asset.querySelector('img')?.getAttribute('src');
+                const alt = asset.getAttribute('alt') || asset.getAttribute('data-alt') || asset.querySelector('img')?.getAttribute('alt') || '';
+                const titleTextAttr = asset.getAttribute('title') || asset.getAttribute('data-title') || '';
+                const align = asset.getAttribute('align') || asset.getAttribute('data-align') || 'center';
+                const width = asset.getAttribute('width') || asset.getAttribute('data-width') || '100%';
+                const statusAttr = asset.getAttribute('data-status') || asset.getAttribute('status') || 'final';
+
+                if (url && statusAttr !== 'pending') {
+                    const figure = document.createElement('figure');
+                    figure.className = 'my-12 flex flex-col items-center justify-center clear-both';
+                    
+                    if (align === 'left') {
+                        figure.className = 'my-8 md:float-left md:mr-8 max-w-sm clear-none';
+                    } else if (align === 'right') {
+                        figure.className = 'my-8 md:float-right md:ml-8 max-w-sm clear-none';
+                    } else if (align === 'full') {
+                        figure.className = 'my-12 w-full clear-both';
+                    }
+
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = alt;
+                    img.title = titleTextAttr;
+                    img.className = 'rounded-[2rem] shadow-2xl border border-slate-200/60 max-w-full hover:scale-[1.01] transition-transform duration-500';
+                    img.style.width = width;
+                    img.style.height = 'auto';
+
+                    figure.appendChild(img);
+
+                    if (titleTextAttr) {
+                        const figcaption = document.createElement('figcaption');
+                        figcaption.className = 'mt-4 text-center text-sm text-slate-400 font-medium italic';
+                        figcaption.textContent = titleTextAttr;
+                        figure.appendChild(figcaption);
+                    }
+
+                    asset.parentNode?.replaceChild(figure, asset);
+                }
+            });
+
+            const images = tempDiv.querySelectorAll('img:not(figure img)');
+            images.forEach((img) => {
+                if (!img.className) {
+                    img.className = 'rounded-[2rem] shadow-2xl border border-slate-200/60 max-w-full my-12 mx-auto block';
+                }
+            });
+
+            // 2. Scan and build image download tasks
+            const allImgElements = Array.from(tempDiv.querySelectorAll('img'));
+            const featured = useWriterStore.getState().taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured');
+            
+            const imageDownloads: { url: string; localPath: string; element?: HTMLImageElement }[] = [];
+            const seenUrls = new Set<string>();
+
+            // Add cover hero image task if exists
+            if (featured && featured.url) {
+                const originalUrl = featured.url;
+                const urlParts = originalUrl.split('/');
+                const rawFilename = urlParts[urlParts.length - 1];
+                const cleanFilename = rawFilename.replace(/^\d+-/, ''); // Strip Supabase numerical prefix
+                const localPath = `images/${cleanFilename}`;
+                
+                imageDownloads.push({ url: originalUrl, localPath });
+                seenUrls.add(originalUrl);
+            }
+
+            // Add body image tasks
+            allImgElements.forEach((img) => {
+                const originalUrl = img.getAttribute('src');
+                if (originalUrl && originalUrl.startsWith('http')) {
+                    let localPath = '';
+                    if (seenUrls.has(originalUrl)) {
+                        const existing = imageDownloads.find(d => d.url === originalUrl);
+                        localPath = existing ? existing.localPath : '';
+                    } else {
+                        const urlParts = originalUrl.split('/');
+                        const rawFilename = urlParts[urlParts.length - 1];
+                        const cleanFilename = rawFilename.replace(/^\d+-/, '');
+                        localPath = `images/${cleanFilename}`;
+                        
+                        imageDownloads.push({ url: originalUrl, localPath, element: img });
+                        seenUrls.add(originalUrl);
+                    }
+                    
+                    // Replace remote src with relative local path inside the exported HTML
+                    img.setAttribute('src', localPath);
+                }
+            });
+
+            // 3. Fetch images concurrently as blobs and insert into ZIP
+            if (imageDownloads.length > 0) {
+                setStatus(`📥 Descargando ${imageDownloads.length} imágenes...`);
+                
+                const fetchPromises = imageDownloads.map(async (item) => {
+                    try {
+                        const response = await fetch(item.url, { mode: 'cors' });
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        const blob = await response.blob();
+                        zip.file(item.localPath, blob);
+                    } catch (err) {
+                        console.error(`Error downloading image for ZIP: ${item.url}`, err);
+                        // If download fails (e.g. CORS), restore remote URL in element
+                        if (item.element) {
+                            item.element.setAttribute('src', item.url);
+                        }
+                    }
+                });
+
+                await Promise.all(fetchPromises);
+            }
+
+            // 4. Compile final HTML content with localized relative asset paths
+            const processedHtml = tempDiv.innerHTML;
+            const finalHeroPath = featured && featured.url && seenUrls.has(featured.url)
+                ? imageDownloads.find(d => d.url === featured.url)?.localPath
+                : (featured?.url || '');
+
+            const heroHtml = finalHeroPath ? `
+                <header class="mb-10">
+                    <div class="relative w-full aspect-[21/9] overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/40 shadow-2xl mb-8">
+                        <img src="${finalHeroPath}" alt="${featured?.alt_text || ''}" class="w-full h-full object-cover" />
+                    </div>
+                    <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4 font-title">${titleText}</h1>
+                    <div class="w-20 h-1 bg-indigo-500 rounded-full"></div>
+                </header>
+            ` : `
+                <header class="mb-10">
+                    <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4 font-title">${titleText}</h1>
+                    <div class="w-20 h-1 bg-indigo-500 rounded-full"></div>
+                </header>
+            `;
+
+            const fullHtml = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${titleText}</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        title: ['Outfit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Outfit', sans-serif !important;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-500 selection:text-white leading-relaxed">
+    <main class="max-w-4xl mx-auto px-6 md:px-12 py-16 md:py-24 bg-white md:my-12 md:rounded-[3rem] md:shadow-2xl/10 border border-slate-100/50">
+        ${heroHtml}
+        <article class="prose prose-slate prose-lg max-w-none prose-headings:font-black prose-headings:tracking-tight prose-a:text-indigo-600 hover:prose-a:text-indigo-500 prose-img:rounded-[2rem] prose-img:shadow-2xl">
+            ${processedHtml}
+        </article>
+    </main>
+</body>
+</html>`;
+
+            // Save HTML file inside the ZIP root
+            zip.file(`${cleanSlug}.html`, fullHtml);
+
+            // 5. Generate zip blob and trigger client download
+            setStatus('📦 Creando empaquetado comprimido...');
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            saveAs(zipBlob, `${cleanSlug}.zip`);
+            
+            setStatus('✅ ¡Descarga de ZIP exitosa!');
+            setTimeout(() => setStatus(''), 3000);
+        } catch (error: any) {
+            console.error('Error generating ZIP archive:', error);
+            setStatus(`❌ Error: ${error.message || 'No se pudo generar el ZIP'}`);
+            setTimeout(() => setStatus(''), 4000);
+        } finally {
+            setIsDownloadingZip(false);
+        }
+    };
+
     const handlePreview = () => {
         const title = strategyH1 || keyword || "Vista Previa de Nous Studio";
         let contentHtml = content || "";
@@ -1420,6 +1643,14 @@ export default function WriterStudio() {
                                     title="Vista previa del artículo"
                                 >
                                     <Eye size={14} />
+                                </button>
+                                <button 
+                                    onClick={handleDownloadZip}
+                                    className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 active:scale-95 transition-all text-slate-500 hover:text-slate-800" 
+                                    title="Descargar HTML e Imágenes (ZIP)"
+                                    disabled={isDownloadingZip}
+                                >
+                                    {isDownloadingZip ? <Loader2 className="animate-spin text-indigo-500" size={14} /> : <Download size={14} />}
                                 </button>
                             </div>
                             
