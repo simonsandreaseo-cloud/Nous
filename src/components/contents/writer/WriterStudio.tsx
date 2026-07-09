@@ -82,6 +82,8 @@ import { PollinationsService } from '@/lib/services/pollinationsService';
 import { NousLogo } from '@/components/dom/NousLogo';
 import { ImageAsset } from '@/types/images';
 
+const EMPTY_ARRAY: any[] = [];
+
 const StepIcon = ({ active, done, icon: Icon, label }: { active: boolean, done: boolean, icon: any, label: string }) => (
     <div className={cn(
         "flex items-center gap-1.5 transition-all",
