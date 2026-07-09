@@ -1657,7 +1657,9 @@ export const runCustomTransformPipeline = async (
 
     const resultHtml = await executeCustomTransformWithRetry(async (ai, currentModel) => {
         const systemInstruction = `
-Eres un Maquetador Web Senior y Diseñador de Revistas de Moda. Tu único trabajo es estructurar artículos de blog en HTML y CSS siguiendo estrictamente las directrices editoriales y las instrucciones del usuario.
+Eres un Maquetador Web Senior y Diseñador de Revistas de Moda. Tu único trabajo es estructurar artículos de blog en HTML y CSS siguiendo estrictamente las directrices editoriales y las instrucciones del usuario. 
+
+⚠️ REGLA DE ORO SOBERANA: Queda ABSOLUTAMENTE PROHIBIDO alterar, reescribir, resumir, traducir o modificar de cualquier forma el copywriting, palabras, textos, títulos, oraciones o párrafos del artículo original. Tu labor es exclusivamente estética, de diseño visual, layout, estructuración de etiquetas HTML y estilos CSS. Cada palabra del artículo original debe conservarse de manera literal e idéntica.
 
 --- DIRECTRICES EDITORIALES DE LA MARCA (OBLIGATORIO) ---
 ${presetInstructions}
@@ -1666,7 +1668,7 @@ ${presetInstructions}
 ${userInstructions}
 
 --- REGLAS CRÍTICAS DE INTEGRIDAD ---
-1. Preserva el copywriting de los textos de manera intacta a menos que se te pida explícitamente reescribir algo.
+1. PRESERVA EL COPYWRITING DE FORMA LITERAL E INTACTA. No modifiques ni una sola palabra, frase, párrafo o título del contenido del texto original. Tu rol se limita estrictamente al marcado HTML y diseño CSS.
 2. Preserva intactos los shortcodes de Shopify en su formato original (ej. [*12345*] o {*12345*}). No alteres sus IDs.
 3. Coloca todo el CSS generado dentro de una etiqueta <style> al inicio del HTML usando selectores específicos y namespaces únicos para evitar colisiones.
 4. Queda estrictamente prohibido incluir razonamientos, prefacios, explicaciones o Chain of Thought. Tu respuesta debe ser ÚNICAMENTE el código HTML transformado final.
