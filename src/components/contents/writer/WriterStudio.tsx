@@ -161,13 +161,13 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
                     accept="image/*" 
                     className="hidden" 
                 />
-                <div 
-                    onClick={() => !isUploading && fileInputRef.current?.click()}
-                    className={cn(
-                        "w-full aspect-[21/9] rounded-[2.5rem] bg-slate-50/60 border-2 border-dashed border-slate-200/80 hover:border-indigo-400 hover:bg-indigo-50/30 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center gap-2 p-8 group",
-                        isUploading && "cursor-not-allowed opacity-80"
-                    )}
-                >
+                                <div 
+                                    onClick={() => !isUploading && fileInputRef.current?.click()}
+                                    className={cn(
+                                        "w-full aspect-[14/3] rounded-[2.5rem] bg-slate-50/60 border-2 border-dashed border-slate-200/80 hover:border-indigo-400 hover:bg-indigo-50/30 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center gap-2 p-8 group",
+                                        isUploading && "cursor-not-allowed opacity-80"
+                                    )}
+                                >
                     {isUploading ? (
                         <div className="flex flex-col items-center gap-3">
                             <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
@@ -237,10 +237,10 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
 
     return (
         <div className="mb-8 group/featured relative animate-in fade-in slide-in-from-top-4 duration-700">
-            <div className={cn(
-                "relative w-full aspect-[21/9] overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/50 shadow-2xl transition-all duration-500",
-                "border-solid border-slate-100 shadow-indigo-500/5"
-            )}>
+                <div className={cn(
+                    "relative w-full aspect-[14/3] overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/50 shadow-2xl transition-all duration-500",
+                    "border-solid border-slate-100 shadow-indigo-500/5"
+                )}>
                 <div className="absolute top-6 left-6 z-20 px-4 py-1.5 bg-black/80 backdrop-blur-md text-white border border-white/20 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl">
                     Portada Magistral
                 </div>

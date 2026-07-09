@@ -298,6 +298,79 @@ export async function uploadManualImage(params: {
 }
 
 /**
+ * Server Action to upload an image from the editor.
+ * Processes the image to WebP and saves it to the task_images table.
+ */
+export async function uploadEditorImageAction(formData: FormData) {
+    try {
+        const file = formData.get('file') as File;
+        const taskId = formData.get('taskId') as string;
+        const altText = formData.get('altText') as string;
+        
+        if (!file || !taskId) {
+            throw new Error('Missing file or taskId');
+        }
+
+        const imageBuffer = Buffer.from(await file.arrayBuffer());
+        const isGif = file.type.toLowerCase().includes('gif') || file.name.toLowerCase().endsWith('.gif');
+        const imageId = Math.random().toString(36).substr(2, 9);
+        const supabaseAdmin = getSupabaseAdmin();
+
+        let storagePath: string;
+        let publicUrl: string;
+
+        if (isGif) {
+            storagePath = `generations/${taskId}/${imageId}.gif`;
+            const { error: uploadError } = await supabaseAdmin.storage
+                .from('content-images')
+                .upload(storagePath, imageBuffer, { contentType: 'image/gif', upsert: true });
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl: url } } = supabaseAdmin.storage.from('content-images').getPublicUrl(storagePath);
+            publicUrl = url;
+        } else {
+            const processingParams: any = {
+                buffer: imageBuffer,
+                fileName: `${taskId}/${imageId}.webp`,
+                bucket: 'content-images',
+            };
+            
+            // Try to find project maxKb limit
+            let maxKb = 300;
+            const { data: task } = await supabaseAdmin.from('tasks').select('project_id').eq('id', taskId).single();
+            if (task?.project_id) {
+                const { data: project } = await supabaseAdmin.from('projects').select('settings').eq('id', task.project_id).single();
+                if (project?.settings?.images) maxKb = project.settings.images.max_kb || 300;
+            }
+
+            const result = maxKb 
+                ? await PostProcessingService.optimizeToLimit(processingParams, maxKb)
+                : await PostProcessingService.processAndUpload(processingParams);
+
+            if (!result.success) throw new Error(result.error || "Image processing failed");
+            storagePath = result.storage_path!;
+            publicUrl = result.url!;
+        }
+
+        const { error: dbError } = await supabaseAdmin.from('task_images').insert({
+            task_id: taskId,
+            storage_path: storagePath,
+            url: publicUrl,
+            prompt: 'Carga desde editor',
+            alt_text: altText || file.name,
+            title: file.name,
+            type: 'inline'
+        });
+
+        if (dbError) throw dbError;
+
+        return { success: true, publicUrl, storagePath };
+    } catch (error: any) {
+        console.error('Error in uploadEditorImageAction:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Server Action to delete an image record and its associated storage file.
  */
 export async function deleteImageAction(imageId: string, storagePath: string) {

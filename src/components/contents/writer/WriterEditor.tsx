@@ -83,6 +83,7 @@ export default function WriterEditor() {
     // --- Image Upload ---
     const { isUploading: isUploadingImage, openFilePicker, handlePaste: handleImagePaste, handleFileDrop } = useImageUpload({
         folder: `editor-uploads/${draftId || 'draft'}`,
+        taskId: draftId || 'draft',
         onSuccess: (url, fileName) => {
             if (!editor) return;
             const assetId = Math.random().toString(36).substr(2, 9);
@@ -418,11 +419,6 @@ export default function WriterEditor() {
         <div className="relative w-full h-full flex flex-col">
 
             <div className={cn("relative flex-1 mt-6", editorTab !== 'visual' && 'hidden')}>
-                <FeaturedImageSlot 
-                    taskId={draftId} 
-                    onFullscreen={(img) => setFullscreenImage(img)} 
-                />
-
                 <SlashMenu
                     position={slashMenuPos}
                     onSelect={handleSlashCommand}

@@ -8,14 +8,18 @@ const BUCKET = 'task-assets';
 const MAX_SIZE_MB = 5;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
 
+import { uploadEditorImageAction } from '@/lib/actions/imageActions';
+
 interface UseImageUploadOptions {
     /** Folder inside the user's directory. Defaults to 'editor-uploads' */
     folder?: string;
+    /** The task ID for the current context */
+    taskId: string;
     /** Called with the public URL after a successful upload */
     onSuccess: (url: string, fileName: string) => void;
 }
 
-export function useImageUpload({ folder = 'editor-uploads', onSuccess }: UseImageUploadOptions) {
+export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }: UseImageUploadOptions) {
     const [isUploading, setIsUploading] = useState(false);
 
     const uploadFile = useCallback(async (file: File) => {
@@ -33,34 +37,27 @@ export function useImageUpload({ folder = 'editor-uploads', onSuccess }: UseImag
         }
 
         setIsUploading(true);
-        const toastId = toast.loading('Subiendo imagen...');
+        const toastId = toast.loading('Optimizando y subiendo imagen...');
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) throw new Error('No hay sesión activa.');
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('taskId', taskId);
+            formData.append('altText', file.name);
 
-            const sanitizedName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
-            const path = `${session.user.id}/${folder}/${Date.now()}-${sanitizedName}`;
+            const res = await uploadEditorImageAction(formData);
 
-            const { error: uploadError } = await supabase.storage
-                .from(BUCKET)
-                .upload(path, file, { upsert: false, contentType: file.type });
+            if (!res.success) throw new Error(res.error || 'Error en el procesamiento de la imagen');
 
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage
-                .from(BUCKET)
-                .getPublicUrl(path);
-
-            toast.success('Imagen subida', { id: toastId });
-            onSuccess(publicUrl, file.name);
+            toast.success('Imagen optimizada y subida', { id: toastId });
+            onSuccess(res.publicUrl, file.name);
         } catch (err: any) {
             console.error('[useImageUpload]', err);
             toast.error(`Error al subir: ${err.message}`, { id: toastId });
         } finally {
             setIsUploading(false);
         }
-    }, [folder, onSuccess]);
+    }, [taskId, onSuccess]);
 
     /** Opens a native file picker and uploads the selected file */
     const openFilePicker = useCallback(() => {
