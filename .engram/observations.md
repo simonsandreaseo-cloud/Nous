@@ -234,3 +234,21 @@ mem_save: Separaci�n de pipeline para Mini Humanizador
   - **Why**: The `'outline_structure'` key was omitted in `updateTask` routing, saving it to the metadata `tasks` table instead of `task_research`. Upon reload, `researchData` from `task_research` spread after `tasks`, overwriting and destroying the correct outline structure with an empty one.
   - **Where**: `src/store/project/task-slice.ts`
   - **Learned**: In 1:1 distributed tables, omitting a heavy field in the state update routing will result in silent UI desyncs or data overwriting during spread operations upon re-fetching. Always ensure that keys are explicitly declared in the correct table updater bucket.
+
+## [2026-07-09] Conversión Total a WebP Estático, Preservación de GIFs y Migración Retroactiva
+**Type**: feature
+**Topic Key**: project/images-webp-pipeline
+
+### What
+1. **Refactorización de `uploadManualImage`** en `src/lib/actions/imageActions.ts`: Las imágenes estáticas subidas manualmente (PNG, JPG, AVIF, WEBP) ahora se interceptan, se transcodifican de forma binaria a WebP mediante `PostProcessingService` con Sharp, y se optimizan según los límites de peso de calidad del proyecto (`max_kb`) antes de guardarse en Supabase Storage y en `task_images`. Los GIFs animados se preservan intactos de forma nativa para que no pierdan su animación.
+2. **Script de Migración Retroactiva**: Creado [`migrate_images_to_webp.ts`](file:///c:/Users/Simon%20Sandrea/Pictures/Desarrollos%20SimonSEO/nous_2.0/scripts/migrate_images_to_webp.ts) para escanear de forma masiva las imágenes no-webp en `task_images`, convertirlas en WebP, actualizar todas las referencias en cascada en la DB (HTML de `content_body`, `featured_image` y `attachments` en `tasks`) y limpiar el Storage borrando los archivos pesados originales de Supabase de manera automatizada.
+
+### Why
+Garantizar que todo el ecosistema de imágenes cargue de forma ultra-rápida en el cliente (con WebP nativo) y que se cumplan estrictamente los estándares de SEO técnico en peso de assets sin dejar enlaces rotos.
+
+### Where
+- `src/lib/actions/imageActions.ts`
+- `scripts/migrate_images_to_webp.ts`
+
+### Learned
+Transcodificar en el backend usando Sharp antes de la persistencia previene que archivos pesados o de formatos ineficientes de los usuarios entren al Storage, manteniendo la base de datos limpia de raíz. Omitir los GIFs es indispensable para no perder el formato animado mediante compresión estática simple.

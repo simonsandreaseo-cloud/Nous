@@ -189,6 +189,11 @@ export async function uploadGeneratedImage(params: {
 /**
  * Server Action to upload a manual image (Base64) to Supabase Storage.
  */
+/**
+ * Server Action to upload a manual image (Base64) to Supabase Storage.
+ * Converts static images to WebP and applies project optimization limits.
+ * Leaves GIFs untouched to preserve animation.
+ */
 export async function uploadManualImage(params: {
     base64: string;
     fileType: string;
@@ -199,26 +204,76 @@ export async function uploadManualImage(params: {
 }) {
     try {
         const imageBuffer = Buffer.from(params.base64.split(',')[1], 'base64');
-        const fileExt = params.fileType.split('/')[1] || 'jpg';
+        const isGif = params.fileType.toLowerCase().includes('gif') || params.fileName.toLowerCase().endsWith('.gif');
         const imageId = Math.random().toString(36).substr(2, 9);
-        const storagePath = `generations/${params.taskId}/${imageId}.${fileExt}`;
 
         const supabaseAdmin = getSupabaseAdmin();
 
-        // 1. Upload to Storage
-        const { error: uploadError } = await supabaseAdmin.storage
-            .from('content-images')
-            .upload(storagePath, imageBuffer, {
-                contentType: params.fileType,
-                upsert: true
-            });
+        let storagePath: string;
+        let publicUrl: string;
 
-        if (uploadError) throw uploadError;
+        if (isGif) {
+            // Leave GIF untouched to preserve animation
+            const fileExt = 'gif';
+            storagePath = `generations/${params.taskId}/${imageId}.${fileExt}`;
 
-        // 2. Get Public URL
-        const { data: { publicUrl } } = supabaseAdmin.storage
-            .from('content-images')
-            .getPublicUrl(storagePath);
+            const { error: uploadError } = await supabaseAdmin.storage
+                .from('content-images')
+                .upload(storagePath, imageBuffer, {
+                    contentType: 'image/gif',
+                    upsert: true
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl: url } } = supabaseAdmin.storage
+                .from('content-images')
+                .getPublicUrl(storagePath);
+
+            publicUrl = url;
+        } else {
+            // Process static image (JPEG/PNG/AVIF/WEBP) to authenticated WebP
+            // 1. Fetch Project Settings for Weight Limit
+            let maxKb = 300;
+            let projectId: string | undefined;
+
+            if (params.taskId) {
+                const { data: task } = await supabaseAdmin
+                    .from('tasks')
+                    .select('project_id')
+                    .eq('id', params.taskId)
+                    .single();
+
+                if (task?.project_id) {
+                    projectId = task.project_id;
+                    const { data: project } = await supabaseAdmin
+                        .from('projects')
+                        .select('settings')
+                        .eq('id', projectId)
+                        .single();
+
+                    if (project?.settings?.images) {
+                        maxKb = project.settings.images.max_kb || 300;
+                    }
+                }
+            }
+
+            // 2. Process and Upload via PostProcessingService to WebP
+            const processingParams: any = {
+                buffer: imageBuffer,
+                fileName: `${params.taskId}/${imageId}.webp`,
+                bucket: 'content-images',
+            };
+
+            const result = maxKb 
+                ? await PostProcessingService.optimizeToLimit(processingParams, maxKb)
+                : await PostProcessingService.processAndUpload(processingParams);
+
+            if (!result.success) throw new Error(result.error || "Image post-processing failed");
+
+            storagePath = result.storage_path!;
+            publicUrl = result.url!;
+        }
 
         // 3. Save Record in DB
         const { error: dbError } = await supabaseAdmin
