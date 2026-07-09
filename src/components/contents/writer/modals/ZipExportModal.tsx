@@ -10,6 +10,7 @@ import {
 import { saveAs } from 'file-saver';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
+import { getCoverImage } from '@/components/contents/writer/NousAssetNodeView';
 
 interface ZipExportModalProps {
     isOpen: boolean;
@@ -133,7 +134,7 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
             });
 
             // Find cover/featured image
-            const featured = taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured');
+            const featured = getCoverImage(taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured'));
             
             if (format === 'zip') {
                 const JSZip = (await import('jszip')).default;

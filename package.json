@@ -1,5 +1,5 @@
 {
-  "name": "nous_2.0",
+  "type": "module",
   "version": "0.1.0",
   "private": true,
   "scripts": {

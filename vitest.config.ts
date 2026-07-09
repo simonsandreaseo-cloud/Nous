@@ -4,6 +4,13 @@ import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@exodus/bytes': resolve(__dirname, './test/mocks/@exodus/bytes'),
+      'html-encoding-sniffer': resolve(__dirname, './test/mocks/html-encoding-sniffer.js'),
+      '@': resolve(__dirname, './src'),
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,
@@ -14,8 +21,11 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: ['node_modules/', 'tests/setup.ts', 'tests/e2e/**'],
     },
-    alias: {
-      '@': resolve(__dirname, './src'),
+    deps: {
+      inline: ['html-encoding-sniffer', '@exodus/bytes'],
     },
+  },
+  poolOptions: {
+    singleThread: true,
   },
 });

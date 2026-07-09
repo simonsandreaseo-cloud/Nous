@@ -29,13 +29,25 @@ import ImageLightbox from './modals/ImageLightbox';
 import { useImageManager } from '@/hooks/useImageManager';
 import { AssetAlignment, AssetWrapping } from '@/types/images';
 
+export const getCoverImage = (image: any) => {
+  if (!image) return null;
+  const { role, type } = image;
+  if (role === 'hero' || type === 'hero' || type === 'featured') {
+    return image;
+  }
+  return null;
+};
+
 export default function NousAssetNodeView(props: any) {
     const { node, deleteNode, updateAttributes } = props;
+    // Expose node attrs for external utilities if needed
+    // (No change needed here)
     
     // Destructuración basada en el nuevo modelo ImageAsset (aplanado para Tiptap)
     const { 
         id, url, alt, title, prompt, status, 
-        role, semanticAnchor, 
+        role, semanticAnchor,
+        // Additional metadata can be added here 
         width, align, wrapping, aspectRatio 
     } = node.attrs;
 
@@ -255,7 +267,7 @@ export default function NousAssetNodeView(props: any) {
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-xl rounded-full border border-white/10 shadow-lg">
                                 <Sparkles size={11} className="text-indigo-400" />
                                 <span className="text-[9px] font-black uppercase tracking-widest text-white/90">
-                                    {role === 'hero' ? 'Portada Magistral' : role.toUpperCase()}
+                                    {role === 'hero' ? 'Portada Magistral' : (role ? role.toUpperCase() : '')}
                                 </span>
                             </div>
                             {semanticAnchor && (

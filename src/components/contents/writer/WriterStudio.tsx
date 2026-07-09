@@ -58,6 +58,7 @@ import ZipExportModal from './modals/ZipExportModal';
 import { CustomTransformModal, PRESETS } from '@/components/contents/tools/CustomTransformModal';
 
 import { Button } from '@/components/dom/Button';
+import { getCoverImage } from '@/components/contents/writer/NousAssetNodeView';
 import { cn } from '@/utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
@@ -108,7 +109,7 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
     const activeProject = projects.find(p => p.id === projectId);
     
     // Find hero by role or legacy featured type
-    const featured = taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured');
+    const featured = getCoverImage(taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured'));
     const [isRegenerating, setIsRegenerating] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1183,7 +1184,7 @@ export default function WriterStudio() {
 
             // 2. Scan and build image download tasks
             const allImgElements = Array.from(tempDiv.querySelectorAll('img'));
-            const featured = useWriterStore.getState().taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured');
+            const featured = getCoverImage(useWriterStore.getState().taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured'));
             
             const imageDownloads: { url: string; localPath: string; element?: HTMLImageElement }[] = [];
             const seenUrls = new Set<string>();
@@ -1398,7 +1399,7 @@ export default function WriterStudio() {
         const processedHtml = tempDiv.innerHTML;
 
         // Find hero image
-        const featured = useWriterStore.getState().taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured');
+        const featured = getCoverImage(useWriterStore.getState().taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured'));
         const heroHtml = featured && featured.url ? `
             <header class="mb-10">
                 <div class="relative w-full aspect-[21/9] overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/40 shadow-2xl mb-8">
