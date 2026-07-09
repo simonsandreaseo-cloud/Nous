@@ -30,30 +30,63 @@ const popUsage = (): TokenUsage | null => {
     return u;
 };
 
-// Gemini pricing per 1M tokens (USD) — as of July 2026
-// Source: Google AI Studio pricing images provided by user
+// Detailed model pricing per 1M tokens (USD)
+// Source: Official July 2026 Google AI Studio Pricing via web search
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-    // Gemini 3.1 Pro (all input sizes)
-    'gemini-3.1-pro': { input: 1.25, output: 10.00 },
-    'gemini-3.1-pro-preview': { input: 1.25, output: 10.00 },
-    // Gemini 3.5 Flash
-    'gemini-3.5-flash': { input: 0.15, output: 0.60 },
-    'gemini-3.5-flash-preview': { input: 0.15, output: 0.60 },
+    // Gemini 3.1 Pro / 3.0 Pro
+    'gemini-3.1-pro': { input: 2.00, output: 12.00 },
+    'gemini-3.1-pro-preview': { input: 2.00, output: 12.00 },
+    
+    // Gemini 3.5 Flash / 3.1 Flash
+    'gemini-3.5-flash': { input: 1.50, output: 9.00 },
+    'gemini-3.5-flash-preview': { input: 1.50, output: 9.00 },
+    'gemini-3.1-flash': { input: 1.50, output: 9.00 },
+    'gemini-3.1-flash-preview': { input: 1.50, output: 9.00 },
+    'gemini-3-flash': { input: 0.50, output: 3.00 },
+    'gemini-3-flash-preview': { input: 0.50, output: 3.00 },
+
     // Gemini 3.1 Flash Lite
-    'gemini-3.1-flash-lite': { input: 0.01, output: 0.04 },
-    'gemini-3.1-flash-lite-preview': { input: 0.01, output: 0.04 },
-    // Gemini 3.1 Flash
-    'gemini-3.1-flash': { input: 0.15, output: 0.60 },
-    'gemini-3.1-flash-preview': { input: 0.15, output: 0.60 },
-    // Gemma models (free / near-free, use Groq proxy — approx cost)
+    'gemini-3.1-flash-lite': { input: 0.25, output: 1.50 },
+    'gemini-3.1-flash-lite-preview': { input: 0.25, output: 1.50 },
+
+    // Gemini 2.5 / 2.0 Flash & Lite
+    'gemini-2.5-flash': { input: 0.30, output: 2.50 },
+    'gemini-2.5-flash-lite': { input: 0.10, output: 0.40 },
+
+    // Gemini 1.5 Legacy
+    'gemini-1.5-pro': { input: 1.25, output: 5.00 },
+    'gemini-1.5-flash': { input: 0.075, output: 0.30 },
+
+    // Claude models (OpenRouter)
+    'claude-3.5-sonnet': { input: 3.00, output: 15.00 },
+    'claude-3-5-sonnet': { input: 3.00, output: 15.00 },
+
+    // OpenAI models (OpenRouter)
+    'gpt-4o': { input: 2.50, output: 10.00 },
+
+    // DeepSeek models (OpenRouter)
+    'deepseek-r1': { input: 0.55, output: 2.19 },
+    'deepseek-chat': { input: 0.14, output: 0.28 },
+
+    // Gemma & Free models
     'gemma': { input: 0.00, output: 0.00 },
+    ':free': { input: 0.00, output: 0.00 }
 };
 
 const getPricing = (model: string): { input: number; output: number } => {
     const lm = model.toLowerCase();
-    for (const [key, pricing] of Object.entries(MODEL_PRICING)) {
-        if (lm.includes(key)) return pricing;
+    
+    // Free models check first
+    if (lm.includes(':free')) {
+        return { input: 0.00, output: 0.00 };
     }
+
+    // Sort keys by length descending to match more specific model names first (e.g. 'gemini-3.1-flash-lite' before 'gemini-3.1-flash')
+    const sortedKeys = Object.keys(MODEL_PRICING).sort((a, b) => b.length - a.length);
+    for (const key of sortedKeys) {
+        if (lm.includes(key)) return MODEL_PRICING[key];
+    }
+    
     // Fallback — unknown model, use conservative flash pricing
     return { input: 0.15, output: 0.60 };
 };
