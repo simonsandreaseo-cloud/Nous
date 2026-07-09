@@ -472,6 +472,7 @@ export default function WriterStudio() {
     const addActionToQueue = useCallback((type: LocalAction['type']) => {
         if (!draftId) return;
         
+        const store = useWriterStore.getState() as any;
         let defaultConfig = {};
         if (type === 'humanize') {
             defaultConfig = {
@@ -522,7 +523,7 @@ export default function WriterStudio() {
                 });
             }
         }, 100);
-    }, [draftId, store.detectedNiche]);
+    }, [draftId]);
 
     const waitForTaskCompletion = useCallback((taskId: string): Promise<boolean> => {
         return new Promise((resolve) => {
@@ -548,6 +549,7 @@ export default function WriterStudio() {
         if (isProcessingPipeline || localActionsQueue.length === 0) return;
         setIsProcessingPipeline(true);
         
+        const store = useWriterStore.getState() as any;
         const actionsToProcess = localActionsQueue.map((a, idx) => ({ ...a, originalIndex: idx }));
         
         for (let i = 0; i < actionsToProcess.length; i++) {
