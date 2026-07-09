@@ -1603,6 +1603,38 @@ export async function executeCustomTransformWithRetry<T>(
     );
 }
 
+const extractImgUrls = (html: string): string[] => {
+    const urls: string[] = [];
+    const regex = /<img[^>]+src=["']([^"']+)["']/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+        if (match[1] && match[1].startsWith('http')) {
+            urls.push(match[1]);
+        }
+    }
+    return urls;
+};
+
+const fetchImagePart = async (url: string): Promise<any | null> => {
+    try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+        if (!res.ok) return null;
+        const arrayBuffer = await res.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const mimeType = res.headers.get('content-type') || 'image/jpeg';
+        
+        return {
+            inlineData: {
+                data: buffer.toString('base64'),
+                mimeType: mimeType
+            }
+        };
+    } catch (e) {
+        console.error(`[Vision] Failed to fetch image ${url}:`, e);
+        return null;
+    }
+};
+
 export const runCustomTransformPipeline = async (
     html: string,
     presetInstructions: string,
@@ -1645,9 +1677,20 @@ ${userInstructions}
             systemInstruction
         });
 
-        const prompt = `CÓDIGO HTML ORIGINAL A TRANSFORMAR:\n${html}\n\nDEVUELVE SOLO EL HTML TRANSFORMADO SIN NINGÚN COMENTARIO NI TEXTO ADICIONAL.`;
+        const promptParts: any[] = [];
+        promptParts.push(`CÓDIGO HTML ORIGINAL A TRANSFORMAR:\n${html}\n\nDEVUELVE SOLO EL HTML TRANSFORMADO SIN NINGÚN COMENTARIO NI TEXTO ADICIONAL.`);
+
+        // Vision: Extract and attach up to 3 images from this HTML block so Gemini can see them
+        const imageUrls = extractImgUrls(html).slice(0, 3);
+        if (imageUrls.length > 0) {
+            safeStatus(`[Vision] Descargando y analizando ${imageUrls.length} imágenes de esta sección para el modelo multimodal...`);
+            for (const url of imageUrls) {
+                const imgPart = await fetchImagePart(url);
+                if (imgPart) promptParts.push(imgPart);
+            }
+        }
         
-        const response = await model.generateContent(prompt);
+        const response = await model.generateContent(promptParts);
         let raw = response.response.text();
 
         let cleaned = raw;
@@ -1659,4 +1702,79 @@ ${userInstructions}
     if (onChunk) onChunk(resultHtml);
 
     return { html: cleanAndFormatHtml(resultHtml) };
+};
+
+export interface ChiefDesignerPlanItem {
+    index: number;
+    focus: string;
+    pautasEspecificas: string;
+}
+
+export const runChiefDesignerPlanning = async (
+    chunks: string[],
+    presetInstructions: string,
+    userInstructions: string,
+    modelName: string = 'gemini-3.1-pro',
+    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+): Promise<ChiefDesignerPlanItem[]> => {
+    const parsed = parseModelAndProvider(modelName, provider);
+    const resolvedModel = parsed.resolvedModel;
+    const resolvedProvider = parsed.resolvedProvider;
+
+    const label = `Planificación del Jefe de Diseño`;
+
+    try {
+        const plan = await executeCustomTransformWithRetry(async (ai, currentModel) => {
+            const model = ai.getGenerativeModel({
+                model: currentModel,
+                generationConfig: { responseMimeType: 'application/json' }
+            });
+
+            const prompt = `
+Eres el JEFE DE DISEÑO EDITORIAL y Director de Arte Senior de una prestigiosa marca y revista de modas internacional. Tu trabajo es analizar la estructura global de un artículo dividido en secciones (chunks) y trazar un PLAN DE MAQUETACIÓN GLOBAL de vanguardia, determinando pautas visuales específicas y consistentes para que cada sección sea maquetada con la máxima sofisticación.
+
+--- DIRECTRICES EDITORIALES DE LA MARCA ---
+${presetInstructions}
+
+--- INSTRUCCIONES AD-HOC DEL CLIENTE ---
+${userInstructions}
+
+--- SECCIONES DEL ARTÍCULO ORIGINAL ---
+${chunks.map((c, i) => `[SECCIÓN ${i}]\n${c}\n`).join('\n---\n')}
+
+Analiza con detenimiento el flujo narrativo y visual del artículo. Determina qué tipo de componente o diseño asimétrico le corresponde a cada sección (ej. splits, grids, overlaps, alineaciones, resets de tabla, hack de Splide si contiene shortcodes de Shopify) para que los diseñadores maqueten cada sección de forma perfecta.
+
+Debes devolver un objeto JSON con la clave "plan" que contenga un array con exactamente ${chunks.length} elementos en orden estricto (uno para cada sección). Cada elemento debe tener exactamente estas propiedades:
+- "index": número de sección (de 0 a ${chunks.length - 1}).
+- "focus": resumen breve del contenido de esta sección (ej: "Sección de bienvenida y primer párrafo con overlap").
+- "pautasEspecificas": pautas visuales sumamente específicas y detalladas para el maquetador de esta sección, indicando qué clases usar, qué CSS inyectar, cómo resetear las tablas si las hay, o si hay que aplicar el hack de Splide para productos de Shopify.
+
+REQUISITO DE FORMATO: Devuelve exclusivamente un objeto JSON válido con la siguiente estructura:
+{
+  "plan": [
+    {
+      "index": 0,
+      "focus": "...",
+      "pautasEspecificas": "..."
+    }
+  ]
+}
+`;
+
+            const response = await model.generateContent(prompt);
+            const text = response.response.text();
+            const parsedJson = JSON.parse(text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim());
+            return parsedJson.plan as ChiefDesignerPlanItem[];
+        }, () => {}, label, resolvedModel, resolvedProvider);
+
+        return plan || [];
+    } catch (e) {
+        console.error("[ChiefDesigner] Error planning layout:", e);
+        // Fallback default empty plans
+        return chunks.map((_, i) => ({
+            index: i,
+            focus: `Sección ${i + 1}`,
+            pautasEspecificas: `${presetInstructions}\n\n${userInstructions}`
+        }));
+    }
 };

@@ -38,7 +38,12 @@ import {
     PanelRightClose,
     PanelRight,
     History,
-    Eye
+    Eye,
+    Plus,
+    Check,
+    X,
+    BrainCircuit,
+    Activity
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
 import { CustomTransformModal } from '@/components/contents/tools/CustomTransformModal';
@@ -404,6 +409,329 @@ export default function WriterStudio() {
     const [isCustomTransformOpen, setIsCustomTransformOpen] = useState(false);
     const isProcessingAny = isGenerating || isAnalyzingSEO || isPlanningStructure || isHumanizing || isRefining;
     const { user: localUser } = useAuthStore();
+
+    // --- Local Pipeline States ---
+    interface LocalAction {
+        id: string;
+        type: 'seo' | 'generate' | 'humanize' | 'surgical_edit' | 'clean' | 'refine' | 'custom_transform';
+        status: 'idle' | 'pending' | 'processing' | 'completed' | 'error';
+        config?: any;
+    }
+    const [queuesByDraft, setQueuesByDraft] = useState<Record<string, LocalAction[]>>({});
+    const [isProcessingPipeline, setIsProcessingPipeline] = useState(false);
+    const [pipelineIndex, setPipelineIndex] = useState<number | null>(null);
+    const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+    
+    const localActionsQueue = useMemo(() => {
+        return draftId ? (queuesByDraft[draftId] || []) : [];
+    }, [queuesByDraft, draftId]);
+
+    const setLocalActionsQueue = useCallback((newQueue: LocalAction[]) => {
+        if (!draftId) return;
+        setQueuesByDraft(prev => ({
+            ...prev,
+            [draftId]: newQueue
+        }));
+    }, [draftId]);
+
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    const updateActionStatus = useCallback((actionId: string, status: LocalAction['status']) => {
+        if (!draftId) return;
+        setQueuesByDraft(prev => {
+            const currentQueue = prev[draftId] || [];
+            return {
+                ...prev,
+                [draftId]: currentQueue.map(a => a.id === actionId ? { ...a, status } : a)
+            };
+        });
+    }, [draftId]);
+
+    const updateActionConfig = useCallback((actionId: string, key: string, value: any) => {
+        if (!draftId) return;
+        setQueuesByDraft(prev => {
+            const currentQueue = prev[draftId] || [];
+            return {
+                ...prev,
+                [draftId]: currentQueue.map(a => a.id === actionId ? { ...a, config: { ...(a.config || {}), [key]: value } } : a)
+            };
+        });
+    }, [draftId]);
+
+    const removeActionFromQueue = useCallback((actionId: string) => {
+        if (!draftId) return;
+        setQueuesByDraft(prev => {
+            const currentQueue = prev[draftId] || [];
+            return {
+                ...prev,
+                [draftId]: currentQueue.filter(a => a.id !== actionId)
+            };
+        });
+    }, [draftId]);
+
+    const addActionToQueue = useCallback((type: LocalAction['type']) => {
+        if (!draftId) return;
+        
+        let defaultConfig = {};
+        if (type === 'humanize') {
+            defaultConfig = {
+                niche: store.detectedNiche || 'General',
+                audience: 'Público General',
+                mode: 'unified',
+                notes: ''
+            };
+        } else if (type === 'refine') {
+            defaultConfig = {
+                instructions: '',
+                researchMode: 'rapid'
+            };
+        } else if (type === 'surgical_edit') {
+            defaultConfig = {
+                niche: store.detectedNiche || 'General',
+                audience: 'Público General'
+            };
+        } else if (type === 'custom_transform') {
+            defaultConfig = {
+                instructions: ''
+            };
+        }
+
+        const newAction: LocalAction = {
+            id: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type,
+            status: 'idle',
+            config: defaultConfig
+        };
+
+        setQueuesByDraft(prev => {
+            const currentQueue = prev[draftId] || [];
+            return {
+                ...prev,
+                [draftId]: [...currentQueue, newAction]
+            };
+        });
+
+        setIsSelectorOpen(false);
+
+        // Desplazar suavemente hacia abajo el contenedor
+        setTimeout(() => {
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTo({
+                    top: scrollContainerRef.current.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
+        }, 100);
+    }, [draftId, store.detectedNiche]);
+
+    const waitForTaskCompletion = useCallback((taskId: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            const check = () => {
+                const task = useQueueStore.getState().queue.find(t => t.id === taskId);
+                if (!task) {
+                    resolve(false);
+                    return;
+                }
+                if (task.status === 'completed') {
+                    resolve(true);
+                } else if (task.status === 'error') {
+                    resolve(false);
+                } else {
+                    setTimeout(check, 1000);
+                }
+            };
+            check();
+        });
+    }, []);
+
+    const processPipeline = useCallback(async () => {
+        if (isProcessingPipeline || localActionsQueue.length === 0) return;
+        setIsProcessingPipeline(true);
+        
+        const actionsToProcess = localActionsQueue.map((a, idx) => ({ ...a, originalIndex: idx }));
+        
+        for (let i = 0; i < actionsToProcess.length; i++) {
+            const action = actionsToProcess[i];
+            if (action.status === 'completed') continue;
+
+            setPipelineIndex(action.originalIndex);
+            updateActionStatus(action.id, 'processing');
+
+            const { enqueueTask } = useQueueStore.getState();
+            let globalTaskId: string | null = null;
+
+            try {
+                if (action.type === 'seo') {
+                    if (!store.keyword) {
+                        alert('Ingresa una palabra clave primero.');
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+                    globalTaskId = enqueueTask('seo', 'Investigando SEO', 
+                        { taskId: draftId, projectId: activeProject?.id, keyword: store.keyword },
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
+                }
+                else if (action.type === 'generate') {
+                    if (!store.strategyH1 && !store.keyword) {
+                        alert('Necesitas un H1 o keyword objetivo.');
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+                    globalTaskId = enqueueTask('generate', 'Generando borrador inicial', 
+                        { taskId: draftId, projectId: activeProject?.id },
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
+                }
+                else if (action.type === 'humanize') {
+                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const contentToHumanize = currentTask?.content_body || store.content;
+                    
+                    if (!contentToHumanize) {
+                        alert('No hay contenido para humanizar.');
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+
+                    const allLinks = [
+                        ...(store.strategyLinks || []),
+                        ...(store.strategyInternalLinks || []),
+                        ...(store.rawSeoData?.suggestedInternalLinks || [])
+                    ];
+                    const uniqueLinksMap = new Map();
+                    allLinks.forEach(l => {
+                        if (l.url && !uniqueLinksMap.has(l.url)) {
+                            uniqueLinksMap.set(l.url, { url: l.url, title: l.title || l.url });
+                        }
+                    });
+                    const unifiedLinks = Array.from(uniqueLinksMap.values());
+
+                    const humConfig = action.config || {};
+                    const config = {
+                        projectName: store.projectName, 
+                        niche: humConfig.niche || store.detectedNiche || 'General', 
+                        audience: humConfig.audience || 'Público General',
+                        keywords: store.keyword, 
+                        notes: humConfig.notes || '',
+                        lsiKeywords: store.strategyLSI.map((l: any) => l.keyword).concat(store.strategyLongTail),
+                        links: unifiedLinks, 
+                        questions: store.strategyQuestions,
+                        mode: humConfig.mode || 'unified',
+                        language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
+                    };
+
+                    globalTaskId = enqueueTask(
+                        'humanize', 
+                        `Humanizando: ${store.articleTitle || store.keyword || 'Artículo'}`, 
+                        { taskId: draftId, content: contentToHumanize, config }, 
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
+                }
+                else if (action.type === 'surgical_edit') {
+                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const contentToEdit = currentTask?.content_body || store.content;
+                    
+                    if (!contentToEdit) {
+                        alert('No hay contenido para la edición quirúrgica.');
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+
+                    const surgConfig = action.config || {};
+                    globalTaskId = enqueueTask(
+                        'surgical_edit',
+                        'Edición Quirúrgica',
+                        {
+                            draftId:     draftId,
+                            content:     contentToEdit,
+                            projectName: store.projectName,
+                            niche:       surgConfig.niche || store.detectedNiche || 'General',
+                            audience:    surgConfig.audience || 'Público General',
+                            language:    activeProject?.settings?.content_preferences?.default_content_language || 'es',
+                        },
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
+                }
+                else if (action.type === 'clean') {
+                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const contentToClean = currentTask?.content_body || store.content;
+                    
+                    if (!contentToClean) {
+                        alert('No hay contenido para limpiar.');
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+
+                    globalTaskId = enqueueTask(
+                        'clean', 
+                        'Limpiando huellas IA', 
+                        { taskId: draftId, content: contentToClean }, 
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
+                }
+                else if (action.type === 'refine') {
+                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const contentToRefine = currentTask?.content_body || store.content;
+                    
+                    if (!contentToRefine) {
+                        alert('No hay contenido para refinar.');
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+
+                    const refConfig = action.config || {};
+                    if (!refConfig.instructions) {
+                        alert('Ingresa las instrucciones de refinamiento primero.');
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+
+                    globalTaskId = enqueueTask(
+                        'refine', 
+                        'Refinando texto', 
+                        {
+                            taskId: draftId,
+                            content: contentToRefine,
+                            instructions: refConfig.instructions,
+                            researchMode: refConfig.researchMode || 'rapid'
+                        }, 
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
+                }
+                else if (action.type === 'custom_transform') {
+                    const customConfig = action.config || {};
+                    if (!customConfig.instructions) {
+                        alert('Ingresa las instrucciones de maquetación primero.');
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+                    setIsCustomTransformOpen(true);
+                    updateActionStatus(action.id, 'completed');
+                    continue;
+                }
+
+                if (globalTaskId) {
+                    const success = await waitForTaskCompletion(globalTaskId);
+                    if (success) {
+                        updateActionStatus(action.id, 'completed');
+                    } else {
+                        updateActionStatus(action.id, 'error');
+                        break;
+                    }
+                } else {
+                    updateActionStatus(action.id, 'error');
+                    break;
+                }
+            } catch (err) {
+                console.error(err);
+                updateActionStatus(action.id, 'error');
+                break;
+            }
+        }
+
+        setIsProcessingPipeline(false);
+        setPipelineIndex(null);
+    }, [localActionsQueue, draftId, activeProject, store, updateActionStatus, waitForTaskCompletion, isProcessingPipeline, setIsCustomTransformOpen]);
 
     const userColor = useMemo(() => {
         if (!localUser) return '#6366f1';
@@ -1165,31 +1493,298 @@ export default function WriterStudio() {
                          activeSidebarTab === 'tools' ? <ToolsTab /> : 
                          activeSidebarTab === 'translate' ? <TranslationSidebarPanel /> : 
                           activeSidebarTab === 'nous' ? (
-                              <div className="h-full flex flex-col p-4 gap-6">
-                                  <div className="flex justify-center shrink-0">
-                                      {/* Orbe eliminado por migración al Pipeline Centralizado */}
-                                  </div>
-                                  <div className="flex-1 overflow-hidden">
-                                       <NousAssistantMenu 
-                                           viewMode="writer" 
-                                           isProcessing={isProcessingAny} 
-                                           onWriterAction={(type) => { 
-                                               console.log("[DEBUG-Studio] Writer action received from Menu:", type);
-                                               if (type === 'seo') handleSEO(); 
-                                               if (type === 'generate') handleGenerate(); 
-                                               if (type === 'humanize') {
-                                                   console.log("[DEBUG-Studio] Calling handleHumanize from Menu...");
-                                                   handleHumanize(); 
-                                               } 
-                                               if (type === 'surgical_edit') handleSurgicalEdit();
-                                               if (type === 'refine') handleRefine(); 
-                                               if (type === 'clean') handleClean();
-                                               if (type === 'custom_transform') setIsCustomTransformOpen(true);
-                                           }} 
-                                       />
-                                  </div>
-                              </div>
-                          ) : 
+                               <div className="h-full flex flex-col min-h-0 bg-slate-50/40 relative">
+                                   {/* Header */}
+                                   <div className="px-4 py-3.5 border-b border-slate-200/60 bg-white/60 backdrop-blur-md flex items-center justify-between shrink-0">
+                                       <div className="flex items-center gap-2">
+                                           <div className="bg-indigo-500/10 p-1.5 rounded-lg text-indigo-600">
+                                               <Activity size={16} className="animate-pulse" />
+                                           </div>
+                                           <div>
+                                               <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Pipeline de Nous</h3>
+                                               <p className="text-[9px] text-slate-500 font-medium">Secuencia de tareas asíncronas</p>
+                                           </div>
+                                       </div>
+                                       {localActionsQueue.length > 0 && !isProcessingPipeline && (
+                                           <button 
+                                               onClick={() => setLocalActionsQueue([])}
+                                               className="text-[9px] font-black uppercase tracking-wider text-rose-500 hover:text-rose-600 transition-colors p-1"
+                                           >
+                                               Limpiar Todo
+                                           </button>
+                                       )}
+                                   </div>
+
+                                   {/* Lista de Acciones en la Cola (Scrolleable) */}
+                                   <div 
+                                       ref={scrollContainerRef}
+                                       className="flex-1 overflow-y-auto p-4 space-y-4 pb-24"
+                                   >
+                                       {localActionsQueue.length === 0 ? (
+                                           <div className="h-full flex flex-col items-center justify-center py-10">
+                                               <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 mb-3 shadow-inner">
+                                                   <Activity size={24} />
+                                               </div>
+                                               <p className="text-xs font-black uppercase tracking-wider text-slate-800 text-center">Diseña tu Pipeline</p>
+                                               <p className="text-[10px] text-slate-500 text-center max-w-[200px] mt-1 leading-snug font-medium">Agrega las acciones inteligentes que se ejecutarán secuencialmente sobre tu borrador.</p>
+                                           </div>
+                                       ) : (
+                                           <div className="space-y-3">
+                                               {localActionsQueue.map((action, index) => {
+                                                   let title = '';
+                                                   let desc = '';
+                                                   let Icon = Search;
+                                                   let colorClass = 'text-slate-500 bg-slate-50 border-slate-100';
+
+                                                   if (action.type === 'seo') {
+                                                       title = '1. Investigación SEO';
+                                                       desc = 'Extracción de entidades, competidores y estructura SERP.';
+                                                       Icon = Search;
+                                                       colorClass = 'text-indigo-600 bg-indigo-50 border-indigo-100';
+                                                   } else if (action.type === 'generate') {
+                                                       title = '2. Redacción IA Helios';
+                                                       desc = 'Generación completa del borrador usando IA Helios.';
+                                                       Icon = PenTool;
+                                                       colorClass = 'text-rose-600 bg-rose-50 border-rose-100';
+                                                   } else if (action.type === 'humanize') {
+                                                       title = '3. Humanizar Textos';
+                                                       desc = 'Reescritura semántica para aportar toque humano y evadir detectores.';
+                                                       Icon = Zap;
+                                                       colorClass = 'text-emerald-600 bg-emerald-50 border-emerald-100';
+                                                   } else if (action.type === 'surgical_edit') {
+                                                       title = '4. Edición Quirúrgica';
+                                                       desc = 'Mejorar legibilidad sin perder humanización (~20%).';
+                                                       Icon = Wrench;
+                                                       colorClass = 'text-purple-600 bg-purple-50 border-purple-100';
+                                                   } else if (action.type === 'clean') {
+                                                       title = '5. Limpieza Inteligente';
+                                                       desc = 'Eliminar prefacios, conclusiones robóticas y ruido IA.';
+                                                       Icon = Sparkles;
+                                                       colorClass = 'text-blue-600 bg-blue-50 border-blue-100';
+                                                   } else if (action.type === 'refine') {
+                                                       title = 'Refinar Contenido';
+                                                       desc = 'Refinamiento del texto mediante instrucciones personalizadas.';
+                                                       Icon = BrainCircuit;
+                                                       colorClass = 'text-violet-600 bg-violet-50 border-violet-100';
+                                                   } else if (action.type === 'custom_transform') {
+                                                       title = 'Maquetador HTML/CSS';
+                                                       desc = 'Aplicar maquetación o transformaciones personalizadas.';
+                                                       Icon = LayoutTemplate;
+                                                       colorClass = 'text-orange-600 bg-orange-50 border-orange-100';
+                                                   }
+
+                                                   return (
+                                                       <motion.div 
+                                                           key={action.id}
+                                                           initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                                                           animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                           exit={{ opacity: 0, scale: 0.95 }}
+                                                           className={cn(
+                                                               "border rounded-2xl bg-white/70 backdrop-blur-sm p-4.5 shadow-sm transition-all relative overflow-hidden",
+                                                               action.status === 'processing' ? 'ring-2 ring-indigo-500/30 border-indigo-200' : 'border-slate-100'
+                                                           )}
+                                                       >
+                                                           {/* Status Overlay for Processing */}
+                                                           {action.status === 'processing' && (
+                                                               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 animate-[shimmer_1.5s_infinite_linear]" style={{ backgroundSize: '200% 100%' }} />
+                                                           )}
+
+                                                           <div className="flex items-start justify-between gap-3">
+                                                               <div className="flex gap-3">
+                                                                   <div className={cn("p-2 rounded-xl border shrink-0", colorClass.split(' ')[0], colorClass.split(' ')[1], colorClass.split(' ')[2])}>
+                                                                       <Icon size={16} />
+                                                                   </div>
+                                                                   <div className="min-w-0">
+                                                                       <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-800 leading-snug">{title}</h4>
+                                                                       <p className="text-[9px] text-slate-500 mt-0.5 leading-relaxed font-medium">{desc}</p>
+                                                                   </div>
+                                                               </div>
+                                                               
+                                                               <div className="flex items-center gap-1.5 shrink-0">
+                                                                   {/* Action Status Badge */}
+                                                                   {action.status === 'idle' && (
+                                                                       <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                                                                           Por Procesar
+                                                                       </span>
+                                                                   )}
+                                                                   {action.status === 'processing' && (
+                                                                       <span className="text-[8px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                           <Loader2 size={10} className="animate-spin" /> Procesando
+                                                                       </span>
+                                                                   )}
+                                                                   {action.status === 'completed' && (
+                                                                       <span className="text-[8px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                           <Check size={10} /> Listo
+                                                                       </span>
+                                                                   )}
+                                                                   {action.status === 'error' && (
+                                                                       <span className="text-[8px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                           <X size={10} /> Error
+                                                                       </span>
+                                                                   )}
+
+                                                                   {/* Delete Button */}
+                                                                   {!isProcessingPipeline && (
+                                                                       <button 
+                                                                           onClick={() => removeActionFromQueue(action.id)}
+                                                                           className="text-slate-400 hover:text-rose-500 transition-colors p-1"
+                                                                       >
+                                                                           <Trash2 size={13} />
+                                                                       </button>
+                                                                   )}
+                                                               </div>
+                                                           </div>
+
+                                                           {/* Inline Configuration Forms */}
+                                                           {action.status === 'idle' && (
+                                                               <div className="mt-4 pt-3 border-t border-slate-100/70 space-y-3">
+                                                                   {/* 1. Humanize Config */}
+                                                                   {action.type === 'humanize' && (
+                                                                       <div className="grid grid-cols-2 gap-2">
+                                                                           <div>
+                                                                               <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Nicho</label>
+                                                                               <select 
+                                                                                   value={action.config?.niche || 'General'}
+                                                                                   onChange={(e) => updateActionConfig(action.id, 'niche', e.target.value)}
+                                                                                   className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-1.5 text-slate-700 outline-none"
+                                                                               >
+                                                                                   <option value="General">General</option>
+                                                                                   <option value="Tecnología">Tecnología</option>
+                                                                                   <option value="Finanzas">Finanzas</option>
+                                                                                   <option value="Salud">Salud</option>
+                                                                                   <option value="Moda">Moda</option>
+                                                                               </select>
+                                                                           </div>
+                                                                           <div>
+                                                                               <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Modo</label>
+                                                                               <select 
+                                                                                   value={action.config?.mode || 'unified'}
+                                                                                   onChange={(e) => updateActionConfig(action.id, 'mode', e.target.value)}
+                                                                                   className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-1.5 text-slate-700 outline-none"
+                                                                               >
+                                                                                   <option value="unified">Unified</option>
+                                                                                   <option value="creative">Vibrante</option>
+                                                                                   <option value="technical">Especializado</option>
+                                                                               </select>
+                                                                           </div>
+                                                                       </div>
+                                                                   )}
+
+                                                                   {/* 2. Refine Config */}
+                                                                   {action.type === 'refine' && (
+                                                                       <div className="space-y-2.5">
+                                                                           <div>
+                                                                               <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Instrucciones de refinamiento</label>
+                                                                               <textarea 
+                                                                                   placeholder="Ej: Reescribe el segundo párrafo para que sea más cercano..."
+                                                                                   value={action.config?.instructions || ''}
+                                                                                   onChange={(e) => updateActionConfig(action.id, 'instructions', e.target.value)}
+                                                                                   rows={2}
+                                                                                   className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-2 text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500/20"
+                                                                               />
+                                                                           </div>
+                                                                       </div>
+                                                                   )}
+
+                                                                   {/* 3. Custom Transform Config */}
+                                                                   {action.type === 'custom_transform' && (
+                                                                       <div>
+                                                                           <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Instrucciones del maquetador</label>
+                                                                           <textarea 
+                                                                               placeholder="Ej: Aplica un diseño de tabla comparativa de precios..."
+                                                                               value={action.config?.instructions || ''}
+                                                                               onChange={(e) => updateActionConfig(action.id, 'instructions', e.target.value)}
+                                                                               rows={2}
+                                                                               className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-2 text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500/20"
+                                                                           />
+                                                                       </div>
+                                                                   )}
+                                                               </div>
+                                                           )}
+                                                       </motion.div>
+                                                   );
+                                               })}
+                                           </div>
+                                       )}
+
+                                       {/* Botón de Añadir Acción (+ Rectángulo Punteado) */}
+                                       {!isProcessingPipeline && (
+                                           <div className="relative">
+                                               <button 
+                                                   onClick={() => setIsSelectorOpen(!isSelectorOpen)}
+                                                   className="w-full border-2 border-dashed border-slate-200 hover:border-indigo-400/60 rounded-2xl bg-slate-50/30 hover:bg-slate-50/60 transition-all flex flex-col items-center justify-center p-6 cursor-pointer group min-h-[120px]"
+                                               >
+                                                   <div className="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white rounded-full p-2.5 shadow-md group-hover:scale-105 transition-all duration-300">
+                                                       <Plus size={16} />
+                                                   </div>
+                                                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 mt-2.5">Añadir Acción</span>
+                                                   <span className="text-[8px] text-slate-400 mt-1 font-medium">Haz clic para diseñar tu flujo secuencial</span>
+                                               </button>
+
+                                               {/* Popover Contextual de Selección de Acciones */}
+                                               <AnimatePresence>
+                                                   {isSelectorOpen && (
+                                                       <motion.div 
+                                                           initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                           animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                           exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                           className="absolute bottom-[115%] left-0 right-0 bg-white/90 backdrop-blur-xl border border-slate-200/50 rounded-2xl shadow-xl p-3 z-50 space-y-1"
+                                                       >
+                                                           <div className="px-2 py-1.5 border-b border-slate-100 mb-1">
+                                                               <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Seleccionar Tarea inteligente</span>
+                                                           </div>
+                                                           {[
+                                                               { type: 'seo', label: 'Investigación SEO', desc: 'SERP, entidades y competidores.', Icon: Search, color: 'text-indigo-600' },
+                                                               { type: 'generate', label: 'Redacción IA Helios', desc: 'Borrador base estructurado.', Icon: PenTool, color: 'text-rose-600' },
+                                                               { type: 'humanize', label: 'Humanizador Semántico', desc: 'Toque humano e invisibilidad.', Icon: Zap, color: 'text-emerald-600' },
+                                                               { type: 'surgical_edit', label: 'Edición Quirúrgica', desc: 'Estilo y fluidez mejorada.', Icon: Wrench, color: 'text-purple-600' },
+                                                               { type: 'clean', label: 'Limpieza Inteligente', desc: 'Remover huellas robóticas.', Icon: Sparkles, color: 'text-blue-600' },
+                                                               { type: 'refine', label: 'Refinamiento Manual', desc: 'Instrucciones personalizadas.', Icon: BrainCircuit, color: 'text-violet-600' },
+                                                               { type: 'custom_transform', label: 'Maquetador HTML/CSS', desc: 'Transformaciones personalizadas.', Icon: LayoutTemplate, color: 'text-orange-600' }
+                                                           ].map(item => (
+                                                               <button
+                                                                   key={item.type}
+                                                                   onClick={() => addActionToQueue(item.type as any)}
+                                                                   className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
+                                                               >
+                                                                   <div className={cn("p-1.5 rounded-lg bg-slate-50 border border-slate-100 shrink-0", item.color)}>
+                                                                       <item.Icon size={14} />
+                                                                   </div>
+                                                                   <div className="min-w-0">
+                                                                       <div className="text-[10px] font-black uppercase tracking-wider text-slate-800 leading-tight">{item.label}</div>
+                                                                       <div className="text-[8px] text-slate-500 font-medium leading-normal">{item.desc}</div>
+                                                                   </div>
+                                                               </button>
+                                                           ))}
+                                                       </motion.div>
+                                                   )}
+                                               </AnimatePresence>
+                                           </div>
+                                       )}
+                                   </div>
+
+                                   {/* Botón sticky de "Procesar Pipeline" */}
+                                   <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent backdrop-blur-md shrink-0 border-t border-slate-100/60 flex flex-col gap-1 z-20">
+                                       <button
+                                           disabled={localActionsQueue.length === 0 || isProcessingPipeline}
+                                           onClick={processPipeline}
+                                           className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black uppercase tracking-widest text-[11px] py-3.5 px-4 rounded-xl shadow-lg hover:shadow-indigo-500/25 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+                                       >
+                                           {isProcessingPipeline ? (
+                                               <>
+                                                   <Loader2 size={13} className="animate-spin" />
+                                                   <span>Ejecutando Pipeline...</span>
+                                               </>
+                                           ) : (
+                                               <>
+                                                   <Activity size={13} />
+                                                   <span>Procesar Pipeline ({localActionsQueue.length})</span>
+                                               </>
+                                           )}
+                                       </button>
+                                   </div>
+                               </div>
+                           ) : 
 
                          <CompetitorPanel />}
                     </div>
@@ -1198,7 +1793,7 @@ export default function WriterStudio() {
             ) : renderMainContent()}
             
             <ImageLightbox isOpen={!!fullscreenAsset} onClose={() => setFullscreenAsset(null)} asset={fullscreenAsset} />
-            {isCustomTransformOpen && <CustomTransformModal onClose={() => setIsCustomTransformOpen(false)} />}
+            {isCustomTransformOpen && <CustomTransformModal onClose={() => setIsCustomTransformOpen(false)} editorMode={true} />}
         </div>
     );
 }

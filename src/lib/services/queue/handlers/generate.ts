@@ -15,17 +15,26 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
     
     const draftId = payload.taskId || store.draftId;
     
-    if (store.draftId === draftId) {
+    // Verificación dinámica de borrador activo
+    const isCurrentDraft = () => useWriterStore.getState().draftId === draftId;
+    
+    if (isCurrentDraft()) {
         useWriterStore.getState().setGenerating(true);
         if (store.content?.trim().length > 0) {
-            await store.saveTaskVersion(`Pre-Generación`, store.content);
+            await store.saveTaskVersion(`Pre-Generación`, store.content, draftId);
         }
         useWriterStore.getState().setContent('');
         useWriterStore.getState().setStatus('Redactando artículo completo…');
+    } else {
+        // Si no está activo pero tiene contenido previo provisto en el payload, guardamos de todas formas la versión anterior de forma segura
+        const initialContent = payload.content || '';
+        if (initialContent.trim().length > 0) {
+            await useWriterStore.getState().saveTaskVersion(`Pre-Generación`, initialContent, draftId);
+        }
     }
 
     try {
-        const h1 = store.strategyH1 || store.keyword || 'Artículo';
+        const h1 = payload.strategyH1 || store.strategyH1 || store.keyword || 'Artículo';
         
         const uniqueLinksMap = new Map<string, any>();
         const addLinksToMap = (links: any[]) => {
@@ -36,7 +45,7 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
             }
         };
 
-        if (store.rawSeoData) {
+        if (store.rawSeoData && isCurrentDraft()) {
             addLinksToMap((store.rawSeoData as any).suggestedInternalLinks || []);
         }
         addLinksToMap(store.strategyLinks || []);
@@ -99,7 +108,7 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
 
         const outlineChunks = chunkOutline(config.outlineStructure || [], 4);
 
-        if (store.draftId === draftId) {
+        if (isCurrentDraft()) {
             useWriterStore.getState().setStatus(`Documento dividido en ${outlineChunks.length} fragmentos para redacción progresiva...`);
         }
 
@@ -119,9 +128,9 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
             };
 
             const prompt = buildPrompt(chunkConfig);
-            if (store.draftId === draftId && i === 0) store.addDebugPrompt('Fase 1: Redacción Inicial', prompt);
+            if (isCurrentDraft() && i === 0) store.addDebugPrompt('Fase 1: Redacción Inicial', prompt);
             
-            if (store.draftId === draftId) {
+            if (isCurrentDraft()) {
                 useWriterStore.getState().setStatus(`Redactando parte ${i + 1}/${outlineChunks.length}... (Espere unos segundos)`);
             }
             
@@ -133,13 +142,13 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
                     writingHierarchy,
                     (html) => { 
                         chunkHtml = html; 
-                        if (store.draftId === draftId) useWriterStore.getState().setContent(finalHtml + html); 
+                        if (isCurrentDraft()) useWriterStore.getState().setContent(finalHtml + html); 
                     },
-                    (msg) => { if (store.draftId === draftId) useWriterStore.getState().setStatus(`[Parte ${i+1}] ${msg}`); }
+                    (msg) => { if (isCurrentDraft()) useWriterStore.getState().setStatus(`[Parte ${i+1}] ${msg}`); }
                 );
             } catch (err) {
                 console.error(`[Generate Chunk ${i+1}] Fallback triggered`, err);
-                if (store.draftId === draftId) useWriterStore.getState().setStatus(`⚠️ Interrupción detectada en parte ${i+1}. Reintentando...`);
+                if (isCurrentDraft()) useWriterStore.getState().setStatus(`⚠️ Interrupción detectada en parte ${i+1}. Reintentando...`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 
                 chunkHtml = await streamGenerate(
@@ -148,9 +157,9 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
                     writingHierarchy,
                     (html) => { 
                         chunkHtml = html; 
-                        if (store.draftId === draftId) useWriterStore.getState().setContent(finalHtml + html); 
+                        if (isCurrentDraft()) useWriterStore.getState().setContent(finalHtml + html); 
                     },
-                    (msg) => { if (store.draftId === draftId) useWriterStore.getState().setStatus(`[Parte ${i+1}] Reintento: ${msg}`); }
+                    (msg) => { if (isCurrentDraft()) useWriterStore.getState().setStatus(`[Parte ${i+1}] Reintento: ${msg}`); }
                 );
             }
 
@@ -158,10 +167,10 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
             previousContext = chunkHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         }
 
-        if (store.draftId === draftId) useWriterStore.getState().setStatus('Procesando HTML final...');
+        if (isCurrentDraft()) useWriterStore.getState().setStatus('Procesando HTML final...');
         let cleanHtml = cleanAndFormatHtml(finalHtml);
         
-        if (store.draftId === draftId) {
+        if (isCurrentDraft()) {
             useWriterStore.getState().setContent(cleanHtml);
         }
 
@@ -170,14 +179,14 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
             cleanHtml = parts[0];
             try {
                 const meta = JSON.parse(parts[1].replace(/```json/g, '').replace(/```/g, '').trim());
-                if (store.draftId === draftId) {
+                if (isCurrentDraft()) {
                     useWriterStore.getState().setMetadata(meta);
                     if (meta.title) useWriterStore.getState().setTitle(meta.title);
                 }
             } catch (_) { }
         }
 
-        if (store.draftId === draftId) useWriterStore.getState().setStatus('Generando vínculos interlinking...');
+        if (isCurrentDraft()) useWriterStore.getState().setStatus('Generando vínculos interlinking...');
         
         const linked = await autoInterlinkAsync(
             cleanHtml, 
@@ -187,7 +196,7 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
             activeProject
         );
         
-        if (store.draftId === draftId) {
+        if (isCurrentDraft()) {
             const s = useWriterStore.getState();
             s.setAnalyzingSEO(true);
             s.addDebugPrompt('Fase 2: Refinamiento SEO', `Optimizando con keywords: ${config.topic}, LSI: ${config.lsiKeywords?.join(', ')}. Enlaces aprobados: ${finalApprovedLinks.length}`);
@@ -198,13 +207,21 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
         let finalContent = refinedSEO;
         const activeExtractorRules = NousExtractorService.getActiveRulesForPhase(activeProject, 'writer');
         if (activeExtractorRules.length > 0) {
-            if (store.draftId === draftId) useWriterStore.getState().setStatus('Ejecutando extractores de datos...');
+            if (isCurrentDraft()) useWriterStore.getState().setStatus('Ejecutando extractores de datos...');
             finalContent = await NousExtractorService.applyExtractionToHtml(refinedSEO, activeProject, 'writer');
         }
 
         const formatted = cleanAndFormatHtml(finalContent);
         
-        if (store.draftId === draftId) {
+        // 1. Guardar la versión de la tarea en la base de datos de manera agnóstica al borrador activo
+        await useWriterStore.getState().saveTaskVersion('Generación Inicial', formatted, draftId);
+        
+        // 2. Persistir directamente en las tablas de Supabase
+        await supabase.from('task_contents').upsert({ id: draftId, content_body: formatted });
+        await supabase.from('tasks').update({ content_body: formatted }).eq('id', draftId);
+
+        // 3. Si sigue siendo el borrador activo en pantalla, actualizamos el editor visual y los estados
+        if (isCurrentDraft()) {
             useWriterStore.setState({
                 content: formatted,
                 isAnalyzingSEO: false,
@@ -213,29 +230,28 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
                 sidebarTab: 'assistant'
             } as any);
             store.addDebugPrompt('Refinamiento Finalizado', `SEO Post-Procesado y Extractores aplicados con éxito`, formatted.substring(0, 1000));
-            await store.saveTaskVersion('Generación Inicial', formatted);
         }
         
         // --- AUTO-PATCHER ORCHESTRATION ---
         const patchers = LinkPatcherService.getPatchersForProcess(activeProject, 'writer');
-        if (patchers.length > 0 && store.editor) {
-            if (store.draftId === draftId) useWriterStore.getState().setStatus('Normalizando URLs con Nous Patcher...');
+        if (patchers.length > 0 && store.editor && isCurrentDraft()) {
+            useWriterStore.getState().setStatus('Normalizando URLs con Nous Patcher...');
             try {
                 for (const patcher of patchers) {
                     await LinkPatcherService.processEditorLinks(store.editor, patcher, 'apply');
                 }
-                if (store.draftId === draftId) useWriterStore.getState().setStatus('✅ Artículo generado y URLs normalizadas.');
+                if (isCurrentDraft()) useWriterStore.getState().setStatus('✅ Artículo generado y URLs normalizadas.');
             } catch (pe) {
                 console.error('[AutoPatcher] Failure:', pe);
             }
         }
 
-        setTimeout(() => { if (useWriterStore.getState().draftId === draftId) useWriterStore.getState().setStatus(''); }, 5000);
+        setTimeout(() => { if (isCurrentDraft()) useWriterStore.getState().setStatus(''); }, 5000);
         useQueueStore.getState().addLogToTask(taskId, 'Generación completada.', 'success');
     } catch (e: any) {
         console.error(e);
         useQueueStore.getState().addLogToTask(taskId, `Error: ${e.message}`, 'error');
-        if (useWriterStore.getState().draftId === draftId) {
+        if (isCurrentDraft()) {
             useWriterStore.setState({
                 statusMessage: '❌ Error: ' + e.message,
                 isGenerating: false,
@@ -244,7 +260,7 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
         }
         throw e;
     } finally {
-        if (useWriterStore.getState().draftId === draftId) {
+        if (isCurrentDraft()) {
             useWriterStore.getState().setGenerating(false);
         }
     }

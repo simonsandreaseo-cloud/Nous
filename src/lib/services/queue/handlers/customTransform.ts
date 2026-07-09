@@ -1,7 +1,30 @@
 import { useWriterStore } from '@/store/useWriterStore';
 import { useQueueStore } from '@/store/useQueueStore';
-import { streamCustomTransform } from '@/lib/services/writer/ai-streaming';
+import { runChiefDesignerPlanning, runCustomTransformPipeline } from '@/lib/actions/aiActions';
 import type { QueuePayload } from '../registry';
+
+const chunkHtmlContent = (html: string, maxChunkLength: number = 5000): string[] => {
+    if (html.length <= maxChunkLength) {
+        return [html];
+    }
+
+    const parts = html.split(/(?=<h[2-6]|<table|<section|<div\s+class=["'][^"']*split)/gi);
+    const chunks: string[] = [];
+    let current = "";
+
+    for (const part of parts) {
+        if ((current + part).length > maxChunkLength && current.trim()) {
+            chunks.push(current);
+            current = part;
+        } else {
+            current += part;
+        }
+    }
+    if (current.trim()) {
+        chunks.push(current);
+    }
+    return chunks;
+};
 
 export const handleCustomTransformTask = async (taskId: string, payload: QueuePayload) => {
     const store = useWriterStore.getState();
@@ -14,46 +37,95 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
     const model = payload.model || 'gemini-3.5-flash';
     const provider = payload.provider;
 
-    console.log("[DEBUG-CustomTransform Handler] Starting transform for length:", originalContent?.length);
-    addLogToTask(taskId, `Iniciando transformación HTML...`, 'info');
+    console.log("[DEBUG-CustomTransform Handler] Starting chunked transform for length:", originalContent?.length);
+    addLogToTask(taskId, `Iniciando maquetación inteligente con Jefe de Diseño + Chunks...`, 'info');
     
     try {
         await store.saveTaskVersion(`Pre-Transformación Custom`, originalContent);
         
-        setTaskStatus(taskId, 'processing', 20);
-        addLogToTask(taskId, `Enviando HTML al modelo ${model}...`, 'info');
+        setTaskStatus(taskId, 'processing', 10);
+        
+        // 1. Chunking
+        const chunks = chunkHtmlContent(originalContent);
+        const chunkResults = [...chunks];
+        addLogToTask(taskId, `El artículo fue dividido en ${chunks.length} bloques lógicos para garantizar máxima precisión y evitar timeouts.`, 'info');
 
-        const result = await streamCustomTransform(
-            originalContent,
-            presetInstructions,
-            userInstructions,
-            (partialHtml) => {
-                if (store.draftId === draftId) {
-                    store.setIsRemoteUpdate(true);
-                    store.setContent(partialHtml);
-                }
-            },
-            (msg) => {
-                addLogToTask(taskId, msg, 'info');
-            },
-            model,
+        // 2. Chief Designer Planning
+        setTaskStatus(taskId, 'processing', 20);
+        addLogToTask(taskId, `🧠 El Jefe de Diseño está trazando la estrategia editorial y planificando el diseño de cada bloque...`, 'info');
+        
+        // Use Gemini 3.1 Pro or selected model for planning
+        const planningModel = model.includes('pro') ? model : 'gemini-3.1-pro-preview-gas';
+        const plan = await runChiefDesignerPlanning(
+            chunks, 
+            presetInstructions, 
+            userInstructions, 
+            planningModel, 
             provider
         );
+        
+        addLogToTask(taskId, `✨ ¡Plan de maquetación y diseño completado! Iniciando ejecución de bloques...`, 'success');
 
-        setTaskStatus(taskId, 'processing', 90);
-        addLogToTask(taskId, `Guardando contenido transformado...`, 'success');
+        // 3. Sequential Worker Steps with Vision
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const planningItem = plan.find(p => p.index === i) || { 
+                index: i, 
+                focus: `Bloque ${i + 1}`, 
+                pautasEspecificas: `${presetInstructions}\n\n${userInstructions}` 
+            };
+            
+            const progressPct = Math.round(25 + ((i / chunks.length) * 65));
+            setTaskStatus(taskId, 'processing', progressPct);
+            
+            addLogToTask(taskId, `[Bloque ${i + 1}/${chunks.length}] Diseñando: ${planningItem.focus}...`, 'info');
+            
+            const mergedInstructions = `
+PAUTAS ESPECÍFICAS DE DISEÑO PARA ESTE BLOQUE:
+${planningItem.pautasEspecificas}
+
+${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : ''}
+`;
+
+            const result = await runCustomTransformPipeline(
+                chunk,
+                presetInstructions,
+                mergedInstructions,
+                (statusMsg) => {
+                    if (statusMsg.includes('[Vision]')) {
+                        addLogToTask(taskId, `  📷 ${statusMsg}`, 'info');
+                    }
+                },
+                model,
+                undefined,
+                provider
+            );
+
+            chunkResults[i] = result.html;
+
+            // Progressive Real-time updates in the editor!
+            if (store.draftId === draftId) {
+                store.setIsRemoteUpdate(true);
+                store.setContent(chunkResults.join('\n'));
+            }
+        }
+
+        const finalHtml = chunkResults.join('\n');
+
+        setTaskStatus(taskId, 'processing', 95);
+        addLogToTask(taskId, `Guardando diseño final...`, 'success');
 
         if (store.draftId === draftId) {
             store.setIsRemoteUpdate(true);
-            store.setContent(result.html);
-            await store.saveTaskVersion(`Transformación Custom`, result.html);
+            store.setContent(finalHtml);
+            await store.saveTaskVersion(`Transformación Custom`, finalHtml);
         }
 
         setTaskStatus(taskId, 'completed', 100);
-        addLogToTask(taskId, `✅ ¡Transformación completada con éxito!`, 'success');
+        addLogToTask(taskId, `✅ ¡El artículo ha sido maquetado con éxito siguiendo el plan del Jefe de Diseño!`, 'success');
     } catch (e: any) {
         console.error(e);
-        addLogToTask(taskId, `Error crítico: ${e.message}`, 'error');
+        addLogToTask(taskId, `Error crítico durante la maquetación: ${e.message}`, 'error');
         setTaskStatus(taskId, 'error', -1);
         throw e;
     }
