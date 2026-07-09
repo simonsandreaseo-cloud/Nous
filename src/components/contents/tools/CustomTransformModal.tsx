@@ -6,8 +6,6 @@ import { X, Sparkles, Loader2, AlertCircle, Copy, Check, Eye, Code, FileText } f
 import { streamCustomTransform } from "@/lib/services/writer/ai-streaming";
 import { cn } from "@/utils/cn";
 import { useProjectStore } from "@/store/useProjectStore";
-
-import { useProjectStore } from "@/store/useProjectStore";
 import { useWriterStore } from "@/store/useWriterStore";
 import { useQueueStore } from "@/store/useQueueStore";
 
