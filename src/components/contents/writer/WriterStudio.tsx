@@ -4,6 +4,7 @@ import { useRef, useState, useMemo, useCallback, useEffect } from 'react';
 
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore, STATUS_LABELS, STATUS_COLORS } from '@/store/useProjectStore';
+import { useQueueStore } from '@/store/useQueueStore';
 import { useShallow } from 'zustand/react/shallow';
 import WriterEditor from '@/components/contents/writer/WriterEditor';
 import WriterDashboard from '@/components/contents/writer/WriterDashboard';
@@ -409,6 +410,7 @@ export default function WriterStudio() {
     const [isCustomTransformOpen, setIsCustomTransformOpen] = useState(false);
     const isProcessingAny = isGenerating || isAnalyzingSEO || isPlanningStructure || isHumanizing || isRefining;
     const { user: localUser } = useAuthStore();
+    const activeTask = useQueueStore(state => state.activeTask);
 
     // --- Local Pipeline States ---
     interface LocalAction {
@@ -1516,6 +1518,52 @@ export default function WriterStudio() {
                                            </button>
                                        )}
                                    </div>
+
+                                   {/* Active Task Progress Banner */}
+                                   <AnimatePresence>
+                                       {activeTask && activeTask.status === 'processing' && (
+                                           <motion.div 
+                                               initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                                               animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                                               exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                                               className="mx-4 mt-3.5 p-4 bg-white border border-indigo-100/80 rounded-2xl shadow-sm space-y-2.5 relative overflow-hidden shrink-0"
+                                           >
+                                               {/* Gradient accent border top */}
+                                               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 animate-[shimmer_1.5s_infinite_linear]" style={{ backgroundSize: '200% 100%' }} />
+                                               <div className="flex justify-between items-end">
+                                                   <div className="min-w-0">
+                                                       <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">Ejecutando Tarea</span>
+                                                       <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider truncate leading-tight">
+                                                           {activeTask.title}
+                                                       </h4>
+                                                   </div>
+                                                   <span className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 shrink-0 ml-2">
+                                                       {activeTask.progress || 0}%
+                                                   </span>
+                                               </div>
+                                               
+                                               {/* Compact Progress Bar */}
+                                               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
+                                                   <motion.div 
+                                                       className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full animate-pulse"
+                                                       initial={{ width: 0 }}
+                                                       animate={{ width: `${activeTask.progress || 0}%` }}
+                                                       transition={{ duration: 0.4, ease: "easeOut" }}
+                                                   />
+                                               </div>
+
+                                               {/* Log / Substatus */}
+                                               {activeTask.logs && activeTask.logs.length > 0 && (
+                                                   <div className="flex items-center gap-1.5 text-[9px] text-slate-500 font-medium">
+                                                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping shrink-0" />
+                                                       <span className="truncate">
+                                                           {activeTask.logs[activeTask.logs.length - 1].text}
+                                                       </span>
+                                                   </div>
+                                               )}
+                                           </motion.div>
+                                       )}
+                                   </AnimatePresence>
 
                                    {/* Lista de Acciones en la Cola (Scrolleable) */}
                                    <div 

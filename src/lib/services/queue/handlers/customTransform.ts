@@ -43,15 +43,16 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
     try {
         await store.saveTaskVersion(`Pre-Transformación Custom`, originalContent);
         
-        setTaskStatus(taskId, 'processing', 10);
+        setTaskStatus(taskId, 'processing', 5);
         
         // 1. Chunking
         const chunks = chunkHtmlContent(originalContent);
         const chunkResults = [...chunks];
         addLogToTask(taskId, `El artículo fue dividido en ${chunks.length} bloques lógicos para garantizar máxima precisión y evitar timeouts.`, 'info');
+        setTaskStatus(taskId, 'processing', 10);
 
         // 2. Chief Designer Planning
-        setTaskStatus(taskId, 'processing', 20);
+        setTaskStatus(taskId, 'processing', 15);
         addLogToTask(taskId, `🧠 El Jefe de Diseño está trazando la estrategia editorial y planificando el diseño de cada bloque...`, 'info');
         
         // Use Gemini 3.1 Pro or selected model for planning
@@ -64,6 +65,7 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
             provider
         );
         
+        setTaskStatus(taskId, 'processing', 25);
         addLogToTask(taskId, `✨ ¡Plan de maquetación y diseño completado! Iniciando ejecución de bloques...`, 'success');
 
         // 3. Sequential Worker Steps with Vision
@@ -75,10 +77,11 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
                 pautasEspecificas: `${presetInstructions}\n\n${userInstructions}` 
             };
             
-            const progressPct = Math.round(25 + ((i / chunks.length) * 65));
+            // Calculate starting percentage for this chunk (linearly from 25% to 95%)
+            const progressPct = Math.round(25 + (i / chunks.length) * 70);
             setTaskStatus(taskId, 'processing', progressPct);
             
-            addLogToTask(taskId, `[Bloque ${i + 1}/${chunks.length}] Diseñando: ${planningItem.focus}...`, 'info');
+            addLogToTask(taskId, `[${progressPct}%] [Bloque ${i + 1}/${chunks.length}] Diseñando: ${planningItem.focus}...`, 'info');
             
             const mergedInstructions = `
 PAUTAS ESPECÍFICAS DE DISEÑO PARA ESTE BLOQUE:
@@ -108,11 +111,15 @@ ${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : '
                 store.setIsRemoteUpdate(true);
                 store.setContent(chunkResults.join('\n'));
             }
+
+            // Set ending percentage for this chunk
+            const endProgressPct = Math.round(25 + ((i + 1) / chunks.length) * 70);
+            setTaskStatus(taskId, 'processing', endProgressPct);
         }
 
         const finalHtml = chunkResults.join('\n');
 
-        setTaskStatus(taskId, 'processing', 95);
+        setTaskStatus(taskId, 'processing', 98);
         addLogToTask(taskId, `Guardando diseño final...`, 'success');
 
         if (store.draftId === draftId) {
