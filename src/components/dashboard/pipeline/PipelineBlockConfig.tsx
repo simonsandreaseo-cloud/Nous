@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Settings, BrainCircuit, Box, SlidersHorizontal, AlertCircle } from 'lucide-react';
+import { X, Settings, BrainCircuit, Box, SlidersHorizontal, AlertCircle, FileText } from 'lucide-react';
 import { PipelineBlock, usePipelineStore, AIModelType, AIProviderType } from '@/store/usePipelineStore';
-import { STATUS_LABELS } from '@/store/useProjectStore';
+import { STATUS_LABELS, useProjectStore } from '@/store/useProjectStore';
 import { cn } from '@/utils/cn';
+import { PRESETS } from '@/components/contents/tools/CustomTransformModal';
 
 interface PipelineBlockConfigProps {
     isOpen: boolean;
@@ -39,14 +40,40 @@ const RESEARCH_PHASES = [
 
 export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStatusMode }: PipelineBlockConfigProps) {
     const { updateBlock } = usePipelineStore();
+    const activeProject = useProjectStore((state) => state.activeProject);
+    const projectGuidelines = activeProject?.settings?.custom_transform_guidelines || "";
+
+    const allPresets = React.useMemo(() => [
+        ...(projectGuidelines ? [{
+            id: "proyecto",
+            name: "Proyecto",
+            description: "Directrices de maquetación HTML/CSS guardadas permanentemente para este proyecto.",
+            guidelines: projectGuidelines
+        }] : []),
+        ...PRESETS
+    ], [projectGuidelines]);
     
     // Local state for the form so we don't dispatch on every keystroke until saved/closed
     const [localBlock, setLocalBlock] = useState<PipelineBlock>(block);
 
     // Sync if block prop changes (when opening another block)
     useEffect(() => {
-        if (isOpen) setLocalBlock(block);
-    }, [block, isOpen]);
+        if (isOpen && block) {
+            const initialPreset = block.additionalConfig?.selectedPreset || (projectGuidelines ? "proyecto" : "revista");
+            const presetObj = allPresets.find(p => p.id === initialPreset);
+            const presetGuidelines = block.additionalConfig?.brandGuidelines || (presetObj ? presetObj.guidelines : PRESETS[0].guidelines);
+
+            setLocalBlock({
+                ...block,
+                additionalConfig: {
+                    selectedPreset: initialPreset,
+                    brandGuidelines: presetGuidelines,
+                    instructions: block.additionalConfig?.instructions || "",
+                    ...block.additionalConfig
+                }
+            });
+        }
+    }, [block, isOpen, projectGuidelines, allPresets]);
 
     const handleSave = () => {
         // Prevent infinite loops in status mode
@@ -240,6 +267,84 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                                             </div>
                                         );
                                     })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Extra Config for Custom Transform (Maquetador) */}
+                        {localBlock.actionType === 'custom_transform' && (
+                            <div className="space-y-4 pt-4 border-t border-slate-100">
+                                <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                    <FileText size={12} className="text-slate-400" /> Ajustes del Maquetador HTML/CSS
+                                </h4>
+                                
+                                <div className="space-y-3">
+                                    {/* Preset Selector */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold text-slate-700">Directrices Editoriales (Preset)</label>
+                                        <select
+                                            value={localBlock.additionalConfig?.selectedPreset || ""}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                const preset = allPresets.find(p => p.id === val);
+                                                setLocalBlock({
+                                                    ...localBlock,
+                                                    additionalConfig: {
+                                                        ...(localBlock.additionalConfig || {}),
+                                                        selectedPreset: val,
+                                                        brandGuidelines: preset ? preset.guidelines : ""
+                                                    }
+                                                });
+                                            }}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all cursor-pointer font-medium"
+                                        >
+                                            {allPresets.map((p) => (
+                                                <option key={p.id} value={p.id}>{p.name} - {p.description.slice(0, 50)}...</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Brand Guidelines Area */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold text-slate-700">Reglas de Diseño y Estructura</label>
+                                        <textarea
+                                            value={localBlock.additionalConfig?.brandGuidelines || ""}
+                                            onChange={(e) => {
+                                                if (localBlock.additionalConfig?.selectedPreset === "custom") {
+                                                    setLocalBlock({
+                                                        ...localBlock,
+                                                        additionalConfig: {
+                                                            ...(localBlock.additionalConfig || {}),
+                                                            brandGuidelines: e.target.value
+                                                        }
+                                                    });
+                                                }
+                                            }}
+                                            disabled={localBlock.additionalConfig?.selectedPreset !== "custom"}
+                                            rows={4}
+                                            className="w-full text-xs font-mono text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed leading-relaxed resize-none"
+                                        />
+                                    </div>
+
+                                    {/* User Instructions (Ad-hoc) */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold text-slate-700">Instrucciones Ad-hoc / del Maquetador</label>
+                                        <textarea
+                                            value={localBlock.additionalConfig?.instructions || ""}
+                                            onChange={(e) => {
+                                                setLocalBlock({
+                                                    ...localBlock,
+                                                    additionalConfig: {
+                                                        ...(localBlock.additionalConfig || {}),
+                                                        instructions: e.target.value
+                                                    }
+                                                });
+                                            }}
+                                            placeholder="Ej: 'Alineá la tabla de precios a la derecha' o 'Aplica tipografías más anchas para títulos'..."
+                                            rows={3}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 leading-normal resize-none"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}

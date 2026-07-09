@@ -14,7 +14,7 @@ interface CustomTransformModalProps {
     editorMode?: boolean;
 }
 
-const PRESETS = [
+export const PRESETS = [
     {
         id: "revista",
         name: "Revista",

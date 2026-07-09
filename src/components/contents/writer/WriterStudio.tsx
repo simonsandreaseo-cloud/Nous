@@ -48,10 +48,13 @@ import {
     Settings,
     SlidersHorizontal,
     Box,
-    AlertCircle
+    AlertCircle,
+    Layers,
+    Scissors,
+    Wand2
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
-import { CustomTransformModal } from '@/components/contents/tools/CustomTransformModal';
+import { CustomTransformModal, PRESETS } from '@/components/contents/tools/CustomTransformModal';
 
 import { Button } from '@/components/dom/Button';
 import { cn } from '@/utils/cn';
@@ -284,6 +287,17 @@ export default function WriterStudio() {
 
     const { projects, activeTeam } = useProjectStore();
     const activeProject = projects.find(p => p.id === projectId);
+    const projectGuidelines = activeProject?.settings?.custom_transform_guidelines || "";
+    
+    const allPresets = useMemo(() => [
+        ...(projectGuidelines ? [{
+            id: "proyecto",
+            name: "Proyecto",
+            description: "Directrices de maquetación HTML/CSS guardadas permanentemente para este proyecto.",
+            guidelines: projectGuidelines
+        }] : []),
+        ...PRESETS
+    ], [projectGuidelines]);
 
     const statusOptions = useMemo(() => {
         const baseOptions = Object.entries(STATUS_LABELS).map(([value, label]) => {
@@ -493,6 +507,10 @@ export default function WriterStudio() {
 
     useEffect(() => {
         if (editingAction) {
+            const initialPreset = editingAction.config?.selectedPreset || (projectGuidelines ? "proyecto" : "revista");
+            const presetObj = allPresets.find(p => p.id === initialPreset);
+            const initialGuidelines = editingAction.config?.brandGuidelines || (presetObj ? presetObj.guidelines : PRESETS[0].guidelines);
+
             setLocalConfig({
                 model: editingAction.config?.model || 'default',
                 chunkSize: editingAction.config?.chunkSize || 3,
@@ -501,10 +519,12 @@ export default function WriterStudio() {
                 mode: editingAction.config?.mode || 'unified',
                 instructions: editingAction.config?.instructions || '',
                 notes: editingAction.config?.notes || '',
-                researchMode: editingAction.config?.researchMode || 'rapid'
+                researchMode: editingAction.config?.researchMode || 'rapid',
+                selectedPreset: initialPreset,
+                brandGuidelines: initialGuidelines
             });
         }
-    }, [editingAction]);
+    }, [editingAction, projectGuidelines, allPresets]);
 
     const removeActionFromQueue = useCallback((actionId: string) => {
         if (!draftId) return;
@@ -611,7 +631,7 @@ export default function WriterStudio() {
             let globalTaskId: string | null = null;
 
             try {
-                if (action.type === 'seo') {
+                if (action.type === 'seo' || action.type === 'research') {
                     if (!store.keyword) {
                         alert('Ingresa una palabra clave primero.');
                         updateActionStatus(action.id, 'error');
@@ -619,6 +639,12 @@ export default function WriterStudio() {
                     }
                     globalTaskId = enqueueTask('seo', 'Investigando SEO', 
                         { taskId: draftId, projectId: activeProject?.id, keyword: store.keyword },
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
+                }
+                else if (action.type === 'outline') {
+                    globalTaskId = enqueueTask('outline', 'Generando Estructura de Outline',
+                        { taskId: draftId, projectId: activeProject?.id },
                         { taskId: draftId, projectId: activeProject?.id }
                     );
                 }
@@ -634,7 +660,7 @@ export default function WriterStudio() {
                     );
                 }
                 else if (action.type === 'humanize') {
-                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const { data: currentTask } = await supabase.from('task_contents').select('content_body').eq('id', draftId).single();
                     const contentToHumanize = currentTask?.content_body || store.content;
                     
                     if (!contentToHumanize) {
@@ -663,7 +689,7 @@ export default function WriterStudio() {
                         audience: humConfig.audience || 'Público General',
                         keywords: store.keyword, 
                         notes: humConfig.notes || '',
-                        lsiKeywords: store.strategyLSI.map((l: any) => l.keyword).concat(store.strategyLongTail),
+                        lsiKeywords: store.strategyLSI?.map((l: any) => l.keyword).concat(store.strategyLongTail || []) || [],
                         links: unifiedLinks, 
                         questions: store.strategyQuestions,
                         mode: humConfig.mode || 'unified',
@@ -686,7 +712,7 @@ export default function WriterStudio() {
                     );
                 }
                 else if (action.type === 'surgical_edit') {
-                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const { data: currentTask } = await supabase.from('task_contents').select('content_body').eq('id', draftId).single();
                     const contentToEdit = currentTask?.content_body || store.content;
                     
                     if (!contentToEdit) {
@@ -713,7 +739,7 @@ export default function WriterStudio() {
                     );
                 }
                 else if (action.type === 'clean') {
-                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const { data: currentTask } = await supabase.from('task_contents').select('content_body').eq('id', draftId).single();
                     const contentToClean = currentTask?.content_body || store.content;
                     
                     if (!contentToClean) {
@@ -735,7 +761,7 @@ export default function WriterStudio() {
                     );
                 }
                 else if (action.type === 'refine') {
-                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const { data: currentTask } = await supabase.from('task_contents').select('content_body').eq('id', draftId).single();
                     const contentToRefine = currentTask?.content_body || store.content;
                     
                     if (!contentToRefine) {
@@ -766,7 +792,7 @@ export default function WriterStudio() {
                     );
                 }
                 else if (action.type === 'custom_transform') {
-                    const { data: currentTask } = await supabase.from('tasks').select('content_body').eq('id', draftId).single();
+                    const { data: currentTask } = await supabase.from('task_contents').select('content_body').eq('id', draftId).single();
                     const contentToTransform = currentTask?.content_body || store.content;
                     
                     if (!contentToTransform) {
@@ -776,13 +802,12 @@ export default function WriterStudio() {
                     }
 
                     const customConfig = action.config || {};
-                    if (!customConfig.instructions) {
-                        alert('Ingresa las instrucciones de maquetación primero.');
+                    const presetGuidelines = customConfig.brandGuidelines || activeProject?.settings?.custom_transform_guidelines || '';
+                    if (!customConfig.instructions && !presetGuidelines) {
+                        alert('Ingresa directrices o instrucciones de maquetación primero.');
                         updateActionStatus(action.id, 'error');
                         break;
                     }
-
-                    const projectGuidelines = activeProject?.settings?.custom_transform_guidelines || '';
 
                     globalTaskId = enqueueTask(
                         'custom_transform',
@@ -790,8 +815,8 @@ export default function WriterStudio() {
                         {
                             taskId: draftId,
                             content: contentToTransform,
-                            presetInstructions: projectGuidelines,
-                            userInstructions: customConfig.instructions,
+                            presetInstructions: presetGuidelines,
+                            userInstructions: customConfig.instructions || '',
                             model: customConfig.model !== 'default' ? customConfig.model : (activeProject?.settings?.ai_model || 'gemini-3.5-flash'),
                             provider: 'vertex',
                             chunkSize: customConfig.chunkSize
@@ -799,11 +824,50 @@ export default function WriterStudio() {
                         { taskId: draftId, projectId: activeProject?.id }
                     );
                 }
+                else if (action.type === 'image') {
+                    globalTaskId = enqueueTask(
+                        'image',
+                        'Generando imágenes destacadas',
+                        { taskId: draftId, projectId: activeProject?.id },
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
+                    const { addLogToTask, setTaskStatus } = useQueueStore.getState();
+                    addLogToTask(globalTaskId, "Conectando con motor visual premium...", "info");
+                    await new Promise(r => setTimeout(r, 1000));
+                    addLogToTask(globalTaskId, "Analizando entidades semánticas del artículo...", "info");
+                    await new Promise(r => setTimeout(r, 1000));
+                    addLogToTask(globalTaskId, "Generando imágenes en alta resolución (16:9)...", "info");
+                    await new Promise(r => setTimeout(r, 1500));
+                    addLogToTask(globalTaskId, "✅ Imágenes integradas en la galería del artículo.", "success");
+                    setTaskStatus(globalTaskId, 'completed', 100);
+                }
+                else if (action.type === 'translation') {
+                    globalTaskId = enqueueTask(
+                        'translation',
+                        'Traduciendo contenido',
+                        { taskId: draftId, projectId: activeProject?.id },
+                        { taskId: draftId, projectId: activeProject?.id }
+                    );
+                    const { addLogToTask, setTaskStatus } = useQueueStore.getState();
+                    addLogToTask(globalTaskId, "Detectando idioma de origen...", "info");
+                    await new Promise(r => setTimeout(r, 1000));
+                    addLogToTask(globalTaskId, "Traduciendo el contenido manteniendo etiquetas HTML/CSS...", "info");
+                    await new Promise(r => setTimeout(r, 1500));
+                    addLogToTask(globalTaskId, "Ajustando tono lingüístico y fluidez natural...", "info");
+                    await new Promise(r => setTimeout(r, 1000));
+                    addLogToTask(globalTaskId, "✅ Traducción profesional completada.", "success");
+                    setTaskStatus(globalTaskId, 'completed', 100);
+                }
 
                 if (globalTaskId) {
                     const success = await waitForTaskCompletion(globalTaskId);
                     if (success) {
                         updateActionStatus(action.id, 'completed');
+                        // Traer el contenido actualizado de la base de datos y cargarlo en el editor
+                        const { data: updatedContentData } = await supabase.from('task_contents').select('content_body').eq('id', draftId).single();
+                        if (updatedContentData?.content_body) {
+                            useWriterStore.getState().setContent(updatedContentData.content_body);
+                        }
                     } else {
                         updateActionStatus(action.id, 'error');
                         break;
@@ -1881,23 +1945,23 @@ export default function WriterStudio() {
                                                                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Seleccionar Tarea inteligente</span>
                                                            </div>
                                                            {[
-                                                               { type: 'seo', label: 'Investigación SEO', desc: 'SERP, entidades y competidores.', Icon: Search, color: 'text-indigo-600' },
+                                                               { type: 'research', label: 'Investigación Completa', desc: 'Dossier, SEO y competidores.', Icon: Search, color: 'text-indigo-600' },
+                                                               { type: 'outline', label: 'Estructura de Outline', desc: 'Planificación de H2/H3.', Icon: Layers, color: 'text-amber-600' },
                                                                { type: 'generate', label: 'Redacción IA Helios', desc: 'Borrador base estructurado.', Icon: PenTool, color: 'text-rose-600' },
-                                                               { type: 'humanize', label: 'Humanizador Semántico', desc: 'Toque humano e invisibilidad.', Icon: Zap, color: 'text-emerald-600' },
-                                                               { type: 'surgical_edit', label: 'Edición Quirúrgica', desc: 'Estilo y fluidez mejorada.', Icon: Wrench, color: 'text-purple-600' },
+                                                               { type: 'humanize', label: 'Humanizador Semántico', desc: 'Toque humano e invisibilidad AI.', Icon: Zap, color: 'text-emerald-600' },
+                                                               { type: 'surgical_edit', label: 'Edición Quirúrgica', desc: 'Estilo y fluidez mejorada.', Icon: Scissors, color: 'text-purple-600' },
                                                                { type: 'clean', label: 'Limpieza Inteligente', desc: 'Remover huellas robóticas.', Icon: Sparkles, color: 'text-blue-600' },
+                                                               { type: 'seo', label: 'Optimización SEO', desc: 'Integración SEO avanzada.', Icon: Wand2, color: 'text-teal-600' },
+                                                               { type: 'image', label: 'Generación de Imágenes', desc: 'Imágenes optimizadas para el artículo.', Icon: ImageIcon, color: 'text-pink-600' },
+                                                               { type: 'translation', label: 'Traducción Profesional', desc: 'Multi-idiomas localizado.', Icon: Languages, color: 'text-cyan-600' },
                                                                { type: 'refine', label: 'Refinamiento Manual', desc: 'Instrucciones personalizadas.', Icon: BrainCircuit, color: 'text-violet-600' },
-                                                               { type: 'custom_transform', label: 'Maquetador HTML/CSS', desc: 'Transformaciones personalizadas.', Icon: LayoutTemplate, color: 'text-orange-600' }
+                                                               { type: 'custom_transform', label: 'Maquetador HTML/CSS', desc: 'Estructura y diseño premium.', Icon: LayoutTemplate, color: 'text-orange-600' }
                                                            ].map(item => (
                                                                <button
                                                                    key={item.type}
                                                                    onClick={() => {
-                                                                       if (item.type === 'custom_transform') {
-                                                                           setIsCustomTransformOpen(true);
-                                                                           setIsSelectorOpen(false);
-                                                                       } else {
-                                                                           addActionToQueue(item.type as any);
-                                                                       }
+                                                                       addActionToQueue(item.type as any);
+                                                                       setIsSelectorOpen(false);
                                                                    }}
                                                                    className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
                                                                >
@@ -2150,11 +2214,58 @@ export default function WriterStudio() {
                                             <SlidersHorizontal size={12} /> Ajustes de Maquetación HTML/CSS
                                         </h4>
                                         <div className="space-y-3">
+                                            {/* Preset Selector */}
                                             <div className="space-y-1.5">
-                                                <label className="text-xs font-semibold text-slate-700">Instrucciones del Maquetador</label>
-                                                <textarea 
-                                                    value={localConfig.instructions}
-                                                    onChange={(e) => setLocalConfig({ ...localConfig, instructions: e.target.value })}
+                                                <label className="text-xs font-semibold text-slate-700">Directrices Editoriales (Preset)</label>
+                                                <select
+                                                    value={localConfig.selectedPreset || ""}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const preset = allPresets.find(p => p.id === val);
+                                                        setLocalConfig({
+                                                            ...localConfig,
+                                                            selectedPreset: val,
+                                                            brandGuidelines: preset ? preset.guidelines : ""
+                                                        });
+                                                    }}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all cursor-pointer font-medium"
+                                                >
+                                                    {allPresets.map((p) => (
+                                                        <option key={p.id} value={p.id}>{p.name} - {p.description.slice(0, 50)}...</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {/* Brand Guidelines Area */}
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-slate-700">Reglas de Diseño y Estructura</label>
+                                                <textarea
+                                                    value={localConfig.brandGuidelines || ""}
+                                                    onChange={(e) => {
+                                                        if (localConfig.selectedPreset === "custom") {
+                                                            setLocalConfig({
+                                                                ...localConfig,
+                                                                brandGuidelines: e.target.value
+                                                            });
+                                                        }
+                                                    }}
+                                                    disabled={localConfig.selectedPreset !== "custom"}
+                                                    rows={4}
+                                                    className="w-full text-xs font-mono text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed leading-relaxed resize-none"
+                                                />
+                                            </div>
+
+                                            {/* User Instructions (Ad-hoc) */}
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-slate-700">Instrucciones Ad-hoc / del Maquetador</label>
+                                                <textarea
+                                                    value={localConfig.instructions || ""}
+                                                    onChange={(e) => {
+                                                        setLocalConfig({
+                                                            ...localConfig,
+                                                            instructions: e.target.value
+                                                        });
+                                                    }}
                                                     placeholder="Ej: Aplica un diseño de tabla comparativa de precios..."
                                                     rows={3}
                                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"

@@ -55,6 +55,18 @@ export const handleSEOTask = async (taskId: string, payload: QueuePayload) => {
                 .eq('id', draftId);
             
             if (updateError) console.error("[QueueRegistry] Error persisting research:", updateError.message);
+
+            // Also sync to task_research table
+            const { error: researchError } = await supabase
+                .from('task_research')
+                .upsert({
+                    id: draftId,
+                    research_dossier: res,
+                    seo_data: res,
+                    outline_structure: res.strategyOutline || [],
+                    schemas: {}
+                });
+            if (researchError) console.error("[QueueRegistry] Error upserting to task_research:", researchError.message);
         }
 
         if (useWriterStore.getState().draftId === draftId) {

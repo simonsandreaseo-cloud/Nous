@@ -239,11 +239,14 @@ async function executeTaskInBlock({
             if (!newContent) throw new Error('No hay contenido HTML para maquetar.');
             // Usar directrices permanentes del proyecto; si no hay, usar string vacío
             const projectGuidelines = project?.settings?.custom_transform_guidelines || '';
-            enhancedLog(task.id, 'Maquetador', `Iniciando maquetación HTML con directrices del proyecto...`);
+            const brandGuidelines = block.additionalConfig?.brandGuidelines || projectGuidelines;
+            const instructions = block.additionalConfig?.instructions || block.additionalConfig?.userInstructions || '';
+            
+            enhancedLog(task.id, 'Maquetador', `Iniciando maquetación HTML con directrices...`);
             const result = await streamCustomTransform(
                 newContent,
-                projectGuidelines,
-                '',
+                brandGuidelines,
+                instructions,
                 (html) => { newContent = html; enhancedProgress(task.id, 50); },
                 (msg) => enhancedLog(task.id, 'Maquetador', msg),
                 block.model !== 'default' ? block.model : 'gemini-3.5-flash',

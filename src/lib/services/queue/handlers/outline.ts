@@ -42,6 +42,15 @@ export const handleOutlineTask = async (taskId: string, payload: QueuePayload) =
             await supabase.from('tasks').update({
                 outline_structure: res
             }).eq('id', draftId);
+
+            // Also sync to task_research table
+            const { error: researchError } = await supabase
+                .from('task_research')
+                .upsert({
+                    id: draftId,
+                    outline_structure: res
+                });
+            if (researchError) console.error("[QueueRegistry] Error upserting outline to task_research:", researchError.message);
         }
         
         if (useWriterStore.getState().draftId === draftId) {
