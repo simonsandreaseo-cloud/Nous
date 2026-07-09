@@ -204,7 +204,7 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
             if (key === 'content_body') {
                 contentUpdates[key] = value;
                 taskUpdates[key] = value; // Keep legacy tasks column in sync for UI rehydration
-            } else if (['research_dossier', 'seo_data', 'schemas'].includes(key)) {
+            } else if (['research_dossier', 'seo_data', 'schemas', 'outline_structure'].includes(key)) {
                 researchUpdates[key] = value;
             } else {
                 taskUpdates[key] = value;
@@ -258,6 +258,7 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
         delete lightUpdates.research_dossier;
         delete lightUpdates.seo_data;
         delete lightUpdates.schemas;
+        delete lightUpdates.outline_structure;
 
         // Optimistic update: merging locally with LIGHT data only to prevent UI freezes
         set(state => ({
@@ -346,6 +347,8 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
             };
             if (!options.research) {
                 updates.status = 'por_redactar';
+                // Clear outline_structure in task_research as well
+                await supabase.from('task_research').update({ outline_structure: {} }).eq('id', taskId);
             }
             
             // Delete extended content data
