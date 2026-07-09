@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { 
     Wallet, 
@@ -79,6 +79,12 @@ export default function ProjectBudgetView() {
         });
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.currentTarget.blur();
+        }
+    };
+
     const handleRefresh = async () => {
         setIsRefreshing(true);
         try {
@@ -91,8 +97,14 @@ export default function ProjectBudgetView() {
     // Performance Calculations
     const sprintTasks = useMemo(() => tasks.filter(t => {
         if (!sprintStart || !sprintEnd) return true;
-        const taskDate = new Date(t.scheduled_date);
-        return taskDate >= new Date(sprintStart) && taskDate <= new Date(sprintEnd);
+        if (!t.scheduled_date) return false;
+
+        // Clean and compare YYYY-MM-DD parts lexicographically (timezone-immune)
+        const taskDateStr = t.scheduled_date.split('T')[0].trim();
+        const startStr = sprintStart.split('T')[0].trim();
+        const endStr = sprintEnd.split('T')[0].trim();
+
+        return taskDateStr >= startStr && taskDateStr <= endStr;
     }), [tasks, sprintStart, sprintEnd]);
 
     // Content Metrics
@@ -264,6 +276,7 @@ export default function ProjectBudgetView() {
                                         value={wordBudget}
                                         onChange={(e) => setWordBudget(Number(e.target.value))}
                                         onBlur={() => handleSaveSettings()}
+                                        onKeyDown={handleKeyDown}
                                         className="w-28 bg-white border border-slate-200 rounded-xl px-3 py-2 text-right text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
                                     />
                                 </div>
@@ -279,6 +292,7 @@ export default function ProjectBudgetView() {
                                         value={layoutBudget}
                                         onChange={(e) => setLayoutBudget(Number(e.target.value))}
                                         onBlur={() => handleSaveSettings()}
+                                        onKeyDown={handleKeyDown}
                                         className="w-28 bg-white border border-slate-200 rounded-xl px-3 py-2 text-right text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all"
                                     />
                                 </div>
@@ -307,6 +321,7 @@ export default function ProjectBudgetView() {
                                                 value={wordBudgetUsd}
                                                 onChange={(e) => setWordBudgetUsd(Number(e.target.value))}
                                                 onBlur={() => handleSaveSettings()}
+                                                onKeyDown={handleKeyDown}
                                                 className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"
                                             />
                                         </div>
@@ -320,6 +335,7 @@ export default function ProjectBudgetView() {
                                                 value={layoutBudgetUsd}
                                                 onChange={(e) => setLayoutBudgetUsd(Number(e.target.value))}
                                                 onBlur={() => handleSaveSettings()}
+                                                onKeyDown={handleKeyDown}
                                                 className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-cyan-500/20"
                                             />
                                         </div>
@@ -335,6 +351,7 @@ export default function ProjectBudgetView() {
                                             value={totalFinancialBudget}
                                             onChange={(e) => setTotalFinancialBudget(Number(e.target.value))}
                                             onBlur={() => handleSaveSettings()}
+                                            onKeyDown={handleKeyDown}
                                             className="w-full bg-slate-800 border-none rounded-xl pl-8 pr-3 py-3 text-sm font-black text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
                                         />
                                     </div>
@@ -353,6 +370,7 @@ export default function ProjectBudgetView() {
                                                 value={wordPrice}
                                                 onChange={(e) => setWordPrice(Number(e.target.value))}
                                                 onBlur={() => handleSaveSettings()}
+                                                onKeyDown={handleKeyDown}
                                                 className="w-full text-[10px] font-black bg-slate-50 border-none rounded-lg px-2 py-1.5"
                                             />
                                         </div>
@@ -363,6 +381,7 @@ export default function ProjectBudgetView() {
                                                 value={layoutPrice}
                                                 onChange={(e) => setLayoutPrice(Number(e.target.value))}
                                                 onBlur={() => handleSaveSettings()}
+                                                onKeyDown={handleKeyDown}
                                                 className="w-full text-[10px] font-black bg-slate-50 border-none rounded-lg px-2 py-1.5"
                                             />
                                         </div>

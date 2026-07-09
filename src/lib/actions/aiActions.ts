@@ -18,16 +18,15 @@ export type {
     DeepSEOConfig
 } from "@/lib/services/writer/types";
 import { executeWithKeyRotation as libExecuteWithKeyRotation, executeTranslation } from "@/lib/services/writer/ai-core";
-import { buildPrompt as libBuildPrompt } from "@/lib/services/writer/prompts";
 import { ResearchOrchestrator } from "@/lib/services/writer/research";
 import { AI_CONFIG } from "@/lib/ai/config";
 import { Type } from "@google/genai";
 import { supabase } from "@/lib/supabase";
 
 // --- UTILS & CONSTANTS ---
-export const buildPrompt = libBuildPrompt;
 
-export function parseModelAndProvider(modelName: string, provider?: 'google-ai-studio' | 'vertex-ai' | 'auto') {
+
+function parseModelAndProvider(modelName: string, provider?: 'google-ai-studio' | 'vertex-ai' | 'auto') {
     let resolvedModel = modelName;
     let resolvedProvider = provider || 'auto';
 
@@ -361,7 +360,7 @@ ${FEW_SHOT_JSON}`
     });
 };
 
-export const generateSchemaMarkup = async (metadata: any, articleHtml: string, type: 'Article' | 'Product' = 'Article'): Promise<string> => {
+export const generateSchemaMarkup = async (metadata: any, articleHtml: string, type: 'Article' | 'Product' = 'Article', modelName?: string): Promise<string> => {
     const prompt = `Genera JSON-LD Schema.org para este artículo. Metadata: ${JSON.stringify(metadata)}. Content Sample: ${articleHtml.substring(0, 500)}. Include 'image' placeholder.`;
   
     return executeWithKeyRotation(async (ai, currentModel) => {

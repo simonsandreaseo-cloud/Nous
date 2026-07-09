@@ -1,4 +1,4 @@
-# Engram Observations - Nous 2.0
+﻿# Engram Observations - Nous 2.0
 
 ## [2026-05-14] SoluciÃ³n a Verbosidad en Humanizador (Gemma-4)
 
@@ -213,5 +213,14 @@ Las acciones masivas (ej: redacciÃ³n masiva, humanizaciÃ³n masiva) se comple
   - **What**: Made H1-H6 visually distinct (H1 huge/tight, H2 border-b-4, H3 uppercase indigo, etc.), enabled levels 1-6 in StarterKit config, and removed clashing CSS !important overrides.
   - **Why**: To provide explicit visual hierarchy and contrast for headings in the editor.
   - **Where**: WriterEditor.tsx, tiptap-extensions.ts
-m e m _ s a v e :   S e p a r a c i � n   d e   p i p e l i n e   p a r a   M i n i   H u m a n i z a d o r  
- 
+mem_save: Separaci�n de pipeline para Mini Humanizador
+
+## mem_save: Bugfix - Fixed Turbopack build failure in aiActions
+- **title**: Fixed Turbopack build failure in aiActions
+- **type**: bugfix
+- **scope**: project
+- **content**:
+  - **What**: Removed the unused exported `buildPrompt` synchronous helper and removed the `export` keyword from `parseModelAndProvider` in `aiActions.ts`.
+  - **Why**: Turbopack on Next.js/Vercel compiles files starting with `"use server";` as Next.js Server Actions, and strictly requires all exported functions within them to be async. Synchronous exports cause the build to fail.
+  - **Where**: src/lib/actions/aiActions.ts
+  - **Learned**: Next.js Server Actions are strictly checked under Turbopack. Synchronous helpers must either not be exported or must be moved to utility files that do not have the "use server"; directive.
