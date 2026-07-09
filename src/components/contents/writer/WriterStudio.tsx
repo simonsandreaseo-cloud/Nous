@@ -733,7 +733,7 @@ export default function WriterStudio() {
 
         setIsProcessingPipeline(false);
         setPipelineIndex(null);
-    }, [localActionsQueue, draftId, activeProject, store, updateActionStatus, waitForTaskCompletion, isProcessingPipeline, setIsCustomTransformOpen]);
+    }, [localActionsQueue, draftId, activeProject, updateActionStatus, waitForTaskCompletion, isProcessingPipeline, setIsCustomTransformOpen]);
 
     const userColor = useMemo(() => {
         if (!localUser) return '#6366f1';
