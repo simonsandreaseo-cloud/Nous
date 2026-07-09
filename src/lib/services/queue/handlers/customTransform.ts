@@ -1,6 +1,7 @@
 import { useWriterStore } from '@/store/useWriterStore';
 import { useQueueStore } from '@/store/useQueueStore';
-import { runChiefDesignerPlanning, runCustomTransformPipeline } from '@/lib/actions/aiActions';
+import { runChiefDesignerPlanning } from '@/lib/actions/aiActions';
+import { streamCustomTransform } from '@/lib/services/writer/ai-streaming';
 import type { QueuePayload } from '../registry';
 
 const chunkHtmlContent = (html: string, maxChunkLength: number = 5000): string[] => {
@@ -141,17 +142,23 @@ ${planningItem.pautasEspecificas}
 ${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : ''}
 `;
 
-            const result = await runCustomTransformPipeline(
+            const result = await streamCustomTransform(
                 chunk,
                 presetInstructions,
                 mergedInstructions,
+                (chunkHtml) => {
+                    chunkResults[i] = chunkHtml;
+                    if (isCurrentDraft()) {
+                        useWriterStore.getState().setIsRemoteUpdate(true);
+                        useWriterStore.getState().setContent(chunkResults.join('\n'));
+                    }
+                },
                 (statusMsg) => {
                     if (statusMsg.includes('[Vision]')) {
                         addLogToTask(taskId, `  📷 ${statusMsg}`, 'info');
                     }
                 },
                 model,
-                undefined,
                 provider
             );
 
