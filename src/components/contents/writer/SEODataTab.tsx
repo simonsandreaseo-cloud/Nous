@@ -24,13 +24,20 @@ import {
     Eraser,
     Copy,
     Bot,
-    BrainCircuit
+    BrainCircuit,
+    Loader2,
+    Image as ImageIcon
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useWriterStore } from '@/store/useWriterStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as SEOScoringService from '@/lib/services/writer/seo-scoring';
-import { applyBatchOptimization } from '@/lib/services/writer/seo-optimization';
+import { 
+    applyBatchOptimization,
+    generateMissingMetadata,
+    optimizeImageAltAndTitles,
+    ImageAuditItem
+} from '@/lib/services/writer/seo-optimization';
 import { toast } from 'sonner';
 
 
@@ -90,7 +97,11 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
         links: false,
         questions: false,
         jargon: false,
+        images: false, // <-- NUEVO
     });
+
+    const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
+    const [isOptimizingImages, setIsOptimizingImages] = useState(false);
 
     const toggleAccordion = (key: string) => {
         setOpenAccordions(prev => ({ ...prev, [key]: !prev[key] }));
@@ -137,6 +148,148 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
         .filter(([url]) => !!url);
 
     const uniqueLinks = Array.from(new Map(linkEntries).values());
+
+    const imageAuditResult = useMemo(() => {
+        if (typeof window === 'undefined') return { total: 0, withAlt: 0, withTitle: 0, list: [] };
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(currentContent || '', 'text/html');
+        const imgElements = Array.from(doc.querySelectorAll('img'));
+        
+        const list = imgElements.map((img) => {
+            const src = img.getAttribute('src') || '';
+            const alt = img.getAttribute('alt') || '';
+            const title = img.getAttribute('title') || '';
+            return { src, alt, title };
+        });
+
+        const withAlt = list.filter(img => !!img.alt.trim()).length;
+        const withTitle = list.filter(img => !!img.title.trim()).length;
+
+        return {
+            total: list.length,
+            withAlt,
+            withTitle,
+            list
+        };
+    }, [currentContent]);
+
+    const updateImageMetadataInEditor = (src: string, alt: string, title: string) => {
+        if (!editor) return;
+
+        let anyUpdated = false;
+        editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === 'nousAsset' && node.attrs.url === src) {
+                editor.commands.command(({ tr }) => {
+                    tr.setNodeMarkup(pos, undefined, {
+                        ...node.attrs,
+                        alt,
+                        title
+                    });
+                    return true;
+                });
+                anyUpdated = true;
+            } else if (node.type.name === 'image' && node.attrs.src === src) {
+                editor.commands.command(({ tr }) => {
+                    tr.setNodeMarkup(pos, undefined, {
+                        ...node.attrs,
+                        alt,
+                        title
+                    });
+                    return true;
+                });
+                anyUpdated = true;
+            }
+        });
+        
+        if (anyUpdated) {
+            toast.success("Imagen actualizada en el editor.");
+        }
+    };
+
+    const handleCompleteMetadataWithAI = async () => {
+        if (isGeneratingMetadata) return;
+
+        setIsGeneratingMetadata(true);
+        const tid = toast.loading("Completando metadatos vacíos con IA (Gemini 3.1)...");
+
+        try {
+            const req = {
+                currentContent: currentContent || '',
+                keyword: keyword || '',
+                existingH1: strategyH1 || '',
+                existingTitle: strategyTitle || '',
+                existingSlug: strategySlug || '',
+                existingDesc: strategyDesc || '',
+                existingExcerpt: strategyExcerpt || ''
+            };
+
+            const result = await generateMissingMetadata(req);
+
+            if (result.h1) setStrategyH1(result.h1);
+            if (result.title) setStrategyTitle(result.title);
+            if (result.slug) setStrategySlug(result.slug);
+            if (result.description) setStrategyDesc(result.description);
+            if (result.excerpt) setStrategyExcerpt(result.excerpt);
+
+            toast.success("¡Metadatos SEO generados y guardados con éxito!", { id: tid });
+        } catch (e: any) {
+            console.error("Error al autocompletar metadatos:", e);
+            toast.error(e.message || "Error al conectar con el servicio de IA.", { id: tid });
+        } finally {
+            setIsGeneratingMetadata(false);
+        }
+    };
+
+    const handleOptimizeImagesWithAI = async () => {
+        if (isOptimizingImages || imageAuditResult.total === 0) return;
+
+        setIsOptimizingImages(true);
+        const tid = toast.loading("Analizando contexto del HTML y optimizando etiquetas...");
+
+        try {
+            const optResult = await optimizeImageAltAndTitles(
+                currentContent || '',
+                keyword || '',
+                imageAuditResult.list
+            );
+
+            // Inyectamos cada optimización en el documento
+            let count = 0;
+            optResult.forEach((item) => {
+                if (!editor) return;
+                editor.state.doc.descendants((node, pos) => {
+                    if (node.type.name === 'nousAsset' && node.attrs.url === item.src) {
+                        editor.commands.command(({ tr }) => {
+                            tr.setNodeMarkup(pos, undefined, {
+                                ...node.attrs,
+                                alt: item.alt,
+                                title: item.title
+                            });
+                            return true;
+                        });
+                        count++;
+                    } else if (node.type.name === 'image' && node.attrs.src === item.src) {
+                        editor.commands.command(({ tr }) => {
+                            tr.setNodeMarkup(pos, undefined, {
+                                ...node.attrs,
+                                alt: item.alt,
+                                title: item.title
+                            });
+                            return true;
+                        });
+                        count++;
+                    }
+                });
+            });
+
+            toast.success(`¡Optimizadas ${count} imágenes exitosamente!`, { id: tid });
+        } catch (e: any) {
+            console.error("Error al optimizar imágenes con IA:", e);
+            toast.error(e.message || "Error al optimizar imágenes.", { id: tid });
+        } finally {
+            setIsOptimizingImages(false);
+        }
+    };
 
     const completeness = SEO_FIELDS.reduce((acc, field) => {
         let has = false;
@@ -407,6 +560,37 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                 >
                                     <div className="p-5 border-t border-slate-100 bg-slate-50/50 space-y-5">
 
+                                        {/* AI Autocomplete Action */}
+                                        <div className="flex items-center justify-between p-3.5 bg-gradient-to-r from-indigo-50/70 to-purple-50/70 border border-indigo-100 rounded-xl">
+                                            <div className="flex items-center gap-2">
+                                                <BrainCircuit className="text-indigo-500" size={16} />
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold text-slate-700">Completado por IA</span>
+                                                    <span className="text-[9px] text-slate-500">Rellena campos vacíos con Gemini 3.1</span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                disabled={isGeneratingMetadata}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCompleteMetadataWithAI();
+                                                }}
+                                                className="h-8 px-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white disabled:text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm hover:shadow-indigo-100 cursor-pointer"
+                                            >
+                                                {isGeneratingMetadata ? (
+                                                    <>
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        <span>Generando...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Sparkles size={11} />
+                                                        <span>Completar</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+
                                         {/* Google Snippet Preview */}
                                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
                                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Google Preview</p>
@@ -491,6 +675,171 @@ export default function SEODataTab({ seoData, currentContent }: SEODataTabProps)
                                                     placeholder="Resumen del artículo para listados o redes..."
                                                 />
                                             </div>
+                                        </div>
+                                    </div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* IMAGES SEO ACCORDION */}
+                    <div className="bg-white border border-slate-200 rounded-[24px] overflow-hidden shadow-sm">
+                        <div
+                            className="flex items-center justify-between p-5 cursor-pointer hover:bg-slate-50 transition-colors"
+                            onClick={() => toggleAccordion('images')}
+                        >
+                            <div className="flex items-center gap-3">
+                                <ImageIcon size={16} className="text-violet-500" />
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-700">Imágenes SEO</h4>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className={cn(
+                                    "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                                    imageAuditResult.total === 0 
+                                        ? "bg-slate-100 text-slate-500"
+                                        : (imageAuditResult.withAlt === imageAuditResult.total && imageAuditResult.withTitle === imageAuditResult.total)
+                                            ? "bg-emerald-100 text-emerald-600"
+                                            : "bg-amber-100 text-amber-600"
+                                )}>
+                                    {imageAuditResult.total === 0 ? "Sin imágenes" : `${imageAuditResult.withAlt}/${imageAuditResult.total} Optimizadas`}
+                                </span>
+                                <ChevronDown size={16} className={cn("text-slate-400 transition-transform duration-300", openAccordions.images && "rotate-180")} />
+                            </div>
+                        </div>
+                        <AnimatePresence>
+                            {openAccordions.images && (
+                                <motion.div
+                                    initial={{ height: 0 }}
+                                    animate={{ height: 'auto' }}
+                                    exit={{ height: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="p-5 border-t border-slate-100 bg-slate-50/50 space-y-5">
+                                        
+                                        {/* Audit Overview */}
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3.5">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Auditoría de Accesibilidad & SEO</p>
+                                            
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-600">
+                                                        <span>Texto Alt</span>
+                                                        <span className="text-indigo-600">{imageAuditResult.withAlt}/{imageAuditResult.total}</span>
+                                                    </div>
+                                                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                                                            style={{ width: `${imageAuditResult.total > 0 ? (imageAuditResult.withAlt / imageAuditResult.total) * 100 : 0}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-600">
+                                                        <span>Título (Title)</span>
+                                                        <span className="text-violet-600">{imageAuditResult.withTitle}/{imageAuditResult.total}</span>
+                                                    </div>
+                                                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                                                            style={{ width: `${imageAuditResult.total > 0 ? (imageAuditResult.withTitle / imageAuditResult.total) * 100 : 0}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* AI Optimization Trigger */}
+                                        {imageAuditResult.total > 0 && (
+                                            <div className="p-3.5 bg-gradient-to-r from-violet-50/70 to-indigo-50/70 border border-violet-100 rounded-xl flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <Sparkles className="text-violet-500" size={16} />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-bold text-slate-700">Autogenerar Etiquetas</span>
+                                                        <span className="text-[9px] text-slate-500">Genera Alts & Titles por IA</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    disabled={isOptimizingImages}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOptimizeImagesWithAI();
+                                                    }}
+                                                    className="h-8 px-3 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 text-white disabled:text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm hover:shadow-violet-100 cursor-pointer"
+                                                >
+                                                    {isOptimizingImages ? (
+                                                        <>
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            <span>Optimizando...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Sparkles size={11} />
+                                                            <span>Optimizar con IA</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Image List and Manual Fields */}
+                                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                                            {imageAuditResult.total === 0 ? (
+                                                <div className="text-center py-6 bg-white border border-slate-200 rounded-xl">
+                                                    <ImageIcon className="mx-auto text-slate-300 mb-2" size={24} />
+                                                    <p className="text-xs font-bold text-slate-400">No se detectaron imágenes en el cuerpo</p>
+                                                    <p className="text-[9px] text-slate-400">Insertá imágenes en el editor para auditarlas</p>
+                                                </div>
+                                            ) : (
+                                                imageAuditResult.list.map((img, index) => {
+                                                    const cleanName = img.src.split('/').pop()?.split('?')[0] || `Imagen ${index + 1}`;
+                                                    const hasAlt = !!img.alt.trim();
+                                                    const hasTitle = !!img.title.trim();
+
+                                                    return (
+                                                        <div key={index} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-3 text-left">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0 flex items-center justify-center">
+                                                                    <img src={img.src} alt="Preview" className="w-full h-full object-cover" />
+                                                                </div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-[10px] font-bold text-slate-700 truncate" title={cleanName}>
+                                                                        {cleanName}
+                                                                    </p>
+                                                                    <div className="flex gap-1.5 mt-1">
+                                                                        <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded", hasAlt ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500")}>
+                                                                            {hasAlt ? "Alt OK" : "Sin Alt"}
+                                                                        </span>
+                                                                        <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded", hasTitle ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500")}>
+                                                                            {hasTitle ? "Title OK" : "Sin Title"}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="grid gap-2">
+                                                                <div>
+                                                                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-1">Texto Alternativo (Alt)</label>
+                                                                    <input
+                                                                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs text-slate-600 focus:outline-none focus:border-violet-500 transition-all"
+                                                                        value={img.alt}
+                                                                        onChange={(e) => updateImageMetadataInEditor(img.src, e.target.value, img.title)}
+                                                                        placeholder="Describe la imagen..."
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-1">Título de la Imagen (Title)</label>
+                                                                    <input
+                                                                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 text-xs text-slate-600 focus:outline-none focus:border-violet-500 transition-all"
+                                                                        value={img.title}
+                                                                        onChange={(e) => updateImageMetadataInEditor(img.src, img.alt, e.target.value)}
+                                                                        placeholder="Título descriptivo..."
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
                                         </div>
                                     </div>
                                 </motion.div>

@@ -40,7 +40,6 @@ import {
     PanelRight,
     History,
     Eye,
-    Download,
     Plus,
     Check,
     X,
@@ -55,6 +54,7 @@ import {
     Wand2
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
+import ZipExportModal from './modals/ZipExportModal';
 import { CustomTransformModal, PRESETS } from '@/components/contents/tools/CustomTransformModal';
 
 import { Button } from '@/components/dom/Button';
@@ -79,7 +79,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
 import NousAssistantMenu from '@/components/dashboard/NousAssistantMenu';
 import { useWriterActions } from './useWriterActions';
-import { deleteImageAction, uploadGeneratedImage, regenerateImageAction } from '@/lib/actions/imageActions';
+import { deleteImageAction, uploadGeneratedImage, regenerateImageAction, uploadManualImage } from '@/lib/actions/imageActions';
 import VisualPlanningBoard from './VisualPlanningBoard';
 import { saveAs } from 'file-saver';
 import { PollinationsService } from '@/lib/services/pollinationsService';
@@ -110,8 +110,79 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
     // Find hero by role or legacy featured type
     const featured = taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured');
     const [isRegenerating, setIsRegenerating] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    if (!taskId || !featured || !featured.url) return null;
+    if (!taskId) return null;
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !taskId) return;
+        setIsUploading(true);
+        try {
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            const base64 = await base64Promise;
+
+            const res = await uploadManualImage({
+                base64,
+                fileType: file.type,
+                taskId: taskId,
+                fileName: file.name,
+                altText: `Portada - ${file.name}`,
+                type: 'featured'
+            });
+
+            if (res.success) {
+                await loadTaskImages(taskId);
+            } else {
+                alert(res.error || "Error al subir la imagen de portada");
+            }
+        } catch (err: any) {
+            console.error("Error uploading cover image:", err);
+            alert(`Error al subir la portada: ${err.message || 'Error desconocido'}`);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    if (!featured || !featured.url) {
+        return (
+            <div className="mb-8">
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    accept="image/*" 
+                    className="hidden" 
+                />
+                <div 
+                    onClick={() => !isUploading && fileInputRef.current?.click()}
+                    className={cn(
+                        "w-full aspect-[21/9] rounded-[2.5rem] bg-slate-50/60 border-2 border-dashed border-slate-200/80 hover:border-indigo-400 hover:bg-indigo-50/30 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center gap-2 p-8 group",
+                        isUploading && "cursor-not-allowed opacity-80"
+                    )}
+                >
+                    {isUploading ? (
+                        <div className="flex flex-col items-center gap-3">
+                            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Subiendo portada...</span>
+                        </div>
+                    ) : (
+                        <>
+                            <ImagePlus className="w-8 h-8 text-slate-400 group-hover:text-indigo-500 transition-colors duration-300" />
+                            <span className="text-xs font-black text-slate-500 uppercase tracking-wider group-hover:text-indigo-600 transition-colors duration-300">+ Agregar Imagen de Portada</span>
+                            <span className="text-[9px] text-slate-400">Recomendado: 1200x512px (PNG, JPG o WebP)</span>
+                        </>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     // Map to ImageAsset for consistency
     const asset: ImageAsset = {
@@ -196,12 +267,14 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
                     </button>
                 </div>
 
-                <div className="absolute bottom-6 left-6 right-6 z-10 pointer-events-none opacity-0 group-hover/featured:opacity-100 transition-opacity">
-                    <div className="bg-black/40 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 max-w-2xl text-white">
-                        <p className="text-[10px] text-white/50 font-black uppercase tracking-widest mb-1">Prompt</p>
-                        <p className="text-[12px] font-medium line-clamp-1 italic">{asset.prompt}</p>
+                {asset.prompt && (
+                    <div className="absolute bottom-6 left-6 right-6 z-10 pointer-events-none opacity-0 group-hover/featured:opacity-100 transition-opacity">
+                        <div className="bg-black/40 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 max-w-2xl text-white">
+                            <p className="text-[10px] text-white/50 font-black uppercase tracking-widest mb-1">Prompt</p>
+                            <p className="text-[12px] font-medium line-clamp-1 italic">{asset.prompt}</p>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
@@ -440,6 +513,7 @@ export default function WriterStudio() {
     const presenceBuffer = useRef<Record<string, { user: any, lastSeen: number }>>({});
     const { handleSEO, handleGenerate, handleHumanize, handleSurgicalEdit, handleRefine, handleClean } = useWriterActions();
     const [isCustomTransformOpen, setIsCustomTransformOpen] = useState(false);
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     const isProcessingAny = isGenerating || isAnalyzingSEO || isPlanningStructure || isHumanizing || isRefining;
     const { user: localUser } = useAuthStore();
     const activeTask = useQueueStore(state => state.activeTask);
@@ -1645,12 +1719,11 @@ export default function WriterStudio() {
                                     <Eye size={14} />
                                 </button>
                                 <button 
-                                    onClick={handleDownloadZip}
+                                    onClick={() => setIsExportModalOpen(true)}
                                     className="flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 active:scale-95 transition-all text-slate-500 hover:text-slate-800" 
                                     title="Descargar HTML e Imágenes (ZIP)"
-                                    disabled={isDownloadingZip}
                                 >
-                                    {isDownloadingZip ? <Loader2 className="animate-spin text-indigo-500" size={14} /> : <Download size={14} />}
+                                    <Download size={14} />
                                 </button>
                             </div>
                             
@@ -2530,6 +2603,12 @@ export default function WriterStudio() {
                     </div>
                 )}
             </AnimatePresence>
+
+            <ZipExportModal 
+                isOpen={isExportModalOpen} 
+                onClose={() => setIsExportModalOpen(false)} 
+                draftId={draftId} 
+            />
         </div>
     );
 }

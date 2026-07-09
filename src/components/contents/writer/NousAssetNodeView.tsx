@@ -162,20 +162,28 @@ export default function NousAssetNodeView(props: any) {
                                                  <CheckCircle2 size={16} />
                                              </button>
                                          )}
-                                         <button 
-                                            onClick={(e) => { e.stopPropagation(); actions.handleGenerateAsset(id); }} 
-                                            disabled={isRegenerating}
-                                            className={cn("p-2.5 rounded-xl transition-all", isRegenerating ? "animate-spin text-indigo-400" : "text-indigo-400 hover:bg-white/5")}
-                                         >
-                                             <RefreshCcw size={18} />
-                                         </button>
-                                         <button onClick={(e) => { e.stopPropagation(); actions.handleDeleteAsset(id, node.attrs.storage_path); }} className="p-2.5 text-rose-500 hover:bg-white/5 rounded-xl">
-                                             <Trash2 size={18} />
-                                         </button>
-                                         <button onClick={(e) => { e.stopPropagation(); setIsLightboxOpen(true); }} className="p-2.5 text-slate-300 hover:bg-white/5 rounded-xl">
-                                             <Maximize2 size={18} />
-                                         </button>
-                                     </div>
+                                          <button 
+                                             onClick={(e) => { e.stopPropagation(); actions.handleGenerateAsset(id); }} 
+                                             disabled={isRegenerating}
+                                             className={cn("p-2.5 rounded-xl transition-all", isRegenerating ? "animate-spin text-indigo-400" : "text-indigo-400 hover:bg-white/5")}
+                                             title="Regenerar con IA"
+                                          >
+                                              <RefreshCcw size={18} />
+                                          </button>
+                                          <button 
+                                             onClick={(e) => { e.stopPropagation(); saveAs(url, title || 'imagen.webp'); }} 
+                                             className="p-2.5 text-emerald-400 hover:bg-white/5 rounded-xl"
+                                             title="Descargar imagen"
+                                          >
+                                              <Download size={18} />
+                                          </button>
+                                          <button onClick={(e) => { e.stopPropagation(); actions.handleDeleteAsset(id, node.attrs.storage_path); }} className="p-2.5 text-rose-500 hover:bg-white/5 rounded-xl" title="Eliminar imagen">
+                                              <Trash2 size={18} />
+                                          </button>
+                                          <button onClick={(e) => { e.stopPropagation(); setIsLightboxOpen(true); }} className="p-2.5 text-slate-300 hover:bg-white/5 rounded-xl" title="Ver en pantalla completa">
+                                              <Maximize2 size={18} />
+                                          </button>
+                                      </div>
                                   </div>
                                   
                                  {/* FILA 2: ALINEACIÓN Y WRAPPING */}

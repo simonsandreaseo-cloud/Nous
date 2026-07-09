@@ -85,7 +85,21 @@ export default function WriterEditor() {
         folder: `editor-uploads/${draftId || 'draft'}`,
         onSuccess: (url, fileName) => {
             if (!editor) return;
-            editor.chain().focus().setImage({ src: url, alt: fileName, title: fileName }).run();
+            const assetId = Math.random().toString(36).substr(2, 9);
+            editor.chain().focus().insertContent({
+                type: 'nousAsset',
+                attrs: {
+                    id: assetId,
+                    url: url,
+                    alt: fileName,
+                    title: fileName,
+                    status: 'final',
+                    role: 'inline',
+                    width: '100%',
+                    align: 'center',
+                    wrapping: 'break',
+                }
+            }).run();
         },
     });
 
