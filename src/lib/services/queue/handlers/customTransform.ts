@@ -31,7 +31,27 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
     const { addLogToTask, setTaskStatus } = useQueueStore.getState();
     
     const draftId = payload.taskId || store.draftId;
-    const originalContent = payload.content;
+    
+    // Verificación de borrador activo
+    const isCurrentDraft = () => useWriterStore.getState().draftId === draftId;
+
+    let originalContent = payload.content;
+    if (draftId) {
+        try {
+            const { supabase: supabaseClient } = require('@/lib/supabase');
+            const { data: dbContent } = await supabaseClient
+                .from('task_contents')
+                .select('content_body')
+                .eq('id', draftId)
+                .single();
+            if (dbContent?.content_body) {
+                originalContent = dbContent.content_body;
+            }
+        } catch (dbErr) {
+            console.warn(`[Queue] Failed to load latest content from database for draft ${draftId}:`, dbErr);
+        }
+    }
+
     const userInstructions = payload.userInstructions;
     const model = payload.model || 'gemini-3.5-flash';
     const provider = payload.provider;
@@ -58,7 +78,7 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
     addLogToTask(taskId, `Iniciando maquetación inteligente con Jefe de Diseño + Chunks...`, 'info');
     
     try {
-        await store.saveTaskVersion(`Pre-Transformación Custom`, originalContent);
+        await useWriterStore.getState().saveTaskVersion(`Pre-Transformación Custom`, originalContent, draftId);
         
         setTaskStatus(taskId, 'processing', 5);
         
@@ -145,9 +165,9 @@ ${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : '
             );
 
             // Progressive Real-time updates in the editor!
-            if (store.draftId === draftId) {
-                store.setIsRemoteUpdate(true);
-                store.setContent(chunkResults.join('\n'));
+            if (isCurrentDraft()) {
+                useWriterStore.getState().setIsRemoteUpdate(true);
+                useWriterStore.getState().setContent(chunkResults.join('\n'));
             }
 
             // Set ending percentage for this chunk
@@ -160,10 +180,18 @@ ${userInstructions ? `INSTRUCCIONES EXTRA DEL CLIENTE:\n${userInstructions}` : '
         setTaskStatus(taskId, 'processing', 98);
         addLogToTask(taskId, `Guardando diseño final...`, 'success');
 
-        if (store.draftId === draftId) {
-            store.setIsRemoteUpdate(true);
-            store.setContent(finalHtml);
-            await store.saveTaskVersion(`Transformación Custom`, finalHtml);
+        // 1. Guardar la versión de la tarea en la base de datos de manera agnóstica al borrador activo
+        await useWriterStore.getState().saveTaskVersion(`Transformación Custom`, finalHtml, draftId);
+
+        // 2. Persistir directamente en las tablas de Supabase
+        const { supabase: supabaseClient } = require('@/lib/supabase');
+        await supabaseClient.from('task_contents').upsert({ id: draftId, content_body: finalHtml });
+        await supabaseClient.from('tasks').update({ content_body: finalHtml }).eq('id', draftId);
+
+        // 3. Si sigue siendo el borrador activo en pantalla, actualizamos el editor visual y los estados
+        if (isCurrentDraft()) {
+            useWriterStore.getState().setIsRemoteUpdate(true);
+            useWriterStore.getState().setContent(finalHtml);
         }
 
         // Add final debug prompt

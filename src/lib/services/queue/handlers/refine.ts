@@ -13,7 +13,23 @@ export const handleRefineTask = async (taskId: string, payload: QueuePayload) =>
     // Verificación dinámica de borrador activo
     const isCurrentDraft = () => useWriterStore.getState().draftId === draftId;
     
-    const originalContent = payload.content;
+    let originalContent = payload.content;
+    if (draftId) {
+        try {
+            const { supabase: supabaseClient } = require('@/lib/supabase');
+            const { data: dbContent } = await supabaseClient
+                .from('task_contents')
+                .select('content_body')
+                .eq('id', draftId)
+                .single();
+            if (dbContent?.content_body) {
+                originalContent = dbContent.content_body;
+            }
+        } catch (dbErr) {
+            console.warn(`[Queue] Failed to load latest content from database for draft ${draftId}:`, dbErr);
+        }
+    }
+
     const instructions = payload.instructions;
     const researchMode = payload.researchMode || 'rapid';
 

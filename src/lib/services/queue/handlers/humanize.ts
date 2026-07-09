@@ -17,7 +17,22 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
     const isCurrentDraft = () => useWriterStore.getState().draftId === draftId;
     
     const config = payload.config;
-    const originalContent = payload.content;
+    let originalContent = payload.content;
+    if (draftId) {
+        try {
+            const { supabase: supabaseClient } = require('@/lib/supabase');
+            const { data: dbContent } = await supabaseClient
+                .from('task_contents')
+                .select('content_body')
+                .eq('id', draftId)
+                .single();
+            if (dbContent?.content_body) {
+                originalContent = dbContent.content_body;
+            }
+        } catch (dbErr) {
+            console.warn(`[Queue] Failed to load latest content from database for draft ${draftId}:`, dbErr);
+        }
+    }
 
     console.log("[DEBUG-Humanize Handler] Starting pipeline for content length:", originalContent?.length);
     
