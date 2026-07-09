@@ -245,7 +245,11 @@ function BillingLineChart({ data }: { data: DailyBucket[] }) {
         );
     }
 
-    return <canvas ref={canvasRef} className="w-full" style={{ height: "340px" }} />;
+    return (
+        <div className="relative h-[340px] w-full">
+            <canvas ref={canvasRef} />
+        </div>
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
