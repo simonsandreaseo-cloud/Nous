@@ -1,4 +1,4 @@
-﻿# Engram Observations - Nous 2.0
+# Engram Observations - Nous 2.0
 
 ## [2026-05-14] SoluciÃ³n a Verbosidad en Humanizador (Gemma-4)
 
@@ -224,3 +224,13 @@ mem_save: Separaci�n de pipeline para Mini Humanizador
   - **Why**: Turbopack on Next.js/Vercel compiles files starting with `"use server";` as Next.js Server Actions, and strictly requires all exported functions within them to be async. Synchronous exports cause the build to fail.
   - **Where**: src/lib/actions/aiActions.ts
   - **Learned**: Next.js Server Actions are strictly checked under Turbopack. Synchronous helpers must either not be exported or must be moved to utility files that do not have the "use server"; directive.
+
+## mem_save: Bugfix - Fixed Missing Outline in Writer Studio after save
+- **title**: Fixed Missing Outline in Writer Studio after save
+- **type**: bugfix
+- **scope**: project
+- **content**:
+  - **What**: Added `'outline_structure'` to the list of heavy research keys in `updateTask` mapping, excluded it from `lightUpdates`, and made `resetTask` explicitly clear it in `task_research` table on draft reset.
+  - **Why**: The `'outline_structure'` key was omitted in `updateTask` routing, saving it to the metadata `tasks` table instead of `task_research`. Upon reload, `researchData` from `task_research` spread after `tasks`, overwriting and destroying the correct outline structure with an empty one.
+  - **Where**: `src/store/project/task-slice.ts`
+  - **Learned**: In 1:1 distributed tables, omitting a heavy field in the state update routing will result in silent UI desyncs or data overwriting during spread operations upon re-fetching. Always ensure that keys are explicitly declared in the correct table updater bucket.
