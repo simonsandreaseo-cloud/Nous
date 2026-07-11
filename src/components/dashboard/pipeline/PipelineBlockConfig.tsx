@@ -17,9 +17,7 @@ interface PipelineBlockConfigProps {
 const AI_MODELS: { id: AIModelType; label: string; description: string }[] = [
     { id: 'gemini-3.5-flash-gas', label: 'Gemini 3.5 Flash (GAS)', description: 'Google AI Studio key rotation' },
     { id: 'gemini-3.5-flash-vertex', label: 'Gemini 3.5 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
-    { id: 'gemini-3-flash-preview-gas', label: 'Gemini 3 Flash (GAS)', description: 'Google AI Studio key rotation' },
-    { id: 'gemini-3-flash-preview-vertex', label: 'Gemini 3 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
-    { id: 'gemini-3.1-pro-preview-gas', label: 'Gemini 3.1 Pro (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3-flash-vertex', label: 'Gemini 3 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
     { id: 'gemini-3.1-pro-preview-vertex', label: 'Gemini 3.1 Pro (Vertex)', description: 'Google Cloud Vertex AI' },
     { id: 'gemini-3.1-flash-lite-preview-gas', label: 'Gemini 3.1 Flash-Lite (GAS)', description: 'Google AI Studio key rotation' },
     { id: 'gemini-3.1-flash-lite-preview-vertex', label: 'Gemini 3.1 Flash-Lite (Vertex)', description: 'Google Cloud Vertex AI' },

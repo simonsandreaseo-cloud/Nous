@@ -251,9 +251,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                             >
                                 <option value="gemini-3.5-flash-gas">Gemini 3.5 Flash (GAS)</option>
                                 <option value="gemini-3.5-flash-vertex">Gemini 3.5 Flash (Vertex)</option>
-                                <option value="gemini-3-flash-preview-gas">Gemini 3 Flash (GAS)</option>
-                                <option value="gemini-3-flash-preview-vertex">Gemini 3 Flash (Vertex)</option>
-                                <option value="gemini-3.1-pro-preview-gas">Gemini 3.1 Pro (GAS)</option>
+                                <option value="gemini-3-flash-vertex">Gemini 3 Flash (Vertex)</option>
                                 <option value="gemini-3.1-pro-preview-vertex">Gemini 3.1 Pro (Vertex)</option>
                                 <option value="gemini-3.1-flash-lite-preview-gas">Gemini 3.1 Flash Lite (GAS)</option>
                                 <option value="gemini-3.1-flash-lite-preview-vertex">Gemini 3.1 Flash Lite (Vertex)</option>

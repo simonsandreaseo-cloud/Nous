@@ -136,7 +136,7 @@ export async function executeHumanizerWithRetry<T>(
     let resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview'];
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview', 'gemini-3-flash'];
     if (!allowedModels.includes(resolvedModel)) {
         safeStatus(`⚠️ Modelo ${resolvedModel} no permitido para humanización. Forzando gemma-4-31b-it.`);
         resolvedModel = 'gemma-4-31b-it';
@@ -572,7 +572,7 @@ export const runHumanizerPipeline = async (
     let resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview'];
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview', 'gemini-3-flash'];
     if (!allowedModels.includes(resolvedModel)) {
         resolvedModel = 'gemma-4-31b-it';
     }
@@ -657,7 +657,15 @@ export const runHumanizerPipeline = async (
                 if (id === 'razonamiento_interno') continue;
                 const el = $(`[data-humanize-id="${id}"]`);
                 if (el.length > 0 && typeof humanizedText === 'string') {
-                    el.html(humanizedText);
+                    // Fix: Evitar error "Cannot create property 'prev' on string" asegurando que el contenido sea tratado como fragmento
+                    try {
+                        el.empty();
+                        const $fragment = cheerio.load(humanizedText, null, false);
+                        el.append($fragment.root().contents());
+                    } catch (err) {
+                        console.warn(`[Cheerio-Fix] Error inyectando bloque ${id}:`, err);
+                        el.html(humanizedText); // Fallback al método original
+                    }
                 }
             }
             if (onChunk) onChunk($.html());
@@ -712,7 +720,7 @@ export const runMiniHumanizerPipeline = async (
         modelName += '-it';
     }
     
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001'];
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview', 'gemini-3-flash'];
     if (!allowedModels.includes(modelName)) {
         modelName = 'gemini-3.5-flash';
     }
@@ -1158,7 +1166,7 @@ export const runSurgicalEditorPipeline = async (
         modelName += '-it';
     }
     
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview'];
+    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-3-flash'];
     if (!allowedModels.includes(modelName)) {
         modelName = 'gemini-3.5-flash';
     }
@@ -1580,7 +1588,8 @@ export async function executeCustomTransformWithRetry<T>(
         'gemma-4-31b-it', 
         'gemma-4-26b-a4b-it',
         'gemini-1.5-flash-001',
-        'gemini-3-flash-preview'
+        'gemini-3-flash-preview',
+        'gemini-3-flash'
     ];
     
     if (!allowedModels.includes(resolvedModel)) {
