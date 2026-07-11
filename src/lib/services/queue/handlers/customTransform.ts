@@ -1,30 +1,9 @@
 import { useWriterStore } from '@/store/useWriterStore';
 import { useQueueStore } from '@/store/useQueueStore';
 import { fetchCustomTransformPlan, streamCustomTransformChunk } from '@/lib/services/writer/ai-streaming';
+import { HtmlProtectionService, sizeAwareChunkHtml } from '@/lib/utils/html-protection';
+import { supabase } from '@/lib/supabase';
 import type { QueuePayload } from '../registry';
-
-const chunkHtmlContent = (html: string, maxChunkLength: number = 5000): string[] => {
-    if (html.length <= maxChunkLength) {
-        return [html];
-    }
-
-    const parts = html.split(/(?=<h[2-6]|<table|<section|<div\s+class=["'][^"']*split)/gi);
-    const chunks: string[] = [];
-    let current = "";
-
-    for (const part of parts) {
-        if ((current + part).length > maxChunkLength && current.trim()) {
-            chunks.push(current);
-            current = part;
-        } else {
-            current += part;
-        }
-    }
-    if (current.trim()) {
-        chunks.push(current);
-    }
-    return chunks;
-};
 
 export const handleCustomTransformTask = async (taskId: string, payload: QueuePayload) => {
     const store = useWriterStore.getState();
@@ -80,10 +59,11 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
     try {
         await useWriterStore.getState().saveTaskVersion(`Pre-Transformación Custom`, originalContent, draftId);
         
-        // 1. Chunking del contenido
+        // 1. Protection and Chunking
+        const { blindedHtml, map: protectionMap } = HtmlProtectionService.protect(originalContent);
         const chunkSize = payload.chunkSize || payload.config?.chunkSize || 3;
         const maxChunkLength = chunkSize * 1500;
-        const chunks = chunkHtmlContent(originalContent, maxChunkLength);
+        const chunks = sizeAwareChunkHtml(blindedHtml, maxChunkLength);
         const chunkResults = [...chunks];
         
         // El número total de pasos de progreso = 1 (para planificación de arquitectura global) + chunks.length
@@ -172,17 +152,18 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
         }
 
         // FASE 3: Ensamblado y guardado final
-        const finalHtml = `<style>\n${stylesheet}\n</style>\n` + chunkResults.join('\n');
-
+        const reassembledHtml = `<style>\n${stylesheet}\n</style>\n` + chunkResults.join('\n');
+        const finalHtml = HtmlProtectionService.restore(reassembledHtml, protectionMap);
+        
         addLogToTask(taskId, `Guardando maquetación premium finalizada...`, 'success');
-
+        
         // 1. Guardar la versión de la tarea en el historial
         await useWriterStore.getState().saveTaskVersion(`Transformación Custom`, finalHtml, draftId);
-
+        
         // 2. Persistir directamente en las tablas de Supabase
-        const { supabase: supabaseClient } = require('@/lib/supabase');
-        await supabaseClient.from('task_contents').upsert({ id: draftId, content_body: finalHtml });
-        await supabaseClient.from('tasks').update({ content_body: finalHtml }).eq('id', draftId);
+        await supabase.from('task_contents').upsert({ id: draftId, content_body: finalHtml });
+        await supabase.from('tasks').update({ content_body: finalHtml }).eq('id', draftId);
+
 
         // 3. Si sigue siendo el borrador activo en pantalla, actualizamos el editor visual y los estados
         if (isCurrentDraft()) {

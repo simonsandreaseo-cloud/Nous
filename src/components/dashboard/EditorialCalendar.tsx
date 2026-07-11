@@ -76,6 +76,7 @@ import { executeDraftPipeline, executeHumanizePipeline } from '@/lib/services/wr
 import { executePipeline } from '@/lib/client/pipelineExecutor';
 import { NousPipelineModal } from './pipeline/NousPipelineModal';
 import { autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
+import { sizeAwareChunkHtml, HtmlProtectionService } from '@/lib/utils/html-protection';
 import { streamFinalCleanup, streamSurgicalEdit } from '@/lib/services/writer/ai-streaming';
 import { streamGenerate, streamSEOPostProcess, streamHumanize } from '@/lib/services/writer/ai-streaming';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
@@ -393,16 +394,8 @@ export function EditorialCalendar() {
 
             onLog(task.id, 'Limpieza', 'Iniciando limpieza inteligente por fragmentos...');
             
-            const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
-                const chunks = [];
-                for (let i = 0; i < elements.length; i += chunkSize) {
-                    chunks.push(elements.slice(i, i + chunkSize).join(''));
-                }
-                return chunks;
-            };
-
-            const chunks = chunkHtml(content, 4);
+            const { blindedHtml, map } = HtmlProtectionService.protect(content);
+            const chunks = sizeAwareChunkHtml(blindedHtml, 4 * 1500);
             let accumulatedHtml = '';
             
             for (let i = 0; i < chunks.length; i++) {
@@ -415,7 +408,7 @@ export function EditorialCalendar() {
                         onLog(task.id, 'Limpieza', `Limpiando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
                         
                         const cleanChunk = await streamFinalCleanup(
-                            chunks[i], 
+                            chunks[i].join(''), 
                             (msg) => {} // Omitimos el log detallado de cada chunk para no saturar la vista
                         );
                         
@@ -433,8 +426,9 @@ export function EditorialCalendar() {
                 }
             }
 
+            const restoredHtml = HtmlProtectionService.restore(accumulatedHtml, map);
             const updates: Partial<Task> = {
-                content_body: accumulatedHtml,
+                content_body: restoredHtml,
                 metadata: { ...(task.metadata as object), is_cleaned: true, cleaned_at: new Date().toISOString() }
             };
             const { error: tErr } = await supabase.from('tasks').update(updates).eq('id', task.id);
@@ -466,36 +460,8 @@ export function EditorialCalendar() {
 
             onLog(task.id, 'Edición Quirúrgica', 'Iniciando edición quirúrgica por fragmentos...');
             
-            const chunkHtml = (htmlString: string, maxBlocks: number = 3): string[] => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlString, 'text/html');
-                const chunks: string[] = [];
-                let currentChunk = '';
-                let blockCount = 0;
-                
-                Array.from(doc.body.children).forEach((el) => {
-                    currentChunk += el.outerHTML;
-                    
-                    const tagName = el.tagName.toLowerCase();
-                    if (['p', 'ul', 'ol', 'blockquote', 'table', 'div'].includes(tagName)) {
-                        blockCount++;
-                    }
-                    
-                    if (blockCount >= maxBlocks) {
-                        chunks.push(currentChunk.trim());
-                        currentChunk = '';
-                        blockCount = 0;
-                    }
-                });
-                
-                if (currentChunk.trim()) {
-                    chunks.push(currentChunk.trim());
-                }
-                
-                return chunks.length > 0 ? chunks : [htmlString];
-            };
-
-            const chunks = chunkHtml(content, 3);
+            const { blindedHtml, map } = HtmlProtectionService.protect(content);
+            const chunks = sizeAwareChunkHtml(blindedHtml, 3 * 1500);
             let accumulatedHtml = '';
             const config = {
                 projectName: activeProject.name,
@@ -514,7 +480,7 @@ export function EditorialCalendar() {
                         onLog(task.id, 'Edición Quirúrgica', `Editando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
                         
                         const chunkResult = await streamSurgicalEdit(
-                            chunks[i], 
+                            chunks[i].join(''), 
                             config,
                             50,
                             () => {},
@@ -535,8 +501,9 @@ export function EditorialCalendar() {
                 }
             }
 
+            const restoredHtml = HtmlProtectionService.restore(accumulatedHtml, map);
             const updates: Partial<Task> = {
-                content_body: accumulatedHtml,
+                content_body: restoredHtml,
                 metadata: { ...(task.metadata as object), is_surgical_edited: true, surgical_edited_at: new Date().toISOString() }
             };
             const { error: tErr } = await supabase.from('tasks').update(updates).eq('id', task.id);

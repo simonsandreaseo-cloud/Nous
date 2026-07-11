@@ -1,7 +1,9 @@
 import { useWriterStore } from '@/store/useWriterStore';
 import { useQueueStore } from '@/store/useQueueStore';
 import { streamFinalCleanup } from '@/lib/services/writer/ai-streaming';
+import { HtmlProtectionService, sizeAwareChunkHtml } from '@/lib/utils/html-protection';
 import type { QueuePayload } from '../registry';
+import { supabase } from '@/lib/supabase';
 
 export const handleCleanTask = async (taskId: string, payload: QueuePayload) => {
     const store = useWriterStore.getState();
@@ -38,47 +40,11 @@ export const handleCleanTask = async (taskId: string, payload: QueuePayload) => 
     try {
         await useWriterStore.getState().saveTaskVersion(`Pre-Limpieza`, originalContent, draftId);
         
-        const chunkHtml = (htmlString: string, maxBlocks: number = 3): string[] => {
-            if (typeof window === 'undefined') {
-                const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
-                const chunks = [];
-                for (let i = 0; i < elements.length; i += maxBlocks) {
-                    const chunk = elements.slice(i, i + maxBlocks).join('').trim();
-                    if (chunk) chunks.push(chunk);
-                }
-                return chunks;
-            }
-
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlString, 'text/html');
-            const chunks: string[] = [];
-            let currentChunk = '';
-            let blockCount = 0;
-            
-            Array.from(doc.body.children).forEach((el) => {
-                currentChunk += el.outerHTML;
-                
-                const tagName = el.tagName.toLowerCase();
-                if (['p', 'ul', 'ol', 'blockquote', 'table', 'div'].includes(tagName)) {
-                    blockCount++;
-                }
-                
-                if (blockCount >= maxBlocks) {
-                    chunks.push(currentChunk.trim());
-                    currentChunk = '';
-                    blockCount = 0;
-                }
-            });
-            
-            if (currentChunk.trim()) {
-                chunks.push(currentChunk.trim());
-            }
-            
-            return chunks.length > 0 ? chunks : [htmlString];
-        };
-
+        // Protection Phase
+        const { blindedHtml, map: protectionMap } = HtmlProtectionService.protect(originalContent);
+        
         const chunkSize = payload.chunkSize || payload.config?.chunkSize || 3;
-        const rawChunks = chunkHtml(originalContent, chunkSize);
+        const rawChunks = sizeAwareChunkHtml(blindedHtml, chunkSize);
         
         if (isCurrentDraft()) {
             useWriterStore.getState().setStatus(`Documento dividido en ${rawChunks.length} partes para limpieza...`);
@@ -152,20 +118,22 @@ export const handleCleanTask = async (taskId: string, payload: QueuePayload) => 
         
         const accumulatedHtml = currentDocumentChunks.join('\n');
         
+        // Restore protected atomic blocks
+        const restoredHtml = HtmlProtectionService.restore(accumulatedHtml, protectionMap);
+        
         // 1. Guardar la versión de la tarea en la base de datos de manera agnóstica al borrador activo
-        await useWriterStore.getState().saveTaskVersion(`Limpieza IA`, accumulatedHtml, draftId);
+        await useWriterStore.getState().saveTaskVersion(`Limpieza IA`, restoredHtml, draftId);
         
         // 2. Persistir directamente en las tablas de Supabase
-        const { supabase } = require('@/lib/supabase');
-        await supabase.from('task_contents').upsert({ id: draftId, content_body: accumulatedHtml });
-        await supabase.from('tasks').update({ content_body: accumulatedHtml }).eq('id', draftId);
+        await supabase.from('task_contents').upsert({ id: draftId, content_body: restoredHtml });
+        await supabase.from('tasks').update({ content_body: restoredHtml }).eq('id', draftId);
 
         // 3. Si sigue siendo el borrador activo en pantalla, actualizamos el editor visual y los estados
         if (isCurrentDraft()) {
             useWriterStore.getState().setIsRemoteUpdate(true);
-            useWriterStore.getState().setContent(accumulatedHtml);
+            useWriterStore.getState().setContent(restoredHtml);
             useWriterStore.getState().setStatus('✅ ¡Limpieza mágica aplicada en todo el artículo!');
-            useWriterStore.getState().addDebugPrompt('Limpieza Completada', `Ruido IA eliminado con éxito mediante chunks`, accumulatedHtml.substring(0, 1000));
+            useWriterStore.getState().addDebugPrompt('Limpieza Completada', `Ruido IA eliminado con éxito mediante chunks`, restoredHtml.substring(0, 1000));
         }
         
         addLogToTask(taskId, 'Limpieza completada con éxito.', 'success');

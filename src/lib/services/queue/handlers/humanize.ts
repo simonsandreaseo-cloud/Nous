@@ -4,6 +4,7 @@ import { useQueueStore } from '@/store/useQueueStore';
 import { supabase } from '@/lib/supabase';
 import { streamHumanize } from '@/lib/services/writer/ai-streaming';
 import { refineStyling } from '@/components/tools/writer/services';
+import { HtmlProtectionService, sizeAwareChunkHtml } from '@/lib/utils/html-protection';
 import type { QueuePayload } from '../registry';
 
 export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) => {
@@ -44,18 +45,11 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
     try {
         await useWriterStore.getState().saveTaskVersion(`Pre-Humanización`, originalContent, draftId);
 
-        const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-            const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table|<blockquote)/gi);
-            const chunks = [];
-            for (let i = 0; i < elements.length; i += chunkSize) {
-                const chunk = elements.slice(i, i + chunkSize).join('').trim();
-                if (chunk) chunks.push(chunk);
-            }
-            return chunks;
-        };
-
+        // Protection Phase
+        const { blindedHtml, map: protectionMap } = HtmlProtectionService.protect(originalContent);
+        
         const chunkSize = payload.chunkSize || payload.config?.chunkSize || 4;
-        const rawChunks = chunkHtml(originalContent, chunkSize);
+        const rawChunks = sizeAwareChunkHtml(blindedHtml, chunkSize);
         console.log(`[DEBUG-Humanize Handler] Documento dividido en ${rawChunks.length} chunks.`);
         
         if (isCurrentDraft()) {
@@ -144,13 +138,16 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
         }
 
         const finalResult = { html: currentDocumentChunks.join('\n') };
-
+        
         await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
-
-        const refined = refineStyling(finalResult.html);
+        
+        // Restore protected atomic blocks
+        const restoredHtml = HtmlProtectionService.restore(finalResult.html, protectionMap);
+        const refined = refineStyling(restoredHtml);
         
         // 1. Guardar la versión de la tarea en la base de datos de manera agnóstica al borrador activo
         await useWriterStore.getState().saveTaskVersion(`Humanizada`, refined, draftId);
+
         
         // 2. Persistir directamente en las tablas de Supabase
         await supabase.from('task_contents').upsert({ id: draftId, content_body: refined });

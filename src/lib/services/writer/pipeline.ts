@@ -6,6 +6,7 @@ import { streamGenerate, streamHumanize, streamSEOPostProcess, streamFinalCleanu
 import { sanitizeLLMHtml } from '@/utils/html-parser';
 import { AI_CONFIG } from '@/lib/ai/config';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
+import { HtmlProtectionService, sizeAwareChunkHtml } from '@/lib/utils/html-protection';
 
 export async function executeDraftPipeline(
     task: Task, 
@@ -215,18 +216,13 @@ export async function executeSurgicalEditPipeline(
         task
     };
 
-    const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-        const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
-        const chunks = [];
-        for (let i = 0; i < elements.length; i += chunkSize) {
-            chunks.push(elements.slice(i, i + chunkSize).join(''));
-        }
-        return chunks;
-    };
-
     const sanitizedContent = sanitizeLLMHtml(content);
-    // Usamos 8 elementos por chunk para no sobrecargar el límite de tokens (Surgical Edit extrae más contexto)
-    const chunks = chunkHtml(sanitizedContent, chunkSize || 8);
+    
+    // Protection Phase
+    const { blindedHtml, map: protectionMap } = HtmlProtectionService.protect(sanitizedContent);
+    
+    // Size-Aware Chunking (using blinded HTML)
+    const chunks = sizeAwareChunkHtml(blindedHtml, chunkSize || 8);
     onLog(`Documento dividido en ${chunks.length} chunks para edición quirúrgica...`);
     
     let accumulatedHtml = '';
@@ -281,7 +277,9 @@ export async function executeSurgicalEditPipeline(
         }
     }
 
-    const formatted = cleanAndFormatHtml(accumulatedHtml);
+    // Restore protected atomic blocks
+    const restoredHtml = HtmlProtectionService.restore(accumulatedHtml, protectionMap);
+    const formatted = cleanAndFormatHtml(restoredHtml);
     const updates = { 
         content_body: formatted,
         metadata: { ...(task.metadata as object), is_surgically_edited: true }
@@ -333,19 +331,15 @@ export async function executeHumanizePipeline(
         language: task.language || activeProject?.settings?.content_preferences?.default_content_language || activeProject?.i18n_settings?.default_language || 'es'
     };
 
-    // Split sanitized content into elements (default 4 per chunk)
-    const chunkHtml = (htmlString: string, chunkSize: number): string[] => {
-        const elements = htmlString.split(/(?=<h[1-6]|<p|<ul|<ol|<li>|<div|<table)/gi);
-        const chunks = [];
-        for (let i = 0; i < elements.length; i += chunkSize) {
-            chunks.push(elements.slice(i, i + chunkSize).join(''));
-        }
-        return chunks;
-    };
-
     const sanitizedContent = sanitizeLLMHtml(content);
-    const chunks = chunkHtml(sanitizedContent, chunkSize || 4);
+    
+    // Protection Phase
+    const { blindedHtml, map: protectionMap } = HtmlProtectionService.protect(sanitizedContent);
+    
+    // Size-Aware Chunking (using blinded HTML)
+    const chunks = sizeAwareChunkHtml(blindedHtml, chunkSize || 4);
     onLog(`Documento dividido en ${chunks.length} chunks de ${chunkSize || 4} elementos HTML...`);
+
 
     let accumulatedHtml = '';
     let humLastUpdateTime = 0;
@@ -401,34 +395,37 @@ export async function executeHumanizePipeline(
         }
     }
 
-    const newContent = accumulatedHtml;
-
+    // Restore protected atomic blocks
+    const restoredHtml = HtmlProtectionService.restore(accumulatedHtml, protectionMap);
+    
     const updates: Partial<Task> = {
-        content_body: newContent,
+        content_body: restoredHtml,
         metadata: { ...task.metadata, is_humanized: true, humanized_at: new Date().toISOString() }
     };
+
 
     // Guardar versión post-humanización
     try {
         await supabase.from('task_versions').insert({
             task_id: task.id,
             process_name: "Post-Humanización",
-            content_body: newContent,
+            content_body: restoredHtml,
             created_at: new Date().toISOString()
         });
     } catch (e) {
         console.error('No se pudo guardar la versión Post-Humanización:', e);
     }
-
+    
     // Update tasks table
     const { content_body: _, ...tasksUpdate } = updates;
     const { error: tErr } = await supabase.from('tasks').update(tasksUpdate).eq('id', task.id);
     if (tErr) throw tErr;
-
+    
     // Update task_contents
-    const { error: tcErr } = await supabase.from('task_contents').upsert({ id: task.id, content_body: newContent });
+    const { error: tcErr } = await supabase.from('task_contents').upsert({ id: task.id, content_body: restoredHtml });
     if (tcErr) throw tcErr;
-
+    
     onLog('✅ Humanización completada y HTML limpiado.');
-    return { success: true, content: newContent, updates };
+    return { success: true, content: restoredHtml, updates };
+
 }
