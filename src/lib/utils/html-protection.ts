@@ -54,28 +54,25 @@ export const HtmlProtectionService = {
  * Splits HTML into chunks of approximately maxChars, 
  * ensuring elements (and protected tokens) are not split.
  */
-export function sizeAwareChunkHtml(html: string, maxChars: number): string[][] {
+export function sizeAwareChunkHtml(html: string, maxChars: number): string[] {
   if (!html) return [];
   
   // Boundary regex: split before common block-level elements or protected tokens
   const boundaryRegex = /(?=<h[1-6]\b[^>]*>|<p\b[^>]*>|<ul\b[^>]*>|<ol\b[^>]*>|<li\b[^>]*>|<div\b[^>]*>|<table\b[^>]*>|<blockquote\b[^>]*>|\[\[ATOMIC_BLOCK_\d+\]\])/gi;
   
   const blocks = html.split(boundaryRegex).filter(block => block.length > 0);
-  const chunks: string[][] = [];
-  let currentChunk: string[] = [];
-  let currentLength = 0;
+  const chunks: string[] = [];
+  let currentChunk: string = "";
   
   for (const block of blocks) {
     // If a single block is larger than maxChars, it still stays as one block 
     // to avoid splitting tags/tokens.
-    if (currentLength + block.length > maxChars && currentChunk.length > 0) {
+    if (currentChunk.length + block.length > maxChars && currentChunk.length > 0) {
       chunks.push(currentChunk);
-      currentChunk = [];
-      currentLength = 0;
+      currentChunk = "";
     }
     
-    currentChunk.push(block);
-    currentLength += block.length;
+    currentChunk += block;
   }
   
   if (currentChunk.length > 0) {
