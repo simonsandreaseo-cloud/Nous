@@ -39,7 +39,7 @@ export const getCoverImage = (image: any) => {
 };
 
 export default function NousAssetNodeView(props: any) {
-    const { node, deleteNode, updateAttributes } = props;
+    const { node, deleteNode, updateAttributes, selected } = props;
     // Expose node attrs for external utilities if needed
     // (No change needed here)
     
@@ -53,7 +53,6 @@ export default function NousAssetNodeView(props: any) {
 
     const [isResizing, setIsResizing] = useState(false);
     const [resizerWidth, setResizerWidth] = useState(width || '100%');
-    const [showMenu, setShowMenu] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     
     const { actions, state } = useImageManager();
@@ -126,7 +125,8 @@ export default function NousAssetNodeView(props: any) {
             className={cn(
                 "nous-asset-node py-4 group/node relative",
                 align === 'center' && wrapping !== 'wrap' && "w-full flex justify-center",
-                align === 'full' && "w-full"
+                align === 'full' && "w-full",
+                selected && "ProseMirror-selectednode"
             )}
         >
             <motion.div 
@@ -135,14 +135,13 @@ export default function NousAssetNodeView(props: any) {
                 layout
                 className={cn(
                     "group relative transition-shadow duration-500",
-                    showMenu && "z-[100]",
+                    selected && "z-[100]",
                     status === 'ghost' && "opacity-60 grayscale-[0.5] ring-4 ring-indigo-400/30"
                 )}
-                onClick={() => setShowMenu(!showMenu)}
             >
                 {/* TOOLBAR FLOTANTE DE ALTA FIDELIDAD */}
                 <AnimatePresence>
-                    {(showMenu || isResizing) && (
+                    {(selected || isResizing) && (
                         <motion.div 
                             initial={{ opacity: 0, y: 10, scale: 0.95, x: "-50%" }}
                             animate={{ opacity: 1, y: -24, scale: 1, x: "-50%" }}
