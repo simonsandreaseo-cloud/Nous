@@ -207,6 +207,11 @@ export async function uploadManualImage(params: {
         const isGif = params.fileType.toLowerCase().includes('gif') || params.fileName.toLowerCase().endsWith('.gif');
         const imageId = Math.random().toString(36).substr(2, 9);
 
+        const originalName = params.fileName || 'image';
+        const lastDot = originalName.lastIndexOf('.');
+        const baseName = lastDot !== -1 ? originalName.substring(0, lastDot) : originalName;
+        const cleanName = baseName.replace(/\s+/g, '_');
+
         const supabaseAdmin = getSupabaseAdmin();
 
         let storagePath: string;
@@ -215,7 +220,7 @@ export async function uploadManualImage(params: {
         if (isGif) {
             // Leave GIF untouched to preserve animation
             const fileExt = 'gif';
-            storagePath = `generations/${params.taskId}/${imageId}.${fileExt}`;
+            storagePath = `generations/${params.taskId}/${cleanName}.${fileExt}`;
 
             const { error: uploadError } = await supabaseAdmin.storage
                 .from('content-images')
@@ -261,7 +266,7 @@ export async function uploadManualImage(params: {
             // 2. Process and Upload via PostProcessingService to WebP
             const processingParams: any = {
                 buffer: imageBuffer,
-                fileName: `${params.taskId}/${imageId}.webp`,
+                fileName: `${params.taskId}/${cleanName}.webp`,
                 bucket: 'content-images',
             };
 
@@ -316,11 +321,16 @@ export async function uploadEditorImageAction(formData: FormData) {
         const imageId = Math.random().toString(36).substr(2, 9);
         const supabaseAdmin = getSupabaseAdmin();
 
+        const originalName = file.name || 'image';
+        const lastDot = originalName.lastIndexOf('.');
+        const baseName = lastDot !== -1 ? originalName.substring(0, lastDot) : originalName;
+        const cleanName = baseName.replace(/\s+/g, '_');
+
         let storagePath: string;
         let publicUrl: string;
 
         if (isGif) {
-            storagePath = `generations/${taskId}/${imageId}.gif`;
+            storagePath = `generations/${taskId}/${cleanName}.gif`;
             const { error: uploadError } = await supabaseAdmin.storage
                 .from('content-images')
                 .upload(storagePath, imageBuffer, { contentType: 'image/gif', upsert: true });
@@ -330,7 +340,7 @@ export async function uploadEditorImageAction(formData: FormData) {
         } else {
             const processingParams: any = {
                 buffer: imageBuffer,
-                fileName: `${taskId}/${imageId}.webp`,
+                fileName: `${taskId}/${cleanName}.webp`,
                 bucket: 'content-images',
             };
             
