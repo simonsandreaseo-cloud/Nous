@@ -71,15 +71,47 @@ export async function POST(req: Request) {
             },
         });
 
+        let html = "";
+
         if (!response.ok) {
-            console.warn(`[NextExtractor] Fetch failed for ${url} with status: ${response.status}`);
-            return NextResponse.json({ 
-                success: false, 
-                error: `Acceso denegado por el sitio (${response.status} ${response.statusText})`
-            });
+            console.warn(`[NextExtractor] Fetch failed for ${url} with status: ${response.status}. Iniciando fallback con Firecrawl...`);
+            
+            try {
+                const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY || process.env.NEXT_PUBLIC_FIRECRAWL_API_KEY || 'fc-1a6816cc1b414aacbb04e101d5da6479';
+                const fcRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url, formats: ["html"] }),
+                    // Aumentamos el timeout porque Firecrawl tiene que levantar el browser
+                    signal: AbortSignal.timeout(60000) 
+                });
+
+                const fcData = await fcRes.json();
+
+                if (!fcRes.ok || !fcData.success) {
+                    console.error(`[NextExtractor] Firecrawl fallback falló:`, fcData);
+                    return NextResponse.json({ 
+                        success: false, 
+                        error: `Acceso denegado por el sitio y fallo en extractor secundario (${response.status})`
+                    });
+                }
+                
+                html = fcData.data.html;
+                console.log(`[NextExtractor] Firecrawl fallback exitoso para ${url}`);
+            } catch (fcError: any) {
+                console.error(`[NextExtractor] Error de red en Firecrawl fallback:`, fcError);
+                return NextResponse.json({ 
+                    success: false, 
+                    error: `Acceso denegado por el sitio (${response.status}) y fallo al conectar con extractor secundario.`
+                });
+            }
+        } else {
+            html = await response.text();
         }
 
-        const html = await response.text();
         const results = [];
 
         const needsCheerio = rules.some((r: any) => r.extraction_type === "selector");
