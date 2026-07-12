@@ -657,14 +657,19 @@ export const runHumanizerPipeline = async (
                 if (id === 'razonamiento_interno') continue;
                 const el = $(`[data-humanize-id="${id}"]`);
                 if (el.length > 0 && typeof humanizedText === 'string') {
-                    // Fix: Evitar error "Cannot create property 'prev' on string" asegurando que el contenido sea tratado como fragmento
                     try {
-                        el.empty();
-                        const $fragment = cheerio.load(humanizedText, null, false);
-                        el.append($fragment.root().contents());
+                        // En lugar de usar el.html() que a veces falla con strings primitivos en Cheerio
+                        // o crear un sub-documento que pierde el contexto, usamos replaceWith si es un bloque 
+                        // o simplemente seteamos el texto si es solo texto.
+                        const isHtml = /<[a-z][\s\S]*>/i.test(humanizedText);
+                        if (isHtml) {
+                            el.empty().append(humanizedText);
+                        } else {
+                            el.text(humanizedText);
+                        }
                     } catch (err) {
                         console.warn(`[Cheerio-Fix] Error inyectando bloque ${id}:`, err);
-                        el.html(humanizedText); // Fallback al método original
+                        try { el.html(humanizedText); } catch(e) {} // Ultimo recurso
                     }
                 }
             }
@@ -674,29 +679,22 @@ export const runHumanizerPipeline = async (
                 onProgress(percent);
             }
         }
+
+        $('[data-humanize-id]').removeAttr('data-humanize-id');
+        const finalHtml = $.html();
         
-        safeStatus(`Reconstruyendo el HTML...`);
-        for (const [id, humanizedText] of Object.entries(allProcessedBlocks)) {
-            if (id === 'razonamiento_interno') continue;
-            const el = $(`[data-humanize-id="${id}"]`);
-            if (el.length > 0 && typeof humanizedText === 'string') {
-                el.html(humanizedText);
-            }
-        }
+        if (onChunk) onChunk(finalHtml);
+
+        const duration = (Date.now() - start) / 1000;
+        console.log(`[Humanizer-Perf] Completado en ${duration}s`);
+        
+        return { html: cleanAndFormatHtml(finalHtml) };
 
     } catch (e: any) {
         safeStatus(`Error durante la humanización: ${e.message}. Devolviendo original.`);
+        return { html: cleanAndFormatHtml(html) };
     }
 
-    $('[data-humanize-id]').removeAttr('data-humanize-id');
-    const finalHtml = $.html();
-    
-    if (onChunk) onChunk(finalHtml);
-
-    const duration = (Date.now() - start) / 1000;
-    console.log(`[Humanizer-Perf] Completado en ${duration}s`);
-    
-    return { html: cleanAndFormatHtml(finalHtml) };
 };
 
 export const runMiniHumanizerPipeline = async (
