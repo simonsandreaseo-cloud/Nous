@@ -3,8 +3,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { X, Sparkles, Loader2, AlertCircle, Copy, Check, Eye, Code, FileText } from "lucide-react";
+import { useEditor, EditorContent } from "@tiptap/react";
 import { streamCustomTransform } from "@/lib/services/writer/ai-streaming";
 import { cn } from "@/utils/cn";
+import { getSharedExtensions } from "@/lib/tiptap-extensions";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useWriterStore } from "@/store/useWriterStore";
 import { useQueueStore } from "@/store/useQueueStore";
@@ -69,7 +71,6 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
     const [error, setError] = useState<string | null>(null);
-    const [inputHtml, setInputHtml] = useState("");
     const [outputHtml, setOutputHtml] = useState("");
     const [selectedPreset, setSelectedPreset] = useState(() => projectGuidelines ? "proyecto" : "revista");
     const [brandGuidelines, setBrandGuidelines] = useState(() => projectGuidelines ? projectGuidelines : PRESETS[0].guidelines);
@@ -77,6 +78,28 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
     const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
     const [activeTab, setActiveTab] = useState<"code" | "preview">("code");
     const [copied, setCopied] = useState(false);
+
+    const extensions = useMemo(() => getSharedExtensions("Pega el texto aquí..."), []);
+
+    const editor = useEditor({
+        extensions,
+        content: "",
+        editable: !isProcessing,
+        editorProps: {
+            attributes: {
+                class: cn(
+                    "prose prose-sm prose-invert focus:outline-none max-w-none text-slate-300 p-4 min-h-[250px] h-full",
+                    "prose-headings:text-slate-200 prose-p:text-slate-300 prose-strong:text-white"
+                ),
+            },
+        },
+    });
+
+    useEffect(() => {
+        if (editor) {
+            editor.setEditable(!isProcessing);
+        }
+    }, [isProcessing, editor]);
 
     useEffect(() => {
         const preset = allPresets.find(p => p.id === selectedPreset);
@@ -86,13 +109,13 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
     }, [selectedPreset, allPresets]);
 
     useEffect(() => {
-        if (editorMode) {
+        if (editorMode && editor) {
             const store = useWriterStore.getState();
             if (store.content) {
-                setInputHtml(store.content);
+                editor.commands.setContent(store.content);
             }
         }
-    }, [editorMode]);
+    }, [editorMode, editor]);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(outputHtml);
@@ -101,7 +124,7 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
     };
 
     const handleTransform = async () => {
-
+        const inputHtml = editor?.getHTML() || "";
         if (!inputHtml.trim()) return;
 
         setIsProcessing(true);
@@ -235,14 +258,10 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
 
                         {/* HTML Input Area */}
                         <div className="flex flex-col gap-2 flex-1 min-h-[250px]">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">HTML Original</label>
-                            <textarea
-                                value={inputHtml}
-                                onChange={(e) => setInputHtml(e.target.value)}
-                                placeholder="Pega el código HTML completo aquí..."
-                                disabled={isProcessing}
-                                className="flex-1 text-xs font-mono text-slate-300 bg-slate-950 border border-slate-800 rounded-xl p-4 resize-none outline-none focus:border-indigo-500/80 transition-colors leading-normal placeholder:text-slate-600"
-                            />
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Contenido Original (Editor Visual)</label>
+                            <div className="flex-1 relative bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col focus-within:border-indigo-500/80 transition-colors">
+                                <EditorContent editor={editor} className="flex-1 overflow-y-auto" />
+                            </div>
                         </div>
                     </div>
 
@@ -373,7 +392,7 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
                         )}
                         <button
                             onClick={handleTransform}
-                            disabled={isProcessing || !inputHtml.trim()}
+                            disabled={isProcessing || !editor || editor.isEmpty}
                             className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/25 active:scale-[0.98]"
                         >
                             <Sparkles size={16} />
