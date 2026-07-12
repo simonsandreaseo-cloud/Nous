@@ -1097,6 +1097,31 @@ export default function WriterStudio() {
         setSaving(true);
         try { 
             await updateTask(draftId, payload); 
+            
+            // Create "Guardado Manual N" version
+            const versions = latestState.taskVersions || [];
+            const manualVersions = versions
+                .map((v: any) => v.process_name)
+                .filter((name: string) => name && name.startsWith("Guardado Manual "));
+                
+            let maxN = 0;
+            for (const name of manualVersions) {
+                const numMatch = name.match(/Guardado Manual (\d+)/);
+                if (numMatch && numMatch[1]) {
+                    const num = parseInt(numMatch[1], 10);
+                    if (!isNaN(num) && num > maxN) {
+                        maxN = num;
+                    }
+                }
+            }
+            const nextN = maxN + 1;
+            
+            if (latestState.saveTaskVersion) {
+                await latestState.saveTaskVersion(`Guardado Manual ${nextN}`);
+            }
+            
+            setStatus(`✅ Guardado Manual ${nextN} creado`);
+            setTimeout(() => setStatus(''), 3000);
         } catch (e) { 
             setStatus('❌ Error al guardar'); 
         } finally { 

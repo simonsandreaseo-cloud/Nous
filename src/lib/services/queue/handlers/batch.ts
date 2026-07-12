@@ -3,6 +3,7 @@ import { useQueueStore } from '@/store/useQueueStore';
 import { supabase } from '@/lib/supabase';
 import { StrategyService } from '@/lib/services/strategy';
 import { OutlineEngine } from '@/lib/services/writer/research/outline-engine';
+import { taskExecutionCount } from './taskSequenceCache';
 import type { QueuePayload } from '../registry';
 
 // Extracted from EditorialCalendar.tsx
@@ -133,15 +134,41 @@ export const handleBatchHumanize = async (taskId: string, payload: QueuePayload)
     const { targetTask, activeProject, content: initialContent } = payload;
     const { addLogToTask, setTaskStatus } = useQueueStore.getState();
 
+    const execCount = taskExecutionCount.get(targetTask.id) || 0;
+
     try {
         setTaskStatus(taskId, "processing", 10);
         addLogToTask(taskId, "Iniciando humanización masiva...", "info");
         
         let content = initialContent;
+        let fetchAttempts = 0;
+        
+        while (fetchAttempts < 2) {
+            try {
+                const { data: contentData, error: fetchErr } = await supabase.from('task_contents').select('content_body').eq('id', targetTask.id).maybeSingle();
+                if (!fetchErr && contentData?.content_body) {
+                    content = contentData.content_body;
+                }
+            } catch (e) {
+                console.warn("[Queue] Could not fetch latest content for batch_humanize", e);
+            }
+
+            // Elemento de seguridad: Si es una tarea en cadena y el contenido no ha cambiado en la DB
+            if (execCount > 0 && content === initialContent) {
+                if (fetchAttempts === 0) {
+                    addLogToTask(taskId, "La BD aún no refleja cambios de la tarea anterior. Esperando 10s...", "warning");
+                    await new Promise(resolve => setTimeout(resolve, 10000));
+                    fetchAttempts++;
+                    continue;
+                } else {
+                    throw new Error("El contenido es exactamente igual a la tarea anterior. Acción cancelada por seguridad.");
+                }
+            }
+            break;
+        }
+
         if (!content) {
-            const { data: contentData, error: fetchErr } = await supabase.from('task_contents').select('content_body').eq('id', targetTask.id).single();
-            if (fetchErr) throw fetchErr;
-            content = contentData?.content_body || targetTask.content_body;
+            content = targetTask.content_body;
         }
 
         if (!content) {
@@ -178,6 +205,9 @@ export const handleBatchHumanize = async (taskId: string, payload: QueuePayload)
             });
             setTaskStatus(taskId, "processing", 100);
             addLogToTask(taskId, "Humanización completada.", "success");
+            
+            // Incrementar contador de ejecución para este task
+            taskExecutionCount.set(targetTask.id, execCount + 1);
         } else {
             setTaskStatus(taskId, "error", 100);
             addLogToTask(taskId, "Humanización fallida sin actualizaciones.", "error");
