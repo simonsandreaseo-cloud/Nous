@@ -228,6 +228,7 @@ export default function ImageCropperModal({
                                         style={{
                                             width: imgSize.w,
                                             height: imgSize.h,
+                                            maxWidth: 'none',
                                             transform: `scale(${scale})`,
                                             transformOrigin: 'center center',
                                             pointerEvents: 'none'
