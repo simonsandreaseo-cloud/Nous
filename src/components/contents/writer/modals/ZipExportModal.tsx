@@ -11,6 +11,7 @@ import { saveAs } from 'file-saver';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { getCoverImage } from '@/components/contents/writer/NousAssetNodeView';
+import { LinkPatcherService } from '@/lib/services/link-patcher';
 
 interface ZipExportModalProps {
     isOpen: boolean;
@@ -20,6 +21,7 @@ interface ZipExportModalProps {
 
 export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportModalProps) {
     const { taskImages, keyword, strategyH1, content } = useWriterStore() as any;
+    const { activeProject } = useProjectStore();
     
     // UI states
     const [format, setFormat] = useState<'zip' | 'html'>('zip');
@@ -137,6 +139,9 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
             // Find cover/featured image
             const featured = getCoverImage(taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured'));
             
+            // Get active patchers for export
+            const zipExportPatchers = LinkPatcherService.getPatchersForProcess(activeProject, 'zip_export');
+
             if (format === 'zip') {
                 const JSZip = (await import('jszip')).default;
                 const zip = new JSZip();
@@ -177,8 +182,32 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
                                 seenUrls.add(originalUrl);
                             }
                             
-                            // Replace remote src with relative local path inside ZIP HTML
-                            img.setAttribute('src', localPath);
+                            let finalSrc = localPath;
+                            if (zipExportPatchers.length > 0) {
+                                let pUrl = originalUrl;
+                                zipExportPatchers.forEach(p => pUrl = LinkPatcherService.patchUrl(pUrl, p.config?.rules || []));
+                                if (pUrl !== originalUrl) {
+                                    finalSrc = pUrl;
+                                }
+                            }
+                            
+                            // Replace remote src with relative local path inside ZIP HTML or patched URL
+                            img.setAttribute('src', finalSrc);
+                        }
+                    });
+                }
+
+                // Patch <a> links inside the ZIP HTML
+                if (zipExportPatchers.length > 0) {
+                    const links = tempDiv.querySelectorAll('a');
+                    links.forEach(link => {
+                        const href = link.getAttribute('href');
+                        if (href && href.startsWith('http')) {
+                            let pUrl = href;
+                            zipExportPatchers.forEach(p => pUrl = LinkPatcherService.patchUrl(pUrl, p.config?.rules || []));
+                            if (pUrl !== href) {
+                                link.setAttribute('href', pUrl);
+                            }
                         }
                     });
                 }
@@ -207,9 +236,17 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
 
                 // Compile HTML content
                 const processedHtml = tempDiv.innerHTML;
-                const finalHeroPath = (includeCover && featured && featured.url && seenUrls.has(featured.url))
+                let finalHeroPath = (includeCover && featured && featured.url && seenUrls.has(featured.url))
                     ? imageDownloads.find(d => d.url === featured.url)?.localPath
                     : '';
+                
+                if (finalHeroPath && zipExportPatchers.length > 0 && featured?.url) {
+                    let pUrl = featured.url;
+                    zipExportPatchers.forEach(p => pUrl = LinkPatcherService.patchUrl(pUrl, p.config?.rules || []));
+                    if (pUrl !== featured.url) {
+                        finalHeroPath = pUrl;
+                    }
+                }
 
                 let heroHtml = '';
                 if (finalHeroPath) {
@@ -303,8 +340,43 @@ export default function ZipExportModal({ isOpen, onClose, draftId }: ZipExportMo
                 // HTML Puro Format (images point to remote cloud urls)
                 setStatusMessage('📄 Compilando HTML Puro...');
                 
+                // Patch <a> and <img> links for pure HTML export if patchers are active
+                if (zipExportPatchers.length > 0) {
+                    const allImgs = tempDiv.querySelectorAll('img');
+                    allImgs.forEach(img => {
+                        const src = img.getAttribute('src');
+                        if (src && src.startsWith('http')) {
+                            let pUrl = src;
+                            zipExportPatchers.forEach(p => pUrl = LinkPatcherService.patchUrl(pUrl, p.config?.rules || []));
+                            if (pUrl !== src) {
+                                img.setAttribute('src', pUrl);
+                            }
+                        }
+                    });
+
+                    const allLinks = tempDiv.querySelectorAll('a');
+                    allLinks.forEach(link => {
+                        const href = link.getAttribute('href');
+                        if (href && href.startsWith('http')) {
+                            let pUrl = href;
+                            zipExportPatchers.forEach(p => pUrl = LinkPatcherService.patchUrl(pUrl, p.config?.rules || []));
+                            if (pUrl !== href) {
+                                link.setAttribute('href', pUrl);
+                            }
+                        }
+                    });
+                }
+
                 const processedHtml = tempDiv.innerHTML;
-                const finalHeroPath = (includeCover && featured && featured.url) ? featured.url : '';
+                let finalHeroPath = (includeCover && featured && featured.url) ? featured.url : '';
+
+                if (finalHeroPath && zipExportPatchers.length > 0) {
+                    let pUrl = finalHeroPath;
+                    zipExportPatchers.forEach(p => pUrl = LinkPatcherService.patchUrl(pUrl, p.config?.rules || []));
+                    if (pUrl !== finalHeroPath) {
+                        finalHeroPath = pUrl;
+                    }
+                }
 
                 let heroHtml = '';
                 if (finalHeroPath) {

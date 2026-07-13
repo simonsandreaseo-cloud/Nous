@@ -40,7 +40,7 @@ export class LinkPatcherService {
     /**
      * Finds active patchers configured for a specific process.
      */
-    static getPatchersForProcess(project: Project | null, processName: 'internal_linking' | 'translator' | 'writer'): CustomWidget[] {
+    static getPatchersForProcess(project: Project | null, processName: 'internal_linking' | 'translator' | 'writer' | 'zip_export'): CustomWidget[] {
         if (!project) return [];
         return (project.custom_widgets || []).filter(w => 
             w.is_active && 
@@ -65,7 +65,7 @@ export class LinkPatcherService {
     /**
      * Patches a URL based on any active patchers for a specific process.
      */
-    static patchUrlForProcess(url: string, project: Project | null, processName: 'internal_linking' | 'translator' | 'writer'): string {
+    static patchUrlForProcess(url: string, project: Project | null, processName: 'internal_linking' | 'translator' | 'writer' | 'zip_export'): string {
         const patchers = this.getPatchersForProcess(project, processName);
         let patchedUrl = url;
         patchers.forEach(p => {
@@ -77,7 +77,7 @@ export class LinkPatcherService {
     /**
      * Finds and patches all links within an HTML or Markdown string.
      */
-    static patchHtmlForProcess(content: string, project: Project | null, processName: 'internal_linking' | 'translator' | 'writer'): string {
+    static patchHtmlForProcess(content: string, project: Project | null, processName: 'internal_linking' | 'translator' | 'writer' | 'zip_export'): string {
         if (!content || !project) return content;
         const patchers = this.getPatchersForProcess(project, processName);
         if (patchers.length === 0) return content;

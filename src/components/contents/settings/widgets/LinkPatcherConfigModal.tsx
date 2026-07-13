@@ -39,6 +39,7 @@ export function LinkPatcherConfigModal({ isOpen, onClose, widget, onUpdate }: Li
         internal_linking: false,
         translator: false,
         writer: false,
+        zip_export: false,
         extractor: { enabled: false, target_extractor_id: "" }
     });
     const [testUrl, setTestUrl] = useState("");
@@ -59,6 +60,7 @@ export function LinkPatcherConfigModal({ isOpen, onClose, widget, onUpdate }: Li
                 internal_linking: false,
                 translator: false,
                 writer: false,
+                zip_export: false,
                 extractor: { enabled: false, target_extractor_id: "" }
             });
             setHasChanges(false);
@@ -167,6 +169,7 @@ export function LinkPatcherConfigModal({ isOpen, onClose, widget, onUpdate }: Li
                                                 { id: 'internal_linking', label: 'Enlazado Interno' },
                                                 { id: 'translator', label: 'Traductor' },
                                                 { id: 'writer', label: 'Redactor' },
+                                                { id: 'zip_export', label: 'Exportación' },
                                                 { id: 'extractor', label: 'Extractor' }
                                             ].map((proc) => (
                                                 <label key={proc.id} className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-100 cursor-pointer hover:bg-emerald-50/10 transition-colors">
