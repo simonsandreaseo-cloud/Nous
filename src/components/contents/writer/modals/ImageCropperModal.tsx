@@ -190,46 +190,73 @@ export default function ImageCropperModal({
                     {/* Editor Body */}
                     <div className="flex flex-col lg:flex-row bg-slate-50/50">
                         {/* Cropper Area */}
-                        <div className="flex-1 p-8 flex items-center justify-center border-r border-slate-100 overflow-hidden">
+                        <div 
+                            className="flex-1 relative flex items-center justify-center border-r border-slate-100 overflow-hidden bg-slate-900/5"
+                            onMouseDown={handleDragStart}
+                            onMouseMove={handleDragMove}
+                            onMouseUp={handleDragEnd}
+                            onMouseLeave={handleDragEnd}
+                            onTouchStart={handleDragStart}
+                            onTouchMove={handleDragMove}
+                            onTouchEnd={handleDragEnd}
+                            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                        >
+                            {/* 1. Background Color matching the crop box */}
                             <div 
-                                className="relative bg-slate-200 border border-slate-300 rounded-lg shadow-inner overflow-hidden"
+                                ref={containerRef}
+                                className="absolute shadow-sm"
                                 style={{
                                     width: visualWidth,
                                     height: visualHeight,
                                     backgroundColor: bgColor
                                 }}
-                                ref={containerRef}
-                                onMouseDown={handleDragStart}
-                                onMouseMove={handleDragMove}
-                                onMouseUp={handleDragEnd}
-                                onMouseLeave={handleDragEnd}
-                                onTouchStart={handleDragStart}
-                                onTouchMove={handleDragMove}
-                                onTouchEnd={handleDragEnd}
-                            >
-                                {imageLoaded && (
-                                    <div 
-                                        className="absolute top-1/2 left-1/2"
+                            />
+
+                            {/* 2. The Draggable Image */}
+                            {imageLoaded && (
+                                <div 
+                                    className="absolute top-1/2 left-1/2"
+                                    style={{
+                                        transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px)`,
+                                    }}
+                                >
+                                    <img 
+                                        ref={imgRef}
+                                        src={originalBase64} 
+                                        alt="Crop preview" 
+                                        draggable={false}
                                         style={{
-                                            transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px)`,
-                                            cursor: isDragging ? 'grabbing' : 'grab'
+                                            width: imgSize.w,
+                                            height: imgSize.h,
+                                            transform: `scale(${scale})`,
+                                            transformOrigin: 'center center',
+                                            pointerEvents: 'none'
                                         }}
-                                    >
-                                        <img 
-                                            ref={imgRef}
-                                            src={originalBase64} 
-                                            alt="Crop preview" 
-                                            draggable={false}
-                                            style={{
-                                                width: imgSize.w,
-                                                height: imgSize.h,
-                                                transform: `scale(${scale})`,
-                                                transformOrigin: 'center center',
-                                                pointerEvents: 'none'
-                                            }}
-                                        />
-                                    </div>
-                                )}
+                                    />
+                                </div>
+                            )}
+
+                            {/* 3. The Dark Overlay with Cutout */}
+                            <div 
+                                className="absolute pointer-events-none border border-white/50"
+                                style={{
+                                    width: visualWidth,
+                                    height: visualHeight,
+                                    boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.75)'
+                                }}
+                            >
+                                {/* Guide lines */}
+                                <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-30">
+                                    <div className="border-b border-r border-white"></div>
+                                    <div className="border-b border-r border-white"></div>
+                                    <div className="border-b border-white"></div>
+                                    <div className="border-b border-r border-white"></div>
+                                    <div className="border-b border-r border-white"></div>
+                                    <div className="border-b border-white"></div>
+                                    <div className="border-r border-white"></div>
+                                    <div className="border-r border-white"></div>
+                                    <div></div>
+                                </div>
                             </div>
                         </div>
 
@@ -249,7 +276,7 @@ export default function ImageCropperModal({
                                 <input 
                                     type="range" 
                                     min={0.1} 
-                                    max={3} 
+                                    max={5} 
                                     step={0.01} 
                                     value={scale} 
                                     onChange={(e) => setScale(parseFloat(e.target.value))}
