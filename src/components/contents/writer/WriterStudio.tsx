@@ -227,6 +227,15 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
                         </>
                     )}
                 </div>
+                
+                <ImageCropperModal
+                    isOpen={!!cropperData}
+                    onClose={() => setCropperData(null)}
+                    onSave={handleCroppedUpload}
+                    originalBase64={cropperData?.base64 || ''}
+                    targetWidth={cropperData?.targetWidth || 800}
+                    targetHeight={cropperData?.targetHeight || 600}
+                />
             </div>
         );
     }
@@ -323,6 +332,15 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
                     </div>
                 )}
             </div>
+
+            <ImageCropperModal
+                isOpen={!!cropperData}
+                onClose={() => setCropperData(null)}
+                onSave={handleCroppedUpload}
+                originalBase64={cropperData?.base64 || ''}
+                targetWidth={cropperData?.targetWidth || 800}
+                targetHeight={cropperData?.targetHeight || 600}
+            />
         </div>
     );
 };
@@ -2678,15 +2696,6 @@ export default function WriterStudio() {
                 isOpen={isExportModalOpen} 
                 onClose={() => setIsExportModalOpen(false)} 
                 draftId={draftId} 
-            />
-
-            <ImageCropperModal
-                isOpen={!!cropperData}
-                onClose={() => setCropperData(null)}
-                onSave={handleCroppedUpload}
-                originalBase64={cropperData?.base64 || ''}
-                targetWidth={cropperData?.targetWidth || 800}
-                targetHeight={cropperData?.targetHeight || 600}
             />
         </div>
     );
