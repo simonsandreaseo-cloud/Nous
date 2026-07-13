@@ -55,6 +55,7 @@ import {
 } from 'lucide-react';
 import ImageLightbox from './modals/ImageLightbox';
 import ZipExportModal from './modals/ZipExportModal';
+import ImageCropperModal from './modals/ImageCropperModal';
 import { CustomTransformModal, PRESETS } from '@/components/contents/tools/CustomTransformModal';
 
 import { Button } from '@/components/dom/Button';
@@ -112,6 +113,7 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
     const featured = getCoverImage(taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured'));
     const [isRegenerating, setIsRegenerating] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [cropperData, setCropperData] = useState<{base64: string, fileType: string, fileName: string, targetWidth: number, targetHeight: number} | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     if (!taskId) return null;
@@ -129,6 +131,21 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
             });
             const base64 = await base64Promise;
 
+            // Check if there is a preset with specific width and height
+            const preset = activeProject?.settings?.images?.portada_preset;
+            if (preset && preset.width && preset.height) {
+                setCropperData({
+                    base64,
+                    fileType: file.type,
+                    fileName: file.name,
+                    targetWidth: preset.width,
+                    targetHeight: preset.height
+                });
+                setIsUploading(false); // Stop uploading spinner, wait for cropper
+                return;
+            }
+
+            // Fallback to direct upload if no preset dimensions
             const res = await uploadManualImage({
                 base64,
                 fileType: file.type,
@@ -146,6 +163,35 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
         } catch (err: any) {
             console.error("Error uploading cover image:", err);
             alert(`Error al subir la portada: ${err.message || 'Error desconocido'}`);
+        } finally {
+            if (!activeProject?.settings?.images?.portada_preset?.width) {
+                setIsUploading(false);
+            }
+        }
+    };
+
+    const handleCroppedUpload = async (croppedBase64: string) => {
+        if (!cropperData || !taskId) return;
+        setIsUploading(true);
+        setCropperData(null); // Close cropper
+        try {
+            const res = await uploadManualImage({
+                base64: croppedBase64,
+                fileType: cropperData.fileType,
+                taskId: taskId,
+                fileName: `cropped_${cropperData.fileName}`,
+                altText: `Portada - ${cropperData.fileName}`,
+                type: 'featured'
+            });
+
+            if (res.success) {
+                await loadTaskImages(taskId);
+            } else {
+                alert(res.error || "Error al subir la imagen recortada");
+            }
+        } catch (err: any) {
+            console.error("Error uploading cropped image:", err);
+            alert(`Error al subir la portada recortada: ${err.message || 'Error desconocido'}`);
         } finally {
             setIsUploading(false);
         }
@@ -2632,6 +2678,15 @@ export default function WriterStudio() {
                 isOpen={isExportModalOpen} 
                 onClose={() => setIsExportModalOpen(false)} 
                 draftId={draftId} 
+            />
+
+            <ImageCropperModal
+                isOpen={!!cropperData}
+                onClose={() => setCropperData(null)}
+                onSave={handleCroppedUpload}
+                originalBase64={cropperData?.base64 || ''}
+                targetWidth={cropperData?.targetWidth || 800}
+                targetHeight={cropperData?.targetHeight || 600}
             />
         </div>
     );
