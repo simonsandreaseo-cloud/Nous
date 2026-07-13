@@ -23,6 +23,7 @@ export default function ImageCropperModal({
     targetHeight
 }: ImageCropperModalProps) {
     const [scale, setScale] = useState(1);
+    const [baseScale, setBaseScale] = useState(1);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -52,6 +53,7 @@ export default function ImageCropperModal({
             // Let's make it cover the smallest dimension initially so it fills
             const coverScale = Math.max(scaleX, scaleY);
             setScale(coverScale);
+            setBaseScale(coverScale);
             
             setImageLoaded(true);
         };
@@ -147,6 +149,7 @@ export default function ImageCropperModal({
     const maxVisualHeight = 400; // max height for the preview box
     const visualWidth = Math.min(600, maxVisualHeight * aspect);
     const visualHeight = visualWidth / aspect;
+    const renderRatio = visualWidth / targetWidth;
 
     return (
         <AnimatePresence>
@@ -229,7 +232,7 @@ export default function ImageCropperModal({
                                             width: imgSize.w,
                                             height: imgSize.h,
                                             maxWidth: 'none',
-                                            transform: `scale(${scale})`,
+                                            transform: `scale(${scale * renderRatio})`,
                                             transformOrigin: 'center center',
                                             pointerEvents: 'none'
                                         }}
@@ -264,24 +267,22 @@ export default function ImageCropperModal({
                         {/* Controls Sidebar */}
                         <div className="w-full lg:w-72 p-6 flex flex-col gap-8 bg-white">
                             
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                                        <ZoomIn size={14} className="text-indigo-500" /> 
-                                        Escala de la Imagen
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between text-slate-600">
+                                    <label className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
+                                        <ZoomIn size={14} className="text-indigo-500" />
+                                        Escala de la imagen
                                     </label>
-                                    <span className="text-[10px] font-bold text-slate-400">
-                                        {Math.round(scale * 100)}%
-                                    </span>
+                                    <span className="text-[10px] font-bold">{Math.round((scale / baseScale) * 100)}%</span>
                                 </div>
                                 <input 
                                     type="range" 
-                                    min={0.1} 
-                                    max={5} 
-                                    step={0.01} 
-                                    value={scale} 
+                                    min={baseScale * 0.1} 
+                                    max={baseScale * 3} 
+                                    step={baseScale * 0.01}
+                                    value={scale}
                                     onChange={(e) => setScale(parseFloat(e.target.value))}
-                                    className="w-full accent-indigo-600"
+                                    className="w-full"
                                 />
                             </div>
 
