@@ -292,10 +292,17 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
 
     return (
         <div className="mb-8 group/featured relative animate-in fade-in slide-in-from-top-4 duration-700">
-                <div className={cn(
-                    "relative w-full aspect-[14/3] overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/50 shadow-2xl transition-all duration-500",
-                    "border-solid border-slate-100 shadow-indigo-500/5"
-                )}>
+                <div 
+                    className={cn(
+                        "relative w-full overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/50 shadow-2xl transition-all duration-500",
+                        "border-solid border-slate-100 shadow-indigo-500/5"
+                    )}
+                    style={{
+                        aspectRatio: activeProject?.settings?.images?.portada_preset 
+                            ? `${activeProject.settings.images.portada_preset.width} / ${activeProject.settings.images.portada_preset.height}`
+                            : '14/3'
+                    }}
+                >
                 <div className="absolute top-6 left-6 z-20 px-4 py-1.5 bg-black/80 backdrop-blur-md text-white border border-white/20 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl">
                     Portada Magistral
                 </div>
