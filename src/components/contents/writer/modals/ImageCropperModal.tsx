@@ -138,7 +138,7 @@ export default function ImageCropperModal({
         ctx.drawImage(imgRef.current, drawX, drawY, drawWidth, drawHeight);
 
         // 4. Export to base64
-        const resultBase64 = canvas.toDataURL('image/jpeg', 0.95);
+        const resultBase64 = canvas.toDataURL('image/webp', 0.95);
         onSave(resultBase64);
     };
 
