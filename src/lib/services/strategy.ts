@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { getGeminiKey } from '@/lib/ai/config';
 import { ResearchOrchestrator } from '@/lib/services/writer/research';
 import { type DeepSEOConfig } from '@/lib/services/writer/types';
+import { safeJsonExtract } from '@/utils/json';
 
 import { useProjectStore } from '@/store/useProjectStore';
 import { useWriterStore } from '@/store/useWriterStore';
@@ -60,11 +61,7 @@ Keyword: ${keyword || 'N/A'}`;
 
         const text = await queryAI(prompt);
 
-        // Basic JSON extraction
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("Invalid AI response");
-
-        const metadata = JSON.parse(jsonMatch[0]);
+        const metadata = safeJsonExtract<any>(text, {});
 
         // 2. Update task in Supabase
         await supabase

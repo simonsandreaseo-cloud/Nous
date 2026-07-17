@@ -1,5 +1,6 @@
 import { useWriterStore } from '@/store/useWriterStore';
 import type { ReportPayload } from '@/types/report';
+import { safeJsonExtract } from '@/utils/json';
 
 async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-2.5-flash', jsonResponse: boolean = false): Promise<string> {
     const { GoogleGenerativeAI } = await import("@google/generative-ai");
@@ -150,18 +151,7 @@ async function generateSection(
         console.log(`[GEMINI-SERVICE] Generating JSON section: ${sectionKey}`);
         let text = await queryAI(prompt, apiKey, modelId, true);
 
-        // Clean markdown backticks if Gemini includes them despite instructions
-        const match = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
-        if (match && match[1]) {
-            text = match[1].trim();
-        } else {
-            if (text.startsWith('```json')) text = text.replace('```json', '');
-            if (text.startsWith('```')) text = text.replace('```', '');
-            text = text.trim();
-            if (text.endsWith('```')) text = text.slice(0, -3).trim();
-        }
-
-        const jsonSlides = JSON.parse(text);
+        const jsonSlides = safeJsonExtract<any>(text, []);
 
         // Ensure sectionKey is injected if Gemini forgot
         if (Array.isArray(jsonSlides)) {
@@ -248,7 +238,7 @@ Examples to ignore: "google", "bing", "facebook", "twitter", "direct", "(not set
         const text = await queryAI(promptText, apiKey, 'gemini-2.5-flash', true);
         if (!text) return candidates;
 
-        const aiSources = JSON.parse(text);
+        const aiSources = safeJsonExtract<string[]>(text, []);
         return Array.from(new Set([...candidates, ...aiSources])); // Merge regex + AI results
 
     } catch (e) {

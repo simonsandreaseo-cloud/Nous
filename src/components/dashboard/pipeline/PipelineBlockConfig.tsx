@@ -222,6 +222,29 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                         {localBlock.actionType === 'research' && (
                             <div className="space-y-4 pt-4 border-t border-slate-100">
                                 <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                    Arquitectura de Investigación
+                                </h4>
+                                <div className="space-y-1.5">
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                        value={localBlock.additionalConfig?.researchArchitecture || 'standard'}
+                                        onChange={(e) => setLocalBlock({
+                                            ...localBlock,
+                                            additionalConfig: {
+                                                ...localBlock.additionalConfig,
+                                                researchArchitecture: e.target.value
+                                            }
+                                        })}
+                                    >
+                                        <option value="standard">Estándar (Nous 2.0)</option>
+                                        <option value="experimental">Experimental (Nous 3.0)</option>
+                                    </select>
+                                    <p className="text-[10px] text-slate-500">
+                                        Determina el pipeline que se ejecutará en background para realizar el análisis.
+                                    </p>
+                                </div>
+
+                                <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest mt-6">
                                     Modelos por Fase (Opcional)
                                 </h4>
                                 <p className="text-[10px] text-slate-500">Puedes especificar el modelo y proveedor de IA para cada fase de la investigación independientemente.</p>

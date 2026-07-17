@@ -1,3 +1,5 @@
+import { safeJsonExtract } from '@/utils/json';
+
 async function queryAI(prompt: string, apiKey: string, modelId: string = 'gemini-2.5-flash', jsonResponse: boolean = false): Promise<string> {
     const { GoogleGenerativeAI } = await import("@google/genai");
     const ai = new GoogleGenerativeAI(apiKey);
@@ -104,13 +106,7 @@ IMPORTANT: Return ONLY valid JSON array without markdown blocks.`;
         console.log(`[AI-SEGMENTATION] Sending to AI (Mode: auto)...`);
         let text = await queryAI(fullPrompt, apiKey, 'gemini-2.5-flash', true);
 
-        // Limpiar backticks si los devuelve
-        if (text.startsWith('```json')) text = text.replace('```json', '');
-        if (text.startsWith('```')) text = text.replace('```', '');
-        text = text.trim();
-        if (text.endsWith('```')) text = text.slice(0, -3).trim();
-
-        if (text) return JSON.parse(text);
+        if (text) return safeJsonExtract<any>(text, []);
     } catch (e: any) {
         console.warn(`[AI-SEGMENTATION] AI failed:`, e.message?.substring(0, 100));
         return [];

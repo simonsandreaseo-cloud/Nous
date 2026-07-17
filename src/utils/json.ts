@@ -5,12 +5,16 @@
 export function safeJsonExtract<T>(text: string, defaultValue: T): T {
     if (!text) return defaultValue;
 
+    // Nous 3.0 Subtlety: Strip <think>...</think> blocks from reasoning models (e.g. DeepSeek)
+    // to prevent JSON parsing errors if the reasoning block contains brackets.
+    let cleanText = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
     try {
         // First try standard JSON parse
-        return JSON.parse(text);
+        return JSON.parse(cleanText);
     } catch (e) {
         // If that fails, try to find JSON in markdown blocks (e.g. ```json ... ```)
-        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        const jsonMatch = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
         if (jsonMatch && jsonMatch[1]) {
             try {
                 return JSON.parse(jsonMatch[1].trim());
@@ -21,8 +25,8 @@ export function safeJsonExtract<T>(text: string, defaultValue: T): T {
 
         // Try to find the first and last bracket to extract the JSON object/array
         try {
-            const firstBrace = text.indexOf('{');
-            const firstBracket = text.indexOf('[');
+            const firstBrace = cleanText.indexOf('{');
+            const firstBracket = cleanText.indexOf('[');
             
             let startIdx = -1;
             let endChar = '';
@@ -36,9 +40,9 @@ export function safeJsonExtract<T>(text: string, defaultValue: T): T {
             }
 
             if (startIdx !== -1) {
-                const lastIdx = text.lastIndexOf(endChar);
+                const lastIdx = cleanText.lastIndexOf(endChar);
                 if (lastIdx !== -1 && lastIdx > startIdx) {
-                    const jsonStr = text.substring(startIdx, lastIdx + 1);
+                    const jsonStr = cleanText.substring(startIdx, lastIdx + 1);
                     return JSON.parse(jsonStr);
                 }
             }
@@ -47,7 +51,7 @@ export function safeJsonExtract<T>(text: string, defaultValue: T): T {
         }
 
         console.error("safeJsonExtract: Failed to parse JSON from text. Returning default value.", {
-            textPreview: text.substring(0, 200) + (text.length > 200 ? "..." : ""),
+            textPreview: cleanText.substring(0, 200) + (cleanText.length > 200 ? "..." : ""),
             error: e instanceof Error ? e.message : String(e)
         });
         

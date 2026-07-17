@@ -11,6 +11,10 @@ import { OutlineEngine } from "./outline-engine";
 import { SchemaGenerator } from "./schema-generator";
 
 import { DataForSeoService } from "@/lib/services/dataforseo";
+import { MarkdownFragmenter } from "./fragmenter";
+import { MathLSIEngine } from "./math-lsi";
+import { ExperimentalEditor } from "./experimental-editor";
+import { PredictiveTriage } from "./predictive-triage";
 
 export { SerpProvider, ScraperService, KeywordAnalyzer, OutlineEngine, SchemaGenerator };
 
@@ -24,6 +28,14 @@ const STRUCTURAL_NOISE = new Set([
     'api', 'auth', 'admin', 'dashboard', 'settings', 'profile', 'user', 'guest',
     'preview', 'draft', 'test', 'dev', 'staging', 'production', 'cloud', 'app'
 ]);
+
+// Determinist Blacklist (Nous 3.0) to avoid scraping marketplaces or social media
+const MARKETPLACE_BLACKLIST = [
+    "amazon.", "ebay.", "aliexpress.", "mercadolibre.", 
+    "shopee.", "etsy.", "walmart.", "target.", "bestbuy.",
+    "facebook.", "instagram.", "twitter.", "pinterest.",
+    "youtube.", "tiktok.", "reddit."
+];
 
 const filterStructuralNoise = (tokens: Set<string>) => {
     const filtered = new Set<string>();
@@ -103,16 +115,31 @@ export const ResearchOrchestrator = {
         
         // Single direct search instead of multiplexing
         const serpData = await SerpProvider.fetchSerperSearch(keyword, gl, language);
-        const rawResults = serpData.results;
+        let rawResults = serpData.results;
         const faqs = serpData.faqs;
 
         if (rawResults.length === 0) throw new Error("No organic search results found.");
+
+        // Apply Deterministic Blacklist (Nous 3.0 logic) to strip out noise before AI sees it
+        rawResults = rawResults.filter((r: any) => {
+            const lowerUrl = r.url.toLowerCase();
+            return !MARKETPLACE_BLACKLIST.some(domain => lowerUrl.includes(domain));
+        });
+
+        if (rawResults.length === 0) {
+            if (onLog) onLog("WARN", "Filtro Anti-Ruido", "Todos los resultados fueron filtrados. Usando resultados originales como fallback.");
+            rawResults = serpData.results;
+        } else {
+            if (onLog && rawResults.length < serpData.results.length) {
+                onLog("INFO", "Filtro Anti-Ruido", `Eliminados ${serpData.results.length - rawResults.length} resultados de e-commerce/social (Amazon, Pinterest, etc).`);
+            }
+        }
 
         if (onLog) onLog("IA", "Analista SERP", "Analizando ecosistema de resultados y seleccionando mejores referencias...");
         
         const serpAnalysisPrompt = `Analiza este SERP para la búsqueda: "${keyword}".
 Snippet de los resultados:
-${rawResults.slice(0, 15).map((r, i) => `[${i+1}] Título: ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet}`).join('\n\n')}
+${rawResults.slice(0, 15).map((r: any, i: number) => `[${i+1}] Título: ${r.title}\nURL: ${r.url}\nSnippet: ${r.snippet}`).join('\n\n')}
 
 Tu tarea:
 1. Determina el TIPO de SERP (Informativa, Transaccional, Ecommerce, Redes Sociales, Mixta).
@@ -639,6 +666,10 @@ REGLAS:
      * Orchestrator: Main flow with resumability and phase control
      */
     async runDeepAnalysis(config: DeepSEOConfig, phaseToRun?: ResearchPhase) {
+        if (config.architecture === 'experimental') {
+            return await this.runExperimentalAnalysis(config);
+        }
+
         const { keyword, projectId, taskId, onProgress, onLog, isFastMode = false, forceRestart = false, cascade = true } = config;
 
         const saveCheckpoint = async (phase: string, data: any) => {
@@ -920,6 +951,143 @@ REGLAS:
             }
         }
 
+        }
+
         return dossier;
+    },
+
+    /**
+     * Experimental Orchestrator (Nous 3.0 Architecture)
+     * Implementa Paralelismo, Fragmentador LSI/N-Grams y Cascada Reactiva.
+     */
+    async runExperimentalAnalysis(config: DeepSEOConfig) {
+        const { keyword, onLog, onProgress } = config;
+        
+        if (onLog) onLog("INFO", "Arquitectura", "Iniciando modo EXPERIMENTAL (Nous 3.0: Cascada Reactiva)");
+        if (onProgress) onProgress(5);
+        
+        const dossier: any = {
+            serp_data: null,
+            competitor_content: null,
+            lsi_keywords: null,
+            status: 'in_progress',
+            _architecture: 'experimental'
+        };
+
+        try {
+            // 1. Serper (Punto de partida necesario para obtener las URLs)
+            if (onLog) onLog("INFO", "Serper", `Buscando competidores para: "${keyword}"`);
+            const serpData = await SerpProvider.fetchSerperSearch(keyword);
+            dossier.serp_data = serpData;
+            
+            const organicResults = serpData?.organic || [];
+            if (!organicResults || organicResults.length === 0) {
+                throw new Error("No se encontraron resultados en Serper.");
+            }
+
+            // Tomamos los Top 5 para scraping
+            const top5Competitors = organicResults.slice(0, 5).map((r: any) => ({
+                url: r.link,
+                title: r.title,
+                snippet: r.snippet
+            }));
+            const top5Urls = top5Competitors.map(c => c.url);
+            const top1Url = top5Urls[0];
+
+            if (onLog) onLog("INFO", "Cascada Reactiva", "Lanzando DataForSEO (Top 1) y Firecrawl (Top 5) en paralelo...");
+            if (onProgress) onProgress(20);
+
+            // 2. Ejecución Simultánea (El Worker de Alto Rendimiento)
+            // Firecrawl raspa el contenido de los top 5
+            const scrapingPromise = ScraperService.scrapeMassive(top5Competitors, config.taskContext || {}, onLog);
+            
+            // DataForSEO extrae las keywords reales del líder
+            const dataForSeoPromise = DataForSeoService.getRankedKeywordsForUrls([top1Url]).catch(e => {
+                if (onLog) onLog("WARNING", "DataForSEO", "Fallo al obtener estrategia del líder. Continuando...");
+                return [];
+            });
+
+            // Esperamos ambas ramas simultáneas
+            const [scrapedData, top1Keywords] = await Promise.all([scrapingPromise, dataForSeoPromise]);
+            
+            dossier.competitor_content = scrapedData;
+            dossier.leader_keywords = top1Keywords;
+            if (onProgress) onProgress(60);
+
+            // 3. The Lab (Fragmentador y TF-IDF Matemático)
+            if (onLog) onLog("INFO", "The Lab", "Fragmentando contenidos e inyectando motor matemático LSI...");
+            
+            // a) Extraemos solo los markdowns válidos
+            const markdowns = Object.values(scrapedData)
+                .filter((d: any) => d && d.success && d.markdown)
+                .map((d: any) => d.markdown as string);
+
+            // b) Fragmentación (Opcional por ahora guardar el mapa, pero lo procesamos)
+            const fragmentedDocs = markdowns.map((md, idx) => MarkdownFragmenter.fragment(md, top5Urls[idx] || `doc_${idx}`));
+            
+            // c) Cálculo Matemático Puro
+            const lsiResults = MathLSIEngine.extractLSI(markdowns, 30);
+            
+            const semanticMaps = fragmentedDocs.map(doc => ({
+                source: doc.sourceId,
+                map: MarkdownFragmenter.buildSemanticMap(doc, 200) // 200 words max per block
+            }));
+
+            dossier.semantic_map = semanticMaps;
+
+            if (onLog) onLog("SUCCESS", "The Lab", `Extraídas ${lsiResults.length} golden keywords matemáticamente.`);
+            if (onProgress) onProgress(70);
+
+            // 3.5 Predictive Triage (Curaduría IA)
+            if (onLog) onLog("INFO", "Predictive Triage", "Purificando LSI y extrayendo Autoridad (Facts & Argot)...");
+            
+            const rawLsiStrings = lsiResults.map(k => k.term);
+            const rawLeaderKeywords = top1Keywords.map((k: any) => k.keyword || k);
+
+            const triageResult = await PredictiveTriage.runTriage({
+                keyword,
+                rawLsi: rawLsiStrings,
+                rawLeaderKeywords: rawLeaderKeywords,
+                semanticMaps
+            });
+
+            dossier.lsi_keywords = triageResult.curated_lsi;
+            dossier.leader_keywords = triageResult.curated_leader_keywords;
+            dossier.facts = triageResult.facts;
+            dossier.argot = triageResult.argot;
+
+            if (onLog) onLog("SUCCESS", "Predictive Triage", "Diamantes semánticos extraídos con éxito.");
+            if (onProgress) onProgress(80);
+            
+            // 4. The Editor (Sintetizando el Anchor Map con IA)
+            if (onLog) onLog("INFO", "The Editor", "Invocando IA Táctica para generar Anchor Map...");
+            
+            const anchorMap = await ExperimentalEditor.generateOutline({
+                keyword,
+                semanticMaps: dossier.semantic_map,
+                lsiKeywords: dossier.lsi_keywords,
+                leaderKeywords: dossier.leader_keywords,
+                facts: dossier.facts,
+                argot: dossier.argot,
+                masterIntent: config.taskId ? "Generar el esquema para el task: " + config.taskId : "",
+                taskContext: config.taskContext || {}
+            });
+
+            dossier.outline = anchorMap;
+            
+            if (onLog) onLog("SUCCESS", "The Editor", `Anchor Map generado con ${anchorMap.length} nodos estratégicos.`);
+            if (onProgress) onProgress(100);
+            
+            dossier.status = 'completado_experimental';
+            if (onLog) onLog("SUCCESS", "Completado", "Flujo experimental completado a velocidad relámpago.");
+
+            return dossier;
+
+        } catch (error: any) {
+            if (onLog) onLog("ERROR", "Cascada Reactiva", `Error crítico: ${error.message}`);
+            dossier.status = 'error';
+            dossier.error = error.message;
+            return dossier;
+        }
     }
 };

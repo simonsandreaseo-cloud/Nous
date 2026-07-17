@@ -265,7 +265,9 @@ async function executeTaskInBlock({
                 keyword: currentTaskState.target_keyword || currentTaskState.title,
                 taskId: task.id, forceRestart: true, cascade: true,
                 onLog: (_stage: string, msg: string) => enhancedLog(task.id, 'Research', msg),
-                onProgress: (p: any) => { if (typeof p === 'number') enhancedProgress(task.id, p); }
+                onProgress: (p: any) => { if (typeof p === 'number') enhancedProgress(task.id, p); },
+                phaseModels: block.additionalConfig?.phaseModels,
+                architecture: block.additionalConfig?.researchArchitecture || 'standard'
             });
             if (res.status === 'error' || res.status === 'idea') throw new Error(res.brief || 'Fallo en la investigación SEO');
             currentTaskState.title = res.title || currentTaskState.title;

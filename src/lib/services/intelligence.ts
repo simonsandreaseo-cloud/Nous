@@ -1,5 +1,6 @@
 import { aiRouter } from '../ai/router';
 import { DataForSeoService } from './dataforseo';
+import { safeJsonExtract } from '@/utils/json';
 
 export interface RankedKeyword {
     keyword: string;
@@ -51,8 +52,8 @@ export class IntelligenceService {
                 jsonMode: true
             });
 
-            const decoded = JSON.parse(response.text);
-            const aiKeywords = decoded.keywords;
+            const decoded = safeJsonExtract<any>(response.text, { keywords: [] });
+            const aiKeywords = decoded.keywords || [];
 
             // Merge AI data with original metrics
             return aiKeywords.map((aiK: any) => {
@@ -95,8 +96,8 @@ export class IntelligenceService {
                 jsonMode: true
             });
 
-            const decoded = JSON.parse(response.text);
-            return serpResults.filter(r => decoded.selected_urls.includes(r.url));
+            const decoded = safeJsonExtract<any>(response.text, { selected_urls: [] });
+            return serpResults.filter(r => (decoded.selected_urls || []).includes(r.url));
         } catch (error) {
             console.error("Error selecting references:", error);
             return serpResults.slice(0, 3);
@@ -175,7 +176,7 @@ export class IntelligenceService {
                 jsonMode: true
             });
 
-            return JSON.parse(response.text);
+            return safeJsonExtract<any>(response.text, {});
         } catch (error) {
             console.error("Error generating Neural Outline:", error);
             throw error;

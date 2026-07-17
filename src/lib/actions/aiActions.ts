@@ -222,27 +222,22 @@ export const generateArticleJSON = async (model: string, prompt: string, hierarc
     return executeWithKeyRotation(async (ai, currentModel) => {
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
-            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Generas el artículo basándote en la estructura indicada. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>) y NUNCA usas markdown ni etiquetas de imagen <img>. Generas HTML impecable para la web.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON.`,
+            systemInstruction: `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor Técnico y Experto en SEO.\nDIRECTRICES CRÍTICAS PARA REDACCIÓN EN CHUNKS:\n1. VE DIRECTO AL GRANO: Estás escribiendo un fragmento de un artículo más grande. NO hagas introducciones generales ("En el mundo actual...", "Hoy en día..."), NO hagas cierres ni conclusiones genéricas al final de tu respuesta.\n2. CERO REDUNDANCIA: Empieza abordando el título o tema del fragmento inmediatamente. Aporta valor, datos, y análisis profundo desde la primera línea.\n3. FORMATO: Escribe el artículo en formato HTML directo. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>) y NUNCA usas markdown ni etiquetas de imagen <img>. Generas HTML impecable para la web.\nREGLA DE ORO: Devuelve ÚNICAMENTE un objeto JSON sin tags \`\`\`json.`,
             generationConfig: {
                 temperature: 0.7,
                 maxOutputTokens: 8192,
             }
         });
         
-        const finalPrompt = `INSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el artículo de cero siguiendo la estructura dada. NO repitas instrucciones, NO uses prefacios. Devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu planificación) y 'html' (el artículo completo finalizado).`;
+        const finalPrompt = `INSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el artículo de cero siguiendo la estructura dada. NO repitas instrucciones, NO uses prefacios, NO hagas introducciones amplias, NO concluyas de forma genérica. Ve directo al grano y devuelve un objeto JSON con dos claves obligatorias: 'razonamiento_interno' (tu planificación) y 'html' (el artículo completo finalizado).`;
         
         const response = await modelObj.generateContent(finalPrompt);
         
         let raw = response.response.text();
-        const jsonStart = raw.indexOf('{');
-        const jsonEnd = raw.lastIndexOf('}');
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-            raw = raw.substring(jsonStart, jsonEnd + 1);
-        }
         
         let htmlOutput = "";
         try {
-            const parsed = JSON.parse(raw);
+            const parsed = safeJsonExtract<any>(raw, {});
             htmlOutput = parsed.html || raw;
         } catch(e) {
             htmlOutput = raw;
@@ -254,7 +249,7 @@ export const generateArticleJSON = async (model: string, prompt: string, hierarc
 
 export const generateArticleStream = async (model: string, prompt: string, hierarchy?: string[], onChunk?: (text: string) => void) => {
     return executeWithKeyRotation(async (ai, currentModel) => {
-        const sysInst = `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor HTML experto. Escribe el artículo en formato HTML directo. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>). NO USES JSON, devuelve únicamente el código HTML resultante.`;
+        const sysInst = `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor Técnico y Experto en SEO.\nDIRECTRICES CRÍTICAS PARA REDACCIÓN EN CHUNKS:\n1. VE DIRECTO AL GRANO: Estás escribiendo un fragmento de un artículo más grande. NO hagas introducciones generales ("En el mundo actual...", "Hoy en día..."), NO hagas cierres ni conclusiones genéricas al final de tu respuesta.\n2. CERO REDUNDANCIA: Empieza abordando el título o tema del fragmento inmediatamente. Aporta valor, datos, y análisis profundo desde la primera línea.\n3. FORMATO: Escribe el artículo en formato HTML directo. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>). NO USES JSON, devuelve únicamente el código HTML resultante.`;
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
             generationConfig: {
@@ -263,7 +258,7 @@ export const generateArticleStream = async (model: string, prompt: string, hiera
             }
         });
         
-        const finalPrompt = `[SYSTEM INSTRUCTIONS]\n${sysInst}\n\n[USER INSTRUCTIONS]\nINSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el artículo de cero siguiendo la estructura dada. NO repitas instrucciones, NO uses prefacios. Devuelve SOLAMENTE el texto en HTML final.`;
+        const finalPrompt = `[SYSTEM INSTRUCTIONS]\n${sysInst}\n\n[USER INSTRUCTIONS]\nINSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el contenido asignado de cero siguiendo la estructura dada. NO uses saludos, NO repitas instrucciones, NO uses prefacios, NO hagas introducciones amplias, NO concluyas de forma genérica. Ve directo al grano y devuelve SOLAMENTE el texto en HTML final sin bloques markdown.`;
         
         const response = await modelObj.generateContentStream(finalPrompt);
         let fullHtml = '';
@@ -348,15 +343,8 @@ ${FEW_SHOT_JSON}`
         });
         const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
         let text = response.response.text() || "[]";
-        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const start = text.indexOf('[');
-        const end = text.lastIndexOf(']');
-        if (start !== -1 && end !== -1) {
-            text = text.substring(start, end + 1);
-        }
-        const json = JSON.parse(text);
-        if (!Array.isArray(json)) return [];
-        return json.filter((item: any) => item.url && item.url.startsWith('http'));
+        
+        return safeJsonExtract(text, []);
     });
 };
 
@@ -463,7 +451,7 @@ ${FEW_SHOT_JSON}`,
   
         const response = await model.generateContent(systemPrompt + "\n\nRESULTADO JSON DIRECTO:");
         const result = response.response;
-        const json = JSON.parse(result.text() || "{}");
+        const json = safeJsonExtract(result.text() || "{}", {});
         
         if (!json.keywordIdeas) json.keywordIdeas = { shortTail: [], midTail: [] };
         if (!json.top10Urls) json.top10Urls = [];
@@ -545,12 +533,8 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
   
         const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
         let rawText = response.response.text() || "{}";
-        const start = rawText.indexOf('{');
-        const end = rawText.lastIndexOf('}');
-        if (start !== -1 && end !== -1 && end >= start) {
-            rawText = rawText.substring(start, end + 1);
-        }
-        return JSON.parse(rawText);
+        
+        return safeJsonExtract(rawText, {});
     });
 };
 
@@ -634,21 +618,14 @@ export const runHumanizerPipeline = async (
                 const response = await model.generateContent(prompt);
                 let raw = response.response.text();
                 
-                let cleaned = raw;
-                cleaned = cleaned.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
-                
-                const jsonStart = cleaned.indexOf('{');
-                const jsonEnd = cleaned.lastIndexOf('}');
-                
-                if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-                    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
-                }
-                
                 try {
-                    return JSON.parse(cleaned);
+                    const parsed = safeJsonExtract<any>(raw, null);
+                    if (!parsed) throw new Error("safeJsonExtract returned null");
+                    return parsed;
                 } catch (e) {
-                    console.error("[Humanizer-Parser] Fallo catastrófico al parsear JSON. Raw preview:", cleaned.substring(0, 100) + "...");
-                    throw e;
+                    console.error("[Humanizer-Parser] Fallo catastrófico al parsear JSON. Raw preview:", raw.substring(0, 100) + "...");
+                    console.error(e);
+                    throw new Error("El modelo falló al devolver un JSON válido. Intentando de nuevo.");
                 }
             }, safeStatus, `Humanización de fragmento de ${chunkEntries.length} bloques`, resolvedModel, resolvedProvider);
             

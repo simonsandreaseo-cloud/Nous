@@ -68,7 +68,10 @@ export async function executeDraftPipeline(
         let h2Count = 0;
 
         for (const item of outline) {
-            if (item.type === 'H2') {
+            // Note: Experimental AnchorMapNode uses 'level: 2', standard uses 'type: H2'
+            const isH2 = item.type === 'H2' || item.level === 2;
+            
+            if (isH2) {
                 if (h2Count >= maxH2) {
                     chunks.push(currentChunk);
                     currentChunk = [];
@@ -92,12 +95,34 @@ export async function executeDraftPipeline(
     let previousContext = '';
 
     for (let i = 0; i < outlineChunks.length; i++) {
+        // Resolve Experimental Context (Nous 3.0) if applicable
+        let experimentalContext = '';
+        const currentOutline = outlineChunks[i];
+        
+        for (const item of currentOutline) {
+            if (item.semantic_anchors && Array.isArray(item.semantic_anchors) && research_dossier?.semantic_map) {
+                for (const anchor of item.semantic_anchors) {
+                    for (const sm of research_dossier.semantic_map) {
+                        const smMap = sm.map || '';
+                        // The anchor is something like [S1-P2]
+                        // We extract the line containing the anchor from the map.
+                        // The map is a string with lines like "[S1-P2] Some text here..."
+                        const line = smMap.split('\n').find((l: string) => l.includes(anchor));
+                        if (line) {
+                            experimentalContext += `\n- FUENTE (${sm.source}) - ${line}`;
+                        }
+                    }
+                }
+            }
+        }
+
         const chunkConfig = {
             ...config,
-            outlineStructure: outlineChunks[i],
+            outlineStructure: currentOutline,
             chunkIndex: i,
             totalChunks: outlineChunks.length,
-            previousContext: previousContext
+            previousContext: previousContext,
+            experimentalContext: experimentalContext
         };
 
         if (checkPause) await checkPause();

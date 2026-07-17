@@ -1,5 +1,6 @@
 import type { VisualResource, ImageGenConfig, AIImageRequest, ContentItem } from "./types";
 import { executeWithKeyRotation } from "@/lib/services/writer/ai-core";
+import { safeJsonExtract } from "@/utils/json";
 
 export const findCampaignAssets = async (query: string, projectName: string, csvData?: ContentItem[], modelName?: string): Promise<VisualResource[]> => {
     const safeProjectName = projectName || "mysite";
@@ -18,14 +19,7 @@ export const findCampaignAssets = async (query: string, projectName: string, csv
             model: modelName || 'gemini-3.1-flash-preview',
         });
         const response = await modelObj.generateContent(prompt);
-        let text = response.response.text() || "[]";
-        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const start = text.indexOf('[');
-        const end = text.lastIndexOf(']');
-        if (start !== -1 && end !== -1) {
-            text = text.substring(start, end + 1);
-        }
-        const json = JSON.parse(text);
+        const json = safeJsonExtract<any[]>(text, []);
         if (!Array.isArray(json)) return [];
         return json.filter((item: any) => item.url && item.url.startsWith('http'));
     });
@@ -50,7 +44,7 @@ export const suggestImagePlacements = async (articleHtml: string, count: string)
             generationConfig: { responseMimeType: "application/json" }
         });
         const response = await modelObj.generateContent(truncated + "\n\n" + prompt);
-        const json = JSON.parse(response.response.text() || "[]");
+        const json = safeJsonExtract<any[]>(response.response.text() || "[]", []);
         return json.map((item: any, idx: number) => ({ ...item, id: `body_${idx}`, status: 'pending' }));
     });
 };

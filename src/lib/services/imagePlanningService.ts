@@ -1,5 +1,6 @@
 import { aiRouter } from '../ai/router';
 import { ImagePlan, SupportedLanguage, InlineImageCount } from '@/types/images';
+import { safeJsonExtract } from '@/utils/json';
 
 /**
  * ImagePlanningService (V3 - Senior Layout Engine)
@@ -80,8 +81,7 @@ DEBES RESPONDER EXCLUSIVAMENTE EN JSON:
 
       if (!response.text) throw new Error("IA returned empty response.");
       
-      const cleanJson = response.text.replace(/```json|```/g, '').trim();
-      const plan = JSON.parse(cleanJson);
+      const plan = safeJsonExtract<any>(response.text, {});
 
       return plan as ImagePlan;
     } catch (error: any) {

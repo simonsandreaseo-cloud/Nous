@@ -1,4 +1,5 @@
 import { executeWithKeyRotation } from './ai-core';
+import { safeJsonExtract } from '@/utils/json';
 
 export interface OptimizationRequest {
     currentContent: string;
@@ -69,8 +70,7 @@ Procesa la solicitud y devuelve únicamente el JSON requerido.`;
         const resText = response.response.text();
         
         try {
-            const cleanText = resText.replace(/```json/gi, '').replace(/```/g, '').trim();
-            return JSON.parse(cleanText) as OptimizationResult;
+            return safeJsonExtract<OptimizationResult>(resText, {} as OptimizationResult);
         } catch (e) {
             console.error("Error parseando JSON del optimizador:", e, resText);
             throw new Error('El modelo no devolvió un JSON válido.');
@@ -142,8 +142,7 @@ Procesa la solicitud y devuelve únicamente el JSON requerido.`;
         const resText = response.response.text();
         
         try {
-            const cleanText = resText.replace(/```json/gi, '').replace(/```/g, '').trim();
-            return JSON.parse(cleanText) as MetadataResult;
+            return safeJsonExtract<MetadataResult>(resText, {} as MetadataResult);
         } catch (e) {
             console.error("Error parseando JSON del completador de metadatos:", e, resText);
             throw new Error('El modelo no devolvió un JSON de metadatos válido.');
@@ -215,8 +214,7 @@ Procesa la solicitud y devuelve únicamente el array JSON requerido.`;
         const resText = response.response.text();
         
         try {
-            const cleanText = resText.replace(/```json/gi, '').replace(/```/g, '').trim();
-            return JSON.parse(cleanText) as ImageOptimizationResult[];
+            return safeJsonExtract<ImageOptimizationResult[]>(resText, []);
         } catch (e) {
             console.error("Error parseando JSON de optimización de imágenes:", e, resText);
             throw new Error('El modelo no devolvió un JSON de optimización de imágenes válido.');

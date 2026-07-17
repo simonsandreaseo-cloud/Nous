@@ -8,6 +8,7 @@ import { AI_CONFIG } from '@/lib/ai/config';
 import { NousExtractorService } from '@/lib/services/nous-extractor';
 import { LinkPatcherService } from '@/lib/services/link-patcher';
 import type { QueuePayload } from '../registry';
+import { safeJsonExtract } from '@/utils/json';
 
 export const handleGenerateTask = async (taskId: string, payload: QueuePayload) => {
     const store = useWriterStore.getState();
@@ -119,12 +120,52 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
         let previousContext = '';
 
         for (let i = 0; i < outlineChunks.length; i++) {
+            const currentOutline = outlineChunks[i];
+            let experimentalContext = "";
+
+            const requiredAnchors = new Set<string>();
+            currentOutline.forEach((node: any) => {
+                if (node.semantic_anchors && Array.isArray(node.semantic_anchors)) {
+                    node.semantic_anchors.forEach((a: string) => requiredAnchors.add(a));
+                }
+            });
+
+            console.log(`[Generate Chunk ${i+1}] Analizando chunk con ${currentOutline.length} nodos. Anchors requeridos:`, Array.from(requiredAnchors));
+
+            const activeDossier = payload.researchDossier || store.researchDossier;
+            if (requiredAnchors.size > 0 && activeDossier?.semantic_map) {
+                console.log(`[Generate Chunk ${i+1}] Dossier encontrado. Extrayendo fragmentos del mapa semántico...`);
+                const semanticMap = activeDossier.semantic_map;
+                const extractedTexts: string[] = [];
+                semanticMap.forEach((sm: any) => {
+                    if (!sm.map) return;
+                    const lines = sm.map.split('\n');
+                    lines.forEach((line: string) => {
+                        for (const anchor of requiredAnchors) {
+                            if (line.startsWith(anchor)) {
+                                extractedTexts.push(`[Fuente: ${sm.source}] ${line}`);
+                                break;
+                            }
+                        }
+                    });
+                });
+                if (extractedTexts.length > 0) {
+                    experimentalContext = extractedTexts.join('\n');
+                    console.log(`[Generate Chunk ${i+1}] ✅ Contexto Experimental Inyectado con éxito (${extractedTexts.length} fragmentos obtenidos).`);
+                } else {
+                    console.warn(`[Generate Chunk ${i+1}] ⚠️ No se encontraron fragmentos coincidentes para los anchors requeridos.`);
+                }
+            } else if (requiredAnchors.size > 0) {
+                console.warn(`[Generate Chunk ${i+1}] ❌ Hay anchors requeridos pero NO se encontró un 'semantic_map' válido en el dossier activo.`);
+            }
+
             const chunkConfig = {
                 ...config,
-                outlineStructure: outlineChunks[i],
+                outlineStructure: currentOutline,
                 chunkIndex: i,
                 totalChunks: outlineChunks.length,
-                previousContext: previousContext
+                previousContext: previousContext,
+                experimentalContext: experimentalContext
             };
 
             const prompt = buildPrompt(chunkConfig);
@@ -178,7 +219,7 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
             const parts = cleanHtml.split('<!-- METADATA_START -->');
             cleanHtml = parts[0];
             try {
-                const meta = JSON.parse(parts[1].replace(/```json/g, '').replace(/```/g, '').trim());
+                const meta = safeJsonExtract<any>(parts[1], {});
                 if (isCurrentDraft()) {
                     useWriterStore.getState().setMetadata(meta);
                     if (meta.title) useWriterStore.getState().setTitle(meta.title);

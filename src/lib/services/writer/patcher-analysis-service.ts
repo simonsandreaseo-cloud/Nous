@@ -1,5 +1,6 @@
 import { aiRouter } from '../ai/router';
 import { PatcherRule } from './asset-patcher';
+import { safeJsonExtract } from '@/utils/json';
 
 export interface AnalysisRequest {
     featuredUrls: string[];
@@ -60,9 +61,7 @@ You MUST respond EXCLUSIVELY in JSON format:
             });
 
             if (!response.text) throw new Error("AI returned empty response");
-
-            const cleanJson = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
-            return JSON.parse(cleanJson) as AnalysisResponse;
+            return safeJsonExtract<AnalysisResponse>(response.text, {} as AnalysisResponse);
         } catch (error: any) {
             console.error("[PatcherAnalysisService] Error:", error);
             throw new Error("Failed to analyze URL patterns: " + error.message);

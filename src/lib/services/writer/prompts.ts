@@ -36,15 +36,39 @@ ${others.length > 0 ? `OTROS ENLACES DE CALIDAD (BLOG/ESTRATEGIA):\n${formatList
 
     let outlineInstruction = "";
     if (outlineStructure && outlineStructure.length > 0) {
+        // Detect if outline is experimental (AnchorMapNode) or standard (OutlineNode)
+        const isExperimental = outlineStructure.some(h => h.instructions !== undefined || h.lsi_targets !== undefined);
+
         outlineInstruction = `
 ### ESTRUCTURA OBLIGATORIA PARA ESTE FRAGMENTO (${chunkIndex + 1}/${totalChunks})
 ${isFirstChunk ? `El H1 del artículo es: "${topic}" (Debe ser el título visible).` : `(Omite el H1, ya fue escrito en la parte anterior).`}
 Asegurándote de cumplir la longitud de palabras exigida por cada sección, desarrolla el siguiente esquema:
-${outlineStructure.map(h => `${h.type}: ${h.text}
-   👉 [LONGITUD MÍNIMA: ${h.wordCount} palabras. EXPANDE DETALLADAMENTE. PROHIBIDO RESUMIR.]
-   👉 [Instrucción: ${h.notes || 'Normal'}]`).join('\n')}
+${outlineStructure.map(h => {
+    if (isExperimental) {
+        // Experimental Format (Nous 3.0)
+        return `H${h.level}: ${h.text}
+   👉 [PAUTA QUIRÚRGICA: ${h.instructions || 'Sigue el título.'}]
+   👉 [KEYWORDS OBLIGATORIAS: ${h.lsi_targets?.join(', ') || 'N/A'}]`;
+    } else {
+        // Standard Format
+        return `${h.type}: ${h.text}
+   👉 [LONGITUD MÍNIMA: ${h.wordCount || 150} palabras. EXPANDE DETALLADAMENTE. PROHIBIDO RESUMIR.]
+   👉 [Instrucción: ${h.notes || 'Normal'}]`;
+    }
+}).join('\n')}
 `;
-    }    const formatRules = `
+    }
+
+    let experimentalInjection = "";
+    if (config.experimentalContext) {
+        experimentalInjection = `
+### CONTEXTO SEMÁNTICO INYECTADO (CARGA BAJO DEMANDA)
+**INSTRUCCIÓN CRÍTICA:** Debes usar OBLIGATORIAMENTE la siguiente información extraída de los competidores para redactar este fragmento. NO inventes datos que contradigan esto.
+${config.experimentalContext}
+`;
+    }
+
+    const formatRules = `
         - Usa un formato HTML semántico enriquecido (tablas, listas, citas) cuando aporte valor.
         - Prioriza la claridad y la profundidad del contenido.
     `;
@@ -70,6 +94,7 @@ Frecuencia/Intensidad: ${freq}%
 REGLAS OBLIGATORIAS:
 1. **KEYWORDS:** Debes incluir OBLIGATORIAMENTE todas las siguientes LSI y Long Tail Keywords dentro del texto:
     [${lsiKeywords?.join(', ') || 'N/A'}]
+    
     ${keywordInstruction}
     
 2. **FAQs:** ${faqInstruction}
@@ -102,6 +127,11 @@ ${isFirstChunk ? `    - OBLIGATORIO: Justo debajo del H1, escribe un párrafo de
     - Luego de este párrafo inicial, coloca inmediatamente el primer H2 del esquema.
     - NO escribas introducciones genéricas ("En este artículo...").` : `    - NO incluyas un H1 ni introducciones. 
     - Comienza directamente desarrollando el primer elemento del esquema asignado para esta parte.`}
+
+
+${outlineInstruction}
+
+${experimentalInjection}
 
 2. **FORMATO Y ESTRUCTURA:**
     ${formatRules}

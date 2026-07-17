@@ -39,6 +39,7 @@ export interface ArticleConfig {
     chunkIndex?: number;
     totalChunks?: number;
     previousContext?: string;
+    experimentalContext?: string; // New: Context injected dynamically from Semantic Anchors
 }
 
 export interface VisualResource {
@@ -161,6 +162,7 @@ export interface HumanizerConfig {
 // --- Research Pipeline Config ---
 export interface DeepSEOConfig {
     keyword: string;
+    architecture?: 'standard' | 'experimental';
     projectId?: string;
     taskId?: string;
     onProgress?: (phase: string) => void;

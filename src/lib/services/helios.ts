@@ -1,38 +1,9 @@
 import { aiRouter } from '@/lib/ai/router';
 import { HeliosConfig } from '@/types/helios';
+import { safeJsonExtract } from '@/utils/json';
 
 const cleanAndParseJSON = (text: string): any => {
-  // 1. First attempt: Simple Clean (Markdown removal)
-  const clean = text.replace(/```json|```/g, '').trim();
-
-  try {
-    return JSON.parse(clean);
-  } catch (e) {
-    // 2. Second attempt: Extract JSON object from text
-    // Sometimes the model adds chatting before/after despite instructions
-    const firstBrace = clean.indexOf('{');
-    const lastBrace = clean.lastIndexOf('}');
-
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      const extracted = clean.substring(firstBrace, lastBrace + 1);
-      try {
-        return JSON.parse(extracted);
-      } catch (e2) {
-        // 3. Third attempt: Repair common syntax errors (Single quotes for keys)
-        // This is risky but solves the "Expected double-quoted property name" error
-        // We only target keys: 'key': -> "key":
-        try {
-          const repaired = extracted.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
-            .replace(/'/g, '"'); // Very aggressive, use with caution or better regex
-          return JSON.parse(repaired);
-        } catch (e3) {
-          console.error("JSON Critical Parse Failure", { original: text, extracted });
-          throw e;
-        }
-      }
-    }
-    throw e;
-  }
+    return safeJsonExtract<any>(text, null);
 };
 
 export const analyzeWithHelios = async (

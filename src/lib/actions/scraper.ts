@@ -2,6 +2,9 @@
 
 import { aiRouter } from "@/lib/ai/router";
 import * as cheerio from "cheerio";
+import { JSDOM, VirtualConsole } from 'jsdom';
+import { Readability } from '@mozilla/readability';
+import { safeJsonExtract } from '@/utils/json';
 
 export interface ScraperActionContext {
     contentType: string;
@@ -202,10 +205,7 @@ Si ninguno es útil, retorna \`[]\`. Solo retorna el arreglo JSON, sin texto adi
 
             // Parse the JSON array
             const textResponse = aiResult.text.trim();
-            // Sometimes models wrap in markdown json ... 
-            const cleanJson = textResponse.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-            
-            const parsed = JSON.parse(cleanJson);
+            const parsed = safeJsonExtract<any>(textResponse, []);
             if (Array.isArray(parsed)) {
                 usefulIndices = parsed.filter(i => typeof i === 'number' && i >= 0 && i < initialSurvivors.length);
             }
