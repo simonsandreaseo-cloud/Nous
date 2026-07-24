@@ -185,7 +185,10 @@ export default function OutlineSidebar() {
                     const isExpanded = expandedNotes.includes(idx);
                     const isDragging = dragIdx === idx;
                     const isOver = dragOverIdx === idx;
-                    const hasNotes = item.notes && item.notes.trim().length > 0;
+                    const notesContent = item.notes || item.instructions || '';
+                    const hasNotes = notesContent.trim().length > 0;
+                    const keywords: string[] = item.lsi_targets || item.lsi_keywords || item.keywords || [];
+                    const anchors: string[] = item.semantic_anchors || [];
 
                     return (
                         <div
@@ -211,7 +214,7 @@ export default function OutlineSidebar() {
 
                                     {/* Heading Type */}
                                     <select
-                                        value={item.type}
+                                        value={item.type || (item.tag ? item.tag : ('H' + (item.level || 2)))}
                                         onChange={e => updateItem(idx, 'type', e.target.value)}
                                         className="text-[9px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 border-0 rounded-lg px-2 py-1 outline-none cursor-pointer hover:bg-indigo-100 hover:text-indigo-600 transition-colors w-14 shrink-0"
                                     >
@@ -224,7 +227,7 @@ export default function OutlineSidebar() {
                                     {/* Title Input */}
                                     <input
                                         type="text"
-                                        value={item.text}
+                                        value={item.text || item.title || ''}
                                         onChange={e => updateItem(idx, 'text', e.target.value)}
                                         placeholder="Título de la sección..."
                                         className="flex-1 text-[12px] font-bold text-slate-800 bg-transparent outline-none placeholder:text-slate-300 min-w-0"
@@ -238,6 +241,32 @@ export default function OutlineSidebar() {
                                         <Trash2 size={13} />
                                     </button>
                                 </div>
+
+                                {/* LSI Keywords & Anchors Chips */}
+                                {(keywords.length > 0 || anchors.length > 0) && (
+                                    <div className="pl-[52px] space-y-1">
+                                        {keywords.length > 0 && (
+                                            <div className="flex flex-wrap items-center gap-1">
+                                                <span className="text-[8px] font-black uppercase text-indigo-400">LSI:</span>
+                                                {keywords.map((kw: string, kidx: number) => (
+                                                    <span key={kidx} className="px-1.5 py-0.5 bg-indigo-50/80 border border-indigo-100 rounded text-[8px] font-bold text-indigo-600">
+                                                        {kw}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {anchors.length > 0 && (
+                                            <div className="flex flex-wrap items-center gap-1">
+                                                <span className="text-[8px] font-black uppercase text-emerald-400">Anclas:</span>
+                                                {anchors.map((anchor: string, aidx: number) => (
+                                                    <span key={aidx} className="px-1.5 py-0.5 bg-emerald-50/80 border border-emerald-100 rounded text-[8px] font-mono font-bold text-emerald-600">
+                                                        {anchor}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Row 2: Word count input + Progress */}
                                 <div className="flex items-center gap-3 pl-[52px]">
@@ -276,7 +305,7 @@ export default function OutlineSidebar() {
                                     )}
                                 </div>
 
-                                {/* Row 3: Notes (¡Siempre visibles en preview!) */}
+                                {/* Row 3: Notes */}
                                 <div className="pl-[52px]">
                                     {hasNotes ? (
                                         <div className="rounded-xl bg-amber-50 border border-amber-100 overflow-hidden">
@@ -286,7 +315,7 @@ export default function OutlineSidebar() {
                                                     !isExpanded && "line-clamp-2"
                                                 )}
                                             >
-                                                {item.notes}
+                                                {notesContent}
                                             </div>
                                             <div className="flex items-center justify-between px-3 py-1.5 border-t border-amber-100/60">
                                                 <div className="flex items-center gap-1 text-[8px] font-black text-amber-500 uppercase tracking-widest">

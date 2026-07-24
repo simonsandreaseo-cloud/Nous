@@ -38,40 +38,63 @@ export default function StrategyTab({ task }: StrategyTabProps) {
                 <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
                     {hasOutline ? (
                         <div className="divide-y divide-slate-50">
-                            {task.outline_structure.map((item: any, idx: number) => (
-                                <div key={idx} className="p-6 hover:bg-slate-50/50 transition-colors group">
-                                    <div className="flex items-start gap-4">
-                                        <div className={cn(
-                                            "mt-1 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0",
-                                            item.level === 2 ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-400"
-                                        )}>
-                                            H{item.level || 2}
-                                        </div>
-                                        <div className="flex-1 space-y-2">
-                                            <h4 className={cn(
-                                                "font-black tracking-tight leading-tight",
-                                                item.level === 2 ? "text-base text-slate-900" : "text-sm text-slate-700"
+                            {task.outline_structure.map((item: any, idx: number) => {
+                                const level = item.level || (item.tag ? parseInt(String(item.tag).replace('H', '')) : 2);
+                                const text = item.text || item.title || (typeof item === 'string' ? item : 'Sección');
+                                const instructions = item.instructions || item.notes || '';
+                                const keywords: string[] = item.lsi_targets || item.lsi_keywords || item.keywords || [];
+                                const anchors: string[] = item.semantic_anchors || [];
+
+                                return (
+                                    <div key={idx} className="p-6 hover:bg-slate-50/50 transition-colors group">
+                                        <div className="flex items-start gap-4">
+                                            <div className={cn(
+                                                "mt-1 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0",
+                                                level === 2 ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-400"
                                             )}>
-                                                {item.text || item.title}
-                                            </h4>
-                                            {item.instructions && (
-                                                <p className="text-[11px] text-slate-500 font-medium leading-relaxed bg-slate-50/50 p-3 rounded-xl border border-slate-100/50 italic">
-                                                    {item.instructions}
-                                                </p>
-                                            )}
-                                            {item.keywords && item.keywords.length > 0 && (
-                                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                                    {item.keywords.map((kw: string, kidx: number) => (
-                                                        <span key={kidx} className="px-2 py-0.5 bg-white border border-slate-100 rounded-md text-[9px] font-bold text-slate-400 uppercase">
-                                                            {kw}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
+                                                H{level}
+                                            </div>
+                                            <div className="flex-1 space-y-2.5">
+                                                <h4 className={cn(
+                                                    "font-black tracking-tight leading-tight",
+                                                    level === 2 ? "text-base text-slate-900" : "text-sm text-slate-700"
+                                                )}>
+                                                    {text}
+                                                </h4>
+                                                {instructions && (
+                                                    <p className="text-[11px] text-slate-600 font-medium leading-relaxed bg-amber-50/60 p-3 rounded-xl border border-amber-100/60 italic">
+                                                        {instructions}
+                                                    </p>
+                                                )}
+                                                
+                                                {/* LSI Targets & Keywords */}
+                                                {keywords && keywords.length > 0 && (
+                                                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                                        <span className="text-[9px] font-black uppercase tracking-wider text-indigo-400 mr-1">LSI:</span>
+                                                        {keywords.map((kw: string, kidx: number) => (
+                                                            <span key={kidx} className="px-2 py-0.5 bg-indigo-50/80 border border-indigo-100 rounded-md text-[9px] font-bold text-indigo-600">
+                                                                {kw}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* Semantic Anchors */}
+                                                {anchors && anchors.length > 0 && (
+                                                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 mr-1">Anclas:</span>
+                                                        {anchors.map((anchor: string, aidx: number) => (
+                                                            <span key={aidx} className="px-2 py-0.5 bg-emerald-50/80 border border-emerald-100 rounded-md text-[9px] font-mono font-bold text-emerald-600">
+                                                                {anchor}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="p-12 text-center text-slate-300 italic text-[11px] font-medium">

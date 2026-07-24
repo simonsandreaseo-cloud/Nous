@@ -896,18 +896,53 @@ export default function StrategyGrid({
                                                             </div>
                                                             <div className="p-5 overflow-y-auto custom-scrollbar bg-white">
                                                                 {((Array.isArray(task.outline_structure) && task.outline_structure.length > 0) || (task.outline_structure?.headers?.length > 0)) ? (
-                                                                    <div className="space-y-3">
-                                                                        {(task.outline_structure?.headers || task.outline_structure).map((h: any, i: number) => (
-                                                                            <div key={i} className="flex gap-3 group/item">
-                                                                                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 uppercase h-fit">
-                                                                                    {h.tag || 'H' + (i % 2 === 0 ? '2' : '3')}
-                                                                                </span>
-                                                                                <p className="text-[10px] font-bold text-slate-700 leading-tight">
-                                                                                    {h.text || h.title || (typeof h === 'string' ? h : 'Sección')}
-                                                                                </p>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
+                                                                     <div className="space-y-3">
+                                                                         {(task.outline_structure?.headers || task.outline_structure).map((h: any, i: number) => {
+                                                                             const level = h.level || (h.tag ? parseInt(String(h.tag).replace('H', '')) : (i % 2 === 0 ? 2 : 3));
+                                                                             const text = h.text || h.title || (typeof h === 'string' ? h : 'Sección');
+                                                                             const instructions = h.instructions || h.notes || '';
+                                                                             const keywords: string[] = h.lsi_targets || h.lsi_keywords || h.keywords || [];
+                                                                             const anchors: string[] = h.semantic_anchors || [];
+
+                                                                             return (
+                                                                                 <div key={i} className="flex gap-3 group/item border-b border-slate-50 pb-2.5 last:border-b-0 last:pb-0">
+                                                                                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase h-fit shrink-0">
+                                                                                         H{level}
+                                                                                     </span>
+                                                                                     <div className="space-y-1 flex-1">
+                                                                                         <p className="text-[11px] font-bold text-slate-800 leading-tight">
+                                                                                             {text}
+                                                                                         </p>
+                                                                                         {instructions && (
+                                                                                             <p className="text-[9px] text-slate-500 italic bg-amber-50/50 p-1.5 rounded-lg border border-amber-100/50 leading-relaxed">
+                                                                                                 {instructions}
+                                                                                             </p>
+                                                                                         )}
+                                                                                         {keywords.length > 0 && (
+                                                                                             <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                                                                                                 <span className="text-[8px] font-black text-indigo-400 uppercase">LSI:</span>
+                                                                                                 {keywords.map((kw: string, kidx: number) => (
+                                                                                                     <span key={kidx} className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 rounded text-[8px] font-bold text-indigo-600">
+                                                                                                         {kw}
+                                                                                                     </span>
+                                                                                                 ))}
+                                                                                             </div>
+                                                                                         )}
+                                                                                         {anchors.length > 0 && (
+                                                                                             <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                                                                                                 <span className="text-[8px] font-black text-emerald-400 uppercase">Anclas:</span>
+                                                                                                 {anchors.map((anchor: string, aidx: number) => (
+                                                                                                     <span key={aidx} className="px-1.5 py-0.5 bg-emerald-50 border border-emerald-100 rounded text-[8px] font-mono font-bold text-emerald-600">
+                                                                                                         {anchor}
+                                                                                                     </span>
+                                                                                                 ))}
+                                                                                             </div>
+                                                                                         )}
+                                                                                     </div>
+                                                                                 </div>
+                                                                             );
+                                                                         })}
+                                                                     </div>
                                                                 ) : task.brief ? (
                                                                     <p className="text-[10px] text-slate-500 italic leading-relaxed">{task.brief}</p>
                                                                 ) : (
