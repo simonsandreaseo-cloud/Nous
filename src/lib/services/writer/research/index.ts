@@ -951,8 +951,6 @@ REGLAS:
             }
         }
 
-        }
-
         return dossier;
     },
 
