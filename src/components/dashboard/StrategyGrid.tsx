@@ -38,6 +38,54 @@ export const ALL_COLUMNS = [
     { id: 'Acciones Nous', label: 'Acciones Nous', width: 'min-w-[140px] w-[9%]', defaultVisible: true },
 ];
 
+interface OutlineGroupItem {
+    level: number;
+    tag?: string;
+    text: string;
+    instructions: string;
+    keywords: string[];
+    anchors: string[];
+}
+
+interface H2Group {
+    h2: OutlineGroupItem;
+    h3List: OutlineGroupItem[];
+}
+
+function groupOutlineHeaders(rawHeaders: any[]): H2Group[] {
+    if (!Array.isArray(rawHeaders) || rawHeaders.length === 0) return [];
+
+    const groups: H2Group[] = [];
+    let currentGroup: H2Group | null = null;
+
+    rawHeaders.forEach((h: any, i: number) => {
+        const level = h.level || (h.tag ? parseInt(String(h.tag).replace('H', '')) : 2);
+        const text = h.text || h.title || (typeof h === 'string' ? h : 'Sección');
+        const instructions = h.instructions || h.notes || '';
+        const keywords: string[] = h.lsi_targets || h.lsi_keywords || h.keywords || [];
+        const anchors: string[] = h.semantic_anchors || [];
+
+        const item: OutlineGroupItem = { level, text, instructions, keywords, anchors, tag: h.tag };
+
+        if (level === 1 || level === 2) {
+            currentGroup = { h2: item, h3List: [] };
+            groups.push(currentGroup);
+        } else {
+            if (currentGroup) {
+                currentGroup.h3List.push(item);
+            } else {
+                currentGroup = {
+                    h2: { level: 2, text: 'Sección Principal', instructions: '', keywords: [], anchors: [] },
+                    h3List: [item]
+                };
+                groups.push(currentGroup);
+            }
+        }
+    });
+
+    return groups;
+}
+
 interface StrategyGridProps {
     onSelectTask?: (task: Task) => void;
     onRunAction?: (taskId: string, action: string) => void;
@@ -870,14 +918,27 @@ export default function StrategyGrid({
                                                             initial={{ opacity: 0, scale: 0.95, y: 10 }}
                                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                                            className="absolute left-0 bottom-full mb-3 w-80 bg-white border border-slate-200 rounded-[28px] shadow-2xl z-50 overflow-hidden flex flex-col max-h-[400px]"
+                                                            className="absolute left-0 bottom-full mb-3 w-[460px] bg-white border border-slate-200/90 rounded-[28px] shadow-2xl z-50 overflow-hidden flex flex-col max-h-[520px]"
                                                         >
-                                                            <div className="p-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                                                                        <Sparkles size={14} />
+                                                            {/* Header */}
+                                                            <div className="p-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shadow-md">
+                                                                        <Sparkles size={15} />
                                                                     </div>
-                                                                    <span className="text-[10px] font-black uppercase text-slate-900 tracking-widest">Estructura Nous</span>
+                                                                    <div>
+                                                                        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-100">Estructura Nous</h4>
+                                                                        {(() => {
+                                                                            const raw = task.outline_structure?.headers || task.outline_structure || [];
+                                                                            const groups = groupOutlineHeaders(raw);
+                                                                            const h3Total = groups.reduce((acc, g) => acc + g.h3List.length, 0);
+                                                                            return (
+                                                                                <p className="text-[9px] font-bold text-slate-400">
+                                                                                    {groups.length} Secciones H2 • {h3Total} Subsecciones H3
+                                                                                </p>
+                                                                            );
+                                                                        })()}
+                                                                    </div>
                                                                 </div>
                                                                 <button 
                                                                     onClick={async (e) => {
@@ -888,84 +949,157 @@ export default function StrategyGrid({
                                                                         setOutlinePopupId(null);
                                                                         NotificationService.notify("Regenerando Outline", "Nous está trabajando en la nueva estructura.");
                                                                     }}
-                                                                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-[8px] font-black uppercase tracking-widest hover:border-indigo-400 hover:text-indigo-600 transition-all shadow-sm"
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl text-[9px] font-black uppercase tracking-widest text-white transition-all shadow-sm"
                                                                 >
-                                                                    {isRegeneratingOutline ? <Loader2 size={10} className="animate-spin" /> : <Zap size={10} />}
+                                                                    {isRegeneratingOutline ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} className="text-amber-400" />}
                                                                     Regenerar
                                                                 </button>
                                                             </div>
-                                                            <div className="p-5 overflow-y-auto custom-scrollbar bg-white">
-                                                                {((Array.isArray(task.outline_structure) && task.outline_structure.length > 0) || (task.outline_structure?.headers?.length > 0)) ? (
-                                                                     <div className="space-y-3">
-                                                                         {(task.outline_structure?.headers || task.outline_structure).map((h: any, i: number) => {
-                                                                             const level = h.level || (h.tag ? parseInt(String(h.tag).replace('H', '')) : (i % 2 === 0 ? 2 : 3));
-                                                                             const text = h.text || h.title || (typeof h === 'string' ? h : 'Sección');
-                                                                             const instructions = h.instructions || h.notes || '';
-                                                                             const keywords: string[] = h.lsi_targets || h.lsi_keywords || h.keywords || [];
-                                                                             const anchors: string[] = h.semantic_anchors || [];
 
-                                                                             return (
-                                                                                 <div key={i} className="flex gap-3 group/item border-b border-slate-50 pb-2.5 last:border-b-0 last:pb-0">
-                                                                                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase h-fit shrink-0">
-                                                                                         H{level}
-                                                                                     </span>
-                                                                                     <div className="space-y-1 flex-1">
-                                                                                         <p className="text-[11px] font-bold text-slate-800 leading-tight">
-                                                                                             {text}
-                                                                                         </p>
-                                                                                         {instructions && (
-                                                                                             <p className="text-[9px] text-slate-500 italic bg-amber-50/50 p-1.5 rounded-lg border border-amber-100/50 leading-relaxed">
-                                                                                                 {instructions}
-                                                                                             </p>
-                                                                                         )}
-                                                                                         {keywords.length > 0 && (
-                                                                                             <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                                                                                                 <span className="text-[8px] font-black text-indigo-400 uppercase">LSI:</span>
-                                                                                                 {keywords.map((kw: string, kidx: number) => (
-                                                                                                     <span key={kidx} className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 rounded text-[8px] font-bold text-indigo-600">
-                                                                                                         {kw}
-                                                                                                     </span>
-                                                                                                 ))}
-                                                                                             </div>
-                                                                                         )}
-                                                                                         {anchors.length > 0 && (
-                                                                                             <div className="flex flex-wrap items-center gap-1 pt-0.5">
-                                                                                                 <span className="text-[8px] font-black text-emerald-400 uppercase">Anclas:</span>
-                                                                                                 {anchors.map((anchor: string, aidx: number) => (
-                                                                                                     <span key={aidx} className="px-1.5 py-0.5 bg-emerald-50 border border-emerald-100 rounded text-[8px] font-mono font-bold text-emerald-600">
-                                                                                                         {anchor}
-                                                                                                     </span>
-                                                                                                 ))}
-                                                                                             </div>
-                                                                                         )}
-                                                                                     </div>
-                                                                                 </div>
-                                                                             );
-                                                                         })}
-                                                                     </div>
-                                                                ) : task.brief ? (
-                                                                    <p className="text-[10px] text-slate-500 italic leading-relaxed">{task.brief}</p>
-                                                                ) : (
-                                                                    <div className="py-8 text-center space-y-3">
-                                                                        <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-200">
-                                                                            <BrainCircuit size={24} />
+                                                            {/* Body */}
+                                                            <div className="p-4 overflow-y-auto custom-scrollbar bg-slate-50/50 space-y-3.5 max-h-[400px]">
+                                                                {(() => {
+                                                                    const raw = task.outline_structure?.headers || task.outline_structure || [];
+                                                                    const groups = groupOutlineHeaders(raw);
+
+                                                                    if (groups.length > 0) {
+                                                                        return groups.map((group, gIdx) => (
+                                                                            <div key={gIdx} className="bg-white border border-slate-200/70 rounded-2xl p-4 shadow-sm space-y-3 hover:border-indigo-200/80 transition-all">
+                                                                                {/* H2 Header */}
+                                                                                <div className="space-y-2">
+                                                                                    <div className="flex items-start gap-2.5">
+                                                                                        <span className="text-[9px] font-black px-2 py-0.5 rounded-lg bg-indigo-600 text-white uppercase shrink-0 shadow-sm mt-0.5">
+                                                                                            H{group.h2.level || 2}
+                                                                                        </span>
+                                                                                        <h5 className="text-[12px] font-black text-slate-900 leading-snug flex-1">
+                                                                                            {group.h2.text}
+                                                                                        </h5>
+                                                                                    </div>
+
+                                                                                    {/* H2 Instructions */}
+                                                                                    {group.h2.instructions && (
+                                                                                        <p className="text-[10px] text-amber-950 font-medium bg-amber-50/80 border border-amber-200/60 rounded-xl p-2.5 italic leading-relaxed">
+                                                                                            {group.h2.instructions}
+                                                                                        </p>
+                                                                                    )}
+
+                                                                                    {/* H2 LSI Keywords & Anchors */}
+                                                                                    {(group.h2.keywords.length > 0 || group.h2.anchors.length > 0) && (
+                                                                                        <div className="space-y-1 pt-0.5">
+                                                                                            {group.h2.keywords.length > 0 && (
+                                                                                                <div className="flex flex-wrap items-center gap-1">
+                                                                                                    <span className="text-[8px] font-black uppercase text-indigo-400">LSI:</span>
+                                                                                                    {group.h2.keywords.map((kw, kidx) => (
+                                                                                                        <span key={kidx} className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 rounded text-[8px] font-bold text-indigo-600">
+                                                                                                            {kw}
+                                                                                                        </span>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            )}
+                                                                                            {group.h2.anchors.length > 0 && (
+                                                                                                <div className="flex flex-wrap items-center gap-1">
+                                                                                                    <span className="text-[8px] font-black uppercase text-emerald-400">Anclas:</span>
+                                                                                                    {group.h2.anchors.map((anchor, aidx) => (
+                                                                                                        <span key={aidx} className="px-1.5 py-0.5 bg-emerald-50 border border-emerald-100 rounded text-[8px] font-mono font-bold text-emerald-600">
+                                                                                                            {anchor}
+                                                                                                        </span>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+
+                                                                                {/* H3 Nested Subsections */}
+                                                                                {group.h3List.length > 0 && (
+                                                                                    <div className="border-l-2 border-indigo-100 pl-3 ml-1 space-y-3 pt-1">
+                                                                                        {group.h3List.map((h3, h3Idx) => (
+                                                                                            <div key={h3Idx} className="space-y-1.5">
+                                                                                                <div className="flex items-start gap-2">
+                                                                                                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 uppercase shrink-0 mt-0.5">
+                                                                                                        H3
+                                                                                                    </span>
+                                                                                                    <h6 className="text-[11px] font-bold text-slate-800 leading-snug flex-1">
+                                                                                                        {h3.text}
+                                                                                                    </h6>
+                                                                                                </div>
+                                                                                                {h3.instructions && (
+                                                                                                    <p className="text-[9px] text-slate-500 italic bg-slate-50 p-2 rounded-lg border border-slate-100 leading-relaxed ml-5">
+                                                                                                        {h3.instructions}
+                                                                                                    </p>
+                                                                                                )}
+                                                                                                {(h3.keywords.length > 0 || h3.anchors.length > 0) && (
+                                                                                                    <div className="ml-5 space-y-0.5">
+                                                                                                        {h3.keywords.length > 0 && (
+                                                                                                            <div className="flex flex-wrap items-center gap-1">
+                                                                                                                <span className="text-[7px] font-black text-indigo-400 uppercase">LSI:</span>
+                                                                                                                {h3.keywords.map((kw, kidx) => (
+                                                                                                                    <span key={kidx} className="px-1.5 py-0.5 bg-indigo-50/70 border border-indigo-100/60 rounded text-[8px] font-bold text-indigo-600">
+                                                                                                                        {kw}
+                                                                                                                    </span>
+                                                                                                                ))}
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                        {h3.anchors.length > 0 && (
+                                                                                                            <div className="flex flex-wrap items-center gap-1">
+                                                                                                                <span className="text-[7px] font-black text-emerald-400 uppercase">Anclas:</span>
+                                                                                                                {h3.anchors.map((anchor, aidx) => (
+                                                                                                                    <span key={aidx} className="px-1.5 py-0.5 bg-emerald-50/70 border border-emerald-100/60 rounded text-[8px] font-mono font-bold text-emerald-600">
+                                                                                                                        {anchor}
+                                                                                                                    </span>
+                                                                                                                ))}
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        ));
+                                                                    }
+
+                                                                    if (task.brief) {
+                                                                        return <p className="text-[10px] text-slate-500 italic leading-relaxed p-2">{task.brief}</p>;
+                                                                    }
+
+                                                                    return (
+                                                                        <div className="py-8 text-center space-y-3">
+                                                                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-300">
+                                                                                <BrainCircuit size={24} />
+                                                                            </div>
+                                                                            <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Sin Planificación Activa</p>
                                                                         </div>
-                                                                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Sin Planificación Activa</p>
-                                                                    </div>
-                                                                )}
+                                                                    );
+                                                                })()}
                                                             </div>
-                                                            <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+
+                                                            {/* Footer */}
+                                                            <div className="p-3 bg-slate-100/70 border-t border-slate-200/60 flex items-center justify-between px-4">
+                                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nous Outline Studio</span>
                                                                 <button 
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         if (document.hasFocus()) {
-                                                                            const outlineHeaders = task.outline_structure?.headers || task.outline_structure || [];
-                                                                            const outlineText = outlineHeaders.map((h: any) => `${h.tag || 'H2'} ${h.text || h.title || ''}`).join('\n');
-                                                                            navigator.clipboard.writeText(outlineText);
+                                                                            const raw = task.outline_structure?.headers || task.outline_structure || [];
+                                                                            const groups = groupOutlineHeaders(raw);
+                                                                            let textBuffer = '';
+                                                                            groups.forEach(g => {
+                                                                                textBuffer += `H2: ${g.h2.text}\n`;
+                                                                                if (g.h2.instructions) textBuffer += `   Instrucciones: ${g.h2.instructions}\n`;
+                                                                                if (g.h2.keywords.length) textBuffer += `   LSI: ${g.h2.keywords.join(', ')}\n`;
+                                                                                g.h3List.forEach(h3 => {
+                                                                                    textBuffer += `  - H3: ${h3.text}\n`;
+                                                                                    if (h3.instructions) textBuffer += `     Instrucciones: ${h3.instructions}\n`;
+                                                                                });
+                                                                                textBuffer += '\n';
+                                                                            });
+                                                                            navigator.clipboard.writeText(textBuffer.trim());
                                                                             NotificationService.success("Outline Copiado");
                                                                         }
                                                                     }}
-                                                                    className="text-[9px] font-black uppercase text-slate-400 hover:text-indigo-600 tracking-[0.2em] transition-colors"
+                                                                    className="text-[9px] font-black uppercase text-indigo-600 hover:text-indigo-800 tracking-[0.2em] transition-colors"
                                                                 >
                                                                     Copiar Estructura
                                                                 </button>
