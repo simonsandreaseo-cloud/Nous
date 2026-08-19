@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    X, Plus, Settings, BrainCircuit, Activity, Trash2, 
+    X, Plus, Settings, Search, Filter, BrainCircuit, Activity, Trash2, 
     ArrowRight, ChevronDown, CheckCircle2, Play, Save, Box, Layers,
     Scissors, Image as ImageIcon, Languages, Wand2, LayoutTemplate
 } from 'lucide-react';
@@ -48,6 +48,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     // UI Layout States
     const [localSelectedIds, setLocalSelectedIds] = useState(selectedTaskIds);
     const [selectedStatus, setSelectedStatus] = useState('por_redactar');
+    const [searchQuery, setSearchQuery] = useState('');
     
     // Quick Create States
     const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
@@ -70,15 +71,22 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     }, [activeProject]);
 
     // Target Tasks based on mode
-    const targetTasks = useMemo(() => {
-        if (executionMode === 'manual') {
-            return tasks.filter(t => localSelectedIds.includes(t.id));
-        } else if (executionMode === 'status') {
-            return tasks.filter(t => t.status === selectedStatus);
-        } else {
-            return tasks; // Auto mode placeholder
+        const targetTasks = useMemo(() => {
+        let list = tasks;
+        if (executionMode === 'status') {
+            list = tasks.filter(t => t.status === selectedStatus);
         }
-    }, [executionMode, tasks, localSelectedIds, selectedStatus]);
+        
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            list = list.filter(t => 
+                (t.title || '').toLowerCase().includes(q) || 
+                (t.target_keyword || '').toLowerCase().includes(q)
+            );
+        }
+        
+        return list;
+    }, [executionMode, tasks, selectedStatus, searchQuery]);
 
     const toggleTaskSelection = (id) => {
         setLocalSelectedIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
@@ -199,7 +207,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="bg-white rounded-[32px] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col relative"
+                    className="bg-white rounded-[32px] shadow-2xl w-full max-w-[1300px] max-h-[90vh] overflow-hidden flex flex-col relative"
                 >
                     {/* Header */}
                     <div className="px-8 py-6 bg-slate-900 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -553,6 +561,24 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                 )}
                             </div>
 
+                            
+                            {/* Search and Filter */}
+                            <div className="px-4 pb-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+                                <div className="relative flex-1">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Buscar contenido..." 
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-8 pr-3 py-2 text-xs font-medium bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                                    />
+                                </div>
+                                <button className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 rounded-lg hover:border-indigo-300 transition-colors shadow-sm">
+                                    <Filter size={14} />
+                                </button>
+                            </div>
+                            
                             {/* Dynamic Status Selector (if status mode) */}
                             {executionMode === 'status' && (
                                 <div className="p-4 border-b border-slate-100 bg-indigo-50/30">
@@ -572,7 +598,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                             )}
 
                             {/* Task List */}
-                            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                            <div className="flex-1 overflow-y-auto p-2 space-y-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
                                 {targetTasks.map(task => (
                                     <div key={task.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-50 group transition-colors">
                                         {executionMode === 'manual' && (
@@ -602,7 +628,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                         </div>
 
                         {/* Zone 2: Available Blocks Sidebar */}
-                        <div className="w-[260px] bg-slate-50/50 border-r border-slate-100 p-6 overflow-y-auto shrink-0">
+                        <div className="w-[260px] bg-slate-50/50 border-r border-slate-100 p-6 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 shrink-0">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Acciones Disponibles</h3>
                             <div className="grid grid-cols-1 gap-3">
                                 {AVAILABLE_ACTIONS.map(action => (
@@ -625,7 +651,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                         </div>
 
                         {/* Pipeline Area */}
-                        <div className="flex-1 bg-white p-6 overflow-y-auto relative">
+                        <div className="flex-1 bg-white p-6 overflow-y-auto relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Secuencia del Pipeline</h3>
                             
                             {activeWorkflow.blocks.length === 0 ? (
