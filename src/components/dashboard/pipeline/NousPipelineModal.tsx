@@ -39,24 +39,80 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
         createWorkflow, deleteWorkflow, addBlock, removeBlock 
     } = usePipelineStore();
     
-    const { tasks } = useProjectStore();
+    const { tasks, activeProject, addTask } = useProjectStore();
     
     const [configBlock, setConfigBlock] = useState<PipelineBlock | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
+    
+    // UI Layout States
+    const [localSelectedIds, setLocalSelectedIds] = useState(selectedTaskIds);
+    const [selectedStatus, setSelectedStatus] = useState('por_redactar');
+    
+    // Quick Create States
+    const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
+    const [quickTitle, setQuickTitle] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
+
     
     // Execution Monitor State
     const [isExecuting, setIsExecuting] = useState(false);
     const { queue, activeTask, enqueueTask, isProcessingQueue, batchTotalTasks, batchCompletedTasks, isPaused, togglePause } = useQueueStore();
 
     const activeWorkflow = workflows[activeWorkflowId];
+    
+    // Dynamic Statuses
+    const customStatuses = useMemo(() => {
+        const defaults = Object.entries(STATUS_LABELS).map(([id, label]) => ({ id, label }));
+        const projectCustoms = activeProject?.settings?.content_preferences?.custom_statuses || [];
+        const customObjs = projectCustoms.map(s => typeof s === 'string' ? { id: s.toLowerCase().replace(/\\s+/g, '_'), label: s } : s);
+        return [...defaults, ...customObjs];
+    }, [activeProject]);
+
+    // Target Tasks based on mode
+    const targetTasks = useMemo(() => {
+        if (executionMode === 'manual') {
+            return tasks.filter(t => localSelectedIds.includes(t.id));
+        } else if (executionMode === 'status') {
+            return tasks.filter(t => t.status === selectedStatus);
+        } else {
+            return tasks; // Auto mode placeholder
+        }
+    }, [executionMode, tasks, localSelectedIds, selectedStatus]);
+
+    const toggleTaskSelection = (id) => {
+        setLocalSelectedIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
+    };
+
+    const handleQuickCreate = async () => {
+        if (!quickTitle.trim() || !activeProject) return;
+        setIsCreating(true);
+        try {
+            const res = await addTask({
+                project_id: activeProject.id,
+                title: quickTitle,
+                status: executionMode === 'status' ? selectedStatus : 'idea',
+                scheduled_date: new Date().toISOString()
+            });
+            if (res.data) {
+                setQuickTitle('');
+                setIsQuickCreateOpen(false);
+                if (executionMode === 'manual') {
+                    setLocalSelectedIds(prev => [...prev, res.data.id]);
+                }
+            }
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
 
     // Predictive Counting Algorithm
     const predictiveCounts = useMemo(() => {
         if (!activeWorkflow) return [];
         if (executionMode === 'manual') {
             // Manual mode always uses the current selection count for every step
-            return activeWorkflow.blocks.map(() => selectedTaskIds.length);
+            return activeWorkflow.blocks.map(() => localSelectedIds.length);
         }
 
         // Status mode simulation
@@ -406,7 +462,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                         onClick={() => setExecutionMode('manual')}
                                         className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all", executionMode === 'manual' ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-50")}
                                     >
-                                        Manual ({selectedTaskIds.length})
+                                        Manual ({localSelectedIds.length})
                                     </button>
                                     <button 
                                         onClick={() => setExecutionMode('status')}
@@ -447,9 +503,106 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                 </button>
                             </div>
 
-                    <div className="flex flex-1 min-h-0">
-                        {/* Available Blocks Sidebar */}
-                        <div className="w-1/3 bg-slate-50/50 border-r border-slate-100 p-6 overflow-y-auto">
+                    <div className="flex flex-1 min-h-0 bg-slate-50/30">
+                        {/* Zone 1: Contenidos Objetivo */}
+                        <div className="w-[280px] md:w-[320px] bg-white border-r border-slate-100 flex flex-col shrink-0 z-10 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
+                            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                    Contenidos 
+                                    <span className="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">{targetTasks.length}</span>
+                                </h3>
+                            </div>
+                            
+                            {/* Quick Create Button / Form */}
+                            <div className="p-4 border-b border-slate-100">
+                                {isQuickCreateOpen ? (
+                                    <div className="space-y-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                                        <input 
+                                            type="text" 
+                                            autoFocus
+                                            placeholder="Título del artículo..."
+                                            className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
+                                            value={quickTitle}
+                                            onChange={e => setQuickTitle(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && handleQuickCreate()}
+                                            disabled={isCreating}
+                                        />
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={handleQuickCreate}
+                                                disabled={!quickTitle || isCreating}
+                                                className="flex-1 bg-indigo-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                                            >
+                                                {isCreating ? 'Creando...' : 'Añadir'}
+                                            </button>
+                                            <button 
+                                                onClick={() => setIsQuickCreateOpen(false)}
+                                                className="px-3 py-2 text-slate-500 hover:bg-slate-200 rounded-lg transition-colors"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button 
+                                        onClick={() => setIsQuickCreateOpen(true)}
+                                        className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 rounded-xl text-sm font-bold transition-colors"
+                                    >
+                                        <Plus size={16} /> Crear nuevo
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Dynamic Status Selector (if status mode) */}
+                            {executionMode === 'status' && (
+                                <div className="p-4 border-b border-slate-100 bg-indigo-50/30">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">
+                                        Estatus de Origen
+                                    </label>
+                                    <select 
+                                        value={selectedStatus}
+                                        onChange={e => setSelectedStatus(e.target.value)}
+                                        className="w-full text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                                    >
+                                        {customStatuses.map(s => (
+                                            <option key={s.id} value={s.id}>{s.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Task List */}
+                            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                                {targetTasks.map(task => (
+                                    <div key={task.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-50 group transition-colors">
+                                        {executionMode === 'manual' && (
+                                            <input 
+                                                type="checkbox" 
+                                                checked={localSelectedIds.includes(task.id)}
+                                                onChange={() => toggleTaskSelection(task.id)}
+                                                className="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                            />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-slate-700 truncate">{task.title || 'Sin Título'}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded truncate">
+                                                    {customStatuses.find(s => s.id === task.status)?.label || task.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {targetTasks.length === 0 && (
+                                    <div className="p-8 text-center text-sm text-slate-400 font-medium">
+                                        No hay contenidos para procesar.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Zone 2: Available Blocks Sidebar */}
+                        <div className="w-[260px] bg-slate-50/50 border-r border-slate-100 p-6 overflow-y-auto shrink-0">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Acciones Disponibles</h3>
                             <div className="grid grid-cols-1 gap-3">
                                 {AVAILABLE_ACTIONS.map(action => (
