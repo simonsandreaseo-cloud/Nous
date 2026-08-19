@@ -62,6 +62,7 @@ import { NotificationService } from "@/lib/services/notifications";
 import { parseDocx, parseHtml } from "@/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
+import { NousSquareButton } from "./NousSquareButton";
 import { useQueueProcessor } from '@/components/dashboard/useQueueProcessor';
 import { SmartUploaderModal } from "./SmartUploaderModal";
 import SmartSlugGeneratorModal from "./SmartSlugGeneratorModal";
@@ -1012,15 +1013,18 @@ export function EditorialCalendar() {
 
     return (
         <div className="flex flex-col h-screen bg-white">
-            <header className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0 sticky top-0 z-40">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3 border-r border-slate-100 pr-4 mr-2">
-                        <CalendarIcon size={18} className="text-indigo-600" />
-                        <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em]">Estrategia & Plan</h3>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Mejorar título con Nous</span>
+            <div className="flex shrink-0 sticky top-0 z-40 bg-white border-b border-slate-100 shadow-sm">
+                {/* Square Button spanning both lines */}
+                <div className="flex flex-col items-center justify-center border-r border-slate-100 bg-white px-4 md:px-6">
+                     <NousSquareButton onClick={() => setIsPipelineModalOpen(true)} />
+                </div>
+                
+                {/* Right side containing header and filter bar */}
+                <div className="flex-1 flex flex-col min-w-0">
+                    <header className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Mejorar título con Nous</span>
                         <button 
                             onClick={() => setImproveTitleWithNous(!improveTitleWithNous)}
                             className={cn(
@@ -1255,15 +1259,6 @@ export function EditorialCalendar() {
 
             {/* Filter Bar */}
             <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-wrap items-center gap-4 shrink-0">
-                {/* Nous AI Pipeline Button */}
-                <button 
-                    onClick={() => setIsPipelineModalOpen(true)}
-                    className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-900/20 hover:bg-indigo-600 hover:shadow-indigo-500/30 transition-all transform hover:-translate-y-0.5"
-                >
-                    <BrainCircuit size={14} />
-                    <span>Nous AI Pipeline</span>
-                </button>
-
                 {/* Search Input */}
                 <div className="relative flex-1 min-w-[200px] max-w-sm">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1448,6 +1443,8 @@ export function EditorialCalendar() {
                         </>
                     )}
                 </div>
+            </div>
+            </div>
             </div>
 
             {/* Main Area */}

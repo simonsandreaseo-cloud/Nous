@@ -22,6 +22,7 @@ import { ResearchOrchestrator } from "@/lib/services/writer/research";
 import { AI_CONFIG } from "@/lib/ai/config";
 import { Type } from "@google/genai";
 import { supabase } from "@/lib/supabase";
+import { safeJsonExtract } from "@/utils/json";
 
 // --- UTILS & CONSTANTS ---
 

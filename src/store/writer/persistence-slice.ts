@@ -173,6 +173,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
                     const currentDraftId = (get() as any).draftId;
                     if (currentDraftId === task.id && contentBody !== null) {
                         (get() as any).setContent(contentBody || '');
+                        (get() as any).setIsRemoteUpdate(true);
                     }
                 });
             }, 0);
@@ -261,7 +262,8 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
             projectId: project?.id || task.project_id || null,
             currentLanguage: task.language || 'es',
             viewMode: 'workspace',
-            status: task.status || 'por_redactar'
+            status: task.status || 'por_redactar',
+            isRemoteUpdate: true
         } as any;
     });
 },
@@ -458,8 +460,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
 
         setStatus('Restaurando versión...');
         
-        // Guardar estado actual antes de restaurar
-        await saveTaskVersion('Pre-Restauración');
+        // Eliminado: await saveTaskVersion('Pre-Restauración'); para no generar versiones basura
 
         // Aplicar contenido restaurado
         setContent(versionToRestore.content_body);
