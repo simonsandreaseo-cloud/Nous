@@ -365,14 +365,21 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
                             disabled={isProcessing}
                             className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500"
                         >
+                            <option value="gemini-3.7-flash-gas">Gemini 3.7 Flash (GAS)</option>
+                            <option value="gemini-3.7-flash-vertex">Gemini 3.7 Flash (Vertex)</option>
+                            <option value="gemini-3.6-flash-gas">Gemini 3.6 Flash (GAS)</option>
+                            <option value="gemini-3.6-flash-vertex">Gemini 3.6 Flash (Vertex)</option>
                             <option value="gemini-3.5-flash-gas">Gemini 3.5 Flash (GAS)</option>
                             <option value="gemini-3.5-flash-vertex">Gemini 3.5 Flash (Vertex)</option>
+                            <option value="gemini-3.5-flash-lite-gas">Gemini 3.5 Flash-Lite (GAS)</option>
+                            <option value="gemini-3.5-flash-lite-vertex">Gemini 3.5 Flash-Lite (Vertex)</option>
                             <option value="gemini-3-flash-vertex">Gemini 3 Flash (Vertex)</option>
                             <option value="gemini-3.1-pro-preview-vertex">Gemini 3.1 Pro (Vertex)</option>
                             <option value="gemini-3.1-flash-lite-preview-gas">Gemini 3.1 Flash Lite (GAS)</option>
                             <option value="gemini-3.1-flash-lite-preview-vertex">Gemini 3.1 Flash Lite (Vertex)</option>
                             <option value="gemma-4-31b-it">Gemma 4 31B IT (GAS)</option>
                             <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT (GAS)</option>
+                            <option value="gemma-3-27b-it">Gemma 3 27B IT (GAS)</option>
                         </select>
                     </div>
 

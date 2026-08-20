@@ -171,7 +171,7 @@ export async function executeDraftPipeline(
         // Clean each chunk right after generation
         onLog(`Limpiando alucinaciones del modelo en parte ${i+1}...`);
         try {
-            const cleanupRes = await streamFinalCleanup(chunkHtml, onLog); chunkHtml = cleanupRes.html; if (cleanupRes.usage) { const { useQueueStore } = await import("@/store/useQueueStore"); useQueueStore.getState().addUsageToTask(task.id, cleanupRes.usage); }
+            const cleanupRes = await streamFinalCleanup(chunkHtml, onLog); chunkHtml = cleanupRes.html; if (cleanupRes.usage) { const { useQueueStore } = await import("@/store/useQueueStore"); const activeTask = useQueueStore.getState().activeTask; if (activeTask) { useQueueStore.getState().addUsageToTask(activeTask.id, cleanupRes.usage); } }
         } catch (cleanupErr: any) {
             onLog(`⚠️ Error en limpieza de parte ${i+1}: ${cleanupErr.message}. Usando versión original.`);
         }

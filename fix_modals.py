@@ -1,0 +1,39 @@
+import os
+
+files = [
+    'src/components/contents/tools/CustomTransformModal.tsx',
+    'src/components/contents/tools/MiniEditorModal.tsx',
+    'src/components/contents/tools/MiniHumanizerModal.tsx'
+]
+
+replacement = '''<option value="gemini-3.7-flash-gas">Gemini 3.7 Flash (GAS)</option>
+                            <option value="gemini-3.7-flash-vertex">Gemini 3.7 Flash (Vertex)</option>
+                            <option value="gemini-3.6-flash-gas">Gemini 3.6 Flash (GAS)</option>
+                            <option value="gemini-3.6-flash-vertex">Gemini 3.6 Flash (Vertex)</option>
+                            <option value="gemini-3.5-flash-gas">Gemini 3.5 Flash (GAS)</option>
+                            <option value="gemini-3.5-flash-vertex">Gemini 3.5 Flash (Vertex)</option>
+                            <option value="gemini-3.5-flash-lite-gas">Gemini 3.5 Flash-Lite (GAS)</option>
+                            <option value="gemini-3.5-flash-lite-vertex">Gemini 3.5 Flash-Lite (Vertex)</option>
+                            <option value="gemini-3-flash-vertex">Gemini 3 Flash (Vertex)</option>
+                            <option value="gemini-3.1-pro-preview-vertex">Gemini 3.1 Pro (Vertex)</option>
+                            <option value="gemini-3.1-flash-lite-preview-gas">Gemini 3.1 Flash Lite (GAS)</option>
+                            <option value="gemini-3.1-flash-lite-preview-vertex">Gemini 3.1 Flash Lite (Vertex)</option>
+                            <option value="gemma-4-31b-it">Gemma 4 31B IT (GAS)</option>
+                            <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT (GAS)</option>
+                            <option value="gemma-3-27b-it">Gemma 3 27B IT (GAS)</option>'''
+
+for file in files:
+    try:
+        with open(file, 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+        import re
+        pattern = r'<option value="gemini-3\.5-flash-gas">Gemini 3\.5 Flash \(GAS\)</option>[\s\S]*?<option value="gemma-4-26b-a4b-it">Gemma 4 26B IT \(GAS\)</option>'
+        
+        new_content = re.sub(pattern, replacement, content)
+        
+        with open(file, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        print(f"Updated {file}")
+    except Exception as e:
+        print(f"Error {file}: {e}")

@@ -15,14 +15,21 @@ interface PipelineBlockConfigProps {
 }
 
 const AI_MODELS: { id: AIModelType; label: string; description: string }[] = [
+    { id: 'gemini-3.7-flash-gas', label: 'Gemini 3.7 Flash (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3.7-flash-vertex', label: 'Gemini 3.7 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemini-3.6-flash-gas', label: 'Gemini 3.6 Flash (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3.6-flash-vertex', label: 'Gemini 3.6 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
     { id: 'gemini-3.5-flash-gas', label: 'Gemini 3.5 Flash (GAS)', description: 'Google AI Studio key rotation' },
     { id: 'gemini-3.5-flash-vertex', label: 'Gemini 3.5 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
+    { id: 'gemini-3.5-flash-lite-gas', label: 'Gemini 3.5 Flash-Lite (GAS)', description: 'Google AI Studio key rotation' },
+    { id: 'gemini-3.5-flash-lite-vertex', label: 'Gemini 3.5 Flash-Lite (Vertex)', description: 'Google Cloud Vertex AI' },
     { id: 'gemini-3-flash-vertex', label: 'Gemini 3 Flash (Vertex)', description: 'Google Cloud Vertex AI' },
     { id: 'gemini-3.1-pro-preview-vertex', label: 'Gemini 3.1 Pro (Vertex)', description: 'Google Cloud Vertex AI' },
     { id: 'gemini-3.1-flash-lite-preview-gas', label: 'Gemini 3.1 Flash-Lite (GAS)', description: 'Google AI Studio key rotation' },
     { id: 'gemini-3.1-flash-lite-preview-vertex', label: 'Gemini 3.1 Flash-Lite (Vertex)', description: 'Google Cloud Vertex AI' },
     { id: 'gemma-4-31b-it', label: 'Gemma 4 (31B) (GAS)', description: 'Alta precisión local y razonamiento' },
     { id: 'gemma-4-26b-a4b-it', label: 'Gemma 4 (26B MoE) (GAS)', description: 'Velocidad y eficiencia' },
+    { id: 'gemma-3-27b-it', label: 'Gemma 3 (27B) (GAS)', description: 'Eficiencia Open Weights' },
     { id: 'default', label: 'Por Defecto', description: 'Usa la configuración general' }
 ];
 
