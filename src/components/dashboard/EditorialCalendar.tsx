@@ -1478,7 +1478,7 @@ export function EditorialCalendar() {
                 isOpen={isPipelineModalOpen}
                 onClose={() => setIsPipelineModalOpen(false)}
                 selectedTaskIds={selectedTaskIds}
-                onExecute={async (blocks, mode, strategy) => {
+                onExecute={async (blocks, mode, strategy, finalTargetIds, finalStatus) => {
                     if (!activeProject) {
                         NotificationService.error("Error", "No hay proyecto activo.");
                         return;
@@ -1491,8 +1491,10 @@ export function EditorialCalendar() {
 
                     // Determinar el target base
                     const targetTasks = mode === 'manual' 
-                        ? tasks.filter(t => selectedTaskIds.includes(t.id))
-                        : tasks;
+                        ? tasks.filter(t => (finalTargetIds || selectedTaskIds).includes(t.id))
+                        : mode === 'status'
+                            ? tasks.filter(t => t.status === finalStatus)
+                            : tasks;
                     
                     if (targetTasks.length === 0) {
                         NotificationService.error("Información", "No hay contenidos para procesar.");

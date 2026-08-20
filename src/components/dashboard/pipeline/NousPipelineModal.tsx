@@ -15,7 +15,7 @@ interface NousPipelineModalProps {
     isOpen: boolean;
     onClose: () => void;
     selectedTaskIds: string[];
-    onExecute: (blocks: PipelineBlock[], mode: ExecutionMode, strategy: ExecutionStrategy) => void;
+    onExecute: (blocks: PipelineBlock[], mode: ExecutionMode, strategy: ExecutionStrategy, finalTargetIds?: string[], finalStatus?: string) => void;
 }
 
 const AVAILABLE_ACTIONS: { id: PipelineActionType; label: string; icon: React.ReactNode; color: string }[] = [
@@ -169,7 +169,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
 
     const handleExecute = () => {
         if (!activeWorkflow || activeWorkflow.blocks.length === 0) return;
-        onExecute(activeWorkflow.blocks, executionMode, executionStrategy);
+        onExecute(activeWorkflow.blocks, executionMode, executionStrategy, localSelectedIds, selectedStatus);
         setIsExecuting(true);
     };
 
