@@ -942,6 +942,11 @@ REGLAS:
                     outline_structure: flatOutline,
                     research_dossier: dossier
                 });
+                
+                // Expose properties for pipelineExecutor.ts
+                if (dossier.seoMetadata?.h1) dossier.title = dossier.seoMetadata.h1;
+                dossier.target_keyword = dossier.masterIntent || keyword;
+                if (dossier.wordCountGoal) dossier.word_count = dossier.wordCountGoal;
 
                 if (researchError) console.error("❌ [Supabase] Error actualizando tabla task_research:", researchError);
 
@@ -1194,6 +1199,12 @@ REGLAS:
                     outline_structure: flatOutline,
                     research_dossier: dossier
                 });
+                
+                // Expose properties for pipelineExecutor.ts
+                if (dossier.seoMetadata?.h1) dossier.title = dossier.seoMetadata.h1;
+                dossier.target_keyword = keyword;
+                if (dossier.wordCountGoal) dossier.word_count = dossier.wordCountGoal;
+
             } catch (e) {
                 if (onLog) onLog("ERROR", "Fallo crítico al guardar en Base de Datos.");
             }
