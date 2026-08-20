@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Plus, Settings, Search, Filter, BrainCircuit, Activity, Trash2, 
     ArrowRight, ChevronDown, CheckCircle2, Play, Save, Box, Layers,
-    Scissors, Image as ImageIcon, Languages, Wand2, LayoutTemplate
+    Scissors, Image as ImageIcon, Languages, Wand2, LayoutTemplate, Terminal
 } from 'lucide-react';
 import { PipelineBlock, usePipelineStore, PipelineActionType, ExecutionMode, ExecutionStrategy } from '@/store/usePipelineStore';
 import { useProjectStore, Task, STATUS_LABELS } from '@/store/useProjectStore';
@@ -33,6 +34,7 @@ const AVAILABLE_ACTIONS: { id: PipelineActionType; label: string; icon: React.Re
 ];
 
 export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute }: NousPipelineModalProps) {
+    const router = useRouter();
     const { 
         workflows, activeWorkflowId, executionMode, executionStrategy,
         setExecutionMode, setExecutionStrategy, setActiveWorkflow, updateWorkflowName, 
@@ -399,35 +401,40 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                         </div>
                                     )}
 
-                                    {/* Live Metrics Panel */}
-                                    <div className="w-full bg-slate-900 rounded-2xl border border-slate-800 shadow-xl p-5 relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[50px] rounded-full pointer-events-none" />
-                                            
-                                            <div className="flex items-center gap-3 mb-6 relative z-10">
-                                                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                                                    <Activity className="text-indigo-400" size={16} />
-                                                </div>
-                                                <h4 className="text-white font-bold tracking-wide">Métricas en Vivo</h4>
+                                    {/* Console Panel */}
+                                    <div className="w-full bg-slate-900 rounded-2xl border border-slate-800 shadow-xl p-5 relative overflow-hidden flex flex-col" style={{ minHeight: '300px', maxHeight: '400px' }}>
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-[50px] rounded-full pointer-events-none" />
+                                        
+                                        <div className="flex items-center gap-3 mb-4 relative z-10 shrink-0">
+                                            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                                                <Terminal className="text-indigo-400" size={16} />
                                             </div>
-
-                                            <div className="space-y-3 relative z-10">
-                                                {activeTask?.metrics && Object.keys(activeTask.metrics).length > 0 ? (
-                                                    Object.entries(activeTask.metrics).map(([key, value]) => (
-                                                        <div key={key} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex items-center justify-between group hover:bg-slate-800 transition-colors">
-                                                            <span className="text-sm font-medium text-slate-300">{key}</span>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-lg font-black text-white">{value}</span>
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-                                                        <div className="w-10 h-10 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin mb-4" />
-                                                        <p className="text-sm font-medium text-center">Esperando datos<br/>del orquestador...</p>
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <h4 className="text-white font-bold tracking-wide">Consola de Ejecución</h4>
                                         </div>
+
+                                        <div className="flex-1 overflow-y-auto space-y-2 relative z-10 font-mono text-xs [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+                                            {activeTask?.logs && activeTask.logs.length > 0 ? (
+                                                activeTask.logs.map((log, idx) => (
+                                                    <div key={idx} className={cn(
+                                                        "px-3 py-2 rounded border-l-2",
+                                                        log.type === 'error' ? "bg-rose-950/30 border-rose-500 text-rose-200" :
+                                                        log.type === 'success' ? "bg-emerald-950/30 border-emerald-500 text-emerald-200" :
+                                                        "bg-slate-800/50 border-blue-500 text-slate-300"
+                                                    )}>
+                                                        <span className="opacity-50 mr-3">[{new Date().toLocaleTimeString()}]</span>
+                                                        {log.text}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center py-12 text-slate-500 h-full">
+                                                    <div className="w-8 h-8 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin mb-4" />
+                                                    <p className="text-sm font-medium text-center">Esperando logs del orquestador...</p>
+                                                </div>
+                                            )}
+                                            {/* Invisible element to auto-scroll to bottom could go here, or we just rely on normal scrolling */}
+                                            <div style={{ float: 'left', clear: 'both' }} ref={(el) => { el?.scrollIntoView({ behavior: 'smooth' }); }}></div>
+                                        </div>
+                                    </div>
                                     </div>
                                 </div>
 
@@ -445,18 +452,27 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                     <button 
                                         onClick={() => {
                                             useQueueStore.getState().setIsProcessingQueue(false);
-                                            useQueueStore.getState().clearQueue();
                                             handleClose();
+                                            router.push('/contents/nous');
                                         }}
-                                        className="px-8 py-3 rounded-2xl text-sm font-bold text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors"
-                                    >
-                                        Cancelar Ejecución
-                                    </button>
-                                    <button 
-                                        onClick={handleClose}
                                         className="px-8 py-3 rounded-2xl text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 hover:text-slate-700 transition-colors"
                                     >
-                                        Cerrar y ver en consola
+                                        Cerrar y ver en Consola Nous
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            useQueueStore.getState().setIsProcessingQueue(false);
+                                            handleClose();
+                                            const targetId = activeTask?.id || localSelectedIds[localSelectedIds.length - 1];
+                                            if (targetId) {
+                                                router.push(`/contents/writer?activeTaskId=${targetId}`);
+                                            } else {
+                                                router.push('/contents');
+                                            }
+                                        }}
+                                        className="px-8 py-3 rounded-2xl text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-700 transition-colors"
+                                    >
+                                        Ver en el Planner / Studio
                                     </button>
                                 </div>
                             </div>

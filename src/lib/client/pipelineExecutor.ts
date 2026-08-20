@@ -180,9 +180,9 @@ async function executeTaskInBlock({
     if (qTask) queueStore.setActiveTask(qTask);
     queueStore.setTaskStatus(queueTaskId, 'processing', 0);
 
-    const enhancedLog = (tid: string, stage: string, msg: string) => {
+    const enhancedLog = (tid: string, stage: string, msg: string, type: 'info' | 'error' | 'success' = 'info') => {
         onLog(tid, stage, msg);
-        queueStore.addLogToTask(queueTaskId, `[${stage}] ${msg}`, 'info');
+        queueStore.addLogToTask(queueTaskId, `[${stage}] ${msg}`, type);
         if (block.actionType === 'seo' || block.actionType === 'research' || block.actionType === 'outline') {
             if (msg.includes('URLs para scraping profundo')) queueStore.setTaskMetrics(queueTaskId, { 'Competidores Scrapeados': parseInt(msg.match(/(\d+)/)?.[0] || '0') });
             if (msg.includes('golden keywords de alto valor obtenidas')) queueStore.setTaskMetrics(queueTaskId, { 'Golden Keywords': parseInt(msg.match(/(\d+)/)?.[0] || '0') });
@@ -364,7 +364,7 @@ async function executeTaskInBlock({
         }
         memoryState.set(task.id, currentTaskState);
         enhancedProgress(task.id, 100);
-        enhancedLog(task.id, block.actionType.toUpperCase(), '✅ Completado exitosamente.');
+        enhancedLog(task.id, block.actionType.toUpperCase(), '✅ Completado exitosamente.', 'success');
         queueStore.setTaskStatus(queueTaskId, 'completed', 100);
         queueStore.incrementBatchCompleted();
         setTimeout(() => {
@@ -373,7 +373,7 @@ async function executeTaskInBlock({
 
     } catch (err: any) {
         console.error(`Error in block ${block.actionType} for task ${task.id}:`, err);
-        enhancedLog(task.id, 'Error', `❌ Fallo en ${block.actionType}: ${err.message}`);
+        enhancedLog(task.id, 'Error', `❌ Fallo en ${block.actionType}: ${err.message}`, 'error');
         enhancedProgress(task.id, -1);
         queueStore.setTaskStatus(queueTaskId, 'error', -1);
         queueStore.incrementBatchCompleted();
