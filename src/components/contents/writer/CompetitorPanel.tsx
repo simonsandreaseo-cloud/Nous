@@ -142,8 +142,9 @@ export function CompetitorPanel() {
                 {competitors.map((comp: any, idx: number) => {
                     // Extract headers logic
                     let displayHeaders = comp.headers || [];
-                    if (displayHeaders.length === 0 && comp.content) {
-                        const htmlTags = comp.content.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi);
+                    const contentToParse = comp.content || comp.summary || "";
+                    if (displayHeaders.length === 0 && contentToParse) {
+                        const htmlTags = contentToParse.match(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi);
                         if (htmlTags) {
                             displayHeaders = htmlTags.map((tag: string) => {
                                 const level = tag.substring(2, 3);
@@ -153,12 +154,15 @@ export function CompetitorPanel() {
                                 };
                             });
                         } else {
-                            const mdHeaders = comp.content.match(/#{1,4}\s+[^|#\n]+/g);
+                            const mdHeaders = contentToParse.match(/^#{1,4}\s+.*$/gm);
                             if (mdHeaders) {
-                                displayHeaders = mdHeaders.map((h: string) => ({
-                                    tag: h.startsWith('###') ? 'h3' : h.startsWith('##') ? 'h2' : 'h1',
-                                    text: h.replace(/^#+\s+/, '').trim()
-                                }));
+                                displayHeaders = mdHeaders.map((h: string) => {
+                                    const tag = h.startsWith('####') ? 'h4' : h.startsWith('###') ? 'h3' : h.startsWith('##') ? 'h2' : 'h1';
+                                    return {
+                                        tag,
+                                        text: h.replace(/^#+\s+/, '').trim()
+                                    };
+                                });
                             }
                         }
                     }
