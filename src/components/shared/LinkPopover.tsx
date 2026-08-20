@@ -1,6 +1,6 @@
 import { Editor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
-import { Link as LinkIcon, Unlink, ExternalLink, Trash2, Check, X, History } from 'lucide-react';
+import { Link as LinkIcon, Edit2, ExternalLink, Trash2, Check, X, History } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/utils/cn';
 
@@ -14,11 +14,7 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
 
     const attributes = editor.getAttributes('link');
     const originalUrl = attributes['data-original-url'] || attributes.dataOriginalUrl; // Support both cases
-
-    const updateTempLink = useCallback(() => {
-        const url = editor.getAttributes('link').href || "";
-        setTempLink(url);
-    }, [editor]);
+    const currentHref = attributes.href || "";
 
     const handleSetLink = useCallback(() => {
         if (tempLink) {
@@ -40,7 +36,6 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
             tippyOptions={{ 
                 duration: 150, 
                 placement: 'bottom',
-                onShow: updateTempLink,
                 onHide: () => setIsEditing(false)
             }}
             shouldShow={({ editor }) => editor.isActive('link')}
@@ -52,16 +47,28 @@ export function LinkPopover({ editor }: LinkPopoverProps) {
                             <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-slate-50/50 rounded-xl border border-slate-100 overflow-hidden">
                                 <LinkIcon size={14} className="text-indigo-400 shrink-0" />
                                 <span className="text-[11px] font-bold text-slate-600 truncate max-w-[180px]">
-                                    {editor.getAttributes('link').href || "Sin enlace"}
+                                    {currentHref || "Sin enlace"}
                                 </span>
                             </div>
                             <div className="flex items-center gap-1">
+                                {currentHref && (
+                                    <button 
+                                        onClick={() => window.open(currentHref, '_blank', 'noopener,noreferrer')}
+                                        className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-xl transition-all active:scale-90"
+                                        title="Abrir en nueva pestaña"
+                                    >
+                                        <ExternalLink size={16} />
+                                    </button>
+                                )}
                                 <button 
-                                    onClick={() => setIsEditing(true)}
+                                    onClick={() => {
+                                        setTempLink(currentHref);
+                                        setIsEditing(true);
+                                    }}
                                     className="p-2 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all active:scale-90"
                                     title="Editar enlace"
                                 >
-                                    <ExternalLink size={16} />
+                                    <Edit2 size={16} />
                                 </button>
                                 <div className="w-[1px] h-4 bg-slate-200 mx-0.5" />
                                 <button 

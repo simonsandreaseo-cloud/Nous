@@ -16,7 +16,7 @@ export interface PersistenceActions {
     deleteVersion: (taskId: string) => Promise<void>;
     setVersionStatus: (langCode: string, taskId: string | null) => void;
     fetchTaskVersions: (taskId: string) => Promise<void>;
-    saveTaskVersion: (processName: string, contentBody?: string, taskIdOverride?: string) => Promise<void>;
+    saveTaskVersion: (processName: string, contentBody?: string, taskIdOverride?: string) => Promise<boolean>;
     restoreTaskVersion: (versionId: string) => Promise<void>;
     deleteTaskVersion: (versionId: string) => Promise<boolean>;
     renameTaskVersion: (versionId: string, newName: string) => Promise<boolean>;
@@ -427,10 +427,27 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         const { draftId, content, setStatus } = get() as any;
         
         const targetId = taskIdOverride || draftId;
-        if (!targetId) return;
+        if (!targetId) return false;
 
         const bodyToSave = contentBody !== undefined ? contentBody : content;
-        if (!bodyToSave) return;
+        if (!bodyToSave) return false;
+        
+        const { data: latestVersion } = await supabase
+            .from('task_versions')
+            .select('content_body')
+            .eq('task_id', targetId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (latestVersion && latestVersion.content_body) {
+            const cleanLatest = latestVersion.content_body.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
+            const cleanNew = bodyToSave.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
+            if (cleanLatest === cleanNew) {
+                console.log(`[Persistence] Ignorando guardado de versión '${processName}' por ser idéntica a la anterior.`);
+                return false;
+            }
+        }
 
         setStatus(`Guardando versión (${processName})...`);
         const { error } = await supabase.from('task_versions').insert({
@@ -442,10 +459,12 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         if (error) {
             console.error('[Persistence] Error saving task version:', error);
             setStatus(`❌ Error al guardar versión`);
+            return false;
         } else {
             setStatus('');
             // Refresh versions silently
             await (get() as any).fetchTaskVersions(targetId);
+            return true;
         }
     },
 

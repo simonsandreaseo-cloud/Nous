@@ -1187,11 +1187,16 @@ export default function WriterStudio() {
             }
             const nextN = maxN + 1;
             
+            let saved = false;
             if (latestState.saveTaskVersion) {
-                await latestState.saveTaskVersion(`Guardado Manual ${nextN}`);
+                saved = await latestState.saveTaskVersion(`Guardado Manual ${nextN}`);
             }
             
-            setStatus(`✅ Guardado Manual ${nextN} creado`);
+            if (saved) {
+                setStatus(`✅ Guardado Manual ${nextN} creado`);
+            } else {
+                setStatus(`⚠️ No hay cambios nuevos para guardar`);
+            }
             setTimeout(() => setStatus(''), 3000);
         } catch (e) { 
             setStatus('❌ Error al guardar'); 

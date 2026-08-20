@@ -35,7 +35,7 @@ export interface TaskVersion {
 
 export interface TaskVersionActions {
     fetchTaskVersions: (taskId: string) => Promise<void>;
-    saveTaskVersion: (processName: string, contentBody?: string, taskIdOverride?: string) => Promise<void>;
+    saveTaskVersion: (processName: string, contentBody?: string, taskIdOverride?: string) => Promise<boolean>;
     restoreTaskVersion: (versionId: string) => Promise<void>;
     deleteTaskVersion: (versionId: string) => Promise<boolean>;
     renameTaskVersion: (versionId: string, newName: string) => Promise<boolean>;
