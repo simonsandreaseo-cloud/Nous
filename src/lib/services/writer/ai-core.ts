@@ -392,67 +392,52 @@ export const executeWithKeyRotation = async <T>(
 
     let hierarchy: Step[] = [];
 
+    // Según solicitud del usuario: NO HAY ROTACIÓN DE MODELOS (Fallbacks).
+    // Siempre intentamos con el mismo modelo. Solo se permite rotar API Keys.
+
     if (explicitHierarchy && explicitHierarchy.length > 0) {
-        hierarchy = explicitHierarchy.map(resolveStep);
+        // Si hay una jerarquía explícita, tomamos SOLO EL PRIMER MODELO para evitar fallbacks
+        hierarchy = [resolveStep(explicitHierarchy[0])];
     } else {
-        const isResearch = label.toLowerCase().includes('seo') || label.toLowerCase().includes('investigación') || label.toLowerCase().includes('research');
-        const isWriting = label.toLowerCase().includes('redacción') || label.toLowerCase().includes('humanización') || label.toLowerCase().includes('writing') || label.toLowerCase().includes('artículo');
-
-        const isTechnical = label.toLowerCase().includes('json') || label.toLowerCase().includes('técnico') || label.toLowerCase().includes('técnica') || label.toLowerCase().includes('technical') || label.toLowerCase().includes('schema') || label.toLowerCase().includes('extracción');
-        const isExtraction = label.toLowerCase().includes('helios') || label.toLowerCase().includes('limpieza') || label.toLowerCase().includes('cleaner');
-        const isUI = label.toLowerCase().includes('ui') || label.toLowerCase().includes('html') || label.toLowerCase().includes('chat') || label.toLowerCase().includes('interfaz');
-        const isReasoning = label.toLowerCase().includes('razonamiento') || label.toLowerCase().includes('pensamiento') || label.toLowerCase().includes('reasoning') || label.toLowerCase().includes('lógica');
-        const isCognitiveFilter = label.toLowerCase().includes('cognitive_filter') || label.toLowerCase().includes('filtro cognitivo');
-
-        if (isStrictModel) {
+        if (modelName !== 'default' && modelName !== 'auto' && modelName !== '') {
+            // El usuario o el código solicitó un modelo explícito, lo forzamos.
             hierarchy = [resolveStep(modelName)];
-        } else if (isCognitiveFilter) {
-            hierarchy = [
-                ...AI_CONFIG.gemini.hierarchies.cognitive_filter.map(resolveStep)
-            ];
-        } else if (isExtraction) {
-            hierarchy = [
-                ...AI_CONFIG.gemini.hierarchies.extraction.map(resolveStep)
-            ];
-        } else if (isResearch) {
-            hierarchy = [
-                ...AI_CONFIG.gemini.hierarchies.research.map(resolveStep)
-            ];
-        } else if (isWriting) {
-            hierarchy = [
-                ...AI_CONFIG.gemini.hierarchies.writing.map(resolveStep)
-            ];
-        } else if (isTechnical) {
-            hierarchy = [
-                ...AI_CONFIG.gemini.hierarchies.technical.map(resolveStep)
-            ];
-        } else if (isUI) {
-            hierarchy = [
-                ...AI_CONFIG.gemini.hierarchies.ui.map(resolveStep)
-            ];
-        } else if (isReasoning) {
-            hierarchy = [
-                ...AI_CONFIG.gemini.hierarchies.reasoning.map(resolveStep)
-            ];
         } else {
-            // Default logic
-            if (modelName.includes('gemini') || modelName.includes('gemma')) {
-                 hierarchy = [{ provider: 'google', model: modelName }];
-                 hierarchy.push({ provider: 'google', model: AI_CONFIG.gemini.models.flash3_1_lite || 'gemini-3.1-flash-lite-preview' });
-            } else if (isOpenRouter(modelName)) {
-                 hierarchy = [{ provider: 'openrouter', model: modelName }];
+            // Si viene 'default', determinamos el mejor modelo por categoría PERO usamos solo uno.
+            const isResearch = label.toLowerCase().includes('seo') || label.toLowerCase().includes('investigación') || label.toLowerCase().includes('research');
+            const isWriting = label.toLowerCase().includes('redacción') || label.toLowerCase().includes('humanización') || label.toLowerCase().includes('writing') || label.toLowerCase().includes('artículo');
+            const isTechnical = label.toLowerCase().includes('json') || label.toLowerCase().includes('técnico') || label.toLowerCase().includes('técnica') || label.toLowerCase().includes('technical') || label.toLowerCase().includes('schema') || label.toLowerCase().includes('extracción');
+            const isExtraction = label.toLowerCase().includes('helios') || label.toLowerCase().includes('limpieza') || label.toLowerCase().includes('cleaner');
+            const isUI = label.toLowerCase().includes('ui') || label.toLowerCase().includes('html') || label.toLowerCase().includes('chat') || label.toLowerCase().includes('interfaz');
+            const isReasoning = label.toLowerCase().includes('razonamiento') || label.toLowerCase().includes('pensamiento') || label.toLowerCase().includes('reasoning') || label.toLowerCase().includes('lógica');
+            const isCognitiveFilter = label.toLowerCase().includes('cognitive_filter') || label.toLowerCase().includes('filtro cognitivo');
+
+            let defaultModel = AI_CONFIG.groq.models.quality;
+
+            if (isCognitiveFilter) {
+                defaultModel = AI_CONFIG.gemini.hierarchies.cognitive_filter[0];
+            } else if (isExtraction) {
+                defaultModel = AI_CONFIG.gemini.hierarchies.extraction[0];
+            } else if (isResearch) {
+                defaultModel = AI_CONFIG.gemini.hierarchies.research[0];
+            } else if (isWriting) {
+                defaultModel = AI_CONFIG.gemini.hierarchies.writing[0];
+            } else if (isTechnical) {
+                defaultModel = AI_CONFIG.gemini.hierarchies.technical[0];
+            } else if (isUI) {
+                defaultModel = AI_CONFIG.gemini.hierarchies.ui[0];
+            } else if (isReasoning) {
+                defaultModel = AI_CONFIG.gemini.hierarchies.reasoning[0];
             } else {
-                 hierarchy = [{ provider: 'groq', model: modelName === 'default' ? AI_CONFIG.groq.models.quality : modelName }];
+                defaultModel = AI_CONFIG.gemini.hierarchies.writing[0]; // fallback global seguro
             }
-            
-            if (!isStrictModel) {
-                hierarchy.push(...AI_CONFIG.groq.rotation.map(m => ({ provider: 'groq', model: m } as Step)));
-            }
+
+            hierarchy = [resolveStep(defaultModel)];
         }
     }
 
     // Unify all hierarchy to avoid duplicates
-    const finalHierarchy = Array.from(new Set(hierarchy.map(s => JSON.stringify(s)))).map(s => JSON.parse(s) as Step);
+    const finalHierarchy = hierarchy;
 
     const envKeys = process.env.NEXT_PUBLIC_NOUS_API_KEYS || process.env.NOUS_API_KEYS || "";
     console.log(`[AI-ORCHESTRATOR-DEBUG] NOUS_API_KEYS value length: ${envKeys.length}, starts with: ${envKeys.substring(0, 5)}`);
@@ -947,20 +932,8 @@ export const executeTranslation = async (
         expertModel = TRANSLATION_EXPERTS.default;
     }
 
-    // 2. Build the fallback chain: [Expert, Default, ...FreeModels] preserving order and deduping
-    const seen = new Set<string>();
-    const explicitHierarchy: string[] = [];
-    const addIfUnique = (model: string) => {
-        if (!seen.has(model)) {
-            seen.add(model);
-            explicitHierarchy.push(model);
-        }
-    };
-    addIfUnique(expertModel);
-    addIfUnique(TRANSLATION_EXPERTS.default);
-    for (const fallback of TRANSLATION_EXPERTS.fallbacks) {
-        addIfUnique(fallback);
-    }
+    // 2. Build the fallback chain: NO FALLBACKS, USE EXACT MODEL
+    const explicitHierarchy: string[] = [expertModel];
 
     // 3. Standardized Prompt with Delimiter to avoid injection
     const delimiter = "<<<TRANSLATION_INPUT>>>";
