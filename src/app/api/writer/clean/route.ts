@@ -28,7 +28,7 @@ export async function POST(req: Request) {
                         });
                     });
                     
-                    const finalUsage = mergeUsage(aiUsageContext.getStore() || []);
+                    const finalUsage = mergeUsage(aiUsageContext.getStore()?.usages || []);
                     clearInterval(keepAlive);
                     controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', text: result, usage: finalUsage }) + '\n'));
                     controller.close();

@@ -2,9 +2,28 @@ import { Groq } from 'groq-sdk';
 import { AI_CONFIG } from "../../ai/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from 'openai';
-import { AsyncLocalStorage } from 'node:async_hooks';
+let AsyncLocalStorage: any;
+if (typeof window === 'undefined') {
+    // Only require async_hooks on the server side to prevent Webpack/Turbopack from crashing the client build
+    AsyncLocalStorage = require('node:async_hooks').AsyncLocalStorage;
+} else {
+    AsyncLocalStorage = class {
+        getStore() { return undefined; }
+        run(store: any, cb: any) { return cb(); }
+    };
+}
 
-export const aiUsageContext = new AsyncLocalStorage<{ usages: { promptTokens: number, completionTokens: number, totalTokens: number, costUsd: number, model: string }[] }>();
+export const aiUsageContext = new AsyncLocalStorage();
+
+export const mergeUsage = (usages: any[]) => {
+    if (!usages || usages.length === 0) return null;
+    return usages.reduce((acc, curr) => ({
+        promptTokens: acc.promptTokens + (curr.promptTokens || 0),
+        completionTokens: acc.completionTokens + (curr.completionTokens || 0),
+        totalTokens: acc.totalTokens + (curr.totalTokens || 0),
+        costUsd: acc.costUsd + (curr.costUsd || 0)
+    }), { promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0 });
+};
 
 // --- TOKEN ACCUMULATOR ---
 // Each compatibility layer pushes usage here; the executor reads it after each successful call.
