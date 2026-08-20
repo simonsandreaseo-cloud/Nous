@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { runSEOPostProcessor } from '@/lib/actions/aiActions';
+import { aiUsageContext, mergeUsage } from '@/lib/services/writer/ai-core';
 
 export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s limit
 
@@ -25,10 +26,13 @@ export async function POST(req: Request) {
                 }, 5000);
 
                 try {
-                    const result = await runSEOPostProcessor(html, config, onStatus);
+                    const result = await aiUsageContext.run([], async () => {
+                        return await runSEOPostProcessor(html, config, onStatus);
+                    });
                     
+                    const finalUsage = mergeUsage(aiUsageContext.getStore() || []);
                     clearInterval(keepAlive);
-                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', text: result }) + '\n'));
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', text: result, usage: finalUsage }) + '\n'));
                     controller.close();
                 } catch (err: any) {
                     clearInterval(keepAlive);

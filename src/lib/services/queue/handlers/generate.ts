@@ -177,7 +177,7 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
             
             let chunkHtml = "";
             try {
-                chunkHtml = await streamGenerate(
+                const chunkResult = await streamGenerate(
                     prompt, 
                     modelToUse, 
                     writingHierarchy,
@@ -187,12 +187,14 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
                     },
                     (msg) => { if (isCurrentDraft()) useWriterStore.getState().setStatus(`[Parte ${i+1}] ${msg}`); }
                 );
+                chunkHtml = chunkResult.html;
+                if (chunkResult.usage) useQueueStore.getState().addUsageToTask(taskId, chunkResult.usage);
             } catch (err) {
                 console.error(`[Generate Chunk ${i+1}] Fallback triggered`, err);
                 if (isCurrentDraft()) useWriterStore.getState().setStatus(`⚠️ Interrupción detectada en parte ${i+1}. Reintentando...`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 
-                chunkHtml = await streamGenerate(
+                const chunkResult = await streamGenerate(
                     prompt, 
                     modelToUse, 
                     writingHierarchy,
@@ -202,6 +204,8 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
                     },
                     (msg) => { if (isCurrentDraft()) useWriterStore.getState().setStatus(`[Parte ${i+1}] Reintento: ${msg}`); }
                 );
+                chunkHtml = chunkResult.html;
+                if (chunkResult.usage) useQueueStore.getState().addUsageToTask(taskId, chunkResult.usage);
             }
 
             finalHtml += chunkHtml + '\n\n';

@@ -226,7 +226,7 @@ async function executeTaskInBlock({
         }
         else if (block.actionType === 'clean') {
             if (!newContent) throw new Error('No hay contenido para limpiar.');
-            newContent = await streamFinalCleanup(newContent, () => {});
+            const cleanRes = await streamFinalCleanup(newContent, () => {}); newContent = cleanRes.html; if(cleanRes.usage) useQueueStore.getState().addUsageToTask(task.id, cleanRes.usage);
             currentTaskState.metadata = { ...(currentTaskState.metadata as object), is_cleaned: true };
         }
         else if (block.actionType === 'surgical_edit') {

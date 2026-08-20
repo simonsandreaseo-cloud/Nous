@@ -132,7 +132,7 @@ export async function executeDraftPipeline(
 
         let chunkHtml = '';
         try {
-            chunkHtml = await streamGenerate(
+            const chunkResult = await streamGenerate(
                 prompt,
                 modelToUse,
                 writingHierarchy,
@@ -142,11 +142,16 @@ export async function executeDraftPipeline(
                 },
                 (msg) => onLog(`[Parte ${i+1}] ${msg}`)
             );
+            chunkHtml = chunkResult.html;
+            if (chunkResult.usage) {
+                const { useQueueStore } = require('@/store/useQueueStore');
+                useQueueStore.getState().addUsageToTask(task.id, chunkResult.usage);
+            }
         } catch (err) {
             console.error(`[Generate Chunk ${i+1}] Fallback triggered`, err);
             onLog(`⚠️ Interrupción detectada en parte ${i+1}. Reintentando...`);
             await new Promise(resolve => setTimeout(resolve, 2000));
-            chunkHtml = await streamGenerate(
+            const chunkResult = await streamGenerate(
                 prompt,
                 modelToUse, // Strict gemma-4-31b-it constraint
                 writingHierarchy,
@@ -156,12 +161,17 @@ export async function executeDraftPipeline(
                 },
                 (msg) => onLog(`[Parte ${i+1}] ${msg}`)
             );
+            chunkHtml = chunkResult.html;
+            if (chunkResult.usage) {
+                const { useQueueStore } = require('@/store/useQueueStore');
+                useQueueStore.getState().addUsageToTask(task.id, chunkResult.usage);
+            }
         }
 
         // Clean each chunk right after generation
         onLog(`Limpiando alucinaciones del modelo en parte ${i+1}...`);
         try {
-            chunkHtml = await streamFinalCleanup(chunkHtml, onLog);
+            const cleanupRes = await streamFinalCleanup(chunkHtml, onLog); chunkHtml = cleanupRes.html; if (cleanupRes.usage) { const { useQueueStore } = await import("@/store/useQueueStore"); useQueueStore.getState().addUsageToTask(task.id, cleanupRes.usage); }
         } catch (cleanupErr: any) {
             onLog(`⚠️ Error en limpieza de parte ${i+1}: ${cleanupErr.message}. Usando versión original.`);
         }

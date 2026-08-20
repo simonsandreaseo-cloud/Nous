@@ -2,6 +2,9 @@ import { Groq } from 'groq-sdk';
 import { AI_CONFIG } from "../../ai/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from 'openai';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+export const aiUsageContext = new AsyncLocalStorage<{ usages: { promptTokens: number, completionTokens: number, totalTokens: number, costUsd: number, model: string }[] }>();
 
 // --- TOKEN ACCUMULATOR ---
 // Each compatibility layer pushes usage here; the executor reads it after each successful call.
@@ -753,13 +756,20 @@ export const executeWithKeyRotation = async <T>(
                 // Capture and forward token usage to the queue store
                 const usage = popUsage();
                 if (usage) {
+                    const costUsd = calcCostUsd(step.model, usage.promptTokens, usage.completionTokens);
+                    const finalUsage = { ...usage, costUsd, model: step.model };
+                    
+                    const ctx = aiUsageContext.getStore();
+                    if (ctx) {
+                        ctx.usages.push(finalUsage);
+                    }
+
                     try {
                         // Dynamic import to avoid circular deps in SSR context
                         const { useQueueStore } = await import('@/store/useQueueStore');
                         const { activeTask, addUsageToTask } = useQueueStore.getState();
                         if (activeTask) {
-                            const costUsd = calcCostUsd(step.model, usage.promptTokens, usage.completionTokens);
-                            addUsageToTask(activeTask.id, { ...usage, costUsd });
+                            addUsageToTask(activeTask.id, finalUsage);
                             console.log(`[AI-BILLING] ${step.model} | prompt:${usage.promptTokens} comp:${usage.completionTokens} cost:$${costUsd.toFixed(6)}`);
                         }
                     } catch (_) { /* non-critical */ }

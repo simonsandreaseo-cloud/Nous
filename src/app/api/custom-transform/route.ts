@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { runCustomTransformPipeline, runChiefDesignerPlanning, runSingleChunkTransform } from '@/lib/actions/aiActions';
+import { aiUsageContext } from '@/lib/services/writer/ai-core';
 
 export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s limit
 
@@ -15,14 +16,26 @@ export async function POST(req: Request) {
                 return NextResponse.json({ error: 'Chunks are required for planning' }, { status: 400 });
             }
             console.log(`[CustomTransform-API] Planning layout for ${resolvedChunks.length} chunks`);
-            const result = await runChiefDesignerPlanning(
-                resolvedChunks,
-                presetInstructions || '',
-                userInstructions || '',
-                model || 'gemini-3.1-pro',
-                provider
-            );
-            return NextResponse.json(result);
+            
+            const ctxState = { usages: [] as any[] };
+            const result = await aiUsageContext.run(ctxState, async () => {
+                return await runChiefDesignerPlanning(
+                    resolvedChunks,
+                    presetInstructions || '',
+                    userInstructions || '',
+                    model || 'gemini-3.1-pro',
+                    provider
+                );
+            });
+            
+            const totalUsage = ctxState.usages.reduce((acc, u) => ({
+                promptTokens: acc.promptTokens + u.promptTokens,
+                completionTokens: acc.completionTokens + u.completionTokens,
+                totalTokens: acc.totalTokens + u.totalTokens,
+                costUsd: acc.costUsd + u.costUsd
+            }), { promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0 });
+
+            return NextResponse.json({ ...result, usage: totalUsage });
         }
 
         // Action: process-chunk (Transform a single chunk using CSS Global)
@@ -51,18 +64,29 @@ export async function POST(req: Request) {
                     }, 5000);
 
                     try {
-                        const result = await runSingleChunkTransform(
-                            targetChunk,
-                            stylesheet || '',
-                            pautasEspecificas || '',
-                            onStatus,
-                            model || 'gemini-3.5-flash',
-                            onChunk,
-                            provider
-                        );
+                        const ctxState = { usages: [] as any[] };
+                        const result = await aiUsageContext.run(ctxState, async () => {
+                            return await runSingleChunkTransform(
+                                targetChunk,
+                                stylesheet || '',
+                                pautasEspecificas || '',
+                                onStatus,
+                                model || 'gemini-3.5-flash',
+                                onChunk,
+                                provider
+                            );
+                        });
 
                         clearInterval(keepAlive);
-                        controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', result }) + '\n'));
+                        
+                        const totalUsage = ctxState.usages.reduce((acc, u) => ({
+                            promptTokens: acc.promptTokens + u.promptTokens,
+                            completionTokens: acc.completionTokens + u.completionTokens,
+                            totalTokens: acc.totalTokens + u.totalTokens,
+                            costUsd: acc.costUsd + u.costUsd
+                        }), { promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0 });
+
+                        controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', result, usage: totalUsage }) + '\n'));
                         controller.close();
                     } catch (err: any) {
                         clearInterval(keepAlive);
@@ -108,18 +132,29 @@ export async function POST(req: Request) {
                 }, 5000);
 
                 try {
-                    const result = await runCustomTransformPipeline(
-                        content,
-                        presetInstructions || '',
-                        userInstructions || '',
-                        onStatus,
-                        model || 'gemini-3.5-flash',
-                        onChunk,
-                        provider
-                    );
+                    const ctxState = { usages: [] as any[] };
+                    const result = await aiUsageContext.run(ctxState, async () => {
+                        return await runCustomTransformPipeline(
+                            content,
+                            presetInstructions || '',
+                            userInstructions || '',
+                            onStatus,
+                            model || 'gemini-3.5-flash',
+                            onChunk,
+                            provider
+                        );
+                    });
 
                     clearInterval(keepAlive);
-                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', result }) + '\n'));
+                    
+                    const totalUsage = ctxState.usages.reduce((acc, u) => ({
+                        promptTokens: acc.promptTokens + u.promptTokens,
+                        completionTokens: acc.completionTokens + u.completionTokens,
+                        totalTokens: acc.totalTokens + u.totalTokens,
+                        costUsd: acc.costUsd + u.costUsd
+                    }), { promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0 });
+
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', result, usage: totalUsage }) + '\n'));
                     controller.close();
                 } catch (err: any) {
                     clearInterval(keepAlive);

@@ -137,7 +137,7 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
                 provider
             );
 
-            chunkResults[i] = chunkResult.html;
+            if (chunkResult.usage) { useQueueStore.getState().addUsageToTask(taskId, chunkResult.usage); }            chunkResults[i] = chunkResult.html;
             currentStep = 1 + (i + 1); // Progreso incremental por cada chunk finalizado
 
             // Registro del fragmento procesado en depuración

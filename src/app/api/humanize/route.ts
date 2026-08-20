@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { runHumanizerPipeline } from '@/lib/actions/aiActions';
+import { aiUsageContext } from '@/lib/services/writer/ai-core';
 
 export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s limit
 
@@ -37,20 +38,31 @@ export async function POST(req: Request) {
                 }, 5000);
 
                 try {
-                    const result = await runHumanizerPipeline(
-                        content,
-                        config,
-                        intensity || 50,
-                        onStatus,
-                        body.model || 'gemma-4-31b-it',
-                        onChunk,
-                        undefined, // onLog
-                        undefined, // mode
-                        onProgress // pass onProgress
-                    );
+                    const ctxState = { usages: [] as any[] };
+                    const result = await aiUsageContext.run(ctxState, async () => {
+                        return await runHumanizerPipeline(
+                            content,
+                            config,
+                            intensity || 50,
+                            onStatus,
+                            body.model || 'gemma-4-31b-it',
+                            onChunk,
+                            undefined, // onLog
+                            undefined, // mode
+                            onProgress // pass onProgress
+                        );
+                    });
 
                     clearInterval(keepAlive);
-                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', result }) + '\n'));
+                    
+                    const totalUsage = ctxState.usages.reduce((acc, u) => ({
+                        promptTokens: acc.promptTokens + u.promptTokens,
+                        completionTokens: acc.completionTokens + u.completionTokens,
+                        totalTokens: acc.totalTokens + u.totalTokens,
+                        costUsd: acc.costUsd + u.costUsd
+                    }), { promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0 });
+
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', result, usage: totalUsage }) + '\n'));
                     controller.close();
                 } catch (err: any) {
                     clearInterval(keepAlive);

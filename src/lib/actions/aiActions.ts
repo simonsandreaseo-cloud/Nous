@@ -635,6 +635,9 @@ export const runHumanizerPipeline = async (
                 if (id === 'razonamiento_interno') continue;
                 const el = $(`[data-humanize-id="${id}"]`);
                 if (el.length > 0 && typeof humanizedText === 'string') {
+                    if (el.is('h1, h2, h3, h4, h5, h6')) {
+                        continue;
+                    }
                     try {
                         // En lugar de usar el.html() que a veces falla con strings primitivos en Cheerio
                         // o crear un sub-documento que pierde el contexto, usamos replaceWith si es un bloque 
@@ -779,7 +782,7 @@ export const runMiniHumanizerPipeline = async (
             const textBlocks: Record<string, string> = {};
             let counter = 0;
             
-            const blockSelectors = 'p, li, td, th';
+            const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th';
             $(blockSelectors).each((_, el) => {
                 if ($(el).children(blockSelectors).length === 0) {
                     const innerHtml = $(el).html()?.trim();
@@ -854,6 +857,9 @@ export const runMiniHumanizerPipeline = async (
                     if (id === 'razonamiento_interno') continue;
                     const el = $(`[data-humanize-id="${id}"]`);
                     if (el.length > 0 && typeof humanizedText === 'string') {
+                        if (el.is('h1, h2, h3, h4, h5, h6')) {
+                            continue;
+                        }
                         el.html(humanizedText);
                     }
                 }
@@ -887,6 +893,9 @@ export const runMiniHumanizerPipeline = async (
             for (const [id, humanizedText] of Object.entries(allProcessedBlocks)) {
                 const el = $(`[data-humanize-id="${id}"]`);
                 if (el.length > 0 && typeof humanizedText === 'string') {
+                    if (el.is('h1, h2, h3, h4, h5, h6')) {
+                        continue;
+                    }
                     el.html(humanizedText);
                 }
             }
@@ -1045,12 +1054,17 @@ REGLAS CRÍTICAS:
         // --- RESTAURACIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
         const $post = cheerio.load(finalHtml, { decodeEntities: false }, false);
         
-        $post('[data-sys-hdr]').each((_, el) => {
-            const id = $post(el).attr('data-sys-hdr');
-            if (id && protectedHeaders[id] !== undefined) {
+        // En modos Markdown (lipograma/babel), el atributo data-sys-hdr se pierde al parsear.
+        // Por eso, restauramos los encabezados de forma secuencial.
+        let hdrIndex = 0;
+        $post('h1, h2, h3, h4, h5, h6').each((_, el) => {
+            // Check if it has data-sys-hdr (just in case), otherwise use sequential index
+            const id = $post(el).attr('data-sys-hdr') || `hdr_${hdrIndex}`;
+            if (protectedHeaders[id] !== undefined) {
                 $post(el).html(protectedHeaders[id]);
             }
             $post(el).removeAttr('data-sys-hdr');
+            hdrIndex++;
         });
         
         $post('[data-sys-tbl]').each((_, el) => {

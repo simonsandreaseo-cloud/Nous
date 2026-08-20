@@ -105,6 +105,10 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
                         }
                     );
                     
+                    if (chunkResult.usage) {
+                        useQueueStore.getState().addUsageToTask(taskId, chunkResult.usage);
+                    }
+
                     addLogToTask(taskId, `Chunk ${i + 1} completado.`, 'success');
                     
                     currentDocumentChunks[i] = chunkResult.html;

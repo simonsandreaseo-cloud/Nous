@@ -84,7 +84,7 @@ export const handleCleanTask = async (taskId: string, payload: QueuePayload) => 
                         }
                     );
                     
-                    currentDocumentChunks[i] = chunkResult;
+                    currentDocumentChunks[i] = chunkResult.html; if(chunkResult.usage) useQueueStore.getState().addUsageToTask(taskId, chunkResult.usage);
                     if (isCurrentDraft()) {
                         useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
                     }

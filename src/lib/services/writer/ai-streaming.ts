@@ -4,7 +4,7 @@ export async function streamGenerate(
     hierarchy: string[] | undefined,
     onChunk: (html: string) => void,
     onStatus: (msg: string) => void
-): Promise<string> {
+): Promise<{ html: string; usage?: any }> {
     const response = await fetch('/api/writer/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -18,6 +18,7 @@ export async function streamGenerate(
     const decoder = new TextDecoder();
     let buffer = '';
     let finalHtml = '';
+    let finalUsage = null;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -37,7 +38,10 @@ export async function streamGenerate(
                     finalHtml += parsed.html;
                     onChunk(finalHtml);
                 }
-                if (parsed.type === 'done') finalHtml = parsed.text || finalHtml;
+                if (parsed.type === 'done') {
+                    finalHtml = parsed.text || finalHtml;
+                    if (parsed.usage) finalUsage = parsed.usage;
+                }
             } catch (e: any) {
                 if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
                     throw e; 
@@ -47,7 +51,7 @@ export async function streamGenerate(
     }
     
     if (!finalHtml) throw new Error("No se generó contenido válido.");
-    return finalHtml;
+    return { html: finalHtml, usage: finalUsage };
 }
 
 export async function streamHumanize(
@@ -85,6 +89,7 @@ export async function streamHumanize(
     let buffer = '';
     let newContent = '';
     let finalResult = null;
+    let finalUsage = null;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -120,7 +125,8 @@ export async function streamHumanize(
                 } else if (parsed.type === 'error') {
                     throw new Error(parsed.error);
                 } else if (parsed.type === 'done') {
-                    finalResult = parsed.result;
+                    finalResult = parsed.result; if(parsed.usage) finalResult.usage = parsed.usage;
+                    if (parsed.usage) finalUsage = parsed.usage;
                 }
             } catch (e: any) {
                 if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
@@ -133,7 +139,7 @@ export async function streamHumanize(
     if (!finalResult) {
         finalResult = { html: newContent };
     }
-    return { html: finalResult.html || newContent, result: finalResult };
+    return { html: finalResult.html || newContent, result: finalResult, usage: finalUsage };
 }
 
 export async function streamMiniHumanize(
@@ -172,6 +178,7 @@ export async function streamMiniHumanize(
     let buffer = '';
     let newContent = '';
     let finalResult = null;
+    let finalUsage = null;
 
     while (true) {
         const { done, value } = await reader.read();
@@ -195,7 +202,8 @@ export async function streamMiniHumanize(
                 } else if (parsed.type === 'error') {
                     throw new Error(parsed.error);
                 } else if (parsed.type === 'done') {
-                    finalResult = parsed.result;
+                    finalResult = parsed.result; if(parsed.usage) finalResult.usage = parsed.usage;
+                    if (parsed.usage) finalUsage = parsed.usage;
                 }
             } catch (e: any) {
                 if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
@@ -208,7 +216,7 @@ export async function streamMiniHumanize(
     if (!finalResult) {
         finalResult = { html: newContent };
     }
-    return { html: finalResult.html || newContent, result: finalResult };
+    return { html: finalResult.html || newContent, result: finalResult, usage: finalUsage };
 }
 
 
@@ -216,8 +224,8 @@ export async function streamSEOPostProcess(
     html: string,
     config: any,
     onStatus: (msg: string) => void
-): Promise<string> {
-    let refinedSEO = html;
+): Promise<{ html: string; usage?: any }> {
+    let refinedSEO = html; let finalUsage = null;
     const response = await fetch('/api/writer/seo-postprocess', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -244,7 +252,7 @@ export async function streamSEOPostProcess(
                     const parsed = JSON.parse(line);
                     if (parsed.type === 'error') throw new Error(parsed.error);
                     if (parsed.type === 'status') onStatus(parsed.message);
-                    if (parsed.type === 'done') refinedSEO = parsed.text;
+                    if (parsed.type === 'done') { refinedSEO = parsed.text; if (parsed.usage) finalUsage = parsed.usage; }
                 } catch (e: any) {
                     if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
                         throw e;
@@ -253,13 +261,13 @@ export async function streamSEOPostProcess(
             }
         }
     }
-    return refinedSEO;
+    return { html: refinedSEO, usage: finalUsage };
 }
 
 export async function streamFinalCleanup(
     html: string,
     onStatus: (msg: string) => void
-): Promise<string> {
+): Promise<{ html: string; usage?: any }> {
     let cleanedHtml = html;
     const response = await fetch('/api/writer/clean', {
         method: 'POST',
@@ -272,6 +280,7 @@ export async function streamFinalCleanup(
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        let finalUsage = null;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -287,7 +296,10 @@ export async function streamFinalCleanup(
                     const parsed = JSON.parse(line);
                     if (parsed.type === 'error') throw new Error(parsed.error);
                     if (parsed.type === 'status') onStatus(parsed.message);
-                    if (parsed.type === 'done') cleanedHtml = parsed.text;
+                    if (parsed.type === 'done') {
+                        cleanedHtml = parsed.text;
+                        if (parsed.usage) finalUsage = parsed.usage;
+                    }
                 } catch (e: any) {
                     if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
                         throw e;
@@ -295,8 +307,9 @@ export async function streamFinalCleanup(
                 }
             }
         }
+        return { html: cleanedHtml, usage: finalUsage };
     }
-    return cleanedHtml;
+    return { html: cleanedHtml };
 }
 
 export async function streamSurgicalEdit(
@@ -352,7 +365,7 @@ export async function streamSurgicalEdit(
                     newContent = parsed.html;
                     onChunk(newContent);
                 } else if (parsed.type === 'done') {
-                    finalResult = parsed.result;
+                    finalResult = parsed.result; if(parsed.usage) finalResult.usage = parsed.usage;
                     if (finalResult && finalResult.html) {
                         newContent = finalResult.html;
                     }
@@ -428,7 +441,7 @@ export async function streamCustomTransform(
                     newContent = parsed.html;
                     onChunk(newContent);
                 } else if (parsed.type === 'done') {
-                    finalResult = parsed.result;
+                    finalResult = parsed.result; if(parsed.usage) finalResult.usage = parsed.usage;
                     if (finalResult && finalResult.html) {
                         newContent = finalResult.html;
                     }
@@ -539,7 +552,7 @@ export async function streamCustomTransformChunk(
                     newContent = parsed.html;
                     onChunk(newContent);
                 } else if (parsed.type === 'done') {
-                    finalResult = parsed.result;
+                    finalResult = parsed.result; if(parsed.usage) finalResult.usage = parsed.usage;
                     if (finalResult && finalResult.html) {
                         newContent = finalResult.html;
                     }

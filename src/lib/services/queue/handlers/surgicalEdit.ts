@@ -98,12 +98,16 @@ export const handleSurgicalEditTask = async (taskId: string, payload: QueuePaylo
                             addLogToTask(taskId, `[Chunk ${i+1}] ${msg}`, 'info');
                         },
                         payload.model || payload.config?.model || undefined,
-                        (batchProgress) => {
+                        (batchProgress: any) => {
                             const baseProgress = (i / rawChunks.length) * 100;
                             const additionalProgress = (batchProgress / 100) * (1 / rawChunks.length) * 100;
                             setTaskStatus(taskId, 'processing', Number((baseProgress + additionalProgress).toFixed(2)));
                         }
                     );
+                    
+                    if (chunkResult.usage) {
+                        useQueueStore.getState().addUsageToTask(taskId, chunkResult.usage);
+                    }
                     
                     addLogToTask(taskId, `Chunk ${i + 1} completado.`, 'success');
                     

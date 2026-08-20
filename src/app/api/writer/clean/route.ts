@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { runFinalCleaningLayer } from '@/lib/actions/aiActions';
+import { aiUsageContext, mergeUsage } from '@/lib/services/writer/ai-core';
 
 export const maxDuration = 300;
 
@@ -21,12 +22,15 @@ export async function POST(req: Request) {
                 }, 5000);
 
                 try {
-                    const result = await runFinalCleaningLayer(html, (msg) => {
-                        controller.enqueue(encoder.encode(JSON.stringify({ type: 'status', message: msg }) + '\n'));
+                    const result = await aiUsageContext.run([], async () => {
+                        return await runFinalCleaningLayer(html, (msg) => {
+                            controller.enqueue(encoder.encode(JSON.stringify({ type: 'status', message: msg }) + '\n'));
+                        });
                     });
                     
+                    const finalUsage = mergeUsage(aiUsageContext.getStore() || []);
                     clearInterval(keepAlive);
-                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', text: result }) + '\n'));
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'done', text: result, usage: finalUsage }) + '\n'));
                     controller.close();
                 } catch (err: any) {
                     clearInterval(keepAlive);

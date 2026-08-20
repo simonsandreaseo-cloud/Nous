@@ -408,12 +408,12 @@ export function EditorialCalendar() {
                     try {
                         onLog(task.id, 'Limpieza', `Limpiando Chunk ${i + 1}/${chunks.length} (Intento ${attempts + 1})...`);
                         
-                        const cleanChunk = await streamFinalCleanup(
+                        const cleanChunkRes = await streamFinalCleanup(
                             chunks[i].join(''), 
                             (msg) => {} // Omitimos el log detallado de cada chunk para no saturar la vista
                         );
                         
-                        accumulatedHtml += cleanChunk + '\n';
+                        accumulatedHtml += cleanChunkRes.html + '\n';
                         success = true;
                     } catch (err: any) {
                         attempts++;
@@ -804,7 +804,8 @@ export function EditorialCalendar() {
                             onLog: (s, m, r) => onLog(t.id, s, m, r),
                             taskId: t.id,
                             linkPlannedContents,
-                            linkPlannedStatuses } , { taskId: t.id });
+                            linkPlannedStatuses
+ } , { taskId: t.id });
                         if (result) {
                             const statusToSet = (finalStatus === 'keep_current') ? latestTask.status : result.status;
                             await updateTask(t.id, {
