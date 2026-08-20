@@ -499,7 +499,7 @@ export const executeWithKeyRotation = async <T>(
             useVertex = !!process.env.GCP_SERVICE_ACCOUNT;
             if (providerOverride === 'vertex-ai' || step.model === 'gemini-3.1-pro-preview') {
                 useVertex = true;
-            } else if (providerOverride === 'google-ai-studio') {
+            } else if (providerOverride === 'google-ai-studio' || step.model.includes('gemma')) {
                 useVertex = false;
             }
         }
