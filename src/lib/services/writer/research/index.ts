@@ -980,8 +980,12 @@ REGLAS:
         };
 
         let dossier: any = {};
-        if (taskId && !forceRestart) {
-            const { data: taskData } = await supabase.from('task_research').select('research_dossier').eq('id', taskId).maybeSingle();
+        if (taskId) {
+            let taskData = null;
+            if (!forceRestart) {
+                const { data } = await supabase.from('task_research').select('research_dossier').eq('id', taskId).maybeSingle();
+                taskData = data;
+            }
             const { data: mainTaskData } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
             dossier = taskData?.research_dossier || {};
             

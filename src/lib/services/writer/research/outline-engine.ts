@@ -194,7 +194,7 @@ FORMATO PREFERIDO:
             const realKwsText = realKeywords.slice(0, 20).map(k => k.keyword).join(", ");
             const askKwsText = askKeywords.slice(0, 20).map(k => k.keyword).join(", ");
             const linksText = JSON.stringify(suggestedLinks.slice(0, 10));
-            const competitorContent = validCompetitors.slice(0, 3).map(v => `### ${v.title}${v.isUserRef ? ' (REF USUARIO)' : ''}\n${(v.content || v.summary || "").substring(0, 1000)}`).join('\n\n');
+            const competitorContent = validCompetitors.slice(0, 5).map(v => `### ${v.title}${v.isUserRef ? ' (REF USUARIO)' : ''}\n${(v.content || v.summary || "").substring(0, 1200)}`).join('\n\n');
             const skeletonText = skeleton.map((s, i) => `${i + 1}. H${s.level || 2}: ${s.text}`).join('\n');
 
             const phase2Prompt = `ENRIQUECIMIENTO E-E-A-T DEL ESQUELETO: "${keyword}"

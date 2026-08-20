@@ -108,20 +108,9 @@ Keyword: ${keyword || 'N/A'}`;
      * Analyzes SERP, extracts LSI keywords, and builds a research dossier.
      */
     static async runDeepSEOAnalysis(config: DeepSEOConfig & { projectId: string, phaseToRun?: any }): Promise<any> {
-        const { projectId, keyword, onProgress, onLog, modelName, taskId, isFastMode, cascade, forceRestart } = config;
+        const { keyword, onLog, taskId } = config;
         try {
-            return await ResearchOrchestrator.runDeepAnalysis({
-                keyword: keyword || config.keyword,
-                projectId,
-                taskId,
-                onProgress,
-                onLog,
-                isFastMode,
-                forceRestart,
-                cascade,
-                linkPlannedContents: config.linkPlannedContents,
-                linkPlannedStatuses: config.linkPlannedStatuses
-            }, config.phaseToRun);
+            return await ResearchOrchestrator.runDeepAnalysis(config, config.phaseToRun);
         } catch (e) {
             console.error("Deep SEO Analysis Error:", e);
             return {
