@@ -187,7 +187,7 @@ export default function StrategyGrid({
         e.stopPropagation();
         if (!canEditAny() && !canTakeTasks()) return;
         setEditingCell({ id: task.id, field });
-        const val = field === 'date' ? task.scheduled_date : task[field as keyof Task];
+        const val = field === 'date' ? task.scheduled_date : field === 'refs' ? (task.refs || []).join(', ') : task[field as keyof Task];
         setTempValue(String(val || ""));
     };
 
@@ -205,7 +205,12 @@ export default function StrategyGrid({
                 return;
             }
 
-            await updateTask(id, { [actualField]: tempValue });
+            if (actualField === 'refs' as any) {
+                const urlList = tempValue.split(',').map(s => s.trim()).filter(s => s);
+                await updateTask(id, { refs: urlList });
+            } else {
+                await updateTask(id, { [actualField]: tempValue });
+            }
         }
         setEditingCell(null);
     };
@@ -1294,44 +1299,60 @@ export default function StrategyGrid({
                                     )}
 
                                     {columnVisibility['competitors'] && (
-                                        <td className="px-3 py-2">
-                                            <div className="flex items-center gap-1.5 overflow-hidden group/comprow">
-                                                {(() => {
-                                                    const manualRefs = (task.refs || []).map(url => ({ url, title: 'Referencia Manual', isManual: true }));
-                                                    const scrapedRefs = task.research_dossier?.top10Urls || [];
-                                                    const combinedRefs = [...manualRefs, ...scrapedRefs].slice(0, 3);
-                                                    
-                                                    if (combinedRefs.length === 0) return <span className="text-[9px] text-slate-300 italic">--</span>;
-                                                    
-                                                    return combinedRefs.map((comp: any, i: number) => {
-                                                        const match = task.research_dossier?.competitors?.find((c: any) => c.url === comp.url);
-                                                        return (
-                                                            <button 
-                                                                key={i} 
-                                                                onClick={(e) => { 
-                                                                    e.stopPropagation(); 
-                                                                    setSelectedCompetitor({ task, comp: match || comp, index: i }); 
-                                                                    setCompContent(match?.content || comp.content || "");
-                                                                    setIsEditingComp(false);
-                                                                }}
-                                                                className={cn(
-                                                                    "flex items-center gap-1 truncate transition-colors shrink-0",
-                                                                    match ? "text-indigo-500 hover:text-indigo-700" : comp.isManual ? "text-emerald-400 hover:text-emerald-600" : "text-slate-300 hover:text-indigo-400"
-                                                                )}
-                                                                title={comp.url}
-                                                            >
-                                                                <Globe size={11} className={match ? "animate-pulse" : ""} />
-                                                            </button>
-                                                        );
-                                                    });
-                                                })()}
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); setCompetitorModalTask(task.id); }}
-                                                    className="p-1 hover:bg-slate-100 rounded-lg text-slate-300 hover:text-indigo-600 transition-all"
-                                                >
-                                                    <Plus size={10} />
-                                                </button>
-                                            </div>
+                                        <td className="px-3 py-2 relative cursor-text" onClick={(e) => {
+                                            if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
+                                                handleCellClick(task, 'refs', e);
+                                            }
+                                        }}>
+                                            {editingCell?.id === task.id && editingCell?.field === 'refs' ? (
+                                                <input
+                                                    autoFocus
+                                                    className="absolute inset-x-1 inset-y-1 px-2 bg-white border-2 border-slate-900 rounded-lg text-[10px] font-bold text-slate-900 shadow-lg z-10 outline-none"
+                                                    value={tempValue}
+                                                    onChange={(e) => setTempValue(e.target.value)}
+                                                    onBlur={handleSave}
+                                                    onKeyDown={handleKeyDown}
+                                                    placeholder="URL1, URL2..."
+                                                />
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 overflow-hidden group/comprow">
+                                                    {(() => {
+                                                        const manualRefs = (task.refs || []).map(url => ({ url, title: 'Referencia Manual', isManual: true }));
+                                                        const scrapedRefs = task.research_dossier?.top10Urls || [];
+                                                        const combinedRefs = [...manualRefs, ...scrapedRefs].slice(0, 3);
+                                                        
+                                                        if (combinedRefs.length === 0) return <span className="text-[9px] text-slate-300 italic">--</span>;
+                                                        
+                                                        return combinedRefs.map((comp: any, i: number) => {
+                                                            const match = task.research_dossier?.competitors?.find((c: any) => c.url === comp.url);
+                                                            return (
+                                                                <button 
+                                                                    key={i} 
+                                                                    onClick={(e) => { 
+                                                                        e.stopPropagation(); 
+                                                                        setSelectedCompetitor({ task, comp: match || comp, index: i }); 
+                                                                        setCompContent(match?.content || comp.content || "");
+                                                                        setIsEditingComp(false);
+                                                                    }}
+                                                                    className={cn(
+                                                                        "flex items-center gap-1 truncate transition-colors shrink-0",
+                                                                        match ? "text-indigo-500 hover:text-indigo-700" : comp.isManual ? "text-emerald-400 hover:text-emerald-600" : "text-slate-300 hover:text-indigo-400"
+                                                                    )}
+                                                                    title={comp.url}
+                                                                >
+                                                                    <Globe size={11} className={match ? "animate-pulse" : ""} />
+                                                                </button>
+                                                            );
+                                                        });
+                                                    })()}
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); setCompetitorModalTask(task.id); }}
+                                                        className="p-1 hover:bg-slate-100 rounded-lg text-slate-300 hover:text-indigo-600 transition-all shrink-0"
+                                                    >
+                                                        <Plus size={10} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                     )}
 
@@ -1355,8 +1376,22 @@ export default function StrategyGrid({
                                         </td>
                                     )}
                                     {columnVisibility['links'] && (
-                                        <td className="px-3 py-2">
-                                            {task.associated_url ? (
+                                        <td className="px-3 py-2 relative cursor-text" onClick={(e) => {
+                                            if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
+                                                handleCellClick(task, 'associated_url', e);
+                                            }
+                                        }}>
+                                            {editingCell?.id === task.id && editingCell?.field === 'associated_url' ? (
+                                                <input
+                                                    autoFocus
+                                                    className="absolute inset-x-1 inset-y-1 px-2 bg-white border-2 border-slate-900 rounded-lg text-[10px] font-bold text-slate-900 shadow-lg z-10 outline-none"
+                                                    value={tempValue}
+                                                    onChange={(e) => setTempValue(e.target.value)}
+                                                    onBlur={handleSave}
+                                                    onKeyDown={handleKeyDown}
+                                                    placeholder="URL..."
+                                                />
+                                            ) : task.associated_url ? (
                                                 <div className="flex flex-col gap-1.5">
                                                     <span className="text-[9px] text-slate-500 font-medium truncate max-w-[100px]" title={task.associated_url}>
                                                         {task.associated_url.replace(/^https?:\/\//, '')}

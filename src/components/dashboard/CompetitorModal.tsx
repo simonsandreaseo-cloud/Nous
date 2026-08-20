@@ -128,7 +128,7 @@ export default function CompetitorModal({ isOpen, onClose, taskId }: CompetitorM
                                             value={newUrl}
                                             onChange={(e) => setNewUrl(e.target.value)}
                                         />
-                                        <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                                        <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={18} />
                                     </div>
                                     <button 
                                         onClick={handleAddCompetitor}

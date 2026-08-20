@@ -6,7 +6,7 @@ import { Task } from '@/types/project';
 import { calculateSimilarity } from '@/utils/similarity';
 
 const LIGHT_TASK_COLUMNS = `
-    id, project_id, title, brief, scheduled_date, status, content_type, priority, 
+    id, project_id, title, brief, scheduled_date, date_mode, status, content_type, priority, 
     target_keyword, target_url_slug, metadata, volume, viability, 
     word_count, target_word_count, word_count_real, ai_percentage, docs_url, layout_status,
     creator_id, researcher_id, writer_id, corrector_id, assigned_to, 
@@ -127,8 +127,12 @@ export const createTaskSlice: StateCreator<ProjectStore, [], [], TaskActions> = 
         // ----------------------------------------------
 
         // Prepare distributed data
+        const project = get().projects.find(p => p.id === newTask.project_id);
+        const defaultDateMode = project?.settings?.content_preferences?.date_mode || 'exact';
+
         const taskData = {
             ...newTask,
+            date_mode: (newTask as any).date_mode || defaultDateMode,
             id: taskId,
             creator_id: user?.id,
             assigned_to: newTask.assigned_to || user?.id,

@@ -178,7 +178,8 @@ export const SmartUploaderModal: React.FC<SmartUploaderModalProps> = ({ isOpen, 
     const [mapping, setMapping] = useState<Record<string, string>>({});
     const [dateMetadata, setDateMetadata] = useState<any>(null);
     const [customDateRegex, setCustomDateRegex] = useState<string>('');
-    const [customDateMode, setCustomDateMode] = useState<'auto' | 'exact' | 'month'>('auto');
+    const activeProject = useProjectStore(s => s.activeProject);
+    const [customDateMode, setCustomDateMode] = useState<'auto' | 'exact' | 'month'>(activeProject?.settings?.content_preferences?.date_mode || 'auto');
     const [isImporting, setIsImporting] = useState(false);
     const [autoCreateProjects, setAutoCreateProjects] = useState(true);
     const [autoCreateMembers, setAutoCreateMembers] = useState(true);

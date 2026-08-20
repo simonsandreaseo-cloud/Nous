@@ -29,6 +29,7 @@ export interface Project {
             default_content_language?: string;
             custom_content_types?: string[];
             custom_statuses?: string[];
+            date_mode?: 'exact' | 'month';
         };
         images?: {
             watermark_enabled: boolean;

@@ -13,10 +13,12 @@ import {
     Info,
     LayoutGrid,
     Languages,
-    Activity
+    Activity,
+    CalendarDays
 } from "lucide-react";
 import { AVAILABLE_LANGUAGES } from "@/constants/languages";
 import { cn } from "@/utils/cn";
+import { supabase } from "@/lib/supabase";
 
 export default function ProjectContentPreferencesView() {
     const { activeProject, updateProject } = useProjectStore();
@@ -30,6 +32,7 @@ export default function ProjectContentPreferencesView() {
     const [defaultLangs, setDefaultLangs] = useState<string[]>([]);
     const [defaultContentLang, setDefaultContentLang] = useState<string>('es');
     const [customContentTypes, setCustomContentTypes] = useState<string[]>([]);
+    const [dateMode, setDateMode] = useState<'exact' | 'month'>('exact');
     const [newContentType, setNewContentType] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -43,6 +46,7 @@ export default function ProjectContentPreferencesView() {
             setDefaultLangs(prefs.default_translator_languages || []);
             setDefaultContentLang(prefs.default_content_language || 'es');
             setCustomContentTypes(prefs.custom_content_types || []);
+            setDateMode(prefs.date_mode || 'exact');
         }
     }, [activeProject]);
 
@@ -59,13 +63,25 @@ export default function ProjectContentPreferencesView() {
                     default_strategy: strategy,
                     default_translator_languages: defaultLangs,
                     default_content_language: defaultContentLang,
-                    custom_content_types: customContentTypes
+                    custom_content_types: customContentTypes,
+                    date_mode: dateMode
                 }
             };
 
             await updateProject(activeProject.id, {
                 settings: updatedSettings
             });
+
+            const oldDateMode = activeProject.settings?.content_preferences?.date_mode || 'exact';
+            if (dateMode !== oldDateMode) {
+                await supabase
+                    .from('tasks')
+                    .update({ date_mode: dateMode })
+                    .eq('project_id', activeProject.id);
+                
+                const { fetchProjectTasks } = useProjectStore.getState();
+                await fetchProjectTasks(activeProject.id);
+            }
         } finally {
             setIsSaving(true);
             setTimeout(() => setIsSaving(false), 500);
@@ -287,6 +303,46 @@ export default function ProjectContentPreferencesView() {
                             <p className="text-[9px] text-slate-400 font-medium leading-tight p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                 Los idiomas marcados aquí aparecerán seleccionados automáticamente cada vez que abras la herramienta de traducción para un artículo de este proyecto.
                             </p>
+                        </div>
+                    </section>
+
+                    {/* Date Mode Section */}
+                    <section className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm space-y-8 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+                            <CalendarDays size={120} />
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 shadow-sm">
+                                <CalendarDays size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-black text-slate-900 uppercase italic">Modalidad de Fechas</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Organizar contenidos por mes o fecha exacta</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <button
+                                onClick={() => setDateMode('exact')}
+                                className={cn(
+                                    "p-4 rounded-2xl border transition-all flex flex-col items-center gap-2",
+                                    dateMode === 'exact' ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm" : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                                )}
+                            >
+                                <span className="text-sm font-black">Fecha Exacta</span>
+                                <span className="text-[10px] text-center font-medium opacity-80">Las fechas se mostrarán con día, mes y año (ej. 15 Ago 2026).</span>
+                            </button>
+                            <button
+                                onClick={() => setDateMode('month')}
+                                className={cn(
+                                    "p-4 rounded-2xl border transition-all flex flex-col items-center gap-2",
+                                    dateMode === 'month' ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm" : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                                )}
+                            >
+                                <span className="text-sm font-black">Por Mes</span>
+                                <span className="text-[10px] text-center font-medium opacity-80">Los contenidos se agruparán solo por mes y año (ej. Agosto 2026).</span>
+                            </button>
                         </div>
                     </section>
 
