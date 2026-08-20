@@ -59,13 +59,25 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
     'gemini-3.1-pro': { input: 2.00, output: 12.00 },
     'gemini-3.1-pro-preview': { input: 2.00, output: 12.00 },
     
+    // Gemini 3.7
+    'gemini-3.7-flash': { input: 0.75, output: 3.75 },
+    'gemini-3.7-flash-preview': { input: 0.75, output: 3.75 },
+
+    // Gemini 3.6
+    'gemini-3.6-flash': { input: 0.75, output: 3.75 },
+    'gemini-3.6-flash-preview': { input: 0.75, output: 3.75 },
+
     // Gemini 3.5 Flash / 3.1 Flash
     'gemini-3.5-flash': { input: 1.50, output: 9.00 },
     'gemini-3.5-flash-preview': { input: 1.50, output: 9.00 },
+    'gemini-3.5-flash-lite': { input: 0.30, output: 2.50 },
     'gemini-3.1-flash': { input: 1.50, output: 9.00 },
     'gemini-3.1-flash-preview': { input: 1.50, output: 9.00 },
     'gemini-3-flash': { input: 0.50, output: 3.00 },
     'gemini-3-flash-preview': { input: 0.50, output: 3.00 },
+
+    // Gemma 3
+    'gemma-3-27b-it': { input: 0.10, output: 0.10 },
 
     // Gemini 3.1 Flash Lite
     'gemini-3.1-flash-lite': { input: 0.25, output: 1.50 },
