@@ -41,20 +41,24 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
     loadResearchData: async (contentId: string) => {
         const { supabase } = require('@/lib/supabase');
         const { data, error } = await supabase
-            .from('content_research')
+            .from('task_research')
             .select('*')
-            .eq('content_id', contentId)
+            .eq('id', contentId)
             .maybeSingle();
 
         if (!error && data) {
             set((state: any) => {
-                const serp = data.serp_data || {};
-                const sLinks = serp.suggestedInternalLinks || serp.suggested_links || serp.suggestedLinks || [];
+                const dossier = data.research_dossier || data.seo_data || {};
+                const serp = dossier.serpReport || dossier.serp_data || data.seo_data || {};
+                const sLinks = dossier.suggestedInternalLinks || dossier.suggested_links || dossier.suggestedLinks || [];
+                const competitors = dossier.fullCompetitorAnalysis || dossier.competitors || dossier.top10Urls || [];
                 
                 return {
-                    rawSeoData: serp || state.rawSeoData,
-                    competitorDetails: data.competitors_data || state.competitorDetails,
-                    strategyLinks: (sLinks && sLinks.length > 0) ? sLinks : state.strategyLinks
+                    researchDossier: Object.keys(dossier).length > 0 ? dossier : state.researchDossier,
+                    rawSeoData: Object.keys(serp).length > 0 ? serp : state.rawSeoData,
+                    competitorDetails: competitors.length > 0 ? competitors : state.competitorDetails,
+                    strategyLinks: (sLinks && sLinks.length > 0) ? sLinks : state.strategyLinks,
+                    outlineStructure: data.outline_structure || dossier.outline_structure || state.outlineStructure
                 } as any;
             });
         }
@@ -62,12 +66,19 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
 
     saveResearchData: async (contentId: string, keyword: string, serp: any, competitors: any) => {
         const { supabase } = require('@/lib/supabase');
-        await supabase.from('content_research').upsert({
-            content_id: contentId,
-            keyword,
-            serp_data: serp,
-            competitors_data: competitors
-        }, { onConflict: 'content_id' });
+        // Fetch current to preserve outline_structure
+        const { data: current } = await supabase.from('task_research').select('*').eq('id', contentId).maybeSingle();
+        
+        let dossier = current?.research_dossier || {};
+        dossier.serpReport = serp;
+        dossier.competitors = competitors;
+        dossier.target_keyword = keyword;
+
+        await supabase.from('task_research').upsert({
+            id: contentId,
+            research_dossier: dossier,
+            seo_data: serp
+        }, { onConflict: 'id' });
     },
 
     loadProjectContents: async (projectId: string | string[]) => {
