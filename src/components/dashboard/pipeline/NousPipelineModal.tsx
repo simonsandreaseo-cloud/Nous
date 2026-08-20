@@ -154,7 +154,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
             }
         }
         return counts;
-    }, [activeWorkflow, executionMode, tasks, selectedTaskIds]);
+    }, [activeWorkflow, executionMode, tasks, localSelectedIds]);
 
     const handleAddBlock = (actionId: PipelineActionType) => {
         if (!activeWorkflowId) return;
@@ -563,7 +563,30 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
 
                             
                             {/* Search and Filter */}
+                            
+                            {/* Search, Filter, and Select All */}
                             <div className="px-4 pb-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+                                {executionMode === 'manual' && (
+                                    <div className="pt-1 px-1 flex items-center">
+                                        <input 
+                                            type="checkbox" 
+                                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                            title="Seleccionar todos los visibles"
+                                            checked={targetTasks.length > 0 && targetTasks.every(t => localSelectedIds.includes(t.id))}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    // Add all visible that are not already selected
+                                                    const visibleIds = targetTasks.map(t => t.id);
+                                                    setLocalSelectedIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+                                                } else {
+                                                    // Remove all visible from selection
+                                                    const visibleIds = targetTasks.map(t => t.id);
+                                                    setLocalSelectedIds(prev => prev.filter(id => !visibleIds.includes(id)));
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                )}
                                 <div className="relative flex-1">
                                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                     <input 
