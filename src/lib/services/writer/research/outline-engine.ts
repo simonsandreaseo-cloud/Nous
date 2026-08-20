@@ -35,7 +35,8 @@ export const OutlineEngine = {
             } else {
                 headersText = v.summary?.substring(0, 200) + '...' || 'Sin encabezados';
             }
-            return `### FUENTE: ${v.title}\n${headersText}`;
+            const userRefTag = v.isUserRef ? ' (REFERENCIA DEL USUARIO - MÁXIMA PRIORIDAD)' : '';
+            return `### FUENTE: ${v.title}${userRefTag}\n${headersText}`;
         }).join('\n\n');
         
         const fallbackModels = [
@@ -99,8 +100,15 @@ export const OutlineEngine = {
                 strategyRec = 'ESTO ES UNA PILLAR PAGE. Estructura inmensa y categorizada para enlazar a clusters.';
             }
 
+            let objectiveStr = "Crear el mejor esqueleto de H2/H3/H4 del nicho superando a la competencia.";
+            if ((phaseConfig as any)?._architecture === 'reference_strict') {
+                objectiveStr = "Mejorar y refinar la estructura basándote EXCLUSIVAMENTE en las referencias del usuario. NO inventes temáticas fuera de lo que abordan las referencias.";
+            } else if ((phaseConfig as any)?._architecture === 'reference_expanded') {
+                objectiveStr = "Crear el Outline definitivo. La columna vertebral DEBE basarse fuertemente en las Referencias del Usuario (llevan el 70% del peso). Usa a los otros competidores SÓLO para llenar vacíos (gaps) informativos.";
+            }
+
             const phase1Prompt = `ESTRATEGIA PROFUNDA DE ESTRUCTURA PARA: "${keyword}"
-OBJETIVO: Crear el mejor esqueleto de H2/H3/H4 del nicho superando a la competencia.
+OBJETIVO: ${objectiveStr}
 
 METADATOS PROPUESTOS:
 H1: "${seoMetadata.h1}"
@@ -186,7 +194,7 @@ FORMATO PREFERIDO:
             const realKwsText = realKeywords.slice(0, 20).map(k => k.keyword).join(", ");
             const askKwsText = askKeywords.slice(0, 20).map(k => k.keyword).join(", ");
             const linksText = JSON.stringify(suggestedLinks.slice(0, 10));
-            const competitorContent = validCompetitors.slice(0, 3).map(v => `### ${v.title}\n${(v.content || v.summary || "").substring(0, 1000)}`).join('\n\n');
+            const competitorContent = validCompetitors.slice(0, 3).map(v => `### ${v.title}${v.isUserRef ? ' (REF USUARIO)' : ''}\n${(v.content || v.summary || "").substring(0, 1000)}`).join('\n\n');
             const skeletonText = skeleton.map((s, i) => `${i + 1}. H${s.level || 2}: ${s.text}`).join('\n');
 
             const phase2Prompt = `ENRIQUECIMIENTO E-E-A-T DEL ESQUELETO: "${keyword}"

@@ -670,6 +670,10 @@ REGLAS:
             return await this.runExperimentalAnalysis(config);
         }
 
+        if (config.architecture === 'reference_strict' || config.architecture === 'reference_expanded') {
+            return await this.runReferenceAnalysis(config, phaseToRun);
+        }
+
         const { keyword, projectId, taskId, onProgress, onLog, isFastMode = false, forceRestart = false, cascade = true } = config;
 
         const saveCheckpoint = async (phase: string, data: any) => {
@@ -947,6 +951,246 @@ REGLAS:
 
             } catch (e) {
                 console.error("🔥 [Supabase] Error crítico en el bloque final de guardado:", e);
+                if (onLog) onLog("ERROR", "Fallo crítico al guardar en Base de Datos.");
+            }
+        }
+
+        return dossier;
+    },
+
+    /**
+     * Orchestrator for Reference-based Research (Por Referencia)
+     */
+    async runReferenceAnalysis(config: DeepSEOConfig, phaseToRun?: ResearchPhase) {
+        const { keyword, projectId, taskId, onProgress, onLog, isFastMode = false, forceRestart = false, cascade = true } = config;
+
+        const saveCheckpoint = async (phase: string, data: any) => {
+            if (!taskId) return { ...data, context_cache: dossier.context_cache || {} };
+            const { data: current } = await supabase.from('task_research').select('research_dossier').eq('id', taskId).maybeSingle();
+            const existing = current?.research_dossier || {};
+            const updated = { 
+                ...existing, 
+                ...data, 
+                context_cache: { ...(existing.context_cache || {}), ...(dossier.context_cache || {}), ...(data.context_cache || {}) },
+                _checkpoint: phase, 
+                _checkpoints_at: { ...(existing._checkpoints_at || {}), [phase]: new Date().toISOString() } 
+            };
+            await supabase.from('task_research').upsert({ id: taskId, research_dossier: updated });
+            return updated;
+        };
+
+        let dossier: any = {};
+        if (taskId && !forceRestart) {
+            const { data: taskData } = await supabase.from('task_research').select('research_dossier').eq('id', taskId).maybeSingle();
+            const { data: mainTaskData } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
+            dossier = taskData?.research_dossier || {};
+            
+            if (mainTaskData) {
+                dossier.task_context = {
+                    title: mainTaskData.title,
+                    brief: mainTaskData.brief,
+                    content_type: mainTaskData.content_type,
+                    associated_url: mainTaskData.associated_url,
+                    secondary_url: mainTaskData.secondary_url,
+                    refs: mainTaskData.refs,
+                    volume: mainTaskData.volume,
+                    target_word_count: mainTaskData.target_word_count,
+                    metadata: mainTaskData.metadata || {}
+                };
+            }
+        }
+        
+        dossier.context_cache = (dossier.context_cache && typeof dossier.context_cache === 'object') ? dossier.context_cache : {};
+
+        const isStrict = config.architecture === 'reference_strict';
+
+        const PHASES: ResearchPhase[] = ['serp_done', 'scraping_done', 'lsi_done', 'ask_done', 'real_kws_done', 'metadata_done', 'interlinking_done', 'outline_done'];
+        let startIndex = 0;
+        if (phaseToRun) {
+            startIndex = PHASES.indexOf(phaseToRun);
+        } else if (!forceRestart && dossier._checkpoint) {
+            const lastIndex = PHASES.indexOf(dossier._checkpoint as ResearchPhase);
+            if (lastIndex !== -1) startIndex = lastIndex + 1;
+        }
+        if (startIndex >= PHASES.length) startIndex = 0;
+
+        // Phase 1: SERP (Only for expanded mode, or just deduce intention)
+        if (startIndex <= 0) {
+            if (onProgress) onProgress(1);
+            let res: any = {};
+            const userRefs = dossier.task_context?.refs || [];
+            
+            if (userRefs.length === 0) {
+                if (onLog) onLog("ERROR", "Validación", "No se encontraron URLs de referencia (Smart URLs) en la tarea.");
+                throw new Error("El modo 'Por Referencia' requiere al menos una URL de referencia.");
+            }
+
+            if (isStrict) {
+                if (onLog) onLog("INFO", "Modo Referencia Estricto", "Omitiendo SERP externo. Nos basaremos 100% en las URLs provistas.");
+                res = { masterIntent: keyword, masterH1: keyword, selectedUrls: [] };
+            } else {
+                // Modo expansivo: deducir keyword real o buscar SERP
+                if (onLog) onLog("INFO", "Modo Referencia Expansivo", "Buscando competidores externos para enriquecer las referencias...");
+                res = await this.runSerpPhase(config, onLog);
+            }
+            
+            if (onProgress) onProgress(5);
+            dossier = await saveCheckpoint('serp_done', res);
+            Object.assign(dossier, res);
+            if (phaseToRun === 'serp_done' && !cascade) return dossier;
+        }
+
+        // Phase 2: Scraping
+        if (startIndex <= 1) {
+            if (onProgress) onProgress(7);
+            
+            const userRefs = (dossier.task_context?.refs || []).map((url: string) => ({ url, title: 'Referencia del Usuario', isUserRef: true }));
+            let candidatesToScrape = [...userRefs];
+            
+            if (!isStrict) {
+                const serpUrls = (dossier.selectedUrls || dossier.rankedPool || dossier.top10Urls || []).map((u: any) => ({ ...u, isUserRef: false }));
+                candidatesToScrape = [...candidatesToScrape, ...serpUrls].slice(0, 8);
+            }
+
+            if (onLog) onLog("INFO", "Firecrawl", `Scrapeando ${candidatesToScrape.length} URLs (Prioridad: Referencias)...`);
+            const scraped = await ScraperService.scrapeMassive(candidatesToScrape, dossier.task_context || {}, onLog);
+            
+            // Mark user refs internally
+            const validSEO = scraped.map(s => {
+                const isUser = userRefs.some((ur: any) => ur.url === s.url);
+                return { ...s, isUserRef: isUser };
+            }).filter(s => !!s.content);
+
+            dossier = await saveCheckpoint('scraping_done', { competitors: validSEO });
+            dossier.validSEO = validSEO;
+            
+            if (phaseToRun === 'scraping_done' && !cascade) return dossier;
+        }
+
+        // Phase 3: LSI
+        if (startIndex <= 2) {
+            if (onProgress) onProgress(8);
+            const contentToAnalyze = dossier.validSEO.filter((s: any) => s.isUserRef).map((s: any) => s.content);
+            const lsi = await this.runLSIPhase([{ content: contentToAnalyze.join('\n\n') }], keyword, onLog, config.phaseModels?.lsi);
+            dossier = await saveCheckpoint('lsi_done', { lsiKeywords: lsi });
+            dossier.cleanedLSI = lsi;
+            if (phaseToRun === 'lsi_done' && !cascade) return dossier;
+        }
+
+        // Phase 3.5: ASK
+        if (startIndex <= 3) {
+            if (onProgress) onProgress(9);
+            const contentToAnalyze = dossier.validSEO.filter((s: any) => s.isUserRef).map((s: any) => s.content);
+            const { askKeywords, frequentQuestions } = await this.runASKPhase([{ content: contentToAnalyze.join('\n\n') }], keyword, onLog, config.phaseModels?.ask);
+            dossier = await saveCheckpoint('ask_done', { askKeywords, frequentQuestions });
+            dossier.askKeywords = askKeywords;
+            dossier.frequentQuestions = frequentQuestions;
+            if (phaseToRun === 'ask_done' && !cascade) return dossier;
+        }
+
+        // Phase 3.8: Golden Keywords (Skip for strict)
+        if (startIndex <= 4) {
+            if (onProgress) onProgress(11);
+            let realKeywords: any[] = [];
+            if (isStrict) {
+                if (onLog) onLog("INFO", "Golden Keywords", "Omitido en Modo Estricto (No competimos en SERP).");
+            } else {
+                const { realKeywords: rk, sniperUrls } = await this.runGoldenKeywordsPhase(dossier.validSEO || [], keyword, onLog, dossier.context_cache?.sniperUrls, config.phaseModels?.golden_kws);
+                realKeywords = rk;
+                dossier.context_cache.sniperUrls = sniperUrls;
+            }
+            dossier = await saveCheckpoint('real_kws_done', { realKeywords, context_cache: dossier.context_cache });
+            dossier.realKeywords = realKeywords;
+            if (phaseToRun === 'real_kws_done' && !cascade) return dossier;
+        }
+
+        // Phase 4: Metadata (Force title generation)
+        if (startIndex <= 5 && !['metadata_done', 'interlinking_done', 'outline_done'].includes(phaseToRun || '')) {
+            if (onProgress) onProgress(22);
+            if (onLog) onLog("Fase 5 (Metadata)", "Generando títulos y metadatos desde las Referencias...");
+            
+            // We tell Metadata phase to act dynamically by hiding the taskContext title
+            const modifiedContext = { ...dossier.task_context };
+            modifiedContext.title = ""; // Force AI to invent a title based on refs
+            modifiedContext.metadata = { ...modifiedContext.metadata, observaciones: (modifiedContext.metadata?.observaciones || '') + "\nCRÍTICO: Debes generar un título H1 y un SEO title brillante basado EXCLUSIVAMENTE en las referencias, sin importar de qué hablen." };
+            
+            const refsText = dossier.validSEO.filter((s: any) => s.isUserRef).map((s: any) => s.title).join(' / ');
+            
+            const { seoMetadata, wordCountGoal } = await this.runMetadataPhase(
+                refsText || keyword, 
+                dossier.cleanedLSI || [], 
+                dossier.validSEO || [], 
+                onLog, 
+                "", // No master H1
+                "Replicar referencias de forma superior", 
+                modifiedContext, 
+                config.phaseModels?.metadata
+            );
+            
+            dossier = await saveCheckpoint('metadata_done', { seoMetadata, wordCountGoal });
+            dossier.seoMetadata = seoMetadata;
+            dossier.wordCountGoal = wordCountGoal;
+            if (phaseToRun === 'metadata_done' && !cascade) return dossier;
+        }
+
+        // Phase 5: Interlinking
+        if (startIndex <= 6) {
+            if (onProgress) onProgress(29);
+            const links = await this.runInterlinkingPhase(config, dossier, dossier.seoMetadata || {}, dossier.cleanedLSI || [], dossier.askKeywords || [], dossier.realKeywords || [], onLog);
+            dossier = await saveCheckpoint('interlinking_done', { suggestedInternalLinks: links });
+            dossier.suggestedInternalLinks = links;
+            if (phaseToRun === 'interlinking_done' && !cascade) return dossier;
+        }
+
+        // Phase 6: Outline
+        if (startIndex <= 7) {
+            if (onProgress) onProgress(60);
+            
+            // Pass the architecture to OutlineEngine so it can use a different prompt
+            const outlinePhaseConfig = { ...config.phaseModels?.outline, _architecture: config.architecture } as any;
+            
+            const outline = await this.runOutlinePhase(config, dossier, dossier.seoMetadata || {}, dossier.cleanedLSI || [], dossier.askKeywords || [], dossier.realKeywords || [], dossier.suggestedInternalLinks || [], dossier.validSEO || [], dossier.wordCountGoal || 1500, onLog);
+            dossier = await saveCheckpoint('outline_done', { outline_structure: outline });
+            if (onProgress) onProgress(99);
+            dossier.outline_structure = outline;
+            if (phaseToRun === 'outline_done' && !cascade) return dossier;
+        }
+
+        // Final persistence
+        if (config.taskId) {
+            const sectionsCount = dossier.outline_structure?.headers?.length || dossier.outline_structure?.length || 0;
+            if (onLog) onLog("Finalizando", `Guardando investigación (Modo Referencia). Outline: ${sectionsCount} secciones.`);
+
+            const flatOutline = dossier.outline_structure?.headers || dossier.outline_structure || [];
+            try {
+                const links = dossier.suggestedInternalLinks || [];
+                const urls = links.map((l: any) => l.url || l.link).filter(Boolean);
+                const previousUrls = (dossier.task_context?.associated_url || '').split(/[\n,]+/).map((u: string) => u.trim()).filter(Boolean);
+                const uniqueUrls = Array.from(new Set([...previousUrls, ...urls])).join('\n');
+
+                const taskUpdates: any = {
+                    status: "por_redactar",
+                    target_word_count: dossier.wordCountGoal,
+                    associated_url: uniqueUrls || null
+                };
+                
+                // Si el usuario no mandó un title o nosotros generamos uno mejor, lo actualizamos
+                if (dossier.seoMetadata?.h1) {
+                    taskUpdates.title = dossier.seoMetadata.h1;
+                    taskUpdates.h1 = dossier.seoMetadata.h1;
+                }
+                if (dossier.seoMetadata?.seo_title) taskUpdates.seo_title = dossier.seoMetadata.seo_title;
+                if (dossier.seoMetadata?.meta_description) taskUpdates.meta_description = dossier.seoMetadata.meta_description;
+                if (dossier.seoMetadata?.target_url_slug) taskUpdates.target_url_slug = dossier.seoMetadata.target_url_slug;
+
+                await supabase.from('tasks').update(taskUpdates).eq('id', config.taskId);
+
+                await supabase.from('task_research').upsert({
+                    id: config.taskId,
+                    outline_structure: flatOutline,
+                    research_dossier: dossier
+                });
+            } catch (e) {
                 if (onLog) onLog("ERROR", "Fallo crítico al guardar en Base de Datos.");
             }
         }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X,
@@ -56,8 +56,28 @@ const TABS: { id: TabId; label: string; icon: any }[] = [
 
 export default function ContentDetailView({ task, onClose }: ContentDetailViewProps) {
     const [activeTab, setActiveTab] = useState<TabId>('content');
-    const { updateTask, teamMembers, claimTask } = useProjectStore();
+    const { updateTask, teamMembers, claimTask, fetchTaskDetails } = useProjectStore();
     const [localTask, setLocalTask] = useState<Task>(task);
+    const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+    useEffect(() => {
+        const loadDetails = async () => {
+            setIsLoadingDetails(true);
+            try {
+                const fullTask = await fetchTaskDetails(task.id);
+                if (fullTask) {
+                    setLocalTask(fullTask);
+                }
+            } catch (e) {
+                console.error("Error loading task details", e);
+            } finally {
+                setIsLoadingDetails(false);
+            }
+        };
+        if (task.id) {
+            loadDetails();
+        }
+    }, [task.id, fetchTaskDetails]);
 
     const handleUpdateStatus = async (newStatus: string) => {
         const next = { ...localTask, status: newStatus as any };

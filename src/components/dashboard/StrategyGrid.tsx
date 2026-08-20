@@ -106,7 +106,7 @@ export default function StrategyGrid({
     tasks: externalTasks
 }: StrategyGridProps) {
     const { queue, activeTask, isPaused, togglePause, clearQueue } = useQueueStore();
-    const { tasks: storeTasks, activeProject, activeTeam, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask } = useProjectStore();
+    const { tasks: storeTasks, activeProject, activeTeam, addTask, updateTask, deleteTask, deleteTasks, selectiveDeleteTask, teamMembers, assignTask, claimTask, fetchTaskContent } = useProjectStore();
     const [assignSelectorId, setAssignSelectorId] = useState<string | null>(null);
     const [deletePopupId, setDeletePopupId] = useState<string | null>(null);
     const [deleteOptions, setDeleteOptions] = useState({ research: false, writing: false, images: false, translations: false });
@@ -147,6 +147,22 @@ export default function StrategyGrid({
     const [outlinePopupId, setOutlinePopupId] = useState<string | null>(null);
     const [isRegeneratingOutline, setIsRegeneratingOutline] = useState(false);
     const [previewTask, setPreviewTask] = useState<Task | null>(null);
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+    const handleOpenPreview = async (task: Task) => {
+        setPreviewTask(task);
+        if (task.content_body === undefined) {
+            setIsPreviewLoading(true);
+            try {
+                const content = await fetchTaskContent(task.id);
+                setPreviewTask(prev => prev?.id === task.id ? { ...prev, content_body: content } : prev);
+            } catch (e) {
+                console.error("Error fetching preview content", e);
+            } finally {
+                setIsPreviewLoading(false);
+            }
+        }
+    };
 
     const tasksToUse = externalTasks || storeTasks;
 
@@ -1361,7 +1377,7 @@ export default function StrategyGrid({
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setPreviewTask(task);
+                                                    handleOpenPreview(task);
                                                 }}
                                                 className={cn(
                                                     "p-2 rounded-xl transition-all border",
@@ -1428,7 +1444,7 @@ export default function StrategyGrid({
                                                     isProcessing={!!batchProgress[task.id] && batchProgress[task.id] !== -1 && batchProgress[task.id] < 100}
                                                     onAction={async (action) => {
                                                         if (action === 'writer') {
-                                                            setPreviewTask(task);
+                                                            handleOpenPreview(task);
                                                         } else {
                                                             onRunAction?.(task.id, action);
                                                         }
@@ -1719,7 +1735,12 @@ export default function StrategyGrid({
                                 </div>
                             </div>
                             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                                {previewTask.content_body ? (
+                                {isPreviewLoading ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                        <Loader2 size={48} className="mb-4 text-indigo-500 animate-spin" />
+                                        <p className="text-sm font-medium">Cargando contenido...</p>
+                                    </div>
+                                ) : previewTask.content_body ? (
                                     <div 
                                         className="prose prose-sm prose-slate max-w-none font-sans"
                                         dangerouslySetInnerHTML={{ __html: previewTask.content_body }}

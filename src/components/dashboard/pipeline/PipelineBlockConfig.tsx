@@ -236,8 +236,10 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                                             }
                                         })}
                                     >
-                                        <option value="standard">Estándar (Nous 2.0)</option>
+                                        <option value="standard">Por Idea (Standard)</option>
                                         <option value="experimental">Experimental (Nous 3.0)</option>
+                                        <option value="reference_strict">Por Referencia (Modo Estricto)</option>
+                                        <option value="reference_expanded">Por Referencia (Modo Expansivo)</option>
                                     </select>
                                     <p className="text-[10px] text-slate-500">
                                         Determina el pipeline que se ejecutará en background para realizar el análisis.

@@ -162,7 +162,7 @@ export interface HumanizerConfig {
 // --- Research Pipeline Config ---
 export interface DeepSEOConfig {
     keyword: string;
-    architecture?: 'standard' | 'experimental';
+    architecture?: 'standard' | 'experimental' | 'reference_strict' | 'reference_expanded';
     projectId?: string;
     taskId?: string;
     onProgress?: (phase: string) => void;
