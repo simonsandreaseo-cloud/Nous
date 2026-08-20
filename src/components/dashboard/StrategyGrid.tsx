@@ -760,7 +760,7 @@ export default function StrategyGrid({
                                                         "text-[11px] font-bold text-slate-700 block truncate transition-all leading-tight",
                                                         !task.title && "text-slate-300 italic font-medium"
                                                     )}>
-                                                        {task.title || "Escribe un título..."}
+                                                        {task.title || "Escribe una Idea o Título..."}
                                                     </span>
                                                 </div>
                                             )}

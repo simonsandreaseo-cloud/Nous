@@ -55,6 +55,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     // Quick Create States
     const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
     const [quickTitle, setQuickTitle] = useState('');
+    const [quickCreateMode, setQuickCreateMode] = useState<'standard' | 'reference'>('standard');
     const [isCreating, setIsCreating] = useState(false);
 
     
@@ -98,11 +99,15 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
         if (!quickTitle.trim() || !activeProject) return;
         setIsCreating(true);
         try {
+            const isReference = quickCreateMode === 'reference';
+            const finalTitle = isReference && quickTitle.startsWith('http') ? `Idea desde Referencia: ${new URL(quickTitle).hostname}` : quickTitle;
+            
             const res = await addTask({
                 project_id: activeProject.id,
-                title: quickTitle,
+                title: finalTitle,
                 status: executionMode === 'status' ? selectedStatus : 'idea',
-                scheduled_date: new Date().toISOString()
+                scheduled_date: new Date().toISOString(),
+                refs: isReference ? [quickTitle] : []
             });
             if (res.data) {
                 setQuickTitle('');
@@ -541,10 +546,24 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                             <div className="p-4 border-b border-slate-100">
                                 {isQuickCreateOpen ? (
                                     <div className="space-y-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                                        <div className="flex bg-white rounded-lg p-1 border border-slate-200">
+                                            <button
+                                                className={`flex-1 text-[10px] font-bold uppercase tracking-widest py-1.5 rounded-md transition-colors ${quickCreateMode === 'standard' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
+                                                onClick={() => setQuickCreateMode('standard')}
+                                            >
+                                                Por Idea
+                                            </button>
+                                            <button
+                                                className={`flex-1 text-[10px] font-bold uppercase tracking-widest py-1.5 rounded-md transition-colors ${quickCreateMode === 'reference' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
+                                                onClick={() => setQuickCreateMode('reference')}
+                                            >
+                                                Por Referencia
+                                            </button>
+                                        </div>
                                         <input 
-                                            type="text" 
+                                            type={quickCreateMode === 'reference' ? "url" : "text"}
                                             autoFocus
-                                            placeholder="Título del artículo..."
+                                            placeholder={quickCreateMode === 'reference' ? "https://ejemplo.com/referencia..." : "Idea o Título del artículo..."}
                                             className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500"
                                             value={quickTitle}
                                             onChange={e => setQuickTitle(e.target.value)}
