@@ -111,19 +111,20 @@ Keyword: ${keyword || 'N/A'}`;
         const { keyword, onLog, taskId } = config;
         try {
             return await ResearchOrchestrator.runDeepAnalysis(config, config.phaseToRun);
-        } catch (e) {
+        } catch (e: any) {
             console.error("Deep SEO Analysis Error:", e);
+            if (onLog) onLog("ERROR", e.message || String(e));
             return {
                 title: keyword,
                 target_keyword: keyword,
                 volume: 0,
                 word_count: 1000,
-                brief: "La investigación profunda falló. Se usará la idea base.",
+                brief: e.message || "La investigación profunda falló.",
                 research_dossier: {
                     lsiKeywords: [],
                     top10Urls: []
                 },
-                status: 'idea'
+                status: 'error'
             };
         }
     }
