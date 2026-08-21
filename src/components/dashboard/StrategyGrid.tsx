@@ -15,6 +15,7 @@ import { useWriterStore } from '@/store/useWriterStore';
 import { useQueueStore } from '@/store/useQueueStore';
 import CompetitorModal from './CompetitorModal';
 import CascadingSlugModal from './CascadingSlugModal';
+import Papa from 'papaparse';
 
 export const ALL_COLUMNS = [
     { id: 'project', label: 'Proy.', width: 'min-w-[50px] w-[5%]', defaultVisible: true },
@@ -351,50 +352,86 @@ export default function StrategyGrid({
 
         const pasteData = e.clipboardData.getData('text');
         if (!pasteData) return;
+        
+        Papa.parse(pasteData, {
+            delimiter: "\t",
+            skipEmptyLines: true,
+            complete: async (results: any) => {
+                const rows = results.data;
+                if (!rows || rows.length === 0) return;
 
-        const rows = pasteData.split(/\r?\n/).filter(row => row.trim() !== '');
-        if (rows.length === 0) return;
+                let addedCount = 0;
 
-        let addedCount = 0;
+                for (const columns of rows) {
+                    if (!columns || columns.length < 1) continue;
 
-        for (const row of rows) {
-            const columns = row.split('\t');
-            if (columns.length < 1) continue;
+                    const firstColumn = columns[0]?.trim();
+                    if (!firstColumn) continue;
 
-            const title = columns[0].trim();
-            if (!title) continue;
+                    const tokens = firstColumn.split(/[\r\n\s,;]+/).filter(Boolean);
+                    
+                    const isUrlToken = (token: string) => {
+                        if (/^(https?:\/\/|www\.)/i.test(token)) return true;
+                        return /^[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}(?:\/.*)?$/.test(token);
+                    };
 
-            let dateStr = columns[1]?.trim();
-            if (!dateStr || isNaN(new Date(dateStr).getTime())) {
-                dateStr = format(new Date(), 'yyyy-MM-dd');
-            } else {
-                dateStr = format(new Date(dateStr), 'yyyy-MM-dd');
+                    const urls: string[] = [];
+                    let nonUrlTokensCount = 0;
+
+                    for (const t of tokens) {
+                        let clean = t.replace(/[.,;:]+$/, '');
+                        if (!clean) continue;
+                        
+                        if (isUrlToken(clean)) {
+                            if (!clean.startsWith('http')) {
+                                clean = `https://${clean}`;
+                            }
+                            urls.push(clean);
+                        } else {
+                            nonUrlTokensCount++;
+                        }
+                    }
+
+                    const isUrls = urls.length > 0 && nonUrlTokensCount === 0;
+
+                    const title = isUrls 
+                        ? `Referencia: ${urls[0].replace(/^https?:\/\//, '').substring(0, 45)}...`
+                        : firstColumn;
+
+                    let dateStr = columns[1]?.trim();
+                    if (!dateStr || isNaN(new Date(dateStr).getTime())) {
+                        dateStr = format(new Date(), 'yyyy-MM-dd');
+                    } else {
+                        dateStr = format(new Date(dateStr), 'yyyy-MM-dd');
+                    }
+
+                    const keyword = columns[2]?.trim() || '';
+                    const volume = parseInt(columns[3]?.trim() || '0');
+                    const viability = columns[4]?.trim() || '';
+
+                    try {
+                        await addTask({
+                            project_id: activeProject.id,
+                            title,
+                            scheduled_date: dateStr,
+                            status: 'idea',
+                            target_keyword: keyword,
+                            volume: isNaN(volume) ? 0 : volume,
+                            viability: viability,
+                            brief: '',
+                            ...(urls.length > 0 ? { refs: urls } : {})
+                        });
+                        addedCount++;
+                    } catch (err) {
+                        console.error("Error pasting task:", err);
+                    }
+                }
+
+                if (addedCount > 0) {
+                    NotificationService.notify("Importación exitosa", `Se han añadido ${addedCount} contenidos desde el portapapeles.`);
+                }
             }
-
-            const keyword = columns[2]?.trim() || '';
-            const volume = parseInt(columns[3]?.trim() || '0');
-            const viability = columns[4]?.trim() || '';
-
-            try {
-                await addTask({
-                    project_id: activeProject.id,
-                    title,
-                    scheduled_date: dateStr,
-                    status: 'idea',
-                    target_keyword: keyword,
-                    volume: isNaN(volume) ? 0 : volume,
-                    viability: viability,
-                    brief: ''
-                });
-                addedCount++;
-            } catch (err) {
-                console.error("Error pasting task:", err);
-            }
-        }
-
-        if (addedCount > 0) {
-            NotificationService.notify("Importación exitosa", `Se han añadido ${addedCount} contenidos desde el portapapeles.`);
-        }
+        });
     };
 
     return (
