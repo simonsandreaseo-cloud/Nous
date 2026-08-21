@@ -1090,8 +1090,24 @@ REGLAS:
                 }
             }
 
-            dossier = await saveCheckpoint('scraping_done', { competitors: validSEO });
-            dossier.validSEO = validSEO;
+            dossier = await saveCheckpoint('scraping_done', { competitors: validSEO.map(v => ({ url: v.url, title: v.title, summary: v.summary, originalPosition: v.originalPosition, headers: v.headers, wordCount: v.wordCount })) });
+            dossier.validSEO = validSEO; // Temporary for next phases
+            
+            if (config.taskId && validSEO.length > 0) {
+                if (onLog) onLog("INFO", "DB", "Guardando contenidos completos de competidores...");
+                await supabase.from('task_competitors').delete().eq('task_id', config.taskId);
+                await supabase.from('task_competitors').insert(
+                    validSEO.map(v => ({
+                        task_id: config.taskId,
+                        url: v.url,
+                        title: v.title,
+                        raw_html: v.content,
+                        parsed_text: v.summary,
+                        word_count: v.wordCount || 0,
+                        position: v.originalPosition || 999
+                    }))
+                );
+            }
             
             if (phaseToRun === 'scraping_done' && !cascade) return dossier;
         }
@@ -1176,8 +1192,15 @@ REGLAS:
             
             // Pass the architecture to OutlineEngine so it can use a different prompt
             const outlinePhaseConfig = { ...config.phaseModels?.outline, _architecture: config.architecture } as any;
+            const updatedConfig = {
+                ...config,
+                phaseModels: {
+                    ...config.phaseModels,
+                    outline: outlinePhaseConfig
+                }
+            };
             
-            const outline = await this.runOutlinePhase(config, dossier, dossier.seoMetadata || {}, dossier.cleanedLSI || [], dossier.askKeywords || [], dossier.realKeywords || [], dossier.suggestedInternalLinks || [], dossier.validSEO || [], dossier.wordCountGoal || 1500, onLog);
+            const outline = await this.runOutlinePhase(updatedConfig, dossier, dossier.seoMetadata || {}, dossier.cleanedLSI || [], dossier.askKeywords || [], dossier.realKeywords || [], dossier.suggestedInternalLinks || [], dossier.validSEO || [], dossier.wordCountGoal || 1500, onLog);
             dossier = await saveCheckpoint('outline_done', { outline_structure: outline });
             if (onProgress) onProgress(99);
             dossier.outline_structure = outline;
