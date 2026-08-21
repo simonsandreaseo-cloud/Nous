@@ -73,6 +73,38 @@ export const HistoryTab: React.FC = () => {
         setEditingId(null);
     };
 
+    const getProcessedVersions = () => {
+        if (!taskVersions) return [];
+        
+        const reversed = [...taskVersions].reverse();
+        const counts: Record<string, number> = {};
+        const totals: Record<string, number> = {};
+        
+        // Count totals first to see if we need numbers
+        taskVersions.forEach((v: any) => {
+            const name = v.process_name || 'Versión Guardada';
+            totals[name] = (totals[name] || 0) + 1;
+        });
+
+        const processed = reversed.map(v => {
+            const processName = v.process_name || 'Versión Guardada';
+            counts[processName] = (counts[processName] || 0) + 1;
+            
+            const displayName = totals[processName] > 1 
+                ? `${processName} ${counts[processName]}`
+                : processName;
+                
+            return {
+                ...v,
+                display_name: displayName
+            };
+        });
+        
+        return processed.reverse();
+    };
+
+    const displayVersions = getProcessedVersions();
+
     return (
         <div className="h-full flex flex-col bg-slate-900/50">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between sticky top-0 bg-slate-900/95 backdrop-blur z-10">
@@ -83,7 +115,7 @@ export const HistoryTab: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {(!taskVersions || taskVersions.length === 0) ? (
+                {(!displayVersions || displayVersions.length === 0) ? (
                     <div className="text-center text-slate-500 mt-10">
                         <Clock size={32} className="mx-auto mb-2 opacity-50" />
                         <p className="text-sm">No hay versiones guardadas todavía.</p>
@@ -91,7 +123,7 @@ export const HistoryTab: React.FC = () => {
                     </div>
                 ) : (
                     <div className="relative border-l border-slate-700/50 ml-3 pl-5 space-y-6">
-                        {taskVersions.map((version, idx) => {
+                        {displayVersions.map((version, idx) => {
                             const isActive = version.content_body === content;
                             
                             return (
@@ -128,7 +160,7 @@ export const HistoryTab: React.FC = () => {
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center gap-2 group/title">
-                                                    <span>{version.process_name || 'Versión Guardada'}</span>
+                                                    <span>{version.display_name}</span>
                                                     <button onClick={() => startEditing(version)} className="text-slate-500 hover:text-indigo-400 opacity-0 group-hover/title:opacity-100 transition-opacity">
                                                         <Pencil size={12} />
                                                     </button>
@@ -140,8 +172,15 @@ export const HistoryTab: React.FC = () => {
                                         </span>
                                     </div>
                                     
-                                    <div className="text-xs text-slate-500 mb-3 flex items-center justify-between">
-                                        <span>{(version.content_body?.length || 0).toLocaleString()} caracteres</span>
+                                    <div className="text-xs text-slate-500 mb-3 flex items-start justify-between">
+                                        <div className="flex flex-col gap-1.5">
+                                            <span>{(version.content_body?.length || 0).toLocaleString()} caracteres</span>
+                                            {version.ai_model && (
+                                                <span className="text-[10px] bg-slate-900/80 text-indigo-300 px-1.5 py-0.5 rounded border border-slate-700/50 w-max">
+                                                    🤖 {version.ai_model}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex gap-2">
                                             {isActive && <span className="text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[10px] border border-emerald-500/20">Viendo Actual</span>}
                                             {idx === 0 && !isActive && <span className="text-indigo-400/80 bg-indigo-500/10 px-1.5 py-0.5 rounded text-[10px]">Última guardada</span>}

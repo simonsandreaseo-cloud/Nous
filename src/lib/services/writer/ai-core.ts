@@ -1,12 +1,26 @@
+import { GoogleGenAI } from '@google/genai';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import fetch from 'node-fetch';
 import { Groq } from 'groq-sdk';
 import { AI_CONFIG } from "../../ai/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from 'openai';
 let AsyncLocalStorage: any;
-if (typeof window === 'undefined') {
-    // Only require async_hooks on the server side to prevent Webpack/Turbopack from crashing the client build
-    AsyncLocalStorage = require('node:async_hooks').AsyncLocalStorage;
+
+if (typeof (globalThis as any).AsyncLocalStorage !== 'undefined') {
+    // Edge runtime or newer Node versions where it is globally available
+    AsyncLocalStorage = (globalThis as any).AsyncLocalStorage;
+} else if (typeof process !== 'undefined' && process.release?.name === 'node') {
+    // Node.js fallback (hiding require from Turbopack)
+    try {
+        const mod = 'node:async_hooks';
+        const req = new Function('m', 'return require(m)');
+        AsyncLocalStorage = req(mod).AsyncLocalStorage;
+    } catch (e) {
+        AsyncLocalStorage = class { getStore() { return undefined; } run(s:any, c:any){return c();} };
+    }
 } else {
+    // Browser fallback
     AsyncLocalStorage = class {
         getStore() { return undefined; }
         run(store: any, cb: any) { return cb(); }

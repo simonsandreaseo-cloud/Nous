@@ -1,26 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { Project } from '@/types/project';
-import { executeTranslation } from '../writer/ai-core';
 
 export class I18nService {
-
-    /**
-     * Main entry point for text translation.
-     * Uses an AI-driven cascade with fallback to original text.
-     */
-    static async translateText(
-        text: string, 
-        targetLanguage: string, 
-        sourceLanguage: string = 'English',
-        projectId?: string
-    ): Promise<string> {
-        try {
-            return await executeTranslation(text, targetLanguage, sourceLanguage);
-        } catch (error: any) {
-            await this.logTranslationError(error, { text, targetLanguage, sourceLanguage, projectId });
-            return text; // Fallback: return original text
-        }
-    }
 
     /**
      * Logs translation failures for auditing and improvement.

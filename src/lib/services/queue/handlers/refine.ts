@@ -53,7 +53,7 @@ export const handleRefineTask = async (taskId: string, payload: QueuePayload) =>
         const styled = refineStyling(refined);
         
         // 1. Guardar la versión de la tarea en la base de datos de manera agnóstica al borrador activo
-        await useWriterStore.getState().saveTaskVersion(`Refinada`, styled, draftId);
+        await useWriterStore.getState().saveTaskVersion(`Refinada`, styled, draftId, modelToUse);
         
         // 2. Persistir directamente en las tablas de Supabase
         const { supabase } = require('@/lib/supabase');
