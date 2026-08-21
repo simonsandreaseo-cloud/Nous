@@ -100,7 +100,9 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
         setIsCreating(true);
         try {
             const isReference = quickCreateMode === 'reference';
-            const finalTitle = isReference && quickTitle.startsWith('http') ? `Idea desde Referencia: ${new URL(quickTitle).hostname}` : quickTitle;
+            const finalTitle = isReference && quickTitle.startsWith('http') 
+                ? `Referencia: ${quickTitle.replace(/^https?:\/\//, '').substring(0, 45)}...` 
+                : quickTitle;
             
             const res = await addTask({
                 project_id: activeProject.id,
