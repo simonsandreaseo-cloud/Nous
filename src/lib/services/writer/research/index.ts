@@ -967,7 +967,8 @@ REGLAS:
      * Orchestrator for Reference-based Research (Por Referencia)
      */
     async runReferenceAnalysis(config: DeepSEOConfig, phaseToRun?: ResearchPhase) {
-        const { keyword, projectId, taskId, onProgress, onLog, isFastMode = false, forceRestart = false, cascade = true } = config;
+        let { keyword } = config;
+        const { projectId, taskId, onProgress, onLog, isFastMode = false, forceRestart = false, cascade = true } = config;
 
         const saveCheckpoint = async (phase: string, data: any) => {
             if (!taskId) return { ...data, context_cache: dossier.context_cache || {} };
@@ -1069,6 +1070,18 @@ REGLAS:
                 const isUser = userRefs.some((ur: any) => ur.url === s.url);
                 return { ...s, isUserRef: isUser };
             }).filter(s => !!s.content);
+
+            if (keyword.startsWith("Idea desde Referencia:") && validSEO.length > 0) {
+                const mainRef = validSEO.find(s => s.isUserRef) || validSEO[0];
+                if (mainRef && mainRef.title) {
+                    const deduced = mainRef.title.replace(/[\n\r]+/g, ' ').trim();
+                    keyword = deduced;
+                    config.keyword = deduced;
+                    dossier.masterIntent = deduced;
+                    dossier.masterH1 = deduced;
+                    if (onLog) onLog("INFO", "Intención Deducida", `Tema base deducido de la URL: "${deduced}"`);
+                }
+            }
 
             dossier = await saveCheckpoint('scraping_done', { competitors: validSEO });
             dossier.validSEO = validSEO;
