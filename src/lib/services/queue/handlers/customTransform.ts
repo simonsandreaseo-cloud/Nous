@@ -157,8 +157,8 @@ export const handleCustomTransformTask = async (taskId: string, payload: QueuePa
         
         addLogToTask(taskId, `Guardando maquetación premium finalizada...`, 'success');
         
-        // 1. Guardar la versión de la tarea en el historial
-        await useWriterStore.getState().saveTaskVersion(`Transformación Custom`, finalHtml, draftId);
+        const modelUsed = payload.model || payload.config?.model || 'Desconocido';
+        await useWriterStore.getState().saveTaskVersion(`Transformación Custom`, finalHtml, draftId, modelUsed);
         
         // 2. Persistir directamente en las tablas de Supabase
         await supabase.from('task_contents').upsert({ id: draftId, content_body: finalHtml });

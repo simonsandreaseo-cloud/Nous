@@ -121,8 +121,8 @@ export const handleCleanTask = async (taskId: string, payload: QueuePayload) => 
         // Restore protected atomic blocks
         const restoredHtml = HtmlProtectionService.restore(accumulatedHtml, protectionMap);
         
-        // 1. Guardar la versión de la tarea en la base de datos de manera agnóstica al borrador activo
-        await useWriterStore.getState().saveTaskVersion(`Limpieza IA`, restoredHtml, draftId);
+        const modelUsed = payload.model || payload.config?.model || 'Desconocido';
+        await useWriterStore.getState().saveTaskVersion(`Limpieza IA`, restoredHtml, draftId, modelUsed);
         
         // 2. Persistir directamente en las tablas de Supabase
         await supabase.from('task_contents').upsert({ id: draftId, content_body: restoredHtml });

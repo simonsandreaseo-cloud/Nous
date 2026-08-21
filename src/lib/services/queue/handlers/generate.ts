@@ -258,8 +258,8 @@ export const handleGenerateTask = async (taskId: string, payload: QueuePayload) 
 
         const formatted = cleanAndFormatHtml(finalContent);
         
-        // 1. Guardar la versión de la tarea en la base de datos de manera agnóstica al borrador activo
-        await useWriterStore.getState().saveTaskVersion('Generación Inicial', formatted, draftId);
+        const modelUsed = payload.model || payload.config?.model || 'Desconocido';
+        await useWriterStore.getState().saveTaskVersion('Generación Inicial', formatted, draftId, modelUsed);
         
         // 2. Persistir directamente en las tablas de Supabase
         await supabase.from('task_contents').upsert({ id: draftId, content_body: formatted });

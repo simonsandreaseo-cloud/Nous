@@ -16,7 +16,7 @@ export interface PersistenceActions {
     deleteVersion: (taskId: string) => Promise<void>;
     setVersionStatus: (langCode: string, taskId: string | null) => void;
     fetchTaskVersions: (taskId: string) => Promise<void>;
-    saveTaskVersion: (processName: string, contentBody?: string, taskIdOverride?: string) => Promise<boolean>;
+    saveTaskVersion: (processName: string, contentBody?: string, taskIdOverride?: string, aiModel?: string) => Promise<boolean>;
     restoreTaskVersion: (versionId: string) => Promise<void>;
     deleteTaskVersion: (versionId: string) => Promise<boolean>;
     renameTaskVersion: (versionId: string, newName: string) => Promise<boolean>;
@@ -433,7 +433,7 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         }
     },
 
-    saveTaskVersion: async (processName: string, contentBody?: string, taskIdOverride?: string) => {
+    saveTaskVersion: async (processName: string, contentBody?: string, taskIdOverride?: string, aiModel?: string) => {
         const { supabase } = require('@/lib/supabase');
         const { draftId, content, setStatus } = get() as any;
         
@@ -452,10 +452,17 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
             .maybeSingle();
 
         if (latestVersion && latestVersion.content_body) {
-            const cleanLatest = latestVersion.content_body.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
-            const cleanNew = bodyToSave.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
+            const normalizeHtml = (html: string) => {
+                if (typeof window === 'undefined') return html.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
+                const div = document.createElement('div');
+                div.innerHTML = html;
+                return div.innerHTML.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
+            };
+            const cleanLatest = normalizeHtml(latestVersion.content_body);
+            const cleanNew = normalizeHtml(bodyToSave);
+            
             if (cleanLatest === cleanNew) {
-                console.log(`[Persistence] Ignorando guardado de versión '${processName}' por ser idéntica a la anterior.`);
+                console.log(`[Persistence] Ignorando guardado de versión '${processName}' por ser idéntica a la anterior (tras normalización DOM).`);
                 return false;
             }
         }
@@ -464,7 +471,8 @@ export const createPersistenceSlice: StateCreator<PersistenceSlice, [], [], Pers
         const { error } = await supabase.from('task_versions').insert({
             task_id: targetId,
             content_body: bodyToSave,
-            process_name: processName
+            process_name: processName,
+            ai_model: aiModel
         });
 
         if (error) {

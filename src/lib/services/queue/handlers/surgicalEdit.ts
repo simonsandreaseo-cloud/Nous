@@ -149,8 +149,8 @@ export const handleSurgicalEditTask = async (taskId: string, payload: QueuePaylo
         const restoredHtml = HtmlProtectionService.restore(finalResult.html, protectionMap);
         const refined = refineStyling(restoredHtml);
         
-        // 1. Guardar la versión de la tarea en la base de datos de manera agnóstica al borrador activo
-        await useWriterStore.getState().saveTaskVersion(`Edición Quirúrgica`, refined, draftId);
+        const modelUsed = payload.model || payload.config?.model || 'Desconocido';
+        await useWriterStore.getState().saveTaskVersion(`Edición Quirúrgica`, refined, draftId, modelUsed);
 
         
         // 2. Persistir directamente en las tablas de Supabase
