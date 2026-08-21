@@ -260,13 +260,29 @@ async function executeTaskInBlock({
         }
         else if (block.actionType === 'seo' || block.actionType === 'research' || block.actionType === 'outline') {
             const { StrategyService } = await import('@/lib/services/strategy');
+            
+            const resolvedPhaseModels: any = {};
+            if (block.actionType === 'research') {
+                const phases = ['serp', 'lsi', 'ask', 'golden_kws', 'metadata', 'outline', 'interlinking'];
+                const fallbackProvider = block.model.endsWith('-vertex') ? 'vertex-ai' : (block.model.endsWith('-gas') ? 'google-ai-studio' : 'auto');
+                
+                phases.forEach(p => {
+                    const cfg = block.additionalConfig?.phaseModels?.[p];
+                    if (!cfg || cfg.model === 'default') {
+                        resolvedPhaseModels[p] = { model: block.model, provider: fallbackProvider };
+                    } else {
+                        resolvedPhaseModels[p] = cfg;
+                    }
+                });
+            }
+
             const res = await StrategyService.runDeepSEOAnalysis({
                 projectId: project.id,
                 keyword: currentTaskState.target_keyword || currentTaskState.title,
                 taskId: task.id, forceRestart: true, cascade: true,
                 onLog: (_stage: string, msg: string) => enhancedLog(task.id, 'Research', msg),
                 onProgress: (p: any) => { if (typeof p === 'number') enhancedProgress(task.id, p); },
-                phaseModels: block.additionalConfig?.phaseModels,
+                phaseModels: Object.keys(resolvedPhaseModels).length > 0 ? resolvedPhaseModels : block.additionalConfig?.phaseModels,
                 architecture: block.additionalConfig?.researchArchitecture || 'standard'
             });
             if (res.status === 'error' || res.status === 'idea') throw new Error(res.brief || 'Fallo en la investigación SEO');

@@ -182,7 +182,21 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                                 {AI_MODELS.map((model) => (
                                     <button
                                         key={model.id}
-                                        onClick={() => setLocalBlock({ ...localBlock, model: model.id })}
+                                        onClick={() => {
+                                            const newProvider = model.id.endsWith('-vertex') ? 'vertex-ai' : (model.id.endsWith('-gas') ? 'google-ai-studio' : 'auto');
+                                            const newPhaseModels: any = { ...(localBlock.additionalConfig?.phaseModels || {}) };
+                                            RESEARCH_PHASES.forEach(p => {
+                                                newPhaseModels[p.id] = { model: model.id, provider: newProvider };
+                                            });
+                                            setLocalBlock({ 
+                                                ...localBlock, 
+                                                model: model.id,
+                                                additionalConfig: {
+                                                    ...(localBlock.additionalConfig || {}),
+                                                    phaseModels: newPhaseModels
+                                                }
+                                            });
+                                        }}
                                         className={cn(
                                             "flex flex-col items-start p-3 rounded-xl border text-left transition-all",
                                             localBlock.model === model.id 
