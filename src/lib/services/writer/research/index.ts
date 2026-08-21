@@ -389,7 +389,10 @@ Responde ÚNICAMENTE en JSON:
         const userTitle = taskContext?.title || '';
         const titleRule = userTitle ? `\n¡IMPORTANTE!: El usuario ha proporcionado este título exacto: "${userTitle}". DEBES usar este título EXACTO como el H1. NO LO ALTERES.` : '';
 
-        const topCompetitorsInfo = validSEO.slice(0, 10).map((v: any, i: number) => `[${i+1}] Título: ${v.title}`).join('\n');
+        const topCompetitorsInfo = validSEO.slice(0, 5).map((v: any, i: number) => {
+            const text = (v.summary || v.content || "").substring(0, 1000);
+            return `[${i+1}] Título: ${v.title}\nContenido / Resumen: ${text}\n`;
+        }).join('\n');
         
         const observaciones = taskContext?.metadata?.observaciones || taskContext?.observaciones || '';
         const obsRule = observaciones ? `\nOBSERVACIONES DEL USUARIO (Prioridad Máxima):\n"${observaciones}"\nAsegúrate de que la estrategia y los metadatos reflejen este enfoque específico.\n` : '';
