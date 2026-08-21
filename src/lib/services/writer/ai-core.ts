@@ -752,16 +752,18 @@ export const executeWithKeyRotation = async <T>(
                                         });
                                         return {
                                             stream: (async function* () {
+                                                let pTokens = 0, cTokens = 0, tTokens = 0;
                                                 for await (const chunk of resultStream) {
                                                     const usage = chunk.usageMetadata || chunk.response?.usageMetadata;
                                                     if (usage) {
-                                                        pushUsage({
-                                                            promptTokens: usage.promptTokenCount || 0,
-                                                            completionTokens: usage.candidatesTokenCount || 0,
-                                                            totalTokens: usage.totalTokenCount || 0
-                                                        });
+                                                        pTokens = usage.promptTokenCount || pTokens;
+                                                        cTokens = usage.candidatesTokenCount || cTokens;
+                                                        tTokens = usage.totalTokenCount || tTokens;
                                                     }
                                                     yield { text: () => chunk.text };
+                                                }
+                                                if (pTokens > 0 || cTokens > 0) {
+                                                    pushUsage({ promptTokens: pTokens, completionTokens: cTokens, totalTokens: tTokens });
                                                 }
                                             })()
                                         };
@@ -807,14 +809,13 @@ export const executeWithKeyRotation = async <T>(
                                             return {
                                                 ...resultStream,
                                                 stream: (async function* () {
+                                                    let pTokens = 0, cTokens = 0, tTokens = 0;
                                                     for await (const chunk of resultStream.stream) {
                                                         const usage = chunk.usageMetadata || chunk.response?.usageMetadata;
                                                         if (usage) {
-                                                            pushUsage({
-                                                                promptTokens: usage.promptTokenCount || 0,
-                                                                completionTokens: usage.candidatesTokenCount || 0,
-                                                                totalTokens: usage.totalTokenCount || 0
-                                                            });
+                                                            pTokens = usage.promptTokenCount || pTokens;
+                                                            cTokens = usage.candidatesTokenCount || cTokens;
+                                                            tTokens = usage.totalTokenCount || tTokens;
                                                         }
                                                         yield chunk;
                                                     }
@@ -822,13 +823,14 @@ export const executeWithKeyRotation = async <T>(
                                                         const res = await resultStream.response;
                                                         const usage = res.usageMetadata;
                                                         if (usage) {
-                                                            pushUsage({
-                                                                promptTokens: usage.promptTokenCount || 0,
-                                                                completionTokens: usage.candidatesTokenCount || 0,
-                                                                totalTokens: usage.totalTokenCount || 0
-                                                            });
+                                                            pTokens = usage.promptTokenCount || pTokens;
+                                                            cTokens = usage.candidatesTokenCount || cTokens;
+                                                            tTokens = usage.totalTokenCount || tTokens;
                                                         }
                                                     } catch (_) {}
+                                                    if (pTokens > 0 || cTokens > 0) {
+                                                        pushUsage({ promptTokens: pTokens, completionTokens: cTokens, totalTokens: tTokens });
+                                                    }
                                                 })()
                                             };
                                         }
@@ -854,14 +856,13 @@ export const executeWithKeyRotation = async <T>(
                                         return {
                                             ...resultStream,
                                             stream: (async function* () {
+                                                let pTokens = 0, cTokens = 0, tTokens = 0;
                                                 for await (const chunk of resultStream.stream) {
                                                     const usage = chunk.usageMetadata || chunk.response?.usageMetadata;
                                                     if (usage) {
-                                                        pushUsage({
-                                                            promptTokens: usage.promptTokenCount || 0,
-                                                            completionTokens: usage.candidatesTokenCount || 0,
-                                                            totalTokens: usage.totalTokenCount || 0
-                                                        });
+                                                        pTokens = usage.promptTokenCount || pTokens;
+                                                        cTokens = usage.candidatesTokenCount || cTokens;
+                                                        tTokens = usage.totalTokenCount || tTokens;
                                                     }
                                                     yield chunk;
                                                 }
@@ -869,13 +870,14 @@ export const executeWithKeyRotation = async <T>(
                                                     const res = await resultStream.response;
                                                     const usage = res.usageMetadata;
                                                     if (usage) {
-                                                        pushUsage({
-                                                            promptTokens: usage.promptTokenCount || 0,
-                                                            completionTokens: usage.candidatesTokenCount || 0,
-                                                            totalTokens: usage.totalTokenCount || 0
-                                                        });
+                                                        pTokens = usage.promptTokenCount || pTokens;
+                                                        cTokens = usage.candidatesTokenCount || cTokens;
+                                                        tTokens = usage.totalTokenCount || tTokens;
                                                     }
                                                 } catch (_) {}
+                                                if (pTokens > 0 || cTokens > 0) {
+                                                    pushUsage({ promptTokens: pTokens, completionTokens: cTokens, totalTokens: tTokens });
+                                                }
                                             })()
                                         };
                                     }
