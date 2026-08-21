@@ -697,7 +697,10 @@ REGLAS:
                 _checkpoints_at: { ...(existing._checkpoints_at || {}), [phase]: new Date().toISOString() } 
             };
             await supabase.from('task_research').upsert({ id: taskId, research_dossier: updated });
-            return updated;
+            
+            // PREVENT MEMORY WIPE: Merge updated DB state into memory, preserving temporary fields like validSEO
+            Object.assign(dossier, updated);
+            return dossier;
         };
 
         let dossier: any = {};
@@ -989,7 +992,10 @@ REGLAS:
                 _checkpoints_at: { ...(existing._checkpoints_at || {}), [phase]: new Date().toISOString() } 
             };
             await supabase.from('task_research').upsert({ id: taskId, research_dossier: updated });
-            return updated;
+            
+            // PREVENT MEMORY WIPE: Merge updated DB state into memory, preserving temporary fields like validSEO
+            Object.assign(dossier, updated);
+            return dossier;
         };
 
         let dossier: any = {};
