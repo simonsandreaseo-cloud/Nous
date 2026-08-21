@@ -125,7 +125,7 @@ export async function streamHumanize(
                 } else if (parsed.type === 'error') {
                     throw new Error(parsed.error);
                 } else if (parsed.type === 'done') {
-                    finalResult = parsed.result; if(parsed.usage) finalResult.usage = parsed.usage;
+                    finalResult = parsed.result; if(parsed.usage && finalResult) finalResult.usage = parsed.usage;
                     if (parsed.usage) finalUsage = parsed.usage;
                 }
             } catch (e: any) {
@@ -202,7 +202,7 @@ export async function streamMiniHumanize(
                 } else if (parsed.type === 'error') {
                     throw new Error(parsed.error);
                 } else if (parsed.type === 'done') {
-                    finalResult = parsed.result; if(parsed.usage) finalResult.usage = parsed.usage;
+                    finalResult = parsed.result; if(parsed.usage && finalResult) finalResult.usage = parsed.usage;
                     if (parsed.usage) finalUsage = parsed.usage;
                 }
             } catch (e: any) {
@@ -365,7 +365,7 @@ export async function streamSurgicalEdit(
                     newContent = parsed.html;
                     onChunk(newContent);
                 } else if (parsed.type === 'done') {
-                    finalResult = parsed.result; if(parsed.usage) finalResult.usage = parsed.usage;
+                    finalResult = parsed.result; if(parsed.usage && finalResult) finalResult.usage = parsed.usage;
                     if (finalResult && finalResult.html) {
                         newContent = finalResult.html;
                     }
@@ -441,7 +441,7 @@ export async function streamCustomTransform(
                     newContent = parsed.html;
                     onChunk(newContent);
                 } else if (parsed.type === 'done') {
-                    finalResult = parsed.result; if(parsed.usage) finalResult.usage = parsed.usage;
+                    finalResult = parsed.result; if(parsed.usage && finalResult) finalResult.usage = parsed.usage;
                     if (finalResult && finalResult.html) {
                         newContent = finalResult.html;
                     }

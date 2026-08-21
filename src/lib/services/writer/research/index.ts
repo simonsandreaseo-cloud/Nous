@@ -1078,7 +1078,7 @@ REGLAS:
                 return { ...s, isUserRef: isUser };
             }).filter(s => !!s.content);
 
-            if (keyword.startsWith("Idea desde Referencia:") && validSEO.length > 0) {
+            if ((keyword.startsWith("Idea desde Referencia:") || keyword.startsWith("Referencia:")) && validSEO.length > 0) {
                 const mainRef = validSEO.find(s => s.isUserRef) || validSEO[0];
                 if (mainRef && mainRef.title) {
                     const deduced = mainRef.title.replace(/[\n\r]+/g, ' ').trim();
@@ -1099,8 +1099,7 @@ REGLAS:
         // Phase 3: LSI
         if (startIndex <= 2) {
             if (onProgress) onProgress(8);
-            const contentToAnalyze = dossier.validSEO.filter((s: any) => s.isUserRef).map((s: any) => s.content);
-            const lsi = await this.runLSIPhase([{ content: contentToAnalyze.join('\n\n') }], keyword, onLog, config.phaseModels?.lsi);
+            const lsi = await this.runLSIPhase(dossier.validSEO.filter((s: any) => s.isUserRef), keyword, onLog, config.phaseModels?.lsi);
             dossier = await saveCheckpoint('lsi_done', { lsiKeywords: lsi });
             dossier.cleanedLSI = lsi;
             if (phaseToRun === 'lsi_done' && !cascade) return dossier;
@@ -1109,8 +1108,7 @@ REGLAS:
         // Phase 3.5: ASK
         if (startIndex <= 3) {
             if (onProgress) onProgress(9);
-            const contentToAnalyze = dossier.validSEO.filter((s: any) => s.isUserRef).map((s: any) => s.content);
-            const { askKeywords, frequentQuestions } = await this.runASKPhase([{ content: contentToAnalyze.join('\n\n') }], keyword, onLog, config.phaseModels?.ask);
+            const { askKeywords, frequentQuestions } = await this.runASKPhase(dossier.validSEO.filter((s: any) => s.isUserRef), keyword, onLog, config.phaseModels?.ask);
             dossier = await saveCheckpoint('ask_done', { askKeywords, frequentQuestions });
             dossier.askKeywords = askKeywords;
             dossier.frequentQuestions = frequentQuestions;
@@ -1208,7 +1206,12 @@ REGLAS:
                 if (dossier.seoMetadata?.h1) {
                     taskUpdates.title = dossier.seoMetadata.h1;
                     taskUpdates.h1 = dossier.seoMetadata.h1;
+                } else if (config.keyword !== dossier.task_context?.title && config.keyword !== keyword) {
+                     taskUpdates.title = config.keyword;
+                } else if (dossier.masterH1 && dossier.masterH1 !== dossier.task_context?.title) {
+                     taskUpdates.title = dossier.masterH1;
                 }
+
                 if (dossier.seoMetadata?.seo_title) taskUpdates.seo_title = dossier.seoMetadata.seo_title;
                 if (dossier.seoMetadata?.meta_description) taskUpdates.meta_description = dossier.seoMetadata.meta_description;
                 if (dossier.seoMetadata?.target_url_slug) taskUpdates.target_url_slug = dossier.seoMetadata.target_url_slug;

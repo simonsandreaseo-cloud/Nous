@@ -58,6 +58,7 @@ import { useRouter } from "next/navigation";
 import { useAppStore } from '@/store/useAppStore';
 import { useWriterStore } from '@/store/useWriterStore';
 import { useQueueStore } from '@/store/useQueueStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { NotificationService } from "@/lib/services/notifications";
 import { parseDocx, parseHtml } from "@/utils/data-importer";
 import Papa from "papaparse";
@@ -119,6 +120,9 @@ export function EditorialCalendar() {
     const setResearchPhaseId = useWriterStore(state => state.setResearchPhaseId);
     const setResearchTopic = useWriterStore(state => state.setResearchTopic);
     const searchParams = useSearchParams();
+    const user = useAuthStore(state => state.user);
+    const authInitialized = useAuthStore(state => state.initialized);
+    const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
     // Column Visibility State
     const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
@@ -184,6 +188,56 @@ export function EditorialCalendar() {
     const [dateFrom, setDateFrom] = useState("");
     const [dateTo, setDateTo] = useState("");
     const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+
+    // Sync from user_metadata
+    useEffect(() => {
+        if (!authInitialized) return;
+
+        if (user) {
+            if (!isConfigLoaded) {
+                if (user.user_metadata?.planner_config) {
+                    const config = user.user_metadata.planner_config;
+                    if (config.columnVisibility) setColumnVisibility(prev => ({ ...prev, ...config.columnVisibility }));
+                    if (config.statusFilter) setStatusFilter(config.statusFilter);
+                    if (config.searchQuery !== undefined) setSearchQuery(config.searchQuery);
+                    if (config.dateFrom !== undefined) setDateFrom(config.dateFrom);
+                    if (config.dateTo !== undefined) setDateTo(config.dateTo);
+                    if (config.isCascadeMode !== undefined) setIsCascadeMode(config.isCascadeMode);
+                    if (config.improveTitleWithNous !== undefined) setImproveTitleWithNous(config.improveTitleWithNous);
+                    if (config.linkPlannedContents !== undefined) setLinkPlannedContents(config.linkPlannedContents);
+                    if (config.linkPlannedStatuses) setLinkPlannedStatuses(config.linkPlannedStatuses);
+                }
+                setIsConfigLoaded(true);
+            }
+        } else {
+            setIsConfigLoaded(true);
+        }
+    }, [user, authInitialized, isConfigLoaded]);
+
+    // Save to user_metadata debounced
+    useEffect(() => {
+        if (!isConfigLoaded || !user) return;
+        const timer = setTimeout(() => {
+            const newConfig = {
+                columnVisibility,
+                statusFilter,
+                searchQuery,
+                dateFrom,
+                dateTo,
+                isCascadeMode,
+                improveTitleWithNous,
+                linkPlannedContents,
+                linkPlannedStatuses
+            };
+            const currentConfigStr = JSON.stringify(user.user_metadata?.planner_config || {});
+            if (JSON.stringify(newConfig) !== currentConfigStr) {
+                supabase.auth.updateUser({
+                    data: { planner_config: newConfig }
+                });
+            }
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [columnVisibility, statusFilter, searchQuery, dateFrom, dateTo, isCascadeMode, improveTitleWithNous, linkPlannedContents, linkPlannedStatuses, isConfigLoaded, user]);
 
     const toggleColumn = (colId: string) => {
         const newVisibility = { ...columnVisibility, [colId]: !columnVisibility[colId] };

@@ -58,23 +58,74 @@ export default function FloatingOutlineUI() {
                         
                         <div className="p-4 flex gap-3 overflow-x-auto custom-scrollbar snap-x snap-mandatory">
                             {strategyOutline.map((item, idx) => (
-                                <div key={idx} className="snap-center shrink-0 w-[240px] bg-white border border-slate-200 rounded-[16px] p-4 flex flex-col shadow-sm">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className="text-[10px] font-black px-2 py-0.5 bg-orange-50 text-orange-600 rounded">
-                                            {item.type || (item.level ? `H${item.level}` : 'H2')}
-                                        </span>
-                                        <span className="text-[10px] font-bold text-slate-400">Pautas: {item.wordCount || 0} p</span>
+                                <div key={idx} className="snap-center shrink-0 w-[280px] bg-white border border-slate-200 rounded-[16px] p-4 flex flex-col shadow-sm max-h-[400px] overflow-y-auto custom-scrollbar">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black px-2 py-0.5 bg-orange-50 text-orange-600 rounded">
+                                                {item.type || (item.level ? `H${item.level}` : 'H2')}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-slate-400">{item.wordCount || 0} p</span>
+                                        </div>
                                     </div>
-                                    <h4 className="text-[13px] font-bold text-slate-700 leading-snug line-clamp-3 mb-4 flex-1">
+                                    <h4 className="text-[13px] font-bold text-slate-700 leading-snug mb-3">
                                         {item.text}
                                     </h4>
-                                    <button 
-                                        onClick={() => handleInsert(item)}
-                                        className="w-full flex items-center justify-center gap-2 py-2 bg-slate-50 hover:bg-orange-500 hover:text-white text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors group"
-                                    >
-                                        <PlusCircle size={14} className="group-hover:rotate-90 transition-transform" />
-                                        Insertar al final
-                                    </button>
+
+                                    {(item.notes || item.instructions) && (
+                                        <div className="mb-3 p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">Pautas</span>
+                                            <p className="text-[11px] text-slate-600 leading-relaxed">{item.notes || item.instructions}</p>
+                                        </div>
+                                    )}
+
+                                    {((item.lsi_targets || item.lsi_keywords || item.keywords) && (item.lsi_targets || item.lsi_keywords || item.keywords).length > 0) && (
+                                        <div className="mb-3">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">LSI Sugeridas</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {(item.lsi_targets || item.lsi_keywords || item.keywords).map((kw: string, i: number) => (
+                                                    <span key={i} className="text-[9px] font-medium bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">
+                                                        {kw}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {(item.slang && item.slang.length > 0) && (
+                                        <div className="mb-3">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">Argot</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {item.slang.map((sl: string, i: number) => (
+                                                    <span key={i} className="text-[9px] font-medium bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">
+                                                        {sl}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {(item.semantic_anchors && item.semantic_anchors.length > 0) && (
+                                        <div className="mb-4">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1">Enlaces</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {item.semantic_anchors.map((an: string, i: number) => (
+                                                    <span key={i} className="text-[9px] font-medium bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded">
+                                                        {an}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="mt-auto pt-2">
+                                        <button 
+                                            onClick={() => handleInsert(item)}
+                                            className="w-full flex items-center justify-center gap-2 py-2 bg-slate-50 hover:bg-orange-500 hover:text-white text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors group"
+                                        >
+                                            <PlusCircle size={14} className="group-hover:rotate-90 transition-transform" />
+                                            Insertar al final
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

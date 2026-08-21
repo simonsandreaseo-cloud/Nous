@@ -51,16 +51,30 @@ let _pendingUsage: TokenUsage | null = null;
 
 const pushUsage = (usage: TokenUsage | null | undefined) => {
     if (!usage) return;
-    if (_pendingUsage) {
-        _pendingUsage.promptTokens += usage.promptTokens;
-        _pendingUsage.completionTokens += usage.completionTokens;
-        _pendingUsage.totalTokens += usage.totalTokens;
+    const ctx = aiUsageContext?.getStore();
+    if (ctx) {
+        if (!ctx.pendingUsage) ctx.pendingUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+        ctx.pendingUsage.promptTokens += usage.promptTokens;
+        ctx.pendingUsage.completionTokens += usage.completionTokens;
+        ctx.pendingUsage.totalTokens += usage.totalTokens;
     } else {
-        _pendingUsage = { ...usage };
+        if (_pendingUsage) {
+            _pendingUsage.promptTokens += usage.promptTokens;
+            _pendingUsage.completionTokens += usage.completionTokens;
+            _pendingUsage.totalTokens += usage.totalTokens;
+        } else {
+            _pendingUsage = { ...usage };
+        }
     }
 };
 
 const popUsage = (): TokenUsage | null => {
+    const ctx = aiUsageContext?.getStore();
+    if (ctx && ctx.pendingUsage) {
+        const u = { ...ctx.pendingUsage };
+        ctx.pendingUsage = null;
+        return u;
+    }
     const u = _pendingUsage;
     _pendingUsage = null;
     return u;
@@ -221,15 +235,32 @@ class GroqGenerativeModelCompatibility {
             temperature: req.generationConfig?.temperature ?? 0.7,
             max_tokens: req.generationConfig?.maxOutputTokens ?? 4096,
             stream: true,
+            stream_options: { include_usage: true }
         });
 
         return {
             stream: (async function* () {
+                let pTokens = 0, cTokens = 0, tTokens = 0;
+                let generatedTextLength = 0;
                 for await (const chunk of stream) {
                     const text = chunk.choices[0]?.delta?.content || '';
                     if (text) {
+                        generatedTextLength += text.length;
                         yield { text: () => text };
                     }
+                    const usage = (chunk as any).x_groq?.usage || chunk.usage;
+                    if (usage) {
+                        pTokens = usage.prompt_tokens || pTokens;
+                        cTokens = usage.completion_tokens || cTokens;
+                        tTokens = usage.total_tokens || tTokens;
+                    }
+                }
+                if (pTokens > 0 || cTokens > 0) {
+                    pushUsage({ promptTokens: pTokens, completionTokens: cTokens, totalTokens: tTokens });
+                } else {
+                    const estPrompt = Math.ceil(JSON.stringify(messages).length / 4);
+                    const estComp = Math.ceil(generatedTextLength / 4);
+                    pushUsage({ promptTokens: estPrompt, completionTokens: estComp, totalTokens: estPrompt + estComp });
                 }
             })()
         };
@@ -298,6 +329,57 @@ class OpenRouterGenerativeModelCompatibility {
             }
         };
     }
+    async generateContentStream(req: any) {
+        const prompt = typeof req === 'string' ? req : 
+                      (req.contents?.[0]?.parts?.[0]?.text || req.prompt || "");
+        
+        const messages: any[] = [];
+        if (this.systemInstruction) messages.push({ role: 'system', content: this.systemInstruction });
+        
+        if (Array.isArray(req.contents)) {
+            req.contents.forEach((c: any) => {
+                messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts[0].text });
+            });
+        } else {
+            messages.push({ role: 'user', content: prompt });
+        }
+
+        const stream = await this.client.chat.completions.create({
+            model: this.model,
+            messages,
+            temperature: req.generationConfig?.temperature ?? 0.7,
+            max_tokens: req.generationConfig?.maxOutputTokens ?? 4096,
+            stream: true,
+            stream_options: { include_usage: true }
+        });
+
+        return {
+            stream: (async function* () {
+                let pTokens = 0, cTokens = 0, tTokens = 0;
+                let generatedTextLength = 0;
+                for await (const chunk of stream) {
+                    const text = chunk.choices[0]?.delta?.content || '';
+                    if (text) {
+                        generatedTextLength += text.length;
+                        yield { text: () => text };
+                    }
+                    const usage = chunk.usage;
+                    if (usage) {
+                        pTokens = usage.prompt_tokens || pTokens;
+                        cTokens = usage.completion_tokens || cTokens;
+                        tTokens = usage.total_tokens || tTokens;
+                    }
+                }
+                if (pTokens > 0 || cTokens > 0) {
+                    pushUsage({ promptTokens: pTokens, completionTokens: cTokens, totalTokens: tTokens });
+                } else {
+                    const estPrompt = Math.ceil(JSON.stringify(messages).length / 4);
+                    const estComp = Math.ceil(generatedTextLength / 4);
+                    pushUsage({ promptTokens: estPrompt, completionTokens: estComp, totalTokens: estPrompt + estComp });
+                }
+            })()
+        };
+    }
 }
 
 class OpenRouterClientCompatibility {
@@ -354,6 +436,58 @@ class CerebrasGenerativeModelCompatibility {
                 text: () => completion.choices[0]?.message?.content || '',
                 usage: completion.usage
             }
+        };
+    }
+
+    async generateContentStream(req: any) {
+        const prompt = typeof req === 'string' ? req : 
+                      (req.contents?.[0]?.parts?.[0]?.text || req.prompt || "");
+        
+        const messages: any[] = [];
+        if (this.systemInstruction) messages.push({ role: 'system', content: this.systemInstruction });
+        
+        if (Array.isArray(req.contents)) {
+            req.contents.forEach((c: any) => {
+                messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts[0].text });
+            });
+        } else {
+            messages.push({ role: 'user', content: prompt });
+        }
+
+        const stream = await this.client.chat.completions.create({
+            model: this.model,
+            messages,
+            temperature: req.generationConfig?.temperature ?? 0.7,
+            max_tokens: req.generationConfig?.maxOutputTokens ?? 4096,
+            stream: true,
+            stream_options: { include_usage: true }
+        });
+
+        return {
+            stream: (async function* () {
+                let pTokens = 0, cTokens = 0, tTokens = 0;
+                let generatedTextLength = 0;
+                for await (const chunk of stream) {
+                    const text = chunk.choices[0]?.delta?.content || '';
+                    if (text) {
+                        generatedTextLength += text.length;
+                        yield { text: () => text };
+                    }
+                    const usage = chunk.usage;
+                    if (usage) {
+                        pTokens = usage.prompt_tokens || pTokens;
+                        cTokens = usage.completion_tokens || cTokens;
+                        tTokens = usage.total_tokens || tTokens;
+                    }
+                }
+                if (pTokens > 0 || cTokens > 0) {
+                    pushUsage({ promptTokens: pTokens, completionTokens: cTokens, totalTokens: tTokens });
+                } else {
+                    const estPrompt = Math.ceil(JSON.stringify(messages).length / 4);
+                    const estComp = Math.ceil(generatedTextLength / 4);
+                    pushUsage({ promptTokens: estPrompt, completionTokens: estComp, totalTokens: estPrompt + estComp });
+                }
+            })()
         };
     }
 }
