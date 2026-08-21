@@ -137,11 +137,7 @@ export async function executeHumanizerWithRetry<T>(
     let resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview', 'gemini-3-flash'];
-    if (!allowedModels.includes(resolvedModel)) {
-        safeStatus(`⚠️ Modelo ${resolvedModel} no permitido para humanización. Forzando gemma-4-31b-it.`);
-        resolvedModel = 'gemma-4-31b-it';
-    }
+
 
     const HUMANIZER_TIMEOUT = 180000;
 
@@ -557,10 +553,7 @@ export const runHumanizerPipeline = async (
     let resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview', 'gemini-3-flash'];
-    if (!allowedModels.includes(resolvedModel)) {
-        resolvedModel = 'gemma-4-31b-it';
-    }
+
 
     safeStatus(`Iniciando humanización estructural con Cheerio y modelo ${resolvedModel}...`);
     const start = Date.now();
@@ -699,10 +692,7 @@ export const runMiniHumanizerPipeline = async (
         modelName += '-it';
     }
     
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-1.5-flash-001', 'gemini-3-flash-preview', 'gemini-3-flash'];
-    if (!allowedModels.includes(modelName)) {
-        modelName = 'gemini-3.5-flash';
-    }
+
 
     safeStatus(`Iniciando mini-humanización estructural con Cheerio (Modo: ${mode}) y modelo ${modelName}...`);
     const start = Date.now();
@@ -1156,10 +1146,7 @@ export const runSurgicalEditorPipeline = async (
         modelName += '-it';
     }
     
-    const allowedModels = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-3-flash'];
-    if (!allowedModels.includes(modelName)) {
-        modelName = 'gemini-3.5-flash';
-    }
+
 
     const SURGICAL_TIMEOUT = 180000;
     safeStatus(`Iniciando edición quirúrgica estructural con Cheerio y modelo ${modelName}...`);
@@ -1570,22 +1557,7 @@ export async function executeCustomTransformWithRetry<T>(
     let resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
-    const allowedModels = [
-        'gemini-3.5-flash', 
-        'gemini-3.5-pro', 
-        'gemini-3.1-pro-preview', 
-        'gemini-3.1-flash-lite-preview', 
-        'gemma-4-31b-it', 
-        'gemma-4-26b-a4b-it',
-        'gemini-1.5-flash-001',
-        'gemini-3-flash-preview',
-        'gemini-3-flash'
-    ];
-    
-    if (!allowedModels.includes(resolvedModel)) {
-        safeStatus(`⚠️ Modelo ${resolvedModel} no permitido. Forzando gemini-3.5-flash.`);
-        resolvedModel = 'gemini-3.5-flash';
-    }
+
 
     const TRANSFORM_TIMEOUT = 180000; // 3 minutos
 
