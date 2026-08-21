@@ -114,11 +114,13 @@ export async function executeWithKeyRotation<T>(
     onRotation?: any,
     isStrictModel: boolean = false,
     label: string = 'Operación AI',
-    timeoutMs?: number
+    timeoutMs?: number,
+    providerOverride?: 'google-ai-studio' | 'vertex-ai' | 'auto'
 ): Promise<T> {
+    const parsed = parseModelAndProvider(modelName, providerOverride);
     return libExecuteWithKeyRotation(async (client, m) => {
         return operation(client, m);
-    }, modelName, explicitHierarchy, keys, onRotation, isStrictModel, label, timeoutMs);
+    }, parsed.resolvedModel, explicitHierarchy, keys, onRotation, isStrictModel, label, timeoutMs, parsed.resolvedProvider as any);
 }
 
 export async function executeHumanizerWithRetry<T>(
@@ -1142,14 +1144,16 @@ export const runSurgicalEditorPipeline = async (
         else console.log(`[SurgicalEditor-Status] ${msg}`);
     };
 
-    if (modelName.startsWith('gemma') && !modelName.endsWith('-it')) {
-        modelName += '-it';
-    }
-    
+    const parsed = parseModelAndProvider(modelName);
+    let resolvedModel = parsed.resolvedModel;
+    const resolvedProvider = parsed.resolvedProvider;
 
+    if (resolvedModel.startsWith('gemma') && !resolvedModel.endsWith('-it')) {
+        resolvedModel += '-it';
+    }
 
     const SURGICAL_TIMEOUT = 180000;
-    safeStatus(`Iniciando edición quirúrgica estructural con Cheerio y modelo ${modelName}...`);
+    safeStatus(`Iniciando edición quirúrgica estructural con Cheerio y modelo ${resolvedModel}...`);
     const start = Date.now();
     
     const $ = cheerio.load(html, { decodeEntities: false }, false);
@@ -1315,15 +1319,10 @@ Tienes ESTRICTAMENTE PROHIBIDO hacer borradores, análisis, explicaciones o "Cha
 
     let processedBlocks: any;
     try {
-        processedBlocks = await libExecuteWithKeyRotation(runModel, modelName, undefined, undefined, undefined, true, `Edición Quirúrgica de ${numBlocks} bloques`, SURGICAL_TIMEOUT);
+        processedBlocks = await libExecuteWithKeyRotation(runModel, resolvedModel, undefined, undefined, undefined, true, `Edición Quirúrgica de ${numBlocks} bloques`, SURGICAL_TIMEOUT, resolvedProvider as any);
     } catch (e: any) {
-        safeStatus(`⚠️ Error con ${modelName}. Reintentando una vez con modelo alternativo...`);
-        try {
-            processedBlocks = await libExecuteWithKeyRotation(runModel, 'gemma-4-31b-it', undefined, undefined, undefined, true, `Edición Quirúrgica (Reintento)`, SURGICAL_TIMEOUT);
-        } catch (retryError: any) {
-            safeStatus(`Error fatal durante la edición quirúrgica: ${retryError.message}. Devolviendo original.`);
-            processedBlocks = textBlocks;
-        }
+        safeStatus(`Error fatal durante la edición quirúrgica: ${e.message}. Devolviendo original.`);
+        processedBlocks = textBlocks;
     }
         
     safeStatus(`Reconstruyendo el HTML...`);
