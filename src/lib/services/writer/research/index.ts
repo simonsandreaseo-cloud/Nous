@@ -372,7 +372,7 @@ Responde ÚNICAMENTE en JSON:
         return { realKeywords, sniperUrls };
     },
 
-    async runMetadataPhase(keyword: string, cleanedLSI: any[], validSEO: any[], onLog?: any, masterH1?: string, masterIntent?: string, taskContext?: any, phaseConfig?: any): Promise<{ seoMetadata: any, wordCountGoal: number }> {
+    async runMetadataPhase(keyword: string, cleanedLSI: any[], validSEO: any[], onLog?: any, masterH1?: string, masterIntent?: string, taskContext?: any, phaseConfig?: any, includeFullContent: boolean = false): Promise<{ seoMetadata: any, wordCountGoal: number }> {
         if (onLog) onLog("Fase 5 (Metadata)", "Diseñando arquitectura de metadatos y estrategia E-E-A-T...");
         let wordCountGoal = 1500;
         
@@ -390,8 +390,12 @@ Responde ÚNICAMENTE en JSON:
         const titleRule = userTitle ? `\n¡IMPORTANTE!: El usuario ha proporcionado este título exacto: "${userTitle}". DEBES usar este título EXACTO como el H1. NO LO ALTERES.` : '';
 
         const topCompetitorsInfo = validSEO.slice(0, 5).map((v: any, i: number) => {
-            const text = (v.summary || v.content || "").substring(0, 1000);
-            return `[${i+1}] Título: ${v.title}\nContenido / Resumen: ${text}\n`;
+            if (includeFullContent) {
+                const text = (v.summary || v.content || "").substring(0, 1000);
+                return `[${i+1}] Título: ${v.title}\nContenido / Resumen: ${text}\n`;
+            } else {
+                return `[${i+1}] Título: ${v.title}`;
+            }
         }).join('\n');
         
         const observaciones = taskContext?.metadata?.observaciones || taskContext?.observaciones || '';
@@ -1149,7 +1153,8 @@ REGLAS:
                 "", // No master H1
                 "Replicar referencias de forma superior", 
                 modifiedContext, 
-                config.phaseModels?.metadata
+                config.phaseModels?.metadata,
+                true // Include full scraped content for reference mode
             );
             
             dossier = await saveCheckpoint('metadata_done', { seoMetadata, wordCountGoal });
