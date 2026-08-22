@@ -69,7 +69,7 @@ export async function executeDraftPipeline(
 
         for (const item of outline) {
             // Note: Experimental AnchorMapNode uses 'level: 2', standard uses 'type: H2'
-            const isH2 = item.type === 'H2' || item.level === 2;
+            const isH2 = (item.type && item.type.toUpperCase() === 'H2') || item.level === 2;
             
             if (isH2) {
                 if (h2Count >= maxH2) {

@@ -46,14 +46,14 @@ Asegurándote de cumplir la longitud de palabras exigida por cada sección, desa
 ${outlineStructure.map(h => {
     if (isExperimental) {
         // Experimental Format (Nous 3.0)
-        return `H${h.level}: ${h.text}
-   👉 [PAUTA QUIRÚRGICA: ${h.instructions || 'Sigue el título.'}]
-   👉 [KEYWORDS OBLIGATORIAS: ${h.lsi_targets?.join(', ') || 'N/A'}]`;
+        return `${h.type || `H${h.level}`}: ${h.text}
+   🎯 [PAUTA: ${h.notes || h.instructions || 'Desarrolla esta sección naturalmente y sigue el título.'}]
+   🎯 [KEYWORDS OBLIGATORIAS: ${h.lsi_targets?.join(', ') || 'N/A'}]`;
     } else {
         // Standard Format
         return `${h.type}: ${h.text}
-   👉 [LONGITUD MÍNIMA: ${h.wordCount || 150} palabras. EXPANDE DETALLADAMENTE. PROHIBIDO RESUMIR.]
-   👉 [Instrucción: ${h.notes || 'Normal'}]`;
+   🎯 [LONGITUD MÍNIMA: ${h.wordCount || 150} palabras. EXPANDE DETALLADAMENTE. PROHIBIDO RESUMIR.]
+   🎯 [PAUTA: ${h.notes || 'Desarrolla esta sección naturalmente.'}]`;
     }
 }).join('\n')}
 `;
