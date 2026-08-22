@@ -168,10 +168,11 @@ FORMATO PREFERIDO:
 
                 const phase1Res = await aiRouter.generate({
                     prompt: formatterPrompt,
-                    model: "gemini-3.1-flash-lite-preview",
+                    model: phaseConfig?.provider === 'vertex-ai' ? 'gemini-3.7-flash' : 'gemini-3.1-flash-lite-preview',
+                    provider: phaseConfig?.provider,
                     systemPrompt: "Eres un formateador JSON estricto. Devuelves el esqueleto H2/H3/H4 en formato JSON sin errores.",
                     jsonMode: true,
-                    label: `Outline P1 Formatter (3.1 flash lite)`,
+                    label: `Outline P1 Formatter`,
                     temperature: 0.1,
                     timeoutMs
                 });
@@ -256,10 +257,11 @@ FORMATO DE SALIDA ESTRICTO:
 
                 const enrichRes = await aiRouter.generate({
                     prompt: enrichFormatterPrompt,
-                    model: "gemini-3.1-flash-lite-preview",
+                    model: phaseConfig?.provider === 'vertex-ai' ? 'gemini-3.7-flash' : 'gemini-3.1-flash-lite-preview',
+                    provider: phaseConfig?.provider,
                     systemPrompt: "Eres un formateador JSON estricto. Devuelves el JSON exacto con las pautas por sección sin explicaciones.",
                     jsonMode: true,
-                    label: `Outline P2 Formatter (3.1 flash lite)`,
+                    label: `Outline P2 Formatter`,
                     temperature: 0.1,
                     timeoutMs
                 });
