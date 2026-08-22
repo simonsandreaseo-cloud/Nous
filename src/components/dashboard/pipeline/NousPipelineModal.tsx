@@ -52,6 +52,13 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     const [selectedStatus, setSelectedStatus] = useState('por_redactar');
     const [searchQuery, setSearchQuery] = useState('');
     
+    // Filter States
+    const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+    const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+    const [filterDateFrom, setFilterDateFrom] = useState('');
+    const [filterDateTo, setFilterDateTo] = useState('');
+    const [filterUseRegex, setFilterUseRegex] = useState(false);
+    
     // Quick Create States
     const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
     const [quickTitle, setQuickTitle] = useState('');
@@ -69,27 +76,53 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     const customStatuses = useMemo(() => {
         const defaults = Object.entries(STATUS_LABELS).map(([id, label]) => ({ id, label }));
         const projectCustoms = activeProject?.settings?.content_preferences?.custom_statuses || [];
-        const customObjs = projectCustoms.map(s => typeof s === 'string' ? { id: s.toLowerCase().replace(/\\s+/g, '_'), label: s } : s);
+        const customObjs = projectCustoms.map(s => typeof s === 'string' ? { id: s.toLowerCase().replace(/\s+/g, '_'), label: s } : s);
         return [...defaults, ...customObjs];
     }, [activeProject]);
 
     // Target Tasks based on mode
-        const targetTasks = useMemo(() => {
+    const targetTasks = useMemo(() => {
         let list = tasks;
+        
         if (executionMode === 'status') {
-            list = tasks.filter(t => t.status === selectedStatus);
+            list = list.filter(t => t.status === selectedStatus);
+        }
+        
+        // Additional manual status filters
+        if (filterStatuses.length > 0) {
+            list = list.filter(t => filterStatuses.includes(t.status));
+        }
+
+        // Date filters
+        if (filterDateFrom) {
+            const from = new Date(filterDateFrom).getTime();
+            list = list.filter(t => new Date(t.created_at || t.scheduled_date || 0).getTime() >= from);
+        }
+        if (filterDateTo) {
+            const to = new Date(filterDateTo);
+            to.setHours(23, 59, 59, 999);
+            list = list.filter(t => new Date(t.created_at || t.scheduled_date || 0).getTime() <= to.getTime());
         }
         
         if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            list = list.filter(t => 
-                (t.title || '').toLowerCase().includes(q) || 
-                (t.target_keyword || '').toLowerCase().includes(q)
-            );
+            if (filterUseRegex) {
+                try {
+                    const regex = new RegExp(searchQuery, 'i');
+                    list = list.filter(t => regex.test(t.title || '') || regex.test(t.target_keyword || ''));
+                } catch (e) {
+                    // Invalid regex
+                }
+            } else {
+                const q = searchQuery.toLowerCase();
+                list = list.filter(t => 
+                    (t.title || '').toLowerCase().includes(q) || 
+                    (t.target_keyword || '').toLowerCase().includes(q)
+                );
+            }
         }
         
         return list;
-    }, [executionMode, tasks, selectedStatus, searchQuery]);
+    }, [executionMode, tasks, selectedStatus, searchQuery, filterStatuses, filterDateFrom, filterDateTo, filterUseRegex]);
 
     const toggleTaskSelection = (id) => {
         setLocalSelectedIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
@@ -634,9 +667,72 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                         className="w-full pl-8 pr-3 py-2 text-xs font-medium bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
                                     />
                                 </div>
-                                <button className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 rounded-lg hover:border-indigo-300 transition-colors shadow-sm">
-                                    <Filter size={14} />
-                                </button>
+                                <div className="relative">
+                                    <button 
+                                        onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                                        className={cn(
+                                            "p-2 bg-white border rounded-lg transition-colors shadow-sm",
+                                            isFilterDropdownOpen || filterStatuses.length > 0 || filterDateFrom || filterDateTo || filterUseRegex 
+                                                ? "border-indigo-300 text-indigo-600 bg-indigo-50" 
+                                                : "border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300"
+                                        )}
+                                    >
+                                        <Filter size={14} />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {isFilterDropdownOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                className="absolute top-full left-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-4"
+                                            >
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Filtros</span>
+                                                    <button onClick={() => { setFilterStatuses([]); setFilterDateFrom(''); setFilterDateTo(''); setFilterUseRegex(false); setIsFilterDropdownOpen(false); }} className="text-[10px] text-slate-400 hover:text-rose-500 transition-colors">Limpiar</button>
+                                                </div>
+                                                
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Usar Regex en búsqueda</label>
+                                                        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                                                            <input type="checkbox" checked={filterUseRegex} onChange={e => setFilterUseRegex(e.target.checked)} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                                            Habilitar RegExp
+                                                        </label>
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="text-[10px] font-bold text-slate-500 block mb-1">Estatus</label>
+                                                        <select 
+                                                            multiple
+                                                            value={filterStatuses}
+                                                            onChange={e => setFilterStatuses(Array.from(e.target.selectedOptions, option => option.value))}
+                                                            className="w-full text-xs bg-slate-50 border border-slate-200 rounded p-1.5 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                            size={4}
+                                                        >
+                                                            {customStatuses.map(s => (
+                                                                <option key={s.id} value={s.id}>{s.label}</option>
+                                                            ))}
+                                                        </select>
+                                                        <p className="text-[9px] text-slate-400 mt-1">Ctrl/Cmd + clic para varios</p>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Desde</label>
+                                                            <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-full text-xs bg-slate-50 border border-slate-200 rounded p-1.5 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Hasta</label>
+                                                            <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="w-full text-xs bg-slate-50 border border-slate-200 rounded p-1.5 focus:ring-1 focus:ring-indigo-500 outline-none" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
                             </div>
                             
                             {/* Dynamic Status Selector (if status mode) */}
