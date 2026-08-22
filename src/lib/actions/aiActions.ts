@@ -601,7 +601,7 @@ export const runHumanizerPipeline = async (
     const textBlocks: Record<string, string> = {};
     let counter = 0;
 
-    const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th';
+    const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, blockquote, q, cite, li, td, th';
     $(blockSelectors).each((_, el) => {
         if ($(el).children(blockSelectors).length === 0) {
             const innerHtml = $(el).html()?.trim();
@@ -667,7 +667,7 @@ export const runHumanizerPipeline = async (
                 if (id === 'razonamiento_interno') continue;
                 const el = $(`[data-humanize-id="${id}"]`);
                 if (el.length > 0 && typeof humanizedText === 'string') {
-                    if (el.is('h1, h2, h3, h4, h5, h6')) {
+                    if (el.closest('h1, h2, h3, h4, h5, h6, blockquote, q, cite').length > 0) {
                         continue;
                     }
                     try {
@@ -739,12 +739,19 @@ export const runMiniHumanizerPipeline = async (
     // --- PROTECCIÓN DETERMINISTA DE ENCABEZADOS Y TABLAS ---
     const $pre = cheerio.load(html, { decodeEntities: false }, false);
     
-    // 1. Proteger Encabezados
+    // 1. Proteger Encabezados y Citas
     const protectedHeaders: Record<string, string> = {};
     $pre('h1, h2, h3, h4, h5, h6').each((i, el) => {
         const id = `hdr_${i}`;
         $pre(el).attr('data-sys-hdr', id);
         protectedHeaders[id] = $pre(el).html() || '';
+    });
+    
+    const protectedQuotes: Record<string, string> = {};
+    $pre('blockquote, q, cite').each((i, el) => {
+        const id = `quote_${i}`;
+        $pre(el).attr('data-sys-quote', id);
+        protectedQuotes[id] = $pre(el).html() || '';
     });
     
     // 2. Proteger Tablas (Extracción total)
@@ -811,7 +818,7 @@ export const runMiniHumanizerPipeline = async (
             const textBlocks: Record<string, string> = {};
             let counter = 0;
             
-            const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, li, td, th';
+            const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, blockquote, q, cite, li, td, th';
             $(blockSelectors).each((_, el) => {
                 if ($(el).children(blockSelectors).length === 0) {
                     const innerHtml = $(el).html()?.trim();
@@ -886,7 +893,7 @@ export const runMiniHumanizerPipeline = async (
                     if (id === 'razonamiento_interno') continue;
                     const el = $(`[data-humanize-id="${id}"]`);
                     if (el.length > 0 && typeof humanizedText === 'string') {
-                        if (el.is('h1, h2, h3, h4, h5, h6')) {
+                        if (el.closest('h1, h2, h3, h4, h5, h6, blockquote, q, cite').length > 0) {
                             continue;
                         }
                         el.html(humanizedText);
@@ -900,6 +907,13 @@ export const runMiniHumanizerPipeline = async (
                         if (id && protectedHeaders[id] !== undefined) {
                             tmp(el).html(protectedHeaders[id]);
                             tmp(el).removeAttr('data-sys-hdr');
+                        }
+                    });
+                    tmp('[data-sys-quote]').each((_, el) => {
+                        const id = tmp(el).attr('data-sys-quote');
+                        if (id && protectedQuotes[id] !== undefined) {
+                            tmp(el).html(protectedQuotes[id]);
+                            tmp(el).removeAttr('data-sys-quote');
                         }
                     });
                     tmp('[data-sys-tbl]').each((_, el) => {
@@ -922,7 +936,7 @@ export const runMiniHumanizerPipeline = async (
             for (const [id, humanizedText] of Object.entries(allProcessedBlocks)) {
                 const el = $(`[data-humanize-id="${id}"]`);
                 if (el.length > 0 && typeof humanizedText === 'string') {
-                    if (el.is('h1, h2, h3, h4, h5, h6')) {
+                    if (el.closest('h1, h2, h3, h4, h5, h6, blockquote, q, cite').length > 0) {
                         continue;
                     }
                     el.html(humanizedText);
@@ -938,6 +952,14 @@ export const runMiniHumanizerPipeline = async (
                 if (id && protectedHeaders[id] !== undefined) {
                     $post(el).html(protectedHeaders[id]);
                     $post(el).removeAttr('data-sys-hdr');
+                }
+            });
+            
+            $post('[data-sys-quote]').each((_, el) => {
+                const id = $post(el).attr('data-sys-quote');
+                if (id && protectedQuotes[id] !== undefined) {
+                    $post(el).html(protectedQuotes[id]);
+                    $post(el).removeAttr('data-sys-quote');
                 }
             });
             
@@ -1084,7 +1106,7 @@ REGLAS CRÍTICAS:
         const $post = cheerio.load(finalHtml, { decodeEntities: false }, false);
         
         // En modos Markdown (lipograma/babel), el atributo data-sys-hdr se pierde al parsear.
-        // Por eso, restauramos los encabezados de forma secuencial.
+        // Por eso, restauramos los encabezados y citas de forma secuencial.
         let hdrIndex = 0;
         $post('h1, h2, h3, h4, h5, h6').each((_, el) => {
             // Check if it has data-sys-hdr (just in case), otherwise use sequential index
@@ -1094,6 +1116,16 @@ REGLAS CRÍTICAS:
             }
             $post(el).removeAttr('data-sys-hdr');
             hdrIndex++;
+        });
+        
+        let quoteIndex = 0;
+        $post('blockquote, q, cite').each((_, el) => {
+            const id = $post(el).attr('data-sys-quote') || `quote_${quoteIndex}`;
+            if (protectedQuotes[id] !== undefined) {
+                $post(el).html(protectedQuotes[id]);
+            }
+            $post(el).removeAttr('data-sys-quote');
+            quoteIndex++;
         });
         
         $post('[data-sys-tbl]').each((_, el) => {
@@ -1197,7 +1229,7 @@ export const runSurgicalEditorPipeline = async (
     const textBlocks: Record<string, string> = {};
     let counter = 0;
 
-    const blockSelectors = 'p, li, td, th';
+    const blockSelectors = 'p, h1, h2, h3, h4, h5, h6, blockquote, q, cite, li, td, th';
     $(blockSelectors).each((_, el) => {
         if ($(el).children(blockSelectors).length === 0) {
             const innerHtml = $(el).html()?.trim();
@@ -1369,6 +1401,9 @@ Tienes ESTRICTAMENTE PROHIBIDO hacer borradores, análisis, explicaciones o "Cha
     for (const [id, editedText] of Object.entries(processedBlocks as Record<string, string>)) {
         const el = $(`[data-surgical-id="${id}"]`);
         if (el.length > 0 && typeof editedText === 'string') {
+            if (el.closest('h1, h2, h3, h4, h5, h6, blockquote, q, cite').length > 0) {
+                continue;
+            }
             const originalText = el.html() || '';
             const isIdentical = originalText.trim() === editedText.trim();
             if (isIdentical) {
