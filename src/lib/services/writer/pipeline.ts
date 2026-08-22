@@ -135,7 +135,7 @@ export async function executeDraftPipeline(
             const chunkResult = await streamGenerate(
                 prompt,
                 modelToUse,
-                writingHierarchy,
+                undefined,
                 (chunk) => { 
                     chunkHtml = chunk; 
                     onChunk(finalHtml + chunk); 
@@ -154,7 +154,7 @@ export async function executeDraftPipeline(
             const chunkResult = await streamGenerate(
                 prompt,
                 modelToUse,
-                writingHierarchy,
+                undefined,
                 (chunk) => { 
                     chunkHtml = chunk; 
                     onChunk(finalHtml + chunk); 
