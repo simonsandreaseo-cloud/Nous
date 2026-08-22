@@ -248,7 +248,7 @@ export const generateArticleJSON = async (model: string, prompt: string, hierarc
 
 export const generateArticleStream = async (model: string, prompt: string, hierarchy?: string[], onChunk?: (text: string) => void) => {
     return executeWithKeyRotation(async (ai, currentModel) => {
-        const sysInst = `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor Técnico y Experto en SEO.\nDIRECTRICES CRÍTICAS PARA REDACCIÓN EN CHUNKS:\n1. VE DIRECTO AL GRANO: Estás escribiendo un fragmento de un artículo más grande. NO hagas introducciones generales ("En el mundo actual...", "Hoy en día..."), NO hagas cierres ni conclusiones genéricas al final de tu respuesta.\n2. CERO REDUNDANCIA: Empieza abordando el título o tema del fragmento inmediatamente. Aporta valor, datos, y análisis profundo desde la primera línea.\n3. FORMATO: Escribe el artículo en formato HTML directo. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>). NO USES JSON, devuelve únicamente el código HTML resultante.`;
+        const sysInst = `${ANTI_LEAKAGE_SYSTEM_BASE}\nRole: Redactor Técnico y Experto en SEO.\nDIRECTRICES CRÍTICAS PARA REDACCIÓN EN CHUNKS:\n1. VE DIRECTO AL GRANO: Estás escribiendo un fragmento de un artículo más grande. NO hagas introducciones generales ("En el mundo actual...", "Hoy en día..."), NO hagas cierres ni conclusiones genéricas al final de tu respuesta.\n2. CERO REDUNDANCIA: Empieza abordando el título o tema del fragmento inmediatamente. Aporta valor, datos, y análisis profundo desde la primera línea.\n3. FORMATO: Escribe el artículo en formato HTML directo. Eliges siempre etiquetas semánticas HTML (<strong>, <a>, <h2>, <h3>).\nREGLA CRÍTICA: NO USES JSON. Primero, abre una etiqueta <razonamiento_interno> y escribe toda tu planificación inicial. Luego, cierra la etiqueta </razonamiento_interno> y escribe el código HTML final.`;
         const modelObj = ai.getGenerativeModel({
             model: currentModel,
             generationConfig: {
@@ -257,16 +257,53 @@ export const generateArticleStream = async (model: string, prompt: string, hiera
             }
         });
         
-        const finalPrompt = `[SYSTEM INSTRUCTIONS]\n${sysInst}\n\n[USER INSTRUCTIONS]\nINSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el contenido asignado de cero siguiendo la estructura dada. NO uses saludos, NO repitas instrucciones, NO uses prefacios, NO hagas introducciones amplias, NO concluyas de forma genérica. Ve directo al grano y devuelve SOLAMENTE el texto en HTML final sin bloques markdown.`;
+        const finalPrompt = `[SYSTEM INSTRUCTIONS]\n${sysInst}\n\n[USER INSTRUCTIONS]\nINSTRUCCIONES DE REDACCIÓN:\n${prompt}\n\nIMPORTANTE: Escribe el contenido asignado de cero siguiendo la estructura dada. NO uses saludos, NO repitas instrucciones, NO uses prefacios, NO hagas introducciones amplias, NO concluyas de forma genérica.\nRECUERDA LA ESTRUCTURA OBLIGATORIA:\n<razonamiento_interno>\n(tu análisis aquí)\n</razonamiento_interno>\n(código HTML puro aquí sin bloques markdown)`;
         
         const response = await modelObj.generateContentStream(finalPrompt);
         let fullHtml = '';
+        let fullText = '';
+        let emittedLength = 0;
+        let mode = 'detecting'; // detecting, thinking, content
+        const openTag = '<razonamiento_interno>';
+        const closeTag = '</razonamiento_interno>';
+
         for await (const chunk of response.stream) {
             const chunkText = chunk.text();
-            fullHtml += chunkText;
-            if (onChunk) onChunk(chunkText);
+            fullText += chunkText;
+            
+            if (mode === 'detecting') {
+                if (fullText.includes(openTag)) {
+                    mode = 'thinking';
+                } else if (fullText.length > 70) {
+                    mode = 'content';
+                }
+            }
+            
+            if (mode === 'thinking') {
+                const closeIndex = fullText.indexOf(closeTag);
+                if (closeIndex !== -1) {
+                    mode = 'content';
+                    fullText = fullText.substring(closeIndex + closeTag.length).replace(/^\s*(```html|```)\s*/i, '');
+                    emittedLength = 0;
+                }
+            }
+            
+            if (mode === 'content') {
+                const newHtml = fullText.substring(emittedLength);
+                if (newHtml.length > 0) {
+                    fullHtml += newHtml;
+                    if (onChunk) onChunk(newHtml);
+                    emittedLength += newHtml.length;
+                }
+            }
         }
         
+        if (mode === 'detecting') {
+            fullHtml = fullText.replace(/^\s*(```html|```)\s*/i, '');
+            if (onChunk) onChunk(fullHtml);
+        }
+        
+        fullHtml = fullHtml.replace(/```\s*$/g, '').trim();
         return fullHtml;
     }, model || 'default', hierarchy, undefined, undefined, true, 'Redacción Artículo Stream', 180000);
 };
