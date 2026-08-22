@@ -91,7 +91,7 @@ export async function executeDraftPipeline(
 
     let finalHtml = '';
     const writingHierarchy = AI_CONFIG.gemini.hierarchies.writing;
-    const modelToUse = 'gemma-4-31b-it';
+    const modelToUse = model || 'gemini-1.5-pro';
     let previousContext = '';
 
     for (let i = 0; i < outlineChunks.length; i++) {
@@ -153,7 +153,7 @@ export async function executeDraftPipeline(
             await new Promise(resolve => setTimeout(resolve, 2000));
             const chunkResult = await streamGenerate(
                 prompt,
-                modelToUse, // Strict gemma-4-31b-it constraint
+                modelToUse,
                 writingHierarchy,
                 (chunk) => { 
                     chunkHtml = chunk; 
