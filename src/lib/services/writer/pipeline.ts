@@ -86,7 +86,7 @@ export async function executeDraftPipeline(
         return chunks.length > 0 ? chunks : [outline];
     };
 
-    const outlineChunks = chunkOutline(config.outlineStructure || [], chunkSize || 2);
+    const outlineChunks = chunkOutline(config.outlineStructure || [], chunkSize || 1);
     onLog(`Documento dividido en ${outlineChunks.length} fragmentos para redacción progresiva...`);
 
     let finalHtml = '';
@@ -117,6 +117,7 @@ export async function executeDraftPipeline(
         }
 
         const chunkConfig = {
+            fullOutlineStructure: config.outlineStructure || [],
             ...config,
             outlineStructure: currentOutline,
             chunkIndex: i,

@@ -25,6 +25,7 @@ export interface ArticleConfig {
     refContent: string;
     csvData: any[]; // Full dataset
     outlineStructure?: any[]; // Passed from Strategy phase
+    fullOutlineStructure?: any[]; // Passed from Strategy phase
     approvedLinks?: ContentItem[]; // New: List of approved links
     questions?: string[]; // New: Value SERP FAQs
     lsiKeywords?: string[]; // New: LSI and Autocomplete terms
