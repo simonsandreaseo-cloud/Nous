@@ -229,15 +229,28 @@ export function EditorialCalendar() {
                 linkPlannedContents,
                 linkPlannedStatuses
             };
-            const currentConfigStr = JSON.stringify(user.user_metadata?.planner_config || {});
-            if (JSON.stringify(newConfig) !== currentConfigStr) {
+            
+            const serverConfig = user.user_metadata?.planner_config || {};
+            const normalizedServerConfig = {
+                columnVisibility: serverConfig.columnVisibility,
+                statusFilter: serverConfig.statusFilter,
+                searchQuery: serverConfig.searchQuery,
+                dateFrom: serverConfig.dateFrom,
+                dateTo: serverConfig.dateTo,
+                isCascadeMode: serverConfig.isCascadeMode,
+                improveTitleWithNous: serverConfig.improveTitleWithNous,
+                linkPlannedContents: serverConfig.linkPlannedContents,
+                linkPlannedStatuses: serverConfig.linkPlannedStatuses
+            };
+
+            if (JSON.stringify(newConfig) !== JSON.stringify(normalizedServerConfig)) {
                 supabase.auth.updateUser({
                     data: { planner_config: newConfig }
                 });
             }
         }, 1000);
         return () => clearTimeout(timer);
-    }, [columnVisibility, statusFilter, searchQuery, dateFrom, dateTo, isCascadeMode, improveTitleWithNous, linkPlannedContents, linkPlannedStatuses, isConfigLoaded, user]);
+    }, [columnVisibility, statusFilter, searchQuery, dateFrom, dateTo, isCascadeMode, improveTitleWithNous, linkPlannedContents, linkPlannedStatuses, isConfigLoaded]);
 
     const toggleColumn = (colId: string) => {
         const newVisibility = { ...columnVisibility, [colId]: !columnVisibility[colId] };

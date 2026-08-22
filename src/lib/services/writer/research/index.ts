@@ -1107,10 +1107,9 @@ REGLAS:
                         task_id: config.taskId,
                         url: v.url,
                         title: v.title,
-                        raw_html: v.content,
-                        parsed_text: v.summary,
-                        word_count: v.wordCount || 0,
-                        position: v.originalPosition || 999
+                        rank_position: v.originalPosition === 999 ? null : v.originalPosition,
+                        content: v.content,
+                        headers: v.headers || []
                     }))
                 );
             }
