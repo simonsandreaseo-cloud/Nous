@@ -146,7 +146,12 @@ export async function executeDraftPipeline(
             chunkHtml = chunkResult.html;
             if (chunkResult.usage) {
                 const { useQueueStore } = require('@/store/useQueueStore');
-                useQueueStore.getState().addUsageToTask(task.id, chunkResult.usage);
+                const activeTask = useQueueStore.getState().activeTask;
+                if (activeTask) {
+                    useQueueStore.getState().addUsageToTask(activeTask.id, chunkResult.usage);
+                } else if (task && task.id) {
+                    useQueueStore.getState().addUsageToTask(task.id, chunkResult.usage);
+                }
             }
         } catch (err) {
             console.error(`[Generate Chunk ${i+1}] Fallback triggered`, err);
@@ -165,7 +170,12 @@ export async function executeDraftPipeline(
             chunkHtml = chunkResult.html;
             if (chunkResult.usage) {
                 const { useQueueStore } = require('@/store/useQueueStore');
-                useQueueStore.getState().addUsageToTask(task.id, chunkResult.usage);
+                const activeTask = useQueueStore.getState().activeTask;
+                if (activeTask) {
+                    useQueueStore.getState().addUsageToTask(activeTask.id, chunkResult.usage);
+                } else if (task && task.id) {
+                    useQueueStore.getState().addUsageToTask(task.id, chunkResult.usage);
+                }
             }
         }
 
@@ -414,6 +424,17 @@ export async function executeHumanizePipeline(
                 );
                 accumulatedHtml += chunkResult.html + '\n';
                 onChunk(accumulatedHtml);
+                
+                if (chunkResult.usage) {
+                    const { useQueueStore } = require('@/store/useQueueStore');
+                    const activeTask = useQueueStore.getState().activeTask;
+                    if (activeTask) {
+                        useQueueStore.getState().addUsageToTask(activeTask.id, chunkResult.usage);
+                    } else if (typeof task !== 'undefined' && task && task.id) {
+                        useQueueStore.getState().addUsageToTask(task.id, chunkResult.usage);
+                    }
+                }
+                
                 success = true;
             } catch (err: any) {
                 attempts++;

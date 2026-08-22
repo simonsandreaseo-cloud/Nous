@@ -21,8 +21,7 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
     let originalContent = payload.content;
     if (draftId) {
         try {
-            const { supabase: supabaseClient } = require('@/lib/supabase');
-            const { data: dbContent } = await supabaseClient
+            const { data: dbContent } = await supabase
                 .from('task_contents')
                 .select('content_body')
                 .eq('id', draftId)

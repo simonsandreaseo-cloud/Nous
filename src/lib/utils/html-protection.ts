@@ -5,8 +5,8 @@ export interface ProtectionResult {
 
 export const HtmlProtectionService = {
   /**
-   * Replaces HTML tables with atomic tokens to prevent them from being 
-   * split during chunking or corrupted by AI processing.
+   * Replaces HTML tables, styled/callout divs, and blockquotes with atomic tokens 
+   * to prevent them from being split during chunking or corrupted by AI processing.
    */
   protect: (html: string): ProtectionResult => {
     const map = new Map<string, string>();
@@ -14,12 +14,27 @@ export const HtmlProtectionService = {
     
     // Regex to match <table>...</table> including attributes
     const tableRegex = /<table\b[^>]*>[\s\S]*?<\/table>/gi;
+    // Regex to match styled callout divs (divs with class or style attributes)
+    const calloutDivRegex = /<div\s+(?:class|style)=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi;
+    // Regex to match blockquotes
+    const blockquoteRegex = /<blockquote\b[^>]*>[\s\S]*?<\/blockquote>/gi;
     
-    const blindedHtml = html.replace(tableRegex, (match) => {
-      const token = `[[ATOMIC_BLOCK_${counter++}]]`;
-      map.set(token, match);
-      return token;
-    });
+    let blindedHtml = html
+      .replace(tableRegex, (match) => {
+        const token = `[[ATOMIC_BLOCK_${counter++}]]`;
+        map.set(token, match);
+        return token;
+      })
+      .replace(calloutDivRegex, (match) => {
+        const token = `[[ATOMIC_BLOCK_${counter++}]]`;
+        map.set(token, match);
+        return token;
+      })
+      .replace(blockquoteRegex, (match) => {
+        const token = `[[ATOMIC_BLOCK_${counter++}]]`;
+        map.set(token, match);
+        return token;
+      });
     
     return { blindedHtml, map };
   },

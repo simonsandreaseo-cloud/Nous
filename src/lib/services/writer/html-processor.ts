@@ -89,21 +89,47 @@ export const cleanAndFormatHtml = (html: string): string => {
     return doc.body.innerHTML;
 };
 
+/**
+ * Universal HTML Sanitizer & Tag Balancer
+ * Ensures callout divs, blockquotes, and lists are properly closed before headings or metadata.
+ * Operates deterministically in both Node.js and Browser environments.
+ */
+export const sanitizeAndBalanceHtml = (html: string): string => {
+    if (!html) return "";
+    let clean = html;
+
+    // 1. Close unclosed callout divs and blockquotes before h2 or h3 headings
+    clean = clean.replace(/(<div\s+[^>]*>(?:(?!<\/div>|<h[23]\b)[\s\S])*?)(<h[23]\b)/gi, '$1</div>\n$2');
+    clean = clean.replace(/(<blockquote\b[^>]*>(?:(?!<\/blockquote>|<h[23]\b)[\s\S])*?)(<h[23]\b)/gi, '$1</blockquote>\n$2');
+
+    // 2. Close unclosed lists before headings or standalone paragraphs
+    clean = clean.replace(/(<\/li>)(\s*)(<(?:h[23]|p)\b)/gi, '$1</ul>\n$2$3');
+
+    // 3. Remove trailing orphan closing tags and empty paragraphs before METADATA_START
+    clean = clean.replace(/(<\/li>|<\/ul>|<\/ol>|<\/div>|<\/blockquote>|<p><\/p>|\s)+<!-- METADATA_START -->/gi, '<!-- METADATA_START -->');
+
+    return clean;
+};
+
 export const refineStyling = (html: string): string => {
-    if (typeof window === 'undefined' || !html) return html;
+    if (!html) return html;
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    // Always run deterministic tag balancing server-side and client-side
+    let processed = sanitizeAndBalanceHtml(html);
 
-    const paragraphs = doc.querySelectorAll('p');
-    // Random bolding removed to preserve AI-generated semantic bold tags.
+    if (typeof window !== 'undefined') {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(processed, 'text/html');
 
-    doc.querySelectorAll('h2, h3, h4').forEach(h => {
-        if (!h.textContent?.trim()) h.remove();
-    });
+        doc.querySelectorAll('h2, h3, h4').forEach(h => {
+            if (!h.textContent?.trim()) h.remove();
+        });
 
-    processLinksInDoc(doc);
-    return doc.body.innerHTML;
+        processLinksInDoc(doc);
+        processed = doc.body.innerHTML;
+    }
+
+    return processed;
 };
 
 /**

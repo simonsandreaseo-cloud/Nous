@@ -28,7 +28,16 @@ describe('HtmlProtectionService', () => {
       expect(map.get('[[ATOMIC_BLOCK_0]]')).toBe(html);
     });
 
-    it('should return original HTML if no tables are present', () => {
+    it('should protect callout divs and blockquotes as atomic tokens', () => {
+      const html = '<div class="pro-tip"><p>Tip</p></div><blockquote><p>Quote</p></blockquote>';
+      const { blindedHtml, map } = HtmlProtectionService.protect(html);
+      
+      expect(blindedHtml).toBe('[[ATOMIC_BLOCK_0]][[ATOMIC_BLOCK_1]]');
+      expect(map.get('[[ATOMIC_BLOCK_0]]')).toBe('<div class="pro-tip"><p>Tip</p></div>');
+      expect(map.get('[[ATOMIC_BLOCK_1]]')).toBe('<blockquote><p>Quote</p></blockquote>');
+    });
+
+    it('should return original HTML if no tables, callouts, or blockquotes are present', () => {
       const html = '<div><p>No tables here</p></div>';
       const { blindedHtml, map } = HtmlProtectionService.protect(html);
       
@@ -77,19 +86,19 @@ describe('sizeAwareChunkHtml', () => {
     expect(chunks.flat().join('')).toBe(html);
   });
 
-    it('should not split boundary elements', () => {
-      const html = '<div><p>Very long paragraph that should stay together</p></div>';
-      const maxChars = 10;
-      const chunks = sizeAwareChunkHtml(html, maxChars);
-      
-      const allChunksFlattened = chunks.flat().join('');
-      expect(allChunksFlattened).toContain('<p>Very long paragraph that should stay together</p>');
-      
-      // Verify that the paragraph was not split across different blocks
-      const paragraph = '<p>Very long paragraph that should stay together</p>';
-      const foundInSingleBlock = chunks.flat().some(block => block.includes(paragraph));
-      expect(foundInSingleBlock).toBe(true);
-    });
+  it('should not split boundary elements', () => {
+    const html = '<div><p>Very long paragraph that should stay together</p></div>';
+    const maxChars = 10;
+    const chunks = sizeAwareChunkHtml(html, maxChars);
+    
+    const allChunksFlattened = chunks.flat().join('');
+    expect(allChunksFlattened).toContain('<p>Very long paragraph that should stay together</p>');
+    
+    // Verify that the paragraph was not split across different blocks
+    const paragraph = '<p>Very long paragraph that should stay together</p>';
+    const foundInSingleBlock = chunks.flat().some(block => block.includes(paragraph));
+    expect(foundInSingleBlock).toBe(true);
+  });
 
   it('should treat protected tokens as atomic units', () => {
     const html = '<p>Text</p>[[ATOMIC_BLOCK_0]]<p>More text</p>';

@@ -226,7 +226,7 @@ async function executeTaskInBlock({
         }
         else if (block.actionType === 'clean') {
             if (!newContent) throw new Error('No hay contenido para limpiar.');
-            const cleanRes = await streamFinalCleanup(newContent, () => {}); newContent = cleanRes.html; if(cleanRes.usage) useQueueStore.getState().addUsageToTask(task.id, cleanRes.usage);
+            const cleanRes = await streamFinalCleanup(newContent, () => {}); newContent = cleanRes.html; if(cleanRes.usage) { const activeTask = useQueueStore.getState().activeTask; if(activeTask) { useQueueStore.getState().addUsageToTask(activeTask.id, cleanRes.usage); } else { useQueueStore.getState().addUsageToTask(task.id, cleanRes.usage); } }
             currentTaskState.metadata = { ...(currentTaskState.metadata as object), is_cleaned: true };
         }
         else if (block.actionType === 'surgical_edit') {
