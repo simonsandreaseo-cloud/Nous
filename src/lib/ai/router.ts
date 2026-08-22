@@ -17,6 +17,25 @@ class AIRouter {
             }
         }
 
+        // BROWSER VERTEX PROXY INTERCEPTOR
+        if (typeof window !== 'undefined' && provider === 'vertex-ai') {
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...request,
+                    model: request.model, // We pass original request model with suffix, backend resolves it
+                    provider: 'vertex-ai'
+                })
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || `Error en proxy Vertex (status: ${res.status})`);
+            }
+            const data = await res.json();
+            return { text: data.text, usage: data.usage };
+        }
+
         // CRITICAL: Use the caller's label to activate the correct hierarchy.
         // Fall back to intent-based detection only if no label is provided.
         const resolvedLabel = callerLabel || (
