@@ -69,6 +69,13 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
     // Execution Monitor State
     const [isExecuting, setIsExecuting] = useState(false);
     const { queue, activeTask, enqueueTask, isProcessingQueue, batchTotalTasks, batchCompletedTasks, isPaused, togglePause } = useQueueStore();
+    
+    const consoleContainerRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (consoleContainerRef.current) {
+            consoleContainerRef.current.scrollTop = consoleContainerRef.current.scrollHeight;
+        }
+    }, [activeTask?.logs]);
 
     const activeWorkflow = workflows[activeWorkflowId];
     
@@ -452,7 +459,10 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                             <h4 className="text-white font-bold tracking-wide">Consola de Ejecución</h4>
                                         </div>
 
-                                        <div className="flex-1 overflow-y-auto space-y-2 relative z-10 font-mono text-xs [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+                                        <div 
+                                            ref={consoleContainerRef}
+                                            className="flex-1 overflow-y-auto space-y-2 relative z-10 font-mono text-xs [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:border-[3px] [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-padding [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-500"
+                                        >
                                             {activeTask?.logs && activeTask.logs.length > 0 ? (
                                                 activeTask.logs.map((log, idx) => (
                                                     <div key={idx} className={cn(
@@ -471,8 +481,6 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                                                     <p className="text-sm font-medium text-center">Esperando logs del orquestador...</p>
                                                 </div>
                                             )}
-                                            {/* Invisible element to auto-scroll to bottom could go here, or we just rely on normal scrolling */}
-                                            <div style={{ float: 'left', clear: 'both' }} ref={(el) => { el?.scrollIntoView({ behavior: 'smooth' }); }}></div>
                                         </div>
                                     </div>
                                     </div>
@@ -754,7 +762,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                             )}
 
                             {/* Task List */}
-                            <div className="flex-1 overflow-y-auto p-2 space-y-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
+                            <div className="flex-1 overflow-y-auto p-2 space-y-1 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:border-[3px] [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-padding [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
                                 {targetTasks.map(task => (
                                     <div key={task.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-50 group transition-colors">
                                         {executionMode === 'manual' && (
@@ -784,7 +792,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                         </div>
 
                         {/* Zone 2: Available Blocks Sidebar */}
-                        <div className="w-[260px] bg-slate-50/50 border-r border-slate-100 p-6 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 shrink-0">
+                        <div className="w-[260px] bg-slate-50/50 border-r border-slate-100 p-6 overflow-y-auto [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:border-[3px] [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-padding [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 shrink-0">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Acciones Disponibles</h3>
                             <div className="grid grid-cols-1 gap-3">
                                 {AVAILABLE_ACTIONS.map(action => (
@@ -807,7 +815,7 @@ export function NousPipelineModal({ isOpen, onClose, selectedTaskIds, onExecute 
                         </div>
 
                         {/* Pipeline Area */}
-                        <div className="flex-1 bg-white p-6 overflow-y-auto relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
+                        <div className="flex-1 bg-white p-6 overflow-y-auto relative [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:border-[3px] [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-padding [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Secuencia del Pipeline</h3>
                             
                             {activeWorkflow.blocks.length === 0 ? (
