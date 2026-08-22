@@ -11,6 +11,23 @@ interface LinkPopoverProps {
 export function LinkPopover({ editor }: LinkPopoverProps) {
     const [tempLink, setTempLink] = useState("");
     const [isEditing, setIsEditing] = useState(false);
+    const [revision, setRevision] = useState(0);
+
+    useEffect(() => {
+        if (!editor) return;
+        const handleTransaction = () => {
+            setRevision(r => r + 1);
+        };
+        const handleSelectionUpdate = () => {
+            setIsEditing(false);
+        };
+        editor.on('transaction', handleTransaction);
+        editor.on('selectionUpdate', handleSelectionUpdate);
+        return () => {
+            editor.off('transaction', handleTransaction);
+            editor.off('selectionUpdate', handleSelectionUpdate);
+        };
+    }, [editor]);
 
     const attributes = editor.getAttributes('link');
     const originalUrl = attributes['data-original-url'] || attributes.dataOriginalUrl; // Support both cases
