@@ -105,7 +105,8 @@ export interface NousExtractorRule {
     logic_operator: 'AND' | 'OR';
     clauses: LogicClause[];
     extraction_type: 'regex' | 'regex_all' | 'selector' | 'selector_all' | 'ai';
-    extraction_value: string; 
+    extraction_value: string;
+    chained_extractor?: { type: 'regex' | 'selector'; value: string };
     output_template: string; 
     target_phases: ('research' | 'planner' | 'writer')[];
     placement_mode?: 'inline' | 'new_line' | 'new_paragraph';
