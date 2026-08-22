@@ -135,19 +135,65 @@ export async function POST(req: Request) {
                 } catch (e) {
                     console.error("Extraction regex error:", e);
                 }
+            } else if (rule.extraction_type === "regex_all") {
+                try {
+                    const regex = new RegExp(rule.extraction_value, "gi");
+                    const matches = [...html.matchAll(regex)];
+                    if (matches.length > 0) {
+                        // Extract group 1 if it exists, otherwise the full match
+                        value = matches.map(m => m[1] || m[0]);
+                    }
+                } catch (e) {
+                    console.error("Extraction regex_all error:", e);
+                }
             } else if (rule.extraction_type === "selector" && $) {
                 try {
-                    const element = $(rule.extraction_value).first();
+                    let selector = rule.extraction_value;
+                    let attr = null;
+                    // Syntax extension: ".my-class @href" extracts the href attribute
+                    if (selector.includes(" @")) {
+                        [selector, attr] = selector.split(" @");
+                    }
+                    const element = $(selector).first();
                     if (element.length > 0) {
-                        value = element.text().trim();
+                        value = attr ? element.attr(attr) : element.text().trim();
                     }
                 } catch (e) {
                     console.error("Selector error:", e);
                 }
+            } else if (rule.extraction_type === "selector_all" && $) {
+                try {
+                    let selector = rule.extraction_value;
+                    let attr = null;
+                    if (selector.includes(" @")) {
+                        [selector, attr] = selector.split(" @");
+                    }
+                    const elements = $(selector);
+                    if (elements.length > 0) {
+                        const extracted: string[] = [];
+                        elements.each((_, el) => {
+                            const val = attr ? $(el).attr(attr) : $(el).text().trim();
+                            if (val) extracted.push(val);
+                        });
+                        value = extracted;
+                    }
+                } catch (e) {
+                    console.error("Selector_all error:", e);
+                }
             }
 
             if (value !== null) {
-                const formatted = (rule.output_template || "{value}").replace("{value}", value);
+                let formatted = "";
+                const template = rule.output_template || "{value}";
+                
+                if (Array.isArray(value)) {
+                    formatted = value.map(v => template.replace("{value}", String(v))).join("\n");
+                    // Keep value as a string for backward compatibility in results
+                    value = value.join("\n");
+                } else {
+                    formatted = template.replace("{value}", String(value));
+                }
+
                 results.push({
                     rule_id: rule.id,
                     value,

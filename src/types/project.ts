@@ -104,7 +104,7 @@ export interface NousExtractorRule {
     is_active: boolean;
     logic_operator: 'AND' | 'OR';
     clauses: LogicClause[];
-    extraction_type: 'regex' | 'selector' | 'ai';
+    extraction_type: 'regex' | 'regex_all' | 'selector' | 'selector_all' | 'ai';
     extraction_value: string; 
     output_template: string; 
     target_phases: ('research' | 'planner' | 'writer')[];
