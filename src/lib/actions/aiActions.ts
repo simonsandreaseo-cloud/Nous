@@ -139,21 +139,45 @@ export async function executeHumanizerWithRetry<T>(
     let resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
-
-
     const HUMANIZER_TIMEOUT = 180000;
+    const MAX_RETRIES = 16; // 15 reintentos (intento 1 + 15 reintentos)
+    let baseDelayMs = 5000; // Start with 5 seconds
+    const MAX_DELAY_MS = 15 * 60 * 1000; // 15 minutos máximo
 
-    return await executeWithKeyRotation(
-         operation,
-         resolvedModel,
-         undefined,
-         undefined,
-         undefined,
-         true,
-         label,
-         HUMANIZER_TIMEOUT,
-         resolvedProvider
-    );
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            return await executeWithKeyRotation(
+                 operation,
+                 resolvedModel,
+                 undefined,
+                 undefined,
+                 undefined,
+                 true,
+                 label,
+                 HUMANIZER_TIMEOUT,
+                 resolvedProvider
+            );
+        } catch (e: any) {
+            const errorMsg = e.message ? e.message.toLowerCase() : String(e).toLowerCase();
+            const isRateLimit = e.status === 429 || errorMsg.includes('429') || errorMsg.includes('resource exhausted') || errorMsg.includes('quota') || errorMsg.includes('rate limit');
+
+            if (isRateLimit && attempt < MAX_RETRIES) {
+                const jitter = Math.random() * 1000;
+                const sleepTime = Math.min(baseDelayMs, MAX_DELAY_MS) + jitter;
+                
+                safeStatus(`Error 429/Resource Exhausted detectado. Reintentando en ${(sleepTime / 1000).toFixed(1)}s... (Intento ${attempt}/${MAX_RETRIES - 1})`);
+                await new Promise(resolve => setTimeout(resolve, sleepTime));
+                
+                if (baseDelayMs < MAX_DELAY_MS) {
+                    baseDelayMs *= 2; // Exponential backoff
+                }
+                continue;
+            }
+
+            throw e;
+        }
+    }
+    throw new Error("Unreachable");
 };
 
 // --- CORE ACTIONS ---
