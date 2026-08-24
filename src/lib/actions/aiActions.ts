@@ -610,7 +610,9 @@ export const runHumanizerPipeline = async (
     onStatus?: (msg: string) => void,
     modelName: string = 'gemma-4-31b-it', 
     onChunk?: (chunkHtml: string) => void,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    providerOverride?: 'google-ai-studio' | 'vertex-ai' | 'auto',
+    reasoning?: string
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -662,7 +664,7 @@ export const runHumanizerPipeline = async (
             
             safeStatus(`Procesando fragmento ${Math.floor(i/chunkSize) + 1} de ${Math.ceil(entries.length/chunkSize)} (${chunkEntries.length} bloques)...`);
             
-            const processedChunk = await executeHumanizerWithRetry(async (ai) => {
+            const processedChunk = await executeHumanizerWithRetry(async (ai, currentModel) => {
                 const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizas la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria.\n2. COHERENCIA ROTA: Rompe la coherencia lineal perfecta que usa la IA. Permite 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3. CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," "Por otro lado," "A pesar de esto," "En resumen," "En conclusión," etc.\n4. MORFOSINTAXIS (EXPLOSIVIDAD):\n   * Usa oraciones predominantemente cortas (Sujeto-Verbo-Predicado).\n   * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas (simples o complejas) con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5. IDIOMA: Usa español neutro panhispánico.\n6. PROHIBICIÓN DE VOZ PASIVA: Reescribe cualquier frase en voz pasiva a voz activa.\n7. PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido. El objetivo es evitar un estilo excesivamente 'entrecortado' o telegráfico. Modera la 'explosividad' para que sea más fluida.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON con la clave obligatoria 'razonamiento_interno' (tu análisis y justificación) y luego las claves originales (ej 'block_1', etc) con los valores humanizados en crudo.`;
 
                 const model = ai.getGenerativeModel({ 
@@ -804,7 +806,7 @@ export const runMiniHumanizerPipeline = async (
 
         const executeStep = async (stepMd: string, systemInstruction: string, stepName: string): Promise<string> => {
             safeStatus(`Ejecutando ${stepName}...`);
-            return await executeHumanizerWithRetry(async (ai) => {
+            return await executeHumanizerWithRetry(async (ai, currentModel) => {
                 const model = ai.getGenerativeModel({ 
                     model: modelName, 
                     systemInstruction: systemInstruction,
@@ -878,7 +880,7 @@ export const runMiniHumanizerPipeline = async (
                 
                 safeStatus(`Procesando fragmento ${Math.floor(i/chunkSize) + 1} de ${Math.ceil(entries.length/chunkSize)} (${chunkEntries.length} bloques)...`);
                 
-                const processedChunk = await executeHumanizerWithRetry(async (ai) => {
+                const processedChunk = await executeHumanizerWithRetry(async (ai, currentModel) => {
                     const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizar la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria y la sensibilidad, el texto no debe ser emocionante, debe ser plano, aburrido y objetivo.\n2. COHERENCIA ROTA: Usa 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3. CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," etc.\n4. MORFOSINTAXIS (EXPLOSIVIDAD):\n   * Usa oraciones cortas (Sujeto-Verbo-Predicado) más que largas.\n   * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas, algunas simples y otras, con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5. IDIOMA: Usa español neutro panhispánico.\n6. PROHIBICIÓN DE VOZ PASIVA: Reescribe el 80% de las frases en voz pasiva a voz activa.\n7. PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido.\n8. CONSERVACIÓN SEMÁNTICA: no resumas, no omitas ideas, no reduzcas el tamaño del texto, en caso tal aumentalo.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON que incluya obligatoriamente una clave "razonamiento_interno" con tu análisis inicial (Chain-of-Thought), y luego el resto de claves deben ser exactamente los mismos IDs originales con sus valores humanizados en crudo.`;
                     
                     const model = ai.getGenerativeModel({ 
@@ -1941,4 +1943,5 @@ Devuelve EXCLUSIVAMENTE el código HTML transformado. No incluyes explicaciones,
         return { html: chunk }; // Fallback original content
     }
 };
+
 

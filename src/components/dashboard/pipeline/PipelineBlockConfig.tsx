@@ -416,3 +416,4 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
         </AnimatePresence>
     );
 }
+

@@ -7,7 +7,7 @@ export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s l
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { prompt, model, hierarchy } = body;
+        const { prompt, model, hierarchy, provider, reasoning } = body;
 
         if (!prompt) return NextResponse.json({ error: 'Prompt required' }, { status: 400 });
 

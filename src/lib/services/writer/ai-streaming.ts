@@ -3,12 +3,14 @@ export async function streamGenerate(
     model: string,
     hierarchy: string[] | undefined,
     onChunk: (html: string) => void,
-    onStatus: (msg: string) => void
+    onStatus: (msg: string) => void,
+    provider?: string,
+    reasoning?: string
 ): Promise<{ html: string; usage?: any }> {
     const response = await fetch('/api/writer/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, model, hierarchy })
+        body: JSON.stringify({ prompt, model, hierarchy, provider, reasoning })
     });
 
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -61,7 +63,9 @@ export async function streamHumanize(
     onChunk: (html: string) => void,
     onStatus: (msg: string) => void,
     model?: string,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    provider?: string,
+    reasoning?: string
 ): Promise<{ html: string; result?: any }> {
     const response = await fetch('/api/humanize', {
         method: 'POST',
