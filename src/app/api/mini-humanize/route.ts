@@ -7,7 +7,7 @@ export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s l
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { content, config, intensity, mode, provider } = body;
+        const { content, config, intensity, mode, provider , reasoning} = body;
 
         if (!content) {
             return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
                             mode || 'standard',
                             undefined,
                             provider
-                        );
+                        , reasoning);
                     });
 
                     clearInterval(keepAlive);

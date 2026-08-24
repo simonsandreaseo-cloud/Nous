@@ -76,6 +76,8 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
     const [brandGuidelines, setBrandGuidelines] = useState(() => projectGuidelines ? projectGuidelines : PRESETS[0].guidelines);
     const [userInstructions, setUserInstructions] = useState("");
     const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
+    const [selectedProvider, setSelectedProvider] = useState("google-ai-studio");
+    const [reasoningLevel, setReasoningLevel] = useState("none");
     const [activeTab, setActiveTab] = useState<"code" | "preview">("code");
     const [copied, setCopied] = useState(false);
 
@@ -133,10 +135,6 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
         setOutputHtml("");
 
         try {
-            const provider = selectedModel.includes("gemini-3.5") || selectedModel.includes("gemini-3.1-pro")
-                ? "vertex-ai"
-                : "google-ai-studio";
-
             const result = await streamCustomTransform(
                 inputHtml,
                 brandGuidelines,
@@ -146,10 +144,7 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
                 },
                 (status) => {
                     setStatusMessage(status);
-                },
-                selectedModel,
-                provider
-            );
+                }, selectedModel, selectedProvider, reasoningLevel === "none" ? undefined : reasoningLevel);
 
             if (result && result.html) {
                 setOutputHtml(result.html);
@@ -359,27 +354,44 @@ export function CustomTransformModal({ onClose, editorMode = false }: CustomTran
                 {/* Footer Controls */}
                 <div className="px-8 py-5 bg-slate-900 border-t border-slate-800 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3">
-                        <select
+                                                <select
                             value={selectedModel}
                             onChange={(e) => setSelectedModel(e.target.value)}
                             disabled={isProcessing}
                             className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500"
                         >
-                            <option value="gemini-3.7-flash-gas">Gemini 3.7 Flash (GAS)</option>
-                            <option value="gemini-3.7-flash-vertex">Gemini 3.7 Flash (Vertex)</option>
-                            <option value="gemini-3.6-flash-gas">Gemini 3.6 Flash (GAS)</option>
-                            <option value="gemini-3.6-flash-vertex">Gemini 3.6 Flash (Vertex)</option>
-                            <option value="gemini-3.5-flash-gas">Gemini 3.5 Flash (GAS)</option>
-                            <option value="gemini-3.5-flash-vertex">Gemini 3.5 Flash (Vertex)</option>
-                            <option value="gemini-3.5-flash-lite-gas">Gemini 3.5 Flash-Lite (GAS)</option>
-                            <option value="gemini-3.5-flash-lite-vertex">Gemini 3.5 Flash-Lite (Vertex)</option>
-                            <option value="gemini-3-flash-vertex">Gemini 3 Flash (Vertex)</option>
-                            <option value="gemini-3.1-pro-preview-vertex">Gemini 3.1 Pro (Vertex)</option>
-                            <option value="gemini-3.1-flash-lite-preview-gas">Gemini 3.1 Flash Lite (GAS)</option>
-                            <option value="gemini-3.1-flash-lite-preview-vertex">Gemini 3.1 Flash Lite (Vertex)</option>
-                            <option value="gemma-4-31b-it">Gemma 4 31B IT (GAS)</option>
-                            <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT (GAS)</option>
-                            <option value="gemma-3-27b-it">Gemma 3 27B IT (GAS)</option>
+                            <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                            <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+                            <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                            <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option>
+                            <option value="gemini-3-flash">Gemini 3 Flash</option>
+                            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+                            <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
+                            <option value="gemma-4-31b-it">Gemma 4 31B IT</option>
+                            <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT</option>
+                            <option value="gemma-3-27b-it">Gemma 3 27B IT</option>
+                        </select>
+
+                        <select
+                            value={selectedProvider}
+                            onChange={(e) => setSelectedProvider(e.target.value)}
+                            disabled={isProcessing}
+                            className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500"
+                        >
+                            <option value="google-ai-studio">Google AI Studio</option>
+                            <option value="vertex-ai">Vertex AI</option>
+                        </select>
+
+                        <select
+                            value={reasoningLevel}
+                            onChange={(e) => setReasoningLevel(e.target.value)}
+                            disabled={isProcessing || !(selectedModel.includes('3.6-flash') || selectedModel.includes('3.7-flash'))}
+                            className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <option value="none">Razonamiento: Por defecto</option>
+                            <option value="low">Razonamiento: Bajo</option>
+                            <option value="medium">Razonamiento: Medio</option>
+                            <option value="high">Razonamiento: Alto</option>
                         </select>
                     </div>
 

@@ -522,7 +522,8 @@ export const executeWithKeyRotation = async <T>(
     isStrictModel: boolean = false,
     label: string = 'Operación AI',
     timeoutMs: number = 20000,
-    providerOverride?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+    providerOverride?: 'google-ai-studio' | 'vertex-ai' | 'auto',
+    reasoning?: string
 ): Promise<T> => {
     // 1. Determine Hierarchy based on label/intent
     type Step = { provider: 'google' | 'groq' | 'openrouter' | 'cerebras', model: string };
@@ -718,6 +719,9 @@ export const executeWithKeyRotation = async <T>(
 
                         client = {
                             getGenerativeModel: (config: any) => {
+                                if (reasoning && (config.model.includes('3.6') || config.model.includes('3.7'))) {
+                                    config.thinkingConfig = { thinkingLevel: reasoning.toUpperCase() };
+                                }
                                 return {
                                     generateContent: async (prompt: any) => {
                                         let finalPrompt = prompt;
@@ -775,6 +779,9 @@ export const executeWithKeyRotation = async <T>(
                         const rawGoogleClient = new GoogleGenerativeAI(apiKey);
                         client = {
                             getGenerativeModel: (config: any) => {
+                                if (reasoning && (config.model.includes('3.6') || config.model.includes('3.7'))) {
+                                    config.thinkingConfig = { thinkingLevel: reasoning.toUpperCase() };
+                                }
                                 if (config.model.includes('gemma')) {
                                     const newConfig = { ...config };
                                     const sysInst = newConfig.systemInstruction;

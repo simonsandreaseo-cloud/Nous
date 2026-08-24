@@ -66,7 +66,7 @@ export async function streamHumanize(
     const response = await fetch('/api/humanize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, config, intensity, model })
+        body: JSON.stringify({ content, config, intensity, model, provider, reasoning })
     });
 
     const contentType = response.headers.get('content-type');
@@ -147,15 +147,12 @@ export async function streamMiniHumanize(
     config: any,
     intensity: number,
     onChunk: (html: string) => void,
-    onStatus: (msg: string) => void,
-    model?: string,
-    mode?: string,
-    provider?: string
+    onStatus: (msg: string) => void, model?: string, mode?: string, provider?: string, reasoning?: string
 ): Promise<{ html: string; result?: any }> {
     const response = await fetch('/api/mini-humanize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, config, intensity, model, mode, provider })
+        body: JSON.stringify({ content, config, intensity, model, mode, provider, reasoning })
     });
 
     const contentType = response.headers.get('content-type');
@@ -317,9 +314,7 @@ export async function streamSurgicalEdit(
     config: any,
     intensity: number,
     onChunk: (html: string) => void,
-    onStatus: (msg: string) => void,
-    model?: string
-): Promise<{ html: string; result?: any }> {
+    onStatus: (msg: string) => void, model?: string, provider?: string, reasoning?: string): Promise<{ html: string; result?: any }> {
     const response = await fetch('/api/surgical-edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -392,14 +387,12 @@ export async function streamCustomTransform(
     presetInstructions: string,
     userInstructions: string,
     onChunk: (html: string) => void,
-    onStatus: (msg: string) => void,
-    model?: string,
-    provider?: string
+    onStatus: (msg: string) => void, model?: string, provider?: string, reasoning?: string
 ): Promise<{ html: string; result?: any }> {
     const response = await fetch('/api/custom-transform', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, presetInstructions, userInstructions, model, provider })
+        body: JSON.stringify({ content, presetInstructions, userInstructions, model, provider, reasoning })
     });
 
     const contentType = response.headers.get('content-type');

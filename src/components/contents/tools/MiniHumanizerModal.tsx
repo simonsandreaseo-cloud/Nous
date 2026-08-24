@@ -19,7 +19,9 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
     const [statusMessage, setStatusMessage] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [wordCount, setWordCount] = useState(0);
-    const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash-gas");
+    const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
+    const [selectedProvider, setSelectedProvider] = useState("google-ai-studio");
+    const [reasoningLevel, setReasoningLevel] = useState("none");
     const [mode, setMode] = useState("standard");
 
     const extensions = useMemo(() => getSharedExtensions("Pega tu texto aquí..."), []);
@@ -62,14 +64,14 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 language: "es", // Enforce spanish by default
             };
 
-            let modelToSend = selectedModel;
-            let providerToSend: "google-ai-studio" | "vertex-ai" | undefined = undefined;
+            let selectedModel = selectedModel;
+            let selectedProvider: "google-ai-studio" | "vertex-ai" | undefined = undefined;
             if (selectedModel.endsWith("-vertex")) {
-                modelToSend = selectedModel.slice(0, -7);
-                providerToSend = "vertex-ai";
+                selectedModel = selectedModel.slice(0, -7);
+                selectedProvider = "vertex-ai";
             } else if (selectedModel.endsWith("-gas")) {
-                modelToSend = selectedModel.slice(0, -4);
-                providerToSend = "google-ai-studio";
+                selectedModel = selectedModel.slice(0, -4);
+                selectedProvider = "google-ai-studio";
             }
 
             if (mode === 'lipograma') {
@@ -77,9 +79,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 
                 setStatusMessage("Iniciando Capa 1/3 (Esqueleto)...");
                 const result1 = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, modelToSend, 'lipograma_1',
-                    providerToSend
-                );
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_1', selectedProvider, reasoningLevel === "none" ? undefined : reasoningLevel);
                 if (result1 && result1.html) {
                     editor.commands.setContent(result1.html);
                     stepHtml = result1.html;
@@ -87,9 +87,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
 
                 setStatusMessage("Iniciando Capa 2/3 (Anomalías)...");
                 const result2 = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, modelToSend, 'lipograma_2',
-                    providerToSend
-                );
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_2', selectedProvider, reasoningLevel === "none" ? undefined : reasoningLevel);
                 if (result2 && result2.html) {
                     editor.commands.setContent(result2.html);
                     stepHtml = result2.html;
@@ -97,9 +95,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
 
                 setStatusMessage("Iniciando Capa 3/3 (Cierre)...");
                 const result3 = await streamMiniHumanize(
-                    stepHtml, config, 50, () => {}, setStatusMessage, modelToSend, 'lipograma_3',
-                    providerToSend
-                );
+                    stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, 'lipograma_3', selectedProvider, reasoningLevel === "none" ? undefined : reasoningLevel);
                 if (result3 && result3.html) {
                     editor.commands.setContent(result3.html);
                 }
@@ -116,9 +112,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                 for (const s of steps) {
                     setStatusMessage(s.msg);
                     const result = await streamMiniHumanize(
-                        stepHtml, config, 50, () => {}, setStatusMessage, modelToSend, s.mode,
-                        providerToSend
-                    );
+                        stepHtml, config, 50, () => {}, setStatusMessage, selectedModel, s.mode, selectedProvider, reasoningLevel === "none" ? undefined : reasoningLevel);
                     if (result && result.html) {
                         editor.commands.setContent(result.html);
                         stepHtml = result.html;
@@ -134,11 +128,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                     },
                     (status) => {
                         setStatusMessage(status);
-                    },
-                    modelToSend,
-                    mode,
-                    providerToSend
-                );
+                    }, selectedModel, mode, selectedProvider, reasoningLevel === "none" ? undefined : reasoningLevel);
 
                 if (result && result.html) {
                     editor.commands.setContent(result.html);
@@ -243,21 +233,45 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                                 <option value="legacy_json">Diccionario JSON (Legacy)</option>
                             </select>
 
-                            <select
-                                value={selectedModel}
-                                onChange={(e) => setSelectedModel(e.target.value)}
-                                disabled={isProcessing}
-                                className="text-xs font-medium text-slate-600 bg-slate-100 border-none rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
-                            >
-                                <option value="gemini-3.5-flash-gas">Gemini 3.5 Flash (GAS)</option>
-                                <option value="gemini-3.5-flash-vertex">Gemini 3.5 Flash (Vertex)</option>
-                                <option value="gemini-3-flash-vertex">Gemini 3 Flash (Vertex)</option>
-                                <option value="gemini-3.1-pro-preview-vertex">Gemini 3.1 Pro (Vertex)</option>
-                                <option value="gemini-3.1-flash-lite-preview-gas">Gemini 3.1 Flash Lite (GAS)</option>
-                                <option value="gemini-3.1-flash-lite-preview-vertex">Gemini 3.1 Flash Lite (Vertex)</option>
-                                <option value="gemma-4-31b-it">Gemma 4 31B IT</option>
-                                <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT</option>
-                            </select>
+                                                    <select
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            disabled={isProcessing}
+                            className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500"
+                        >
+                            <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                            <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+                            <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                            <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option>
+                            <option value="gemini-3-flash">Gemini 3 Flash</option>
+                            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+                            <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
+                            <option value="gemma-4-31b-it">Gemma 4 31B IT</option>
+                            <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT</option>
+                            <option value="gemma-3-27b-it">Gemma 3 27B IT</option>
+                        </select>
+
+                        <select
+                            value={selectedProvider}
+                            onChange={(e) => setSelectedProvider(e.target.value)}
+                            disabled={isProcessing}
+                            className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500"
+                        >
+                            <option value="google-ai-studio">Google AI Studio</option>
+                            <option value="vertex-ai">Vertex AI</option>
+                        </select>
+
+                        <select
+                            value={reasoningLevel}
+                            onChange={(e) => setReasoningLevel(e.target.value)}
+                            disabled={isProcessing || !(selectedModel.includes('3.6-flash') || selectedModel.includes('3.7-flash'))}
+                            className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <option value="none">Razonamiento: Por defecto</option>
+                            <option value="low">Razonamiento: Bajo</option>
+                            <option value="medium">Razonamiento: Medio</option>
+                            <option value="high">Razonamiento: Alto</option>
+                        </select>
 
                             <button
                                 onClick={handleHumanize}

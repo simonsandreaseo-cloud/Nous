@@ -14,8 +14,8 @@ export const HtmlProtectionService = {
     
     // Regex to match <table>...</table> including attributes
     const tableRegex = /<table\b[^>]*>[\s\S]*?<\/table>/gi;
-    // Regex to match styled callout divs (divs with class or style attributes)
-    const calloutDivRegex = /<div\s+(?:class|style)=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi;
+    // Regex to match styled callout divs (divs with specific callout/tip classes or style attributes)
+    const calloutDivRegex = /<div\s+(?:class|style)=["'][^"']*(?:callout|pro-tip|note|warning|info|highlight|alert|box)[^"']*["'][^>]*>[\s\S]*?<\/div>/gi;
     // Regex to match blockquotes
     const blockquoteRegex = /<blockquote\b[^>]*>[\s\S]*?<\/blockquote>/gi;
     
@@ -66,32 +66,52 @@ export const HtmlProtectionService = {
 };
 
 /**
- * Splits HTML into chunks of approximately maxChars, 
- * ensuring elements (and protected tokens) are not split.
+ * Splits HTML into chunks ensuring block elements (and protected tokens) are never split mid-tag.
+ * If maxSize is small (<= 50, e.g. 4), it chunks by maximum number of complete HTML block elements per chunk.
+ * If maxSize is large (> 50, e.g. 6000), it chunks by character length threshold without cutting tags.
  */
-export function sizeAwareChunkHtml(html: string, maxChars: number): string[] {
+export function sizeAwareChunkHtml(html: string, maxSize: number): string[] {
   if (!html) return [];
   
-  // Boundary regex: split before common block-level elements or protected tokens
+  // Boundary regex: split strictly before common block-level elements or protected tokens
   const boundaryRegex = /(?=<h[1-6]\b[^>]*>|<p\b[^>]*>|<ul\b[^>]*>|<ol\b[^>]*>|<li\b[^>]*>|<div\b[^>]*>|<table\b[^>]*>|<blockquote\b[^>]*>|\[\[ATOMIC_BLOCK_\d+\]\])/gi;
   
   const blocks = html.split(boundaryRegex).filter(block => block.length > 0);
+  if (blocks.length === 0) return [html];
+
+  const isElementCountMode = maxSize > 0 && maxSize <= 20;
   const chunks: string[] = [];
-  let currentChunk: string = "";
   
-  for (const block of blocks) {
-    // If a single block is larger than maxChars, it still stays as one block 
-    // to avoid splitting tags/tokens.
-    if (currentChunk.length + block.length > maxChars && currentChunk.length > 0) {
-      chunks.push(currentChunk);
-      currentChunk = "";
-    }
+  if (isElementCountMode) {
+    // Chunk by count of complete HTML block elements (e.g. 4 elements per chunk)
+    const maxElements = maxSize;
+    let currentChunkBlocks: string[] = [];
     
-    currentChunk += block;
-  }
-  
-  if (currentChunk.length > 0) {
-    chunks.push(currentChunk);
+    for (const block of blocks) {
+      currentChunkBlocks.push(block);
+      if (currentChunkBlocks.length >= maxElements) {
+        chunks.push(currentChunkBlocks.join(''));
+        currentChunkBlocks = [];
+      }
+    }
+    if (currentChunkBlocks.length > 0) {
+      chunks.push(currentChunkBlocks.join(''));
+    }
+  } else {
+    // Chunk by character length threshold
+    const maxChars = maxSize > 0 ? maxSize : 6000;
+    let currentChunk: string = "";
+    
+    for (const block of blocks) {
+      if (currentChunk.length + block.length > maxChars && currentChunk.length > 0) {
+        chunks.push(currentChunk);
+        currentChunk = "";
+      }
+      currentChunk += block;
+    }
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk);
+    }
   }
   
   return chunks;

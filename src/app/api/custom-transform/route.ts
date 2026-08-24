@@ -7,7 +7,7 @@ export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s l
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { action, content, presetInstructions, userInstructions, model, provider, chunks, chunk, stylesheet, pautasEspecificas } = body;
+        const { action, content, presetInstructions, userInstructions, model, provider, chunks, chunk, stylesheet, pautasEspecificas , reasoning} = body;
 
         // Action: plan (Global architect design)
         if (action === 'plan') {
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
                     userInstructions || '',
                     model || 'gemini-3.1-pro',
                     provider
-                );
+                , reasoning);
             });
             
             const totalUsage = ctxState.usages.reduce((acc, u) => ({
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
                                 model || 'gemini-3.5-flash',
                                 onChunk,
                                 provider
-                            );
+                            , reasoning);
                         });
 
                         clearInterval(keepAlive);
@@ -142,7 +142,7 @@ export async function POST(req: Request) {
                             model || 'gemini-3.5-flash',
                             onChunk,
                             provider
-                        );
+                        , reasoning);
                     });
 
                     clearInterval(keepAlive);

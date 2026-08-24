@@ -100,6 +100,16 @@ describe('sizeAwareChunkHtml', () => {
     expect(foundInSingleBlock).toBe(true);
   });
 
+  it('should chunk by element count when maxSize is small (e.g. 4 elements per chunk)', () => {
+    const html = '<h2>Title</h2><p>P1</p><p>P2</p><p>P3</p><p>P4</p><p>P5</p>';
+    const maxElements = 4;
+    const chunks = sizeAwareChunkHtml(html, maxElements);
+    
+    expect(chunks.length).toBe(2);
+    expect(chunks[0]).toBe('<h2>Title</h2><p>P1</p><p>P2</p><p>P3</p>');
+    expect(chunks[1]).toBe('<p>P4</p><p>P5</p>');
+  });
+
   it('should treat protected tokens as atomic units', () => {
     const html = '<p>Text</p>[[ATOMIC_BLOCK_0]]<p>More text</p>';
     const maxChars = 10;

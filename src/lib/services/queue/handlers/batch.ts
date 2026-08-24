@@ -178,7 +178,7 @@ export const handleBatchHumanize = async (taskId: string, payload: QueuePayload)
         await supabase.from("task_versions").insert({
             task_id: targetTask.id,
             process_name: "Pre-Humanización",
-            content_snapshot: content,
+            content_body: content,
             created_at: new Date().toISOString()
         });
 
@@ -200,7 +200,7 @@ export const handleBatchHumanize = async (taskId: string, payload: QueuePayload)
             await supabase.from("task_versions").insert({
                 task_id: targetTask.id,
                 process_name: "Post-Humanización",
-                content_snapshot: res.updates.content_body,
+                content_body: res.updates.content_body,
                 created_at: new Date().toISOString()
             });
             setTaskStatus(taskId, "processing", 100);

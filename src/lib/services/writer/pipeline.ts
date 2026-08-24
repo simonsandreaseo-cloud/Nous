@@ -382,10 +382,10 @@ export async function executeHumanizePipeline(
     // Protection Phase
     const { blindedHtml, map: protectionMap } = HtmlProtectionService.protect(sanitizedContent);
     
-    // Size-Aware Chunking (using blinded HTML)
-    const chunks = sizeAwareChunkHtml(blindedHtml, chunkSize || 4);
-    onLog(`Documento dividido en ${chunks.length} chunks de ${chunkSize || 4} elementos HTML...`);
-
+    // Size-Aware Chunking (using blinded HTML, chunked by complete HTML block elements)
+    const effectiveChunkSize = chunkSize || 4;
+    const chunks = sizeAwareChunkHtml(blindedHtml, effectiveChunkSize);
+    onLog(`Documento dividido en ${chunks.length} partes (${effectiveChunkSize} elementos HTML por parte)...`);
 
     let accumulatedHtml = '';
     let humLastUpdateTime = 0;
@@ -393,6 +393,12 @@ export async function executeHumanizePipeline(
     for (let i = 0; i < chunks.length; i++) {
         if (checkPause) await checkPause();
         if (onProgress) onProgress((i / chunks.length) * 100);
+        
+        // Inter-chunk pacing delay to prevent hitting Vertex AI RPM rate limits on multi-chunk documents
+        if (i > 0) {
+            await new Promise(r => setTimeout(r, 600));
+        }
+
         const chunkContent = chunks[i];
         let success = false;
         let attempts = 0;
@@ -425,13 +431,17 @@ export async function executeHumanizePipeline(
                 accumulatedHtml += chunkResult.html + '\n';
                 onChunk(accumulatedHtml);
                 
-                if (chunkResult.usage) {
-                    const { useQueueStore } = require('@/store/useQueueStore');
-                    const activeTask = useQueueStore.getState().activeTask;
-                    if (activeTask) {
-                        useQueueStore.getState().addUsageToTask(activeTask.id, chunkResult.usage);
-                    } else if (typeof task !== 'undefined' && task && task.id) {
-                        useQueueStore.getState().addUsageToTask(task.id, chunkResult.usage);
+                if (chunkResult.usage && typeof window !== 'undefined') {
+                    try {
+                        const { useQueueStore } = require('@/store/useQueueStore');
+                        const activeTask = useQueueStore.getState().activeTask;
+                        if (activeTask) {
+                            useQueueStore.getState().addUsageToTask(activeTask.id, chunkResult.usage);
+                        } else if (typeof task !== 'undefined' && task && task.id) {
+                            useQueueStore.getState().addUsageToTask(task.id, chunkResult.usage);
+                        }
+                    } catch (storeErr) {
+                        console.warn('Could not update queue store usage on client:', storeErr);
                     }
                 }
                 
@@ -439,6 +449,7 @@ export async function executeHumanizePipeline(
             } catch (err: any) {
                 attempts++;
                 console.error(`Error en fragmento ${i + 1} intento ${attempts}:`, err);
+                const is429 = err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED') || err?.status === 429;
                 if (attempts >= MAX_ATTEMPTS) {
                     onLog(`Fallo definitivo en fragmento ${i + 1} tras ${MAX_ATTEMPTS} intentos. Continuando con siguiente fragmento.`);
                     // Append raw chunk content to preserve flow
@@ -446,8 +457,9 @@ export async function executeHumanizePipeline(
                     onChunk(accumulatedHtml);
                     break;
                 }
-                onLog(`Reintentando fragmento ${i + 1} en 70s... (${attempts}/${MAX_ATTEMPTS})`);
-                await new Promise(r => setTimeout(r, 70000));
+                const waitTime = is429 ? 10000 * attempts : 3000;
+                onLog(`Reintentando fragmento ${i + 1} en ${Math.round(waitTime / 1000)}s${is429 ? ' (por límite 429/Vertex)' : ''}... (${attempts}/${MAX_ATTEMPTS})`);
+                await new Promise(r => setTimeout(r, waitTime));
             }
         }
     }

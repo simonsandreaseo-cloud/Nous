@@ -23,7 +23,9 @@ export function MiniEditorModal({ onClose }: MiniEditorModalProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
     const [error, setError] = useState<string | null>(null);
-    const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash-gas");
+    const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
+    const [selectedProvider, setSelectedProvider] = useState("google-ai-studio");
+    const [reasoningLevel, setReasoningLevel] = useState("none");
 
     const extensions = useMemo(() => getSharedExtensions("Comienza a escribir aquí..."), []);
 
@@ -77,14 +79,14 @@ export function MiniEditorModal({ onClose }: MiniEditorModalProps) {
                 instructions: "Mejora este texto, corrigiendo gramática, fluidez y claridad sin alterar el significado fundamental."
             };
 
-            let modelToSend = selectedModel;
-            let providerToSend: "google-ai-studio" | "vertex-ai" | undefined = undefined;
+            let selectedModel = selectedModel;
+            let selectedProvider: "google-ai-studio" | "vertex-ai" | undefined = undefined;
             if (selectedModel.endsWith("-vertex")) {
-                modelToSend = selectedModel.slice(0, -7);
-                providerToSend = "vertex-ai";
+                selectedModel = selectedModel.slice(0, -7);
+                selectedProvider = "vertex-ai";
             } else if (selectedModel.endsWith("-gas")) {
-                modelToSend = selectedModel.slice(0, -4);
-                providerToSend = "google-ai-studio";
+                selectedModel = selectedModel.slice(0, -4);
+                selectedProvider = "google-ai-studio";
             }
 
             const result = await streamSurgicalEdit(
@@ -96,9 +98,7 @@ export function MiniEditorModal({ onClose }: MiniEditorModalProps) {
                 },
                 (status) => {
                     setStatusMessage(status);
-                },
-                modelToSend
-            );
+                }, selectedModel, selectedProvider, reasoningLevel === "none" ? undefined : reasoningLevel);
 
             if (result && result.html) {
                 editor.commands.setContent(result.html);
@@ -223,20 +223,44 @@ export function MiniEditorModal({ onClose }: MiniEditorModalProps) {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        <select
+                                                <select
                             value={selectedModel}
                             onChange={(e) => setSelectedModel(e.target.value)}
                             disabled={isProcessing}
-                            className="text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50 cursor-pointer"
+                            className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500"
                         >
-                            <option value="gemini-3.5-flash-gas">Gemini 3.5 Flash (GAS)</option>
-                            <option value="gemini-3.5-flash-vertex">Gemini 3.5 Flash (Vertex)</option>
-                            <option value="gemini-3-flash-vertex">Gemini 3 Flash (Vertex)</option>
-                            <option value="gemini-3.1-pro-preview-vertex">Gemini 3.1 Pro (Vertex)</option>
-                            <option value="gemini-3.1-flash-lite-preview-gas">Gemini 3.1 Flash Lite (GAS)</option>
-                            <option value="gemini-3.1-flash-lite-preview-vertex">Gemini 3.1 Flash Lite (Vertex)</option>
+                            <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                            <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+                            <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                            <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option>
+                            <option value="gemini-3-flash">Gemini 3 Flash</option>
+                            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+                            <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
                             <option value="gemma-4-31b-it">Gemma 4 31B IT</option>
                             <option value="gemma-4-26b-a4b-it">Gemma 4 26B IT</option>
+                            <option value="gemma-3-27b-it">Gemma 3 27B IT</option>
+                        </select>
+
+                        <select
+                            value={selectedProvider}
+                            onChange={(e) => setSelectedProvider(e.target.value)}
+                            disabled={isProcessing}
+                            className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500"
+                        >
+                            <option value="google-ai-studio">Google AI Studio</option>
+                            <option value="vertex-ai">Vertex AI</option>
+                        </select>
+
+                        <select
+                            value={reasoningLevel}
+                            onChange={(e) => setReasoningLevel(e.target.value)}
+                            disabled={isProcessing || !(selectedModel.includes('3.6-flash') || selectedModel.includes('3.7-flash'))}
+                            className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 outline-none cursor-pointer focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <option value="none">Razonamiento: Por defecto</option>
+                            <option value="low">Razonamiento: Bajo</option>
+                            <option value="medium">Razonamiento: Medio</option>
+                            <option value="high">Razonamiento: Alto</option>
                         </select>
 
                         <button

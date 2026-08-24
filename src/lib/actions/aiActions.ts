@@ -27,7 +27,9 @@ import { safeJsonExtract } from "@/utils/json";
 // --- UTILS & CONSTANTS ---
 
 
-function parseModelAndProvider(modelName: string, provider?: 'google-ai-studio' | 'vertex-ai' | 'auto') {
+function parseModelAndProvider(modelName: string, provider?: 'google-ai-studio' | 'vertex-ai',
+    reasoning?: string | 'auto',
+    reasoning?: string) {
     let resolvedModel = modelName;
     let resolvedProvider = provider || 'auto';
 
@@ -115,12 +117,15 @@ export async function executeWithKeyRotation<T>(
     isStrictModel: boolean = false,
     label: string = 'Operación AI',
     timeoutMs?: number,
-    providerOverride?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+    providerOverride?: 'google-ai-studio' | 'vertex-ai', reasoning?: string | 'auto',
+    reasoning?: string
 ): Promise<T> {
     const parsed = parseModelAndProvider(modelName, providerOverride);
     return libExecuteWithKeyRotation(async (client, m) => {
         return operation(client, m);
-    }, parsed.resolvedModel, explicitHierarchy, keys, onRotation, isStrictModel, label, timeoutMs, parsed.resolvedProvider as any);
+    }, parsed.resolvedModel, explicitHierarchy, keys, onRotation, isStrictModel, label, timeoutMs, parsed.resolvedProvider as any,
+      reasoning
+  );
 }
 
 export async function executeHumanizerWithRetry<T>(
@@ -128,7 +133,9 @@ export async function executeHumanizerWithRetry<T>(
     onStatus?: (msg: string) => void,
     label: string = 'Redacción Humanización',
     modelName: string = 'gemma-4-31b-it',
-    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+    provider?: 'google-ai-studio' | 'vertex-ai',
+    reasoning?: string | 'auto',
+    reasoning?: string
 ): Promise<T> {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -155,8 +162,9 @@ export async function executeHumanizerWithRetry<T>(
                  true,
                  label,
                  HUMANIZER_TIMEOUT,
-                 resolvedProvider
-            );
+                 resolvedProvider,
+        reasoning
+    );
         } catch (e: any) {
             const errorMsg = e.message ? e.message.toLowerCase() : String(e).toLowerCase();
             const isRateLimit = e.status === 429 || errorMsg.includes('429') || errorMsg.includes('resource exhausted') || errorMsg.includes('quota') || errorMsg.includes('rate limit');
@@ -744,7 +752,9 @@ export const runMiniHumanizerPipeline = async (
     onLog?: (msg: string) => void,
     mode: string = 'standard',
     onProgress?: (percent: number) => void,
-    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+    provider?: 'google-ai-studio' | 'vertex-ai',
+    reasoning?: string | 'auto',
+    reasoning?: string
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -1641,7 +1651,9 @@ export async function executeCustomTransformWithRetry<T>(
     onStatus?: (msg: string) => void,
     label: string = 'Transformación HTML Custom',
     modelName: string = 'gemini-3.5-flash',
-    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+    provider?: 'google-ai-studio' | 'vertex-ai',
+    reasoning?: string | 'auto',
+    reasoning?: string
 ): Promise<T> {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -1665,7 +1677,8 @@ export async function executeCustomTransformWithRetry<T>(
         true, // isStrictModel
         label,
         TRANSFORM_TIMEOUT,
-        resolvedProvider
+        resolvedProvider,
+        reasoning
     );
 }
 
@@ -1708,7 +1721,9 @@ export const runCustomTransformPipeline = async (
     onStatus?: (msg: string) => void,
     modelName: string = 'gemini-3.5-flash',
     onChunk?: (chunkHtml: string) => void,
-    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+    provider?: 'google-ai-studio' | 'vertex-ai',
+    reasoning?: string | 'auto',
+    reasoning?: string
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -1769,7 +1784,7 @@ ${userInstructions}
         cleaned = cleaned.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
 
         return cleaned;
-    }, safeStatus, 'Transformación HTML Custom', resolvedModel, resolvedProvider);
+    }, safeStatus, undefined, resolvedModel, resolvedProvider, reasoning);
 
     if (onChunk) onChunk(resultHtml);
 
@@ -1786,7 +1801,9 @@ export const runChiefDesignerPlanning = async (
     presetInstructions: string,
     userInstructions: string,
     modelName: string = 'gemini-3.1-pro',
-    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+    provider?: 'google-ai-studio' | 'vertex-ai',
+    reasoning?: string | 'auto',
+    reasoning?: string
 ): Promise<ChiefDesignerPlanningResult> => {
     const parsed = parseModelAndProvider(modelName, provider);
     const resolvedModel = parsed.resolvedModel;
@@ -1845,7 +1862,7 @@ Ejemplo de la estructura de retorno requerida:
                 stylesheet: parsedJson.stylesheet || '',
                 plan: parsedJson.plan || []
             } as ChiefDesignerPlanningResult;
-        }, () => {}, label, resolvedModel, resolvedProvider);
+        }, () => {}, undefined, resolvedModel, resolvedProvider, reasoning);
 
         return result || { stylesheet: '', plan: [] };
     } catch (e) {
@@ -1867,7 +1884,9 @@ export const runSingleChunkTransform = async (
     onStatus?: (msg: string) => void,
     modelName: string = 'gemini-3.5-flash',
     onChunk?: (chunkHtml: string) => void,
-    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto'
+    provider?: 'google-ai-studio' | 'vertex-ai',
+    reasoning?: string | 'auto',
+    reasoning?: string
 ): Promise<{ html: string }> => {
     const parsed = parseModelAndProvider(modelName, provider);
     const resolvedModel = parsed.resolvedModel;
@@ -1919,7 +1938,7 @@ Devuelve EXCLUSIVAMENTE el código HTML transformado. No incluyes explicaciones,
 
             const response = await model.generateContent(promptParts);
             return response.response.text();
-        }, safeStatus, label, resolvedModel, resolvedProvider);
+        }, safeStatus, undefined, resolvedModel, resolvedProvider, reasoning);
 
         const cleanHtml = cleanAndFormatHtml(resultHtml);
         if (onChunk) onChunk(cleanHtml);

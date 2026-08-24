@@ -49,12 +49,12 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
         
         const chunkSize = payload.chunkSize || payload.config?.chunkSize || 4;
         const rawChunks = sizeAwareChunkHtml(blindedHtml, chunkSize);
-        console.log(`[DEBUG-Humanize Handler] Documento dividido en ${rawChunks.length} chunks.`);
+        console.log(`[DEBUG-Humanize Handler] Documento dividido en ${rawChunks.length} chunks (${chunkSize} elementos HTML por chunk).`);
         
         if (isCurrentDraft()) {
             useWriterStore.getState().setHumanizerStatus(`Documento dividido en ${rawChunks.length} partes...`);
         }
-        addLogToTask(taskId, `Documento dividido en ${rawChunks.length} partes para procesar.`, 'info');
+        addLogToTask(taskId, `Documento dividido en ${rawChunks.length} partes para procesar (${chunkSize} elementos HTML/parte).`, 'info');
         
         let currentDocumentChunks = rawChunks.map((chunk, index) => 
             `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
@@ -67,7 +67,12 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
         for (let i = 0; i < rawChunks.length; i++) {
             let success = false;
             let attempts = 0;
-            const MAX_ATTEMPTS = 2;
+            const MAX_ATTEMPTS = 4;
+
+            // Inter-chunk pacing delay to prevent hitting Vertex AI RPM rate limits
+            if (i > 0) {
+                await new Promise(resolve => setTimeout(resolve, 600));
+            }
 
             currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
             if (isCurrentDraft()) {
@@ -129,11 +134,14 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
                         break;
                     }
                     
+                    const is429 = err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED') || err?.status === 429;
+                    const waitTime = is429 ? 10000 * attempts : 3000;
+                    
                     if (isCurrentDraft()) {
-                        useWriterStore.getState().setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en 70s... (${attempts}/${MAX_ATTEMPTS})`);
+                        useWriterStore.getState().setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en ${Math.round(waitTime/1000)}s... (${attempts}/${MAX_ATTEMPTS})`);
                     }
-                    addLogToTask(taskId, `Esperando 70s antes de reintentar chunk ${i + 1}...`, 'warning');
-                    await new Promise(resolve => setTimeout(resolve, 70000));
+                    addLogToTask(taskId, `Esperando ${Math.round(waitTime/1000)}s antes de reintentar chunk ${i + 1}${is429 ? ' (límite 429 Vertex)' : ''}...`, 'warning');
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
                 }
             }
             
