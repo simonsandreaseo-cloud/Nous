@@ -28,7 +28,6 @@ import { safeJsonExtract } from "@/utils/json";
 
 
 function parseModelAndProvider(modelName: string, provider?: 'google-ai-studio' | 'vertex-ai',
-    reasoning?: string | 'auto',
     reasoning?: string) {
     let resolvedModel = modelName;
     let resolvedProvider = provider || 'auto';
@@ -117,8 +116,7 @@ export async function executeWithKeyRotation<T>(
     isStrictModel: boolean = false,
     label: string = 'Operación AI',
     timeoutMs?: number,
-    providerOverride?: 'google-ai-studio' | 'vertex-ai', reasoning?: string | 'auto',
-    reasoning?: string
+    providerOverride?: 'google-ai-studio' | 'vertex-ai', reasoning?: string
 ): Promise<T> {
     const parsed = parseModelAndProvider(modelName, providerOverride);
     return libExecuteWithKeyRotation(async (client, m) => {
@@ -134,7 +132,6 @@ export async function executeHumanizerWithRetry<T>(
     label: string = 'Redacción Humanización',
     modelName: string = 'gemma-4-31b-it',
     provider?: 'google-ai-studio' | 'vertex-ai',
-    reasoning?: string | 'auto',
     reasoning?: string
 ): Promise<T> {
     const safeStatus = (msg: string) => {
@@ -753,7 +750,6 @@ export const runMiniHumanizerPipeline = async (
     mode: string = 'standard',
     onProgress?: (percent: number) => void,
     provider?: 'google-ai-studio' | 'vertex-ai',
-    reasoning?: string | 'auto',
     reasoning?: string
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
@@ -1652,7 +1648,6 @@ export async function executeCustomTransformWithRetry<T>(
     label: string = 'Transformación HTML Custom',
     modelName: string = 'gemini-3.5-flash',
     provider?: 'google-ai-studio' | 'vertex-ai',
-    reasoning?: string | 'auto',
     reasoning?: string
 ): Promise<T> {
     const safeStatus = (msg: string) => {
@@ -1722,7 +1717,6 @@ export const runCustomTransformPipeline = async (
     modelName: string = 'gemini-3.5-flash',
     onChunk?: (chunkHtml: string) => void,
     provider?: 'google-ai-studio' | 'vertex-ai',
-    reasoning?: string | 'auto',
     reasoning?: string
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
@@ -1802,7 +1796,6 @@ export const runChiefDesignerPlanning = async (
     userInstructions: string,
     modelName: string = 'gemini-3.1-pro',
     provider?: 'google-ai-studio' | 'vertex-ai',
-    reasoning?: string | 'auto',
     reasoning?: string
 ): Promise<ChiefDesignerPlanningResult> => {
     const parsed = parseModelAndProvider(modelName, provider);
@@ -1885,7 +1878,6 @@ export const runSingleChunkTransform = async (
     modelName: string = 'gemini-3.5-flash',
     onChunk?: (chunkHtml: string) => void,
     provider?: 'google-ai-studio' | 'vertex-ai',
-    reasoning?: string | 'auto',
     reasoning?: string
 ): Promise<{ html: string }> => {
     const parsed = parseModelAndProvider(modelName, provider);
@@ -1949,3 +1941,4 @@ Devuelve EXCLUSIVAMENTE el código HTML transformado. No incluyes explicaciones,
         return { html: chunk }; // Fallback original content
     }
 };
+
