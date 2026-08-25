@@ -1420,7 +1420,8 @@ Tienes ESTRICTAMENTE PROHIBIDO hacer borradores, análisis, explicaciones o "Cha
 
     let processedBlocks: any;
     try {
-        processedBlocks = await libExecuteWithKeyRotation(runModel, resolvedModel, undefined, undefined, undefined, true, `Edición Quirúrgica de ${numBlocks} bloques`, SURGICAL_TIMEOUT, resolvedProvider as any);
+        processedBlocks = await libExecuteWithKeyRotation(runModel, resolvedModel, undefined, undefined, undefined, true, `Edición Quirúrgica de ${numBlocks} bloques`, SURGICAL_TIMEOUT, resolvedProvider as any, reasoning);
+        if (onProgress) onProgress(100);
     } catch (e: any) {
         safeStatus(`Error fatal durante la edición quirúrgica: ${e.message}. Devolviendo original.`);
         processedBlocks = textBlocks;

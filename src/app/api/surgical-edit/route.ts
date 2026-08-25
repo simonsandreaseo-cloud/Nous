@@ -7,7 +7,7 @@ export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s l
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { content, config, intensity, model , reasoning} = body;
+        const { content, config, intensity, model, provider, reasoning } = body;
 
         if (!content) {
             return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -28,6 +28,10 @@ export async function POST(req: Request) {
                     controller.enqueue(encoder.encode(JSON.stringify({ type: 'chunk', html: chunkHtml }) + '\n'));
                 };
 
+                const onProgress = (percent: number) => {
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'progress', percent }) + '\n'));
+                };
+
                 // Keep-alive mechanism to prevent Vercel timeout on long processes
                 const keepAlive = setInterval(() => {
                     controller.enqueue(encoder.encode(JSON.stringify({ type: 'keep-alive' }) + '\n'));
@@ -42,7 +46,11 @@ export async function POST(req: Request) {
                             intensity || 50,
                             onStatus,
                             model || 'gemini-3.5-flash',
-                            onChunk, provider, reasoning);
+                            onChunk,
+                            onProgress,
+                            provider,
+                            reasoning
+                        );
                     });
 
                     clearInterval(keepAlive);
