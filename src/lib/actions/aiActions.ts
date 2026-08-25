@@ -619,7 +619,7 @@ export const runHumanizerPipeline = async (
         else console.log(`[Humanizer-Status] ${msg}`);
     };
 
-    const parsed = parseModelAndProvider(modelName);
+    const parsed = parseModelAndProvider(modelName, providerOverride, reasoning);
     let resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
@@ -1238,7 +1238,10 @@ export const runSurgicalEditorPipeline = async (
     intensity: number,
     onStatus?: (msg: string) => void,
     modelName: string = 'gemini-3.5-flash', 
-    onChunk?: (chunkHtml: string) => void
+    onChunk?: (chunkHtml: string) => void,
+    onProgress?: (percent: number) => void,
+    providerOverride?: 'google-ai-studio' | 'vertex-ai' | 'auto',
+    reasoning?: string
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
