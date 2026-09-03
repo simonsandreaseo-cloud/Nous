@@ -1,6 +1,17 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
+
+function generateUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
 export type QueueActionType = 
   | 'surgical_edit'
   | 'humanize'
@@ -125,7 +136,7 @@ export const useQueueStore = create<QueueStore>()(
             isPaused: false,
 
             enqueueTask: (type, title, payload, options) => {
-                const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+                const id = generateUUID();
                 const newTask: QueueTask = {
                     id,
                     type,
@@ -188,7 +199,7 @@ export const useQueueStore = create<QueueStore>()(
 
     addLogToTask: (id, text, type = 'info') => {
         const newLog: QueueTaskLog = {
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+            id: generateUUID(),
             text,
             type,
             timestamp: new Date()
