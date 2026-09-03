@@ -175,7 +175,7 @@ export const useQueueStore = create<QueueStore>()(
 
     setTaskStatus: (id, status, progress) => {
         set((state) => {
-            const roundedProgress = progress !== undefined ? Number(progress.toFixed(2)) : undefined;
+            const roundedProgress = progress !== undefined ? Math.round(progress) : undefined;
 
             // Update active task if it's the one
             const newActiveTask = state.activeTask?.id === id 
