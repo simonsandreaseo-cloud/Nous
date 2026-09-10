@@ -728,9 +728,14 @@ export const executeWithKeyRotation = async <T>(
                                         if (config.systemInstruction && typeof prompt === 'string') {
                                             finalPrompt = `${config.systemInstruction}\n\n${prompt}`;
                                         }
+                                        const genConfig: any = {
+                                            ...(config.generationConfig || {}),
+                                            ...(config.thinkingConfig ? { thinkingConfig: config.thinkingConfig } : {})
+                                        };
                                         const result = await rawGoogleClient.models.generateContent({
                                             model: config.model,
-                                            contents: finalPrompt
+                                            contents: finalPrompt,
+                                            ...(Object.keys(genConfig).length > 0 ? { config: genConfig } : {})
                                         });
                                         if (result.usageMetadata) {
                                             pushUsage({
@@ -750,9 +755,14 @@ export const executeWithKeyRotation = async <T>(
                                         if (config.systemInstruction && typeof prompt === 'string') {
                                             finalPrompt = `${config.systemInstruction}\n\n${prompt}`;
                                         }
+                                        const genConfig: any = {
+                                            ...(config.generationConfig || {}),
+                                            ...(config.thinkingConfig ? { thinkingConfig: config.thinkingConfig } : {})
+                                        };
                                         const resultStream = await rawGoogleClient.models.generateContentStream({
                                             model: config.model,
-                                            contents: finalPrompt
+                                            contents: finalPrompt,
+                                            ...(Object.keys(genConfig).length > 0 ? { config: genConfig } : {})
                                         });
                                         return {
                                             stream: (async function* () {

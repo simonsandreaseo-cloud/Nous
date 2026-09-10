@@ -12,6 +12,7 @@ export type {
     CompetitorDetail, 
     ContentItem,
     HumanizerConfig,
+    MiniHumanizerParams,
     VisualResource,
     ImageGenConfig,
     AIImageRequest,
@@ -140,7 +141,7 @@ export async function executeHumanizerWithRetry<T>(
     };
 
     const parsed = parseModelAndProvider(modelName, provider);
-    let resolvedModel = parsed.resolvedModel;
+    const resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
     const HUMANIZER_TIMEOUT = 180000;
@@ -261,7 +262,7 @@ export const generateArticleJSON = async (model: string, prompt: string, hierarc
         
         const response = await modelObj.generateContent(finalPrompt);
         
-        let raw = response.response.text();
+        const raw = response.response.text();
         
         let htmlOutput = "";
         try {
@@ -407,7 +408,7 @@ Task: Find official brand assets and return them as a JSON array.
 ${FEW_SHOT_JSON}`
         });
         const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
-        let text = response.response.text() || "[]";
+        const text = response.response.text() || "[]";
         
         return safeJsonExtract(text, []);
     });
@@ -597,7 +598,7 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
         });
   
         const response = await modelObj.generateContent(prompt + "\n\nRESULTADO JSON DIRECTO:");
-        let rawText = response.response.text() || "{}";
+        const rawText = response.response.text() || "{}";
         
         return safeJsonExtract(rawText, {});
     });
@@ -620,7 +621,7 @@ export const runHumanizerPipeline = async (
     };
 
     const parsed = parseModelAndProvider(modelName, providerOverride, reasoning);
-    let resolvedModel = parsed.resolvedModel;
+    const resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
 
@@ -680,7 +681,7 @@ export const runHumanizerPipeline = async (
                 const prompt = `JSON DE ENTRADA CON BLOQUES:\n${JSON.stringify(chunkObj)}\n\n${languageInstruction}\nDEVUELVE SOLO EL JSON DE SALIDA. RESPETA ESTRICTAMENTE LA ESTRUCTURA.`;
                 
                 const response = await model.generateContent(prompt);
-                let raw = response.response.text();
+                const raw = response.response.text();
                 
                 try {
                     const parsed = safeJsonExtract<any>(raw, null);
@@ -752,7 +753,8 @@ export const runMiniHumanizerPipeline = async (
     mode: string = 'standard',
     onProgress?: (percent: number) => void,
     provider?: 'google-ai-studio' | 'vertex-ai',
-    reasoning?: string
+    reasoning?: string,
+    customParams?: MiniHumanizerParams
 ): Promise<{ html: string; metadata?: any }> => {
     const safeStatus = (msg: string) => {
         if (typeof onStatus === 'function') onStatus(msg);
@@ -804,12 +806,26 @@ export const runMiniHumanizerPipeline = async (
     try {
         const languageInstruction = config.language ? `\n\n[Idioma OBLIGATORIO: ${config.language === 'en' ? 'Inglés' : config.language === 'es' ? 'Español (Neutro)' : config.language}]` : '';
 
+        const buildGenerationConfig = (extra: Record<string, any> = {}) => {
+            const genConfig: Record<string, any> = { ...extra };
+            if (customParams) {
+                if (customParams.temperature !== undefined) genConfig.temperature = customParams.temperature;
+                if (customParams.topP !== undefined) genConfig.topP = customParams.topP;
+                if (customParams.topK !== undefined) genConfig.topK = customParams.topK;
+                if (customParams.presencePenalty !== undefined) genConfig.presencePenalty = customParams.presencePenalty;
+                if (customParams.frequencyPenalty !== undefined) genConfig.frequencyPenalty = customParams.frequencyPenalty;
+            }
+            return Object.keys(genConfig).length > 0 ? genConfig : undefined;
+        };
+
         const executeStep = async (stepMd: string, systemInstruction: string, stepName: string): Promise<string> => {
             safeStatus(`Ejecutando ${stepName}...`);
             return await executeHumanizerWithRetry(async (ai, currentModel) => {
+                const genConfig = buildGenerationConfig();
                 const model = ai.getGenerativeModel({ 
                     model: modelName, 
                     systemInstruction: systemInstruction,
+                    ...(genConfig ? { generationConfig: genConfig } : {})
                 });
                 
                 const prompt = `Devuelve el texto procesado completo sin comentarios ni razonamientos:\n\n${stepMd}${languageInstruction}`;
@@ -883,12 +899,13 @@ export const runMiniHumanizerPipeline = async (
                 const processedChunk = await executeHumanizerWithRetry(async (ai, currentModel) => {
                     const systemInstructionStr = `${ANTI_LEAKAGE_SYSTEM_BASE}\n--- PERSONA: REDACTOR MEDIOCRE ---\nActúa como un redactor humano promedio, no como una IA. Tu estilo es simple, directo, a veces un poco torpe, pero nunca robótico. Priorizar la simplicidad sobre la elegancia.\n\n--- CONTEXTO ---\nNicho/Tópico: ${config.niche || 'N/A'}\nPúblico Objetivo: ${config.audience || 'N/A'}\nNotas Adicionales: ${config.notes || 'N/A'}\n\n--- REGLAS DE HUMANIZACIÓN (APLICAR AGRESIVAMENTE) ---\n1. ESTILO "REDACTOR MEDIOCRE": Sé simple, directo y no condescendiente. Usa vocabulario común. Evita la elegancia literaria y la sensibilidad, el texto no debe ser emocionante, debe ser plano, aburrido y objetivo.\n2. COHERENCIA ROTA: Usa 2-3 ideas o saltos conceptuales pequeños dentro de un mismo párrafo.\n3. CONECTORES PROHIBIDOS: Prohíbe el uso de conectores formales y clichés de IA: "Sin embargo," "Por lo tanto," etc.\n4. MORFOSINTAXIS (EXPLOSIVIDAD):\n   * Usa oraciones cortas (Sujeto-Verbo-Predicado) más que largas.\n   * CRÍTICO: Mezcla estas frases cortas con algunas oraciones largas, algunas simples y otras, con baja frecuencia. La longitud de las frases debe ser variable e impredecible.\n5. IDIOMA: Usa español neutro panhispánico.\n6. PROHIBICIÓN DE VOZ PASIVA: Reescribe el 80% de las frases en voz pasiva a voz activa.\n7. PUNTUACIÓN (IMPORTANTE): Prefiere el uso de comas (,) para enlazar ideas cortas y relacionadas dentro de una misma oración, en lugar de separarlas con un punto y seguido.\n8. CONSERVACIÓN SEMÁNTICA: no resumas, no omitas ideas, no reduzcas el tamaño del texto, en caso tal aumentalo.\n\nREGLA CRÍTICA DE ESTRUCTURA (JSON DICTIONARY):\nTe entregaré un objeto JSON donde cada clave es un ID (ej. "block_1") y cada valor es un fragmento HTML.\nMANTÉN INTACTAS las etiquetas HTML que estén dentro de los fragmentos (ej. <strong>, <a>, <span>).\nDEBES devolver UNICAMENTE un objeto JSON que incluya obligatoriamente una clave "razonamiento_interno" con tu análisis inicial (Chain-of-Thought), y luego el resto de claves deben ser exactamente los mismos IDs originales con sus valores humanizados en crudo.`;
                     
+                    const genConfig = buildGenerationConfig({
+                        responseMimeType: 'application/json'
+                    });
                     const model = ai.getGenerativeModel({ 
                         model: modelName, 
                         systemInstruction: systemInstructionStr,
-                        generationConfig: {
-                            responseMimeType: 'application/json'
-                        }
+                        generationConfig: genConfig
                     });
                     
                     const prompt = `${FEW_SHOT_HUMANIZER_EXAMPLE}\n\nJSON DE ENTRADA CON BLOQUES:\n${JSON.stringify(chunkObj)}\n${languageInstruction}\nIMPORTANTE: Devuelve un objeto JSON con la clave obligatoria 'razonamiento_interno' (tu análisis y justificación) y luego las claves originales (ej 'block_1', etc) con los valores humanizados en crudo.`;
@@ -898,7 +915,7 @@ export const runMiniHumanizerPipeline = async (
                     }
                     
                     const response = await model.generateContent(prompt);
-                    let raw = response.response.text();
+                    const raw = response.response.text();
                     
                     if (onLog) {
                         onLog(`=== [MINI-HUMANIZADOR JSON] RESPUESTA ===\n${raw}\n===========================================`);
@@ -1116,7 +1133,7 @@ REGLAS CRÍTICAS:
         }
 
         // CONVERSIÓN DE VUELTA A HTML
-        let finalOutputHtml = await marked.parse(currentMd);
+        const finalOutputHtml = await marked.parse(currentMd);
         
         if (onLog) {
             onLog('=== [MINI-HUMANIZADOR] MD PARSEADO A HTML ===\n' + 
@@ -1356,7 +1373,7 @@ Tienes ESTRICTAMENTE PROHIBIDO hacer borradores, análisis, explicaciones o "Cha
             }
         }
         
-        let cleaned = raw.trim();
+        const cleaned = raw.trim();
         
         let parsed: any = null;
         
@@ -1662,7 +1679,7 @@ export async function executeCustomTransformWithRetry<T>(
     };
 
     const parsed = parseModelAndProvider(modelName, provider);
-    let resolvedModel = parsed.resolvedModel;
+    const resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
 
@@ -1778,7 +1795,7 @@ ${userInstructions}
         }
         
         const response = await model.generateContent(promptParts);
-        let raw = response.response.text();
+        const raw = response.response.text();
 
         let cleaned = raw;
         cleaned = cleaned.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();

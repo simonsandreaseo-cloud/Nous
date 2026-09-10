@@ -1,3 +1,5 @@
+import type { MiniHumanizerParams } from './types';
+
 export async function streamGenerate(
     prompt: string,
     model: string,
@@ -151,12 +153,17 @@ export async function streamMiniHumanize(
     config: any,
     intensity: number,
     onChunk: (html: string) => void,
-    onStatus: (msg: string) => void, model?: string, mode?: string, provider?: string, reasoning?: string
+    onStatus: (msg: string) => void,
+    model?: string,
+    mode?: string,
+    provider?: string,
+    reasoning?: string,
+    customParams?: MiniHumanizerParams
 ): Promise<{ html: string; result?: any }> {
     const response = await fetch('/api/mini-humanize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, config, intensity, model, mode, provider, reasoning })
+        body: JSON.stringify({ content, config, intensity, model, mode, provider, reasoning, customParams })
     });
 
     const contentType = response.headers.get('content-type');

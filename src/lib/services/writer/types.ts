@@ -160,6 +160,14 @@ export interface HumanizerConfig {
     language?: string;
 }
 
+export interface MiniHumanizerParams {
+    temperature?: number;
+    topP?: number;
+    topK?: number;
+    presencePenalty?: number;
+    frequencyPenalty?: number;
+}
+
 // --- Research Pipeline Config ---
 export interface DeepSEOConfig {
     keyword: string;

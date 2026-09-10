@@ -7,13 +7,13 @@ export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s l
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { content, config, intensity, mode, provider , reasoning} = body;
+        const { content, config, intensity, mode, provider, reasoning, customParams } = body;
 
         if (!content) {
             return NextResponse.json({ error: 'Content is required' }, { status: 400 });
         }
 
-        console.log(`[MiniHumanizer-API] Processing ${content.length} chars (Streaming), Mode: ${mode || 'standard'}`);
+        console.log(`[MiniHumanizer-API] Processing ${content.length} chars (Streaming), Mode: ${mode || 'standard'}${customParams ? ', CustomParams: ' + JSON.stringify(customParams) : ''}`);
 
         const encoder = new TextEncoder();
         
@@ -51,8 +51,10 @@ export async function POST(req: Request) {
                             onLog,
                             mode || 'standard',
                             undefined,
-                            provider
-                        , reasoning);
+                            provider,
+                            reasoning,
+                            customParams
+                        );
                     });
 
                     clearInterval(keepAlive);
