@@ -280,10 +280,23 @@ export function EditorialCalendar() {
             // Search Query Filter
             if (searchQuery) {
                 const searchLower = searchQuery.toLowerCase();
+                
                 const matchesTitle = task.title?.toLowerCase().includes(searchLower);
                 const matchesKeyword = task.target_keyword?.toLowerCase().includes(searchLower);
                 const matchesSlug = task.target_url_slug?.toLowerCase().includes(searchLower);
-                if (!matchesTitle && !matchesKeyword && !matchesSlug) return false;
+                const matchesSeoTitle = task.seo_title?.toLowerCase().includes(searchLower);
+                const matchesMetaDesc = task.meta_description?.toLowerCase().includes(searchLower);
+                const matchesContentType = task.content_type?.toLowerCase().includes(searchLower);
+                const matchesStatus = task.status?.toLowerCase().includes(searchLower) || (task.status && STATUS_LABELS[task.status as keyof typeof STATUS_LABELS]?.toLowerCase().includes(searchLower));
+                const matchesAssociatedUrl = task.associated_url?.toLowerCase().includes(searchLower);
+                
+                const matchesLsi = task.research_dossier?.lsiKeywords?.some((k: any) => k.keyword?.toLowerCase().includes(searchLower));
+                const matchesRefs = task.refs?.some((url: string) => url.toLowerCase().includes(searchLower));
+                const matchesTop10 = task.research_dossier?.top10Urls?.some((u: any) => u.url?.toLowerCase().includes(searchLower));
+
+                if (!matchesTitle && !matchesKeyword && !matchesSlug && !matchesSeoTitle && !matchesMetaDesc && !matchesContentType && !matchesStatus && !matchesAssociatedUrl && !matchesLsi && !matchesRefs && !matchesTop10) {
+                    return false;
+                }
             }
 
             // Status Filter

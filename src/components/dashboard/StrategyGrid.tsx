@@ -1753,6 +1753,36 @@ export default function StrategyGrid({
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Modo Lectura</p>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {previewTask.content_body && (
+                                        <button 
+                                            onClick={async () => {
+                                                try {
+                                                    const blob = new Blob([previewTask.content_body!], { type: 'text/html' });
+                                                    
+                                                    // Helper para extraer texto plano conservando saltos de línea donde haya p, br, divs
+                                                    const tempDiv = document.createElement("div");
+                                                    tempDiv.innerHTML = previewTask.content_body!;
+                                                    const plainText = tempDiv.innerText || tempDiv.textContent || "";
+                                                    const plainBlob = new Blob([plainText], { type: 'text/plain' });
+                                                    
+                                                    await navigator.clipboard.write([
+                                                        new window.ClipboardItem({
+                                                            'text/html': blob,
+                                                            'text/plain': plainBlob,
+                                                        })
+                                                    ]);
+                                                    NotificationService.success('Contenido copiado con éxito');
+                                                } catch (err) {
+                                                    console.error('Error al copiar', err);
+                                                    NotificationService.error('No se pudo copiar el contenido');
+                                                }
+                                            }}
+                                            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                            Copiar
+                                        </button>
+                                    )}
                                     <button 
                                         onClick={() => {
                                             initializeFromTask(previewTask, activeProject);
