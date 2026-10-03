@@ -33,7 +33,12 @@ export class NousExtractorService {
                     extraction_value: r.extraction_value,
                     output_template: r.output_template,
                     clauses: r.clauses,
-                    logic_operator: r.logic_operator
+                    logic_operator: r.logic_operator,
+                    chained_extractor: r.chained_extractor,
+                    batch_mode: r.batch_mode,
+                    batch_prefix: r.batch_prefix,
+                    batch_suffix: r.batch_suffix,
+                    batch_separator: r.batch_separator
                 }))
             };
 
