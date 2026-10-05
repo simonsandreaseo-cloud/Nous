@@ -27,7 +27,7 @@ export function AddAssetPlaceholder({ type, className, onDropUpload, onFileUploa
                 ref={fileInputRef} 
                 onChange={(e) => onFileUpload(e, type)} 
                 className="hidden" 
-                accept="image/*"
+                accept="image/*,video/mp4,video/webm"
             />
             <button 
                 onClick={() => fileInputRef.current?.click()}

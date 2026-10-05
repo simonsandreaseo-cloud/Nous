@@ -205,6 +205,7 @@ export async function uploadManualImage(params: {
     try {
         const imageBuffer = Buffer.from(params.base64.split(',')[1], 'base64');
         const isGif = params.fileType.toLowerCase().includes('gif') || params.fileName.toLowerCase().endsWith('.gif');
+        const isVideo = params.fileType.toLowerCase().startsWith('video/');
         const imageId = Math.random().toString(36).substr(2, 9);
 
         const originalName = params.fileName || 'image';
@@ -217,7 +218,26 @@ export async function uploadManualImage(params: {
         let storagePath: string;
         let publicUrl: string;
 
-        if (isGif) {
+        if (isVideo) {
+            // Bypass Sharp entirely for videos
+            const fileExt = params.fileType.split('/')[1] || 'mp4';
+            storagePath = `generations/${params.taskId}/${cleanName}.${fileExt}`;
+
+            const { error: uploadError } = await supabaseAdmin.storage
+                .from('content-images')
+                .upload(storagePath, imageBuffer, {
+                    contentType: params.fileType,
+                    upsert: true
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl: url } } = supabaseAdmin.storage
+                .from('content-images')
+                .getPublicUrl(storagePath);
+
+            publicUrl = url;
+        } else if (isGif) {
             // Leave GIF untouched to preserve animation
             const fileExt = 'gif';
             storagePath = `generations/${params.taskId}/${cleanName}.${fileExt}`;
@@ -318,6 +338,7 @@ export async function uploadEditorImageAction(formData: FormData) {
 
         const imageBuffer = Buffer.from(await file.arrayBuffer());
         const isGif = file.type.toLowerCase().includes('gif') || file.name.toLowerCase().endsWith('.gif');
+        const isVideo = file.type.toLowerCase().startsWith('video/');
         const imageId = Math.random().toString(36).substr(2, 9);
         const supabaseAdmin = getSupabaseAdmin();
 
@@ -329,7 +350,16 @@ export async function uploadEditorImageAction(formData: FormData) {
         let storagePath: string;
         let publicUrl: string;
 
-        if (isGif) {
+        if (isVideo) {
+            const fileExt = file.type.split('/')[1] || 'mp4';
+            storagePath = `generations/${taskId}/${cleanName}.${fileExt}`;
+            const { error: uploadError } = await supabaseAdmin.storage
+                .from('content-images')
+                .upload(storagePath, imageBuffer, { contentType: file.type, upsert: true });
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl: url } } = supabaseAdmin.storage.from('content-images').getPublicUrl(storagePath);
+            publicUrl = url;
+        } else if (isGif) {
             storagePath = `generations/${taskId}/${cleanName}.gif`;
             const { error: uploadError } = await supabaseAdmin.storage
                 .from('content-images')

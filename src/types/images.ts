@@ -22,6 +22,7 @@ export interface ImageAsset {
   role: LayoutRole;
   
   // --- CONTENT ---
+  mediaType?: 'image' | 'video'; // Added to support videos
   url?: string;
   storagePath?: string;     // Internal path for Supabase/Cloudflare R2
   prompt: string;           // Final prompt (Gemini + Presets + Master)

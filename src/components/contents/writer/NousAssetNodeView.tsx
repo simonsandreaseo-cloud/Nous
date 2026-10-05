@@ -246,12 +246,21 @@ export default function NousAssetNodeView(props: any) {
                 )}>
                     <div className="relative aspect-[16/9] bg-slate-950 overflow-hidden">
                         {url ? (
-                            <img 
-                                src={url} 
-                                alt={alt || 'Nous Asset'} 
-                                className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-700 group-hover:scale-105"
-                                loading="lazy"
-                            />
+                            node.attrs.mediaType === 'video' || (url && url.match(/\.(mp4|webm|mov|ts)$/i)) ? (
+                                <video 
+                                    src={url} 
+                                    controls 
+                                    className="w-full h-full object-cover select-none pointer-events-auto"
+                                    preload="metadata"
+                                />
+                            ) : (
+                                <img 
+                                    src={url} 
+                                    alt={alt || 'Nous Asset'} 
+                                    className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-700 group-hover:scale-105"
+                                    loading="lazy"
+                                />
+                            )
                         ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-slate-800">
                                 <motion.div animate={{ rotate: 360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}>

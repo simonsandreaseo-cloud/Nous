@@ -204,7 +204,7 @@ export const FeaturedImageSlot = ({ taskId, onFullscreen }: { taskId: string | n
                     type="file" 
                     ref={fileInputRef} 
                     onChange={handleFileChange} 
-                    accept="image/*" 
+                    accept="image/*,video/mp4,video/webm" 
                     className="hidden" 
                 />
                                 <div 

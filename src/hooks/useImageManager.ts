@@ -34,6 +34,7 @@ function mapNodeToAsset(node: any, patcherRules: PatcherRule[] = []): ImageAsset
         type: node.type.name === 'nousAsset' ? 'image' : 'slot',
         role: (attrs.role || attrs.type || 'feature') as LayoutRole,
         url: patchedUrl,
+        mediaType: attrs.mediaType || 'image',
         storagePath: attrs.storage_path,
         prompt: attrs.prompt || '',
         alt: attrs.alt || '',
@@ -62,6 +63,7 @@ function flattenAssetUpdates(updates: Partial<ImageAsset>): any {
     if (updates.id) flattened.id = updates.id;
     if (updates.status) flattened.status = updates.status;
     if (updates.url) flattened.url = updates.url;
+    if (updates.mediaType) flattened.mediaType = updates.mediaType;
     if (updates.storagePath) flattened.storage_path = updates.storagePath;
     if (updates.prompt) flattened.prompt = updates.prompt;
     if (updates.alt) flattened.alt = updates.alt;
@@ -198,7 +200,8 @@ export function useImageManager() {
                     url: res.publicUrl,
                     status: 'final',
                     storagePath: res.storagePath,
-                    title: file.name
+                    title: file.name,
+                    mediaType: file.type.startsWith('video/') ? 'video' : 'image'
                 });
                 await loadTaskImages(draftId);
                 setStatus(ProcessingStatus.COMPLETED);

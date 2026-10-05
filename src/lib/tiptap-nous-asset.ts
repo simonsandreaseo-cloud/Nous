@@ -13,6 +13,7 @@ export const NousAsset = Node.create({
       id: { default: null },
       url: { default: null },
       type: { default: 'inline' }, // 'featured' | 'inline'
+      mediaType: { default: 'image' }, // 'image' | 'video'
       alt: { default: '' },
       title: { default: '' },
       prompt: { default: '' },
@@ -141,6 +142,24 @@ export const NousAsset = Node.create({
         .map(([k, v]) => `${k}:${v}`)
         .join(';');
 
+    const isVideo = HTMLAttributes.mediaType === 'video' || (url && url.match(/\.(mp4|webm|mov|ts)$/i));
+
+    const mediaElement = isVideo 
+        ? ['video', mergeAttributes(rest, {
+            'src': url,
+            'title': HTMLAttributes.title || '',
+            'controls': 'true',
+            'preload': 'metadata',
+            'style': 'width:100%; height:auto; display:block; border-radius:1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);'
+          })]
+        : ['img', mergeAttributes(rest, { 
+            'src': url,
+            'alt': HTMLAttributes.alt || '',
+            'title': HTMLAttributes.title || '',
+            'loading': 'lazy',
+            'style': 'width:100%; height:auto; display:block; border-radius:1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);'
+          })];
+
     return [
         'figure',
         { 
@@ -150,16 +169,7 @@ export const NousAsset = Node.create({
           'data-role': role,
           'data-anchor': semanticAnchor
         },
-        [
-            'img', 
-            mergeAttributes(rest, { 
-                'src': url,
-                'alt': HTMLAttributes.alt || '',
-                'title': HTMLAttributes.title || '',
-                'loading': 'lazy',
-                'style': 'width:100%; height:auto; display:block; border-radius:1.5rem; shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);'
-            })
-        ]
+        mediaElement
     ];
   },
 
