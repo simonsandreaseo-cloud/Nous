@@ -211,7 +211,11 @@ export async function uploadManualImage(params: {
         const originalName = params.fileName || 'image';
         const lastDot = originalName.lastIndexOf('.');
         const baseName = lastDot !== -1 ? originalName.substring(0, lastDot) : originalName;
-        const cleanName = baseName.replace(/\s+/g, '_');
+        const cleanName = baseName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9_\-]/g, '_')
+            .replace(/_+/g, '_');
 
         const supabaseAdmin = getSupabaseAdmin();
 
@@ -345,7 +349,11 @@ export async function uploadEditorImageAction(formData: FormData) {
         const originalName = file.name || 'image';
         const lastDot = originalName.lastIndexOf('.');
         const baseName = lastDot !== -1 ? originalName.substring(0, lastDot) : originalName;
-        const cleanName = baseName.replace(/\s+/g, '_');
+        const cleanName = baseName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9_\-]/g, '_')
+            .replace(/_+/g, '_');
 
         let storagePath: string;
         let publicUrl: string;
@@ -449,7 +457,11 @@ export async function getSignedUploadUrlAction(taskId: string, fileName: string,
         const originalName = fileName || 'video';
         const lastDot = originalName.lastIndexOf('.');
         const baseName = lastDot !== -1 ? originalName.substring(0, lastDot) : originalName;
-        const cleanName = baseName.replace(/\s+/g, '_');
+        const cleanName = baseName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9_\-]/g, '_')
+            .replace(/_+/g, '_');
         const fileExt = contentType.split('/')[1] || 'mp4';
         
         const storagePath = `generations/${taskId}/${cleanName}_${Date.now()}.${fileExt}`;
