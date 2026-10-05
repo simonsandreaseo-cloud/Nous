@@ -568,7 +568,7 @@ export default function WriterEditor() {
                                         <Palette size={15} />
                                     </button>
                                     <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 hidden group-hover/color:block z-50">
-                                        <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-2 grid grid-cols-4 gap-1">
+                                        <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-2 grid grid-cols-4 gap-1 w-max">
                                             {['#000000', '#475569', '#2563eb', '#16a34a', '#dc2626', '#d97706', '#9333ea', '#db2777'].map(color => (
                                                 <button
                                                     key={color}
@@ -585,7 +585,7 @@ export default function WriterEditor() {
                                         <Highlighter size={15} />
                                     </button>
                                     <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 hidden group-hover/highlight:block z-50">
-                                        <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-2 grid grid-cols-4 gap-1">
+                                        <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-2 grid grid-cols-4 gap-1 w-max">
                                             {['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#ddd6fe', '#fed7aa', '#f1f5f9', 'transparent'].map(color => (
                                                 <button
                                                     key={color}
