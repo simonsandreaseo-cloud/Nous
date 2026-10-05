@@ -438,3 +438,63 @@ export async function deleteImageAction(imageId: string, storagePath: string) {
         return { success: false, error: error.message };
     }
 }
+
+/**
+ * Server Action to get a signed upload URL for direct client-to-storage uploads.
+ * Bypasses Vercel's 4.5MB Serverless Function payload limit.
+ */
+export async function getSignedUploadUrlAction(taskId: string, fileName: string, contentType: string) {
+    try {
+        const supabaseAdmin = getSupabaseAdmin();
+        const originalName = fileName || 'video';
+        const lastDot = originalName.lastIndexOf('.');
+        const baseName = lastDot !== -1 ? originalName.substring(0, lastDot) : originalName;
+        const cleanName = baseName.replace(/\s+/g, '_');
+        const fileExt = contentType.split('/')[1] || 'mp4';
+        
+        const storagePath = `generations/${taskId}/${cleanName}_${Date.now()}.${fileExt}`;
+
+        const { data, error } = await supabaseAdmin.storage
+            .from('content-images')
+            .createSignedUploadUrl(storagePath);
+
+        if (error) throw error;
+
+        return { 
+            success: true, 
+            signedUrl: data.signedUrl, 
+            token: data.token,
+            storagePath 
+        };
+    } catch (error: any) {
+        console.error('Error in getSignedUploadUrlAction:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Server Action to register a directly uploaded file in the database.
+ */
+export async function registerUploadedAssetAction(taskId: string, storagePath: string, fileName: string, altText?: string) {
+    try {
+        const supabaseAdmin = getSupabaseAdmin();
+        const { data: { publicUrl: url } } = supabaseAdmin.storage.from('content-images').getPublicUrl(storagePath);
+
+        const { error: dbError } = await supabaseAdmin.from('task_images').insert({
+            task_id: taskId,
+            storage_path: storagePath,
+            url: url,
+            prompt: 'Direct upload via Signed URL',
+            alt_text: altText || fileName,
+            title: fileName,
+            type: 'inline'
+        });
+
+        if (dbError) throw dbError;
+
+        return { success: true, publicUrl: url, storagePath };
+    } catch (error: any) {
+        console.error('Error in registerUploadedAssetAction:', error);
+        return { success: false, error: error.message };
+    }
+}

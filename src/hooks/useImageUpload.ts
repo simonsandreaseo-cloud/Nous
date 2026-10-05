@@ -8,7 +8,7 @@ const BUCKET = 'task-assets';
 const MAX_SIZE_MB = 100; // Increased to support videos
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'video/mp4', 'video/webm', 'video/quicktime'];
 
-import { uploadEditorImageAction } from '@/lib/actions/imageActions';
+import { uploadEditorImageAction, getSignedUploadUrlAction, registerUploadedAssetAction } from '@/lib/actions/imageActions';
 
 interface UseImageUploadOptions {
     /** Folder inside the user's directory. Defaults to 'editor-uploads' */
@@ -32,25 +32,46 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
         // Validate size
         const sizeMB = file.size / (1024 * 1024);
         if (sizeMB > MAX_SIZE_MB) {
-            toast.error(`La imagen supera el límite de ${MAX_SIZE_MB}MB (${sizeMB.toFixed(1)}MB)`);
+            toast.error(`El archivo supera el límite de ${MAX_SIZE_MB}MB (${sizeMB.toFixed(1)}MB)`);
             return;
         }
 
         setIsUploading(true);
-        const toastId = toast.loading('Optimizando y subiendo archivo...');
+        const toastId = toast.loading('Subiendo archivo...');
 
         try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('taskId', taskId);
-            formData.append('altText', file.name);
+            let publicUrl = '';
+            
+            // Bypass Next.js/Vercel 4.5MB Serverless limit by uploading directly to Storage via Signed URL
+            if (file.type.startsWith('video/') || file.size > 4 * 1024 * 1024) {
+                const signRes = await getSignedUploadUrlAction(taskId, file.name, file.type);
+                if (!signRes.success || !signRes.signedUrl) throw new Error(signRes.error || 'Error obteniendo URL segura');
+                
+                const uploadRes = await fetch(signRes.signedUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: { 'Content-Type': file.type }
+                });
+                
+                if (!uploadRes.ok) throw new Error('Fallo al transferir archivo al Storage');
+                
+                const regRes = await registerUploadedAssetAction(taskId, signRes.storagePath!, file.name, file.name);
+                if (!regRes.success) throw new Error(regRes.error || 'Error registrando el archivo');
+                
+                publicUrl = regRes.publicUrl;
+            } else {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('taskId', taskId);
+                formData.append('altText', file.name);
 
-            const res = await uploadEditorImageAction(formData);
+                const res = await uploadEditorImageAction(formData);
+                if (!res.success) throw new Error(res.error || 'Error en el procesamiento');
+                publicUrl = res.publicUrl;
+            }
 
-            if (!res.success) throw new Error(res.error || 'Error en el procesamiento');
-
-            toast.success('Archivo optimizado y subido', { id: toastId });
-            onSuccess(res.publicUrl, file.name);
+            toast.success('Archivo subido con éxito', { id: toastId });
+            onSuccess(publicUrl, file.name);
         } catch (err: any) {
             console.error('[useImageUpload]', err);
             toast.error(`Error al subir: ${err.message}`, { id: toastId });
