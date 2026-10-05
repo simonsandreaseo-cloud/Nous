@@ -9,6 +9,7 @@ const MAX_SIZE_MB = 100; // Increased to support videos
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'video/mp4', 'video/webm', 'video/quicktime'];
 
 import { uploadEditorImageAction, getSignedUploadUrlAction, registerUploadedAssetAction } from '@/lib/actions/imageActions';
+import { compressVideo } from '@/lib/videoCompression';
 
 interface UseImageUploadOptions {
     /** Folder inside the user's directory. Defaults to 'editor-uploads' */
@@ -37,13 +38,35 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
         }
 
         setIsUploading(true);
-        const toastId = toast.loading('Subiendo archivo...');
+        const toastId = toast.loading('Procesando archivo...');
 
         try {
             let publicUrl = '';
             
-            // Bypass Next.js/Vercel 4.5MB Serverless limit by uploading directly to Storage via Signed URL
-            if (file.type.startsWith('video/') || file.size > 4 * 1024 * 1024) {
+            if (file.type.startsWith('video/')) {
+                // Comprimir el video usando el CPU del cliente
+                toast.loading('Comprimiendo video (0%)...', { id: toastId });
+                const compressedFile = await compressVideo(file, (progress) => {
+                    toast.loading(`Comprimiendo video (${progress}%)...`, { id: toastId });
+                });
+                
+                toast.loading('Subiendo video comprimido...', { id: toastId });
+                const signRes = await getSignedUploadUrlAction(taskId, compressedFile.name, compressedFile.type);
+                if (!signRes.success || !signRes.signedUrl) throw new Error(signRes.error || 'Error obteniendo URL segura');
+                
+                const uploadRes = await fetch(signRes.signedUrl, {
+                    method: 'PUT',
+                    body: compressedFile,
+                    headers: { 'Content-Type': compressedFile.type }
+                });
+                if (!uploadRes.ok) throw new Error('Fallo al transferir archivo al Storage');
+                
+                const regRes = await registerUploadedAssetAction(taskId, signRes.storagePath!, compressedFile.name, compressedFile.name);
+                if (!regRes.success) throw new Error(regRes.error || 'Error registrando el archivo');
+                
+                publicUrl = regRes.publicUrl;
+            } else if (file.size > 4 * 1024 * 1024) {
+                // Bypass Vercel 4.5MB limit for large images
                 const signRes = await getSignedUploadUrlAction(taskId, file.name, file.type);
                 if (!signRes.success || !signRes.signedUrl) throw new Error(signRes.error || 'Error obteniendo URL segura');
                 
@@ -52,7 +75,6 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
                     body: file,
                     headers: { 'Content-Type': file.type }
                 });
-                
                 if (!uploadRes.ok) throw new Error('Fallo al transferir archivo al Storage');
                 
                 const regRes = await registerUploadedAssetAction(taskId, signRes.storagePath!, file.name, file.name);
