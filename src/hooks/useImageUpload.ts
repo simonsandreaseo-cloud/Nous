@@ -5,8 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 const BUCKET = 'task-assets';
-const MAX_SIZE_MB = 5;
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+const MAX_SIZE_MB = 100; // Increased to support videos
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'video/mp4', 'video/webm', 'video/quicktime'];
 
 import { uploadEditorImageAction } from '@/lib/actions/imageActions';
 
@@ -37,7 +37,7 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
         }
 
         setIsUploading(true);
-        const toastId = toast.loading('Optimizando y subiendo imagen...');
+        const toastId = toast.loading('Optimizando y subiendo archivo...');
 
         try {
             const formData = new FormData();
@@ -47,9 +47,9 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
 
             const res = await uploadEditorImageAction(formData);
 
-            if (!res.success) throw new Error(res.error || 'Error en el procesamiento de la imagen');
+            if (!res.success) throw new Error(res.error || 'Error en el procesamiento');
 
-            toast.success('Imagen optimizada y subida', { id: toastId });
+            toast.success('Archivo optimizado y subido', { id: toastId });
             onSuccess(res.publicUrl, file.name);
         } catch (err: any) {
             console.error('[useImageUpload]', err);
@@ -71,13 +71,13 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
         input.click();
     }, [uploadFile]);
 
-    /** Handles a ClipboardEvent and uploads the first image found */
+    /** Handles a ClipboardEvent and uploads the first image/video found */
     const handlePaste = useCallback((e: ClipboardEvent): boolean => {
         const items = Array.from(e.clipboardData?.items ?? []);
-        const imageItem = items.find(item => item.type.startsWith('image/'));
-        if (!imageItem) return false;
+        const mediaItem = items.find(item => item.type.startsWith('image/') || item.type.startsWith('video/'));
+        if (!mediaItem) return false;
 
-        const file = imageItem.getAsFile();
+        const file = mediaItem.getAsFile();
         if (!file) return false;
 
         e.preventDefault();
