@@ -447,8 +447,9 @@ export default function WriterEditor() {
                                     </span>
                                     <ChevronDown size={10} className="text-slate-400" />
                                 </div>
-                                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 p-1 hidden group-hover/block:flex flex-col min-w-[120px] z-50">
-                                    <button
+                                <div className="absolute top-full left-0 pt-2 hidden group-hover/block:block z-50">
+                                    <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-1 flex flex-col min-w-[120px]">
+                                        <button
                                         onClick={() => editor.chain().focus().setParagraph().run()}
                                         className={cn("px-3 py-1.5 text-[12px] font-medium rounded-lg text-left transition-colors", editor.isActive('paragraph') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
                                     >
@@ -478,6 +479,7 @@ export default function WriterEditor() {
                                     >
                                         Título 4 (H4)
                                     </button>
+                                </div>
                                 </div>
                             </div>
 
@@ -522,8 +524,9 @@ export default function WriterEditor() {
                                     <ChevronDown size={10} className="text-slate-400" />
                                 </div>
                                 {/* Size Dropdown (Simplified for Bubble Menu) */}
-                                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 p-1 hidden group-hover/size:flex flex-col min-w-[60px] z-50">
-                                    {['12px', '14px', '16px', '18px', '20px', '24px', '32px'].map(size => (
+                                <div className="absolute top-full left-0 pt-2 hidden group-hover/size:block z-50">
+                                    <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-1 flex flex-col min-w-[60px]">
+                                        {['12px', '14px', '16px', '18px', '20px', '24px', '32px'].map(size => (
                                         <button
                                             key={size}
                                             onClick={() => editor.chain().focus().setFontSize(size).run()}
@@ -532,6 +535,7 @@ export default function WriterEditor() {
                                             {size}
                                         </button>
                                     ))}
+                                    </div>
                                 </div>
                             </div>
 
@@ -563,32 +567,36 @@ export default function WriterEditor() {
                                     <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all">
                                         <Palette size={15} />
                                     </button>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 p-2 hidden group-hover/color:grid grid-cols-4 gap-1 z-50">
-                                        {['#000000', '#475569', '#2563eb', '#16a34a', '#dc2626', '#d97706', '#9333ea', '#db2777'].map(color => (
-                                            <button
-                                                key={color}
-                                                onClick={() => editor.chain().focus().setColor(color).run()}
-                                                className="w-5 h-5 rounded-md border border-slate-100 shadow-sm shrink-0"
-                                                style={{ backgroundColor: color }}
-                                            />
-                                        ))}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 hidden group-hover/color:block z-50">
+                                        <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-2 grid grid-cols-4 gap-1">
+                                            {['#000000', '#475569', '#2563eb', '#16a34a', '#dc2626', '#d97706', '#9333ea', '#db2777'].map(color => (
+                                                <button
+                                                    key={color}
+                                                    onClick={() => editor.chain().focus().setColor(color).run()}
+                                                    className="w-5 h-5 rounded-md border border-slate-100 shadow-sm shrink-0"
+                                                    style={{ backgroundColor: color }}
+                                                />
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="relative group/highlight">
                                     <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all">
                                         <Highlighter size={15} />
                                     </button>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 p-2 hidden group-hover/highlight:grid grid-cols-4 gap-1 z-50">
-                                        {['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#ddd6fe', '#fed7aa', '#f1f5f9', 'transparent'].map(color => (
-                                            <button
-                                                key={color}
-                                                onClick={() => color === 'transparent' ? editor.chain().focus().unsetHighlight().run() : editor.chain().focus().setHighlight({ color }).run()}
-                                                className="w-5 h-5 rounded-md border border-slate-100 shadow-sm shrink-0 flex items-center justify-center"
-                                                style={{ backgroundColor: color === 'transparent' ? 'white' : color }}
-                                            >
-                                                {color === 'transparent' && <X size={10} className="text-slate-400" />}
-                                            </button>
-                                        ))}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 hidden group-hover/highlight:block z-50">
+                                        <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-2 grid grid-cols-4 gap-1">
+                                            {['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#ddd6fe', '#fed7aa', '#f1f5f9', 'transparent'].map(color => (
+                                                <button
+                                                    key={color}
+                                                    onClick={() => color === 'transparent' ? editor.chain().focus().unsetHighlight().run() : editor.chain().focus().setHighlight({ color }).run()}
+                                                    className="w-5 h-5 rounded-md border border-slate-100 shadow-sm shrink-0 flex items-center justify-center"
+                                                    style={{ backgroundColor: color === 'transparent' ? 'white' : color }}
+                                                >
+                                                    {color === 'transparent' && <X size={10} className="text-slate-400" />}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
