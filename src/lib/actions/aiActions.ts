@@ -532,23 +532,18 @@ ${FEW_SHOT_JSON}`,
 };
 
 export const generateOutlineStrategy = async (config: ArticleConfig, keyword: string, rawSeoData: SEOAnalysisResult, modelName?: string) => {
-    const faqContext = rawSeoData?.frequentQuestions?.length 
-        ? \`\\n    ### PREGUNTAS FRECUENTES (FAQs) EXTRAÍDAS DE GOOGLE:\\n    \${rawSeoData.frequentQuestions.map(q => \`- \${q}\`).join('\\n')}\\n\\n    INSTRUCCIÓN DE FAQs:\\n    Como estratega, evalúa estas preguntas:\\n    1. Integra las más relevantes como H2/H3 orgánicos dentro del contenido principal si tienen sentido narrativo.\\n    2. Si sobran preguntas útiles, crea una sección final de H2 "Preguntas Frecuentes" y colócalas como H3 bajo esa sección.\\n    3. Descarta las que no aporten valor.\`
-        : '';
-
-    const prompt = \`
+    const prompt = `
     Act as a Master SEO Content Strategist.
-    Project: \${config.projectName}. Niche: \${config.niche}.
-    Topic/Keyword: "\${keyword}".
+    Project: ${config.projectName}. Niche: ${config.niche}.
+    Topic/Keyword: "${keyword}".
     
     ### ESTRATEGIA DE ENLAZADO INTERNO (15 Enlaces Sugeridos):
     Estos son los enlaces que HEMOS INVESTIGADO y que deben ser el eje del artículo:
-    \${config.approvedLinks?.map(l => \`- [\${l.title}](\${l.url})\${l.category ? \` (Categoría: \${l.category})\` : ''}\`).join('\\n') || 'N/A'}
+    ${config.approvedLinks?.map(l => `- [${l.title}](${l.url})${l.category ? ` (Categoría: ${l.category})` : ''}`).join('\n') || 'N/A'}
     
     INSTRUCCIÓN DE DISEÑO:
     Crea un Outline (Estructura de Encabezados) que esté optimizado para que estos enlaces encajen de forma orgánica y lógica. 
     Distribuye los 15 enlaces a lo largo de los H2 y H3.
-    \${faqContext}
     
     Requirements:
     1. Meta Title: Click-worthy, includes keyword, < 60 chars.
@@ -556,7 +551,7 @@ export const generateOutlineStrategy = async (config: ArticleConfig, keyword: st
     3. Slug: Short, URL-friendly.
     4. Meta Description: Compelling, < 160 chars.
     5. Outline: Array of headers (H2, H3).
-    \`;
+    `;
   
     const schema = {
         type: Type.OBJECT,
