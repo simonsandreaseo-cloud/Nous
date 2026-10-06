@@ -51,45 +51,45 @@ async function toBlobURL(url: string, mimeType: string): Promise<string> {
 }
 
 /**
- * Compresses a video file to WebM (VP9) format using FFmpeg.wasm.
+ * Compresses a video file to MP4 (H.264) format using FFmpeg.wasm.
+ * H.264 is used because VP9 encoding in WASM is too memory intensive and causes "memory access out of bounds" crashes.
  * @param file The original video file
  * @param onProgress Callback for compression progress (0-100)
- * @returns A File object containing the compressed WebM video
+ * @returns A File object containing the compressed MP4 video
  */
 export async function compressVideo(file: File, onProgress?: (progress: number) => void): Promise<File> {
     const ffmpegInstance = await getFFmpeg(onProgress);
 
     const inputName = 'input' + (file.name.substring(file.name.lastIndexOf('.')) || '.mp4');
-    const outputName = 'output.webm';
+    const outputName = 'output.mp4';
 
     // Write the file to FFmpeg's virtual filesystem
     await ffmpegInstance.writeFile(inputName, await fetchFile(file));
 
-    console.log(`Starting compression for ${file.name} to WebM/VP9...`);
+    console.log(`Starting compression for ${file.name} to MP4/H.264...`);
     
     // Execute FFmpeg command
-    // -c:v libvpx-vp9: VP9 codec
-    // -crf 32: Constant Rate Factor (lower is better quality, 30-35 is good for web)
-    // -b:v 0: Allow variable bitrate
-    // -c:a libopus: Opus audio codec
+    // -c:v libx264: H.264 video codec (much faster and less memory-intensive than VP9)
+    // -preset veryfast: Optimize for speed and low memory usage
+    // -crf 28: Constant Rate Factor (23 is default, 28 is good for web compression)
+    // -c:a aac: AAC audio codec (standard for MP4)
+    // -b:a 128k: Audio bitrate
     // -vf scale='min(1280,iw)':-2 : Scale to max 720p width, keeping aspect ratio
-    // -deadline realtime: Speed up VP9 encoding
     await ffmpegInstance.exec([
         '-i', inputName,
-        '-c:v', 'libvpx-vp9',
-        '-crf', '32',
-        '-b:v', '0',
-        '-c:a', 'libopus',
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',
+        '-crf', '28',
+        '-c:a', 'aac',
+        '-b:a', '128k',
         '-vf', "scale='min(1280,iw)':-2",
-        '-threads', '2',
-        '-speed', '4',
-        '-deadline', 'realtime',
+        '-movflags', '+faststart', // Optimize for web streaming
         outputName
     ]);
 
     // Read the result
     const data = await ffmpegInstance.readFile(outputName);
-    const compressedBlob = new Blob([data], { type: 'video/webm' });
+    const compressedBlob = new Blob([data], { type: 'video/mp4' });
     
     // Clean up virtual filesystem
     await ffmpegInstance.deleteFile(inputName);
@@ -97,5 +97,5 @@ export async function compressVideo(file: File, onProgress?: (progress: number) 
 
     // Create a new File object
     const cleanBaseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-    return new File([compressedBlob], `${cleanBaseName}.webm`, { type: 'video/webm' });
+    return new File([compressedBlob], `${cleanBaseName}.mp4`, { type: 'video/mp4' });
 }

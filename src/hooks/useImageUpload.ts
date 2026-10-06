@@ -44,24 +44,31 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
             let publicUrl = '';
             
             if (file.type.startsWith('video/')) {
-                // Comprimir el video usando el CPU del cliente
-                toast.loading('Comprimiendo video (0%)...', { id: toastId });
-                const compressedFile = await compressVideo(file, (progress) => {
-                    toast.loading(`Comprimiendo video (${progress}%)...`, { id: toastId });
-                });
+                let finalFile = file;
+                try {
+                    // Try to compress the video using the client CPU
+                    toast.loading('Comprimiendo video (0%)...', { id: toastId });
+                    finalFile = await compressVideo(file, (progress) => {
+                        toast.loading(`Comprimiendo video (${progress}%)...`, { id: toastId });
+                    });
+                } catch (compressionError) {
+                    console.warn("Video compression failed, falling back to raw upload:", compressionError);
+                    toast.loading('La compresión falló por el tamaño, subiendo video original...', { id: toastId });
+                    finalFile = file; // Fallback to raw file
+                }
                 
-                toast.loading('Subiendo video comprimido...', { id: toastId });
-                const signRes = await getSignedUploadUrlAction(taskId, compressedFile.name, compressedFile.type);
+                toast.loading('Subiendo video...', { id: toastId });
+                const signRes = await getSignedUploadUrlAction(taskId, finalFile.name, finalFile.type);
                 if (!signRes.success || !signRes.signedUrl) throw new Error(signRes.error || 'Error obteniendo URL segura');
                 
                 const uploadRes = await fetch(signRes.signedUrl, {
                     method: 'PUT',
-                    body: compressedFile,
-                    headers: { 'Content-Type': compressedFile.type }
+                    body: finalFile,
+                    headers: { 'Content-Type': finalFile.type }
                 });
                 if (!uploadRes.ok) throw new Error('Fallo al transferir archivo al Storage');
                 
-                const regRes = await registerUploadedAssetAction(taskId, signRes.storagePath!, compressedFile.name, compressedFile.name);
+                const regRes = await registerUploadedAssetAction(taskId, signRes.storagePath!, finalFile.name, finalFile.name);
                 if (!regRes.success) throw new Error(regRes.error || 'Error registrando el archivo');
                 
                 publicUrl = regRes.publicUrl;
