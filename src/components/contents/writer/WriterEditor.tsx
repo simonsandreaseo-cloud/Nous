@@ -81,7 +81,7 @@ export default function WriterEditor() {
     const { handleRegenerateOutline, handleGenerate, handleHumanize } = useWriterActions();
 
     // --- Image Upload ---
-    const { isUploading: isUploadingImage, openFilePicker, handlePaste: handleImagePaste, handleFileDrop } = useImageUpload({
+    const { isUploading: isUploadingImage, uploadProgress, openFilePicker, handlePaste: handleImagePaste, handleFileDrop } = useImageUpload({
         folder: `editor-uploads/${draftId || 'draft'}`,
         taskId: draftId || 'draft',
         onSuccess: (url, fileName) => {
@@ -680,12 +680,26 @@ export default function WriterEditor() {
                             <button
                                 onClick={openFilePicker}
                                 disabled={isUploadingImage}
-                                className="p-1.5 rounded hover:bg-indigo-100 text-indigo-600 disabled:opacity-50 disabled:cursor-wait transition-colors"
+                                className="p-1.5 rounded hover:bg-indigo-100 text-indigo-600 disabled:opacity-50 disabled:cursor-wait transition-colors relative"
                                 title="Insertar imagen (sube a Supabase)"
                             >
-                                {isUploadingImage
-                                    ? <Loader2 size={16} className="animate-spin" />
-                                    : <ImagePlus size={16} />}
+                                {isUploadingImage ? (
+                                    uploadProgress !== null ? (
+                                        <div className="relative flex items-center justify-center w-4 h-4">
+                                            <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
+                                                <circle cx="18" cy="18" r="16" fill="none" className="stroke-indigo-200" strokeWidth="4" />
+                                                <circle cx="18" cy="18" r="16" fill="none" className="stroke-indigo-600 transition-all duration-300" strokeWidth="4" strokeDasharray="100" strokeDashoffset={100 - uploadProgress} strokeLinecap="round" />
+                                            </svg>
+                                            <span className="absolute text-[6px] font-bold text-indigo-700 leading-none">
+                                                {uploadProgress}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <Loader2 size={16} className="animate-spin" />
+                                    )
+                                ) : (
+                                    <ImagePlus size={16} />
+                                )}
                             </button>
                         </div>
                     </FloatingMenu>

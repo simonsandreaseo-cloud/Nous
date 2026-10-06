@@ -22,6 +22,7 @@ interface UseImageUploadOptions {
 
 export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }: UseImageUploadOptions) {
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
     const uploadFile = useCallback(async (file: File) => {
         // Validate type
@@ -48,13 +49,17 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
                 try {
                     // Try to compress the video using the client CPU
                     toast.loading('Comprimiendo video (0%)...', { id: toastId });
+                    setUploadProgress(0);
                     finalFile = await compressVideo(file, (progress) => {
                         toast.loading(`Comprimiendo video (${progress}%)...`, { id: toastId });
+                        setUploadProgress(progress);
                     });
                 } catch (compressionError) {
                     console.warn("Video compression failed, falling back to raw upload:", compressionError);
                     toast.loading('La compresión falló por el tamaño, subiendo video original...', { id: toastId });
                     finalFile = file; // Fallback to raw file
+                } finally {
+                    setUploadProgress(null);
                 }
                 
                 toast.loading('Subiendo video...', { id: toastId });
@@ -145,5 +150,5 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
         return true;
     }, [uploadFile]);
 
-    return { isUploading, openFilePicker, handlePaste, handleFileDrop, uploadFile };
+    return { isUploading, uploadProgress, openFilePicker, handlePaste, handleFileDrop, uploadFile };
 }
