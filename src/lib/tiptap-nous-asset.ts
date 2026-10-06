@@ -54,6 +54,19 @@ export const NousAsset = Node.create({
           };
         }
       },
+      // Catch-all for standard images (auto-upgrades pasted or legacy DB images)
+      {
+        tag: 'img',
+        getAttrs: element => {
+          if (typeof element === 'string') return {};
+          return {
+            url: element.getAttribute('src'),
+            alt: element.getAttribute('alt'),
+            title: element.getAttribute('title'),
+            mediaType: 'image',
+          };
+        }
+      },
       {
         tag: 'div[data-type="nousAsset"]',
         getAttrs: element => {
