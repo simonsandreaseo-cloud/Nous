@@ -7,6 +7,7 @@ export const NousAsset = Node.create({
   group: 'block',
   atom: true,
   draggable: true,
+  priority: 1000,
 
   addAttributes() {
     return {

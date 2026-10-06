@@ -725,12 +725,6 @@ export default function WriterEditor() {
                         background-color: #eff6ff;
                         text-decoration-thickness: 3px !important;
                     }
-                    .ProseMirror img {
-                        max-width: 100%;
-                        height: auto;
-                        box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15);
-                        cursor: zoom-in;
-                    }
                     .ProseMirror img.ProseMirror-selectednode {
                         outline: 4px solid #6366f1;
                         outline-offset: 4px;
