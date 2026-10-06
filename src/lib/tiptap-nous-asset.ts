@@ -98,6 +98,27 @@ export const NousAsset = Node.create({
             pixelHeight: element.getAttribute('pixel-height') ? parseInt(element.getAttribute('pixel-height')!) : null,
           };
         }
+      },
+      // Catch-all for standard img tags pasted from web/word
+      {
+        tag: 'img',
+        getAttrs: element => {
+          if (typeof element === 'string') return {};
+          // Only catch if it doesn't have our specific data attributes (to avoid double parsing)
+          if (element.hasAttribute('data-nous-asset')) return false;
+          
+          return {
+            id: element.getAttribute('data-id') || Math.random().toString(36).substr(2, 9),
+            url: element.getAttribute('src'),
+            type: 'inline',
+            alt: element.getAttribute('alt') || '',
+            title: element.getAttribute('title') || '',
+            width: element.getAttribute('width') || '100%',
+            height: element.getAttribute('height') || 'auto',
+            align: 'center',
+            wrapping: 'break',
+          };
+        }
       }
     ];
   },

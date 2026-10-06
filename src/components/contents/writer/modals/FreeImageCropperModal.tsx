@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
+import { ReactCrop, type Crop, type PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, Crop as CropIcon, Image as ImageIcon } from 'lucide-react';

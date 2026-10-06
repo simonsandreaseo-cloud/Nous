@@ -102,9 +102,6 @@ REGLAS OBLIGATORIAS:
     [${lsiKeywords?.join(', ') || 'N/A'}]
     
     ${keywordInstruction}
-    
-2. **FAQs:** ${faqInstruction}
-    Lista de Preguntas: [${questions?.join(', ') || 'N/A'}]
 `;
     }
 
@@ -141,9 +138,6 @@ ${experimentalInjection}
 
 2. **FORMATO Y ESTRUCTURA:**
     ${formatRules}
-
-3. **INTEGRACIÓN DE PREGUNTAS (FAQs):**
-    - Responde: [${questions?.join(', ') || 'N/A'}]
 
 ESTILO Y FORMATO HTML (CRÍTICO):
 1. **RESPUESTA DIRECTA Y RAZONAMIENTO (ANTI-LEAKAGE):**

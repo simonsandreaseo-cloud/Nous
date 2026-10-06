@@ -120,6 +120,7 @@ export default function WriterEditor() {
 
     const [slashMenuPos, setSlashMenuPos] = useState<{ x: number, y: number } | null>(null);
     const [dropLinePos, setDropLinePos] = useState<{ top: number, left: number, width: number } | null>(null);
+    const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
     // --- Language Gallery Logic ---
     const galleryRef = useRef<HTMLDivElement>(null);
@@ -441,8 +442,11 @@ export default function WriterEditor() {
 
                         <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-xl shadow-2xl border border-slate-200/50 rounded-2xl p-1.5 animate-in zoom-in-95 duration-200">
                             {/* Block Type Group */}
-                            <div className="flex items-center gap-1 px-1 border-r border-slate-100 group/block relative">
-                                <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer">
+                            <div className="flex items-center gap-1 px-1 border-r border-slate-100 relative">
+                                <div 
+                                    onClick={() => setActiveMenu(activeMenu === 'block' ? null : 'block')}
+                                    className="flex items-center gap-1 px-2 py-1 bg-slate-50 rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer"
+                                >
                                     <Type size={14} className="text-slate-600" />
                                     <span className="text-[10px] font-black text-slate-700 min-w-[30px] text-center">
                                         {editor.isActive('heading', { level: 1 }) ? 'H1' :
@@ -452,40 +456,42 @@ export default function WriterEditor() {
                                     </span>
                                     <ChevronDown size={10} className="text-slate-400" />
                                 </div>
-                                <div className="absolute top-full left-0 pt-2 hidden group-hover/block:block z-50">
+                                {activeMenu === 'block' && (
+                                <div className="absolute top-full left-0 pt-2 z-50">
                                     <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-1 flex flex-col min-w-[120px]">
                                         <button
-                                        onClick={() => editor.chain().focus().setParagraph().run()}
+                                        onClick={() => { editor.chain().focus().setParagraph().run(); setActiveMenu(null); }}
                                         className={cn("px-3 py-1.5 text-[12px] font-medium rounded-lg text-left transition-colors", editor.isActive('paragraph') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
                                     >
                                         Párrafo
                                     </button>
                                     <button
-                                        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                                        onClick={() => { editor.chain().focus().toggleHeading({ level: 1 }).run(); setActiveMenu(null); }}
                                         className={cn("px-3 py-1.5 text-[12px] font-bold rounded-lg text-left transition-colors", editor.isActive('heading', { level: 1 }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
                                     >
                                         Título 1 (H1)
                                     </button>
                                     <button
-                                        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                                        onClick={() => { editor.chain().focus().toggleHeading({ level: 2 }).run(); setActiveMenu(null); }}
                                         className={cn("px-3 py-1.5 text-[12px] font-bold rounded-lg text-left transition-colors", editor.isActive('heading', { level: 2 }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
                                     >
                                         Título 2 (H2)
                                     </button>
                                     <button
-                                        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                                        onClick={() => { editor.chain().focus().toggleHeading({ level: 3 }).run(); setActiveMenu(null); }}
                                         className={cn("px-3 py-1.5 text-[12px] font-bold rounded-lg text-left transition-colors", editor.isActive('heading', { level: 3 }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
                                     >
                                         Título 3 (H3)
                                     </button>
                                     <button
-                                        onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+                                        onClick={() => { editor.chain().focus().toggleHeading({ level: 4 }).run(); setActiveMenu(null); }}
                                         className={cn("px-3 py-1.5 text-[12px] font-bold rounded-lg text-left transition-colors", editor.isActive('heading', { level: 4 }) ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-50')}
                                     >
                                         Título 4 (H4)
                                     </button>
                                 </div>
                                 </div>
+                                )}
                             </div>
 
                             {/* Text Style Group */}
@@ -521,20 +527,24 @@ export default function WriterEditor() {
                             </div>
 
                             {/* Font Size Group */}
-                            <div className="flex items-center gap-1 px-1 border-r border-slate-100 group/size relative">
-                                <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer">
+                            <div className="flex items-center gap-1 px-1 border-r border-slate-100 relative">
+                                <div 
+                                    onClick={() => setActiveMenu(activeMenu === 'size' ? null : 'size')}
+                                    className="flex items-center gap-1 px-2 py-1 bg-slate-50 rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer"
+                                >
                                     <span className="text-[10px] font-black text-slate-700 min-w-[24px] text-center">
                                         {editor.getAttributes('textStyle').fontSize || '16px'}
                                     </span>
                                     <ChevronDown size={10} className="text-slate-400" />
                                 </div>
                                 {/* Size Dropdown (Simplified for Bubble Menu) */}
-                                <div className="absolute top-full left-0 pt-2 hidden group-hover/size:block z-50">
+                                {activeMenu === 'size' && (
+                                <div className="absolute top-full left-0 pt-2 z-50">
                                     <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-1 flex flex-col min-w-[60px]">
                                         {['12px', '14px', '16px', '18px', '20px', '24px', '32px'].map(size => (
                                         <button
                                             key={size}
-                                            onClick={() => editor.chain().focus().setFontSize(size).run()}
+                                            onClick={() => { editor.chain().focus().setFontSize(size).run(); setActiveMenu(null); }}
                                             className="px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-left"
                                         >
                                             {size}
@@ -542,6 +552,7 @@ export default function WriterEditor() {
                                     ))}
                                     </div>
                                 </div>
+                                )}
                             </div>
 
                             {/* Alignment Group */}
@@ -568,33 +579,42 @@ export default function WriterEditor() {
 
                             {/* Colors Group */}
                             <div className="flex items-center gap-0.5 pl-1">
-                                <div className="relative group/color">
-                                    <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all">
+                                <div className="relative">
+                                    <button 
+                                        onClick={() => setActiveMenu(activeMenu === 'color' ? null : 'color')}
+                                        className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all"
+                                    >
                                         <Palette size={15} />
                                     </button>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 hidden group-hover/color:block z-50">
+                                    {activeMenu === 'color' && (
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 z-50">
                                         <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-2 grid grid-cols-4 gap-1 w-max">
                                             {['#000000', '#475569', '#2563eb', '#16a34a', '#dc2626', '#d97706', '#9333ea', '#db2777'].map(color => (
                                                 <button
                                                     key={color}
-                                                    onClick={() => editor.chain().focus().setColor(color).run()}
+                                                    onClick={() => { editor.chain().focus().setColor(color).run(); setActiveMenu(null); }}
                                                     className="w-5 h-5 rounded-md border border-slate-100 shadow-sm shrink-0"
                                                     style={{ backgroundColor: color }}
                                                 />
                                             ))}
                                         </div>
                                     </div>
+                                    )}
                                 </div>
-                                <div className="relative group/highlight">
-                                    <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all">
+                                <div className="relative">
+                                    <button 
+                                        onClick={() => setActiveMenu(activeMenu === 'highlight' ? null : 'highlight')}
+                                        className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all"
+                                    >
                                         <Highlighter size={15} />
                                     </button>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 hidden group-hover/highlight:block z-50">
+                                    {activeMenu === 'highlight' && (
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 z-50">
                                         <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-2 grid grid-cols-4 gap-1 w-max">
                                             {['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#ddd6fe', '#fed7aa', '#f1f5f9', 'transparent'].map(color => (
                                                 <button
                                                     key={color}
-                                                    onClick={() => color === 'transparent' ? editor.chain().focus().unsetHighlight().run() : editor.chain().focus().setHighlight({ color }).run()}
+                                                    onClick={() => { color === 'transparent' ? editor.chain().focus().unsetHighlight().run() : editor.chain().focus().setHighlight({ color }).run(); setActiveMenu(null); }}
                                                     className="w-5 h-5 rounded-md border border-slate-100 shadow-sm shrink-0 flex items-center justify-center"
                                                     style={{ backgroundColor: color === 'transparent' ? 'white' : color }}
                                                 >
@@ -603,6 +623,7 @@ export default function WriterEditor() {
                                             ))}
                                         </div>
                                     </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

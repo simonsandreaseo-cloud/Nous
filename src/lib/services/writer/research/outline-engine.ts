@@ -131,7 +131,7 @@ REGLAS PARA EL ESQUELETO:
 1. Diseña una estructura lógica y fluida de H2s, y anida los H3s y H4s directamente bajo sus respectivos H2s. ¡Las secciones pueden y deben tener sub-secciones (H3/H4) para mayor profundidad!
 2. REGLA E-COMMERCE ESTRICTA: Si hay PRODUCTOS/ENLACES INTERNOS en la lista anterior, DEBES crear un H2 por cada producto (o agruparlos en H3 dentro de un H2 categorizador). Usa el nombre o modelo exacto del producto en el encabezado.
 3. Si el SERP es informativo, prioritiza el valor educativo. Si es transaccional, prioritiza los beneficios y la comparativa.
-4. Asegúrate de responder las FAQs de manera natural integrándolas en H2s o H3s.
+4. REGLA DE FAQs: Integra las FAQs más relevantes como H2/H3 orgánicos si tienen sentido narrativo. Si sobran preguntas útiles, crea una sección final H2 "Preguntas Frecuentes" con las preguntas como H3. Descarta las que no aporten valor.
 5. Sugiere explícitamente en el texto si una sección debería contener una TABLA COMPARATIVA, una LISTA DE BULLET POINTS, o algún formato rico.
 6. Devuelve un Array de objetos con "level" (2, 3 o 4) y "text" (título). Si sugieres un formato, añádelo sutilmente al título (ej. "Características (Tabla)").
 
