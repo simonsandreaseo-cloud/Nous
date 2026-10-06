@@ -53,7 +53,8 @@ export const cleanAndFormatHtml = (html: string): string => {
     processedHtml = processedHtml
         .replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
         .replace(/^###\s+(.*$)/gim, '<h3>$1</h3>')
-        .replace(/^##\s+(.*$)/gim, '<h2>$1</h2>');
+        .replace(/^##\s+(.*$)/gim, '<h2>$1</h2>')
+        .replace(/<!--(?!\s*METADATA_(?:START|END)\s*-->)[\s\S]*?-->/gi, ''); // Limpiar comentarios residuales (Bloque 1, etc.)
 
     // Remove any trailing hallucinated JSON metadata object
     const jsonMatch = processedHtml.match(/\{[\s\S]*"title"[\s\S]*"slug"[\s\S]*\}$/);

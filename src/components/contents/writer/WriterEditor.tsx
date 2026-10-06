@@ -431,7 +431,12 @@ export default function WriterEditor() {
                         editor={editor} 
                         pluginKey="writerMainBubbleMenu"
                         {...({ tippyOptions: { duration: 150 } } as any)}
-                        shouldShow={({ editor }) => !editor.isActive('link') && editor.state.selection.content().size > 0}
+                        shouldShow={({ editor }) => 
+                            !editor.isActive('link') && 
+                            !editor.isActive('nousAsset') && 
+                            !editor.isActive('image') && 
+                            editor.state.selection.content().size > 0
+                        }
                     >
 
                         <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-xl shadow-2xl border border-slate-200/50 rounded-2xl p-1.5 animate-in zoom-in-95 duration-200">
