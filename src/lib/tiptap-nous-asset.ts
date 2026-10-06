@@ -185,14 +185,14 @@ export const NousAsset = Node.create({
             'title': HTMLAttributes.title || '',
             'controls': 'true',
             'preload': 'metadata',
-            'style': 'width:100%; height:auto; display:block; border-radius:1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);'
+            'style': 'width:100%; height:auto; display:block;'
           })]
         : ['img', mergeAttributes(rest, { 
             'src': url,
             'alt': HTMLAttributes.alt || '',
             'title': HTMLAttributes.title || '',
             'loading': 'lazy',
-            'style': 'width:100%; height:auto; display:block; border-radius:1.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);'
+            'style': 'width:100%; height:auto; display:block;'
           })];
 
     return [

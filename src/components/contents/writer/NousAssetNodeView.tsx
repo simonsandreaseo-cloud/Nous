@@ -282,30 +282,31 @@ export default function NousAssetNodeView(props: any) {
                     )}
                 </AnimatePresence>
 
-                {/* VISUAL PRINCIPAL DEL ACTIVO */}
+                {/* VISUAL PRINCIPAL DEL ACTIVO (fiel al original: sin recorte, sin bordes redondeados) */}
                 <div className={cn(
-                    "relative overflow-hidden rounded-[2rem] bg-slate-900 border border-white/5 shadow-2xl transition-all duration-500",
-                    isResizing && "ring-4 ring-indigo-500/50 scale-[1.01]"
+                    "relative transition-all duration-500",
+                    isResizing && "ring-4 ring-indigo-500/50"
                 )}>
-                    <div className="relative aspect-[16/9] bg-slate-950 overflow-hidden">
+                    <div className={cn("relative", !url && "aspect-[16/9] bg-slate-950")}>
                         {url ? (
                             node.attrs.mediaType === 'video' || (url && url.match(/\.(mp4|webm|mov|ts)$/i)) ? (
                                 <video 
                                     src={url} 
                                     controls 
-                                    className="w-full h-full object-cover select-none pointer-events-auto"
+                                    className="block w-full h-auto select-none pointer-events-auto"
                                     preload="metadata"
                                 />
                             ) : (
                                 <img 
                                     src={url} 
                                     alt={alt || 'Nous Asset'} 
-                                    className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-700 group-hover:scale-105"
+                                    className="block w-full h-auto select-none pointer-events-none"
                                     loading="lazy"
+                                    draggable={false}
                                 />
                             )
                         ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-slate-800">
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-slate-500">
                                 <motion.div animate={{ rotate: 360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}>
                                     <ImageIcon size={48} strokeWidth={1} />
                                 </motion.div>
@@ -339,7 +340,7 @@ export default function NousAssetNodeView(props: any) {
                     </div>
 
                     {isUploadingCrop && (
-                        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center rounded-3xl z-40">
+                        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-40">
                             <div className="flex flex-col items-center gap-3">
                                 <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(99,102,241,0.5)]" />
                                 <span className="text-white text-xs font-black uppercase tracking-widest bg-slate-900/90 px-4 py-2 rounded-full border border-white/10 shadow-2xl">
