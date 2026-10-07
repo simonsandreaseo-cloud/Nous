@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -65,7 +65,7 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
         // Validate size
         const sizeMB = file.size / (1024 * 1024);
         if (sizeMB > MAX_SIZE_MB) {
-            toast.error(`El archivo supera el límite de ${MAX_SIZE_MB}MB (${sizeMB.toFixed(1)}MB)`);
+            toast.error(`El archivo supera el lÃ­mite de ${MAX_SIZE_MB}MB (${sizeMB.toFixed(1)}MB)`);
             return;
         }
 
@@ -87,7 +87,7 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
                     });
                 } catch (compressionError) {
                     console.warn("Video compression failed, falling back to raw upload:", compressionError);
-                    toast.loading('La compresión falló por el tamaño, subiendo video original...', { id: toastId });
+                    toast.loading('La compresiÃ³n fallÃ³ por el tamaÃ±o, subiendo video original...', { id: toastId });
                     finalFile = file; // Fallback to raw file
                 } finally {
                     setUploadProgress(null);
@@ -107,7 +107,7 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
                 const regRes = await registerUploadedAssetAction(taskId, signRes.storagePath!, finalFile.name, finalFile.name);
                 if (!regRes.success) throw new Error(regRes.error || 'Error registrando el archivo');
                 
-                publicUrl = regRes.publicUrl;
+                publicUrl = regRes.publicUrl ?? "";
             } else {
                 // Images always go through the server pipeline (WebP conversion + size limit + DB registration).
                 // If the file is too big for a Vercel server action (~4.5MB), shrink it to WebP in the browser first.
@@ -136,7 +136,7 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
                     const regRes = await registerUploadedAssetAction(taskId, signRes.storagePath!, imageToSend.name, imageToSend.name);
                     if (!regRes.success) throw new Error(regRes.error || 'Error registrando el archivo');
 
-                    publicUrl = regRes.publicUrl;
+                    publicUrl = regRes.publicUrl ?? "";
                 } else {
                     const formData = new FormData();
                     formData.append('file', imageToSend);
@@ -145,11 +145,11 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
 
                     const res = await uploadEditorImageAction(formData);
                     if (!res.success) throw new Error(res.error || 'Error en el procesamiento');
-                    publicUrl = res.publicUrl;
+                    publicUrl = res.publicUrl ?? "";
                 }
             }
 
-            toast.success('Archivo subido con éxito', { id: toastId });
+            toast.success('Archivo subido con Ã©xito', { id: toastId });
             onSuccess(publicUrl, file.name);
         } catch (err: any) {
             console.error('[useImageUpload]', err);
