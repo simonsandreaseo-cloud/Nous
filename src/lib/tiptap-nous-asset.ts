@@ -7,7 +7,7 @@ export const NousAsset = Node.create({
   group: 'block',
   atom: true,
   draggable: true,
-  priority: 1000,
+  priority: 101,
 
   addAttributes() {
     return {
@@ -52,19 +52,6 @@ export const NousAsset = Node.create({
             storage_path: element.getAttribute('data-storage-path'),
             pixelWidth: element.getAttribute('data-pixel-width') ? parseInt(element.getAttribute('data-pixel-width')!) : null,
             pixelHeight: element.getAttribute('data-pixel-height') ? parseInt(element.getAttribute('data-pixel-height')!) : null,
-          };
-        }
-      },
-      // Catch-all for standard images (auto-upgrades pasted or legacy DB images)
-      {
-        tag: 'img',
-        getAttrs: element => {
-          if (typeof element === 'string') return {};
-          return {
-            url: element.getAttribute('src'),
-            alt: element.getAttribute('alt'),
-            title: element.getAttribute('title'),
-            mediaType: 'image',
           };
         }
       },

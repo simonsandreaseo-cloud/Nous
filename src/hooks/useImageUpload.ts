@@ -11,6 +11,37 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'im
 import { uploadEditorImageAction, getSignedUploadUrlAction, registerUploadedAssetAction } from '@/lib/actions/imageActions';
 import { compressVideo } from '@/lib/videoCompression';
 
+/** Max payload we send through a server action (Vercel limit is ~4.5MB) */
+const SERVER_ACTION_SAFE_BYTES = 3.5 * 1024 * 1024;
+
+/** Converts an image to WebP in the browser, reducing quality/dimensions until it fits `maxBytes`. */
+async function shrinkImageToWebP(file: File, maxBytes: number): Promise<File> {
+    const bitmap = await createImageBitmap(file);
+    let maxDim = 3000;
+    let quality = 0.9;
+
+    for (let attempt = 0; attempt < 8; attempt++) {
+        const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bitmap.width * scale);
+        canvas.height = Math.round(bitmap.height * scale);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas no disponible');
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+        const blob: Blob | null = await new Promise(res => canvas.toBlob(res, 'image/webp', quality));
+        if (blob && blob.size <= maxBytes) {
+            bitmap.close?.();
+            const baseName = file.name.replace(/\.[^.]+$/, '') || 'image';
+            return new File([blob], `${baseName}.webp`, { type: 'image/webp' });
+        }
+        quality = Math.max(0.6, quality - 0.1);
+        maxDim = Math.round(maxDim * 0.8);
+    }
+    bitmap.close?.();
+    throw new Error('No se pudo reducir la imagen lo suficiente');
+}
+
 interface UseImageUploadOptions {
     /** Folder inside the user's directory. Defaults to 'editor-uploads' */
     folder?: string;
@@ -77,31 +108,45 @@ export function useImageUpload({ folder = 'editor-uploads', taskId, onSuccess }:
                 if (!regRes.success) throw new Error(regRes.error || 'Error registrando el archivo');
                 
                 publicUrl = regRes.publicUrl;
-            } else if (file.size > 4 * 1024 * 1024) {
-                // Bypass Vercel 4.5MB limit for large images
-                const signRes = await getSignedUploadUrlAction(taskId, file.name, file.type);
-                if (!signRes.success || !signRes.signedUrl) throw new Error(signRes.error || 'Error obteniendo URL segura');
-                
-                const uploadRes = await fetch(signRes.signedUrl, {
-                    method: 'PUT',
-                    body: file,
-                    headers: { 'Content-Type': file.type }
-                });
-                if (!uploadRes.ok) throw new Error('Fallo al transferir archivo al Storage');
-                
-                const regRes = await registerUploadedAssetAction(taskId, signRes.storagePath!, file.name, file.name);
-                if (!regRes.success) throw new Error(regRes.error || 'Error registrando el archivo');
-                
-                publicUrl = regRes.publicUrl;
             } else {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('taskId', taskId);
-                formData.append('altText', file.name);
+                // Images always go through the server pipeline (WebP conversion + size limit + DB registration).
+                // If the file is too big for a Vercel server action (~4.5MB), shrink it to WebP in the browser first.
+                let imageToSend = file;
+                if (file.size > SERVER_ACTION_SAFE_BYTES && !file.type.includes('gif')) {
+                    toast.loading('Optimizando imagen...', { id: toastId });
+                    try {
+                        imageToSend = await shrinkImageToWebP(file, SERVER_ACTION_SAFE_BYTES);
+                    } catch (shrinkError) {
+                        console.warn('[useImageUpload] Client-side shrink failed:', shrinkError);
+                    }
+                }
 
-                const res = await uploadEditorImageAction(formData);
-                if (!res.success) throw new Error(res.error || 'Error en el procesamiento');
-                publicUrl = res.publicUrl;
+                if (imageToSend.size > SERVER_ACTION_SAFE_BYTES) {
+                    // Last resort (e.g. big GIF or shrink failed): direct upload to Storage
+                    const signRes = await getSignedUploadUrlAction(taskId, imageToSend.name, imageToSend.type);
+                    if (!signRes.success || !signRes.signedUrl) throw new Error(signRes.error || 'Error obteniendo URL segura');
+
+                    const uploadRes = await fetch(signRes.signedUrl, {
+                        method: 'PUT',
+                        body: imageToSend,
+                        headers: { 'Content-Type': imageToSend.type }
+                    });
+                    if (!uploadRes.ok) throw new Error('Fallo al transferir archivo al Storage');
+
+                    const regRes = await registerUploadedAssetAction(taskId, signRes.storagePath!, imageToSend.name, imageToSend.name);
+                    if (!regRes.success) throw new Error(regRes.error || 'Error registrando el archivo');
+
+                    publicUrl = regRes.publicUrl;
+                } else {
+                    const formData = new FormData();
+                    formData.append('file', imageToSend);
+                    formData.append('taskId', taskId);
+                    formData.append('altText', file.name);
+
+                    const res = await uploadEditorImageAction(formData);
+                    if (!res.success) throw new Error(res.error || 'Error en el procesamiento');
+                    publicUrl = res.publicUrl;
+                }
             }
 
             toast.success('Archivo subido con éxito', { id: toastId });

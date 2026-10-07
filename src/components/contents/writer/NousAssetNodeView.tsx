@@ -303,6 +303,7 @@ export default function NousAssetNodeView(props: any) {
                                     className="block w-full h-auto select-none pointer-events-none"
                                     loading="lazy"
                                     draggable={false}
+                                    onError={() => console.error('[NousAsset] Image failed to load:', url)}
                                 />
                             )
                         ) : (
@@ -362,11 +363,18 @@ export default function NousAssetNodeView(props: any) {
             <ImageLightbox 
                 isOpen={isLightboxOpen}
                 onClose={() => setIsLightboxOpen(false)}
-                url={url}
-                title={title || (role === 'hero' ? 'Portada Magistral' : 'Activo Editorial')}
-                alt={alt}
-                prompt={prompt}
-                assetId={id}
+                asset={url ? ({
+                    id,
+                    url,
+                    title: title || (role === 'hero' ? 'Portada Magistral' : 'Activo Editorial'),
+                    alt,
+                    prompt,
+                    status: 'final',
+                    type: 'image',
+                    role: role === 'hero' ? 'hero' : 'feature',
+                    design: { width: width || '100%', align: align || 'center', wrapping: wrapping || 'break', aspectRatio: '16:9' },
+                    positioning: { paragraphIndex: node.attrs.paragraphIndex || 0 }
+                } as any) : null}
                 onDelete={() => actions.handleDeleteAsset(id, node.attrs.storage_path)}
                 onRegenerate={() => actions.handleGenerateAsset(id)}
                 isRegenerating={isRegenerating}
