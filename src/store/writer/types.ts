@@ -23,7 +23,7 @@ export interface HumanizerConfig {
     audience?: string;
     notes?: string;
     mode?: 'no_chunks' | 'unified' | 'duplicate_detection';
-    humanizerType?: 'tradicional' | 'gramatical';
+    humanizerType?: 'tradicional' | 'gramatical' | 'uniprompt';
 }
 
 export interface TaskVersion {

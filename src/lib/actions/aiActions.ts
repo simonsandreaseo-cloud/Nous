@@ -25,7 +25,8 @@ import { Type } from "@google/genai";
 import { supabase } from "@/lib/supabase";
 import { safeJsonExtract } from "@/utils/json";
 import { runGrammaticalHumanizerPipeline } from "@/lib/services/writer/grammaticalHumanizer";
-export { runGrammaticalHumanizerPipeline };
+import { runUnipromptHumanizerPipeline } from "@/lib/services/writer/unipromptHumanizer";
+export { runGrammaticalHumanizerPipeline, runUnipromptHumanizerPipeline };
 
 // --- UTILS & CONSTANTS ---
 
@@ -629,6 +630,17 @@ export const runHumanizerPipeline = async (
     const resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
+    if (config?.humanizerType === 'uniprompt' || (config as any)?.mode === 'uniprompt') {
+        return await runUnipromptHumanizerPipeline(html, {
+            modelName: resolvedModel,
+            provider: resolvedProvider as any,
+            reasoning,
+            onStatus,
+            onChunk,
+            onProgress
+        });
+    }
+
     if (config?.humanizerType === 'gramatical' || (config as any)?.mode === 'gramatical') {
         return await runGrammaticalHumanizerPipeline(html, {
             modelName: resolvedModel,
@@ -873,6 +885,19 @@ export const runMiniHumanizerPipeline = async (
                 return raw;
             }, safeStatus, stepName, modelName, provider);
         };
+
+        if (mode === 'uniprompt' || mode === 'humanizacion_uniprompt') {
+            return await runUnipromptHumanizerPipeline(html, {
+                modelName,
+                provider,
+                reasoning,
+                onStatus: safeStatus,
+                onChunk,
+                onProgress,
+                onLog,
+                customParams
+            });
+        }
 
         if (mode === 'gramatical' || mode === 'humanizacion_gramatical') {
             return await runGrammaticalHumanizerPipeline(html, {

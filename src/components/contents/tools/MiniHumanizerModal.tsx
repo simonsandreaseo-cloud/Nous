@@ -162,7 +162,34 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
 
             const reasoningParam = reasoningLevel === "none" ? undefined : reasoningLevel;
 
-            if (mode === "gramatical") {
+            if (mode === "uniprompt") {
+                setStatusMessage("Iniciando Humanización Uniprompt (1 Petición / 4 Leyes)...");
+                setProgressPercent(5);
+                const result = await streamMiniHumanize(
+                    currentHtml,
+                    { ...config, humanizerType: "uniprompt" },
+                    50,
+                    (chunkHtml) => {
+                        editor.commands.setContent(chunkHtml);
+                    },
+                    (status) => {
+                        setStatusMessage(status);
+                    },
+                    modelToUse,
+                    "uniprompt",
+                    providerToUse,
+                    reasoningParam,
+                    customParams,
+                    (percent) => {
+                        setProgressPercent(percent);
+                    }
+                );
+
+                if (result && result.html) {
+                    editor.commands.setContent(result.html);
+                    setProgressPercent(100);
+                }
+            } else if (mode === "gramatical") {
                 setStatusMessage("Iniciando Humanización Gramatical (4 Capas)...");
                 setProgressPercent(5);
                 const result = await streamMiniHumanize(
@@ -627,8 +654,9 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                                 disabled={isProcessing}
                                 className="text-xs font-semibold text-slate-700 bg-slate-100 border-none rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
                             >
+                                <option value="uniprompt">Humanización Uniprompt (1 Petición / 4 Leyes)</option>
+                                <option value="gramatical">Humanización Gramatical (Orden Invertido)</option>
                                 <option value="standard">Humanización Tradicional</option>
-                                <option value="gramatical">Humanización Gramatical (4 Capas)</option>
                                 <option value="lipograma">Lipograma Positivo (Cascada)</option>
                                 <option value="babel">Torre de Babel (Traducción Inversa)</option>
                                 <option value="legacy_json">Diccionario JSON (Legacy)</option>

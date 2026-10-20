@@ -122,12 +122,12 @@ export function GenerateTab({
                                 Forma de Humanización
                             </label>
 
-                            {/* Selector Principal: Tradicional vs Gramatical */}
-                            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                            {/* Selector Principal: Tradicional vs Gramatical vs Uniprompt */}
+                            <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
                                 <button
                                     type="button"
                                     onClick={() => store.updateHumanizerConfig({ humanizerType: 'tradicional' })}
-                                    className={`py-2 px-2.5 rounded-lg text-center font-bold text-[10px] uppercase tracking-wider transition-all ${
+                                    className={`py-2 px-1.5 rounded-lg text-center font-bold text-[9px] uppercase tracking-wider transition-all ${
                                         (store.humanizerConfig.humanizerType || 'tradicional') === 'tradicional'
                                             ? 'bg-white text-indigo-700 shadow-sm shadow-slate-200'
                                             : 'text-slate-500 hover:text-slate-700'
@@ -138,13 +138,24 @@ export function GenerateTab({
                                 <button
                                     type="button"
                                     onClick={() => store.updateHumanizerConfig({ humanizerType: 'gramatical' })}
-                                    className={`py-2 px-2.5 rounded-lg text-center font-bold text-[10px] uppercase tracking-wider transition-all ${
+                                    className={`py-2 px-1.5 rounded-lg text-center font-bold text-[9px] uppercase tracking-wider transition-all ${
                                         store.humanizerConfig.humanizerType === 'gramatical'
                                             ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm shadow-emerald-200'
                                             : 'text-slate-500 hover:text-slate-700'
                                     }`}
                                 >
-                                    Gramatical (4 Fases)
+                                    Gramatical
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => store.updateHumanizerConfig({ humanizerType: 'uniprompt' })}
+                                    className={`py-2 px-1.5 rounded-lg text-center font-bold text-[9px] uppercase tracking-wider transition-all ${
+                                        store.humanizerConfig.humanizerType === 'uniprompt'
+                                            ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm shadow-amber-200'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                                >
+                                    Uniprompt
                                 </button>
                             </div>
 
@@ -213,35 +224,64 @@ export function GenerateTab({
                                         </button>
                                     </div>
                                 </div>
+                            ) : store.humanizerConfig.humanizerType === 'uniprompt' ? (
+                                <div className="space-y-2 p-3 bg-amber-50/70 rounded-xl border border-amber-200/80">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-black text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
+                                            <Sparkles size={12} className="text-amber-600" />
+                                            Humanización Uniprompt
+                                        </span>
+                                        <span className="text-[9px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                                            1 Sola Petición
+                                        </span>
+                                    </div>
+                                    <p className="text-[9.5px] text-amber-950/80 leading-relaxed">
+                                        Aplica simultáneamente las 4 leyes morfosintácticas en una sola pasada (hasta 2500 palabras por chunk):
+                                    </p>
+                                    <div className="space-y-1.5 pt-1">
+                                        <div className="flex items-center justify-between text-[9px] bg-white/80 px-2 py-1.5 rounded-lg border border-amber-100">
+                                            <span className="font-semibold text-slate-700">Ley 1: Vocabulario Llano + Lista Blanca</span>
+                                            <span className="font-mono font-bold text-amber-600">85% Verbos</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[9px] bg-white/80 px-2 py-1.5 rounded-lg border border-amber-100">
+                                            <span className="font-semibold text-slate-700">Ley 2: Inicios Alternos + Cercanía (0% Tú)</span>
+                                            <span className="font-mono font-bold text-amber-600">40% 2.ª Pers.</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[9px] bg-white/80 px-2 py-1.5 rounded-lg border border-amber-100">
+                                            <span className="font-semibold text-slate-700">Ley 3: Moldes Asimétricos (Cero Tricolon)</span>
+                                            <span className="font-mono font-bold text-amber-600">Ritmo Libre</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[9px] bg-white/80 px-2 py-1.5 rounded-lg border border-amber-100">
+                                            <span className="font-semibold text-slate-700">Ley 4: Comma Splice + Silepsis Plural</span>
+                                            <span className="font-mono font-bold text-amber-600">0% IA</span>
+                                        </div>
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="space-y-2 p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/70">
                                     <div className="flex items-center justify-between">
                                         <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wide flex items-center gap-1.5">
                                             <Sparkles size={12} className="text-emerald-600" />
-                                            Pipeline Gramatical (4 Fases)
+                                            Pipeline Gramatical
                                         </span>
                                         <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
-                                            Sin Chunks
+                                            Orden Invertido
                                         </span>
                                     </div>
                                     <p className="text-[9.5px] text-emerald-900/80 leading-relaxed">
-                                        Pasa el texto completo sin fragmentar a través de 4 capas morfosintácticas secuenciales:
+                                        Pasa el texto completo a través de capas morfosintácticas secuenciales:
                                     </p>
                                     <div className="space-y-1.5 pt-1">
                                         <div className="flex items-center justify-between text-[9px] bg-white/80 px-2 py-1.5 rounded-lg border border-emerald-100">
-                                            <span className="font-semibold text-slate-700">1. Desinfección Léxica y Morfológica</span>
-                                            <span className="font-mono font-bold text-emerald-600">25%</span>
+                                            <span className="font-semibold text-slate-700">1. Estructurador de Oraciones y Sujetos</span>
+                                            <span className="font-mono font-bold text-emerald-600">33%</span>
                                         </div>
                                         <div className="flex items-center justify-between text-[9px] bg-white/80 px-2 py-1.5 rounded-lg border border-emerald-100">
-                                            <span className="font-semibold text-slate-700">2. Voz Activa Natural y Coherencia</span>
-                                            <span className="font-mono font-bold text-emerald-600">50%</span>
+                                            <span className="font-semibold text-slate-700">2. Aplanador Radical (Lista Blanca)</span>
+                                            <span className="font-mono font-bold text-emerald-600">66%</span>
                                         </div>
                                         <div className="flex items-center justify-between text-[9px] bg-white/80 px-2 py-1.5 rounded-lg border border-emerald-100">
-                                            <span className="font-semibold text-slate-700">3. Moldes Oracionales con Coherencia</span>
-                                            <span className="font-mono font-bold text-emerald-600">75%</span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-[9px] bg-white/80 px-2 py-1.5 rounded-lg border border-emerald-100">
-                                            <span className="font-semibold text-slate-700">4. Pulido de Puntuación y Fluidez</span>
+                                            <span className="font-semibold text-slate-700">3. Costura de Puntuación Anti-Detector</span>
                                             <span className="font-mono font-bold text-emerald-600">100%</span>
                                         </div>
                                     </div>
@@ -253,7 +293,9 @@ export function GenerateTab({
                             disabled={store.isHumanizing}
                             onClick={onHumanize}
                             className={`group flex items-center justify-center gap-2 w-full h-11 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 mt-2 ${
-                                store.humanizerConfig.humanizerType === 'gramatical'
+                                store.humanizerConfig.humanizerType === 'uniprompt'
+                                    ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'
+                                    : store.humanizerConfig.humanizerType === 'gramatical'
                                     ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
                                     : 'bg-black hover:bg-slate-800 shadow-slate-200'
                             }`}
@@ -262,14 +304,16 @@ export function GenerateTab({
                                 <>
                                     <Wand2 size={14} className="animate-pulse text-indigo-300" />
                                     <span>
-                                        {store.humanizerConfig.humanizerType === 'gramatical' ? 'Humanizando (Gramatical)...' : 'Humanizando (Tradicional)...'}
+                                        {store.humanizerConfig.humanizerType === 'uniprompt' ? 'Humanizando (Uniprompt)...' :
+                                            store.humanizerConfig.humanizerType === 'gramatical' ? 'Humanizando (Gramatical)...' : 'Humanizando (Tradicional)...'}
                                     </span>
                                 </>
                             ) : (
                                 <>
                                     <Wand2 size={14} className="group-hover:rotate-12 transition-transform" />
                                     <span>
-                                        {store.humanizerConfig.humanizerType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional'}
+                                        {store.humanizerConfig.humanizerType === 'uniprompt' ? 'Humanización Uniprompt' :
+                                            store.humanizerConfig.humanizerType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional'}
                                     </span>
                                 </>
                             )}

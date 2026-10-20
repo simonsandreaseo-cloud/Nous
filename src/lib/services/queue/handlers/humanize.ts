@@ -36,32 +36,40 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
 
     console.log("[DEBUG-Humanize Handler] Starting pipeline for content length:", originalContent?.length);
     
-    const isGramatical = payload.humanizerType === 'gramatical' || payload.config?.humanizerType === 'gramatical';
+    const humanizerType = payload.humanizerType || payload.config?.humanizerType || 'tradicional';
+    const isGramatical = humanizerType === 'gramatical';
+    const isUniprompt = humanizerType === 'uniprompt';
+    const isDirectHumanizer = isGramatical || isUniprompt;
 
     if (isCurrentDraft()) {
         useWriterStore.getState().setHumanizing(true);
-        useWriterStore.getState().setHumanizerStatus(isGramatical ? 'Iniciando humanización gramatical (4 fases)...' : 'Iniciando humanización...');
+        const statusLabel = isUniprompt ? 'Iniciando Humanización Uniprompt (4 Leyes en 1 Petición)...' :
+            isGramatical ? 'Iniciando humanización gramatical...' : 'Iniciando humanización...';
+        useWriterStore.getState().setHumanizerStatus(statusLabel);
     }
     
     try {
-        const preVersionName = isGramatical ? 'Pre-Humanización Gramatical' : 'Pre-Humanización';
+        const preVersionName = isUniprompt ? 'Pre-Humanización Uniprompt' :
+            isGramatical ? 'Pre-Humanización Gramatical' : 'Pre-Humanización';
         await useWriterStore.getState().saveTaskVersion(preVersionName, originalContent, draftId);
 
         let finalHtml = '';
 
-        if (isGramatical) {
-            addLogToTask(taskId, 'Iniciando humanización gramatical completa en 4 fases concatenadas...', 'info');
+        if (isDirectHumanizer) {
+            const logMsg = isUniprompt ? 'Iniciando humanización uniprompt (4 Leyes, hasta 2500 palabras por chunk)...' :
+                'Iniciando humanización gramatical completa en fases concatenadas...';
+            addLogToTask(taskId, logMsg, 'info');
             setTaskStatus(taskId, 'processing', 5);
 
-            let gramaticalSuccess = false;
+            let humanizerSuccess = false;
             let attempts = 0;
             const MAX_ATTEMPTS = 3;
 
-            while (!gramaticalSuccess && attempts < MAX_ATTEMPTS) {
+            while (!humanizerSuccess && attempts < MAX_ATTEMPTS) {
                 try {
                     const result = await streamHumanize(
                         originalContent,
-                        { ...config, humanizerType: 'gramatical' },
+                        { ...config, humanizerType },
                         50,
                         (partialHtml) => {
                             if (isCurrentDraft()) {
@@ -70,7 +78,7 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
                             }
                         },
                         (msg) => {
-                            console.log(`[Gramatical] ${msg}`);
+                            console.log(`[${humanizerType}] ${msg}`);
                             addLogToTask(taskId, msg, 'info');
                             if (isCurrentDraft()) {
                                 useWriterStore.getState().setHumanizerStatus(msg);
@@ -87,11 +95,11 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
                     }
 
                     finalHtml = result.html;
-                    gramaticalSuccess = true;
+                    humanizerSuccess = true;
                 } catch (err: any) {
                     attempts++;
-                    console.error(`[Gramatical] Fallo intento ${attempts}:`, err);
-                    addLogToTask(taskId, `Error en humanización gramatical: ${err.message}`, 'error');
+                    console.error(`[${humanizerType}] Fallo intento ${attempts}:`, err);
+                    addLogToTask(taskId, `Error en humanización ${humanizerType}: ${err.message}`, 'error');
                     if (attempts >= MAX_ATTEMPTS) throw err;
                     const waitTime = 3000 * attempts;
                     addLogToTask(taskId, `Esperando ${Math.round(waitTime/1000)}s antes de reintentar... (${attempts}/${MAX_ATTEMPTS})`, 'warning');
@@ -210,7 +218,8 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
         
         const refined = refineStyling(finalHtml);
         const modelUsed = payload.model || payload.config?.model || 'Desconocido';
-        const postVersionName = isGramatical ? 'Post-Humanización Gramatical' : 'Humanizada';
+        const postVersionName = isUniprompt ? 'Post-Humanización Uniprompt' :
+            isGramatical ? 'Post-Humanización Gramatical' : 'Humanizada';
         await useWriterStore.getState().saveTaskVersion(postVersionName, refined, draftId, modelUsed);
 
         // 2. Persistir directamente en las tablas de Supabase
@@ -222,8 +231,12 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
             useWriterStore.getState().setIsRemoteUpdate(true);
             useWriterStore.getState().setContent(refined);
             useWriterStore.getState().setHasHumanized(true);
-            useWriterStore.getState().setHumanizerStatus(isGramatical ? '✅ ¡Humanización gramatical completada!' : '✅ ¡Humanización completada!');
-            useWriterStore.getState().addDebugPrompt(isGramatical ? 'Humanización Gramatical Finalizada' : 'Humanización Finalizada', `Contenido humanizado con éxito`, refined.substring(0, 1000));
+            const successMsg = isUniprompt ? '✅ ¡Humanización uniprompt completada!' :
+                isGramatical ? '✅ ¡Humanización gramatical completada!' : '✅ ¡Humanización completada!';
+            useWriterStore.getState().setHumanizerStatus(successMsg);
+            const debugTitle = isUniprompt ? 'Humanización Uniprompt Finalizada' :
+                isGramatical ? 'Humanización Gramatical Finalizada' : 'Humanización Finalizada';
+            useWriterStore.getState().addDebugPrompt(debugTitle, `Contenido humanizado con éxito`, refined.substring(0, 1000));
             setTimeout(() => {
                 if (isCurrentDraft()) {
                     useWriterStore.getState().setHumanizerStatus('');
@@ -241,7 +254,7 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
             const newMetadata = { 
                 ...(taskData?.metadata || {}), 
                 is_humanized: true, 
-                humanizer_type: isGramatical ? 'gramatical' : 'tradicional',
+                humanizer_type: isUniprompt ? 'uniprompt' : isGramatical ? 'gramatical' : 'tradicional',
                 humanized_at: new Date().toISOString() 
             };
 
@@ -253,7 +266,9 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
             if (humanizeError) console.error("[Humanize Handler] Error updating humanization metadata:", humanizeError.message);
         }
 
-        useQueueStore.getState().addLogToTask(taskId, isGramatical ? 'Humanización gramatical completada.' : 'Humanización completada.', 'success');
+        const completionLog = isUniprompt ? 'Humanización uniprompt completada.' :
+            isGramatical ? 'Humanización gramatical completada.' : 'Humanización completada.';
+        useQueueStore.getState().addLogToTask(taskId, completionLog, 'success');
     } catch (e: any) {
         console.error(e);
         if (isCurrentDraft()) {

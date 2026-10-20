@@ -853,7 +853,7 @@ export default function WriterStudio() {
                     };
 
                     const humType = humConfig.humanizerType || 'tradicional';
-                    const actionLabel = humType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional';
+                    const actionLabel = humType === 'uniprompt' ? 'Humanización Uniprompt' : humType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional';
 
                     globalTaskId = enqueueTask(
                         'humanize', 
@@ -2372,7 +2372,8 @@ export default function WriterStudio() {
                                                                                    className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-1.5 text-slate-700 outline-none font-semibold"
                                                                                >
                                                                                    <option value="tradicional">Humanización Tradicional</option>
-                                                                                   <option value="gramatical">Humanización Gramatical (4 Fases)</option>
+                                                                                   <option value="gramatical">Humanización Gramatical (Orden Invertido)</option>
+                                                                                    <option value="uniprompt">Humanización Uniprompt (1 Petición / 4 Leyes)</option>
                                                                                </select>
                                                                            </div>
                                                                            <div className="grid grid-cols-2 gap-2">
@@ -2393,7 +2394,7 @@ export default function WriterStudio() {
                                                                                <div>
                                                                                    <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Modo Tradicional</label>
                                                                                    <select 
-                                                                                       disabled={action.config?.humanizerType === 'gramatical'}
+                                                                                       disabled={action.config?.humanizerType === 'gramatical' || action.config?.humanizerType === 'uniprompt'}
                                                                                        value={action.config?.mode || 'unified'}
                                                                                        onChange={(e) => updateActionConfig(action.id, 'mode', e.target.value)}
                                                                                        className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-1.5 text-slate-700 outline-none disabled:opacity-40"

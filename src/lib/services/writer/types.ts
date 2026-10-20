@@ -157,7 +157,7 @@ export interface HumanizerConfig {
     strictFrequency?: number;
     questions?: string[];
     mode?: 'no_chunks' | 'unified' | 'duplicate_detection';
-    humanizerType?: 'tradicional' | 'gramatical';
+    humanizerType?: 'tradicional' | 'gramatical' | 'uniprompt';
     language?: string;
 }
 

@@ -157,7 +157,7 @@ export function useWriterActions() {
         };
 
         // Encolar tarea con el snapshot
-        const actionLabel = humanizerType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional';
+        const actionLabel = humanizerType === 'uniprompt' ? 'Humanización Uniprompt' : humanizerType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional';
         enqueueTask(
             'humanize', 
             `${actionLabel}: ${snapshotTitle}`, 

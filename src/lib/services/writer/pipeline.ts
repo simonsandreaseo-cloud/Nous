@@ -355,7 +355,7 @@ export async function executeHumanizePipeline(
     onProgress?: (progress: number) => void,
     model?: string,
     chunkSize?: number,
-    humanizerType?: 'tradicional' | 'gramatical'
+    humanizerType?: 'tradicional' | 'gramatical' | 'uniprompt'
 ) {
     onLog('Iniciando humanización (streaming)...');
 
@@ -381,8 +381,12 @@ export async function executeHumanizePipeline(
     const sanitizedContent = sanitizeLLMHtml(content);
     const effectiveHumanizerType = humanizerType || (task.metadata as any)?.humanizerType || 'tradicional';
 
-    if (effectiveHumanizerType === 'gramatical') {
-        onLog('Iniciando humanización gramatical (4 capas secuenciales sin división por fragmentos)...');
+    if (effectiveHumanizerType === 'uniprompt' || effectiveHumanizerType === 'gramatical') {
+        const isUniprompt = effectiveHumanizerType === 'uniprompt';
+        const typeLabel = isUniprompt ? 'uniprompt (4 Leyes en 1 Petición)' : 'gramatical (orden invertido)';
+        const processName = isUniprompt ? 'Post-Humanización Uniprompt' : 'Post-Humanización Gramatical';
+
+        onLog(`Iniciando humanización ${typeLabel}...`);
         if (onProgress) onProgress(5);
         
         let resultHtml = sanitizedContent;
@@ -393,9 +397,9 @@ export async function executeHumanizePipeline(
         while (!success && attempts < MAX_ATTEMPTS) {
             try {
                 if (checkPause) await checkPause();
-                const gramaticalResult = await streamHumanize(
+                const humanizerResult = await streamHumanize(
                     sanitizedContent,
-                    { ...config, humanizerType: 'gramatical' },
+                    { ...config, humanizerType: effectiveHumanizerType },
                     50,
                     (partialHtml) => {
                         onChunk(partialHtml);
@@ -409,17 +413,17 @@ export async function executeHumanizePipeline(
                     }
                 );
 
-                resultHtml = gramaticalResult.html;
+                resultHtml = humanizerResult.html;
                 onChunk(resultHtml);
 
-                if (gramaticalResult.usage && typeof window !== 'undefined') {
+                if (humanizerResult.usage && typeof window !== 'undefined') {
                     try {
                         const { useQueueStore } = require('@/store/useQueueStore');
                         const activeTask = useQueueStore.getState().activeTask;
                         if (activeTask) {
-                            useQueueStore.getState().addUsageToTask(activeTask.id, gramaticalResult.usage);
+                            useQueueStore.getState().addUsageToTask(activeTask.id, humanizerResult.usage);
                         } else if (typeof task !== 'undefined' && task && task.id) {
-                            useQueueStore.getState().addUsageToTask(task.id, gramaticalResult.usage);
+                            useQueueStore.getState().addUsageToTask(task.id, humanizerResult.usage);
                         }
                     } catch (storeErr) {
                         console.warn('Could not update queue store usage on client:', storeErr);
@@ -429,12 +433,12 @@ export async function executeHumanizePipeline(
                 success = true;
             } catch (err: any) {
                 attempts++;
-                console.error(`Error en humanización gramatical (intento ${attempts}):`, err);
+                console.error(`Error en humanización ${effectiveHumanizerType} (intento ${attempts}):`, err);
                 if (attempts >= MAX_ATTEMPTS) {
                     throw err;
                 }
                 const waitTime = 3000 * attempts;
-                onLog(`Reintentando humanización gramatical en ${Math.round(waitTime / 1000)}s... (${attempts}/${MAX_ATTEMPTS})`);
+                onLog(`Reintentando humanización ${effectiveHumanizerType} en ${Math.round(waitTime / 1000)}s... (${attempts}/${MAX_ATTEMPTS})`);
                 await new Promise(r => setTimeout(r, waitTime));
             }
         }
@@ -444,7 +448,7 @@ export async function executeHumanizePipeline(
             metadata: { 
                 ...task.metadata, 
                 is_humanized: true, 
-                humanizer_type: 'gramatical',
+                humanizer_type: effectiveHumanizerType,
                 humanized_at: new Date().toISOString() 
             }
         };
@@ -452,12 +456,12 @@ export async function executeHumanizePipeline(
         try {
             await supabase.from('task_versions').insert({
                 task_id: task.id,
-                process_name: "Post-Humanización Gramatical",
+                process_name: processName,
                 content_body: resultHtml,
                 created_at: new Date().toISOString()
             });
         } catch (e) {
-            console.error('No se pudo guardar la versión Post-Humanización Gramatical:', e);
+            console.error(`No se pudo guardar la versión ${processName}:`, e);
         }
 
         const { content_body: _, ...tasksUpdate } = updates;
@@ -468,7 +472,7 @@ export async function executeHumanizePipeline(
         if (tcErr) throw tcErr;
 
         if (onProgress) onProgress(100);
-        onLog('✅ Humanización gramatical completada y guardada.');
+        onLog(`✅ Humanización ${effectiveHumanizerType} completada y guardada.`);
         return { success: true, content: resultHtml, updates };
     }
     
