@@ -225,7 +225,7 @@ async function executeTaskInBlock({
                 currentTaskState,
                 newContent,
                 project,
-                (msg) => enhancedLog(task.id, humType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional', msg),
+                (msg) => enhancedLog(task.id, humType === 'uniprompt' ? 'Humanización Uniprompt' : humType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional', msg),
                 () => {},
                 checkPause,
                 (p) => enhancedProgress(task.id, p),
