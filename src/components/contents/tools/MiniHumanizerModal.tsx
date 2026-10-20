@@ -18,6 +18,7 @@ const MAX_WORDS = 500;
 export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
+    const [progressPercent, setProgressPercent] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [wordCount, setWordCount] = useState(0);
     const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
@@ -161,7 +162,34 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
 
             const reasoningParam = reasoningLevel === "none" ? undefined : reasoningLevel;
 
-            if (mode === "lipograma") {
+            if (mode === "gramatical") {
+                setStatusMessage("Iniciando Humanización Gramatical (4 Capas)...");
+                setProgressPercent(5);
+                const result = await streamMiniHumanize(
+                    currentHtml,
+                    { ...config, humanizerType: "gramatical" },
+                    50,
+                    (chunkHtml) => {
+                        editor.commands.setContent(chunkHtml);
+                    },
+                    (status) => {
+                        setStatusMessage(status);
+                    },
+                    modelToUse,
+                    "gramatical",
+                    providerToUse,
+                    reasoningParam,
+                    customParams,
+                    (percent) => {
+                        setProgressPercent(percent);
+                    }
+                );
+
+                if (result && result.html) {
+                    editor.commands.setContent(result.html);
+                    setProgressPercent(100);
+                }
+            } else if (mode === "lipograma") {
                 let stepHtml = currentHtml;
 
                 setStatusMessage("Iniciando Capa 1/3 (Esqueleto)...");
@@ -292,11 +320,19 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                         <EditorContent editor={editor} />
 
                         {isProcessing && (
-                            <div className="absolute inset-0 bg-white/60 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-3 z-10">
+                            <div className="absolute inset-0 bg-white/70 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-3 z-10 p-6">
                                 <Loader2 size={32} className="text-amber-500 animate-spin" />
-                                <span className="text-sm font-bold text-slate-600 animate-pulse">
+                                <span className="text-sm font-bold text-slate-700 animate-pulse text-center">
                                     {statusMessage || "Procesando..."}
                                 </span>
+                                {progressPercent > 0 && (
+                                    <div className="w-64 max-w-full bg-slate-200 rounded-full h-2.5 overflow-hidden shadow-inner">
+                                        <div 
+                                            className="bg-gradient-to-r from-amber-500 to-emerald-500 h-2.5 rounded-full transition-all duration-300" 
+                                            style={{ width: `${progressPercent}%` }}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -589,9 +625,10 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                                 value={mode}
                                 onChange={(e) => setMode(e.target.value)}
                                 disabled={isProcessing}
-                                className="text-xs font-medium text-slate-600 bg-slate-100 border-none rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
+                                className="text-xs font-semibold text-slate-700 bg-slate-100 border-none rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/50 cursor-pointer"
                             >
-                                <option value="standard">Estándar</option>
+                                <option value="standard">Humanización Tradicional</option>
+                                <option value="gramatical">Humanización Gramatical (4 Capas)</option>
                                 <option value="lipograma">Lipograma Positivo (Cascada)</option>
                                 <option value="babel">Torre de Babel (Traducción Inversa)</option>
                                 <option value="legacy_json">Diccionario JSON (Legacy)</option>

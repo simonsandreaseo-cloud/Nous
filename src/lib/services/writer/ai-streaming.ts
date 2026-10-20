@@ -68,11 +68,19 @@ export async function streamHumanize(
     onProgress?: (percent: number) => void,
     provider?: string,
     reasoning?: string
-): Promise<{ html: string; result?: any }> {
+): Promise<{ html: string; result?: any; usage?: any }> {
     const response = await fetch('/api/humanize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, config, intensity, model, provider, reasoning })
+        body: JSON.stringify({ 
+            content, 
+            config, 
+            intensity, 
+            model, 
+            provider, 
+            reasoning,
+            humanizerType: config?.humanizerType 
+        })
     });
 
     const contentType = response.headers.get('content-type');
@@ -158,8 +166,9 @@ export async function streamMiniHumanize(
     mode?: string,
     provider?: string,
     reasoning?: string,
-    customParams?: MiniHumanizerParams
-): Promise<{ html: string; result?: any }> {
+    customParams?: MiniHumanizerParams,
+    onProgress?: (percent: number) => void
+): Promise<{ html: string; result?: any; usage?: any }> {
     const response = await fetch('/api/mini-humanize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -205,8 +214,10 @@ export async function streamMiniHumanize(
                 } else if (parsed.type === 'log') {
                     console.log('%c[MiniHumanizer]', 'color: #f59e0b; font-weight: bold;', parsed.message);
                 } else if (parsed.type === 'chunk') {
-                    newContent += parsed.html + '\n';
+                    newContent = parsed.html;
                     onChunk(newContent);
+                } else if (parsed.type === 'progress') {
+                    if (onProgress) onProgress(parsed.percent);
                 } else if (parsed.type === 'error') {
                     throw new Error(parsed.error);
                 } else if (parsed.type === 'done') {

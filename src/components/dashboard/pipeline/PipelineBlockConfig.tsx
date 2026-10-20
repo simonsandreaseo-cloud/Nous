@@ -269,6 +269,36 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                             </div>
                         </div>
 
+                        {/* Extra Config for Humanize */}
+                        {localBlock.actionType === 'humanize' && (
+                            <div className="space-y-4 pt-4 border-t border-slate-100">
+                                <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
+                                    <SlidersHorizontal size={12} /> Forma de Humanización
+                                </h4>
+                                <div className="space-y-1.5">
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-semibold"
+                                        value={localBlock.additionalConfig?.humanizerType || 'tradicional'}
+                                        onChange={(e) => setLocalBlock({
+                                            ...localBlock,
+                                            additionalConfig: {
+                                                ...localBlock.additionalConfig,
+                                                humanizerType: e.target.value as 'tradicional' | 'gramatical'
+                                            }
+                                        })}
+                                    >
+                                        <option value="tradicional">Humanización Tradicional (Por Chunks)</option>
+                                        <option value="gramatical">Humanización Gramatical (4 Fases Concatenadas)</option>
+                                    </select>
+                                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                                        {localBlock.additionalConfig?.humanizerType === 'gramatical' 
+                                            ? "⚡ La humanización gramatical procesa el texto completo sin fragmentar a través de 4 fases concatenadas (25% cada una): Desinfección Léxica, Voz Activa y Sujetos, Moldes Oracionales y Pulido de Puntuación."
+                                            : "La humanización tradicional divide el contenido en fragmentos (chunks) y aplica el motor estándar de NOUS."}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Extra Config for Research */}
                         {localBlock.actionType === 'research' && (
                             <div className="space-y-4 pt-4 border-t border-slate-100">

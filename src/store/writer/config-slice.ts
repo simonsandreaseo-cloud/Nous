@@ -24,6 +24,7 @@ export const createConfigSlice: StateCreator<ConfigSlice, [], [], ConfigSlice> =
         audience: 'General',
         notes: '',
         mode: 'unified',
+        humanizerType: 'tradicional',
     },
     humanizerStatus: '',
     refinementInstructions: '',

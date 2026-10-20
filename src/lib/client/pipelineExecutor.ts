@@ -220,9 +220,21 @@ async function executeTaskInBlock({
         }
         else if (block.actionType === 'humanize') {
             if (!newContent) throw new Error('No hay contenido para humanizar.');
-            const res = await executeHumanizePipeline(currentTaskState, newContent, project, (msg) => enhancedLog(task.id, 'Humanización', msg), () => {}, checkPause, (p) => enhancedProgress(task.id, p), block.model, block.chunkSize, block.additionalConfig?.reasoningLevel);
+            const humType = block.additionalConfig?.humanizerType || (block.additionalConfig?.isGramatical ? 'gramatical' : 'tradicional');
+            const res = await executeHumanizePipeline(
+                currentTaskState,
+                newContent,
+                project,
+                (msg) => enhancedLog(task.id, humType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional', msg),
+                () => {},
+                checkPause,
+                (p) => enhancedProgress(task.id, p),
+                block.model,
+                block.chunkSize,
+                humType
+            );
             if (res.success && res.updates) { newContent = res.updates.content_body || newContent; Object.assign(currentTaskState, res.updates); }
-            else throw new Error(res.error || 'Fallo en humanización');
+            else throw new Error((res as any).error || 'Fallo en humanización');
         }
         else if (block.actionType === 'clean') {
             if (!newContent) throw new Error('No hay contenido para limpiar.');

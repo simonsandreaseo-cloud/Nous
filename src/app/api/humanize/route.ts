@@ -7,13 +7,18 @@ export const maxDuration = 300; // 5 minutes timeout to prevent Vercel 10s/60s l
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { content, config, intensity, provider, reasoning } = body;
+        const { content, config, intensity, provider, reasoning, humanizerType } = body;
 
         if (!content) {
             return NextResponse.json({ error: 'Content is required' }, { status: 400 });
         }
 
-        console.log(`[Humanizer-API] Processing ${content.length} chars (Streaming)`);
+        const effectiveConfig = {
+            ...config,
+            ...(humanizerType ? { humanizerType } : {})
+        };
+
+        console.log(`[Humanizer-API] Processing ${content.length} chars (Streaming), Type: ${effectiveConfig.humanizerType || 'tradicional'}`);
 
         const encoder = new TextEncoder();
         
@@ -42,14 +47,14 @@ export async function POST(req: Request) {
                     const result = await aiUsageContext.run(ctxState, async () => {
                         return await runHumanizerPipeline(
                             content,
-                            config,
+                            effectiveConfig,
                             intensity || 50,
                             onStatus,
                             body.model || 'gemma-4-31b-it',
                             onChunk,
-                            undefined, // onLog
-                            undefined, // mode
-                            onProgress // pass onProgress
+                            onProgress,
+                            provider,
+                            reasoning
                         );
                     });
 

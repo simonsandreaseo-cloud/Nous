@@ -1894,7 +1894,8 @@ function IntelligentActionButton({ task, onAction, isProcessing }: { task: Task,
         { label: 'Re-investigar Fase', action: 'reinvestigar_fase', icon: RotateCcw, desc: 'Re-ejecutar una parte específica' },
         { label: 'Investigar de 0', action: 'investigar_forzado', icon: Search, desc: 'Reinicia toda la investigación' },
         { label: 'Redactar', action: 'draft', icon: Sparkles, desc: 'Genera el borrador' },
-        { label: 'Humanizar', action: 'humanize', icon: Zap, desc: 'Aplica humanización' },
+        { label: 'Humanizar (Tradicional)', action: 'humanize', icon: Zap, desc: 'Motor tradicional por chunks' },
+        { label: 'Humanización Gramatical', action: 'humanize_gramatical', icon: Sparkles, desc: '4 capas morfosintácticas secuenciales' },
         { label: 'Ver Editor', action: 'writer', icon: Edit3, desc: 'Abre el redactor' },
     ];
 

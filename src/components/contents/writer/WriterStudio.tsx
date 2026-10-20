@@ -846,17 +846,22 @@ export default function WriterStudio() {
                         links: unifiedLinks, 
                         questions: store.strategyQuestions,
                         mode: humConfig.mode || 'unified',
+                        humanizerType: humConfig.humanizerType || 'tradicional',
                         language: activeProject?.settings?.content_preferences?.default_content_language || 'es',
                         model: humConfig.model || undefined,
                         chunkSize: humConfig.chunkSize || undefined
                     };
 
+                    const humType = humConfig.humanizerType || 'tradicional';
+                    const actionLabel = humType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional';
+
                     globalTaskId = enqueueTask(
                         'humanize', 
-                        `Humanizando: ${store.articleTitle || store.keyword || 'Artículo'}`, 
+                        `${actionLabel}: ${store.articleTitle || store.keyword || 'Artículo'}`, 
                         { 
                             taskId: draftId, 
                             content: contentToHumanize, 
+                            humanizerType: humType,
                             config,
                             model: humConfig.model !== 'default' ? humConfig.model : undefined,
                             chunkSize: humConfig.chunkSize
@@ -1221,6 +1226,233 @@ export default function WriterStudio() {
             .replace(/(^-|-$)+/g, ""); // trim trailing and leading hyphens
     };
 
+    const generateShopifyArticleHtml = (title: string, heroHtml: string, bodyHtml: string) => {
+        return `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --ff-article-max-width: 1100px;
+            --ff-article-text-color: #191919;
+            --ff-article-text-size: 18px;
+            --ff-article-text-weight: 400;
+            --ff-article-heading-color: #191919;
+            --ff-article-heading-weight: 800;
+            --ff-article-h2-size: 30px;
+            --ff-article-h3-size: 24px;
+            --ff-article-h4-size: 20px;
+            --ff-article-link-color: #191919;
+        }
+
+        body {
+            margin: 0;
+            padding: 48px 24px;
+            background-color: #ffffff;
+            color: var(--ff-article-text-color, #191919);
+            font-family: -apple-system, BlinkMacSystemFont, "Avenir", "Avenir Next", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 24px 16px;
+            }
+        }
+
+        .article-preview-wrapper {
+            max-width: var(--ff-article-max-width, 1100px);
+            margin: 0 auto;
+        }
+
+        /* Shopify Theme Article Content Base (.ff-article-content & .rte) */
+        .ff-article-content,
+        .rte {
+            color: var(--ff-article-text-color, #191919);
+            font-size: var(--ff-article-text-size, 18px);
+            font-weight: var(--ff-article-text-weight, 400);
+            max-width: var(--ff-article-max-width, 1100px);
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .ff-article-content p,
+        .ff-article-content ul,
+        .ff-article-content ol,
+        .rte p,
+        .rte ul,
+        .rte ol {
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .ff-article-content h1,
+        .rte h1 {
+            font-size: 36px;
+            font-weight: var(--ff-article-heading-weight, 800);
+            color: var(--ff-article-heading-color, #191919);
+            margin: 0 0 24px 0;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+        }
+
+        .ff-article-content h2,
+        .rte h2 {
+            font-size: var(--ff-article-h2-size, 30px);
+            font-weight: var(--ff-article-heading-weight, 800);
+            color: var(--ff-article-heading-color, #191919);
+            margin-top: 48px;
+            margin-bottom: 16px;
+            line-height: 1.3;
+        }
+
+        .ff-article-content h3,
+        .rte h3 {
+            font-size: var(--ff-article-h3-size, 24px);
+            font-weight: var(--ff-article-heading-weight, 800);
+            color: var(--ff-article-heading-color, #191919);
+            margin-top: 36px;
+            margin-bottom: 14px;
+            line-height: 1.3;
+        }
+
+        .ff-article-content h4,
+        .rte h4 {
+            font-size: var(--ff-article-h4-size, 20px);
+            font-weight: var(--ff-article-heading-weight, 800);
+            color: var(--ff-article-heading-color, #191919);
+            margin-top: 28px;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .ff-article-content a,
+        .rte a {
+            color: var(--ff-article-link-color, #191919);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            transition: opacity 0.2s ease;
+        }
+
+        .ff-article-content a:hover,
+        .rte a:hover {
+            opacity: 0.7;
+        }
+
+        .ff-article-content strong,
+        .ff-article-content b,
+        .rte strong,
+        .rte b {
+            font-weight: 700;
+            color: #000000;
+        }
+
+        .ff-article-content ul,
+        .rte ul {
+            list-style-type: disc;
+            padding-left: 24px;
+            margin-bottom: 24px;
+        }
+
+        .ff-article-content ol,
+        .rte ol {
+            list-style-type: decimal;
+            padding-left: 24px;
+            margin-bottom: 24px;
+        }
+
+        .ff-article-content li,
+        .rte li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        /* Shopify Standard Image Styling */
+        .ff-article-content > img,
+        .ff-article-content > p > img,
+        .ff-article-content > p > span > img {
+            width: 100%;
+            max-height: 600px;
+            margin-bottom: 32px;
+            border-radius: 12px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .ff-article-content img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Standard Table Styling (only applies to non-custom tables) */
+        .ff-article-content table:not([class*="experimento"]):not([class*="editorial"]),
+        .rte table:not([class*="experimento"]):not([class*="editorial"]) {
+            width: 100%;
+            margin: 32px 0;
+            border-collapse: collapse;
+            border: 1px solid #e5e7eb;
+        }
+
+        .ff-article-content table:not([class*="experimento"]):not([class*="editorial"]) th,
+        .ff-article-content table:not([class*="experimento"]):not([class*="editorial"]) td,
+        .rte table:not([class*="experimento"]):not([class*="editorial"]) th,
+        .rte table:not([class*="experimento"]):not([class*="editorial"]) td {
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            text-align: left;
+        }
+
+        .ff-article-content table:not([class*="experimento"]):not([class*="editorial"]) th,
+        .rte table:not([class*="experimento"]):not([class*="editorial"]) th {
+            font-weight: var(--ff-article-heading-weight, 800);
+            background-color: #f9fafb;
+        }
+
+        /* Generic blockquote fallback */
+        .ff-article-content blockquote:not(.pull-quote),
+        .rte blockquote:not(.pull-quote) {
+            border-left: 3px solid #191919;
+            padding: 12px 24px;
+            margin: 32px 0;
+            color: #444444;
+            font-style: italic;
+        }
+
+        /* Shortcode Badge for Preview */
+        .shopify-shortcode-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 12px;
+            color: #475569;
+            margin: 6px 0;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="article-preview-wrapper">
+        ${heroHtml}
+        <article class="ff-article-content rte">
+            ${bodyHtml}
+        </article>
+    </div>
+</body>
+</html>`;
+    };
+
     const handleDownloadZip = async () => {
         if (isDownloadingZip) return;
         setIsDownloadingZip(true);
@@ -1264,15 +1496,16 @@ export default function WriterStudio() {
                     img.src = url;
                     img.alt = alt;
                     img.title = titleTextAttr;
-                    img.className = 'rounded-[2rem] shadow-2xl border border-slate-200/60 max-w-full hover:scale-[1.01] transition-transform duration-500';
+                    img.className = 'max-w-full h-auto';
                     img.style.width = width;
                     img.style.height = 'auto';
+                    img.style.borderRadius = '12px';
 
                     figure.appendChild(img);
 
                     if (titleTextAttr) {
                         const figcaption = document.createElement('figcaption');
-                        figcaption.className = 'mt-4 text-center text-sm text-slate-400 font-medium italic';
+                        figcaption.className = 'mt-2 text-center text-sm text-slate-500 font-medium italic';
                         figcaption.textContent = titleTextAttr;
                         figure.appendChild(figcaption);
                     }
@@ -1283,8 +1516,11 @@ export default function WriterStudio() {
 
             const images = tempDiv.querySelectorAll('img:not(figure img)');
             images.forEach((img) => {
-                if (!img.className) {
-                    img.className = 'rounded-[2rem] shadow-2xl border border-slate-200/60 max-w-full my-12 mx-auto block';
+                if (!img.style.maxWidth) {
+                    img.style.maxWidth = '100%';
+                }
+                if (!img.style.height) {
+                    img.style.height = 'auto';
                 }
             });
 
@@ -1358,61 +1594,21 @@ export default function WriterStudio() {
                 ? imageDownloads.find(d => d.url === featured.url)?.localPath
                 : (featured?.url || '');
 
+            const hasH1 = !!tempDiv.querySelector('h1');
             const heroHtml = finalHeroPath ? `
-                <header class="mb-10">
-                    <div class="relative w-full aspect-[21/9] overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/40 shadow-2xl mb-8">
-                        <img src="${finalHeroPath}" alt="${featured?.alt_text || ''}" class="w-full h-full object-cover" />
+                <header class="article-header" style="margin-bottom: 32px;">
+                    ${!hasH1 ? `<h1 style="font-size: 36px; font-weight: 800; color: #191919; margin-bottom: 24px; line-height: 1.25;">${titleText}</h1>` : ''}
+                    <div style="width: 100%; max-height: 530px; overflow: hidden; border-radius: 12px; margin-bottom: 32px;">
+                        <img src="${finalHeroPath}" alt="${featured?.alt_text || ''}" style="width: 100%; height: auto; max-height: 530px; object-fit: cover; border-radius: 12px; display: block;" />
                     </div>
-                    <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4 font-title">${titleText}</h1>
-                    <div class="w-20 h-1 bg-indigo-500 rounded-full"></div>
                 </header>
-            ` : `
-                <header class="mb-10">
-                    <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4 font-title">${titleText}</h1>
-                    <div class="w-20 h-1 bg-indigo-500 rounded-full"></div>
+            ` : (!hasH1 ? `
+                <header class="article-header" style="margin-bottom: 32px;">
+                    <h1 style="font-size: 36px; font-weight: 800; color: #191919; margin-bottom: 24px; line-height: 1.25;">${titleText}</h1>
                 </header>
-            `;
+            ` : '');
 
-            const fullHtml = `<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${titleText}</title>
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Plus Jakarta Sans', 'sans-serif'],
-                        title: ['Outfit', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #f8fafc;
-            color: #1e293b;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Outfit', sans-serif !important;
-        }
-    </style>
-</head>
-<body class="antialiased selection:bg-indigo-500 selection:text-white leading-relaxed">
-    <main class="max-w-4xl mx-auto px-6 md:px-12 py-16 md:py-24 bg-white md:my-12 md:rounded-[3rem] md:shadow-2xl/10 border border-slate-100/50">
-        ${heroHtml}
-        <article class="prose prose-slate prose-lg max-w-none prose-headings:font-black prose-headings:tracking-tight prose-a:text-indigo-600 hover:prose-a:text-indigo-500 prose-img:rounded-[2rem] prose-img:shadow-2xl">
-            ${processedHtml}
-        </article>
-    </main>
-</body>
-</html>`;
+            const fullHtml = generateShopifyArticleHtml(titleText, heroHtml, processedHtml);
 
             // Save HTML file inside the ZIP root
             zip.file(`${cleanSlug}.html`, fullHtml);
@@ -1453,30 +1649,31 @@ export default function WriterStudio() {
 
             if (url && status !== 'pending') {
                 const figure = document.createElement('figure');
-                figure.className = 'my-12 flex flex-col items-center justify-center clear-both';
+                figure.className = 'my-8 flex flex-col items-center justify-center clear-both';
                 
                 // Manage alignment layout classes matching modern site web templates
                 if (align === 'left') {
-                    figure.className = 'my-8 md:float-left md:mr-8 max-w-sm clear-none';
+                    figure.className = 'my-6 md:float-left md:mr-8 max-w-sm clear-none';
                 } else if (align === 'right') {
-                    figure.className = 'my-8 md:float-right md:ml-8 max-w-sm clear-none';
+                    figure.className = 'my-6 md:float-right md:ml-8 max-w-sm clear-none';
                 } else if (align === 'full') {
-                    figure.className = 'my-12 w-full clear-both';
+                    figure.className = 'my-8 w-full clear-both';
                 }
 
                 const img = document.createElement('img');
                 img.src = url;
                 img.alt = alt;
                 img.title = titleText;
-                img.className = 'rounded-[2rem] shadow-2xl border border-slate-200/60 max-w-full hover:scale-[1.01] transition-transform duration-500';
+                img.className = 'max-w-full h-auto';
                 img.style.width = width;
                 img.style.height = 'auto';
+                img.style.borderRadius = '12px';
 
                 figure.appendChild(img);
 
                 if (titleText) {
                     const figcaption = document.createElement('figcaption');
-                    figcaption.className = 'mt-4 text-center text-sm text-slate-400 font-medium italic';
+                    figcaption.className = 'mt-2 text-center text-sm text-slate-500 font-medium italic';
                     figcaption.textContent = titleText;
                     figure.appendChild(figcaption);
                 }
@@ -1485,169 +1682,73 @@ export default function WriterStudio() {
             } else if (status === 'pending') {
                 // If it's a pending slot, show a refined placeholder
                 const placeholder = document.createElement('div');
-                placeholder.className = 'w-full aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center text-slate-400 my-12';
+                placeholder.className = 'w-full aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 my-8';
                 placeholder.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-4 opacity-50"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                    <p class="text-sm font-semibold uppercase tracking-widest">Imagen en proceso...</p>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    <p class="text-xs font-semibold uppercase tracking-wider">Imagen en proceso...</p>
                 `;
                 asset.parentNode?.replaceChild(placeholder, asset);
             }
         });
 
-        // 2. Transform general image slots and missing custom tags
+        // 2. Transform general image slots without clobbering existing custom classes
         const images = tempDiv.querySelectorAll('img:not(figure img)');
         images.forEach((img) => {
-            if (!img.className) {
-                img.className = 'rounded-[2rem] shadow-2xl border border-slate-200/60 max-w-full my-12 mx-auto block';
+            if (!img.style.maxWidth) {
+                img.style.maxWidth = '100%';
             }
+            if (!img.style.height) {
+                img.style.height = 'auto';
+            }
+        });
+
+        // 3. Highlight Shopify shortcodes as clean visual badges in preview
+        const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT);
+        const nodesToReplace: { node: Node; replacement: DocumentFragment }[] = [];
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            if (node.nodeValue && /(?:\[\*[\s\S]+?\*\]|\[products:[\s\S]+?\]|\[collection:[\s\S]+?\]|\{\*[\s\S]+?\*\})/.test(node.nodeValue)) {
+                if (node.parentElement && (node.parentElement.tagName === 'STYLE' || node.parentElement.tagName === 'SCRIPT')) {
+                    continue;
+                }
+                const frag = document.createDocumentFragment();
+                const parts = node.nodeValue.split(/(\[\*[\s\S]+?\*\]|\[products:[\s\S]+?\]|\[collection:[\s\S]+?\]|\{\*[\s\S]+?\*\})/g);
+                parts.forEach((part) => {
+                    if (/^(\[\*[\s\S]+?\*\]|\[products:[\s\S]+?\]|\[collection:[\s\S]+?\]|\{\*[\s\S]+?\*\})$/.test(part)) {
+                        const badge = document.createElement('span');
+                        badge.className = 'shopify-shortcode-badge';
+                        badge.innerHTML = `🛍️ <code>${part}</code>`;
+                        frag.appendChild(badge);
+                    } else if (part) {
+                        frag.appendChild(document.createTextNode(part));
+                    }
+                });
+                nodesToReplace.push({ node, replacement: frag });
+            }
+        }
+        nodesToReplace.forEach(({ node, replacement }) => {
+            node.parentNode?.replaceChild(replacement, node);
         });
 
         const processedHtml = tempDiv.innerHTML;
 
         // Find hero image
         const featured = getCoverImage(useWriterStore.getState().taskImages.find((img: any) => img.type === 'hero' || img.type === 'featured'));
+        const hasH1 = !!tempDiv.querySelector('h1');
         const heroHtml = featured && featured.url ? `
-            <header class="mb-10">
-                <div class="relative w-full aspect-[21/9] overflow-hidden rounded-[2.5rem] bg-slate-50 border border-slate-200/40 shadow-2xl mb-8">
-                    <img src="${featured.url}" alt="${featured.alt_text || ''}" class="w-full h-full object-cover" />
+            <header class="article-header" style="margin-bottom: 32px;">
+                ${!hasH1 ? `<h1 style="font-size: 36px; font-weight: 800; color: #191919; margin-bottom: 24px; line-height: 1.25;">${title}</h1>` : ''}
+                <div style="width: 100%; max-height: 530px; overflow: hidden; border-radius: 12px; margin-bottom: 32px;">
+                    <img src="${featured.url}" alt="${featured.alt_text || ''}" style="width: 100%; height: auto; max-height: 530px; object-fit: cover; border-radius: 12px; display: block;" />
                 </div>
-                <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4 font-title">${title}</h1>
-                <div class="w-20 h-1 bg-indigo-500 rounded-full"></div>
             </header>
-        ` : `
-            <header class="mb-10">
-                <h1 class="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4 font-title">${title}</h1>
-                <div class="w-20 h-1 bg-indigo-500 rounded-full"></div>
+        ` : (!hasH1 ? `
+            <header class="article-header" style="margin-bottom: 32px;">
+                <h1 style="font-size: 36px; font-weight: 800; color: #191919; margin-bottom: 24px; line-height: 1.25;">${title}</h1>
             </header>
-        `;
+        ` : '');
 
-        const previewHtml = `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Plus Jakarta Sans', 'sans-serif'],
-                        title: ['Outfit', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #f8fafc;
-            color: #1e293b;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Outfit', sans-serif !important;
-        }
-
-        /* ProseMirror Compatibility & Custom Styles */
-        .ProseMirror p { margin-bottom: 1.5rem !important; line-height: 1.8 !important; }
-        .ProseMirror ul { list-style-type: disc !important; margin-bottom: 1.5rem !important; padding-left: 1.5rem !important; }
-        .ProseMirror ol { list-style-type: decimal !important; margin-bottom: 1.5rem !important; padding-left: 1.5rem !important; }
-        .ProseMirror li { margin-bottom: 0.5rem !important; line-height: 1.7 !important; color: #475569; }
-        .ProseMirror li strong { color: #0f172a; font-weight: 800; }
-        .ProseMirror strong { font-weight: 900 !important; color: #0f172a; }
-        
-        .ProseMirror a { 
-            color: #2563eb !important; 
-            text-decoration: underline !important; 
-            text-underline-offset: 4px !important;
-            text-decoration-thickness: 2px !important;
-            font-weight: 700 !important;
-            transition: all 0.2s ease;
-        }
-        .ProseMirror a:hover { 
-            color: #1d4ed8 !important; 
-            background-color: #eff6ff;
-            text-decoration-thickness: 3px !important;
-        }
-
-        .ProseMirror blockquote {
-            border-left: 4px solid #6366f1 !important;
-            background-color: #f5f3ff !important;
-            padding: 1.5rem 2rem !important;
-            border-radius: 0 1rem 1rem 0 !important;
-            font-style: normal !important;
-            color: #4338ca !important;
-            margin: 2rem 0 !important;
-        }
-
-        /* Tiptap Table Styling */
-        .ProseMirror table {
-            border-collapse: collapse;
-            table-layout: fixed;
-            width: 100%;
-            margin: 2rem 0;
-            overflow: hidden;
-            border-radius: 0.75rem;
-            border: 1px solid #e2e8f0;
-        }
-        .ProseMirror table td,
-        .ProseMirror table th {
-            min-width: 1em;
-            border: 1px solid #e2e8f0;
-            padding: 12px 16px;
-            vertical-align: top;
-            box-sizing: border-box;
-            position: relative;
-        }
-        .ProseMirror table th {
-            font-weight: 700;
-            text-align: left;
-            background-color: #f8fafc;
-            color: #1e293b;
-        }
-        .ProseMirror tr:nth-child(even) {
-            background-color: #fcfcfc;
-        }
-
-        /* Images & Figures */
-        .ProseMirror img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 1.5rem;
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-        }
-        
-        figure {
-            margin: 2.5rem 0 !important;
-        }
-
-        /* Typography spacing fix */
-        .prose :where(ul > li):not(:where([class~="not-prose"],[class~="not-prose"] *))::marker {
-            color: #6366f1;
-        }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-800 min-h-screen py-12 px-4 md:px-8">
-    <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 md:p-16">
-        ${heroHtml}
-        <article class="ProseMirror prose prose-lg prose-indigo max-w-none 
-            prose-h1:text-4xl prose-h1:md:text-5xl prose-h1:font-extrabold prose-h1:text-slate-900 prose-h1:mb-8 prose-h1:tracking-tight prose-h1:leading-tight
-            prose-h2:text-3xl prose-h2:font-bold prose-h2:text-slate-800 prose-h2:mt-12 prose-h2:mb-6 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-200 prose-h2:tracking-tight
-            prose-h3:text-2xl prose-h3:font-semibold prose-h3:text-indigo-600 prose-h3:mt-8 prose-h3:mb-4 prose-h3:tracking-normal
-            prose-p:text-slate-600 prose-p:leading-[1.8] prose-p:text-[17px] prose-p:mb-6
-            prose-li:text-slate-600 prose-li:text-lg prose-li:leading-relaxed prose-li:mb-2
-            prose-strong:text-slate-900 prose-strong:font-bold
-            prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/50 prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:rounded-r-xl prose-blockquote:not-italic prose-blockquote:text-slate-700 prose-blockquote:text-lg prose-blockquote:font-medium">
-            ${processedHtml}
-        </article>
-    </div>
-</body>
-</html>
-        `;
+        const previewHtml = generateShopifyArticleHtml(title, heroHtml, processedHtml);
 
         const newWin = window.open();
         if (newWin) {
@@ -2262,32 +2363,46 @@ export default function WriterStudio() {
                                                                <div className="mt-4 pt-3 border-t border-slate-100/70 space-y-3">
                                                                    {/* 1. Humanize Config */}
                                                                    {action.type === 'humanize' && (
-                                                                       <div className="grid grid-cols-2 gap-2">
+                                                                       <div className="space-y-2">
                                                                            <div>
-                                                                               <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Nicho</label>
+                                                                               <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Forma de Humanización</label>
                                                                                <select 
-                                                                                   value={action.config?.niche || 'General'}
-                                                                                   onChange={(e) => updateActionConfig(action.id, 'niche', e.target.value)}
-                                                                                   className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-1.5 text-slate-700 outline-none"
+                                                                                   value={action.config?.humanizerType || 'tradicional'}
+                                                                                   onChange={(e) => updateActionConfig(action.id, 'humanizerType', e.target.value)}
+                                                                                   className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-1.5 text-slate-700 outline-none font-semibold"
                                                                                >
-                                                                                   <option value="General">General</option>
-                                                                                   <option value="Tecnología">Tecnología</option>
-                                                                                   <option value="Finanzas">Finanzas</option>
-                                                                                   <option value="Salud">Salud</option>
-                                                                                   <option value="Moda">Moda</option>
+                                                                                   <option value="tradicional">Humanización Tradicional</option>
+                                                                                   <option value="gramatical">Humanización Gramatical (4 Fases)</option>
                                                                                </select>
                                                                            </div>
-                                                                           <div>
-                                                                               <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Modo</label>
-                                                                               <select 
-                                                                                   value={action.config?.mode || 'unified'}
-                                                                                   onChange={(e) => updateActionConfig(action.id, 'mode', e.target.value)}
-                                                                                   className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-1.5 text-slate-700 outline-none"
-                                                                               >
-                                                                                   <option value="unified">Unified</option>
-                                                                                   <option value="creative">Vibrante</option>
-                                                                                   <option value="technical">Especializado</option>
-                                                                               </select>
+                                                                           <div className="grid grid-cols-2 gap-2">
+                                                                               <div>
+                                                                                   <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Nicho</label>
+                                                                                   <select 
+                                                                                       value={action.config?.niche || 'General'}
+                                                                                       onChange={(e) => updateActionConfig(action.id, 'niche', e.target.value)}
+                                                                                       className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-1.5 text-slate-700 outline-none"
+                                                                                   >
+                                                                                       <option value="General">General</option>
+                                                                                       <option value="Tecnología">Tecnología</option>
+                                                                                       <option value="Finanzas">Finanzas</option>
+                                                                                       <option value="Salud">Salud</option>
+                                                                                       <option value="Moda">Moda</option>
+                                                                                   </select>
+                                                                               </div>
+                                                                               <div>
+                                                                                   <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 block mb-1">Modo Tradicional</label>
+                                                                                   <select 
+                                                                                       disabled={action.config?.humanizerType === 'gramatical'}
+                                                                                       value={action.config?.mode || 'unified'}
+                                                                                       onChange={(e) => updateActionConfig(action.id, 'mode', e.target.value)}
+                                                                                       className="w-full text-[10px] bg-slate-50 border border-slate-100 rounded-lg p-1.5 text-slate-700 outline-none disabled:opacity-40"
+                                                                                   >
+                                                                                       <option value="unified">Unified</option>
+                                                                                       <option value="creative">Vibrante</option>
+                                                                                       <option value="technical">Especializado</option>
+                                                                                   </select>
+                                                                               </div>
                                                                            </div>
                                                                        </div>
                                                                    )}
@@ -2514,6 +2629,22 @@ export default function WriterStudio() {
                                         <h4 className="text-[11px] font-black uppercase text-slate-400 flex items-center gap-2 tracking-widest">
                                             <SlidersHorizontal size={12} /> Ajustes de Humanización
                                         </h4>
+                                        <div className="space-y-1.5 mb-3">
+                                            <label className="text-xs font-semibold text-slate-700">Forma de Humanización</label>
+                                            <select 
+                                                value={localConfig.humanizerType || 'tradicional'}
+                                                onChange={(e) => setLocalConfig({ ...localConfig, humanizerType: e.target.value })}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none font-semibold"
+                                            >
+                                                <option value="tradicional">Humanización Tradicional (Por Chunks)</option>
+                                                <option value="gramatical">Humanización Gramatical (4 Fases Concatenadas)</option>
+                                            </select>
+                                            {localConfig.humanizerType === 'gramatical' && (
+                                                <p className="text-[11px] text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg p-2 leading-relaxed mt-1">
+                                                    ⚡ Procesa el texto completo en 4 fases consecutivas: Desinfección Léxica (25%), Voz Activa y Sujetos (50%), Moldes Oracionales (75%) y Pulido de Puntuación (100%).
+                                                </p>
+                                            )}
+                                        </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="space-y-1.5">
                                                 <label className="text-xs font-semibold text-slate-700">Nicho de Redacción</label>

@@ -33,6 +33,10 @@ export async function POST(req: Request) {
                     controller.enqueue(encoder.encode(JSON.stringify({ type: 'chunk', html: chunkHtml }) + '\n'));
                 };
 
+                const onProgress = (percent: number) => {
+                    controller.enqueue(encoder.encode(JSON.stringify({ type: 'progress', percent }) + '\n'));
+                };
+
                 // Keep-alive mechanism to prevent Vercel timeout on long processes
                 const keepAlive = setInterval(() => {
                     controller.enqueue(encoder.encode(JSON.stringify({ type: 'keep-alive' }) + '\n'));
@@ -50,7 +54,7 @@ export async function POST(req: Request) {
                             onChunk,
                             onLog,
                             mode || 'standard',
-                            undefined,
+                            onProgress,
                             provider,
                             reasoning,
                             customParams

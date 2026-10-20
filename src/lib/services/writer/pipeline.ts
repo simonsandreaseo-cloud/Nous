@@ -354,7 +354,8 @@ export async function executeHumanizePipeline(
     checkPause?: () => Promise<void>,
     onProgress?: (progress: number) => void,
     model?: string,
-    chunkSize?: number
+    chunkSize?: number,
+    humanizerType?: 'tradicional' | 'gramatical'
 ) {
     onLog('Iniciando humanización (streaming)...');
 
@@ -378,6 +379,98 @@ export async function executeHumanizePipeline(
     };
 
     const sanitizedContent = sanitizeLLMHtml(content);
+    const effectiveHumanizerType = humanizerType || (task.metadata as any)?.humanizerType || 'tradicional';
+
+    if (effectiveHumanizerType === 'gramatical') {
+        onLog('Iniciando humanización gramatical (4 capas secuenciales sin división por fragmentos)...');
+        if (onProgress) onProgress(5);
+        
+        let resultHtml = sanitizedContent;
+        let success = false;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 3;
+
+        while (!success && attempts < MAX_ATTEMPTS) {
+            try {
+                if (checkPause) await checkPause();
+                const gramaticalResult = await streamHumanize(
+                    sanitizedContent,
+                    { ...config, humanizerType: 'gramatical' },
+                    50,
+                    (partialHtml) => {
+                        onChunk(partialHtml);
+                    },
+                    (msg) => {
+                        onLog(msg);
+                    },
+                    model,
+                    (percent) => {
+                        if (onProgress) onProgress(percent);
+                    }
+                );
+
+                resultHtml = gramaticalResult.html;
+                onChunk(resultHtml);
+
+                if (gramaticalResult.usage && typeof window !== 'undefined') {
+                    try {
+                        const { useQueueStore } = require('@/store/useQueueStore');
+                        const activeTask = useQueueStore.getState().activeTask;
+                        if (activeTask) {
+                            useQueueStore.getState().addUsageToTask(activeTask.id, gramaticalResult.usage);
+                        } else if (typeof task !== 'undefined' && task && task.id) {
+                            useQueueStore.getState().addUsageToTask(task.id, gramaticalResult.usage);
+                        }
+                    } catch (storeErr) {
+                        console.warn('Could not update queue store usage on client:', storeErr);
+                    }
+                }
+
+                success = true;
+            } catch (err: any) {
+                attempts++;
+                console.error(`Error en humanización gramatical (intento ${attempts}):`, err);
+                if (attempts >= MAX_ATTEMPTS) {
+                    throw err;
+                }
+                const waitTime = 3000 * attempts;
+                onLog(`Reintentando humanización gramatical en ${Math.round(waitTime / 1000)}s... (${attempts}/${MAX_ATTEMPTS})`);
+                await new Promise(r => setTimeout(r, waitTime));
+            }
+        }
+
+        const updates: Partial<Task> = {
+            content_body: resultHtml,
+            metadata: { 
+                ...task.metadata, 
+                is_humanized: true, 
+                humanizer_type: 'gramatical',
+                humanized_at: new Date().toISOString() 
+            }
+        };
+
+        try {
+            await supabase.from('task_versions').insert({
+                task_id: task.id,
+                process_name: "Post-Humanización Gramatical",
+                content_body: resultHtml,
+                created_at: new Date().toISOString()
+            });
+        } catch (e) {
+            console.error('No se pudo guardar la versión Post-Humanización Gramatical:', e);
+        }
+
+        const { content_body: _, ...tasksUpdate } = updates;
+        const { error: tErr } = await supabase.from('tasks').update(tasksUpdate).eq('id', task.id);
+        if (tErr) throw tErr;
+
+        const { error: tcErr } = await supabase.from('task_contents').upsert({ id: task.id, content_body: resultHtml });
+        if (tcErr) throw tcErr;
+
+        if (onProgress) onProgress(100);
+        onLog('✅ Humanización gramatical completada y guardada.');
+        return { success: true, content: resultHtml, updates };
+    }
     
     // Protection Phase
     const { blindedHtml, map: protectionMap } = HtmlProtectionService.protect(sanitizedContent);

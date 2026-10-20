@@ -5,7 +5,7 @@ import * as cheerio from 'cheerio';
 import TurndownService from 'turndown';
 import { marked } from 'marked';
 import { aiRouter } from "@/lib/ai/router";
-export type { 
+import type { 
     ArticleConfig, 
     SEOAnalysisResult, 
     DeepSEOAnalysisResult, 
@@ -18,18 +18,36 @@ export type {
     AIImageRequest,
     DeepSEOConfig
 } from "@/lib/services/writer/types";
+export type { 
+    ArticleConfig, 
+    SEOAnalysisResult, 
+    DeepSEOAnalysisResult, 
+    CompetitorDetail, 
+    ContentItem,
+    HumanizerConfig,
+    MiniHumanizerParams,
+    VisualResource,
+    ImageGenConfig,
+    AIImageRequest,
+    DeepSEOConfig
+};
 import { executeWithKeyRotation as libExecuteWithKeyRotation, executeTranslation } from "@/lib/services/writer/ai-core";
 import { ResearchOrchestrator } from "@/lib/services/writer/research";
 import { AI_CONFIG } from "@/lib/ai/config";
 import { Type } from "@google/genai";
 import { supabase } from "@/lib/supabase";
 import { safeJsonExtract } from "@/utils/json";
+import { runGrammaticalHumanizerPipeline } from "@/lib/services/writer/grammaticalHumanizer";
+export { runGrammaticalHumanizerPipeline };
 
 // --- UTILS & CONSTANTS ---
 
 
-function parseModelAndProvider(modelName: string, provider?: 'google-ai-studio' | 'vertex-ai',
-    reasoning?: string) {
+function parseModelAndProvider(
+    modelName: string, 
+    provider?: 'google-ai-studio' | 'vertex-ai' | 'auto',
+    reasoning?: string
+) {
     let resolvedModel = modelName;
     let resolvedProvider = provider || 'auto';
 
@@ -624,7 +642,16 @@ export const runHumanizerPipeline = async (
     const resolvedModel = parsed.resolvedModel;
     const resolvedProvider = parsed.resolvedProvider;
 
-
+    if (config?.humanizerType === 'gramatical' || (config as any)?.mode === 'gramatical') {
+        return await runGrammaticalHumanizerPipeline(html, {
+            modelName: resolvedModel,
+            provider: resolvedProvider as any,
+            reasoning,
+            onStatus,
+            onChunk,
+            onProgress
+        });
+    }
 
     safeStatus(`Iniciando humanización estructural con Cheerio y modelo ${resolvedModel}...`);
     const start = Date.now();
@@ -859,6 +886,19 @@ export const runMiniHumanizerPipeline = async (
                 return raw;
             }, safeStatus, stepName, modelName, provider);
         };
+
+        if (mode === 'gramatical' || mode === 'humanizacion_gramatical') {
+            return await runGrammaticalHumanizerPipeline(html, {
+                modelName,
+                provider,
+                reasoning,
+                onStatus: safeStatus,
+                onChunk,
+                onProgress,
+                onLog,
+                customParams
+            });
+        }
 
         if (mode === 'standard') {
             safeStatus(`Ejecutando Modo JSON Dictionary (Flujo Principal)...`);

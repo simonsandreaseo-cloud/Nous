@@ -430,27 +430,37 @@ export function EditorialCalendar() {
         }
     };
 
-    const runTaskHumanizePipeline = async (task: Task, onLog: (tid: string, s: string, m: string) => void) => {
-        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 50 }));
+    const runTaskHumanizePipeline = async (
+        task: Task, 
+        onLog: (tid: string, s: string, m: string) => void,
+        humanizerType: 'tradicional' | 'gramatical' = 'tradicional'
+    ) => {
+        setBatchResearchStatus(prev => ({ ...prev, [task.id]: 10 }));
         try {
             const { data: taskContent, error: fetchErr } = await supabase.from('task_contents').select('content_body').eq('id', task.id).maybeSingle();
             if (fetchErr) throw fetchErr;
             const content = taskContent?.content_body || task.content_body;
             if (!content) throw new Error("No hay contenido para humanizar.");
             
-            await saveBatchTaskVersion(task.id, 'Pre-Humanización', content);
+            const isGramatical = humanizerType === 'gramatical';
+            await saveBatchTaskVersion(task.id, isGramatical ? 'Pre-Humanización Gramatical' : 'Pre-Humanización', content);
 
             const res = await executeHumanizePipeline(
                 task, 
                 content, 
                 activeProject,
-                (msg) => onLog(task.id, 'Humanización', msg),
-                (html) => {}
+                (msg) => onLog(task.id, isGramatical ? 'Humanización Gramatical' : 'Humanización Tradicional', msg),
+                (html) => {},
+                undefined,
+                (progress) => setBatchResearchStatus(prev => ({ ...prev, [task.id]: progress })),
+                undefined,
+                undefined,
+                humanizerType
             );
             if (res.success && res.updates) {
                 updateTask(task.id, res.updates);
                 if (res.updates.content_body) {
-                    await saveBatchTaskVersion(task.id, 'Humanizada', res.updates.content_body);
+                    await saveBatchTaskVersion(task.id, isGramatical ? 'Post-Humanización Gramatical' : 'Humanizada', res.updates.content_body);
                 }
                 setBatchResearchStatus(prev => ({ ...prev, [task.id]: 100 }));
             } else {
@@ -696,9 +706,11 @@ export function EditorialCalendar() {
                 }
             } else if (action === 'draft') {
                 await runTaskDraftPipeline(task, onLog);
-                await runTaskHumanizePipeline(task, onLog);
+                await runTaskHumanizePipeline(task, onLog, 'tradicional');
             } else if (action === 'humanize') {
-                await runTaskHumanizePipeline(task, onLog);
+                await runTaskHumanizePipeline(task, onLog, 'tradicional');
+            } else if (action === 'humanize_gramatical') {
+                await runTaskHumanizePipeline(task, onLog, 'gramatical');
             } else if (action === 'visuals') {
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 50 }));
                 const res = await processTaskVisualsAction(task.id);

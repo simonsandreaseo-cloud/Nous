@@ -36,130 +36,183 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
 
     console.log("[DEBUG-Humanize Handler] Starting pipeline for content length:", originalContent?.length);
     
+    const isGramatical = payload.humanizerType === 'gramatical' || payload.config?.humanizerType === 'gramatical';
+
     if (isCurrentDraft()) {
         useWriterStore.getState().setHumanizing(true);
-        useWriterStore.getState().setHumanizerStatus('Iniciando humanización...');
+        useWriterStore.getState().setHumanizerStatus(isGramatical ? 'Iniciando humanización gramatical (4 fases)...' : 'Iniciando humanización...');
     }
     
     try {
-        await useWriterStore.getState().saveTaskVersion(`Pre-Humanización`, originalContent, draftId);
+        const preVersionName = isGramatical ? 'Pre-Humanización Gramatical' : 'Pre-Humanización';
+        await useWriterStore.getState().saveTaskVersion(preVersionName, originalContent, draftId);
 
-        // Protection Phase
-        const { blindedHtml, map: protectionMap } = HtmlProtectionService.protect(originalContent);
-        
-        const chunkSize = payload.chunkSize || payload.config?.chunkSize || 4;
-        const rawChunks = sizeAwareChunkHtml(blindedHtml, chunkSize);
-        console.log(`[DEBUG-Humanize Handler] Documento dividido en ${rawChunks.length} chunks (${chunkSize} elementos HTML por chunk).`);
-        
-        if (isCurrentDraft()) {
-            useWriterStore.getState().setHumanizerStatus(`Documento dividido en ${rawChunks.length} partes...`);
-        }
-        addLogToTask(taskId, `Documento dividido en ${rawChunks.length} partes para procesar (${chunkSize} elementos HTML/parte).`, 'info');
-        
-        let currentDocumentChunks = rawChunks.map((chunk, index) => 
-            `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
-        );
-        
-        if (isCurrentDraft()) {
-            useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
-        }
+        let finalHtml = '';
 
-        for (let i = 0; i < rawChunks.length; i++) {
-            let success = false;
+        if (isGramatical) {
+            addLogToTask(taskId, 'Iniciando humanización gramatical completa en 4 fases concatenadas...', 'info');
+            setTaskStatus(taskId, 'processing', 5);
+
+            let gramaticalSuccess = false;
             let attempts = 0;
-            const MAX_ATTEMPTS = 4;
+            const MAX_ATTEMPTS = 3;
 
-            // Inter-chunk pacing delay to prevent hitting Vertex AI RPM rate limits
-            if (i > 0) {
-                await new Promise(resolve => setTimeout(resolve, 600));
+            while (!gramaticalSuccess && attempts < MAX_ATTEMPTS) {
+                try {
+                    const result = await streamHumanize(
+                        originalContent,
+                        { ...config, humanizerType: 'gramatical' },
+                        50,
+                        (partialHtml) => {
+                            if (isCurrentDraft()) {
+                                useWriterStore.getState().setIsRemoteUpdate(true);
+                                useWriterStore.getState().setContent(partialHtml);
+                            }
+                        },
+                        (msg) => {
+                            console.log(`[Gramatical] ${msg}`);
+                            addLogToTask(taskId, msg, 'info');
+                            if (isCurrentDraft()) {
+                                useWriterStore.getState().setHumanizerStatus(msg);
+                            }
+                        },
+                        payload.model || payload.config?.model || undefined,
+                        (percent) => {
+                            setTaskStatus(taskId, 'processing', percent);
+                        }
+                    );
+
+                    if (result.usage) {
+                        useQueueStore.getState().addUsageToTask(taskId, result.usage);
+                    }
+
+                    finalHtml = result.html;
+                    gramaticalSuccess = true;
+                } catch (err: any) {
+                    attempts++;
+                    console.error(`[Gramatical] Fallo intento ${attempts}:`, err);
+                    addLogToTask(taskId, `Error en humanización gramatical: ${err.message}`, 'error');
+                    if (attempts >= MAX_ATTEMPTS) throw err;
+                    const waitTime = 3000 * attempts;
+                    addLogToTask(taskId, `Esperando ${Math.round(waitTime/1000)}s antes de reintentar... (${attempts}/${MAX_ATTEMPTS})`, 'warning');
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                }
             }
-
-            currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
+        } else {
+            // Protection Phase
+            const { blindedHtml, map: protectionMap } = HtmlProtectionService.protect(originalContent);
+            
+            const chunkSize = payload.chunkSize || payload.config?.chunkSize || 4;
+            const rawChunks = sizeAwareChunkHtml(blindedHtml, chunkSize);
+            console.log(`[DEBUG-Humanize Handler] Documento dividido en ${rawChunks.length} chunks (${chunkSize} elementos HTML por chunk).`);
+            
+            if (isCurrentDraft()) {
+                useWriterStore.getState().setHumanizerStatus(`Documento dividido en ${rawChunks.length} partes...`);
+            }
+            addLogToTask(taskId, `Documento dividido en ${rawChunks.length} partes para procesar (${chunkSize} elementos HTML/parte).`, 'info');
+            
+            let currentDocumentChunks = rawChunks.map((chunk, index) => 
+                `<div data-chunk-id="${index}" data-processing-state="idle">${chunk}</div>`
+            );
+            
             if (isCurrentDraft()) {
                 useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
             }
 
-            while (!success && attempts < MAX_ATTEMPTS) {
-                try {
-                    if (isCurrentDraft()) {
-                        useWriterStore.getState().setHumanizerStatus(`Humanizando Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
-                    }
-                    addLogToTask(taskId, `Procesando chunk ${i + 1} de ${rawChunks.length}${attempts > 0 ? ` (Reintento ${attempts})` : ''}...`, 'info');
-                    
-                    const chunkResult = await streamHumanize(
-                        rawChunks[i],
-                        config,
-                        50,
-                        (partialHtml) => {
-                            currentDocumentChunks[i] = partialHtml;
-                            if (isCurrentDraft()) {
-                                useWriterStore.getState().setIsRemoteUpdate(true);
-                                useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
-                            }
-                        },
-                        (msg) => {
-                            console.log(`[Chunk ${i+1}] ${msg}`);
-                            addLogToTask(taskId, `[Chunk ${i+1}] ${msg}`, 'info');
-                        },
-                        payload.model || payload.config?.model || undefined,
-                        (batchProgress) => {
-                            const baseProgress = (i / rawChunks.length) * 100;
-                            const additionalProgress = (batchProgress / 100) * (1 / rawChunks.length) * 100;
-                            setTaskStatus(taskId, 'processing', Number((baseProgress + additionalProgress).toFixed(2)));
-                        }
-                    );
-                    
-                    if (chunkResult.usage) {
-                        useQueueStore.getState().addUsageToTask(taskId, chunkResult.usage);
-                    }
+            for (let i = 0; i < rawChunks.length; i++) {
+                let success = false;
+                let attempts = 0;
+                const MAX_ATTEMPTS = 4;
 
-                    addLogToTask(taskId, `Chunk ${i + 1} completado.`, 'success');
-                    
-                    currentDocumentChunks[i] = chunkResult.html;
-                    if (isCurrentDraft()) {
-                        useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
-                    }
-                    success = true;
-                } catch (err: any) {
-                    attempts++;
-                    console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
-                    addLogToTask(taskId, `Error en chunk ${i + 1}: ${err.message}`, 'error');
-                    
-                    if (attempts >= MAX_ATTEMPTS) {
-                        addLogToTask(taskId, `Fallo definitivo en chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá original.`, 'error');
-                        currentDocumentChunks[i] = rawChunks[i];
+                // Inter-chunk pacing delay to prevent hitting Vertex AI RPM rate limits
+                if (i > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 600));
+                }
+
+                currentDocumentChunks[i] = `<div data-chunk-id="${i}" data-processing-state="processing">${rawChunks[i]}</div>`;
+                if (isCurrentDraft()) {
+                    useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
+                }
+
+                while (!success && attempts < MAX_ATTEMPTS) {
+                    try {
+                        if (isCurrentDraft()) {
+                            useWriterStore.getState().setHumanizerStatus(`Humanizando Chunk ${i + 1}/${rawChunks.length} (Intento ${attempts + 1})...`);
+                        }
+                        addLogToTask(taskId, `Procesando chunk ${i + 1} de ${rawChunks.length}${attempts > 0 ? ` (Reintento ${attempts})` : ''}...`, 'info');
+                        
+                        const chunkResult = await streamHumanize(
+                            rawChunks[i],
+                            config,
+                            50,
+                            (partialHtml) => {
+                                currentDocumentChunks[i] = partialHtml;
+                                if (isCurrentDraft()) {
+                                    useWriterStore.getState().setIsRemoteUpdate(true);
+                                    useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
+                                }
+                            },
+                            (msg) => {
+                                console.log(`[Chunk ${i+1}] ${msg}`);
+                                addLogToTask(taskId, `[Chunk ${i+1}] ${msg}`, 'info');
+                            },
+                            payload.model || payload.config?.model || undefined,
+                            (batchProgress) => {
+                                const baseProgress = (i / rawChunks.length) * 100;
+                                const additionalProgress = (batchProgress / 100) * (1 / rawChunks.length) * 100;
+                                setTaskStatus(taskId, 'processing', Number((baseProgress + additionalProgress).toFixed(2)));
+                            }
+                        );
+                        
+                        if (chunkResult.usage) {
+                            useQueueStore.getState().addUsageToTask(taskId, chunkResult.usage);
+                        }
+
+                        addLogToTask(taskId, `Chunk ${i + 1} completado.`, 'success');
+                        
+                        currentDocumentChunks[i] = chunkResult.html;
                         if (isCurrentDraft()) {
                             useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
                         }
-                        break;
+                        success = true;
+                    } catch (err: any) {
+                        attempts++;
+                        console.error(`[Chunk ${i+1}] Fallo intento ${attempts}:`, err);
+                        addLogToTask(taskId, `Error en chunk ${i + 1}: ${err.message}`, 'error');
+                        
+                        if (attempts >= MAX_ATTEMPTS) {
+                            addLogToTask(taskId, `Fallo definitivo en chunk ${i + 1} tras ${MAX_ATTEMPTS} intentos. Se mantendrá original.`, 'error');
+                            currentDocumentChunks[i] = rawChunks[i];
+                            if (isCurrentDraft()) {
+                                useWriterStore.getState().setContent(currentDocumentChunks.join('\n'));
+                            }
+                            break;
+                        }
+                        
+                        const is429 = err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED') || err?.status === 429;
+                        const waitTime = is429 ? 10000 * attempts : 3000;
+                        
+                        if (isCurrentDraft()) {
+                            useWriterStore.getState().setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en ${Math.round(waitTime/1000)}s... (${attempts}/${MAX_ATTEMPTS})`);
+                        }
+                        addLogToTask(taskId, `Esperando ${Math.round(waitTime/1000)}s antes de reintentar chunk ${i + 1}${is429 ? ' (límite 429 Vertex)' : ''}...`, 'warning');
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
                     }
-                    
-                    const is429 = err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED') || err?.status === 429;
-                    const waitTime = is429 ? 10000 * attempts : 3000;
-                    
-                    if (isCurrentDraft()) {
-                        useWriterStore.getState().setHumanizerStatus(`Error en Chunk ${i + 1}. Reintentando en ${Math.round(waitTime/1000)}s... (${attempts}/${MAX_ATTEMPTS})`);
-                    }
-                    addLogToTask(taskId, `Esperando ${Math.round(waitTime/1000)}s antes de reintentar chunk ${i + 1}${is429 ? ' (límite 429 Vertex)' : ''}...`, 'warning');
-                    await new Promise(resolve => setTimeout(resolve, waitTime));
                 }
+                
+                setTaskStatus(taskId, 'processing', ((i + 1) / rawChunks.length) * 100);
             }
-            
-            setTaskStatus(taskId, 'processing', ((i + 1) / rawChunks.length) * 100);
+
+            const rawResult = currentDocumentChunks.join('\n');
+            await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
+            finalHtml = HtmlProtectionService.restore(rawResult, protectionMap);
         }
-
-        const finalResult = { html: currentDocumentChunks.join('\n') };
         
-        await new Promise(resolve => setTimeout(resolve, 10)); // Yield to UI
-        
-        // Restore protected atomic blocks
-        const restoredHtml = HtmlProtectionService.restore(finalResult.html, protectionMap);
-        const refined = refineStyling(restoredHtml);
-        
+        const refined = refineStyling(finalHtml);
         const modelUsed = payload.model || payload.config?.model || 'Desconocido';
-        await useWriterStore.getState().saveTaskVersion(`Humanizada`, refined, draftId, modelUsed);
+        const postVersionName = isGramatical ? 'Post-Humanización Gramatical' : 'Humanizada';
+        await useWriterStore.getState().saveTaskVersion(postVersionName, refined, draftId, modelUsed);
 
-        
         // 2. Persistir directamente en las tablas de Supabase
         await supabase.from('task_contents').upsert({ id: draftId, content_body: refined });
         await supabase.from('tasks').update({ content_body: refined }).eq('id', draftId);
@@ -169,8 +222,8 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
             useWriterStore.getState().setIsRemoteUpdate(true);
             useWriterStore.getState().setContent(refined);
             useWriterStore.getState().setHasHumanized(true);
-            useWriterStore.getState().setHumanizerStatus('✅ ¡Humanización completada!');
-            useWriterStore.getState().addDebugPrompt('Humanización Finalizada', `Contenido humanizado con éxito`, refined.substring(0, 1000));
+            useWriterStore.getState().setHumanizerStatus(isGramatical ? '✅ ¡Humanización gramatical completada!' : '✅ ¡Humanización completada!');
+            useWriterStore.getState().addDebugPrompt(isGramatical ? 'Humanización Gramatical Finalizada' : 'Humanización Finalizada', `Contenido humanizado con éxito`, refined.substring(0, 1000));
             setTimeout(() => {
                 if (isCurrentDraft()) {
                     useWriterStore.getState().setHumanizerStatus('');
@@ -188,6 +241,7 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
             const newMetadata = { 
                 ...(taskData?.metadata || {}), 
                 is_humanized: true, 
+                humanizer_type: isGramatical ? 'gramatical' : 'tradicional',
                 humanized_at: new Date().toISOString() 
             };
 
@@ -199,7 +253,7 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
             if (humanizeError) console.error("[Humanize Handler] Error updating humanization metadata:", humanizeError.message);
         }
 
-        useQueueStore.getState().addLogToTask(taskId, 'Humanización completada.', 'success');
+        useQueueStore.getState().addLogToTask(taskId, isGramatical ? 'Humanización gramatical completada.' : 'Humanización completada.', 'success');
     } catch (e: any) {
         console.error(e);
         if (isCurrentDraft()) {

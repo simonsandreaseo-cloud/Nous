@@ -104,7 +104,7 @@ export function useWriterActions() {
         const outerStore = store;
         const targetTaskId = store.draftId;
         const targetProjectId = activeProject?.id;
-        const snapshotTitle = store.articleTitle || store.keyword || 'Artículo';
+        const snapshotTitle = (store as any).articleTitle || store.title || store.keyword || 'Artículo';
         
         if (!hasAccess) {
             console.log("[DEBUG-Humanize] Access denied");
@@ -133,6 +133,8 @@ export function useWriterActions() {
         });
         const unifiedLinks = Array.from(uniqueLinksMap.values());
 
+        const humanizerType = store.humanizerConfig.humanizerType || 'tradicional';
+
         const config: any = {
             projectName: store.projectName, 
             niche: store.detectedNiche || store.humanizerConfig.niche || 'General', 
@@ -143,19 +145,22 @@ export function useWriterActions() {
             links: unifiedLinks, 
             questions: store.strategyQuestions,
             mode: store.humanizerConfig.mode || 'unified',
+            humanizerType: humanizerType,
             language: activeProject?.settings?.content_preferences?.default_content_language || 'es'
         };
 
         const payload = {
             taskId: targetTaskId,
             content: store.content,
+            humanizerType: humanizerType,
             config: config
         };
 
         // Encolar tarea con el snapshot
+        const actionLabel = humanizerType === 'gramatical' ? 'Humanización Gramatical' : 'Humanización Tradicional';
         enqueueTask(
             'humanize', 
-            `Humanizando: ${snapshotTitle}`, 
+            `${actionLabel}: ${snapshotTitle}`, 
             payload, 
             { taskId: targetTaskId, projectId: targetProjectId }
         );

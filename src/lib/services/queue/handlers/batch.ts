@@ -175,9 +175,12 @@ export const handleBatchHumanize = async (taskId: string, payload: QueuePayload)
             throw new Error("No hay contenido válido para humanizar.");
         }
 
+        const humType = payload.humanizerType || payload.config?.humanizerType || targetTask.metadata?.humanizerType || 'tradicional';
+        const isGramatical = humType === 'gramatical';
+
         await supabase.from("task_versions").insert({
             task_id: targetTask.id,
-            process_name: "Pre-Humanización",
+            process_name: isGramatical ? "Pre-Humanización Gramatical" : "Pre-Humanización",
             content_body: content,
             created_at: new Date().toISOString()
         });
@@ -187,7 +190,12 @@ export const handleBatchHumanize = async (taskId: string, payload: QueuePayload)
             content, 
             activeProject,
             (msg) => addLogToTask(taskId, msg, "info"),
-            (html) => {}
+            (html) => {},
+            undefined,
+            (progress) => setTaskStatus(taskId, "processing", progress),
+            payload.model,
+            payload.chunkSize,
+            humType
         );
         
         if (res.success && res.updates) {
@@ -195,16 +203,24 @@ export const handleBatchHumanize = async (taskId: string, payload: QueuePayload)
                 id: targetTask.id, 
                 content_body: res.updates.content_body 
             });
-            await supabase.from("tasks").update({ status: "humanizado" }).eq("id", targetTask.id);
+            await supabase.from("tasks").update({ 
+                status: "humanizado",
+                metadata: {
+                    ...(targetTask.metadata || {}),
+                    is_humanized: true,
+                    humanizer_type: humType,
+                    humanized_at: new Date().toISOString()
+                }
+            }).eq("id", targetTask.id);
             
             await supabase.from("task_versions").insert({
                 task_id: targetTask.id,
-                process_name: "Post-Humanización",
+                process_name: isGramatical ? "Post-Humanización Gramatical" : "Post-Humanización Tradicional",
                 content_body: res.updates.content_body,
                 created_at: new Date().toISOString()
             });
             setTaskStatus(taskId, "processing", 100);
-            addLogToTask(taskId, "Humanización completada.", "success");
+            addLogToTask(taskId, isGramatical ? "Humanización gramatical completada." : "Humanización completada.", "success");
             
             // Incrementar contador de ejecución para este task
             taskExecutionCount.set(targetTask.id, execCount + 1);

@@ -156,29 +156,93 @@ export default function NousAssistantMenu({
                                     >
                                         <div className="p-4 space-y-4">
                                             <div className="space-y-2">
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 px-1">Modos de Humanización</p>
-                                                <div className="grid grid-cols-1 gap-1.5">
-                                                    {[
-                                                        { id: 'unified', label: 'Pipeline Unificado', desc: 'Chunks + SEO LSI dinámico' },
-                                                        { id: 'duplicate_detection', label: 'Detección de Duplicados', desc: 'Chunks -> SEO Global' },
-                                                        { id: 'no_chunks', label: 'Sin Chunks', desc: 'Petición única (Cohesión)' },
-                                                    ].map((mode) => (
-                                                        <button
-                                                            key={mode.id}
-                                                            onClick={() => updateHumanizerConfig({ mode: mode.id as any })}
-                                                            className={cn(
-                                                                "flex flex-col items-start p-3 rounded-xl border text-left transition-all",
-                                                                (humanizerConfig.mode === mode.id || (!humanizerConfig.mode && mode.id === 'unified'))
-                                                                    ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                                                                    : "border-slate-100 hover:border-slate-200 bg-white"
-                                                            )}
-                                                        >
-                                                            <span className="text-[10px] font-black uppercase tracking-tight text-slate-800">{mode.label}</span>
-                                                            <span className="text-[9px] text-slate-400 font-medium leading-tight mt-0.5">{mode.desc}</span>
-                                                        </button>
-                                                    ))}
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 px-1">Forma de Humanización</p>
+                                                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateHumanizerConfig({ humanizerType: 'tradicional' })}
+                                                        className={cn(
+                                                            "py-1.5 px-2 rounded-lg text-center font-bold text-[9px] uppercase tracking-wider transition-all",
+                                                            (humanizerConfig.humanizerType || 'tradicional') === 'tradicional'
+                                                                ? "bg-white text-emerald-700 shadow-sm"
+                                                                : "text-slate-500 hover:text-slate-700"
+                                                        )}
+                                                    >
+                                                        Tradicional
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateHumanizerConfig({ humanizerType: 'gramatical' })}
+                                                        className={cn(
+                                                            "py-1.5 px-2 rounded-lg text-center font-bold text-[9px] uppercase tracking-wider transition-all",
+                                                            humanizerConfig.humanizerType === 'gramatical'
+                                                                ? "bg-emerald-600 text-white shadow-sm"
+                                                                : "text-slate-500 hover:text-slate-700"
+                                                        )}
+                                                    >
+                                                        Gramatical
+                                                    </button>
                                                 </div>
                                             </div>
+
+                                            {(humanizerConfig.humanizerType || 'tradicional') === 'tradicional' ? (
+                                                <div className="space-y-2">
+                                                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1">Modos Tradicionales</p>
+                                                    <div className="grid grid-cols-1 gap-1.5">
+                                                        {[
+                                                            { id: 'unified', label: 'Pipeline Unificado', desc: 'Chunks + SEO LSI dinámico' },
+                                                            { id: 'duplicate_detection', label: 'Detección de Duplicados', desc: 'Chunks -> SEO Global' },
+                                                            { id: 'no_chunks', label: 'Sin Chunks', desc: 'Petición única (Cohesión)' },
+                                                        ].map((mode) => (
+                                                            <button
+                                                                key={mode.id}
+                                                                onClick={() => updateHumanizerConfig({ mode: mode.id as any })}
+                                                                className={cn(
+                                                                    "flex flex-col items-start p-3 rounded-xl border text-left transition-all",
+                                                                    (humanizerConfig.mode === mode.id || (!humanizerConfig.mode && mode.id === 'unified'))
+                                                                        ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                                                                        : "border-slate-100 hover:border-slate-200 bg-white"
+                                                                )}
+                                                            >
+                                                                <span className="text-[10px] font-black uppercase tracking-tight text-slate-800">{mode.label}</span>
+                                                                <span className="text-[9px] text-slate-400 font-medium leading-tight mt-0.5">{mode.desc}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2 p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/60">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wide">
+                                                            Pipeline 4 Capas
+                                                        </span>
+                                                        <span className="text-[8px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                                                            Texto Completo
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[9px] text-emerald-800/80 leading-relaxed">
+                                                        Ejecuta 4 fases concatenadas con un 25% de progreso por fase:
+                                                    </p>
+                                                    <div className="space-y-1 text-[8.5px] font-medium text-slate-600">
+                                                        <div className="flex justify-between bg-white px-2 py-1 rounded border border-emerald-100">
+                                                            <span>1. Desinfección Léxica</span>
+                                                            <span className="font-mono text-emerald-600 font-bold">25%</span>
+                                                        </div>
+                                                        <div className="flex justify-between bg-white px-2 py-1 rounded border border-emerald-100">
+                                                            <span>2. Voz Activa y Sujetos</span>
+                                                            <span className="font-mono text-emerald-600 font-bold">50%</span>
+                                                        </div>
+                                                        <div className="flex justify-between bg-white px-2 py-1 rounded border border-emerald-100">
+                                                            <span>3. Moldes Oracionales</span>
+                                                            <span className="font-mono text-emerald-600 font-bold">75%</span>
+                                                        </div>
+                                                        <div className="flex justify-between bg-white px-2 py-1 rounded border border-emerald-100">
+                                                            <span>4. Pulido de Puntuación</span>
+                                                            <span className="font-mono text-emerald-600 font-bold">100%</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             <div className="space-y-2 pt-2 border-t border-slate-100">
                                                 <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-1">Instrucciones Especiales</label>
