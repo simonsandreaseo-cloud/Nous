@@ -6,9 +6,9 @@ import {
     generateArticleJSON, 
     runSEOPostProcessor,
     refineArticleContent, 
-    runContentCleaning,
-    ArticleConfig 
+    runContentCleaning
 } from '@/lib/actions/aiActions';
+import type { ArticleConfig } from '@/lib/services/writer/types';
 import { 
     generateBriefingText, 
     buildPrompt, 

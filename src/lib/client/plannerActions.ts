@@ -1,10 +1,10 @@
 import { Task } from '@/types/project';
 import { supabase } from '@/lib/supabase';
 import { 
-    generateOutlineStrategy, 
-    ArticleConfig,
+    generateOutlineStrategy,
     executeTranslationAction
 } from '@/lib/actions/aiActions';
+import type { ArticleConfig } from '@/lib/services/writer/types';
 import { buildPrompt } from '@/lib/services/writer/prompts';
 import { mdToHtml } from '@/utils/markdown';
 import { AVAILABLE_LANGUAGES } from '@/constants/languages';

@@ -1,6 +1,6 @@
 import { Task, Project } from '@/types/project';
 import { supabase } from '@/lib/supabase';
-import { ArticleConfig } from '@/lib/actions/aiActions';
+import type { ArticleConfig } from '@/lib/services/writer/types';
 import { buildPrompt, autoInterlinkAsync, cleanAndFormatHtml } from '@/components/tools/writer/services';
 import { streamGenerate, streamHumanize, streamSEOPostProcess, streamFinalCleanup, streamSurgicalEdit } from '@/lib/services/writer/ai-streaming';
 import { sanitizeLLMHtml } from '@/utils/html-parser';

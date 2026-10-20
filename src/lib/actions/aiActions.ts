@@ -18,19 +18,6 @@ import type {
     AIImageRequest,
     DeepSEOConfig
 } from "@/lib/services/writer/types";
-export type { 
-    ArticleConfig, 
-    SEOAnalysisResult, 
-    DeepSEOAnalysisResult, 
-    CompetitorDetail, 
-    ContentItem,
-    HumanizerConfig,
-    MiniHumanizerParams,
-    VisualResource,
-    ImageGenConfig,
-    AIImageRequest,
-    DeepSEOConfig
-};
 import { executeWithKeyRotation as libExecuteWithKeyRotation, executeTranslation } from "@/lib/services/writer/ai-core";
 import { ResearchOrchestrator } from "@/lib/services/writer/research";
 import { AI_CONFIG } from "@/lib/ai/config";
