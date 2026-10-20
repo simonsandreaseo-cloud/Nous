@@ -87,7 +87,9 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
                         payload.model || payload.config?.model || undefined,
                         (percent) => {
                             setTaskStatus(taskId, 'processing', percent);
-                        }
+                        },
+                        payload.provider || payload.config?.provider || undefined,
+                        payload.reasoning || payload.config?.reasoning || payload.reasoningLevel || payload.config?.reasoningLevel || undefined
                     );
 
                     if (result.usage) {
@@ -169,7 +171,9 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
                                 const baseProgress = (i / rawChunks.length) * 100;
                                 const additionalProgress = (batchProgress / 100) * (1 / rawChunks.length) * 100;
                                 setTaskStatus(taskId, 'processing', Number((baseProgress + additionalProgress).toFixed(2)));
-                            }
+                            },
+                            payload.provider || payload.config?.provider || undefined,
+                            payload.reasoning || payload.config?.reasoning || payload.reasoningLevel || payload.config?.reasoningLevel || undefined
                         );
                         
                         if (chunkResult.usage) {

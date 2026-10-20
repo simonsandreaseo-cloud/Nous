@@ -231,7 +231,8 @@ async function executeTaskInBlock({
                 (p) => enhancedProgress(task.id, p),
                 block.model,
                 block.chunkSize,
-                humType
+                humType,
+                block.additionalConfig?.reasoningLevel
             );
             if (res.success && res.updates) { newContent = res.updates.content_body || newContent; Object.assign(currentTaskState, res.updates); }
             else throw new Error((res as any).error || 'Fallo en humanización');

@@ -294,20 +294,36 @@ export async function runUnipromptHumanizerPipeline(
         const chunkResult = await executeUnipromptStepWithRetry(
             async (client: any, currentModel: string) => {
                 const genConfig = buildGenConfig();
-                const reqPayload: any = {
-                    contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
-                };
-                if (genConfig) {
-                    reqPayload.generationConfig = genConfig;
+                let rawText = '';
+
+                if (typeof client.getGenerativeModel === 'function') {
+                    const modelObj = client.getGenerativeModel({
+                        model: currentModel,
+                        ...(genConfig ? { generationConfig: genConfig } : {})
+                    });
+                    const response = await modelObj.generateContent(userPrompt);
+                    rawText = typeof response.response?.text === 'function'
+                        ? response.response.text()
+                        : (response.text || response.response?.text || '');
+                } else if (client.models?.generateContent) {
+                    const reqPayload: any = {
+                        contents: [{ role: 'user', parts: [{ text: userPrompt }] }]
+                    };
+                    if (genConfig) {
+                        reqPayload.generationConfig = genConfig;
+                    }
+                    const response = await client.models.generateContent({
+                        model: currentModel,
+                        ...reqPayload
+                    });
+                    rawText = response.text || '';
+                } else {
+                    throw new Error("Cliente de IA no compatible: no se encontró getGenerativeModel ni models.generateContent");
                 }
 
-                const response = await client.models.generateContent({
-                    model: currentModel,
-                    ...reqPayload
-                });
-
-                const rawText = response.text || '';
-                return cleanMarkdownFences(rawText);
+                const cleaned = cleanMarkdownFences(rawText);
+                if (!cleaned) throw new Error(`El modelo devolvió una respuesta vacía.`);
+                return cleaned;
             },
             safeStatus,
             `Uniprompt Pase ${chunkIndex}/${chunks.length}`,

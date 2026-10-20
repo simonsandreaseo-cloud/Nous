@@ -790,6 +790,35 @@ export const executeWithKeyRotation = async <T>(
                                         };
                                     }
                                 };
+                            },
+                            models: {
+                                generateContent: async (params: any) => {
+                                    const m = client.getGenerativeModel({
+                                        model: params.model,
+                                        generationConfig: params.generationConfig || params.config,
+                                        systemInstruction: params.systemInstruction
+                                    });
+                                    let promptText = "";
+                                    if (typeof params.contents === "string") {
+                                        promptText = params.contents;
+                                    } else if (Array.isArray(params.contents)) {
+                                        promptText = params.contents.map((c: any) => {
+                                            if (typeof c === "string") return c;
+                                            if (c.parts) {
+                                                return c.parts.map((p: any) => typeof p === "string" ? p : p.text || "").join("\n");
+                                            }
+                                            return "";
+                                        }).join("\n\n");
+                                    } else if (params.prompt) {
+                                        promptText = typeof params.prompt === "string" ? params.prompt : JSON.stringify(params.prompt);
+                                    }
+                                    const res = await m.generateContent(promptText);
+                                    const textVal = typeof res.response?.text === "function" ? res.response.text() : (res.text || res.response?.text || "");
+                                    return {
+                                        text: textVal,
+                                        response: res.response || { text: () => textVal }
+                                    };
+                                }
                             }
                         };
                     } else {
@@ -909,6 +938,35 @@ export const executeWithKeyRotation = async <T>(
                                         };
                                     }
                                 };
+                            },
+                            models: {
+                                generateContent: async (params: any) => {
+                                    const m = client.getGenerativeModel({
+                                        model: params.model,
+                                        generationConfig: params.generationConfig || params.config,
+                                        systemInstruction: params.systemInstruction
+                                    });
+                                    let promptText = "";
+                                    if (typeof params.contents === "string") {
+                                        promptText = params.contents;
+                                    } else if (Array.isArray(params.contents)) {
+                                        promptText = params.contents.map((c: any) => {
+                                            if (typeof c === "string") return c;
+                                            if (c.parts) {
+                                                return c.parts.map((p: any) => typeof p === "string" ? p : p.text || "").join("\n");
+                                            }
+                                            return "";
+                                        }).join("\n\n");
+                                    } else if (params.prompt) {
+                                        promptText = typeof params.prompt === "string" ? params.prompt : JSON.stringify(params.prompt);
+                                    }
+                                    const res = await m.generateContent(promptText);
+                                    const textVal = typeof res.response?.text === "function" ? res.response.text() : (res.text || res.response?.text || "");
+                                    return {
+                                        text: textVal,
+                                        response: res.response || { text: () => textVal }
+                                    };
+                                }
                             }
                         };
                     }

@@ -355,7 +355,8 @@ export async function executeHumanizePipeline(
     onProgress?: (progress: number) => void,
     model?: string,
     chunkSize?: number,
-    humanizerType?: 'tradicional' | 'gramatical' | 'uniprompt'
+    humanizerType?: 'tradicional' | 'gramatical' | 'uniprompt',
+    reasoningLevel?: string
 ) {
     onLog('Iniciando humanización (streaming)...');
 
@@ -410,7 +411,9 @@ export async function executeHumanizePipeline(
                     model,
                     (percent) => {
                         if (onProgress) onProgress(percent);
-                    }
+                    },
+                    undefined,
+                    reasoningLevel
                 );
 
                 resultHtml = humanizerResult.html;
@@ -523,7 +526,9 @@ export async function executeHumanizePipeline(
                         const baseProgress = (i / chunks.length) * 100;
                         const additionalProgress = (chunkProgress / 100) * (1 / chunks.length) * 100;
                         if (onProgress) onProgress(Number((baseProgress + additionalProgress).toFixed(2)));
-                    }
+                    },
+                    undefined,
+                    reasoningLevel
                 );
                 accumulatedHtml += chunkResult.html + '\n';
                 onChunk(accumulatedHtml);
