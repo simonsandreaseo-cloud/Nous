@@ -2638,11 +2638,17 @@ export default function WriterStudio() {
                                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none font-semibold"
                                             >
                                                 <option value="tradicional">Humanización Tradicional (Por Chunks)</option>
-                                                <option value="gramatical">Humanización Gramatical (4 Fases Concatenadas)</option>
+                                                <option value="gramatical">Humanización Gramatical (3 Fases: Orden Invertido)</option>
+                                                <option value="uniprompt">Humanización Uniprompt (1 Petición / 4 Leyes)</option>
                                             </select>
+                                            {localConfig.humanizerType === 'uniprompt' && (
+                                                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 leading-relaxed mt-1">
+                                                    ⚡ Aplica simultáneamente las 4 leyes morfosintácticas en una sola pasada (hasta 2.500 palabras por chunk).
+                                                </p>
+                                            )}
                                             {localConfig.humanizerType === 'gramatical' && (
                                                 <p className="text-[11px] text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg p-2 leading-relaxed mt-1">
-                                                    ⚡ Procesa el texto completo en 4 fases consecutivas: Desinfección Léxica (25%), Voz Activa y Sujetos (50%), Moldes Oracionales (75%) y Pulido de Puntuación (100%).
+                                                    ⚡ Procesa el texto completo en 3 fases: Estructurador de Oraciones y Sujetos (33%), Aplanador Radical con Lista Blanca de Verbos (66%) y Costura de Puntuación Anti-Detector (100%).
                                                 </p>
                                             )}
                                         </div>

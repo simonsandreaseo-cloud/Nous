@@ -711,6 +711,8 @@ export function EditorialCalendar() {
                 await runTaskHumanizePipeline(task, onLog, 'tradicional');
             } else if (action === 'humanize_gramatical') {
                 await runTaskHumanizePipeline(task, onLog, 'gramatical');
+            } else if (action === 'humanize_uniprompt') {
+                await runTaskHumanizePipeline(task, onLog, 'uniprompt');
             } else if (action === 'visuals') {
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 50 }));
                 const res = await processTaskVisualsAction(task.id);

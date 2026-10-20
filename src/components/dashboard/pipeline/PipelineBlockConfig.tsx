@@ -283,16 +283,19 @@ export function PipelineBlockConfig({ isOpen, onClose, block, workflowId, isStat
                                             ...localBlock,
                                             additionalConfig: {
                                                 ...localBlock.additionalConfig,
-                                                humanizerType: e.target.value as 'tradicional' | 'gramatical'
+                                                humanizerType: e.target.value as 'tradicional' | 'gramatical' | 'uniprompt'
                                             }
                                         })}
                                     >
                                         <option value="tradicional">Humanización Tradicional (Por Chunks)</option>
-                                        <option value="gramatical">Humanización Gramatical (4 Fases Concatenadas)</option>
+                                        <option value="gramatical">Humanización Gramatical (3 Fases: Orden Invertido)</option>
+                                        <option value="uniprompt">Humanización Uniprompt (1 Petición / 4 Leyes)</option>
                                     </select>
                                     <p className="text-[10px] text-slate-500 leading-relaxed">
-                                        {localBlock.additionalConfig?.humanizerType === 'gramatical' 
-                                            ? "⚡ La humanización gramatical procesa el texto completo sin fragmentar a través de 4 fases concatenadas (25% cada una): Desinfección Léxica, Voz Activa y Sujetos, Moldes Oracionales y Pulido de Puntuación."
+                                        {localBlock.additionalConfig?.humanizerType === 'uniprompt'
+                                            ? "⚡ La humanización uniprompt ejecuta las 4 leyes morfosintácticas simultáneamente en una sola pasada (hasta 2.500 palabras por chunk)."
+                                            : localBlock.additionalConfig?.humanizerType === 'gramatical' 
+                                            ? "⚡ La humanización gramatical procesa el texto completo sin fragmentar a través de 3 fases: Estructurador de Oraciones (33%), Aplanador Radical con Lista Blanca (66%) y Costura de Puntuación (100%)."
                                             : "La humanización tradicional divide el contenido en fragmentos (chunks) y aplica el motor estándar de NOUS."}
                                     </p>
                                 </div>

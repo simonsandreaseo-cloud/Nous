@@ -162,7 +162,7 @@ export default function NousAssistantMenu({
                                                         type="button"
                                                         onClick={() => updateHumanizerConfig({ humanizerType: 'tradicional' })}
                                                         className={cn(
-                                                            "py-1.5 px-2 rounded-lg text-center font-bold text-[9px] uppercase tracking-wider transition-all",
+                                                            "py-1.5 px-1.5 rounded-lg text-center font-bold text-[8.5px] uppercase tracking-wider transition-all",
                                                             (humanizerConfig.humanizerType || 'tradicional') === 'tradicional'
                                                                 ? "bg-white text-emerald-700 shadow-sm"
                                                                 : "text-slate-500 hover:text-slate-700"
@@ -174,13 +174,25 @@ export default function NousAssistantMenu({
                                                         type="button"
                                                         onClick={() => updateHumanizerConfig({ humanizerType: 'gramatical' })}
                                                         className={cn(
-                                                            "py-1.5 px-2 rounded-lg text-center font-bold text-[9px] uppercase tracking-wider transition-all",
+                                                            "py-1.5 px-1.5 rounded-lg text-center font-bold text-[8.5px] uppercase tracking-wider transition-all",
                                                             humanizerConfig.humanizerType === 'gramatical'
                                                                 ? "bg-emerald-600 text-white shadow-sm"
                                                                 : "text-slate-500 hover:text-slate-700"
                                                         )}
                                                     >
                                                         Gramatical
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateHumanizerConfig({ humanizerType: 'uniprompt' })}
+                                                        className={cn(
+                                                            "py-1.5 px-1.5 rounded-lg text-center font-bold text-[8.5px] uppercase tracking-wider transition-all",
+                                                            humanizerConfig.humanizerType === 'uniprompt'
+                                                                ? "bg-amber-600 text-white shadow-sm"
+                                                                : "text-slate-500 hover:text-slate-700"
+                                                        )}
+                                                    >
+                                                        Uniprompt
                                                     </button>
                                                 </div>
                                             </div>
@@ -210,34 +222,44 @@ export default function NousAssistantMenu({
                                                         ))}
                                                     </div>
                                                 </div>
+                                            ) : humanizerConfig.humanizerType === 'uniprompt' ? (
+                                                <div className="space-y-2 p-3 bg-amber-50/70 rounded-xl border border-amber-200/80">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[10px] font-black text-amber-800 uppercase tracking-wide">
+                                                            Uniprompt (4 Leyes)
+                                                        </span>
+                                                        <span className="text-[8px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-full">
+                                                            1 Pase (≤2.500 pal.)
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[9px] text-amber-950/80 leading-relaxed">
+                                                        Ejecuta las 4 leyes morfosintácticas y la lista blanca de verbos en una sola petición.
+                                                    </p>
+                                                </div>
                                             ) : (
                                                 <div className="space-y-2 p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/60">
                                                     <div className="flex items-center justify-between">
                                                         <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wide">
-                                                            Pipeline 4 Capas
+                                                            Pipeline 3 Fases
                                                         </span>
                                                         <span className="text-[8px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">
-                                                            Texto Completo
+                                                            Orden Invertido
                                                         </span>
                                                     </div>
                                                     <p className="text-[9px] text-emerald-800/80 leading-relaxed">
-                                                        Ejecuta 4 fases concatenadas con un 25% de progreso por fase:
+                                                        Ejecuta 3 fases consecutivas (Estructura, Lista Blanca de Verbos y Puntuación):
                                                     </p>
                                                     <div className="space-y-1 text-[8.5px] font-medium text-slate-600">
                                                         <div className="flex justify-between bg-white px-2 py-1 rounded border border-emerald-100">
-                                                            <span>1. Desinfección Léxica</span>
-                                                            <span className="font-mono text-emerald-600 font-bold">25%</span>
+                                                            <span>1. Estructurador y Sujetos</span>
+                                                            <span className="font-mono text-emerald-600 font-bold">33%</span>
                                                         </div>
                                                         <div className="flex justify-between bg-white px-2 py-1 rounded border border-emerald-100">
-                                                            <span>2. Voz Activa y Sujetos</span>
-                                                            <span className="font-mono text-emerald-600 font-bold">50%</span>
+                                                            <span>2. Aplanador Radical (Lista Blanca)</span>
+                                                            <span className="font-mono text-emerald-600 font-bold">66%</span>
                                                         </div>
                                                         <div className="flex justify-between bg-white px-2 py-1 rounded border border-emerald-100">
-                                                            <span>3. Moldes Oracionales</span>
-                                                            <span className="font-mono text-emerald-600 font-bold">75%</span>
-                                                        </div>
-                                                        <div className="flex justify-between bg-white px-2 py-1 rounded border border-emerald-100">
-                                                            <span>4. Pulido de Puntuación</span>
+                                                            <span>3. Costura de Puntuación</span>
                                                             <span className="font-mono text-emerald-600 font-bold">100%</span>
                                                         </div>
                                                     </div>

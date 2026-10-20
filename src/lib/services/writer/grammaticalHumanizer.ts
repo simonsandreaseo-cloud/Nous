@@ -217,8 +217,8 @@ export async function runGrammaticalHumanizerPipeline(
     }
 
     const startTime = Date.now();
-    safeStatus('Iniciando Humanización Gramatical (4 fases secuenciales)...');
-    safeLog(`[Humanización Gramatical] Iniciando proceso sobre texto completo (${content.length} caracteres) con modelo ${modelName}...`);
+    safeStatus('Iniciando Humanización Gramatical (3 fases: Orden Invertido + Lista Blanca)...');
+    safeLog(`[Humanización Gramatical Invertida] Iniciando proceso sobre texto completo (${content.length} caracteres) con modelo ${modelName}...`);
 
     // Detectar si el contenido es HTML
     const isHtml = /<[a-z][\s\S]*>/i.test(content);
@@ -260,8 +260,8 @@ export async function runGrammaticalHumanizerPipeline(
         layerName: string,
         targetProgress: number
     ): Promise<string> => {
-        safeStatus(`Capa ${layerNumber}/4: ${layerName}...`);
-        safeLog(`=== [HUMANIZACIÓN GRAMATICAL] EJECUTANDO CAPA ${layerNumber}/4: ${layerName} ===`);
+        safeStatus(`Paso ${layerNumber}/3: ${layerName}...`);
+        safeLog(`=== [HUMANIZACIÓN GRAMATICAL INVERTIDA] EJECUTANDO PASO ${layerNumber}/3: ${layerName} ===`);
 
         const prompt = promptTemplate.replace(placeholder, inputText);
 

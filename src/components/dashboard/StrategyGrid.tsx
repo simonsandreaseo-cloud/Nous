@@ -1895,7 +1895,8 @@ function IntelligentActionButton({ task, onAction, isProcessing }: { task: Task,
         { label: 'Investigar de 0', action: 'investigar_forzado', icon: Search, desc: 'Reinicia toda la investigación' },
         { label: 'Redactar', action: 'draft', icon: Sparkles, desc: 'Genera el borrador' },
         { label: 'Humanizar (Tradicional)', action: 'humanize', icon: Zap, desc: 'Motor tradicional por chunks' },
-        { label: 'Humanización Gramatical', action: 'humanize_gramatical', icon: Sparkles, desc: '4 capas morfosintácticas secuenciales' },
+        { label: 'Humanización Gramatical', action: 'humanize_gramatical', icon: Sparkles, desc: '3 fases (Orden Invertido + Lista Blanca)' },
+        { label: 'Humanización Uniprompt', action: 'humanize_uniprompt', icon: Sparkles, desc: '4 leyes en 1 pase (≤2.500 palabras)' },
         { label: 'Ver Editor', action: 'writer', icon: Edit3, desc: 'Abre el redactor' },
     ];
 

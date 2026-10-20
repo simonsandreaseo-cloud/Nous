@@ -190,7 +190,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                     setProgressPercent(100);
                 }
             } else if (mode === "gramatical") {
-                setStatusMessage("Iniciando Humanización Gramatical (4 Capas)...");
+                setStatusMessage("Iniciando Humanización Gramatical (3 Fases: Orden Invertido)...");
                 setProgressPercent(5);
                 const result = await streamMiniHumanize(
                     currentHtml,
