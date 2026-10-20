@@ -7,183 +7,107 @@ import type { MiniHumanizerParams } from './types';
 // PROMPTS EXACTOS DE HUMANIZACIÓN GRAMATICAL
 // ==========================================
 
-export const GRAMMATICAL_LAYER_1_PROMPT = `ROL: Eres un filtro morfológico estricto. Tu única tarea es limpiar el vocabulario y los modificadores típicos de IA del texto que te entregaré, sin resumir ni borrar datos técnicos, nombres de modelos, medidas, precios ni subtítulos.
+export const GRAMMATICAL_LAYER_1_PROMPT = `ROL: Eres un editor de estilo natural en español. Tu tarea es limpiar el vocabulario robótico, la jerga técnica exagerada y las listas simétricas de 3 elementos del texto de entrada, conservando todos los datos técnicos, códigos de modelo, medidas y subtítulos.
 
-REGLAS OBLIGATORIAS DE TRANSFORMACIÓN (SI VES X -> CÁMBIALO POR Y):
+REGLAS OBLIGATORIAS DE TRANSFORMACIÓN:
 
-1. PROHIBICIÓN TOTAL DE CONECTORES DE INICIO DE ORACIÓN (0% PERMITIDO):
-- Si una oración empieza por: "Además,", "Asimismo,", "Sin embargo,", "No obstante,", "Por otro lado,", "En conclusión,", "En definitiva,", "Cabe destacar que", "Es importante mencionar que", "Por consiguiente," o "De igual manera,": ELIMÍNALO por completo o cámbialo por nexos simples ("Y", "Pero", "Por eso", "Así").
-- Si necesitas usar la palabra "además", NUNCA la pongas al principio de la oración; métela siempre a mitad de frase después de una coma.
-  * ❌ MAL (IA): "Además, este diseño ofrece una gran resistencia."
-  * ✅ BIEN: "...suaviza el rostro, además el diseño aporta resistencia."
+1. TRADUCCIÓN DE "JERGA DE INGENIERÍA/FOLLETO" A ESPAÑOL NATURAL DE ÓPTICA:
+- Prohibido usar lenguaje de laboratorio o literario pedante: "dialogan con", "estabilidad dimensional", "estructura molecular", "contorno craneal", "centro de gravedad", "aflojamiento espontáneo", "vibraciones cotidianas", "claroscuro", "retrofuturista", "escultórico/a", "perimétrico/a", "plastificantes fósiles", "lujo responsable", "superan con creces".
+- Tradúcelo a palabras cotidianas y directas:
+  * "según el contorno craneal" -> "a la forma de tu cabeza"
+  * "estabilidad dimensional / no venza hacia adelante" -> "no se deforma / no se te caen hacia adelante"
+  * "aflojamiento espontáneo por vibraciones" -> "que los tornillos se aflojen con el uso"
+  * "dialogan con la sastrería" -> "combinan con el estilo de ropa de la marca"
 
-2. REEMPLAZO DE ADVERBIOS EN "-MENTE" POR ADJETIVOS CORTOS (MÁXIMO 1 CADA 250 PALABRAS):
-- Busca todos los adverbios terminados en "-mente" ("rápidamente", "fácilmente", "directamente", "perfectamente", "completamente", "especialmente", "meticulosamente", "armoniosamente", "indudablemente").
-- Reemplázalos por el adjetivo masculino singular corto en función adverbial o por una expresión breve:
-  * "rápidamente / inmediatamente" -> "rápido" o "de inmediato"
-  * "fácilmente" -> "fácil" o "sin problema"
-  * "directamente" -> "directo"
-  * "perfectamente" -> "perfecto" o "muy bien"
-  * "meticulosamente / cuidadosamente" -> "a mano" o "con cuidado"
-- Solo puedes dejar como máximo 1 adverbio en "-mente" por cada 250 palabras de texto.
+2. DESTRUCCIÓN DEL "TRICOLON DE IA" (PROHIBIDO CERRAR PÁRRAFOS CON "VERBO 1, VERBO 2 Y VERBO 3"):
+- La IA siempre termina los párrafos con una lista de 3 verbos ("Pesan poco, no dejan marcas y se adaptan...", "Soportan el uso, mantienen el brillo y no pierden...").
+- Tienes ESTRICTAMENTE PROHIBIDO hacer listas de 3 verbos seguidos. Deja solo 2 acciones unidas con "y" o "pero", o intégralas en la frase anterior.
 
-3. PODA DE GERUNDIOS DE CIERRE (MÁXIMO 1 CADA 150 PALABRAS):
-- Elimina todos los gerundios que van al final de una cláusula explicando la consecuencia ("...logrando así un estilo único", "...convirtiéndose en la opción ideal", "...garantizando comodidad", "...permitiendo combinar").
-- Cámbialos por un verbo conjugado en presente o pasado unido con "y", "así" o una coma:
-  * ❌ MAL (IA): "El marco abraza el rostro, garantizando comodidad todo el día."
-  * ✅ BIEN: "El marco se ajusta al rostro y te da comodidad todo el día."
-
-4. FILTRO ANTIDOPAMINA Y LISTA NEGRA DE VERBOS Y ADJETIVOS DE IA:
-- LISTA NEGRA DE VERBOS PROHIBIDOS (sustitúyelos obligatoriamente por verbos directos y concretos):
-  * "garantizar" / "garantiza" / "garantizan" -> dar, permitir, lograr, mantener, ofrecer
-  * "asegurar" / "asegura" / "aseguran" -> fijar, sujetar, mantener firme, hacer que, ayudar a
-  * "exhibir" / "exhibe" / "exhiben" -> mostrar, llevar, tener, lucir
-  * "refractar" / "refracta" / "refractan" -> desviar, frenar, bloquear, filtrar
-  * "atenuar" / "atenúa" / "atenuán" -> bajar, reducir, suavizar, quitar
-  * "reinterpretar" / "reinterpreta" / "reinterpretan" -> reformular, tomar, rediseñar, actualizar, rescatar
-  * Otros verbos corporativos de IA: "proporcionar", "optimizar", "fusionar", "realzar", "confeccionar", "incorporar", "brindar", "conferir" -> dar, tener, llevar, hacer, usar, poner, mezclar, aguantar, cuidar, proteger.
-- LISTA NEGRA DE ADJETIVOS PROHIBIDOS (sustitúyelos o bórralos):
-  * "rotundo" / "rotunda" / "rotundos" / "rotundas" -> firme, marcado, ancho, directo, definido
-  * "intachable" / "intachables" -> limpio, exacto, bien terminado, cuidado
-  * "extraordinario" / "extraordinaria" -> alto, notable, resistente, fuerte
-  * "inédito" / "inédita" -> nuevo, propio, reciente, particular
-  * "perimétrico" / "perimétrica" -> en los bordes, alrededor, en el contorno, en el marco
-  * Adjetivos vacíos de IA: "atemporal", "inigualable", "cautivador", "fascinante", "vanguardista", "sofisticado", "excepcional", "icónico", "revolucionario", "impecable", "sublime".
-- Deja únicamente adjetivos descriptivos concretos (forma, peso, material, color, uso) colocados DESPUÉS del sustantivo ("acetato grueso", "bordes rectos", "metal liviano", "cristales oscuros").
+3. CERO CONECTORES DE INICIO Y RECORTE DE "-MENTE" Y GERUNDIOS:
+- Elimina cualquier conector al inicio de oración ("Además,", "Sin embargo,", "Asimismo,", "Por otro lado,", "En conclusión,").
+- Cambia los adverbios en "-mente" por adjetivos cortos ("rápido", "fácil", "directo", "perfecto", "muy bien"). Máximo 1 adverbio en "-mente" cada 300 palabras.
+- Elimina los gerundios explicativos de cierre de frase.
 
 FORMATO DE SALIDA:
-Devuelve únicamente el texto completo reescrito aplicando estas 4 reglas, respetando la estructura de encabezados, tablas y listas del original. No agregues introducciones ni explicaciones.
+Devuelve únicamente el texto completo reescrito aplicando estas reglas, sin comentarios ni introducciones.
 
 TEXTO A PROCESAR:
 [PEGAR AQUÍ EL TEXTO ORIGINAL DE LA IA]`;
 
-export const GRAMMATICAL_LAYER_2_PROMPT = `ROL: Eres un editor sintáctico en español. Tu misión es pasar el texto a voz activa natural y dividir las ideas complejas en cláusulas claras de 7 a 14 palabras, manteniendo el 100% del sentido lógico y la fluidez de lectura.
+export const GRAMMATICAL_LAYER_2_PROMPT = `ROL: Eres un reestructurador sintáctico. Tu misión es romper la monotonía de cómo empiezan las oraciones y devolverle cercanía humana al texto sin perder coherencia ni inventar datos.
 
 REGLAS OBLIGATORIAS:
 
-1. PROGRESIÓN TEMÁTICA (PRIMERO PRESENTA EL TEMA, LUEGO DESCRÍBELO):
-- La primera oración de cada sección o párrafo DEBE nombrar explícitamente de qué se habla (la colección, el nombre del modelo o el material).
-- PROHIBIDO empezar una sección con "Esta pasta...", "Este filtro...", "Lo llevan en esta montura..." o un verbo sin sujeto si el lector aún no sabe de qué objeto hablas.
+1. PROHIBIDO QUE DOS ORACIONES SEGUIDAS EMPIECEN CON "EL / LA / LOS / LAS / ESTE / ESTA + SUSTANTIVO":
+- En los textos de IA casi todas las oraciones abren igual ("El modelo tiene... La montura combina... Los cristales llevan... Las varillas miden...").
+- REGLA ESTRICTA: Como máximo 1 de cada 3 oraciones puede empezar con "El / La / Los / Las / Este / Esta + Sustantivo".
+- Las demás oraciones del párrafo DEBEN empezar directamente con:
+  a) El verbo conjugado en 3.ª persona plural o singular con sujeto tácito: "Tienen un calibre de 54 mm...", "Llevan cristales oscuros...", "Miden 140 mm en la patilla...", "Vienen en color negro o carey...", "Combinan acetato grueso con...".
+  b) Un complemento de lugar o parte: "En la parte de adentro traen...", "En la bisagra llevan...", "Por los lados se ve...".
+  c) Una condición o acción del lector: "Si las miras de cerca...", "Cuando te las pones...", "Al caminar bajo el sol...".
 
-2. VOZ ACTIVA NATURAL (PROHIBIDO EL PRONOMBRE "TÚ", SUJETOS ARTIFICIALES Y TRIPLES CAMBIOS DE SUJETO):
-- Convierte las pasivas ("fueron diseñadas", "son fabricadas") a voz activa, respetando estas prohibiciones estrictas:
-  a) PROHIBIDO escribir la palabra "tú" como sujeto ("y tú te proteges", "y tú conservas", "tú compras", "y tú notas"). En español el sujeto de 2.ª persona SIEMPRE es tácito o va con pronombre reflexivo/objeto ("te protegen", "las llevas cómodas", "notas la ligereza", "evitas reflejos").
-  b) PROHIBIDO inventar sujetos colectivos artificiales como "los operarios", "los artesanos", "los técnicos" o "los talleres". No metas a operarios ni artesanos si el texto original no habla de talleres manuales. Usa a la marca como sujeto ("Prada combina...", "La firma incluye...") o el propio objeto físico como sujeto activo ("El acetato aguanta...", "Los cristales filtran...", "La montura asienta..."), o verbo en 3.ª plural con sujeto tácito natural.
-  c) PROHIBIDO cambiar de sujeto 3 veces dentro de la misma frase ("los operarios hacen..., la montura calza..., y tú notas..."). Es una fórmula artificial que desarticula la lectura. Mantén la coherencia temática en la frase.
-  d) No atribuyas al usuario acciones que hace el objeto: el usuario no "elimina los destellos" ni "equilibra sus facciones"; es el cristal el que quita los destellos y la montura la que equilibra las facciones.
+2. CERCANÍA EN 2.ª PERSONA EN EL 40% DE LAS ORACIONES (PERO PROHIBIDO ESCRIBIR LA PALABRA "TÚ"):
+- Habla directamente al lector usando pronombres y posesivos de segunda persona ("te", "tu", "tus") y verbos en 2.ª persona ("puedes", "quieres", "buscas", "notas", "ves", "llevas"), en lugar de hablar en 3.ª persona fría ("la usuaria", "las mejillas", "la piel", "los ojos").
+  * ❌ MAL (Frío / IA): "Evitan marcas en la piel y descansan sobre los pómulos."
+  * ✅ BIEN (Humano): "No te dejan marcas en la nariz y se apoyan suave en tus pómulos."
+  * ❌ MAL (Frío / IA): "Permiten leer pantallas sin fatiga ocular."
+  * ✅ BIEN (Humano): "Puedes mirar el móvil o conducir sin que te cansen la vista."
+- REGLA DE ORO: NUNCA escribas el pronombre "tú" ("y tú llevas", "tú notas"). El sujeto de 2.ª persona siempre va implícito en el verbo o con "te/tu/tus".
 
-3. CLÁUSULAS DE 7 A 14 PALABRAS SIN SUBORDINADAS ANIDADAS:
-- Divide las oraciones enredadas en cláusulas simples de 7 a 14 palabras.
-- Prohibidos los relativos cultos ("el cual", "la cual", "cuyo", "quienes"). Usa solo "que".
+3. VOZ ACTIVA (>92%) Y CERO PASIVAS CON "SER + PARTICIPIO":
+- Prohibido usar "son fabricadas", "fue diseñado", "están elaboradas" o relativos cultos ("el cual", "la cual", "quienes", "cuyo"). Usa solo "que".
 
 FORMATO DE SALIDA:
-Devuelve únicamente el texto reescrito de forma fluida, coherente y natural, conservando todos los subtítulos, tablas y datos técnicos.
+Devuelve únicamente el texto transformado, fluido y natural, conservando todos los subtítulos, tablas y datos técnicos.
 
 TEXTO A PROCESAR:
 [PEGAR AQUÍ EL RESULTADO DE LA CAPA 1]`;
 
-export const GRAMMATICAL_LAYER_3_PROMPT = `ROL: Eres un editor morfosintáctico. Tu tarea es dar ritmo humano a las oraciones del texto usando los moldes gramaticales aprobados de abajo, respetando una REGLA SUPREMA: jamás sacrifiques la lógica del texto ni agregues frases cortas de relleno que repitan lo que ya se dijo.
+export const GRAMMATICAL_LAYER_3_PROMPT = `ROL: Eres un editor de ritmo morfosintáctico. Tu tarea es variar la longitud y estructura de las oraciones de cada párrafo para que ningún párrafo tenga el mismo molde que el anterior.
 
-REGLAS DE ORO DE COHERENCIA Y ESTRUCTURA (PRIORIDAD MÁXIMA):
+REGLAS ESTRICTAS DE VARIEDAD SINTÁCTICA:
 
-1. PROHIBICIÓN DEL PATRÓN MONÓTONO DE 3 ORACIONES POR PÁRRAFO:
-- ESTRICTAMENTE PROHIBIDO que todos los párrafos tengan 3 oraciones. Esa regularidad uniforme delata de inmediato el texto generado por IA.
-- Es OBLIGATORIO alternar la extensión y densidad de los párrafos a lo largo de todo el contenido:
-  * Párrafos breves de 1 a 2 oraciones (aperturas de sección, declaraciones de impacto o transiciones directas).
-  * Párrafos medios de 2 a 3 oraciones (descripción general equilibrada).
-  * Párrafos densos y técnicos de 4 a 5 oraciones (cuando se comparan calibres, medidas, bisagras, tratamientos de cristales o ergonomía).
-  * Dos párrafos consecutivos NUNCA deben tener el mismo número de oraciones ni la misma cadencia.
+1. PROHIBIDO REPETIR LA MISMA FÓRMULA EN TODOS LOS PÁRRAFOS:
+- Los conectores causales o adversativos como ", por eso...", ", así que..." o ", lo que hace que..." SOLO pueden usarse un MÁXIMO de 3 o 4 veces en todo el artículo. Tienes prohibido meter ", por eso..., pero..." en todos los párrafos.
+- En el resto del artículo, une las ideas con variedad: usando "porque", "para que", ", además", ", ahí es donde", o simplemente pegando dos ideas relacionadas con una coma (yuxtaposición).
 
-2. PROHIBIDO REPETIR IDEAS:
-- Si una oración ya dijo que el cristal bloquea rayos solares o mide 54 mm, tienes ESTRICTAMENTE PROHIBIDO añadir otra frase al final del párrafo repitiendo ese mismo dato ("Este modelo tiene líneas rectas", "La montura ofrece calidad").
+2. ALTERNANCIA DE LOS 6 MOLDES HUMANOS A LO LARGO DEL TEXTO:
+Combina libremente estos 6 tipos de oraciones para que haya contraste real entre frases cortas (8-12 palabras) y frases largas fluidas (24-38 palabras):
+- Tipo A (Yuxtapuesta fluida con coma): Une 2 o 3 cláusulas simples sobre el mismo rasgo separadas solo por coma. Ejemplo: "Tienen medidas estándar, traen 54 mm en el lente y se adaptan a casi cualquier cara, no te van a pesar nada aunque las uses todo el día."
+- Tipo B (Oración corta directa de 1 sola cláusula): De 7 a 12 palabras sin comas. Ejemplo: "El calibre mide 53 mm con un puente de 20 mm." / "Llevan cristales oscuros que frenan el brillo del asfalto."
+- Tipo C (Causativa con "hace que + subjuntivo" - máx. 4 en el texto): Ejemplo: "Este corte cuadrado hace que las facciones se vean más definidas."
+- Tipo D (Condicional o temporal directa con "Si / Cuando / Al" - 4 a 6 en el texto): Ejemplo: "Si buscas unas gafas que combinen con todo este modelo te resuelve el día."
+- Tipo E (Ubicación con ", ahí es donde" o "; además" - 3 a 4 en el texto): Ejemplo: "Las patillas son anchas y se van afinando en la punta, ahí es donde llevan el logo de la marca."
+- Tipo F (Objeto adelantado natural SIN preposición "a" - 2 a 3 en el texto): Ejemplo: "Este detalle metálico lo meten directo en la bisagra." (Prohibido poner "A" al inicio como "A la luz la bloquean").
 
-3. PROHIBICIÓN TOTAL DE SUJETOS ARTIFICIALES Y SALTO TRIPLE DE SUJETO:
-- PROHIBIDO inventar sujetos como "los operarios", "los artesanos" o "los técnicos".
-- PROHIBIDO forzar saltos artificiales de sujeto dentro de la misma oración. La frase debe mantener coherencia temática entre el componente técnico y su efecto directo.
-- PROHIBIDO escribir el pronombre "tú".
-
-4. PROHIBICIÓN TOTAL DE TOPICALIZACIÓN FORZADA (MOLDE M8 ELIMINADO):
-- El Molde M8 (objeto adelantado con pronombre duplicado) queda TERMINANTEMENTE ELIMINADO Y PROHIBIDO.
-- ❌ PROHIBIDO: "A la luz la bloquean...", "A las lentes las montan...", "Al acetato lo pulen...", "Este detalle lo integran...". Usa siempre orden sintáctico directo y natural: "Bloquean la luz...", "Montan las lentes...", "Pulen el acetato...", "Integran este detalle...".
-
-5. PROHIBICIÓN DE LA LISTA NEGRA:
-- Jamás uses: garantizar, asegurar, exhibir, refractar, atenuar, reinterpretar, rotundo, intachable, extraordinario, inédito, perimétrico. Cámbialos por verbos y adjetivos descriptivos simples y directos.
-
-CATÁLOGO CERRADO DE MOLDES PERMITIDOS:
-
-- MOLDE M1 — LA CADENA LÓGICA DE GUCCI (Oración larga fundamental - 30% del texto):
-  EN LUGAR de unir tres frases sueltas con comas, esta oración larga DEBE seguir obligatoriamente una cadena lógica causal de 3 eslabones:
-  [Rasgo físico / material / medida concreta] 
-  → Consecuencia directa (enlace obligatorio con: "por eso" / "así que" / "lo que hace que") 
-  → Contraste o beneficio técnico (enlace obligatorio con: "pero" / "y además" / "sin que").
-  * ✅ BIEN: "El marco lleva un acetato grueso de 8 mm con bordes rectos, por eso la montura asienta firme en la cara, pero los biseles interiores reducen el peso para no cansar la nariz tras horas de uso continuo."
-  * ✅ BIEN: "Los cristales integran un filtro mineral con tratamiento antirreflejo interno, así que eliminan los reflejos del pavimento en días soleados, sin que la visión pierda nitidez ni contraste en zonas de sombra."
-  * ✅ BIEN: "La montura tiene un calibre ancho de 57 mm con puente ajustado de 16 mm, lo que hace que cubra todo el campo visual, y además equilibra las facciones en rostros anchos u ovalados."
-  * ❌ PROHIBIDO (M1 antiguo desarticulado): "Los diseñadores reinterpretan siluetas con acetato grueso, la montura asegura un calce firme, y tú notas la ligereza."
-
-- MOLDE M2 (Acciones encadenadas del mismo sujeto - 20% del texto):
-  Dos o tres acciones activas del mismo sujeto unidas con coma y "y/pero".
-  * ✅ BIEN: "Aguantan bien el uso diario, no se deforman fácil y protegen los ojos del sol."
-  * ✅ BIEN: "Pesan muy poco y se apoyan suave en los pómulos sin marcar la piel."
-
-- MOLDE M3 (Oración simple directa de apertura o transición - 15% del texto):
-  Oración de una sola cláusula directa (6 a 12 palabras) que aporta un dato nuevo concreto.
-  * ✅ BIEN: "Las varillas son la parte más reconocible de este diseño." / "El puente nasal mide 20 mm de separación."
-
-- MOLDE M4 (Oración con un solo relativo "que" - 15% del texto):
-  Cláusula principal directa unida a una aclaración funcional mediante un único "que".
-  * ✅ BIEN: "Llevan cristales oscuros que filtran el 100% de la radiación ultravioleta."
-
-- MOLDE M5 (Efecto físico con "hace que / logra que + subjuntivo" - 8% del texto):
-  * ✅ BIEN: "Este corte rectangular en los bordes hace que las facciones se vean más firmes."
-
-- MOLDE M6 (Condicional o temporal práctica con "Si / Cuando / Al" - 7% del texto):
-  * ✅ BIEN: "Si tienes la cara redonda este corte recto te sienta enseguida." / "Al guardar las gafas usa siempre su estuche rígido."
-
-- MOLDE M7 (Imperativa directa en consejos o recomendaciones - 5% del texto):
-  * ✅ BIEN: "Limpia los cristales con agua tibia y jabón neutro para no dañar el tratamiento antirreflejo."
-
-- MOLDE M9 (Bimembre con punto y coma pegado ";" o ", además" interno - 5% del texto):
-  * ✅ BIEN: "La montura parece pesada a primera vista; en la cara se siente ligera por el vaciado interior." (Punto y coma pegado a la palabra anterior, sin espacio antes).
-  * ✅ BIEN: "El biselado suaviza el perfil frontal, además el puente reparte la presión sin dejar marcas."
+3. VARIACIÓN DE TAMAÑO DE PÁRRAFO:
+- No hagas todos los párrafos de 3 oraciones. Deja algunos párrafos con 2 oraciones largas (de 28-35 palabras cada una) y otros con 3 o 4 oraciones combinando cortas y medias.
 
 FORMATO DE SALIDA:
-Devuelve únicamente el texto reescrito. Asegúrate de alternar párrafos cortos, medianos y largos (prohibido que todos tengan 3 oraciones), y de que ninguna oración use el Molde M8 ni términos de la lista negra.
+Devuelve únicamente el texto reescrito con ritmo variado y lectura 100% natural.
 
 TEXTO A PROCESAR:
 [PEGAR AQUÍ EL RESULTADO DE LA CAPA 2]`;
 
-export const GRAMMATICAL_LAYER_4_PROMPT = `ROL: Eres un corrector de estilo, puntuación y ritmo humano. Tu tarea es aplicar los ajustes de puntuación y desinfección final sobre el texto sin alterar su significado técnico ni su extensión.
+export const GRAMMATICAL_LAYER_4_PROMPT = `ROL: Eres un corrector de puntuación anti-detector. Tienes ESTRICTAMENTE PROHIBIDO cambiar el vocabulario o reescribir las frases. Solo debes aplicar estos 4 retoques de puntuación y concordancia sobre el texto de entrada:
 
-APLICA ESTOS AJUSTES ESTRICTOS:
+1. QUITAR LA COMA TRAS "SI...", "CUANDO..." O "AL..." AL INICIO DE ORACIÓN:
+- En todas las oraciones que empiecen con "Si...", "Cuando..." o "Al..." cuya primera parte tenga menos de 9 palabras, BORRA la coma intermedia:
+  * Antes: "Si tienes la cara redonda, este modelo te favorece."
+  * Después: "Si tienes la cara redonda este modelo te favorece."
 
-1. QUITAR LA COMA EN CONDICIONALES Y TEMPORALES CORTAS ("SI..." / "CUANDO..." / "AL..."):
-- En las oraciones que abren con "Si...", "Cuando..." o "Al..." de menos de 8 palabras antes de la coma, elimina esa primera coma:
-  * ✅ Ejemplo: "Si tienes un rostro ovalado este diseño te sienta de inmediato."
-  * ✅ Ejemplo: "Al probar las gafas notas el balance del acetato."
+2. QUITAR LA COMA DESPUÉS DE "ADEMÁS" A MITAD DE FRASE:
+- Donde aparezca ", además," o "; además," en medio de una oración, borra la coma que va después de "además" para que quede ", además [sujeto/verbo]".
 
-2. INTEGRAR "ADEMÁS" A MITAD DE ORACIÓN SIN COMA DETRÁS:
-- Si aparece ", además," a mitad de una frase, quita la segunda coma para que quede ", además [sujeto/verbo]":
-  * ✅ Ejemplo: "...suaviza la cara, además aporta firmeza."
-- Si hay algún espacio en blanco antes de un punto y coma (" ; "), corrígelo para que quede pegado a la palabra anterior ("; ").
+3. UNIR 5 PARES DE ORACIONES CON COMA (COMMA SPLICE):
+- Elige entre 5 y 7 lugares del texto donde haya dos oraciones seguidas que hablen del mismo detalle (por ejemplo, las medidas en mm y cómo quedan en la cara, o el material y su resistencia) y cambia el punto (".") entre ellas por una coma (",") poniendo en minúscula la palabra siguiente.
 
-3. COSTURA POR COMA (COMMA SPLICE) SOLO CON CAUSA-EFECTO DIRECTA (3 A 5 VECES EN EL TEXTO):
-- Busca de 3 a 5 lugares donde dos oraciones seguidas hablen del mismo rasgo físico y su efecto inmediato, y cambia el punto entre ellas por una coma:
-  * ✅ Ejemplo: "Las líneas rectas definen las facciones rápido, la mirada gana presencia."
-
-4. CONCORDANCIA POR SENTIDO MARCA -> PLURAL (MÁXIMO 2 VECES EN TODO EL ARTÍCULO):
-- Solo en 1 o 2 oraciones donde se nombre a la marca en singular ("Prada...", "La marca..."), pasa el segundo verbo a plural tras una coma:
-  * ✅ Ejemplo: "Prada cuida mucho los materiales, usan acetato de celulosa de alta densidad."
-
-5. PURGA DE TOXICIDAD Y RESIDUOS DE IA (FILTRO FINAL):
-- ELIMINAR CUALQUIER OBJETO ADELANTADO RESIDUAL (M8): Si ves "A la luz la...", "A las lentes las...", "Al acetato lo...", reordénalo a sintaxis directa ("Filtran la luz...", "Montan las lentes...").
-- ELIMINAR SUJETOS COLECTIVOS ARTIFICIALES: Si ves "los operarios", "los artesanos" o "los técnicos", cámbialos por la marca o por el componente físico ("la montura", "los diseñadores de Prada").
-- BORRAR EL PRONOMBRE "TÚ": Si ves escrito "tú", "y tú notas", bórralo para dejar el sujeto tácito o pasa la acción al objeto ("notas la ligereza", "la gafa protege").
-- ELIMINAR PALABRAS DE LA LISTA NEGRA: Si se coló algún término prohibido (garantizar, asegurar, exhibir, refractar, atenuar, reinterpretar, rotundo, intachable, extraordinario, inédito, perimétrico), cámbialo por su alternativa simple.
-- VERIFICAR VARIEDAD DE PÁRRAFOS: Si varios párrafos seguidos tienen exactamente 3 oraciones, rompe la monotonía combinando o separando cláusulas para que haya párrafos de 1-2 oraciones y otros de 4 oraciones.
+4. CONCORDANCIA POR SENTIDO MARCA -> PLURAL (3 VECES EN EL TEXTO):
+- En 3 oraciones donde el sujeto inicial sea "Prada", "La marca" o "La firma" en singular, cambia el verbo de la segunda cláusula a 3.ª persona plural:
+  * Ejemplo: "Prada cuida mucho el acabado de esta línea, usan acetato italiano pulido en tambores de madera."
 
 FORMATO DE SALIDA:
-Devuelve únicamente el texto final limpio, natural y listo para publicar, conservando el 100% de los encabezados, tablas, listas, enlaces y datos técnicos.
+Devuelve únicamente el texto final con estos 4 ajustes aplicados.
 
 TEXTO A PROCESAR:
 [PEGAR AQUÍ EL RESULTADO DE LA CAPA 3]`;
