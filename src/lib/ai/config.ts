@@ -50,6 +50,7 @@ export const AI_CONFIG = {
     gemini: {
         apiKeys: geminiKeys,
         models: {
+            flash3_8: 'gemini-3.8-flash',
             flash3_7: 'gemini-3.7-flash',
             flash3_6: 'gemini-3.6-flash',
             flash3_5: 'gemini-3.5-flash',
@@ -65,6 +66,7 @@ export const AI_CONFIG = {
         },
         hierarchies: {
             research: [
+                'gemini-3.8-flash',            // Priority 0: Editorial 3.8
                 'gemini-3.7-flash',            // Priority 1: Editorial 3.7
                 'gemini-3.6-flash',            // Priority 2: Editorial 3.6
                 'gemini-3.5-flash',            // Priority 3: Editorial 3.5
@@ -80,6 +82,7 @@ export const AI_CONFIG = {
                 'gemma-4-31b-it',               // Priority 1: Calidad Premium (Gemma 4)
                 'gemma-3-27b-it',               // Priority 2: Gemma 3
                 'gemma-4-26b-a4b-it',           // Priority 3: Editorial Dense
+                'gemini-3.8-flash',             // Fallback 0: Editorial 3.8
                 'gemini-3.7-flash',             // Fallback 1: Editorial 3.7
                 'gemini-3.6-flash',             // Fallback 2: Editorial 3.6
                 'gemini-3.5-flash',             // Fallback 3: Editorial 3.5
@@ -89,6 +92,7 @@ export const AI_CONFIG = {
                 'gemini-2.5-flash-lite'         // Fallback 7: Lightweight
             ],
             technical: [
+                'gemini-3.8-flash',              // Priority 0: Técnico 3.8
                 'gemini-3.7-flash',              // Priority 1: Técnico estable
                 'gemini-3.6-flash',              // Priority 2: Técnico
                 'gemini-3.5-flash',              // Priority 3: Técnico
@@ -113,6 +117,7 @@ export const AI_CONFIG = {
                 'gemini-2.5-flash-lite'          // Fallback 3: Velocidad Extrema
             ],
             cognitive_filter: [
+                'gemini-3.8-flash',              // Priority 0: Reasoning 3.8
                 'gemini-3.7-flash',              // Priority 1: Reasoning 3.7
                 'gemini-3.6-flash',              // Priority 2: Reasoning 3.6
                 'gemini-3.5-flash',              // Priority 3: Reasoning 3.1
@@ -121,6 +126,7 @@ export const AI_CONFIG = {
                 'gemma-4-31b-it'                 // Fallback 3: Deep Analysis
             ],
             reasoning: [
+                'gemini-3.8-flash',              // Priority 0: Direct Reasoning 3.8
                 'gemini-3.7-flash',              // Priority 1: Direct Reasoning 3.7
                 'gemini-3.6-flash',              // Priority 2: Direct Reasoning 3.6
                 'gemini-3.5-flash',              // Priority 3: Direct Reasoning 3.5

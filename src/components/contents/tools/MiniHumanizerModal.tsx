@@ -668,6 +668,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                                 disabled={isProcessing}
                                 className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 outline-none cursor-pointer focus:border-indigo-500"
                             >
+                                <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
                                 <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
                                 <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
                                 <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
@@ -693,7 +694,7 @@ export function MiniHumanizerModal({ onClose }: MiniHumanizerModalProps) {
                             <select
                                 value={reasoningLevel}
                                 onChange={(e) => setReasoningLevel(e.target.value)}
-                                disabled={isProcessing || !(selectedModel.includes("3.6-flash") || selectedModel.includes("3.7-flash"))}
+                                disabled={isProcessing || !(selectedModel.includes("3.6-flash") || selectedModel.includes("3.7-flash") || selectedModel.includes("3.8-flash"))}
                                 className="text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 outline-none cursor-pointer focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <option value="none">Razonamiento: Por defecto</option>

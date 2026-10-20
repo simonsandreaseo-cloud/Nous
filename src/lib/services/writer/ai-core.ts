@@ -87,6 +87,10 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
     'gemini-3.1-pro': { input: 2.00, output: 12.00 },
     'gemini-3.1-pro-preview': { input: 2.00, output: 12.00 },
     
+    // Gemini 3.8
+    'gemini-3.8-flash': { input: 0.75, output: 3.75 },
+    'gemini-3.8-flash-preview': { input: 0.75, output: 3.75 },
+
     // Gemini 3.7
     'gemini-3.7-flash': { input: 0.75, output: 3.75 },
     'gemini-3.7-flash-preview': { input: 0.75, output: 3.75 },
@@ -719,8 +723,11 @@ export const executeWithKeyRotation = async <T>(
 
                         client = {
                             getGenerativeModel: (config: any) => {
-                                if (reasoning && (config.model.includes('3.6') || config.model.includes('3.7'))) {
-                                    config.thinkingConfig = { thinkingLevel: reasoning.toUpperCase() };
+                                if (reasoning && (config.model.includes('3.6') || config.model.includes('3.7') || config.model.includes('3.8'))) {
+                                    const lvl = reasoning.toUpperCase();
+                                    config.thinkingConfig = { thinkingLevel: lvl };
+                                    if (!config.generationConfig) config.generationConfig = {};
+                                    config.generationConfig.thinkingConfig = { thinkingLevel: lvl };
                                 }
                                 return {
                                     generateContent: async (prompt: any) => {
@@ -789,8 +796,11 @@ export const executeWithKeyRotation = async <T>(
                         const rawGoogleClient = new GoogleGenerativeAI(apiKey);
                         client = {
                             getGenerativeModel: (config: any) => {
-                                if (reasoning && (config.model.includes('3.6') || config.model.includes('3.7'))) {
-                                    config.thinkingConfig = { thinkingLevel: reasoning.toUpperCase() };
+                                if (reasoning && (config.model.includes('3.6') || config.model.includes('3.7') || config.model.includes('3.8'))) {
+                                    const lvl = reasoning.toUpperCase();
+                                    config.thinkingConfig = { thinkingLevel: lvl };
+                                    if (!config.generationConfig) config.generationConfig = {};
+                                    config.generationConfig.thinkingConfig = { thinkingLevel: lvl };
                                 }
                                 if (config.model.includes('gemma')) {
                                     const newConfig = { ...config };
