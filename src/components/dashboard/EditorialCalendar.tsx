@@ -7,6 +7,8 @@ import {
 import { es } from "date-fns/locale";
 import {
     Plus,
+    Menu,
+    Filter,
     FileText,
     CheckCircle2,
     Clock,
@@ -63,6 +65,9 @@ import { NotificationService } from "@/lib/services/notifications";
 import { parseDocx, parseHtml } from "@/utils/data-importer";
 import Papa from "papaparse";
 import StrategyGrid from "./StrategyGrid";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { PlannerMobileView } from "./mobile/PlannerMobileView";
+import { WriterMobileNewTaskModal } from "@/components/contents/writer/mobile/WriterMobileNewTaskModal";
 import { NousSquareButton } from "./NousSquareButton";
 import { useQueueProcessor } from '@/components/dashboard/useQueueProcessor';
 import { SmartUploaderModal } from "./SmartUploaderModal";
@@ -111,7 +116,7 @@ export function EditorialCalendar() {
     const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
     const [researchTaskId, setResearchTaskId] = useState<string | undefined>(undefined);
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
-    const [improveTitleWithNous, setImproveTitleWithNous] = useState(false);
+    // improveTitleWithNous is read from activeProject.settings.content_preferences
     const [isExporting, setIsExporting] = useState(false);
     const isResearching = useWriterStore(state => state.isResearching);
     const setResearching = useWriterStore(state => state.setResearching);
@@ -168,6 +173,9 @@ export function EditorialCalendar() {
     const [reinvestigateTask, setReinvestigateTask] = useState<{ id: string, keyword: string } | null>(null);
     const [isReinvestigating, setIsReinvestigating] = useState(false);
     const [isCascadeMode, setIsCascadeMode] = useState(true);
+    const [isFilterBubbleOpen, setIsFilterBubbleOpen] = useState(false);
+    const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+    const isMobile = useIsMobile();
 
     const [isPipelineModalOpen, setIsPipelineModalOpen] = useState(false);
 
@@ -176,11 +184,11 @@ export function EditorialCalendar() {
     const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
     const [batchDeleteOptions, setBatchDeleteOptions] = useState({ research: false, writing: false, images: false, translations: false });
 
-    // Planned Content Interlinking
-    const [linkPlannedContents, setLinkPlannedContents] = useState(false);
-    const [linkPlannedStatuses, setLinkPlannedStatuses] = useState<string[]>(["por_redactar", "por_corregir", "redactado", "en_revision", "publicado", "humanizado"]);
-    const [isPlannedSettingsOpen, setIsPlannedSettingsOpen] = useState(false);
-    const [isSlugGeneratorOpen, setIsSlugGeneratorOpen] = useState(false);
+    // Project Content Preferences
+    const projectContentPrefs = activeProject?.settings?.content_preferences;
+    const improveTitleWithNous = projectContentPrefs?.improve_title_with_nous ?? false;
+    const linkPlannedContents = projectContentPrefs?.link_planned_contents ?? false;
+    const linkPlannedStatuses = projectContentPrefs?.link_planned_statuses ?? ["por_redactar", "por_corregir", "redactado", "en_revision", "publicado", "humanizado", "en_investigacion"];
     
     // Advanced Filters State
     const [searchQuery, setSearchQuery] = useState("");
@@ -203,9 +211,7 @@ export function EditorialCalendar() {
                     if (config.dateFrom !== undefined) setDateFrom(config.dateFrom);
                     if (config.dateTo !== undefined) setDateTo(config.dateTo);
                     if (config.isCascadeMode !== undefined) setIsCascadeMode(config.isCascadeMode);
-                    if (config.improveTitleWithNous !== undefined) setImproveTitleWithNous(config.improveTitleWithNous);
-                    if (config.linkPlannedContents !== undefined) setLinkPlannedContents(config.linkPlannedContents);
-                    if (config.linkPlannedStatuses) setLinkPlannedStatuses(config.linkPlannedStatuses);
+                    // improveTitleWithNous and linkPlanned settings are stored in project preferences
                 }
                 setIsConfigLoaded(true);
             }
@@ -225,9 +231,7 @@ export function EditorialCalendar() {
                 dateFrom,
                 dateTo,
                 isCascadeMode,
-                improveTitleWithNous,
-                linkPlannedContents,
-                linkPlannedStatuses
+                // preferences saved at project level
             };
             
             const serverConfig = user.user_metadata?.planner_config || {};
@@ -238,9 +242,7 @@ export function EditorialCalendar() {
                 dateFrom: serverConfig.dateFrom,
                 dateTo: serverConfig.dateTo,
                 isCascadeMode: serverConfig.isCascadeMode,
-                improveTitleWithNous: serverConfig.improveTitleWithNous,
-                linkPlannedContents: serverConfig.linkPlannedContents,
-                linkPlannedStatuses: serverConfig.linkPlannedStatuses
+                // preferences saved at project level
             };
 
             if (JSON.stringify(newConfig) !== JSON.stringify(normalizedServerConfig)) {
@@ -250,7 +252,7 @@ export function EditorialCalendar() {
             }
         }, 1000);
         return () => clearTimeout(timer);
-    }, [columnVisibility, statusFilter, searchQuery, dateFrom, dateTo, isCascadeMode, improveTitleWithNous, linkPlannedContents, linkPlannedStatuses, isConfigLoaded]);
+    }, [columnVisibility, statusFilter, searchQuery, dateFrom, dateTo, isCascadeMode, isConfigLoaded]);
 
     const toggleColumn = (colId: string) => {
         const newVisibility = { ...columnVisibility, [colId]: !columnVisibility[colId] };
@@ -637,7 +639,7 @@ export function EditorialCalendar() {
 
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 5 }));
                 const result = await StrategyService.runDeepSEOAnalysis({
-                    projectId: activeProject.id,
+                    projectId: activeProject ? activeProject.id : "",
                     keyword: task.target_keyword || task.title,
                     onProgress: (p) => {
                         const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
@@ -669,7 +671,7 @@ export function EditorialCalendar() {
                 const forceRestart = action === 'investigar_forzado';
                 setBatchResearchStatus(prev => ({ ...prev, [taskId]: 5 }));
                 const result = await StrategyService.runDeepSEOAnalysis({
-                    projectId: activeProject.id,
+                    projectId: activeProject ? activeProject.id : "",
                     keyword: task.target_keyword || task.title,
                     onProgress: (p) => {
                         const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
@@ -887,7 +889,7 @@ export function EditorialCalendar() {
                     if (research && shouldResearch) {
                         setBatchResearchStatus(prev => ({ ...prev, [t.id]: 5 }));
                         const result = await StrategyService.runDeepSEOAnalysis({
-                            projectId: activeProject.id,
+                            projectId: activeProject ? activeProject.id : "",
                             keyword: latestTask.target_keyword || latestTask.title,
                             onProgress: (p) => {
                                 const progressMap: Record<string, number> = { 'serp': 25, 'scraping': 50, 'keywords': 75, 'metadata': 90, 'interlinking': 95, 'outline': 100 };
@@ -1008,7 +1010,7 @@ export function EditorialCalendar() {
                 setBatchInfo(candidates.length);
                 for (const t of candidates) {
                     enqueueTask('batch_research', `Investigando: ${t.title}`, 
-                        { targetTaskId: t.id, keyword: t.target_keyword || t.title, projectId: activeProject.id, linkPlannedContents, linkPlannedStatuses, improveTitleWithNous, currentTitle: t.title, forceRestart: true },
+                        { targetTaskId: t.id, keyword: t.target_keyword || t.title, projectId: activeProject ? activeProject.id : "", linkPlannedContents, linkPlannedStatuses, improveTitleWithNous, currentTitle: t.title, forceRestart: true },
                         { taskId: t.id }
                     );
                 }
@@ -1021,7 +1023,7 @@ export function EditorialCalendar() {
                 const { enqueueTask } = useQueueStore.getState();
                 for (const t of filtered) {
                     enqueueTask('batch_outline', `Outline: ${t.title}`, 
-                        { targetTaskId: t.id, keyword: t.target_keyword || t.title, projectId: activeProject.id, researchDossier: t.research_dossier, recommendedWordCount: t.target_word_count },
+                        { targetTaskId: t.id, keyword: t.target_keyword || t.title, projectId: activeProject ? activeProject.id : "", researchDossier: t.research_dossier, recommendedWordCount: t.target_word_count },
                         { taskId: t.id }
                     );
                 }
@@ -1106,148 +1108,107 @@ export function EditorialCalendar() {
     };
 
 
-    return (
-        <div className="flex flex-col h-screen bg-white">
-            <div className="flex shrink-0 sticky top-0 z-40 bg-white border-b border-slate-100 shadow-sm">
-                {/* Square Button spanning both lines */}
-                <div className="flex flex-col items-center justify-center border-r border-slate-100 bg-white px-4 md:px-6">
-                     <NousSquareButton onClick={() => setIsPipelineModalOpen(true)} />
-                </div>
-                
-                {/* Right side containing header and filter bar */}
-                <div className="flex-1 flex flex-col min-w-0">
-                    <header className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Mejorar título con Nous</span>
-                        <button 
-                            onClick={() => setImproveTitleWithNous(!improveTitleWithNous)}
-                            className={cn(
-                                "w-10 h-5 rounded-full transition-all duration-300 relative",
-                                improveTitleWithNous ? "bg-indigo-500" : "bg-slate-200"
-                            )}
-                        >
-                            <div className={cn(
-                                "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300",
-                                improveTitleWithNous ? "left-5.5" : "left-0.5"
-                            )} />
-                        </button>
-                    </div>
+    if (isMobile) {
+        return (
+            <div className="flex flex-col h-screen bg-slate-50">
+                <PlannerMobileView
+                    tasks={filteredTasks}
+                    allTasks={tasks}
+                    selectedTask={selectedTask}
+                    onSelectTask={setSelectedTask}
+                    onOpenDrawer={() => useAppStore.getState().setIsMobileMenuOpen(true)}
+                    onOpenPipeline={() => setIsPipelineModalOpen(true)}
+                    onOpenSmartUpload={() => setIsSmartUploadModalOpen(true)}
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    statusFilter={statusFilter}
+                    onToggleStatusFilter={toggleStatusFilter}
+                    onClearFilters={clearFilters}
+                    dateFrom={dateFrom}
+                    onDateFromChange={setDateFrom}
+                    dateTo={dateTo}
+                    onDateToChange={setDateTo}
+                    onReinvestigate={(task) => setReinvestigateTask(task)}
+                    onDeleteTask={async (taskId) => {
+                        if (window.confirm("¿Eliminar este contenido permanentemente?")) {
+                            await deleteTasks([taskId]);
+                        }
+                    }}
+                    onAddTask={() => setIsNewTaskModalOpen(true)}
+                />
 
-                    {/* Planned Content Interlinking Toggle & Settings */}
-                    <div className="flex items-center gap-2 border-l border-slate-100 pl-4 ml-2 relative">
-                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Enlazar a Contenidos Planificados</span>
-                        <button 
-                            onClick={() => setLinkPlannedContents(!linkPlannedContents)}
-                            className={cn(
-                                "w-10 h-5 rounded-full transition-all duration-300 relative",
-                                linkPlannedContents ? "bg-indigo-500" : "bg-slate-200"
-                            )}
-                        >
-                            <div className={cn(
-                                "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300",
-                                linkPlannedContents ? "left-5.5" : "left-0.5"
-                            )} />
-                        </button>
-                        <button
-                            onClick={() => setIsPlannedSettingsOpen(!isPlannedSettingsOpen)}
-                            className={cn(
-                                "p-1.5 rounded-lg transition-colors ml-1",
-                                isPlannedSettingsOpen ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-                            )}
-                        >
-                            <Settings size={14} />
-                        </button>
+                {/* Overlays on Mobile */}
+                {selectedTask && (
+                    <ContentDetailView 
+                        task={selectedTask} 
+                        onClose={() => setSelectedTask(null)} 
+                    />
+                )}
 
-                        {isPlannedSettingsOpen && (
-                            <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 z-50 animate-in fade-in slide-in-from-top-2">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-900">Estatus Permitidos</h4>
-                                    <button onClick={() => setIsPlannedSettingsOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
-                                </div>
-                                <div className="space-y-2 mb-6">
-                                    {["por_redactar", "por_corregir", "redactado", "en_revision", "publicado", "humanizado", "en_investigacion"].map((status) => (
-                                        <label key={status} className="flex items-center gap-3 group cursor-pointer">
-                                            <input 
-                                                type="checkbox"
-                                                checked={linkPlannedStatuses.includes(status)}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setLinkPlannedStatuses([...linkPlannedStatuses, status]);
-                                                    } else {
-                                                        setLinkPlannedStatuses(linkPlannedStatuses.filter(s => s !== status));
-                                                    }
-                                                }}
-                                                className="w-4 h-4 rounded text-indigo-500 border-slate-200 focus:ring-indigo-500"
-                                            />
-                                            <span className="text-xs font-medium text-slate-600 group-hover:text-slate-900 transition-colors uppercase tracking-wider">{status.replace(/_/g, ' ')}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                                
-                                <div className="pt-4 border-t border-slate-100">
-                                    <button 
-                                        onClick={() => {
-                                            setIsPlannedSettingsOpen(false);
-                                            setIsSlugGeneratorOpen(true);
-                                        }}
-                                        className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors"
-                                    >
-                                        <Sparkles size={12} />
-                                        Generar Slugs Faltantes
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                <NousPipelineModal 
+                    isOpen={isPipelineModalOpen}
+                    onClose={() => setIsPipelineModalOpen(false)}
+                    selectedTaskIds={selectedTaskIds}
+                    onExecute={async (blocks, mode, strategy, finalTargetIds, finalStatus) => {
+                        if (!activeProject) {
+                            NotificationService.error("Error", "No hay proyecto activo.");
+                            return;
+                        }
+                        setResearching(true);
+                        setResearchProgress(0);
+                        const targetTasks = mode === 'manual' 
+                            ? tasks.filter(t => (finalTargetIds || selectedTaskIds).includes(t.id))
+                            : mode === 'status'
+                                ? tasks.filter(t => t.status === finalStatus)
+                                : tasks;
+                        if (targetTasks.length === 0) {
+                            NotificationService.error("Información", "No hay contenidos para procesar.");
+                            setResearching(false);
+                            return;
+                        }
+                        try {
+                            await executePipeline({
+                                blocks,
+                                mode,
+                                strategy,
+                                targetTasks,
+                                project: activeProject,
+                                onLog: (taskId, stage, msg) => addStrategyLog(taskId, stage, msg),
+                                onProgress: (taskId, progress) => setResearchProgress(progress)
+                            });
+                            if (activeProject) fetchProjectTasks(activeProject.id);
+                            setSelectedTaskIds([]);
+                        } catch (e: any) {
+                            console.error(e);
+                            NotificationService.error("Error en Pipeline", e.message);
+                        } finally {
+                            setResearching(false);
+                        }
+                    }}
+                />
 
-                    <div className="flex items-center gap-2">
-                        {/* Column Selector */}
-                        <div className="relative">
-                            <button 
-                                onClick={() => setIsColumnSelectorOpen(!isColumnSelectorOpen)}
-                                className={cn(
-                                    "h-7 w-7 flex items-center justify-center rounded-lg transition-all border shrink-0 bg-white",
-                                    isColumnSelectorOpen ? "border-indigo-200 text-indigo-600 bg-indigo-50/50" : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
-                                )}
-                            >
-                                <Hash size={14} />
-                            </button>
-                            <AnimatePresence>
-                                {isColumnSelectorOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-30" onClick={() => setIsColumnSelectorOpen(false)} />
-                                        <motion.div 
-                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-4 space-y-2"
-                                        >
-                                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1 px-1">Columnas</span>
-                                            <div className="max-h-[300px] overflow-y-auto custom-scrollbar px-1">
-                                                {Object.keys(columnVisibility).map(colId => (
-                                                    <label key={colId} className="flex items-center gap-3 p-1.5 hover:bg-slate-50 rounded-md cursor-pointer transition-all">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={columnVisibility[colId]} 
-                                                            onChange={() => toggleColumn(colId)}
-                                                            className="w-3.5 h-3.5 rounded border-slate-200 text-indigo-500 focus:ring-indigo-400"
-                                                        />
-                                                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">{colId}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </motion.div>
-                                    </>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-                </div>
+                <SmartUploaderModal 
+                    isOpen={isSmartUploadModalOpen} 
+                    onClose={() => setIsSmartUploadModalOpen(false)}
+                    projectId={activeProject?.id || ''}
+                    onImportComplete={async (importedTasks) => {
+                        for (const task of importedTasks) {
+                            await addTask(task);
+                        }
+                        fetchProjectTasks(activeProject?.id || '');
+                    }}
+                />
 
-                <div className="flex items-center gap-3">
-                    <AnimatePresence>
-                        {reinvestigateTask && (
+                <WriterMobileNewTaskModal
+                    isOpen={isNewTaskModalOpen}
+                    onClose={() => setIsNewTaskModalOpen(false)}
+                    onTaskCreated={() => {
+                        fetchProjectTasks(activeProject?.id || '');
+                    }}
+                />
+
+                <AnimatePresence>
+                    {reinvestigateTask && (
                             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
                                 <motion.div 
                                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -1295,7 +1256,7 @@ export function EditorialCalendar() {
                                                     setIsReinvestigating(true);
                                                     try {
                                                         const result = await StrategyService.runDeepSEOAnalysis({
-                                                            projectId: activeProject.id,
+                                                            projectId: activeProject ? activeProject.id : "",
                                                             keyword: reinvestigateTask.keyword,
                                                             taskId: reinvestigateTask.id,
                                                             phaseToRun: phase.id,
@@ -1347,202 +1308,473 @@ export function EditorialCalendar() {
                                 </motion.div>
                             </div>
                         )}
-
                     </AnimatePresence>
-                </div>
-            </header>
+            </div>
+        );
+    }
 
-            {/* Filter Bar */}
-            <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/40 flex flex-wrap items-center gap-4 shrink-0">
-                {/* Search Input */}
-                <div className="relative flex-1 min-w-[200px] max-w-sm">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
-                        type="text" 
-                        placeholder="Buscar por título o keyword..." 
-                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 placeholder:text-slate-300 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/5 transition-all"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
+    return (
+        <div className="flex flex-col h-screen bg-white">
+            {/* Desktop Single-Row Minimalist Header */}
+            <div className="shrink-0 sticky top-0 z-40 bg-white border-b border-slate-100 shadow-xs h-16 flex items-center px-4 md:px-6 gap-3 md:gap-4 justify-between">
+                {/* Left side: NousSquareButton & Search & Filter */}
+                <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                    {/* Nous Square Button */}
+                    <NousSquareButton onClick={() => setIsPipelineModalOpen(true)} />
 
-                {/* Status Multi-Select */}
-                <div className="relative">
-                    <button 
-                        onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
-                        className={cn(
-                            "h-9 px-4 flex items-center gap-2 rounded-xl border transition-all text-[10px] font-black uppercase tracking-widest",
-                            statusFilter.length > 0 ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-600/20" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                        )}
-                    >
-                        <Layers size={14} />
-                        <span>Estado {statusFilter.length > 0 && `(${statusFilter.length})`}</span>
-                    </button>
-                    
-                    <AnimatePresence>
-                        {isStatusFilterOpen && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setIsStatusFilterOpen(false)} />
-                                <motion.div 
-                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                    className="absolute left-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-4"
-                                >
-                                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-3 px-1">Filtrar por Estado</span>
-                                    <div className="grid grid-cols-1 gap-1">
-                                        {Object.entries(STATUS_LABELS).map(([status, label]) => {
-                                            const isActive = statusFilter.includes(status);
-                                            return (
-                                                <button 
-                                                    key={status}
-                                                    onClick={() => toggleStatusFilter(status)}
-                                                    className={cn(
-                                                        "flex items-center gap-3 p-2 rounded-lg transition-all text-left",
-                                                        isActive ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-50 text-slate-600"
-                                                    )}
-                                                >
-                                                    <div className={cn(
-                                                        "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
-                                                        isActive ? "bg-indigo-500 border-indigo-500 text-white" : "border-slate-300 bg-white"
-                                                    )}>
-                                                        {isActive && <Check size={10} strokeWidth={4} />}
-                                                    </div>
-                                                    <span className="text-[10px] font-bold uppercase tracking-tight">{label}</span>
-                                                </button>
-                                            );
-                                        })}
-                                        {activeTeam?.settings?.custom_statuses?.map((status: string) => {
-                                            const isActive = statusFilter.includes(status);
-                                            return (
-                                                <button 
-                                                    key={status}
-                                                    onClick={() => toggleStatusFilter(status)}
-                                                    className={cn(
-                                                        "flex items-center gap-3 p-2 rounded-lg transition-all text-left",
-                                                        isActive ? "bg-rose-50 text-rose-700" : "hover:bg-slate-50 text-slate-600"
-                                                    )}
-                                                >
-                                                    <div className={cn(
-                                                        "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
-                                                        isActive ? "bg-rose-500 border-rose-500 text-white" : "border-slate-300 bg-white"
-                                                    )}>
-                                                        {isActive && <Check size={10} strokeWidth={4} />}
-                                                    </div>
-                                                    <span className="text-[10px] font-bold uppercase tracking-tight">{status.replace(/_/g, ' ')}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between">
-                                        <button 
-                                            onClick={() => setStatusFilter([])}
-                                            className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600"
-                                        >
-                                            Limpiar
-                                        </button>
-                                        <button 
-                                            onClick={() => setIsStatusFilterOpen(false)}
-                                            className="text-[9px] font-black text-indigo-600 uppercase tracking-widest"
-                                        >
-                                            Aplicar
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            </>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* Date Filters */}
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-indigo-400 transition-all">
-                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest mr-2 leading-none">Desde</span>
+                    {/* Search Input */}
+                    <div className="relative flex-1 max-w-sm">
+                        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input 
-                            type="date" 
-                            className="bg-transparent border-none text-[10px] font-bold text-slate-700 outline-none p-0 cursor-pointer"
-                            value={dateFrom}
-                            onChange={(e) => setDateFrom(e.target.value)}
+                            type="text" 
+                            placeholder="Buscar por título o keyword..." 
+                            className="w-full pl-9 pr-8 py-2 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery("")}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
                     </div>
-                    <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus-within:border-indigo-400 transition-all">
-                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest mr-2 leading-none">Hasta</span>
-                        <input 
-                            type="date" 
-                            className="bg-transparent border-none text-[10px] font-bold text-slate-700 outline-none p-0 cursor-pointer"
-                            value={dateTo}
-                            onChange={(e) => setDateTo(e.target.value)}
-                        />
-                    </div>
-                </div>
 
-                {/* Clear All Filters */}
-                {(searchQuery || statusFilter.length > 0 || dateFrom || dateTo) && (
-                    <button 
-                        onClick={clearFilters}
-                        className="flex items-center gap-2 group px-3 py-2 rounded-xl transition-all"
-                    >
-                        <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-500 transition-all">
+                    {/* Filter Icon Button (with Bubble Menu) */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setIsFilterBubbleOpen(!isFilterBubbleOpen)}
+                            className={cn(
+                                "h-9 w-9 flex items-center justify-center rounded-xl border transition-all relative shrink-0",
+                                (statusFilter.length > 0 || dateFrom || dateTo)
+                                    ? "bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-600/20"
+                                    : "bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                            )}
+                            title="Filtrar por estado y fecha"
+                            aria-label="Filtros"
+                        >
+                            <Filter size={15} />
+                            {(statusFilter.length > 0 || dateFrom || dateTo) && (
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white" />
+                            )}
+                        </button>
+                        
+                        <AnimatePresence>
+                            {isFilterBubbleOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setIsFilterBubbleOpen(false)} />
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        className="absolute left-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-4 space-y-4"
+                                    >
+                                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                                            <div>
+                                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">Filtros</h4>
+                                                <p className="text-[10px] text-slate-400 mt-0.5">Estado y fechas de publicación</p>
+                                            </div>
+                                            {(statusFilter.length > 0 || dateFrom || dateTo) && (
+                                                <button 
+                                                    onClick={clearFilters}
+                                                    className="text-[10px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600"
+                                                >
+                                                    Limpiar
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Status Filter */}
+                                        <div>
+                                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-2">Por Estado</span>
+                                            <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                                {Object.entries(STATUS_LABELS).map(([status, label]) => {
+                                                    const isActive = statusFilter.includes(status);
+                                                    return (
+                                                        <button 
+                                                            key={status}
+                                                            onClick={() => toggleStatusFilter(status)}
+                                                            className={cn(
+                                                                "w-full flex items-center gap-2.5 p-2 rounded-xl transition-all text-left",
+                                                                isActive ? "bg-indigo-50 text-indigo-700" : "hover:bg-slate-50 text-slate-600"
+                                                            )}
+                                                        >
+                                                            <div className={cn(
+                                                                "w-3.5 h-3.5 rounded border flex items-center justify-center transition-all",
+                                                                isActive ? "bg-indigo-500 border-indigo-500 text-white" : "border-slate-300 bg-white"
+                                                            )}>
+                                                                {isActive && <Check size={10} strokeWidth={3} />}
+                                                            </div>
+                                                            <span className="text-[11px] font-bold uppercase tracking-tight">{label}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                                {activeTeam?.settings?.custom_statuses?.map((status: string) => {
+                                                    const isActive = statusFilter.includes(status);
+                                                    return (
+                                                        <button 
+                                                            key={status}
+                                                            onClick={() => toggleStatusFilter(status)}
+                                                            className={cn(
+                                                                "w-full flex items-center gap-2.5 p-2 rounded-xl transition-all text-left",
+                                                                isActive ? "bg-rose-50 text-rose-700" : "hover:bg-slate-50 text-slate-600"
+                                                            )}
+                                                        >
+                                                            <div className={cn(
+                                                                "w-3.5 h-3.5 rounded border flex items-center justify-center transition-all",
+                                                                isActive ? "bg-rose-500 border-rose-500 text-white" : "border-slate-300 bg-white"
+                                                            )}>
+                                                                {isActive && <Check size={10} strokeWidth={3} />}
+                                                            </div>
+                                                            <span className="text-[11px] font-bold uppercase tracking-tight">{status.replace(/_/g, ' ')}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Date Filters */}
+                                        <div className="pt-2 border-t border-slate-100">
+                                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-2">Por Fecha</span>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2">
+                                                    <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 block mb-1">Desde</span>
+                                                    <input 
+                                                        type="date" 
+                                                        className="w-full bg-transparent border-none text-[10px] font-bold text-slate-700 outline-none p-0 cursor-pointer"
+                                                        value={dateFrom}
+                                                        onChange={(e) => setDateFrom(e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2">
+                                                    <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 block mb-1">Hasta</span>
+                                                    <input 
+                                                        type="date" 
+                                                        className="w-full bg-transparent border-none text-[10px] font-bold text-slate-700 outline-none p-0 cursor-pointer"
+                                                        value={dateTo}
+                                                        onChange={(e) => setDateTo(e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-2 border-t border-slate-100 flex justify-end">
+                                            <button 
+                                                onClick={() => setIsFilterBubbleOpen(false)}
+                                                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors"
+                                            >
+                                                Listo
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Column Visibility Selector (Hash) */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setIsColumnSelectorOpen(!isColumnSelectorOpen)}
+                            className={cn(
+                                "h-9 w-9 flex items-center justify-center rounded-xl transition-all border shrink-0 bg-white",
+                                isColumnSelectorOpen ? "border-indigo-200 text-indigo-600 bg-indigo-50/50" : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
+                            )}
+                            title="Configurar columnas"
+                        >
+                            <Hash size={15} />
+                        </button>
+                        <AnimatePresence>
+                            {isColumnSelectorOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setIsColumnSelectorOpen(false)} />
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-4 space-y-2"
+                                    >
+                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1 px-1">Columnas</span>
+                                        <div className="max-h-[300px] overflow-y-auto custom-scrollbar px-1">
+                                            {Object.keys(columnVisibility).map(colId => (
+                                                <label key={colId} className="flex items-center gap-3 p-1.5 hover:bg-slate-50 rounded-md cursor-pointer transition-all">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={columnVisibility[colId]} 
+                                                        onChange={() => toggleColumn(colId)}
+                                                        className="w-3.5 h-3.5 rounded border-slate-200 text-indigo-500 focus:ring-indigo-400"
+                                                    />
+                                                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">{colId}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Active Filters Clear Button */}
+                    {(searchQuery || statusFilter.length > 0 || dateFrom || dateTo) && (
+                        <button 
+                            onClick={clearFilters}
+                            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-all text-[10px] font-black uppercase tracking-wider"
+                        >
                             <X size={12} />
-                        </div>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-rose-500 transition-all">Limpiar</span>
-                    </button>
-                )}
-
-                {/* Export Buttons */}
-                <div className="ml-auto flex items-center gap-2">
-                    <button 
-                        onClick={handleCopyTable}
-                        disabled={isExporting || filteredTasks.length === 0}
-                        className="flex items-center gap-2.5 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 hover:bg-indigo-500 hover:text-white transition-all disabled:opacity-50 group"
-                    >
-                        {isExporting ? <Loader2 size={12} className="animate-spin" /> : <Clipboard size={12} className="group-hover:scale-110 transition-transform" />}
-                        <span className="text-[9px] font-black uppercase tracking-widest">Copiar Tabla</span>
-                    </button>
-                    <button 
-                        onClick={() => setIsSmartUploadModalOpen(true)}
-                        className="flex items-center gap-2.5 px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all group"
-                    >
-                        <UploadCloud size={12} className="group-hover:-translate-y-0.5 transition-transform" />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Cargar Inteligente</span>
-                    </button>
-                    <button 
-                        onClick={handleDownloadCSV}
-                        disabled={isExporting || filteredTasks.length === 0}
-                        className="flex items-center gap-2.5 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white hover:bg-slate-800 transition-all disabled:opacity-50 group shadow-lg shadow-slate-200"
-                    >
-                        {isExporting ? <Loader2 size={12} className="animate-spin" /> : <FileDown size={12} className="group-hover:-translate-y-0.5 transition-transform" />}
-                        <span className="text-[9px] font-black uppercase tracking-widest">Descargar CSV</span>
-                    </button>
-                    {selectedTaskIds.length > 0 && (
-                        <>
-                            <button 
-                                onClick={handleBatchDelete}
-                                className="flex items-center gap-2.5 px-4 py-2 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 hover:bg-amber-500 hover:text-white transition-all group"
-                            >
-                                <Eraser size={12} className="group-hover:scale-110 transition-transform" />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Limpiar Datos ({selectedTaskIds.length})</span>
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    const confirmText = prompt(`Escribe "ELIMINAR" para borrar permanentemente ${selectedTaskIds.length} artículos:`);
-                                    if (confirmText === 'ELIMINAR') {
-                                        confirmBatchDelete(true);
-                                    }
-                                }}
-                                className="flex items-center gap-2.5 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 hover:bg-rose-600 hover:text-white transition-all group"
-                            >
-                                <Trash2 size={12} className="group-hover:scale-110 transition-transform" />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Borrar ({selectedTaskIds.length})</span>
-                            </button>
-                        </>
+                            <span>Limpiar filtros</span>
+                        </button>
                     )}
                 </div>
-            </div>
-            </div>
+
+                {/* Right side: Selected counter & Hamburger Menu (3 rayitas ☰) */}
+                <div className="flex items-center gap-2 shrink-0">
+                    {selectedTaskIds.length > 0 && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200/70">
+                            {selectedTaskIds.length} seleccionados
+                        </span>
+                    )}
+
+                    {/* Hamburger Menu (3 rayitas) consolidating Actions */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setIsActionsMenuOpen(!isActionsMenuOpen)}
+                            className={cn(
+                                "h-9 w-9 flex items-center justify-center rounded-xl border transition-all shadow-xs active:scale-95",
+                                isActionsMenuOpen ? "bg-slate-900 text-white border-slate-900" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            )}
+                            title="Acciones de la tabla"
+                            aria-label="Menú de acciones"
+                        >
+                            <Menu size={16} />
+                        </button>
+
+                        <AnimatePresence>
+                            {isActionsMenuOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setIsActionsMenuOpen(false)} />
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                                        className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-40 p-2 space-y-1"
+                                    >
+                                        {/* Copiar Tabla */}
+                                        <button 
+                                            onClick={() => {
+                                                setIsActionsMenuOpen(false);
+                                                handleCopyTable();
+                                            }}
+                                            disabled={isExporting || filteredTasks.length === 0}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 transition-colors disabled:opacity-40"
+                                        >
+                                            <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                                <Clipboard size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[11px] font-black uppercase tracking-tight">Copiar Tabla</p>
+                                                <p className="text-[9px] text-slate-400 font-medium">Copia en formato TSV</p>
+                                            </div>
+                                        </button>
+
+                                        {/* Carga Inteligente */}
+                                        <button 
+                                            onClick={() => {
+                                                setIsActionsMenuOpen(false);
+                                                setIsSmartUploadModalOpen(true);
+                                            }}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 transition-colors"
+                                        >
+                                            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                                <UploadCloud size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[11px] font-black uppercase tracking-tight">Carga Inteligente</p>
+                                                <p className="text-[9px] text-slate-400 font-medium">Importar URLs o datos</p>
+                                            </div>
+                                        </button>
+
+                                        {/* Descargar CSV */}
+                                        <button 
+                                            onClick={() => {
+                                                setIsActionsMenuOpen(false);
+                                                handleDownloadCSV();
+                                            }}
+                                            disabled={isExporting || filteredTasks.length === 0}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-slate-100 text-slate-700 transition-colors disabled:opacity-40"
+                                        >
+                                            <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                                                <FileDown size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[11px] font-black uppercase tracking-tight">Descargar CSV</p>
+                                                <p className="text-[9px] text-slate-400 font-medium">Exportar vista actual</p>
+                                            </div>
+                                        </button>
+
+                                        <div className="border-t border-slate-100 my-1" />
+
+                                        {/* Limpieza Parcial */}
+                                        <button 
+                                            onClick={() => {
+                                                setIsActionsMenuOpen(false);
+                                                if (selectedTaskIds.length > 0) {
+                                                    handleBatchDelete();
+                                                }
+                                            }}
+                                            disabled={selectedTaskIds.length === 0}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-amber-50 text-slate-700 hover:text-amber-700 transition-colors disabled:opacity-40"
+                                        >
+                                            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                                                <Eraser size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[11px] font-black uppercase tracking-tight">
+                                                    Limpieza Parcial {selectedTaskIds.length > 0 && `(${selectedTaskIds.length})`}
+                                                </p>
+                                                <p className="text-[9px] text-slate-400 font-medium">
+                                                    {selectedTaskIds.length > 0 ? 'Limpiar datos de filas seleccionadas' : 'Selecciona filas para limpiar'}
+                                                </p>
+                                            </div>
+                                        </button>
+
+                                        {/* Eliminar Contenido */}
+                                        <button 
+                                            onClick={() => {
+                                                setIsActionsMenuOpen(false);
+                                                if (selectedTaskIds.length > 0) {
+                                                    const confirmText = prompt(`Escribe "ELIMINAR" para borrar permanentemente ${selectedTaskIds.length} artículos:`);
+                                                    if (confirmText === 'ELIMINAR') {
+                                                        confirmBatchDelete(true);
+                                                    }
+                                                }
+                                            }}
+                                            disabled={selectedTaskIds.length === 0}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-rose-50 text-rose-600 transition-colors disabled:opacity-40"
+                                        >
+                                            <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                                                <Trash2 size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[11px] font-black uppercase tracking-tight">
+                                                    Eliminar Contenido {selectedTaskIds.length > 0 && `(${selectedTaskIds.length})`}
+                                                </p>
+                                                <p className="text-[9px] text-rose-400 font-medium">
+                                                    {selectedTaskIds.length > 0 ? 'Borrar permanentemente' : 'Selecciona filas para borrar'}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
             </div>
 
-            {/* Main Area */}
+            <AnimatePresence>
+                {reinvestigateTask && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    className="bg-white w-full max-w-md rounded-[24px] p-6 shadow-2xl relative border border-slate-100"
+                                >
+                                    <div className="mb-6 border-b border-slate-100 pb-4">
+                                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Re-investigar Fase</h3>
+                                        <p className="text-xs text-slate-500 mt-1">Seleccioná la etapa que deseás ejecutar nuevamente para mejorar los resultados.</p>
+                                    </div>
+
+                                    <div className="mb-4 flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                        <div>
+                                            <p className="text-sm font-semibold text-slate-800">Modo Cascada (Recomendado)</p>
+                                            <p className="text-xs text-slate-500 mt-0.5">Propagar los cambios automáticamente a las fases posteriores.</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsCascadeMode(!isCascadeMode)}
+                                            className={cn("relative inline-flex h-6 w-11 items-center rounded-full transition-colors", isCascadeMode ? 'bg-blue-600' : 'bg-slate-300')}
+                                        >
+                                            <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", isCascadeMode ? 'translate-x-6' : 'translate-x-1')} />
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2 mb-6">
+                                        {[
+                                            { id: 'serp_done', label: 'Búsqueda SERP', desc: 'Actualiza el pool de competidores y la intención.', icon: Search },
+                                            { id: 'scraping_done', label: 'Extracción de Contenido', desc: 'Vuelve a scrapear los competidores.', icon: FileText },
+                                            { id: 'lsi_done', label: 'Keywords LSI', desc: 'Re-analiza la semántica del sector.', icon: Hash },
+                                            { id: 'ask_done', label: 'Argot Técnico (ASK)', desc: 'Refina la jerga experta del nicho.', icon: Zap },
+                                            { id: 'real_kws_done', label: 'Golden Keywords', desc: 'Extrae keywords con volumen real desde competidores afines.', icon: Sparkles },
+                                            { id: 'metadata_done', label: 'Metadatos SEO', desc: 'Genera nuevos títulos y descripciones.', icon: Type },
+                                            { id: 'interlinking_done', label: 'Interlinking', desc: 'Busca nuevas conexiones internas.', icon: Link },
+                                            { id: 'outline_done', label: 'Estructura Outline', desc: 'Rediseña la arquitectura del artículo.', icon: Layout },
+                                        ].map((phase) => (
+                                            <button
+                                                key={phase.id}
+                                                disabled={isReinvestigating}
+                                                onClick={async () => {
+                                                    if (!isCascadeMode && ['serp_done', 'scraping_done', 'lsi_done'].includes(phase.id)) {
+                                                        const conf = window.confirm("⚠️ ADVERTENCIA: Estás a punto de re-extraer datos fundacionales en Modo Aislado. Las fases posteriores (Metadatos, Outline) quedarán desactualizadas respecto al nuevo contenido. Se recomienda usar Modo Cascada.\n\n¿Deseás forzar la investigación de todos modos?");
+                                                        if (!conf) return;
+                                                    }
+                                                    setIsReinvestigating(true);
+                                                    try {
+                                                        const result = await StrategyService.runDeepSEOAnalysis({
+                                                            projectId: activeProject ? activeProject.id : "",
+                                                            keyword: reinvestigateTask.keyword,
+                                                            taskId: reinvestigateTask.id,
+                                                            phaseToRun: phase.id,
+                                                            cascade: isCascadeMode,
+                                                            onLog: (s, m, r) => addStrategyLog(reinvestigateTask.id, s, m, r),
+                                                            onProgress: (p) => setResearchPhaseId(p),
+                                                            linkPlannedContents,
+                                                            linkPlannedStatuses
+                                                        });
+                                                        if (result) {
+                                                            await updateTask(reinvestigateTask.id, {
+                                                                research_dossier: result.research_dossier,
+                                                                h1: result.h1,
+                                                                seo_title: result.seo_title,
+                                                                meta_description: result.meta_description,
+                                                                target_url_slug: result.target_url_slug,
+                                                                excerpt: result.excerpt,
+                                                                outline_structure: result.outline_structure
+                                                            });
+                                                            NotificationService.success("Fase Actualizada", `Se ha re-ejecutado la fase ${phase.label} con éxito.`);
+                                                        }
+                                                    } catch (e: any) {
+                                                        NotificationService.error("Error de fase", e.message);
+                                                    } finally {
+                                                        setIsReinvestigating(false);
+                                                        setReinvestigateTask(null);
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 group"
+                                            >
+                                                <div className="p-2 rounded-lg bg-slate-50 group-hover:bg-white text-slate-400 group-hover:text-indigo-600 transition-all">
+                                                    <phase.icon size={14} />
+                                                </div>
+                                                <div className="flex-1 text-left">
+                                                    <p className="text-slate-900">{phase.label}</p>
+                                                    <p className="text-[9px] text-slate-400 font-medium">{phase.desc}</p>
+                                                </div>
+                                                <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400 transition-all" />
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <button 
+                                        onClick={() => setReinvestigateTask(null)}
+                                        className="w-full py-3 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
             <main className="flex-1 overflow-hidden bg-white flex flex-col min-h-0">
                 <StrategyGrid 
                     tasks={filteredTasks}
@@ -1609,7 +1841,7 @@ export function EditorialCalendar() {
                         });
                         
                         // Refrescar contenidos y selección al terminar
-                        fetchProjectTasks(activeProject.id);
+                        if (activeProject) fetchProjectTasks(activeProject.id);
                         setSelectedTaskIds([]);
                     } catch (e: any) {
                         console.error(e);

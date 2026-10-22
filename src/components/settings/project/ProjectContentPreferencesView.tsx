@@ -19,6 +19,7 @@ import {
 import { AVAILABLE_LANGUAGES } from "@/constants/languages";
 import { cn } from "@/utils/cn";
 import { supabase } from "@/lib/supabase";
+import SmartSlugGeneratorModal from "@/components/dashboard/SmartSlugGeneratorModal";
 
 export default function ProjectContentPreferencesView() {
     const { activeProject, updateProject } = useProjectStore();
@@ -35,6 +36,12 @@ export default function ProjectContentPreferencesView() {
     const [dateMode, setDateMode] = useState<'exact' | 'month'>('exact');
     const [newContentType, setNewContentType] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [linkPlannedContents, setLinkPlannedContents] = useState(false);
+    const [linkPlannedStatuses, setLinkPlannedStatuses] = useState<string[]>([
+        "por_redactar", "por_corregir", "redactado", "en_revision", "publicado", "humanizado", "en_investigacion"
+    ]);
+    const [improveTitleWithNous, setImproveTitleWithNous] = useState(false);
+    const [isSlugModalOpen, setIsSlugModalOpen] = useState(false);
 
     useEffect(() => {
         if (activeProject?.settings?.content_preferences) {
@@ -47,6 +54,11 @@ export default function ProjectContentPreferencesView() {
             setDefaultContentLang(prefs.default_content_language || 'es');
             setCustomContentTypes(prefs.custom_content_types || []);
             setDateMode(prefs.date_mode || 'exact');
+            setLinkPlannedContents(prefs.link_planned_contents ?? false);
+            setLinkPlannedStatuses(prefs.link_planned_statuses || [
+                "por_redactar", "por_corregir", "redactado", "en_revision", "publicado", "humanizado", "en_investigacion"
+            ]);
+            setImproveTitleWithNous(prefs.improve_title_with_nous ?? false);
         }
     }, [activeProject]);
 
@@ -64,7 +76,10 @@ export default function ProjectContentPreferencesView() {
                     default_translator_languages: defaultLangs,
                     default_content_language: defaultContentLang,
                     custom_content_types: customContentTypes,
-                    date_mode: dateMode
+                    date_mode: dateMode,
+                    link_planned_contents: linkPlannedContents,
+                    link_planned_statuses: linkPlannedStatuses,
+                    improve_title_with_nous: improveTitleWithNous
                 }
             };
 
@@ -188,6 +203,42 @@ export default function ProjectContentPreferencesView() {
                                 Guardar Preferencias
                             </button>
                         </div>
+                    </section>
+
+                                        {/* Title Optimization with Nous */}
+                    <section className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm space-y-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+                            <Sparkles size={120} />
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500 shadow-sm">
+                                    <Sparkles size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-slate-900 uppercase italic">Mejorar Títulos con Nous</h3>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Optimización de títulos durante la investigación SEO</p>
+                                </div>
+                            </div>
+                            <button 
+                                type="button"
+                                onClick={() => setImproveTitleWithNous(!improveTitleWithNous)}
+                                className={cn(
+                                    "w-12 h-6 rounded-full transition-all duration-300 relative shrink-0",
+                                    improveTitleWithNous ? "bg-amber-500" : "bg-slate-200"
+                                )}
+                            >
+                                <div className={cn(
+                                    "absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm",
+                                    improveTitleWithNous ? "left-6.5" : "left-0.5"
+                                )} />
+                            </button>
+                        </div>
+
+                        <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                            Al activar esta opción, cuando Nous realice la investigación profunda de un artículo en el planificador, actualizará automáticamente el título con una versión optimizada para SEO y CTR basada en los datos de la SERP.
+                        </p>
                     </section>
 
                     {/* Content Creation Default Language */}

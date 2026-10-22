@@ -30,6 +30,9 @@ export interface Project {
             custom_content_types?: string[];
             custom_statuses?: string[];
             date_mode?: 'exact' | 'month';
+            link_planned_contents?: boolean;
+            link_planned_statuses?: string[];
+            improve_title_with_nous?: boolean;
         };
         images?: {
             watermark_enabled: boolean;
