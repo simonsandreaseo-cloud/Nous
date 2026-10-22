@@ -2502,7 +2502,7 @@ export default function WriterStudio() {
                         />
 
                         {/* Mobile Editor Content Area */}
-                        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28 custom-scrollbar" id="editor-scroll-container">
                             {/* Editable Title */}
                             <div className="mb-4">
                                 <input
@@ -2520,11 +2520,25 @@ export default function WriterStudio() {
                             <FeaturedImageSlot taskId={draftId} onFullscreen={(asset) => setFullscreenAsset(asset)} />
 
                             {/* Tiptap / Code Editor */}
-                            {renderEditorContent()}
+                            {content === null ? (
+                                <div className="py-20 flex flex-col items-center justify-center gap-3">
+                                    <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando documento...</span>
+                                </div>
+                            ) : (
+                                <div className="relative bg-white min-h-[500px]">
+                                    <WriterEditor key={draftId || 'standard'} />
+                                </div>
+                            )}
                         </div>
 
-                        {/* Bottom Formatting Toolbar (docked, Image 2 style) */}
-                        <WriterMobileFormattingBar />
+                        {/* Bottom Formatting Toolbar (docked, Google Docs style) */}
+                        <WriterMobileFormattingBar
+                            onOpenMediaTab={() => {
+                                setMobileToolsTab('media');
+                                setIsMobileToolsOpen(true);
+                            }}
+                        />
                     </div>
                 )}
 
