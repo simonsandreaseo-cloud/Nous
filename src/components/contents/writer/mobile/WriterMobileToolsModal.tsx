@@ -134,7 +134,7 @@ export function WriterMobileToolsModal({
                         </div>
 
                         {/* Content View Area */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 bg-slate-50/30">
+                        <div className="flex-1 flex flex-col min-h-0 bg-slate-50/30 overflow-hidden">
                             {children}
                         </div>
                     </motion.div>

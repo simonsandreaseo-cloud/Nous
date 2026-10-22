@@ -2175,22 +2175,99 @@ export default function WriterStudio() {
                                        )}
                                    </AnimatePresence>
 
-                                   {/* Lista de Acciones en la Cola (Scrolleable) */}
-                                   <div 
-                                       ref={scrollContainerRef}
-                                       className="flex-1 overflow-y-auto p-4 space-y-4 pb-24"
-                                   >
-                                       {localActionsQueue.length === 0 ? (
-                                           <div className="h-full flex flex-col items-center justify-center py-10">
-                                               <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 mb-3 shadow-inner">
-                                                   <Activity size={24} />
-                                               </div>
-                                               <p className="text-xs font-black uppercase tracking-wider text-slate-800 text-center">Diseña tu Pipeline</p>
-                                               <p className="text-[10px] text-slate-500 text-center max-w-[200px] mt-1 leading-snug font-medium">Agrega las acciones inteligentes que se ejecutarán secuencialmente sobre tu borrador.</p>
-                                           </div>
-                                       ) : (
-                                           <div className="space-y-3">
-                                               {localActionsQueue.map((action, index) => {
+                                   {/* Contenedor scrolleable: "Añadir Acción" siempre arriba, seguido de la cola de acciones */}
+                                    <div 
+                                        ref={scrollContainerRef}
+                                        className="flex-1 overflow-y-auto p-4 space-y-3.5 min-h-0 custom-scrollbar"
+                                    >
+                                        {/* Botón de Añadir Acción (+ Rectángulo Punteado) - SIEMPRE ARRIBA */}
+                                        {!isProcessingPipeline && (
+                                            <div className="relative">
+                                                <button 
+                                                    onClick={() => setIsSelectorOpen(!isSelectorOpen)}
+                                                    className="w-full border-2 border-dashed border-slate-200 hover:border-indigo-400/60 rounded-2xl bg-white/80 hover:bg-slate-50 transition-all flex items-center justify-center gap-3 p-3.5 cursor-pointer group shadow-2xs"
+                                                >
+                                                    <div className="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white rounded-full p-2 shadow-sm group-hover:scale-105 transition-all duration-300">
+                                                        <Plus size={15} />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 block">Añadir Acción</span>
+                                                        <span className="text-[8px] text-slate-400 font-medium block">Haz clic para diseñar tu flujo secuencial</span>
+                                                    </div>
+                                                </button>
+
+                                                {/* Popover Contextual de Selección de Acciones - Se despliega hacia abajo */}
+                                                <AnimatePresence>
+                                                    {isSelectorOpen && (
+                                                        <>
+                                                            <div 
+                                                                className="fixed inset-0 z-40" 
+                                                                onClick={() => setIsSelectorOpen(false)} 
+                                                            />
+                                                            <motion.div 
+                                                                initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                                                                className="absolute top-[105%] left-0 right-0 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-2xl p-2.5 z-50 space-y-1 max-h-[320px] overflow-y-auto custom-scrollbar"
+                                                            >
+                                                                <div className="px-2 py-1.5 border-b border-slate-100 mb-1 sticky top-0 bg-white/95 backdrop-blur-sm z-10 flex items-center justify-between">
+                                                                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Seleccionar Tarea Inteligente</span>
+                                                                    <button 
+                                                                        onClick={() => setIsSelectorOpen(false)}
+                                                                        className="text-slate-400 hover:text-slate-600 p-0.5 rounded-md"
+                                                                    >
+                                                                        <X size={12} />
+                                                                    </button>
+                                                                </div>
+                                                                {[
+                                                                    { type: 'research', label: 'Investigación Completa', desc: 'Dossier, SEO y competidores.', Icon: Search, color: 'text-indigo-600' },
+                                                                    { type: 'outline', label: 'Estructura de Outline', desc: 'Planificación de H2/H3.', Icon: Layers, color: 'text-amber-600' },
+                                                                    { type: 'generate', label: 'Redacción IA Helios', desc: 'Borrador base estructurado.', Icon: PenTool, color: 'text-rose-600' },
+                                                                    { type: 'humanize', label: 'Humanizador Semántico', desc: 'Toque humano e invisibilidad AI.', Icon: Zap, color: 'text-emerald-600' },
+                                                                    { type: 'surgical_edit', label: 'Edición Quirúrgica', desc: 'Estilo y fluidez mejorada.', Icon: Scissors, color: 'text-purple-600' },
+                                                                    { type: 'clean', label: 'Limpieza Inteligente', desc: 'Remover huellas robóticas.', Icon: Sparkles, color: 'text-blue-600' },
+                                                                    { type: 'seo', label: 'Optimización SEO', desc: 'Integración SEO avanzada.', Icon: Wand2, color: 'text-teal-600' },
+                                                                    { type: 'image', label: 'Generación de Imágenes', desc: 'Imágenes optimizadas para el artículo.', Icon: ImageIcon, color: 'text-pink-600' },
+                                                                    { type: 'translation', label: 'Traducción Profesional', desc: 'Multi-idiomas localizado.', Icon: Languages, color: 'text-cyan-600' },
+                                                                    { type: 'refine', label: 'Refinamiento Manual', desc: 'Instrucciones personalizadas.', Icon: BrainCircuit, color: 'text-violet-600' },
+                                                                    { type: 'custom_transform', label: 'Maquetador HTML/CSS', desc: 'Estructura y diseño premium.', Icon: LayoutTemplate, color: 'text-orange-600' }
+                                                                ].map(item => (
+                                                                    <button
+                                                                        key={item.type}
+                                                                        onClick={() => {
+                                                                            addActionToQueue(item.type as any);
+                                                                            setIsSelectorOpen(false);
+                                                                        }}
+                                                                        className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
+                                                                    >
+                                                                        <div className={cn("p-1.5 rounded-lg bg-slate-50 border border-slate-100 shrink-0", item.color)}>
+                                                                            <item.Icon size={14} />
+                                                                        </div>
+                                                                        <div className="min-w-0">
+                                                                            <div className="text-[10px] font-black uppercase tracking-wider text-slate-800 leading-tight">{item.label}</div>
+                                                                            <div className="text-[8px] text-slate-500 font-medium leading-normal">{item.desc}</div>
+                                                                        </div>
+                                                                    </button>
+                                                                ))}
+                                                            </motion.div>
+                                                        </>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        )}
+
+                                        {/* Cola de Acciones o Estado Vacío */}
+                                        {localActionsQueue.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                                                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500 mb-3 shadow-inner">
+                                                    <Activity size={24} />
+                                                </div>
+                                                <p className="text-xs font-black uppercase tracking-wider text-slate-800 text-center">Diseña tu Pipeline</p>
+                                                <p className="text-[10px] text-slate-500 text-center max-w-[220px] mt-1 leading-snug font-medium">Agrega las acciones inteligentes que se ejecutarán secuencialmente sobre tu borrador.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {localActionsQueue.map((action, index) => {
                                                    let title = '';
                                                    let desc = '';
                                                    let Icon = Search;
@@ -2390,93 +2467,31 @@ export default function WriterStudio() {
                                                        </motion.div>
                                                    );
                                                })}
-                                           </div>
-                                       )}
+                                            </div>
+                                        )}
+                                    </div>
 
-                                       {/* Botón de Añadir Acción (+ Rectángulo Punteado) */}
-                                       {!isProcessingPipeline && (
-                                           <div className="relative">
-                                               <button 
-                                                   onClick={() => setIsSelectorOpen(!isSelectorOpen)}
-                                                   className="w-full border-2 border-dashed border-slate-200 hover:border-indigo-400/60 rounded-2xl bg-slate-50/30 hover:bg-slate-50/60 transition-all flex flex-col items-center justify-center p-6 cursor-pointer group min-h-[120px]"
-                                               >
-                                                   <div className="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white rounded-full p-2.5 shadow-md group-hover:scale-105 transition-all duration-300">
-                                                       <Plus size={16} />
-                                                   </div>
-                                                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 mt-2.5">Añadir Acción</span>
-                                                   <span className="text-[8px] text-slate-400 mt-1 font-medium">Haz clic para diseñar tu flujo secuencial</span>
-                                               </button>
-
-                                               {/* Popover Contextual de Selección de Acciones */}
-                                               <AnimatePresence>
-                                                   {isSelectorOpen && (
-                                                       <motion.div 
-                                                           initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                                                           animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                                           className="absolute bottom-[115%] left-0 right-0 bg-white/90 backdrop-blur-xl border border-slate-200/50 rounded-2xl shadow-xl p-3 z-50 space-y-1"
-                                                       >
-                                                           <div className="px-2 py-1.5 border-b border-slate-100 mb-1">
-                                                               <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Seleccionar Tarea inteligente</span>
-                                                           </div>
-                                                           {[
-                                                               { type: 'research', label: 'Investigación Completa', desc: 'Dossier, SEO y competidores.', Icon: Search, color: 'text-indigo-600' },
-                                                               { type: 'outline', label: 'Estructura de Outline', desc: 'Planificación de H2/H3.', Icon: Layers, color: 'text-amber-600' },
-                                                               { type: 'generate', label: 'Redacción IA Helios', desc: 'Borrador base estructurado.', Icon: PenTool, color: 'text-rose-600' },
-                                                               { type: 'humanize', label: 'Humanizador Semántico', desc: 'Toque humano e invisibilidad AI.', Icon: Zap, color: 'text-emerald-600' },
-                                                               { type: 'surgical_edit', label: 'Edición Quirúrgica', desc: 'Estilo y fluidez mejorada.', Icon: Scissors, color: 'text-purple-600' },
-                                                               { type: 'clean', label: 'Limpieza Inteligente', desc: 'Remover huellas robóticas.', Icon: Sparkles, color: 'text-blue-600' },
-                                                               { type: 'seo', label: 'Optimización SEO', desc: 'Integración SEO avanzada.', Icon: Wand2, color: 'text-teal-600' },
-                                                               { type: 'image', label: 'Generación de Imágenes', desc: 'Imágenes optimizadas para el artículo.', Icon: ImageIcon, color: 'text-pink-600' },
-                                                               { type: 'translation', label: 'Traducción Profesional', desc: 'Multi-idiomas localizado.', Icon: Languages, color: 'text-cyan-600' },
-                                                               { type: 'refine', label: 'Refinamiento Manual', desc: 'Instrucciones personalizadas.', Icon: BrainCircuit, color: 'text-violet-600' },
-                                                               { type: 'custom_transform', label: 'Maquetador HTML/CSS', desc: 'Estructura y diseño premium.', Icon: LayoutTemplate, color: 'text-orange-600' }
-                                                           ].map(item => (
-                                                               <button
-                                                                   key={item.type}
-                                                                   onClick={() => {
-                                                                       addActionToQueue(item.type as any);
-                                                                       setIsSelectorOpen(false);
-                                                                   }}
-                                                                   className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
-                                                               >
-                                                                   <div className={cn("p-1.5 rounded-lg bg-slate-50 border border-slate-100 shrink-0", item.color)}>
-                                                                       <item.Icon size={14} />
-                                                                   </div>
-                                                                   <div className="min-w-0">
-                                                                       <div className="text-[10px] font-black uppercase tracking-wider text-slate-800 leading-tight">{item.label}</div>
-                                                                       <div className="text-[8px] text-slate-500 font-medium leading-normal">{item.desc}</div>
-                                                                   </div>
-                                                               </button>
-                                                           ))}
-                                                       </motion.div>
-                                                   )}
-                                               </AnimatePresence>
-                                           </div>
-                                       )}
-                                   </div>
-
-                                   {/* Botón sticky de "Procesar Pipeline" */}
-                                   <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent backdrop-blur-md shrink-0 border-t border-slate-100/60 flex flex-col gap-1 z-20">
-                                       <button
-                                           disabled={localActionsQueue.length === 0 || isProcessingPipeline}
-                                           onClick={processPipeline}
-                                           className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black uppercase tracking-widest text-[11px] py-3.5 px-4 rounded-xl shadow-lg hover:shadow-indigo-500/25 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
-                                       >
-                                           {isProcessingPipeline ? (
-                                               <>
-                                                   <Loader2 size={13} className="animate-spin" />
-                                                   <span>Ejecutando Pipeline...</span>
-                                               </>
-                                           ) : (
-                                               <>
-                                                   <Activity size={13} />
-                                                   <span>Procesar Pipeline ({localActionsQueue.length})</span>
-                                               </>
-                                           )}
-                                       </button>
-                                   </div>
-                               </div>
+                                    {/* Botón de "Procesar Pipeline" fijado abajo (shrink-0, NUNCA absoluto, nada queda debajo) */}
+                                    <div className="shrink-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] flex flex-col gap-1 z-10">
+                                        <button
+                                            disabled={localActionsQueue.length === 0 || isProcessingPipeline}
+                                            onClick={processPipeline}
+                                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black uppercase tracking-widest text-[11px] py-3.5 px-4 rounded-xl shadow-lg hover:shadow-indigo-500/25 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+                                        >
+                                            {isProcessingPipeline ? (
+                                                <>
+                                                    <Loader2 size={13} className="animate-spin" />
+                                                    <span>Ejecutando Pipeline...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Activity size={13} />
+                                                    <span>Procesar Pipeline ({localActionsQueue.length})</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
                            ) : 
 
                          <CompetitorPanel />

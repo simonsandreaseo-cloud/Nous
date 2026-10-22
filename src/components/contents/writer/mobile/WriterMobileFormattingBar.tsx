@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
     Bold, 
     Italic, 
@@ -72,6 +72,36 @@ export function WriterMobileFormattingBar({ onInsertImage, onOpenMediaTab }: Wri
     const [isStyleSheetOpen, setIsStyleSheetOpen] = useState(false);
     const [isLinkPromptOpen, setIsLinkPromptOpen] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
+    const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+    // Track mobile virtual keyboard via visualViewport API to keep toolbar sticky above keyboard
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const handleResize = () => {
+            if (window.visualViewport) {
+                const vv = window.visualViewport;
+                const offset = Math.max(0, window.innerHeight - (vv.height + (vv.offsetTop || 0)));
+                setKeyboardOffset(offset > 40 ? offset : 0);
+            }
+        };
+
+        handleResize();
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleResize);
+            window.visualViewport.addEventListener('scroll', handleResize);
+        }
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', handleResize);
+                window.visualViewport.removeEventListener('scroll', handleResize);
+            }
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
 
     // Native image upload hook to Supabase bucket
     const { isUploading: isUploadingImage, uploadProgress, openFilePicker } = useImageUpload({
@@ -129,7 +159,16 @@ export function WriterMobileFormattingBar({ onInsertImage, onOpenMediaTab }: Wri
     return (
         <>
             {/* Docked Primary Toolbar */}
-            <div className="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-between select-none">
+            <div 
+                style={{
+                    bottom: keyboardOffset > 0 ? `${keyboardOffset}px` : 0,
+                    transition: 'bottom 0.15s cubic-bezier(0.1, 0.9, 0.2, 1)'
+                }}
+                className={cn(
+                    "fixed inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 flex items-center justify-between select-none",
+                    keyboardOffset > 0 ? "pb-1.5" : "pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+                )}
+            >
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar w-full py-0.5">
                     
                     {/* Botón Insertar (+) - Estilo Google Docs */}
