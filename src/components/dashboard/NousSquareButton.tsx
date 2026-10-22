@@ -1,7 +1,14 @@
 import React, { useRef, useState } from 'react';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { cn } from '@/utils/cn';
 
-export const NousSquareButton = ({ onClick }: { onClick: () => void }) => {
+interface NousSquareButtonProps {
+    onClick: () => void;
+    className?: string;
+    size?: 'sm' | 'md' | 'lg';
+}
+
+export const NousSquareButton = ({ onClick, className, size = 'sm' }: NousSquareButtonProps) => {
     const [isHovered, setIsHovered] = useState(false);
     
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -28,6 +35,18 @@ export const NousSquareButton = ({ onClick }: { onClick: () => void }) => {
         y.set(0);
     };
 
+    const sizeClasses = {
+        sm: 'w-10 h-10 rounded-xl',
+        md: 'w-12 h-12 rounded-2xl',
+        lg: 'w-[72px] h-[72px] rounded-[18px]'
+    }[size];
+
+    const iconSizeClasses = {
+        sm: 'w-5 h-5',
+        md: 'w-6 h-6',
+        lg: 'w-10 h-10'
+    }[size];
+
     return (
         <motion.button
             onClick={onClick}
@@ -40,9 +59,15 @@ export const NousSquareButton = ({ onClick }: { onClick: () => void }) => {
                 y: springY,
                 boxShadow: "inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.1)"
             }}
-            className="relative flex items-center justify-center overflow-hidden group bg-[#1C1C1C] rounded-[18px] w-[72px] h-[72px] shrink-0 transition-transform cursor-pointer"
+            className={cn(
+                "relative flex items-center justify-center overflow-hidden group bg-[#1C1C1C] shrink-0 transition-transform cursor-pointer",
+                sizeClasses,
+                className
+            )}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            aria-label="Nous Master Pipeline"
+            title="Nous Master Pipeline"
         >
             <motion.div 
                 className="absolute inset-0 bg-indigo-500/20 z-0"
@@ -67,7 +92,7 @@ export const NousSquareButton = ({ onClick }: { onClick: () => void }) => {
             </div>
             
             <motion.div
-                className="relative z-10 w-10 h-10"
+                className={cn("relative z-10", iconSizeClasses)}
                 animate={isHovered ? { 
                     rotate: [0, -10, 10, -5, 5, 0],
                     scale: [1, 1.1, 1] 

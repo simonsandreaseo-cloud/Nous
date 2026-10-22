@@ -1323,7 +1323,7 @@ export function EditorialCalendar() {
                     <NousSquareButton onClick={() => setIsPipelineModalOpen(true)} />
 
                     {/* Search Input */}
-                    <div className="relative flex-1 max-w-sm">
+                    <div className="relative flex-1 max-w-xl lg:max-w-2xl">
                         <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input 
                             type="text" 
@@ -1474,6 +1474,26 @@ export function EditorialCalendar() {
                         </AnimatePresence>
                     </div>
 
+                    {/* Active Filters Clear Button */}
+                    {(searchQuery || statusFilter.length > 0 || dateFrom || dateTo) && (
+                        <button 
+                            onClick={clearFilters}
+                            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-all text-[10px] font-black uppercase tracking-wider"
+                        >
+                            <X size={12} />
+                            <span>Limpiar filtros</span>
+                        </button>
+                    )}
+                </div>
+
+                {/* Right side: Selected counter & Hamburger Menu (3 rayitas ☰) */}
+                <div className="flex items-center gap-2 shrink-0">
+                    {selectedTaskIds.length > 0 && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200/70">
+                            {selectedTaskIds.length} seleccionados
+                        </span>
+                    )}
+
                     {/* Column Visibility Selector (Hash) */}
                     <div className="relative">
                         <button 
@@ -1494,7 +1514,7 @@ export function EditorialCalendar() {
                                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-4 space-y-2"
+                                        className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-4 space-y-2"
                                     >
                                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1 px-1">Columnas</span>
                                         <div className="max-h-[300px] overflow-y-auto custom-scrollbar px-1">
@@ -1516,26 +1536,7 @@ export function EditorialCalendar() {
                         </AnimatePresence>
                     </div>
 
-                    {/* Active Filters Clear Button */}
-                    {(searchQuery || statusFilter.length > 0 || dateFrom || dateTo) && (
-                        <button 
-                            onClick={clearFilters}
-                            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-all text-[10px] font-black uppercase tracking-wider"
-                        >
-                            <X size={12} />
-                            <span>Limpiar filtros</span>
-                        </button>
-                    )}
-                </div>
-
-                {/* Right side: Selected counter & Hamburger Menu (3 rayitas ☰) */}
-                <div className="flex items-center gap-2 shrink-0">
-                    {selectedTaskIds.length > 0 && (
-                        <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200/70">
-                            {selectedTaskIds.length} seleccionados
-                        </span>
-                    )}
-
+                    
                     {/* Hamburger Menu (3 rayitas) consolidating Actions */}
                     <div className="relative">
                         <button 
