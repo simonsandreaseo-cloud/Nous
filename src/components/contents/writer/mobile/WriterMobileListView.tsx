@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
     Menu, 
     Search, 
@@ -19,7 +19,8 @@ import {
     ArrowUpDown,
     CheckCircle2,
     Clock,
-    FileEdit
+    FileEdit,
+    Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
@@ -39,18 +40,56 @@ export function WriterMobileListView({
     onOpenDrawer
 }: WriterMobileListViewProps) {
     const { user } = useAuthStore();
-    const { projects, activeProjectIds, activeTeam, deleteTask } = useProjectStore();
-    const { projectContents, draftId, projectId } = useWriterStore();
+    const { 
+        projects, 
+        activeProjectIds, 
+        activeTeam, 
+        deleteTask, 
+        fetchTeams, 
+        isLoading: isProjectsLoading 
+    } = useProjectStore();
+    const { 
+        projectContents, 
+        draftId, 
+        loadProjectContents 
+    } = useWriterStore();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [actionTaskId, setActionTaskId] = useState<string | null>(null);
+    const [isLoadingContents, setIsLoadingContents] = useState(true);
+
+    // Initial load: ensure teams and projects are fetched
+    useEffect(() => {
+        if (projects.length === 0) {
+            fetchTeams();
+        }
+    }, [projects.length, fetchTeams]);
+
+    // Load contents automatically whenever activeProjectIds or projects change
+    useEffect(() => {
+        const idsToLoad = activeProjectIds.length > 0 
+            ? activeProjectIds 
+            : projects.map(p => p.id);
+
+        if (idsToLoad.length > 0) {
+            setIsLoadingContents(true);
+            loadProjectContents(idsToLoad).finally(() => {
+                setIsLoadingContents(false);
+            });
+        } else if (!isProjectsLoading && projects.length === 0) {
+            setIsLoadingContents(false);
+        }
+    }, [activeProjectIds, projects, loadProjectContents, isProjectsLoading]);
 
     // Filter tasks based on active project IDs, search term, and status filter
     const projectTasks = useMemo(() => {
-        return projectContents.filter(t => !projectId || t.project_id === projectId);
-    }, [projectContents, projectId]);
+        if (activeProjectIds.length > 0) {
+            return projectContents.filter(t => activeProjectIds.includes(t.project_id));
+        }
+        return projectContents;
+    }, [projectContents, activeProjectIds]);
 
     const statusLabelsMap = useMemo(() => {
         const map = { ...STATUS_LABELS };
@@ -78,8 +117,11 @@ export function WriterMobileListView({
 
     // Active project display name
     const currentProject = useMemo(() => {
-        return projects.find(p => p.id === projectId) || projects.find(p => activeProjectIds.includes(p.id));
-    }, [projects, projectId, activeProjectIds]);
+        if (activeProjectIds.length === 1) {
+            return projects.find(p => p.id === activeProjectIds[0]);
+        }
+        return null;
+    }, [projects, activeProjectIds]);
 
     const handleTaskClick = (taskId: string) => {
         onSelectTask(taskId);
@@ -90,6 +132,11 @@ export function WriterMobileListView({
         if (window.confirm('¿Eliminar este contenido permanentemente?')) {
             await deleteTask(taskId);
             setActionTaskId(null);
+            // Refresh contents after delete
+            const idsToLoad = activeProjectIds.length > 0 ? activeProjectIds : projects.map(p => p.id);
+            if (idsToLoad.length > 0) {
+                loadProjectContents(idsToLoad);
+            }
         }
     };
 
@@ -168,7 +215,7 @@ export function WriterMobileListView({
             <div className="px-5 py-2 flex items-center justify-between text-xs text-slate-500 border-b border-slate-100 bg-white/60 shrink-0">
                 <div className="flex items-center gap-1.5 font-bold text-slate-700 truncate">
                     <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                        {currentProject ? currentProject.name : 'Todos los proyectos'}
+                        {currentProject ? currentProject.name : `${activeProjectIds.length || projects.length} proyectos activos`}
                     </span>
                     <span className="text-slate-300">•</span>
                     <span className="text-[11px] font-semibold text-slate-500">
@@ -266,7 +313,19 @@ export function WriterMobileListView({
 
             {/* Document List (Google Docs items - Image 1) */}
             <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100 pb-24">
-                {filteredTasks.length === 0 ? (
+                {isLoadingContents || isProjectsLoading ? (
+                    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 mb-3 shadow-inner">
+                            <Loader2 size={24} className="animate-spin text-indigo-600" />
+                        </div>
+                        <p className="text-xs font-black uppercase tracking-wider text-slate-700">
+                            Cargando documentos...
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                            Sincronizando con Supabase
+                        </p>
+                    </div>
+                ) : filteredTasks.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                         <div className="w-16 h-16 rounded-3xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 mb-3 shadow-inner">
                             <FileEdit size={28} />
@@ -313,7 +372,7 @@ export function WriterMobileListView({
                                         <span>•</span>
                                         <span>{formatDate(task.updated_at || task.created_at)}</span>
                                         {task.word_count ? (
-                                            <>
+                                             <>
                                                 <span>•</span>
                                                 <span>{task.word_count} pal.</span>
                                             </>

@@ -531,6 +531,21 @@ export default function WriterStudio() {
     const [mobileToolsTab, setMobileToolsTab] = useState<string>('nous');
     const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
 
+    // Ensure contents are loaded on mobile
+    useEffect(() => {
+        if (isMobile) {
+            const { activeProjectIds, projects, fetchTeams } = useProjectStore.getState();
+            if (projects.length === 0) {
+                fetchTeams();
+            } else {
+                const ids = activeProjectIds.length > 0 ? activeProjectIds : projects.map(p => p.id);
+                if (ids.length > 0) {
+                    useWriterStore.getState().loadProjectContents(ids);
+                }
+            }
+        }
+    }, [isMobile]);
+
     const { tasks, isLoading: isProjectLoading, fetchTaskContent, fetchTaskResearch } = useProjectStore(useShallow(state => ({
         tasks: state.tasks,
         isLoading: state.isLoading,
