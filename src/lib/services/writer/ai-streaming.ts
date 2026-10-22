@@ -33,29 +33,33 @@ export async function streamGenerate(
         buffer = lines.pop() || '';
         
         for (const line of lines) {
-            if (!line.trim()) continue;
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            let parsed: any;
             try {
-                const parsed = JSON.parse(line);
-                if (parsed.type === 'error') throw new Error(parsed.error);
-                if (parsed.type === 'status') onStatus(parsed.message);
-                if (parsed.type === 'chunk') {
-                    finalHtml += parsed.html;
-                    onChunk(finalHtml);
-                }
-                if (parsed.type === 'done') {
-                    finalHtml = parsed.text || finalHtml;
-                    if (parsed.usage) finalUsage = parsed.usage;
-                }
-            } catch (e: any) {
-                if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
-                    throw e; 
-                }
+                parsed = JSON.parse(trimmed);
+            } catch (err: any) {
+                // Fragmento JSON incompleto del buffer de stream
+                continue;
+            }
+
+            if (parsed.type === 'error') {
+                throw new Error(parsed.error || 'Error en la generación de contenido.');
+            } else if (parsed.type === 'status') {
+                onStatus(parsed.message);
+            } else if (parsed.type === 'chunk') {
+                finalHtml += parsed.html;
+                onChunk(finalHtml);
+            } else if (parsed.type === 'done') {
+                finalHtml = parsed.text || finalHtml;
+                if (parsed.usage) finalUsage = parsed.usage;
             }
         }
     }
     
-    if (!finalHtml) throw new Error("No se generó contenido válido.");
-    return { html: finalHtml, usage: finalUsage };
+    const outputHtml = finalHtml.trim();
+    if (!outputHtml) throw new Error("No se generó contenido válido o el servidor devolvió un resultado vacío.");
+    return { html: outputHtml, usage: finalUsage };
 }
 
 export async function streamHumanize(
@@ -114,46 +118,38 @@ export async function streamHumanize(
         buffer = lines.pop() || '';
         
         for (const line of lines) {
-            if (!line.trim()) continue;
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            let parsed: any;
             try {
-                const parsed = JSON.parse(line);
-                if (parsed.type === 'status') {
-                    onStatus(parsed.message);
-                } else if (parsed.type === 'chunk') {
-                    // El API ahora puede enviar chunks de todo el HTML reconstruido 
-                    // No concatenar, simplemente reemplazar para mostrar el progreso!
-                    // Wait, runHumanizerPipeline passes the whole HTML?
-                    // YES! `onChunk(tmp.html())` in aiActions sends the *entire* HTML so far.
-                    // Oh, wait. In runHumanizerPipeline:
-                    // `onChunk(tmp.html());` inside the loop.
-                    // If we do `newContent += parsed.html`, it will duplicate!
-                    // Let's replace the whole `newContent` with `parsed.html`?
-                    // Actually, the original implementation was `newContent += parsed.html + '\n';`.
-                    // But in original aiActions.ts it called `onChunk(finalHtml)` only once at the end!
-                    // Now it calls it multiple times with the FULL HTML updated so far.
-                    // Therefore we MUST NOT append! We must REPLACE!
-                    newContent = parsed.html;
-                    onChunk(newContent);
-                } else if (parsed.type === 'progress') {
-                    if (onProgress) onProgress(parsed.percent);
-                } else if (parsed.type === 'error') {
-                    throw new Error(parsed.error);
-                } else if (parsed.type === 'done') {
-                    finalResult = parsed.result; if(parsed.usage && finalResult) finalResult.usage = parsed.usage;
-                    if (parsed.usage) finalUsage = parsed.usage;
-                }
-            } catch (e: any) {
-                if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
-                    throw e;
-                }
+                parsed = JSON.parse(trimmed);
+            } catch (err: any) {
+                // Fragmento JSON incompleto del buffer de stream
+                continue;
+            }
+
+            if (parsed.type === 'error') {
+                throw new Error(parsed.error || 'Error en el proceso de humanización.');
+            } else if (parsed.type === 'status') {
+                onStatus(parsed.message);
+            } else if (parsed.type === 'chunk') {
+                newContent = parsed.html;
+                onChunk(newContent);
+            } else if (parsed.type === 'progress') {
+                if (onProgress) onProgress(parsed.percent);
+            } else if (parsed.type === 'done') {
+                finalResult = parsed.result;
+                if (parsed.usage && finalResult) finalResult.usage = parsed.usage;
+                if (parsed.usage) finalUsage = parsed.usage;
             }
         }
     }
 
-    if (!finalResult) {
-        finalResult = { html: newContent };
+    const outputHtml = (finalResult?.html || newContent || '').trim();
+    if (!finalResult || !outputHtml) {
+        throw new Error("El servidor terminó la conexión sin enviar el resultado final o devolvió un contenido vacío.");
     }
-    return { html: finalResult.html || newContent, result: finalResult, usage: finalUsage };
+    return { html: outputHtml, result: finalResult, usage: finalUsage };
 }
 
 export async function streamMiniHumanize(
@@ -206,36 +202,40 @@ export async function streamMiniHumanize(
         buffer = lines.pop() || '';
         
         for (const line of lines) {
-            if (!line.trim()) continue;
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            let parsed: any;
             try {
-                const parsed = JSON.parse(line);
-                if (parsed.type === 'status') {
-                    onStatus(parsed.message);
-                } else if (parsed.type === 'log') {
-                    console.log('%c[MiniHumanizer]', 'color: #f59e0b; font-weight: bold;', parsed.message);
-                } else if (parsed.type === 'chunk') {
-                    newContent = parsed.html;
-                    onChunk(newContent);
-                } else if (parsed.type === 'progress') {
-                    if (onProgress) onProgress(parsed.percent);
-                } else if (parsed.type === 'error') {
-                    throw new Error(parsed.error);
-                } else if (parsed.type === 'done') {
-                    finalResult = parsed.result; if(parsed.usage && finalResult) finalResult.usage = parsed.usage;
-                    if (parsed.usage) finalUsage = parsed.usage;
-                }
-            } catch (e: any) {
-                if (e.message !== "Unexpected end of JSON input" && !e.message.includes('JSON')) {
-                    throw e;
-                }
+                parsed = JSON.parse(trimmed);
+            } catch (err: any) {
+                // Fragmento JSON incompleto del buffer de stream
+                continue;
+            }
+
+            if (parsed.type === 'error') {
+                throw new Error(parsed.error || 'Error en el proceso de mini-humanización.');
+            } else if (parsed.type === 'status') {
+                onStatus(parsed.message);
+            } else if (parsed.type === 'log') {
+                console.log('%c[MiniHumanizer]', 'color: #f59e0b; font-weight: bold;', parsed.message);
+            } else if (parsed.type === 'chunk') {
+                newContent = parsed.html;
+                onChunk(newContent);
+            } else if (parsed.type === 'progress') {
+                if (onProgress) onProgress(parsed.percent);
+            } else if (parsed.type === 'done') {
+                finalResult = parsed.result;
+                if (parsed.usage && finalResult) finalResult.usage = parsed.usage;
+                if (parsed.usage) finalUsage = parsed.usage;
             }
         }
     }
 
-    if (!finalResult) {
-        finalResult = { html: newContent };
+    const outputHtml = (finalResult?.html || newContent || '').trim();
+    if (!finalResult || !outputHtml) {
+        throw new Error("El servidor terminó la conexión sin enviar el resultado final o devolvió un contenido vacío.");
     }
-    return { html: finalResult.html || newContent, result: finalResult, usage: finalUsage };
+    return { html: outputHtml, result: finalResult, usage: finalUsage };
 }
 
 

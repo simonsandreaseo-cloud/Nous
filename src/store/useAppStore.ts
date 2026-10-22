@@ -23,6 +23,11 @@ interface AppState {
     // AI Model Selection
     nousMode: 'alta_calidad' | 'equilibrado' | 'rapido';
     setNousMode: (mode: 'alta_calidad' | 'equilibrado' | 'rapido') => void;
+
+    // Mobile Navigation Drawer
+    isMobileMenuOpen: boolean;
+    setIsMobileMenuOpen: (open: boolean) => void;
+    toggleMobileMenu: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -43,4 +48,8 @@ export const useAppStore = create<AppState>((set) => ({
 
     nousMode: 'equilibrado',
     setNousMode: (mode) => set({ nousMode: mode }),
+
+    isMobileMenuOpen: false,
+    setIsMobileMenuOpen: (open) => set({ isMobileMenuOpen: open }),
+    toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
 }));

@@ -90,7 +90,7 @@ export function ContentsSidebar({ activeTool, onToolSelect }: ContentsSidebarPro
         <motion.aside 
             animate={{ width: isCollapsed ? 72 : 240 }}
             transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-            className="shrink-0 h-full flex flex-col bg-white border-r border-slate-100/80 shadow-[4px_0_24px_rgba(0,0,0,0.02)] relative z-50 overflow-hidden"
+            className="hidden md:flex shrink-0 h-full flex-col bg-white border-r border-slate-100/80 shadow-[4px_0_24px_rgba(0,0,0,0.02)] relative z-50 overflow-hidden"
         >
             {/* Section Switcher (Canva Style) */}
             <div className="h-16 shrink-0 flex items-center px-3 border-b border-slate-100/60 relative bg-white/40">

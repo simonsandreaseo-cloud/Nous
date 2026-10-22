@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ContentsSidebar } from "./ContentsSidebar";
+import { MobileNavigationDrawer } from "./MobileNavigationDrawer";
 import { Loader2, Sparkles, Construction } from "lucide-react";
 import { cn } from "@/utils/cn";
 import dynamic from "next/dynamic";
@@ -135,7 +136,11 @@ export function ContentsLayout({ initialTool = "planner" }: ContentsLayoutProps)
 
     return (
         <div className="flex h-screen overflow-hidden bg-white">
+            {/* Desktop Left Sidebar */}
             <ContentsSidebar activeTool={activeTool} onToolSelect={handleToolSelect} />
+
+            {/* Mobile Navigation Drawer (Overlay) */}
+            <MobileNavigationDrawer activeTool={activeTool} onToolSelect={handleToolSelect} />
 
             <div className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden relative">
                 <div className="flex-1 overflow-hidden flex flex-col">

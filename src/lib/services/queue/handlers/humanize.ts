@@ -97,6 +97,9 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
                     }
 
                     finalHtml = result.html;
+                    if (!finalHtml || !finalHtml.trim()) {
+                        throw new Error(`La humanización ${humanizerType} devolvió un contenido vacío (0 caracteres).`);
+                    }
                     humanizerSuccess = true;
                 } catch (err: any) {
                     attempts++;
@@ -221,6 +224,9 @@ export const handleHumanizeTask = async (taskId: string, payload: QueuePayload) 
         }
         
         const refined = refineStyling(finalHtml);
+        if (!refined || !refined.trim()) {
+            throw new Error(`El contenido humanizado final está vacío.`);
+        }
         const modelUsed = payload.model || payload.config?.model || 'Desconocido';
         const postVersionName = isUniprompt ? 'Post-Humanización Uniprompt' :
             isGramatical ? 'Post-Humanización Gramatical' : 'Humanizada';

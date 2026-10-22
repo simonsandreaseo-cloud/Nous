@@ -417,6 +417,9 @@ export async function executeHumanizePipeline(
                 );
 
                 resultHtml = humanizerResult.html;
+                if (!resultHtml || !resultHtml.trim()) {
+                    throw new Error(`La humanización ${effectiveHumanizerType} devolvió un contenido vacío (0 caracteres).`);
+                }
                 onChunk(resultHtml);
 
                 if (humanizerResult.usage && typeof window !== 'undefined') {

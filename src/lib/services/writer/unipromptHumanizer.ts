@@ -349,7 +349,10 @@ export async function runUnipromptHumanizerPipeline(
         safeStatus(`✅ Pase ${chunkIndex}/${chunks.length} completado (${progressEnd}%)`);
     }
 
-    const unifiedMarkdown = processedChunks.join('\n\n');
+    const unifiedMarkdown = processedChunks.join('\n\n').trim();
+    if (!unifiedMarkdown) {
+        throw new Error("La humanización Uniprompt no generó contenido en ninguno de los pases.");
+    }
     let finalHtml = unifiedMarkdown;
 
     if (isHtml) {
