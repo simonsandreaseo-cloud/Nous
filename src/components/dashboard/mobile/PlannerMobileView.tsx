@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { NousSquareButton } from '../NousSquareButton';
 import { 
     Menu, 
     Search, 
@@ -171,14 +172,11 @@ export function PlannerMobileView({
                     </button>
 
                     {/* Nous Pipeline Button */}
-                    <button
+                    <NousSquareButton 
                         onClick={onOpenPipeline}
-                        className="p-2 rounded-full bg-slate-900 text-amber-400 hover:bg-slate-800 transition-colors shrink-0 active:scale-95 shadow-xs"
-                        aria-label="Abrir Pipeline Nous"
-                        title="Nous Master"
-                    >
-                        <Sparkles size={16} />
-                    </button>
+                        className="w-9 h-9 rounded-xl"
+                        size="sm"
+                    />
                 </div>
             </div>
 
