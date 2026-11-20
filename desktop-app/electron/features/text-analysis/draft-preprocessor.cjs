@@ -260,6 +260,76 @@ function countTokenDelta(beforeText, afterText) {
   return Math.max(0, b.length - unchanged);
 }
 
+function sanitizeDraftInput(rawText) {
+  if (!rawText || typeof rawText !== 'string') return '';
+  let text = rawText.replace(/\u00A0/g, ' ');
+
+  if (/<\/?(?:p|div|h[1-6]|li|ul|ol|br|strong|em|b|i|span|a|blockquote|section|article|script|style)\b/i.test(text)) {
+    text = text
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<(?:svg|video|audio|iframe)[\s\S]*?<\/(?:svg|video|audio|iframe)>/gi, '')
+      .replace(/<img[^>]*>/gi, '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/h[1-6]>/gi, '\n\n')
+      .replace(/<h[1-6][^>]*>/gi, '\n\n')
+      .replace(/<li[^>]*>\s*<p[^>]*>/gi, '\n• ')
+      .replace(/<li[^>]*>/gi, '\n• ')
+      .replace(/<\/p>\s*<\/li>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<\/?(?:ul|ol)[^>]*>/gi, '\n')
+      .replace(/<\/(?:p|div|blockquote|section|article|tr)>/gi, '\n\n')
+      .replace(/<(?:p|div|blockquote|section|article|tr)[^>]*>/gi, '\n\n')
+      .replace(/<\/t[dh]>/gi, ' ')
+      .replace(/<t[dh][^>]*>/gi, ' ')
+      .replace(/<\/?[a-z][a-z0-9:-]*(?:\s+[^>]*)?>/gi, '');
+  }
+
+  const entities = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&iexcl;': '¡',
+    '&iquest;': '¿',
+    '&euro;': '€',
+    '&mdash;': '—',
+    '&ndash;': '–',
+    '&laquo;': '«',
+    '&raquo;': '»',
+    '&aacute;': 'á',
+    '&eacute;': 'é',
+    '&iacute;': 'í',
+    '&oacute;': 'ó',
+    '&uacute;': 'ú',
+    '&uuml;': 'ü',
+    '&ntilde;': 'ñ',
+    '&Aacute;': 'Á',
+    '&Eacute;': 'É',
+    '&Iacute;': 'Í',
+    '&Oacute;': 'Ó',
+    '&Uacute;': 'Ú',
+    '&Uuml;': 'Ü',
+    '&Ntilde;': 'Ñ'
+  };
+  for (const [ent, ch] of Object.entries(entities)) {
+    text = text.replaceAll(ent, ch);
+  }
+  text = text
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return text;
+}
+
 module.exports = {
   tokenize,
   getShapeKeysFromText,
@@ -271,5 +341,6 @@ module.exports = {
   breakLongSentence,
   cleanScrapingArtifacts,
   computeNGramOverlapRatio,
-  countTokenDelta
+  countTokenDelta,
+  sanitizeDraftInput
 };

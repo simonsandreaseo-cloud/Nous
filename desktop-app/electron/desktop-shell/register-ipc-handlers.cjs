@@ -135,7 +135,10 @@ function registerIpcHandlers(ipcMain, shell, getMainWindow) {
 
   // Bank Coverage Radar, Cross-Article Rotation & Hot Reload
   ipcMain.handle('get-domain-packs', async () => {
-    return domainRegistry.listDomainPacks();
+    const liveCounts = humanizationEngine.isLoaded
+      ? { optica: humanizationEngine.masterBricks.length }
+      : null;
+    return domainRegistry.listDomainPacks(liveCounts);
   });
 
   ipcMain.handle('get-bank-stats', async () => {

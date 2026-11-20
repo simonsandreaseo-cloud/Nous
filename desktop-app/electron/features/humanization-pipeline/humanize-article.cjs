@@ -18,7 +18,8 @@ const {
   isHeading,
   humanizeHeading,
   neutralizeAiCliches,
-  computeNGramOverlapRatio
+  computeNGramOverlapRatio,
+  sanitizeDraftInput
 } = require('../text-analysis/draft-preprocessor.cjs');
 const {
   extractDavidsonianAtoms,
@@ -112,7 +113,8 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
 
   if (!bankState.isLoaded) loadBanks(bankState);
   bankState.enableAntiPlagiarism = options.antiPlagiarism === true;
-  const paragraphs = rawArticleText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const cleanArticleText = sanitizeDraftInput(rawArticleText);
+  const paragraphs = cleanArticleText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   const allSections = [];
   let activeSecBuilder = {
     headingIndex: -1,
@@ -209,9 +211,9 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
 
   log(`==========================================================================`);
   log(`COMPILADOR BLUEPAPER NOUS: DECONSTRUCCIÓN Y RECONSTRUCCIÓN FÁCTICA PURA`);
-  log(`Total párrafos de entrada: ${paragraphs.length} | Caracteres: ${rawArticleText.length}`);
+  log(`Total párrafos de entrada: ${paragraphs.length} | Caracteres: ${cleanArticleText.length}`);
   log(`Bancos activos: ${bankState.masterBricks.length} ladrillos + ${(bankState.unifiedCorpusBricks || []).length} bloques unificados + ${(bankState.goldenMM?.length || 0) + (bankState.goldenOP?.length || 0) + (bankState.goldenVH?.length || 0)} marcos dorados (${bankState.corpus7GramMap?.size || 0} 7-gramas)`);
-  log(`Modo Qwen solicitado: ${requestedLocalLLM ? `SÍ (${activeModel})` : 'NO (Modo Determinista)'} | Anti-Plagio: ${bankState.enableAntiPlagiarism ? 'ACTIVO' : 'DESACTIVADO (Humanización Pura)'} | Anti-Outro: ${options.antiOutro !== false} | Glitches: ${options.injectGlitches !== false}`);
+  log(`Modo Qwen solicitado: ${requestedLocalLLM ? `SÍ (${activeModel})` : 'NO (Modo Determinista)'} | Anti-Plagio: ${bankState.enableAntiPlagiarism ? 'ACTIVO' : 'DESACTIVADO (Humanización Pura)'} | Anti-Outro: ${options.antiOutro !== false} | Glitches: ${options.injectGlitches === true || options.injectGlitches === 'force'}`);
 
   if (requestedLocalLLM) {
     const serverState = await ollamaClient.ensureServerRunning(log);
@@ -479,7 +481,7 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
     try {
       registryUpdate = bankGapTracker.recordArticleCoverage(bankCoverageReport, {
         title: paragraphs[0]?.slice(0, 90) || 'Artículo',
-        inputWords: rawArticleText.split(/\s+/).filter(Boolean).length,
+        inputWords: cleanArticleText.split(/\s+/).filter(Boolean).length,
         outputWords: totalWords,
         model: useLocalLLM ? activeModel : 'symbolic'
       });
@@ -509,7 +511,7 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
   const { lcsSamples: _dropLcs, ...publicCarrilBStats } = carrilBStats;
 
   log(`==================== RESUMEN DE COMPILACIÓN FÁCTICA ====================`);
-  log(`Palabras entrada: ${rawArticleText.split(/\s+/).filter(Boolean).length} -> Palabras salida: ${totalWords}`);
+  log(`Palabras entrada: ${cleanArticleText.split(/\s+/).filter(Boolean).length} -> Palabras salida: ${totalWords}`);
   log(`Divergencia promedio vs Original: ${avgDivergencePct}%`);
   log(`Burstiness (σ): ${burstiness.sigma}`);
   log(`Dispersión de donantes: ${telemetry.uniqueDonorDomains} dominios distintos`);

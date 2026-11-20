@@ -1,6 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { convertHtmlToPlainText } from '../../shared/html-to-plain-text';
 import { fullBohoArticle, shortBohoArticle } from '../../shared/sample-drafts/boho-eyewear-sample';
+
+const DEFAULT_MODEL_PRESETS = [
+  { value: 'qwen2.5:1.5b', label: 'qwen2.5:1.5b (Recomendado)' },
+  { value: 'qwen2.5:0.5b', label: 'qwen2.5:0.5b (Ultra Rápido)' }
+];
 
 export function useHumanizerSession() {
   const [inputText, setInputText] = useState(shortBohoArticle);
@@ -25,7 +30,7 @@ export function useHumanizerSession() {
   const [expandedParas, setExpandedParas] = useState({});
   const [errorMsg, setErrorMsg] = useState(null);
 
-  const [bankStats, setBankStats] = useState({ masterBricks: 8510, unifiedBricks: 0, goldenCount: 0 });
+  const [bankStats, setBankStats] = useState({ masterBricks: null, unifiedBricks: 0, goldenCount: 0 });
   const [bankGapsRegistry, setBankGapsRegistry] = useState(null);
   const [showBankGaps, setShowBankGaps] = useState(false);
   const [isReloadingBank, setIsReloadingBank] = useState(false);
@@ -48,15 +53,47 @@ export function useHumanizerSession() {
   const inputWords = inputText.trim() ? inputText.trim().split(/\s+/).filter(Boolean).length : 0;
   const outputWords = outputText.trim() ? outputText.trim().split(/\s+/).filter(Boolean).length : 0;
 
+  const modelOptions = useMemo(() => {
+    const installed = Array.isArray(ollamaStatus.models) ? ollamaStatus.models : [];
+    const seen = new Set();
+    const list = [];
+
+    for (const m of installed) {
+      if (!m?.name || seen.has(m.name)) continue;
+      seen.add(m.name);
+      const sizeInfo = m.parameter_size && m.parameter_size !== 'unknown' ? m.parameter_size : m.size;
+      list.push({
+        value: m.name,
+        label: `${m.name} (${sizeInfo ? `${sizeInfo} · ` : ''}instalado)`
+      });
+    }
+
+    for (const preset of DEFAULT_MODEL_PRESETS) {
+      if (!seen.has(preset.value)) {
+        seen.add(preset.value);
+        list.push(preset);
+      }
+    }
+
+    return list;
+  }, [ollamaStatus.models]);
+
   const refreshOllamaStatus = async () => {
     if (window.api && window.api.ollamaStatus) {
       try {
         const status = await window.api.ollamaStatus();
-        setOllamaStatus({
-          checked: true,
-          available: !!status?.available,
-          models: status?.models || []
-        });
+        const models = status?.models || [];
+        const available = !!status?.available;
+        setOllamaStatus({ checked: true, available, models });
+
+        if (available && models.length > 0) {
+          const installedNames = models.map(m => m.name);
+          setModelName(prev => {
+            if (installedNames.includes(prev)) return prev;
+            if (installedNames.includes('qwen2.5:1.5b')) return 'qwen2.5:1.5b';
+            return installedNames.find(n => n.toLowerCase().includes('qwen')) || installedNames[0];
+          });
+        }
       } catch {
         setOllamaStatus({ checked: true, available: false, models: [] });
       }
@@ -177,9 +214,8 @@ export function useHumanizerSession() {
     setErrorMsg(null);
 
     try {
-      if (window.api && (window.api.humanizeNeurosymbolic || window.api.humanizeWithJulian)) {
-        const fn = window.api.humanizeNeurosymbolic || window.api.humanizeWithJulian;
-        const res = await fn(inputText, {
+      if (window.api && window.api.humanizeNeurosymbolic) {
+        const res = await window.api.humanizeNeurosymbolic(inputText, {
           modelName,
           domainId,
           antiOutro,
@@ -271,6 +307,7 @@ export function useHumanizerSession() {
     logsCopied,
     modelName,
     setModelName,
+    modelOptions,
     antiOutro,
     setAntiOutro,
     injectGlitches,

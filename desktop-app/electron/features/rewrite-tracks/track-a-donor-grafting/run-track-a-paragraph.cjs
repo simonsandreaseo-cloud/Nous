@@ -36,16 +36,22 @@ async function runTrackAParagraph({
 }) {
   const donorsUsedInPara = [];
   let paraInterventionTokens = 0;
+  let trackAFailedQwen = false;
 
   // -----------------------------------------------------------------------
-  // PROCESO QWEN #1: Atomización Proposicional de Davidson (Selectiva en puentes cortos)
+  // PROCESO QWEN #1: Atomización Proposicional (solo bajo solicitud explícita)
   // -----------------------------------------------------------------------
   let extractedFacts = '';
   const inputWordCount = rawPara.split(/\s+/).filter(Boolean).length;
   const hasBrandSku = Boolean(atoms?.brand_models?.length);
-  const shouldUseFastSymbolicAtomization = frame === 'TRANSITION_CURATION' || (inputWordCount < 42 && !hasBrandSku);
+  const shouldUseQwenAtomization = Boolean(
+    useLocalLLM &&
+    (options?.enableQwenAtomization === true || options?.useQwenReranker === true) &&
+    frame !== 'TRANSITION_CURATION' &&
+    (inputWordCount >= 42 || hasBrandSku)
+  );
 
-  if (useLocalLLM && !shouldUseFastSymbolicAtomization) {
+  if (shouldUseQwenAtomization) {
     try {
       const atomRes = await atomizeWithQwen(rawPara, atoms, frame, currentAnchor, activeModel, log, qwenStats);
       extractedFacts = atomRes.rawResponse;
@@ -66,7 +72,7 @@ async function runTrackAParagraph({
   } else {
     const fastSentences = rawPara.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
     extractedFacts = fastSentences.join(' ');
-    log(`[QWEN_FASE_1_ATOMIZACION] Modo simbólico rápido (párrafo puente corto de ${inputWordCount} palabras, 0ms)`);
+    log(`[QWEN_FASE_1_ATOMIZACION] Modo simbólico determinista (0ms, ${inputWordCount} palabras)`);
     for (const fs of fastSentences) {
       log(`[QWEN_FASE_1_RESULTADO] ${fs}`);
     }
@@ -75,7 +81,7 @@ async function runTrackAParagraph({
       model: 'symbolic-fast-path',
       durationMs: 0,
       evalCount: 0,
-      prompt: '(omitido en párrafo puente corto)',
+      prompt: '(atomización simbólica determinista por defecto)',
       rawResponse: extractedFacts,
       atomsSummary: extractedFacts,
       frame
@@ -422,14 +428,24 @@ async function runTrackAParagraph({
         reason: `Pulido morfosintáctico completado en intento ${acceptedGraft.attemptNumber}/${totalMaxAttempts}.`
       });
     } else {
-      // Regla estricta: Si tras agotar los 10 intentos Qwen sigue dando resultados no conformes,
-      // PROHIBIDO usar el donante tal cual (evita falsos positivos o incoherencias).
-      // El proceso falla explícitamente y detiene la compilación.
       const lastErr = lastFailureReason || 'Validación morfosintáctica no superada';
-      log(`[QWEN_FASE_4_FALLO_CRITICO] El párrafo no logró una salida válida tras ${globalAttempt} intentos. Motivo final: ${lastErr}. Proceso abortado para evitar falsos positivos.`);
-      const err = new Error(`Fallo crítico en humanización: Tras ${globalAttempt} intentos, Qwen no generó una concordancia morfosintáctica conforme a las restricciones del Bluepaper (Último error: ${lastErr}).`);
-      err.attemptHistory = attemptHistory;
-      throw err;
+      qwenAttemptsUsed = globalAttempt;
+      usedQwenGraft = false;
+      trackAFailedQwen = true;
+      rerankMeta.fitScore = Math.min(rerankMeta.fitScore ?? 4, 4);
+      donorSelectionAudit.fitScore = rerankMeta.fitScore;
+      semanticRerankerAudit.fitScore = rerankMeta.fitScore;
+      log(`[QWEN_FASE_4_FALLBACK] Párrafo no superó Qwen tras ${globalAttempt} intentos (${lastErr}). Preservado borrador simbólico y habilitado escalado a Carril B.`);
+      auditSteps.push({
+        stage: 'QWEN_COLLOCATIONAL_GRAFT',
+        status: 'FALLBACK_TO_SYMBOLIC_AND_TRACK_B',
+        model: activeModel,
+        donorId: donorsUsedInPara.map(b => b.brick_id).join(' + ') || 'fallback',
+        preFilledSkeleton,
+        attemptsCount: globalAttempt,
+        attemptHistory,
+        reason: `Qwen no superó validación tras ${globalAttempt} intentos (${lastErr}); se continúa sin abortar el artículo.`
+      });
     }
   }
 
@@ -532,7 +548,8 @@ async function runTrackAParagraph({
     qwenAttemptsUsed,
     rotatedCandidate,
     paraInterventionTokens,
-    usedQwenGraft
+    usedQwenGraft,
+    trackAFailedQwen
   };
 }
 

@@ -104,13 +104,13 @@ function extractRhetoricalBlueprint(text, atoms = null, paraTopology = null) {
     : wordCount;
 
   const rstRelations = [];
-  if (/\b(?:pero(?!\s+a\s+la\s+vez)|sin\s+embargo|aunque|en\s+cambio|mientras\s+que|no\s+obstante|a\s+cambio\s+de|frente\s+a|a\s+diferencia\s+de)\b/i.test(s)) {
+  if (/\b(?:pero(?!\s+a\s+la\s+vez)|sin\s+embargo|aunque|en\s+cambio|mientras\s+que|no\s+obstante|a\s+cambio\s+de|a\s+diferencia\s+de)\b/i.test(s)) {
     rstRelations.push('ADVERSATIVE_CONTRAST');
   }
   if (/\b(?:porque|ya\s+que|debido\s+a|por\s+eso|por\s+lo\s+que|lo\s+que\s+permite|hace\s+que|provoca|obliga\s+a|de\s+modo\s+que|gracias\s+a)\b/i.test(s)) {
     rstRelations.push('CAUSAL_MECHANISM');
   }
-  if (/\b(?:conviene\s+evitar|evitar(?:las|los)?|nunca\s+(?:debes|deben|uses?|utilices?)|no\s+(?:deben|debes|son\s+(?:apt|recomend|permit)|conviene)|descartar|prohibid\w*|inconveniente|desventaja|problema|peligro|riesgo|cuidado\s+con)\b/i.test(s)) {
+  if (/\b(?:conviene\s+evitar\w*|evita\s+(?:usar|utilizar|comprar|llevar|elegir)|nunca\s+(?:debes|deben|uses?|utilices?)|no\s+(?:deben|debes|emplees|uses?|utilices?|son\s+(?:apt|recomend|permit)|est[aá]n\s+permitid|conviene(?!\s+olvidar))|no\s+(?:se\s+)?oscurec\w*|no\s+funcion\w*|no\s+llevan\s+graduaci[oó]n|menos\s+campo\s+[uú]til|no\s+son\s+permitid\w*|impide\s+que\s+(?:se\s+oscurezc|penetr)|prohibid\w*|inconvenientes?|desventajas?|peligro|riesgo|cuidado\s+con|baja\s+calidad|deform\w*|descascarill\w*|quebradiz\w*|apretar|pellizcar|se[ñn]ales\s+marcadas|se\s+resbal\w*|molestias?\s+(?:oculares?|en\s+la\s+nariz)|demasiado\s+(?:r[ií]gid|pesad|estrech|grande|anch|oscur)|tienden\s+a\s+romperse|muy\s+pesad\w*|muy\s+fr[aá]gil)\b/i.test(s)) {
     rstRelations.push('NEGATIVE_WARNING');
   }
   if (/\b(?:si\s+tienes|si\s+necesitas|si\s+vas\s+a|si\s+buscas|cuando\s+se\s+trata)\b/i.test(s)) {
@@ -299,7 +299,7 @@ function selectStructuralScaffolds({
 
   const wantsSports = /\b(?:ciclismo|bici|bicicleta|deportiv|running|senderismo|esqu[ií]|monta[ñn]a|n[aá]utic|golf|acu[aá]tic)\b/i.test(srcLower);
   const wantsKids = /\b(?:niñ[oa]s?|peques|beb[eé]s?|infantil)\b/i.test(srcLower);
-  const isTechOrMaterialPara = /\b(?:progresiv|ocupacional|ordenador|fresad|inyectad|planchas|calor|acetato|mineral|policarbonato|fotocrom|polarizad)\b/i.test(srcLower);
+  const isTechOrMaterialPara = /\b(?:progresiv|ocupacional|ordenador|fresad|inyectad|planchas|calor|acetato|mineral|policarbonato|fotocrom|polarizad|puente|nariz|tabique|peso|ultraliger|estrech)\b/i.test(srcLower);
   const srcAnchors = Array.isArray(atoms?.discriminativeAnchors) ? atoms.discriminativeAnchors : [];
   const reqTechKeys = new Set(srcAnchors.filter(a => a.category === 'LENS_TECH').map(a => a.key));
   const isTechPara = Boolean(
@@ -316,7 +316,8 @@ function selectStructuralScaffolds({
     'LENS_PROPERTIES',
     'MATERIAL_COMPOSITION',
     'PRODUCT_FACTUAL',
-    'MECHANICAL_FUNCTION'
+    'MECHANICAL_FUNCTION',
+    'ANATOMICAL_FIT'
   ]);
 
   const candidates = [];
@@ -349,7 +350,11 @@ function selectStructuralScaffolds({
       /\b(?:alfombra\s+roja|hollywood|instagram|famos[oa]s|celebrities)\b/i.test(rLow) ||
       (!/\bdioptr[ií]as?\b/i.test(srcLower) && /\bdioptr[ií]as?\b/i.test(rLow)) ||
       (!/\b(?:lentes?\s+de\s+contacto|lentillas?)\b/i.test(srcLower) && /\b(?:lentes?\s+de\s+contacto|lentillas?)\b/i.test(rLow)) ||
-      (!/\b(?:carnavales?|halloween)\b/i.test(srcLower) && /\b(?:carnavales?|halloween)\b/i.test(rLow))
+      (!/\b(?:carnavales?|halloween)\b/i.test(srcLower) && /\b(?:carnavales?|halloween)\b/i.test(rLow)) ||
+      (!/\b(?:buceo|nataci[oó]n|piscina)\b/i.test(srcLower) && /\b(?:gafas?\s+de\s+buceo|antifog|sello\s+ce|referencia\s+iso)\b/i.test(rLow)) ||
+      /\b(?:mariah\s+carey|good\s+morning\s+britain|annalynne|reese\s+witherspoon|paula\s+echevarr[ií]a|dicho\s+esto|vamos\s+con\s+la\s+informaci[oó]n\s+que\s+est[aá]s\s+esperando|un\s+saludo|el\s+precio\s+aproximados|l[aá]grimas?\s+artificial(?:es)?|embarazo|eritema|quemaduras\s+solares|cross\s+linking|pendiente\s+roza|mi\s+primera\s+gafa|solo\s+encuentro\s+un\s+problema|nues-tros|exprimera\s+dama|cgcoo|colegios?\s+de\s+[oó]pticos|opticalia|dos\s+por\s+uno|lavaplatos|mascarilla|ritmos?\s+circadianos?|alteraci[oó]n\s+visual|riesgo\s+secundario)\b/i.test(rLow) ||
+      (!/\b(?:limpi|jab[oó]n|grifo|funda|agua\s+del\s+mar)\b/i.test(srcLower) && /\b(?:agua\s+del\s+mar|cuando\s+limpies\s+las\s+gafas|bajo\s+el\s+grifo|gota\s+de\s+jab[oó]n|productos?\s+abrasivos?)\b/i.test(rLow)) ||
+      (!/\bmigra[ñn]as?\b/i.test(srcLower) && /\bmigra[ñn]as?\b/i.test(rLow))
     ) {
       continue;
     }
@@ -364,10 +369,10 @@ function selectStructuralScaffolds({
       continue;
     }
 
-    if (!wantsSports && /\b(?:ciclismo|practicar\s+ciclismo|golf|acu[aá]tic[oa]s?|monta[ñn]ismo|running|senderismo|esqu[ií]|tenis)\b/i.test(rLow)) {
+    if (!wantsSports && /\b(?:deportes?|ciclismo|practicar\s+ciclismo|golf|acu[aá]tic[oa]s?|monta[ñn]ismo|running|senderismo|esqu[ií]|tenis)\b/i.test(rLow)) {
       continue;
     }
-    if (!wantsKids && /\b(?:peques|niñ[oa]s?|beb[eé]s?)\b/i.test(rLow)) {
+    if (!wantsKids && /\b(?:peques|m[aá]s\s+peque[ñn]os|niñ[oa]s?|beb[eé]s?|infantil|gorros|viseras|hij[oa]s?)\b/i.test(rLow)) {
       continue;
     }
 
@@ -395,11 +400,11 @@ function selectStructuralScaffolds({
     const donorBlueprint = extractRhetoricalBlueprint(cleanText, null, null);
     if (donorBlueprint.wordCount < minW || donorBlueprint.wordCount > maxW) continue;
 
-    // 1. Semantic closeness + pre-covered anchors + competing LENS_TECH guard (-32..+42)
+    // 1. Semantic closeness + pre-covered anchors + competing LENS_TECH guard (-32..+58)
     let semScore = 0;
     if (hybridQueryProfile && enterpriseRetriever?.scoreCandidateHybrid) {
       const hybrid = enterpriseRetriever.scoreCandidateHybrid(hybridQueryProfile, b, cleanText);
-      semScore = Math.min(34, Number((hybrid.denseCosine * 38 + Math.min(18, hybrid.bm25Score * 0.6)).toFixed(2)));
+      semScore = Math.min(42, Number((hybrid.denseCosine * 46 + Math.min(20, hybrid.bm25Score * 0.7)).toFixed(2)));
     } else {
       const donorTopics = extractDomainTopicTokens(cleanText);
       let topicHits = 0;
@@ -415,7 +420,7 @@ function selectStructuralScaffolds({
       anc.verifyRx.lastIndex = 0;
       if (anc.verifyRx.test(cleanText)) matchedAnchorHits++;
     }
-    const anchorBonus = Math.min(18, matchedAnchorHits * 9);
+    const anchorBonus = Math.min(24, matchedAnchorHits * 12);
 
     const donorEntail = factualGuard.evaluateFactualEntailment
       ? factualGuard.evaluateFactualEntailment(rawPara, cleanText, atoms?.discriminativeAnchors, atoms?.signedPolarity)
@@ -428,36 +433,36 @@ function selectStructuralScaffolds({
       competingTechPenalty -= 24;
     }
     if (isTechOrMaterialPara && b.frame === 'CARE_MAINTENANCE') {
-      competingTechPenalty -= 10;
+      competingTechPenalty -= 14;
     }
-    const axis1Score = Number((Math.min(42, semScore + anchorBonus) + competingTechPenalty).toFixed(2));
+    const axis1Score = Number((Math.min(58, semScore + anchorBonus) + competingTechPenalty).toFixed(2));
 
-    // 2. Polarity & RST alignment (-24..+32)
+    // 2. Polarity & RST alignment con piso semántico (-24..+24)
     let rstScore = 0;
     const matchedRst = [];
     if (srcBlueprint.hasNegativeWarning) {
       if (
         donorBlueprint.hasNegativeWarning ||
-        /\b(?:inconvenientes?|desventajas?|fr[aá]gil|pesad[oa]s?|evitar|no\s+son\s+recomendab|deform\w*|descascarill\w*|peligro|riesgo)\b/i.test(cleanText)
+        /\b(?:apretar|pellizcar|se[ñn]ales\s+marcadas|se\s+resbal\w*|no\s+llevan\s+graduaci[oó]n|menos\s+campo\s+[uú]til|no\s+son\s+permitid\w*|inconvenientes?|desventajas?|fr[aá]gil|muy\s+pesad|conviene\s+evitar\w*|no\s+(?:son|est[aá]n)\s+(?:recomendab|permitid|apt)|prohibid\w*|no\s+(?:se\s+)?oscurec|no\s+funcion|deform\w*|descascarill\w*|quebradiz\w*|baja\s+calidad|tienden\s+a\s+romperse|demasiado\s+(?:r[ií]gid|pesad|estrech|oscur))\b/i.test(cleanText)
       ) {
-        rstScore += 22;
+        rstScore += 16;
         matchedRst.push('WARNING');
-      } else if (/\b(?:muy\s+frescos|sofisticados|estampados\s+m[aá]s\s+originales|lucen\s+este\s+complemento|toque\s+de\s+color|otro\s+punto\s+a\s+su\s+favor|opci[oó]n\s+perfecta|toque\s+rock|te\s+encantar[aá]|sin\s+ning[uú]n\s+tipo\s+de\s+problema)\b/i.test(cleanText)) {
+      } else if (/\b(?:muy\s+frescos|sofisticados|estampados\s+m[aá]s\s+originales|lucen\s+este\s+complemento|toque\s+de\s+color|otro\s+punto\s+a\s+su\s+favor|opci[oó]n\s+perfecta|toque\s+rock|te\s+encantar[aá]|sin\s+ning[uú]n\s+tipo\s+de\s+problema|favorit[oa]s|oto[ñn]o\s+e\s+invierno|looks?\s+m[aá]s\s+arriesgados|tendencias?\s+m[aá]s\s+sobrias|m[aá]s\s+favorecedoras|est[aá]s\s+de\s+suerte)\b/i.test(cleanText)) {
         rstScore -= 24;
       } else if (!donorBlueprint.rstRelations.includes('ADVERSATIVE_CONTRAST')) {
         rstScore -= 14;
       }
     }
     if (srcBlueprint.rstRelations.includes('ADVERSATIVE_CONTRAST') && donorBlueprint.rstRelations.includes('ADVERSATIVE_CONTRAST')) {
-      rstScore += 12;
+      rstScore += 8;
       matchedRst.push('CONTRAST');
     }
     if (srcBlueprint.rstRelations.includes('CAUSAL_MECHANISM') && donorBlueprint.rstRelations.includes('CAUSAL_MECHANISM')) {
-      rstScore += 10;
+      rstScore += 7;
       matchedRst.push('CAUSAL');
     }
     if (srcBlueprint.rstRelations.includes('COMPARATIVE_EVAL') && donorBlueprint.rstRelations.includes('COMPARATIVE_EVAL')) {
-      rstScore += 8;
+      rstScore += 5;
       matchedRst.push('COMPARE');
     }
     if (srcBlueprint.rstRelations.includes('CONDITIONAL_FRAME') && donorBlueprint.rstRelations.includes('CONDITIONAL_FRAME')) {
@@ -468,7 +473,10 @@ function selectStructuralScaffolds({
       rstScore += 4;
       matchedRst.push('SPEC');
     }
-    rstScore = Math.max(-24, Math.min(32, rstScore));
+    if (rstScore > 0 && semScore < 18 && anchorBonus === 0) {
+      rstScore = Number((rstScore * 0.35).toFixed(2));
+    }
+    rstScore = Math.max(-24, Math.min(24, rstScore));
 
     // 3. Discourse metanarrative role (-12..+18)
     let topoScore = 0;

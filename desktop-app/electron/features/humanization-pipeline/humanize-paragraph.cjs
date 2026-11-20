@@ -148,7 +148,7 @@ async function humanizeParagraph({
   // Glitch biológico certificado orgánico (máximo 2 por artículo, cadencia irregular)
   const existingGlitchPattern = /olvídate de las marcas|sin rodeos ni artificios|cuestión de proporciones|no todas sientan igual|pruébalas y notarás|icono atemporal|detalle sutil que lo cambia|un acierto seguro|diseño de toda la vida|te durarán años|al tacto se nota|varilla ajusta|alma metálica|pulido manual impecable/i;
   const alreadyHasAnyGlitch = existingGlitchPattern.test(rawPara) || existingGlitchPattern.test(reconstructedPara);
-  const canInjectGlitch = options.injectGlitches === 'force' && !reconstructedPara.trim().endsWith(':') && !alreadyHasAnyGlitch && usedGlitches.size < 2;
+  const canInjectGlitch = (options.injectGlitches === true || options.injectGlitches === 'force') && !reconstructedPara.trim().endsWith(':') && !alreadyHasAnyGlitch && usedGlitches.size < 2;
   if (canInjectGlitch && (glitchIdx === 2 || glitchIdx === 6)) {
     const glitchObj = selectUnusedGlitch(frame, usedGlitches, `${rawPara} ${reconstructedPara}`);
     if (glitchObj && !reconstructedPara.includes(glitchObj.text)) {
@@ -169,7 +169,7 @@ async function humanizeParagraph({
       if (enableAntiPlagiarism) {
         const postGlitchOverlaps = findAllCorpusOverlaps(bankState, reconstructedPara, donorsUsedInPara, 7);
         if (postGlitchOverlaps.length > 0) {
-          reconstructedPara = applySymbolicShingleBreaker(bankState, reconstructedPara, donorsUsedInPara, atoms, paraBridgeWords, 7);
+          reconstructedPara = applySymbolicShingleBreaker(bankState, reconstructedPara, donorsUsedInPara, atoms, usedBridgeWords, 7);
         }
       }
     }
@@ -216,11 +216,12 @@ async function humanizeParagraph({
 
   // -----------------------------------------------------------------------
   // CARRIL B (Edición Guiada Restringida sobre Andamio Humano + Juez Mecánico)
-  // Se activa únicamente cuando Carril A clasifica el párrafo como hueco CRITICO
-  // (o MEDIO+CRITICO si carrilBMode === 'always_gap'). Cero intervención en [OK].
+  // Se activa cuando Carril A clasifica el párrafo como hueco CRITICO (o MEDIO+CRITICO
+  // en always_gap), o cuando Fase 4 de Qwen en Carril A falla y hace fallback.
   // -----------------------------------------------------------------------
   const shouldTriggerCarrilB = !isColonIntro && Boolean(carrilBStats?.enabled) && (
-    carrilBStats.mode === 'always_gap' ? coverageEntry.isGap : coverageEntry.severity === 'CRITICO'
+    Boolean(trackARes.trackAFailedQwen) ||
+    (carrilBStats.mode === 'always_gap' ? coverageEntry.isGap : coverageEntry.severity === 'CRITICO')
   );
 
 

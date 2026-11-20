@@ -22,7 +22,7 @@ const OPTICAL_BRANDS = [
 const KNOWN_MODEL_WORDS_RX = /^(?:aviator|classic|wayfarer|clubmaster|original|steve|mcqueen|justin|erika|holbrook|frogskins|sutro|lite|latch|round|metal|meteor|hexagonal|havana|tortoise|po\d+|rb\d+|gg\d+|ch\d+)$/i;
 const SKU_STOP_TOKEN_RX = /^(?:plegables?|qu[eé]|debes|saber|antes|para|con|son|como|gu[ií]a|rese[ñn]a|an[aá]lisis|gafas?|monturas?|lentes?|de|la|las|el|los|y|o|en|mujer|hombre|unisex|tiene[ns]?|combinan|destacan|ofrecen)$/i;
 
-const CLAUSE_NEG_RX = /\b(?:nunca\s+(?:debes|deben|deber[ií]as|uses?|utilices?|son)|jam[aá]s|no\s+debes\s+(?:usar\w*|utilizar\w*)|no\s+(?:debes?|deben|deber[ií]as?|hay\s+que|uses?|utilices?|apliques?|expongas?|coloques?|guardes?|sumerjas?|limpies?|cubras?|bloquees?|instales?|mezcles?)|no\s+(?:incluye[ns]?|cuenta[ns]?\s+con|dispone[ns]?\s+de|admite[ns]?|soporta[ns]?|ofrece[ns]?|protege[ns]?|sirve[ns]?|garantiza[ns]?|permite[ns]?|resiste[ns]?|bloquea[ns]?|filtra[ns]?|aporta[ns]?|presenta[ns]?|tiene[ns]?|posee[ns]?|incorpora[ns]?|funciona[ns]?)|carece[ns]?\s+de|no\s+(?:son\s+|est[aá]n\s+|resultan\s+)?(?:permitid\w*|recomendab\w*|apt\w*|ideales?|convenientes?)|no\s+(?:te\s+(?:lo|las|los)\s+)?(?:recomendamos|aconsejamos|conviene)|no\s+deben\s+(?:usarse|utilizarse)|no\s+se\s+recomiend\w*|no\s+(?:se\s+)?oscurec\w*|apenas\s+se\s+oscurec\w*|impide\s+que\s+se\s+oscurezc\w*|conviene\s+evitar\w*|evit(?:a|e|es|en|ar|ando)(?:l[oa]s?|se)?|descartar|prohibid\w*|inconveniente|desventaja|problema|peligro|riesgo|cuidado\s+con|descascarill\w*|quebradiz\w*|degrad\w*|baja\s+calidad|deterior\w*)\b/i;
+const CLAUSE_NEG_RX = /\b(?:nunca\s+(?:debes|deben|deber[ií]as|uses?|utilices?|son)|jam[aá]s|no\s+debes\s+(?:usar\w*|utilizar\w*)|no\s+(?:debes?|deben|deber[ií]as?|hay\s+que|uses?|utilices?|apliques?|expongas?|coloques?|guardes?|sumerjas?|limpies?|cubras?|bloquees?|instales?|mezcles?)|no\s+(?:incluye[ns]?|cuenta[ns]?\s+con|dispone[ns]?\s+de|admite[ns]?|soporta[ns]?|ofrece[ns]?|protege[ns]?|sirve[ns]?|garantiza[ns]?|permite[ns]?|resiste[ns]?|bloquea[ns]?|filtra[ns]?|aporta[ns]?|presenta[ns]?|tiene[ns]?|posee[ns]?|incorpora[ns]?|funciona[ns]?)|carece[ns]?\s+de|no\s+(?:son\s+|est[aá]n\s+|resultan\s+)?(?:permitid\w*|recomendab\w*|apt\w*|ideales?|convenientes?)|no\s+(?:te\s+(?:lo|las|los)\s+)?(?:recomendamos|aconsejamos|conviene(?!\s+(?:olvidar|perder|dejar\s+pasar)))|no\s+deben\s+(?:usarse|utilizarse)|no\s+se\s+recomiend\w*|no\s+(?:se\s+)?oscurec\w*|apenas\s+se\s+oscurec\w*|impide\s+que\s+se\s+oscurezc\w*|conviene\s+evitar\w*|evit(?:a|e|es|en|ar|ando)(?:l[oa]s?|se)?|prohibid\w*|inconveniente|desventaja|(?:el\s+principal|un\s+grave|suele[ns]?\s+dar|genera[ns]?|provoca[ns]?|causa[ns]?)\s+problema|(?:el|otro|su)\s+problema\s+(?:de|del|es|radica|con)|peligro|riesgo|cuidado\s+con|descascarill\w*|quebradiz\w*|degrad\w*|baja\s+calidad|deterior\w*)\b/i;
 
 const DONOR_SLOT_NEG_RX = /\b(?:no\s+(?:son\s+|est[aá]n\s+|resultan\s+)?(?:permitid[oa]s?|apt[oa]s?|recomendab\w*|aconsejab\w*|ideales?|convenientes?)|nunca|jam[aá]s|prohibid[oa]s?|evitar|descartar|huir\s+de|no\s+utilizar\w*|no\s+sirven)\b[^.!?]{0,32}$/i;
 
@@ -49,7 +49,13 @@ const SPANISH_STOPWORDS_CONCEPT = new Set([
   'pocos', 'pocas', 'segundos', 'minutos', 'horas', 'salen', 'llevan', 'terminan', 'combinan',
   'ofrece', 'ofrecen', 'resuelven', 'ampliando', 'incrementa', 'permiten', 'permite', 'existen', 'existe',
   'excelente', 'excelentes', 'ideal', 'ideales', 'perfecto', 'perfecta', 'perfectos', 'perfectas',
-  'necesario', 'necesaria', 'notar', 'volver', 'volviendose', 'pasa', 'pasan', 'convierte', 'convierten'
+  'necesario', 'necesaria', 'notar', 'volver', 'volviendose', 'pasa', 'pasan', 'convierte', 'convierten',
+  'conviene', 'hemos', 'seleccionado', 'resultaron', 'inmortalizados', 'parezcan', 'autenticos',
+  'sienta', 'maravilla', 'utilizarse', 'usarse', 'realizar', 'descartar', 'olvidar', 'encontrar',
+  'disponen', 'papel', 'punto', 'toque', 'caracteristicas', 'propuestas', 'fechas', 'presencia',
+  'tendencia', 'importante', 'simples', 'mortales', 'actuales', 'distinguida', 'determinante',
+  'fundamental', 'favorable', 'definitivo', 'principales', 'exclusivos', 'tradicional',
+  'buena', 'bueno', 'gran', 'grandes', 'mayor', 'menor', 'primero', 'primera', 'ultimo', 'ultima'
 ]);
 
 const NOUNS_AR_ER_IR = new Set([
@@ -118,27 +124,42 @@ function extractSpanishCompoundNPs(text, maxItems = 4) {
     results.push({ label: clean, rx: buildStemVerifyRx(clean) });
   };
 
-  // 1. Sustantivo + Adjetivo derivativo en español
-  const npAdjRx = /\b([a-záéíóúüñ]{4,})\s+([a-záéíóúüñ]{4,}(?:ad[oa]s?|id[oa]s?|ic[oa]s?|iv[oa]s?|al(?:es)?|ar(?:es)?|os[oa]s?|bl[ea]s?|nt[ea]s?|ech[oa]s?|ger[oa]s?|or(?:es|as?)?))\b/gi;
-  let m;
-  while ((m = npAdjRx.exec(s)) !== null) {
-    const w1 = stripAccentsAscii(m[1]);
-    const w2 = stripAccentsAscii(m[2]);
+  const tokens = s.match(/[a-záéíóúüñA-ZÁÉÍÓÚÜÑ]+|\s+|[^\sa-záéíóúüñA-ZÁÉÍÓÚÜÑ]+/g) || [];
+  const adjSuffixRx = /^[a-záéíóúüñ]{4,}(?:ad[oa]s?|id[oa]s?|ic[oa]s?|iv[oa]s?|al(?:es)?|ar(?:es)?|os[oa]s?|bl[ea]s?|nt[ea]s?|ech[oa]s?|ger[oa]s?|or(?:es|as?)?)$/i;
+  const isWordTok = (t) => Boolean(t && /^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ]+$/.test(t));
+  const isSpaceTok = (t) => Boolean(t && /^\s+$/.test(t));
+
+  // 1. Sustantivo + Adjetivo derivativo en español (sin ruptura \b ante vocales acentuadas)
+  for (let i = 0; i <= tokens.length - 3; i++) {
+    const tok1 = tokens[i];
+    const sep = tokens[i + 1];
+    const tok2 = tokens[i + 2];
+    if (!isWordTok(tok1) || !isSpaceTok(sep) || !isWordTok(tok2)) continue;
+    if (tok1.length < 4 || tok2.length < 4) continue;
+    const w1 = stripAccentsAscii(tok1);
+    const w2 = stripAccentsAscii(tok2);
     if (/mente$/.test(w1) || /mente$/.test(w2)) continue;
+    if (!adjSuffixRx.test(tok2)) continue;
     if (!SPANISH_STOPWORDS_CONCEPT.has(w1) && !SPANISH_STOPWORDS_CONCEPT.has(w2)) {
-      pushNP(`${m[1]} ${m[2]}`);
+      pushNP(`${tok1} ${tok2}`);
     }
   }
 
   // 2. Sustantivo + de + Sustantivo
-  const npDeRx = /\b([a-záéíóúüñ]{4,})\s+de\s+([a-záéíóúüñ]{4,})\b/gi;
-  while ((m = npDeRx.exec(s)) !== null) {
-    const w1 = stripAccentsAscii(m[1]);
-    const w2 = stripAccentsAscii(m[2]);
+  for (let i = 0; i <= tokens.length - 5; i++) {
+    const tok1 = tokens[i];
+    const sp1 = tokens[i + 1];
+    const deTok = tokens[i + 2];
+    const sp2 = tokens[i + 3];
+    const tok2 = tokens[i + 4];
+    if (!isWordTok(tok1) || !isSpaceTok(sp1) || !/^de$/i.test(deTok) || !isSpaceTok(sp2) || !isWordTok(tok2)) continue;
+    if (tok1.length < 4 || tok2.length < 4) continue;
+    const w1 = stripAccentsAscii(tok1);
+    const w2 = stripAccentsAscii(tok2);
     if (/mente$/.test(w1) || /mente$/.test(w2)) continue;
     if (/(?:ar|er|ir)$/.test(w2) && !NOUNS_AR_ER_IR.has(w2)) continue;
     if (!SPANISH_STOPWORDS_CONCEPT.has(w1) && !SPANISH_STOPWORDS_CONCEPT.has(w2)) {
-      pushNP(`${m[1]} de ${m[2]}`);
+      pushNP(`${tok1} de ${tok2}`);
     }
   }
 
@@ -197,6 +218,7 @@ function extractClauseKeyConcepts(clause, isNegClause = false) {
     for (const w of words) {
       const wn = stripAccentsAscii(w);
       if (SPANISH_STOPWORDS_CONCEPT.has(wn)) continue;
+      if (/(?:arse|erse|irse)$/.test(wn)) continue;
       if (/^(?:porque|cuando|mientras|aunque|entonces|precisamente|demasiado|bastante|siempre|nunca|jamas)$/.test(wn)) continue;
       addConcept(w, buildStemVerifyRx(w));
       if (concepts.length >= 3) break;
@@ -533,7 +555,7 @@ function extractSignedPolarityAtoms(rawPara) {
   };
 }
 
-function extractDiscriminativeAnchors(rawPara, atoms = {}) {
+function extractDiscriminativeAnchors(rawPara, atoms = {}, domainId = 'optica') {
   const text = String(rawPara || '');
   const anchors = [];
   const seenKeys = new Set();
@@ -544,11 +566,14 @@ function extractDiscriminativeAnchors(rawPara, atoms = {}) {
     return seenLabels.some(prev => prev === n || prev.includes(n) || n.includes(prev));
   };
 
-  for (const sku of (atoms?.brand_models || [])) {
-    const cleanSku = String(sku || '').trim();
-    if (!cleanSku) continue;
+  const sortedBrandModels = [...(atoms?.brand_models || [])]
+    .map(s => String(s || '').trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+
+  for (const cleanSku of sortedBrandModels) {
     const key = `sku:${cleanSku.toLowerCase()}`;
-    if (seenKeys.has(key)) continue;
+    if (seenKeys.has(key) || isDuplicateLabel(cleanSku)) continue;
     seenKeys.add(key);
     seenLabels.push(stripAccentsAscii(cleanSku));
     const esc = cleanSku.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -562,7 +587,8 @@ function extractDiscriminativeAnchors(rawPara, atoms = {}) {
     });
   }
 
-  for (const entry of DISCRIMINATIVE_ANCHOR_CATALOG) {
+  const domainAnchors = domainRegistry.getAnchorsForDomain ? (domainRegistry.getAnchorsForDomain(domainId) || []) : [];
+  for (const entry of [...DISCRIMINATIVE_ANCHOR_CATALOG, ...domainAnchors]) {
     if (entry.detectRx.test(text) && !seenKeys.has(entry.key)) {
       seenKeys.add(entry.key);
       seenLabels.push(stripAccentsAscii(entry.label));
@@ -592,64 +618,70 @@ function extractDiscriminativeAnchors(rawPara, atoms = {}) {
     });
   }
 
-  // 2. Siglas técnicas y nombres propios técnicos en mitad de oración
-  const acronymRx = /\b([A-ZÁÉÍÓÚÑ]{2,5}\d*)\b/g;
-  let am;
-  while ((am = acronymRx.exec(text)) !== null) {
-    const ac = am[1];
-    if (/^(?:II|III|IV|VI|VII|VIII|IX|XI|XII|XX|XXI|UV|EL|LA|DE|EN|ES|UN|NO|SI)$/.test(ac)) continue;
-    const key = `tech:${ac.toLowerCase()}`;
-    if (seenKeys.has(key) || isDuplicateLabel(ac)) continue;
-    seenKeys.add(key);
-    seenLabels.push(ac.toLowerCase());
-    anchors.push({
-      key,
-      label: ac,
-      category: 'PROPER_TECH',
-      severity: 'HIGH',
-      weight: 2.0,
-      verifyRx: new RegExp(`\\b${ac.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
-    });
-  }
+  // Emitir PROPER_TECH y DYNAMIC_NP únicamente cuando el párrafo contiene anclaje técnico/numérico duro o advertencia negativa
+  const hasHardTechnicalAnchor = anchors.some(a => a.category !== 'BRAND_SKU');
+  const hasTechNegWarning = extractSignedPolarityAtoms(text).hasNegativeWarning;
 
-  const properTechRx = /\b([A-ZÁÉÍÓÚÑ][a-záéíóúüñ]{3,})\b/g;
-  let pm;
-  while ((pm = properTechRx.exec(text)) !== null) {
-    if (pm.index === 0 || /[.!?]\s+$/.test(text.slice(Math.max(0, pm.index - 4), pm.index))) continue;
-    const term = pm[1];
-    if (/^(?:Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado|Domingo|Otoño|Primavera|Verano|Invierno)$/.test(term)) continue;
-    const key = `prop:${stripAccentsAscii(term)}`;
-    if (seenKeys.has(key) || isDuplicateLabel(term)) continue;
-    seenKeys.add(key);
-    seenLabels.push(stripAccentsAscii(term));
-    anchors.push({
-      key,
-      label: term,
-      category: 'PROPER_TECH',
-      severity: 'HIGH',
-      weight: 2.0,
-      verifyRx: buildStemVerifyRx(term)
-    });
-  }
+  if (hasHardTechnicalAnchor || hasTechNegWarning) {
+    // 2. Siglas técnicas y nombres propios técnicos en mitad de oración
+    const acronymRx = /\b([A-ZÁÉÍÓÚÑ]{2,5}\d*)\b/g;
+    let am;
+    while ((am = acronymRx.exec(text)) !== null) {
+      const ac = am[1];
+      if (/^(?:II|III|IV|VI|VII|VIII|IX|XI|XII|XX|XXI|UV|EL|LA|DE|EN|ES|UN|NO|SI)$/.test(ac)) continue;
+      const key = `tech:${ac.toLowerCase()}`;
+      if (seenKeys.has(key) || isDuplicateLabel(ac)) continue;
+      seenKeys.add(key);
+      seenLabels.push(ac.toLowerCase());
+      anchors.push({
+        key,
+        label: ac,
+        category: 'PROPER_TECH',
+        severity: 'HIGH',
+        weight: 2.0,
+        verifyRx: new RegExp(`\\b${ac.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+      });
+    }
 
-  // 3. Sintagmas nominales técnicos compuestos extraídos dinámicamente por morfosintaxis
-  const dynamicNPs = extractSpanishCompoundNPs(text, 6);
-  let dynamicAdded = 0;
-  for (const np of dynamicNPs) {
-    if (dynamicAdded >= 4) break;
-    const npKey = `np:${stripAccentsAscii(np.label).replace(/\s+/g, '_')}`;
-    if (seenKeys.has(npKey) || isDuplicateLabel(np.label)) continue;
-    seenKeys.add(npKey);
-    seenLabels.push(stripAccentsAscii(np.label));
-    anchors.push({
-      key: npKey,
-      label: np.label,
-      category: 'DYNAMIC_NP',
-      severity: 'HIGH',
-      weight: 1.8,
-      verifyRx: np.rx
-    });
-    dynamicAdded++;
+    const properTechRx = /\b([A-ZÁÉÍÓÚÑ][a-záéíóúüñ]{3,})\b/g;
+    let pm;
+    while ((pm = properTechRx.exec(text)) !== null) {
+      if (pm.index === 0 || /[.!?]\s+$/.test(text.slice(Math.max(0, pm.index - 4), pm.index))) continue;
+      const term = pm[1];
+      if (/^(?:Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado|Domingo|Otoño|Primavera|Verano|Invierno|Internet)$/.test(term)) continue;
+      const key = `prop:${stripAccentsAscii(term)}`;
+      if (seenKeys.has(key) || isDuplicateLabel(term)) continue;
+      seenKeys.add(key);
+      seenLabels.push(stripAccentsAscii(term));
+      anchors.push({
+        key,
+        label: term,
+        category: 'PROPER_TECH',
+        severity: 'HIGH',
+        weight: 2.0,
+        verifyRx: buildStemVerifyRx(term)
+      });
+    }
+
+    // 3. Sintagmas nominales técnicos compuestos extraídos dinámicamente por morfosintaxis
+    const dynamicNPs = extractSpanishCompoundNPs(text, 6);
+    let dynamicAdded = 0;
+    for (const np of dynamicNPs) {
+      if (dynamicAdded >= 4) break;
+      const npKey = `np:${stripAccentsAscii(np.label).replace(/\s+/g, '_')}`;
+      if (seenKeys.has(npKey) || isDuplicateLabel(np.label)) continue;
+      seenKeys.add(npKey);
+      seenLabels.push(stripAccentsAscii(np.label));
+      anchors.push({
+        key: npKey,
+        label: np.label,
+        category: 'DYNAMIC_NP',
+        severity: 'HIGH',
+        weight: 1.8,
+        verifyRx: np.rx
+      });
+      dynamicAdded++;
+    }
   }
 
   return anchors;

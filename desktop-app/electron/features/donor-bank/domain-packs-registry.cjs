@@ -177,16 +177,27 @@ function resolveBankFilePath(domainId = 'optica') {
   return path.join(ROOT_DIR, pack.bankDir || 'banco_ontologico_semantico', pack.masterBankFile || 'banco_maestro_ladrillos_retoricos.json');
 }
 
-function listDomainPacks() {
+const DOMAIN_COUNT_CACHE = new Map();
+
+function listDomainPacks(liveCounts = null) {
   return Object.values(DOMAIN_PACKS).map(pack => {
     const bankPath = resolveBankFilePath(pack.id);
     const hasBank = fs.existsSync(bankPath);
     let masterCount = 0;
-    if (hasBank) {
+    if (liveCounts && typeof liveCounts[pack.id] === 'number') {
+      masterCount = liveCounts[pack.id];
+    } else if (hasBank) {
       try {
         const stat = fs.statSync(bankPath);
         if (stat.size > 0) {
-          masterCount = pack.id === 'optica' ? 14249 : JSON.parse(fs.readFileSync(bankPath, 'utf8')).length;
+          const cached = DOMAIN_COUNT_CACHE.get(pack.id);
+          if (cached && cached.mtimeMs === stat.mtimeMs) {
+            masterCount = cached.count;
+          } else {
+            const parsed = JSON.parse(fs.readFileSync(bankPath, 'utf8'));
+            masterCount = Array.isArray(parsed) ? parsed.length : 0;
+            DOMAIN_COUNT_CACHE.set(pack.id, { mtimeMs: stat.mtimeMs, count: masterCount });
+          }
         }
       } catch {}
     }

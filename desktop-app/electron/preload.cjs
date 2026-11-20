@@ -1,24 +1,22 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
-  // New Neurosymbolic Engine
+  // Neurosymbolic Humanization Engine
   humanizeNeurosymbolic: (inputText, options) => ipcRenderer.invoke('humanize-neurosymbolic', inputText, options),
-  humanizeWithJulian: (inputText, options) => ipcRenderer.invoke('humanize-neurosymbolic', inputText, options), // compat alias
   scanMetrics: (text) => ipcRenderer.invoke('scan-metrics', text),
   getPersonas: () => ipcRenderer.invoke('get-personas'),
   getDomainPacks: () => ipcRenderer.invoke('get-domain-packs'),
-  
+
   // Local LLM (Ollama) Methods
   ollamaStatus: () => ipcRenderer.invoke('ollama-status'),
   ollamaModels: () => ipcRenderer.invoke('ollama-models'),
   ollamaPull: (modelName) => ipcRenderer.invoke('ollama-pull', modelName),
+  onOllamaProgress: (callback) => {
+    const subscription = (event, data) => callback(data);
+    ipcRenderer.on('ollama-progress', subscription);
+    return () => ipcRenderer.removeListener('ollama-progress', subscription);
+  },
 
-  // Agentic Workflow Methods
-  startAgentWorkflow: (inputText) => ipcRenderer.invoke('start-agent-workflow', inputText),
-  pauseAgentWorkflow: () => ipcRenderer.invoke('pause-agent-workflow'),
-  resumeAgentWorkflow: () => ipcRenderer.invoke('resume-agent-workflow'),
-  stopAgentWorkflow: () => ipcRenderer.invoke('stop-agent-workflow'),
-  
   // Logs & Diagnostics Methods
   getRecentLogs: () => ipcRenderer.invoke('get-recent-logs'),
   clearRuntimeLogs: () => ipcRenderer.invoke('clear-runtime-logs'),

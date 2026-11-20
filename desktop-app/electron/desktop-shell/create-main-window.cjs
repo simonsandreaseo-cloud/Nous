@@ -19,8 +19,12 @@ function createMainWindow() {
     }
   });
 
-  win.webContents.on('console-message', (event, level, message, line, sourceId) => {
-    writeLog('RENDERER', `[Line ${line}] ${message}`);
+  win.webContents.on('console-message', (detailsOrEvent, level, message, line) => {
+    if (detailsOrEvent && typeof detailsOrEvent === 'object' && 'message' in detailsOrEvent) {
+      writeLog('RENDERER', `[Line ${detailsOrEvent.lineNumber ?? '?'}] ${detailsOrEvent.message}`);
+    } else {
+      writeLog('RENDERER', `[Line ${line ?? '?'}] ${message}`);
+    }
   });
 
   const devUrl = process.env.VITE_DEV_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : null);
