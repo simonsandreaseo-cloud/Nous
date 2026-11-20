@@ -1,6 +1,6 @@
 ﻿const fs = require('fs');
 const path = require('path');
-const { shortBohoArticle } = require('../desktop-app/src/samples/bohoSample.js');
+const { shortBohoArticle } = require('../desktop-app/src/shared/sample-drafts/boho-eyewear-sample.js');
 
 // 1. Load real pre-2022 banks
 const baseDir = path.resolve(__dirname, '../banco_ontologico_semantico');

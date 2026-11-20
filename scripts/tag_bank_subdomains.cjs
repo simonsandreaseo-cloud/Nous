@@ -15,7 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const domainRegistry = require('../desktop-app/electron/engine/domain-registry.cjs');
+const domainRegistry = require('../desktop-app/electron/features/donor-bank/domain-packs-registry.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const masterPath = path.join(ROOT, 'banco_ontologico_semantico/banco_maestro_ladrillos_retoricos.json');

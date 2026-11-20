@@ -8,7 +8,7 @@ const {
   writeJsonAtomic,
   decodeAllEntities
 } = require('./mass_harvesting/blog_grinder_core.cjs');
-const { analyzeBrickDiscourseProfile } = require('../desktop-app/electron/engine/discourse-topology.cjs');
+const { analyzeBrickDiscourseProfile } = require('../desktop-app/electron/features/text-analysis/discourse-topology-analyzer.cjs');
 
 function parseArgs(argv) {
   const opts = {};

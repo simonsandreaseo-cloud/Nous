@@ -273,7 +273,7 @@ function runMerge() {
   console.log(verifyOut);
 
   // Reconstruir matriz densa Float32 128-D (indice_vectores_semanticos.bin + .meta.json)
-  const engine = require(path.resolve('desktop-app/electron/engine/neurosymbolic-engine.cjs'));
+  const engine = require(path.resolve('desktop-app/electron/features/humanization-pipeline/humanize-article.cjs'));
   engine.loadBanks();
   const stats = engine.getBankStats();
   console.log('Estadísticas de matriz vectorial reconstruida:', stats);

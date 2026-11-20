@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { shortBohoArticle } = require('../desktop-app/src/samples/bohoSample.js');
+const { shortBohoArticle } = require('../desktop-app/src/shared/sample-drafts/boho-eyewear-sample.js');
 
 // AI Clichés to Human Workshop mappings
 const AI_REPLACEMENTS = [

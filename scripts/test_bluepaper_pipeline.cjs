@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const ollama = require('../desktop-app/electron/engine/ollama-client.cjs');
+const ollama = require('../desktop-app/electron/features/local-llm-ollama/ollama-local-client.cjs');
 
 // Load bank
 const baseDir = path.resolve(__dirname, '../banco_ontologico_semantico');

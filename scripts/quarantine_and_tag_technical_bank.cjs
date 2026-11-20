@@ -8,7 +8,7 @@ const {
   writeJsonAtomic,
   decodeAllEntities
 } = require('./mass_harvesting/blog_grinder_core.cjs');
-const { assessOpticalDomainPurity } = require('../desktop-app/electron/engine/factual-integrity-guard.cjs');
+const { assessOpticalDomainPurity } = require('../desktop-app/electron/features/text-analysis/factual-entailment-guard.cjs');
 
 const LENS_TECH_RULES = [
   { key: 'polarizadas', rx: /\bpolarizad[oa]s?\b/i },
@@ -200,7 +200,7 @@ function runMerge() {
   writeJsonAtomic(techIndexPath, techIndex);
 
   // Rebuild 128-D vectors + BM25 index cleanly over active non-excluded bricks
-  const engine = require(path.resolve('desktop-app/electron/engine/neurosymbolic-engine.cjs'));
+  const engine = require(path.resolve('desktop-app/electron/features/humanization-pipeline/humanize-article.cjs'));
   engine.loadBanks();
   const stats = engine.getBankStats();
 

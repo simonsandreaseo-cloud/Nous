@@ -15,13 +15,13 @@
 
 const fs = require('fs');
 const path = require('path');
-const ollamaClient = require('../desktop-app/electron/engine/ollama-client.cjs');
-const engine = require('../desktop-app/electron/engine/neurosymbolic-engine.cjs');
-const enterpriseRetriever = require('../desktop-app/electron/engine/enterprise-semantic-retriever.cjs');
-const domainRegistry = require('../desktop-app/electron/engine/domain-registry.cjs');
-const fg = require('../desktop-app/electron/engine/factual-integrity-guard.cjs');
-const dt = require('../desktop-app/electron/engine/discourse-topology.cjs');
-const cb = require('../desktop-app/electron/engine/carril-b-guided-editor.cjs');
+const ollamaClient = require('../desktop-app/electron/features/local-llm-ollama/ollama-local-client.cjs');
+const engine = require('../desktop-app/electron/features/humanization-pipeline/humanize-article.cjs');
+const enterpriseRetriever = require('../desktop-app/electron/features/donor-bank/hybrid-donor-retriever.cjs');
+const domainRegistry = require('../desktop-app/electron/features/donor-bank/domain-packs-registry.cjs');
+const fg = require('../desktop-app/electron/features/text-analysis/factual-entailment-guard.cjs');
+const dt = require('../desktop-app/electron/features/text-analysis/discourse-topology-analyzer.cjs');
+const cb = require('../desktop-app/electron/features/rewrite-tracks/track-b-guided-transfer/guided-structural-transfer.cjs');
 
 const args = process.argv.slice(2);
 const PREFLIGHT_ONLY = args.includes('--preflight-only');
@@ -424,6 +424,7 @@ async function main() {
         const numPredict = Math.min(340, Math.max(220, Math.round(scaf.blueprint.wordCount * 4.5)));
         const timeoutMs = contender.isLargeModel ? 300000 : 240000;
 
+        const tStart = Date.now();
         try {
           const genRes = await ollamaClient.generate(activeTag, prompt, {
             system: systemPrompt,
@@ -437,7 +438,7 @@ async function main() {
             ...contender.opts
           });
 
-          const durMs = genRes.durationMs || 0;
+          const durMs = genRes.durationMs || (Date.now() - tStart);
           const evCount = genRes.eval_count || 0;
           totalCaseMs += durMs;
           totalInferenceMs += durMs;
@@ -482,15 +483,19 @@ async function main() {
             break;
           }
         } catch (err) {
+          const errDur = Date.now() - tStart;
+          totalCaseMs += errDur;
+          totalInferenceMs += errDur;
           attempts.push({
             attempt: t + 1,
             scaffoldId: scaf.brick.brick_id,
+            durationMs: errDur,
             approved: false,
             score: -100,
             failedGates: ['TIMEOUT_OR_ERR'],
             error: err.message
           });
-          console.log(`    Try #${t + 1} ERROR: ${err.message}`);
+          console.log(`    Try #${t + 1} ERROR (${(errDur / 1000).toFixed(1)}s): ${err.message}`);
         }
       }
 

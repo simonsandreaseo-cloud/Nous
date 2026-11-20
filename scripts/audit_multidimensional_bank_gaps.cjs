@@ -2,8 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const fg = require('../desktop-app/electron/engine/factual-integrity-guard.cjs');
-const dt = require('../desktop-app/electron/engine/discourse-topology.cjs');
+const fg = require('../desktop-app/electron/features/text-analysis/factual-entailment-guard.cjs');
+const dt = require('../desktop-app/electron/features/text-analysis/discourse-topology-analyzer.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const masterPath = path.join(ROOT, 'banco_ontologico_semantico/banco_maestro_ladrillos_retoricos.json');

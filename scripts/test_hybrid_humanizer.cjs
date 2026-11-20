@@ -1,6 +1,6 @@
 ﻿const fs = require('fs');
 const path = require('path');
-const { shortBohoArticle } = require('../desktop-app/src/samples/bohoSample.js');
+const { shortBohoArticle } = require('../desktop-app/src/shared/sample-drafts/boho-eyewear-sample.js');
 
 // Load unified bank
 const bank = JSON.parse(fs.readFileSync('banco_ontologico_semantico/banco_maestro_retorico_unificado.json', 'utf8'));

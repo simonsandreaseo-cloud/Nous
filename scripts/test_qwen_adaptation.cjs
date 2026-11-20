@@ -1,5 +1,5 @@
 const path = require('path');
-const ollama = require(path.resolve(__dirname, '../desktop-app/electron/engine/ollama-client.cjs'));
+const ollama = require(path.resolve(__dirname, '../desktop-app/electron/features/local-llm-ollama/ollama-local-client.cjs'));
 
 async function test() {
   const donor = "Otras te harán identificarte con un estilo, para desmarcarte de todo y protestar. Las puedes encontrar para la primavera, y para el verano. Las tienes para la noche y el día, para mirar fijamente, para despistar, para negociar…";

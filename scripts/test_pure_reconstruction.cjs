@@ -1,4 +1,4 @@
-const ollama = require('../desktop-app/electron/engine/ollama-client.cjs');
+const ollama = require('../desktop-app/electron/features/local-llm-ollama/ollama-local-client.cjs');
 
 async function testPureReconstruction() {
   const donorSkeleton = "Las [SLOT_COMPONENT] de silueta [SLOT_FRAME_SHAPE] tienen ese toque [SLOT_AESTHETIC_STYLE] que, combinado con [SLOT_OCCASION_OUTFIT], añade un aire fresco a cualquier conjunto.";
