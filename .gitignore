@@ -1,0 +1,25 @@
+# Nested subproject with its own git repo
+Staging/
+
+# Large archives, semantic data banks, raw evidence, scratchpads
+archive/
+banco_ontologico_semantico/
+raw_web_evidence/
+scratch/
+
+# Dependencies, build outputs, logs
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/logs/
+*.log
+
+# Environment secrets
+.env
+**/.env
+.env.*
+**/.env.*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
