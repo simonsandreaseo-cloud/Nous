@@ -32,6 +32,14 @@ export default function FortunaDeliverablesHub() {
               Hoja Contenidos ↗
             </a>
             <a
+              href={SHEETS_LINKS.htgFolder}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              Carpeta How to Get (Drive) ↗
+            </a>
+            <a
               href={SHEETS_LINKS.docsFolder}
               target="_blank"
               rel="noopener noreferrer"

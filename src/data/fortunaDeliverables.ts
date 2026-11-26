@@ -7,6 +7,7 @@ export interface HtgDeliverable {
   words: number;
   slug: string;
   status: string;
+  docUrl?: string;
 }
 
 export interface PackageDeliverable {
@@ -41,7 +42,8 @@ export const SHEETS_LINKS = {
   contenidos: "https://docs.google.com/spreadsheets/d/1X0IVH5WomO5i3681TpS5hUfo_JvNtVLZufuDDQ0Xlr4/edit",
   combosRef: "https://docs.google.com/spreadsheets/d/1b6b5YXhVq1eRzqKm4DNP0feugjkGeQp77KrYo2KUY8g/edit",
   competidores: "https://docs.google.com/spreadsheets/d/1itxw8AB9hC2QmeeTMBIMMhyb1OvQKnZQpH5AR6Brtf0/edit",
-  docsFolder: "https://drive.google.com/drive/folders/1hrt4zjcCsvzTQJeIlyQWG66LLXIEOThE"
+  docsFolder: "https://drive.google.com/drive/folders/1hrt4zjcCsvzTQJeIlyQWG66LLXIEOThE",
+  htgFolder: "https://drive.google.com/drive/folders/1AilVTbvRHCUQGpbXSkwZ-A_PkFljm0hN"
 };
 
 export const MAYO_HTG: HtgDeliverable[] = [
@@ -52,7 +54,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 5480,
     "words": 1343,
     "slug": "https://www.fortunaexpeditions.com/blogs/san-jose-sjo-to-la-fortuna-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1ynSwiKgcXxY-Zyn4sl5uX216UZDP-8HCh1wjHhtSLck/edit"
   },
   {
     "id": "f37f147f-71bc-4f89-bfce-fcbc809722b9",
@@ -61,7 +64,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 1650,
     "words": 1055,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-monteverde-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1khzPDeBj6-1nFXN0R4cqKHPMPmoPSAHdT6YsMFYIxDQ/edit"
   },
   {
     "id": "573c7f58-69c3-49ef-a404-bf9be288c801",
@@ -70,7 +74,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 1490,
     "words": 1065,
     "slug": "https://www.fortunaexpeditions.com/blogs/liberia-lir-to-la-fortuna-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1NNEwjIXpXFusQVpw3K1sjNvlFWvXkb7ItPt9lgCACbo/edit"
   },
   {
     "id": "55ec8347-d2c4-45f7-a3f6-15724e6cd325",
@@ -79,7 +84,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 1340,
     "words": 1092,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-manuel-antonio-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/12QZy5dAzfG1WzufxJyakiI0cpOTKH1KoUCAiyyNzDrw/edit"
   },
   {
     "id": "68683745-7905-4eb1-bf04-b8f1c9e09922",
@@ -88,7 +94,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 780,
     "words": 1000,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-tamarindo-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1Rwju2K7o_9X620TBI-TCT9avZ7xRlSfcA7oLGHt8d6U/edit"
   },
   {
     "id": "af1a9a03-7afe-4ce1-8310-a428744535ba",
@@ -97,7 +104,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 420,
     "words": 1104,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-rio-celeste-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1mzUiNuRFpC7Tuwa3Zz4pZDychsGS4U-rMk6tqvvauvI/edit"
   },
   {
     "id": "4d6e0db6-da59-47e2-89a3-7c06cd1846f8",
@@ -106,7 +114,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 400,
     "words": 999,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-jaco-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1lWWNgua3lXWsk_0rk38SdfjktiXNpi1Sx1ytJIwVXwg/edit"
   },
   {
     "id": "254b70a6-0ff0-4aff-b07a-83f6f2b1c9de",
@@ -115,7 +124,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 210,
     "words": 1006,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-puerto-viejo-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1npD_Ad9PXc7PkyiMsn4_Ix7ldtrDqHu1PzzBsxulXjY/edit"
   },
   {
     "id": "02e53c4d-2d1a-4c22-97c8-7584419d7f62",
@@ -124,7 +134,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 170,
     "words": 923,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-santa-teresa-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1AwCZsRh25Xr8ZhoJl8qd_ExAx_Dr2QLSBKy7Izs4jGw/edit"
   },
   {
     "id": "eaeedb6c-b2fa-4c52-a409-15ed62999c77",
@@ -133,7 +144,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 130,
     "words": 1056,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-tortuguero-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1S_3vMh1J787d2tM2a5GCbTUuh8dOCYkDK2__Qqp6P6I/edit"
   },
   {
     "id": "e1050a0f-1512-4cf3-9651-b5b17496f23b",
@@ -142,7 +154,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 30,
     "words": 808,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-around-la-fortuna/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1HEKglqF9cCIgVxSPRcrd4wtEyveR4C4FgkC7ZbwlZoA/edit"
   },
   {
     "id": "ea25609b-2255-4d77-921d-4d846b50cd0f",
@@ -151,7 +164,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 120,
     "words": 783,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-nosara-samara-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1laXXPuGUpaA7ChYZxac3R_2mHs72WDfYhI4KWpgNBpM/edit"
   },
   {
     "id": "9b0318ea-1d17-4b20-8cb3-cb729bf9d26a",
@@ -160,7 +174,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 10,
     "words": 762,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-papagayo-guanacaste-resorts-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1Ao9qKICxUL0-ir0Xjb0QvVvSTCe3j0tSq_2ojEa44zk/edit"
   },
   {
     "id": "0aa0d30c-f652-4744-82e2-19e8c19be207",
@@ -169,7 +184,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 30,
     "words": 754,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-peace-lodge-sarapiqui-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1pg3seVEdtbbW5YGViQF8kWBUfkOhcYTVQOldOXcflBw/edit"
   },
   {
     "id": "273ed422-be02-46af-ae36-f89c1bf546a9",
@@ -178,7 +194,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 5160,
     "words": 798,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-tamarindo-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1j4-QB9r8ivMJmzzekwzaUbHgndC-4ednmned6a2nRKA/edit"
   },
   {
     "id": "697dc325-3ac7-464e-be3c-fe2a25e64b3d",
@@ -187,7 +204,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 3180,
     "words": 797,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-jaco-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1E2HXxDmP9AhNVkBR1gUuHENWmvz5sDoAZpJ8H_ZS3rI/edit"
   },
   {
     "id": "b4dc27a0-08f0-4b83-b78d-7b6483006621",
@@ -196,7 +214,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 2070,
     "words": 767,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-monteverde-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/108rDsYT42xRhR2qmtpDbZDJk8gm7GpUGyLAJIU5DPtc/edit"
   },
   {
     "id": "eeabd2d0-b17e-4482-be38-c6d10348a500",
@@ -205,7 +224,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 1980,
     "words": 753,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-nosara-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1sRpNhtP-dULLuRSzqryTv2s1IFPhoCZ3wWLAyxSKp98/edit"
   },
   {
     "id": "2bb7488e-a336-4d9e-9db2-8c1f67289e5d",
@@ -214,7 +234,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 1470,
     "words": 814,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-santa-teresa-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1Kus0bbhQ6MrITqZMz7bc6TOCVDx3SnTFO4KAG7b5_70/edit"
   },
   {
     "id": "5ce8c868-ddca-4875-9f99-6f9ebfa8abdb",
@@ -223,7 +244,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 920,
     "words": 818,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-puerto-viejo-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1vNmT5iktaUwPpwY1G8EZYnqFMrKyyn-InDIb8w6eSVw/edit"
   },
   {
     "id": "a292c1f5-9870-432d-8901-e0677647da60",
@@ -232,7 +254,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 830,
     "words": 736,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-manuel-antonio-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/16-CdhTNTCK-ImLLICyV0Swhd8tCGsEZRbCfF4-2K9XQ/edit"
   },
   {
     "id": "0da582a2-be8c-491e-adca-1d79933bad92",
@@ -241,7 +264,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 550,
     "words": 664,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-papagayo-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1bQUIBZGK_3LUmGs2Hgb7rj8Kv667cdVr2Vkh97u8ios/edit"
   },
   {
     "id": "e7f0fcd3-8800-4b03-8086-7849b7e17927",
@@ -250,7 +274,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 330,
     "words": 675,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-samara-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1Fo4NjI0kEZU79NFe1hpxwEQedCFACYAd2u1-uxr6DSw/edit"
   },
   {
     "id": "a64e5b44-fad9-482a-a11a-7e4ad107dcd3",
@@ -259,7 +284,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 280,
     "words": 809,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-tortuguero-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1w63B0sQFCWjd9VaqAAsKKFYrJMK19fOYC9hkgRRyhDg/edit"
   },
   {
     "id": "56920b3e-b513-40a1-aefb-0b23a1aa5669",
@@ -268,7 +294,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 200,
     "words": 787,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-corcovado-drake-bay/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1iPwnqzvDS7Sl6XGLJmeEwbE7e_FEj94vxKvj51Iq8uU/edit"
   },
   {
     "id": "9222e781-6aca-47c2-bd04-683aed5d4837",
@@ -277,7 +304,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 180,
     "words": 707,
     "slug": "https://www.fortunaexpeditions.com/blogs/how-to-get-to-uvita-dominical-costa-rica/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1lGzFTXPvnkrIBaasmyZCLChzt2TyLqpyOTJodYbRmro/edit"
   },
   {
     "id": "5d9e469d-27d3-4b9e-bb6f-a1353f7ecdad",
@@ -286,7 +314,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 140,
     "words": 659,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-rincon-de-la-vieja-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1Lsv6r8PEgUnPgC4UbSb046WADMWCtou9A9FhbBGMjo8/edit"
   },
   {
     "id": "b0fdaef0-a91e-4327-a2ee-c108fc1a74f1",
@@ -295,7 +324,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 110,
     "words": 620,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-bajos-del-toro-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1j4mL8YEtWb3RS6tzOcHggP_v6y7rcXgjbIljcsnPvPs/edit"
   },
   {
     "id": "c0b3c511-93de-401a-bbfc-14ccf4119677",
@@ -304,7 +334,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 90,
     "words": 629,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-turrialba-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/1GGa8ssAB2TUaRn4sPcrC8tNQI54Cm-ecK8e558FJAu0/edit"
   },
   {
     "id": "6df150ef-b0e5-4724-bd8c-bfc4ff33c417",
@@ -313,7 +344,8 @@ export const MAYO_HTG: HtgDeliverable[] = [
     "volume": 110,
     "words": 771,
     "slug": "https://www.fortunaexpeditions.com/blogs/la-fortuna-to-cano-negro-how-to-get/",
-    "status": "En Nous (Por Revisar)"
+    "status": "En Nous (Por Revisar)",
+    "docUrl": "https://docs.google.com/document/d/12TVPUV3RWONH3G0sSUh9_lg8dn6andT9N4CkaiTAm3A/edit"
   }
 ];
 
