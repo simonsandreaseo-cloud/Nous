@@ -715,6 +715,55 @@ export const MAYO_PACKAGES: PackageDeliverable[] = [
 export const MAYO_CONTENIDOS: GeneralDeliverable[] = [
   {
     "type": "Blog",
+    "title": "Jaguars in Costa Rica: Where They Live, Real Sighting Odds & How to Explore Their Habitat",
+    "status": "Por Revisar (Supabase + Doc)",
+    "url": "https://docs.google.com/document/d/1sr-CBdHy10wztL83h0jvHZ1j26DMR87dGwdMlOPuDnM/edit",
+    "words": "1462 (4 WebP)"
+  },
+  {
+    "type": "Blog",
+    "title": "Toucans of Costa Rica: All 6 Species, Best Places to Spot Them & Field Tips",
+    "status": "Por Revisar (Supabase + Doc)",
+    "url": "https://docs.google.com/document/d/1FlOs3w7nhhOREngv0Ii8uAsVb9etWrxKIyQBi5_W158/edit",
+    "words": "1280 (4 WebP)"
+  },
+  {
+    "type": "Blog",
+    "title": "Macaws in Costa Rica: Where to See Scarlet & Great Green Macaws in the Wild",
+    "status": "Por Revisar (Supabase + Doc)",
+    "url": "https://docs.google.com/document/d/1_X3VsPTgaIGXBj1429wvTV8ZRTQEdSGkPYwcy0YtgRE/edit",
+    "words": "1198 (4 WebP)"
+  },
+  {
+    "type": "Blog",
+    "title": "Baird's Tapir in Costa Rica: Where & When to See Central America's Largest Land Mammal",
+    "status": "Por Revisar (Supabase + Doc)",
+    "url": "https://docs.google.com/document/d/1NwSb6Q0ZVv4yIZkzpmACsODFNIWv-7Lg_Nv3bv9SWAA/edit",
+    "words": "1111 (4 WebP)"
+  },
+  {
+    "type": "Blog",
+    "title": "Two-Toed vs. Three-Toed Sloths in Costa Rica: How to Tell Them Apart & Where to See Them in the Wild",
+    "status": "Por Revisar (Supabase + Doc)",
+    "url": "https://docs.google.com/document/d/1tUtLBl6-5c8-C2JgwfeR8b5ojmaSt-wETY-f0C_Vq2U/edit",
+    "words": "1142 (4 WebP)"
+  },
+  {
+    "type": "Blog",
+    "title": "Whale Watching in Costa Rica: Best Seasons, Top Locations & What to Expect",
+    "status": "Por Revisar (Supabase + Doc)",
+    "url": "https://docs.google.com/document/d/1RIl_jBsNT30wCIbRnkIhde2lTX-2DPP38cBVI9vjPAE/edit",
+    "words": "1020 (4 WebP)"
+  },
+  {
+    "type": "Blog",
+    "title": "Dolphins in Costa Rica: Resident Species, Best Places to See Them & Boat Tour Guide",
+    "status": "Por Revisar (Supabase + Doc)",
+    "url": "https://docs.google.com/document/d/1q2WqcFqqH9UzK7U9PmjRJwMiAKL-pV3-fOd8c723mzc/edit",
+    "words": "1028 (4 WebP)"
+  },
+  {
+    "type": "Blog",
     "title": "Iconic Wildlife of Costa Rica: Where & When to See Jaguars, Quetzals, Sloths, Tapirs, Macaws, Toucans & Whales",
     "status": "Por Revisar (Supabase + Doc)",
     "url": "https://docs.google.com/document/d/1H7PuiP3eCxD3k7_p5jqq_RRxgV8AKZIVYkFW5sRjTcs/edit",
