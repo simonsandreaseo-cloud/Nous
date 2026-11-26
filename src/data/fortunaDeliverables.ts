@@ -715,6 +715,13 @@ export const MAYO_PACKAGES: PackageDeliverable[] = [
 export const MAYO_CONTENIDOS: GeneralDeliverable[] = [
   {
     "type": "Blog",
+    "title": "Iconic Wildlife of Costa Rica: Where & When to See Jaguars, Quetzals, Sloths, Tapirs, Macaws, Toucans & Whales",
+    "status": "Por Revisar (Supabase + Doc)",
+    "url": "https://docs.google.com/document/d/1H7PuiP3eCxD3k7_p5jqq_RRxgV8AKZIVYkFW5sRjTcs/edit",
+    "words": "2,872 (9 WebP)"
+  },
+  {
+    "type": "Blog",
     "title": "Costa Rican Soccer: The Passion, the Teams, and Your Guide to Attending a Game",
     "status": "En curso",
     "url": "https://www.fortunaexpeditions.com/blogs/costa-rican-soccer-guide/",
