@@ -7,7 +7,7 @@ const discourseTopology = require('../../text-analysis/discourse-topology-analyz
 const factualGuard = require('../../text-analysis/factual-entailment-guard.cjs');
 const { computeNGramOverlapRatio, countTokenDelta } = require('../../text-analysis/draft-preprocessor.cjs');
 const { findAllCorpusOverlaps } = require('../../anti-plagiarism-and-quality/corpus-shingle-scanner.cjs');
-const { applyCentralGrammaticalSurgery } = require('../../anti-plagiarism-and-quality/symbolic-shingle-breaker.cjs');
+const { applyCentralGrammaticalSurgery, applySymbolicShingleBreaker } = require('../../anti-plagiarism-and-quality/symbolic-shingle-breaker.cjs');
 const { commitChosenDonors } = require('../../donor-selection/centering-dag-router.cjs');
 const { enforceBrandSku } = require('../track-a-donor-grafting/donor-slot-filler.cjs');
 const { cleanQwenResponse } = require('../track-a-donor-grafting/collocational-llm-grafter.cjs');
@@ -43,8 +43,11 @@ async function runTrackBParagraph({
   semanticRerankerAudit,
   centering,
   pickedDonors,
-  isColonIntro
+  isColonIntro,
+  strictFailFast = true,
+  usedBridgeWords = null
 }) {
+    if (carrilBStats) carrilBStats.triggered += 1;
     log(`[CARRIL_B] Activado en P${paragraphIndex} (${coverageEntry.severity}, cob=${coverageEntry.coverageScore}%) -> buscando andamio humano estructural...`);
 
     if (ollamaLazyState && !ollamaLazyState.checked) {
@@ -52,12 +55,13 @@ async function runTrackBParagraph({
       ollamaLazyState.checked = true;
       if (srv.available) {
         const names = (srv.models || []).map(m => m.name);
-        const targetReq = ollamaLazyState.requestedModel || activeModel || 'qwen2.5:1.5b';
+        const defaultTarget = ollamaClient.hasAIStudio() ? ollamaClient.getDefaultAIStudioModel() : 'qwen2.5:1.5b';
+        const targetReq = ollamaLazyState.requestedModel || activeModel || defaultTarget;
         const resolved = names.includes(targetReq)
           ? targetReq
-          : (names.includes('qwen2.5:1.5b')
-              ? 'qwen2.5:1.5b'
-              : (names.includes('qwen2.5:0.5b') ? 'qwen2.5:0.5b' : names.find(n => n.toLowerCase().includes('qwen'))));
+          : (ollamaClient.isAIStudioModel(targetReq) && ollamaClient.hasAIStudio()
+              ? targetReq
+              : (names[0] || null));
         if (resolved) {
           ollamaLazyState.available = true;
           ollamaLazyState.model = resolved;
@@ -72,13 +76,22 @@ async function runTrackBParagraph({
     if (!ollamaLazyState?.available || !ollamaLazyState?.model) {
       carrilBStats.offline += 1;
       coverageEntry.track = 'CARRIL_B_OFFLINE_FALLBACK';
-      log(`[CARRIL_B_OFFLINE] Ollama/Qwen no disponible para P${paragraphIndex}. Conservado fallback seguro de Carril A.`);
       auditSteps.push({
         stage: 'CARRIL_B_GUIDED_TRANSFER',
-        status: 'OFFLINE_FALLBACK',
+        status: 'OFFLINE_ABORT',
         model: ollamaLazyState?.requestedModel || activeModel,
-        reason: 'Ollama o modelo Qwen local no disponible; conservado el borrador seguro de Carril A.'
+        reason: 'Motor neuronal (Google AI Studio / Ollama) no disponible para resolver hueco de cobertura.'
       });
+      if (strictFailFast) {
+        const err = new Error(
+          `Operación abortada (Cero Mediocridad) en Párrafo ${paragraphIndex} ("${currentAnchor || 'Introducción'}"): el banco simbólico presenta un hueco de cobertura (${coverageEntry.severity}, ${coverageEntry.coverageScore}%) y no hay motor neuronal activo (${ollamaLazyState?.requestedModel || activeModel}) para ejecutar Carril B.`
+        );
+        err.code = 'CARRIL_B_ENGINE_OFFLINE';
+        err.paragraphIndex = paragraphIndex;
+        err.failedGates = ['ENGINE_OFFLINE'];
+        throw err;
+      }
+      log(`[CARRIL_B_OFFLINE] Motor neuronal no disponible para P${paragraphIndex}. Conservado fallback de Carril A.`);
     } else {
       const carrilBRes = await carrilBEditor.runCarrilBForParagraph({
         rawPara,
@@ -103,9 +116,9 @@ async function runTrackBParagraph({
 
       if (carrilBRes.approved && carrilBRes.text) {
         let cbText = enforceBrandSku(carrilBRes.text, atoms);
-        const cbOverlaps = findAllCorpusOverlaps(bankState, cbText, [carrilBRes.scaffold.brick], 7);
+        const cbOverlaps = findAllCorpusOverlaps(bankState, cbText, [carrilBRes.scaffold.brick], 10);
         if (cbOverlaps.length > 0) {
-          const cbSurg = applyCentralGrammaticalSurgery(bankState, cbText, [carrilBRes.scaffold.brick], atoms, 7, log, auditSteps);
+          const cbSurg = applyCentralGrammaticalSurgery(bankState, cbText, [carrilBRes.scaffold.brick], atoms, 10, log, auditSteps);
           const postSurgJudge = carrilBEditor.judgeCarrilBCandidate({
             candidate: cbSurg.text,
             donorBase: carrilBRes.scaffold.cleanText,
@@ -117,7 +130,9 @@ async function runTrackBParagraph({
             paraTopology,
             domainId,
             activeSubdomains,
-            baselineEntailment: finalLiveEntailment
+            baselineEntailment: finalLiveEntailment,
+            patchMeta: carrilBRes.patchMeta || null,
+            isPostSurgery: true
           });
           if (postSurgJudge.approved) {
             cbText = cbSurg.text;
@@ -194,14 +209,14 @@ async function runTrackBParagraph({
         });
       } else {
         carrilBStats.rejected += 1;
-        const failedList = carrilBRes.judge?.failedGates || [carrilBRes.status];
-        coverageEntry.track = 'CARRIL_B_RECHAZADO_FALLBACK';
+        const failedList = carrilBRes.judge?.failedGates || [carrilBRes.status || 'REJECTED'];
+        const detailFeedback = carrilBRes.judge?.feedbackForRetry || 'Ningún andamio/intento superó las compuertas fácticas y morfosintácticas.';
+        coverageEntry.track = strictFailFast ? 'CARRIL_B_ABORTADO' : 'CARRIL_B_RECHAZADO_FALLBACK';
         coverageEntry.carrilBFailedGates = failedList;
-        log(`[CARRIL_B_FALLBACK] P${paragraphIndex} rechazado tras ${carrilBRes.attempts.length} intentos (${failedList.join(', ')}). Conservado fallback seguro de Carril A.`);
 
         auditSteps.push({
           stage: 'CARRIL_B_GUIDED_TRANSFER',
-          status: carrilBRes.status || 'REJECTED_FALLBACK',
+          status: strictFailFast ? 'REJECTED_ABORT' : (carrilBRes.status || 'REJECTED_FALLBACK'),
           model: ollamaLazyState.model,
           scaffoldId: carrilBRes.scaffold?.brick?.brick_id || null,
           scaffoldDomain: carrilBRes.scaffold?.domain || null,
@@ -211,8 +226,22 @@ async function runTrackBParagraph({
           attempts: carrilBRes.attempts,
           failedGates: failedList,
           bestScore: carrilBRes.judge?.score ?? null,
-          reason: `Juez Mecánico rechazó todos los intentos (${failedList.join(', ')}); conservado borrador seguro de Carril A.`
+          reason: `Juez Mecánico rechazó todos los intentos (${failedList.join(', ')}). ${detailFeedback}`
         });
+
+        if (strictFailFast) {
+          log(`[CARRIL_B_ABORTADO] P${paragraphIndex} rechazado tras ${carrilBRes.attempts.length} intentos [${failedList.join(', ')}]. Abortando operación (Cero Mediocridad).`);
+          const err = new Error(
+            `Operación abortada (Cero Mediocridad) en Párrafo ${paragraphIndex} ("${currentAnchor || 'Introducción'}"): ningún intento superó el Juez Mecánico tras ${carrilBRes.attempts.length} pruebas en Carril B. Compuertas fallidas: [${failedList.join(', ')}]. Diagnóstico: ${detailFeedback}`
+          );
+          err.code = 'CARRIL_B_QUALITY_GATE_FAILED';
+          err.paragraphIndex = paragraphIndex;
+          err.failedGates = failedList;
+          err.carrilBAttempts = carrilBRes.attempts;
+          throw err;
+        }
+
+        log(`[CARRIL_B_FALLBACK] P${paragraphIndex} rechazado tras ${carrilBRes.attempts.length} intentos (${failedList.join(', ')}). Conservado fallback seguro de Carril A.`);
       }
     }
 

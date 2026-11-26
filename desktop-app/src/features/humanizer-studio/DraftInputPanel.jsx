@@ -26,8 +26,11 @@ export default function DraftInputPanel({
   const optionsToRender = modelOptions && modelOptions.length > 0
     ? modelOptions
     : [
-        { value: 'qwen2.5:1.5b', label: 'qwen2.5:1.5b (Recomendado)' },
-        { value: 'qwen2.5:0.5b', label: 'qwen2.5:0.5b (Ultra Rápido)' }
+        { value: 'gemma-4-26b-a4b-it', label: 'gemma-4-26b-a4b-it (Gemma 4 26B MoE · AI Studio ⭐)' },
+        { value: 'gemini-3.1-flash-lite', label: 'gemini-3.1-flash-lite (Cascada #1 · AI Studio)' },
+        { value: 'gemini-3.5-flash-lite', label: 'gemini-3.5-flash-lite (Cascada #2 · AI Studio)' },
+        { value: 'gemma-4-31b-it', label: 'gemma-4-31b-it (Gemma 4 31B Denso · AI Studio)' },
+        { value: 'qwen2.5:1.5b', label: 'qwen2.5:1.5b (Ollama Local CPU)' }
       ];
 
   return (
@@ -88,7 +91,7 @@ export default function DraftInputPanel({
 
             <label
               className="flex items-center gap-2 cursor-pointer select-none text-slate-300 hover:text-white"
-              title="Activado: Compilación neuro-simbólica completa (Qwen 2.5 para Injerto Colocacional y Carril B + Donantes Pre-2022). Desactivado: Modo simbólico determinista sin LLM."
+              title="Activado: Compilación neuro-simbólica con Google AI Studio (Gemma 4 + 10 reintentos + cascada) y Donantes Pre-2022. Desactivado: Solo banco simbólico determinista."
             >
               <input
                 type="checkbox"
@@ -97,13 +100,13 @@ export default function DraftInputPanel({
                 className="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0"
               />
               <span className={useLocalLLM ? 'text-indigo-400 font-semibold' : 'text-emerald-400 font-semibold'}>
-                {useLocalLLM ? '🧠 Qwen 2.5 Neuro-Simbólico' : '🧬 Solo Donantes Simbólicos'}
+                {useLocalLLM ? '🧠 Motor Neuronal Activo' : '🧬 Solo Donantes Simbólicos'}
               </span>
             </label>
 
             <label
               className="flex items-center gap-2 cursor-pointer select-none text-slate-300 hover:text-white"
-              title="Redirige únicamente los párrafos marcados como CRITICO hacia un andamio humano editado de forma mínima con juez mecánico determinista."
+              title="Transfiere todos los párrafos con huecos fácticos o semánticos sobre un andamio humano verificado por Juez Mecánico en modo estricto (Fail-Fast)."
             >
               <input
                 type="checkbox"
@@ -112,7 +115,7 @@ export default function DraftInputPanel({
                 className="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0"
               />
               <span className={enableCarrilB ? 'text-cyan-300 font-semibold' : 'text-slate-500'}>
-                🛤️ Carril B Guiado (solo críticos)
+                🛤️ Carril B Guiado (Fail-Fast)
               </span>
             </label>
           </div>

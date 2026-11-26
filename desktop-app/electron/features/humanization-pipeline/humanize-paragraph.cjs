@@ -113,31 +113,33 @@ async function humanizeParagraph({
     }
   }
 
-  // Ruptura gramatical central de k-gramas (bisección interior [3, L-4], bordes intactos)
+  // Ruptura gramatical central suave solo en rachas largas (>= 10 palabras) para preservar el ritmo y léxico humano
   const enableCentralSurgery = options?.centralShingleSurgery !== false;
-  const enableAntiPlagiarism = options?.antiPlagiarism === true || bankState.enableAntiPlagiarism === true;
+  const enableAntiPlagiarism = options?.antiPlagiarism !== false;
+  const shingleThreshold = options?.minShingleLen || 10;
   if (enableCentralSurgery || enableAntiPlagiarism) {
-    const overlapsBefore = findAllCorpusOverlaps(bankState, reconstructedPara, donorsUsedInPara, 7);
+    const overlapsBefore = findAllCorpusOverlaps(bankState, reconstructedPara, donorsUsedInPara, shingleThreshold);
 
     if (overlapsBefore.length > 0) {
-      log(`[FASE_5_SHINGLES] Detectados ${overlapsBefore.length} solapamientos >= 7 palabras contra donantes/banco: ${overlapsBefore.slice(0, 6).map(o => `"${o.shingle}"`).join(' | ')}${overlapsBefore.length > 6 ? ` (+${overlapsBefore.length - 6} más)` : ''}`);
+      log(`[FASE_5_SHINGLES] Detectados ${overlapsBefore.length} solapamientos >= ${shingleThreshold} palabras contra donantes/banco: ${overlapsBefore.slice(0, 5).map(o => `"${o.shingle}"`).join(' | ')}${overlapsBefore.length > 5 ? ` (+${overlapsBefore.length - 5} más)` : ''}`);
 
       const beforeShingleBreak = reconstructedPara;
-      const surgeryRes = applyCentralGrammaticalSurgery(bankState, 
+      const surgeryRes = applyCentralGrammaticalSurgery(
+        bankState,
         reconstructedPara,
         donorsUsedInPara,
         atoms,
-        7,
+        shingleThreshold,
         log,
         auditSteps
       );
       reconstructedPara = surgeryRes.text;
 
+      const overlapsAfter = findAllCorpusOverlaps(bankState, reconstructedPara, donorsUsedInPara, shingleThreshold);
       paraInterventionTokens += countTokenDelta(beforeShingleBreak, reconstructedPara);
-      const overlapsAfter = findAllCorpusOverlaps(bankState, reconstructedPara, donorsUsedInPara, 7);
-      log(`[FASE_5_CIRUGIA_RESUMEN] Solapamientos >=7w: ${overlapsBefore.length} -> ${overlapsAfter.length} | Oraciones editadas: ${surgeryRes.stats.sentencesEdited} | Ops: ${surgeryRes.operations.length} | Violaciones borde: ${surgeryRes.stats.borderViolations} | Resultado: "${reconstructedPara}"`);
+      log(`[FASE_5_CIRUGIA_RESUMEN] Solapamientos >=${shingleThreshold}w: ${overlapsBefore.length} -> ${overlapsAfter.length} | Oraciones editadas: ${surgeryRes.stats.sentencesEdited} | Ops: ${surgeryRes.operations.length} | Violaciones borde: ${surgeryRes.stats.borderViolations} | Resultado: "${reconstructedPara}"`);
     } else {
-      log(`[FASE_5_CIRUGIA_RESUMEN] Solapamientos >=7w detectados: 0 (sin cirugía requerida)`);
+      log(`[FASE_5_CIRUGIA_RESUMEN] Solapamientos >=${shingleThreshold}w detectados: 0 (sin cirugía requerida)`);
     }
   } else {
     log(`[FASE_5_ANTIPLAGIO] Omitida por configuración explícita.`);
@@ -215,15 +217,24 @@ async function humanizeParagraph({
   });
 
   // -----------------------------------------------------------------------
-  // CARRIL B (Edición Guiada Restringida sobre Andamio Humano + Juez Mecánico)
-  // Se activa cuando Carril A clasifica el párrafo como hueco CRITICO (o MEDIO+CRITICO
-  // en always_gap), o cuando Fase 4 de Qwen en Carril A falla y hace fallback.
+  // CARRIL B (Transferencia Estructural Guiada sobre Andamio Humano + Juez Mecánico)
+  // Se activa ante cualquier hueco de cobertura (CRITICO, MEDIO o brecha fáctica)
+  // o cuando el pulido de Carril A no superó la validación. En modo estricto
+  // (strictFailFast !== false), nunca se emiten resultados mediocres sin resolver.
   // -----------------------------------------------------------------------
-  const shouldTriggerCarrilB = !isColonIntro && Boolean(carrilBStats?.enabled) && (
-    Boolean(trackARes.trackAFailedQwen) ||
-    (carrilBStats.mode === 'always_gap' ? coverageEntry.isGap : coverageEntry.severity === 'CRITICO')
+  const strictFailFast = options?.strictFailFast !== false;
+  const isParagraphGap = Boolean(
+    coverageEntry.isGap ||
+    finalLiveEntailment.isHonestFactualGap ||
+    trackARes.trackAFailedQwen
   );
-
+  const shouldTriggerCarrilB = !isColonIntro && Boolean(carrilBStats?.enabled) && (
+    carrilBStats.mode === 'only_critical'
+      ? (coverageEntry.severity === 'CRITICO' || finalLiveEntailment.isHonestFactualGap || Boolean(trackARes.trackAFailedQwen))
+      : carrilBStats.mode === 'always'
+        ? true
+        : isParagraphGap
+  );
 
   if (shouldTriggerCarrilB) {
     const trackBRes = await runTrackBParagraph({
@@ -256,7 +267,9 @@ async function humanizeParagraph({
       semanticRerankerAudit,
       centering,
       pickedDonors,
-      isColonIntro
+      isColonIntro,
+      strictFailFast,
+      usedBridgeWords
     });
     reconstructedPara = trackBRes.reconstructedPara;
     paraInterventionTokens = trackBRes.paraInterventionTokens;
@@ -264,6 +277,15 @@ async function humanizeParagraph({
     divergencePct = trackBRes.divergencePct;
     coverageEntry = trackBRes.coverageEntry;
     finalLiveEntailment = trackBRes.finalLiveEntailment;
+  } else if (!isColonIntro && strictFailFast && isParagraphGap) {
+    const gapReasons = (coverageEntry.gapReasons || []).join(', ') || 'Hueco fáctico/semántico en banco';
+    const err = new Error(
+      `Operación abortada (Cero Mediocridad) en Párrafo ${paragraphIndex} ("${currentAnchor || 'Introducción'}"): el banco simbólico no cubre los hechos requeridos (${coverageEntry.severity}, cobertura=${coverageEntry.coverageScore}%, motivos: ${gapReasons}) y Carril B está desactivado.`
+    );
+    err.code = 'BANK_GAP_WITHOUT_CARRIL_B';
+    err.paragraphIndex = paragraphIndex;
+    err.failedGates = coverageEntry.gapReasons || ['BANK_COVERAGE_GAP'];
+    throw err;
   } else {
     coverageEntry.track = 'CARRIL_A';
   }

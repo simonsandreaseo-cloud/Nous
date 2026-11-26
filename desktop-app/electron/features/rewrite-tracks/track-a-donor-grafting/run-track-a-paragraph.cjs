@@ -68,6 +68,9 @@ async function runTrackAParagraph({
     } catch (err) {
       qwenStats.failures += 1;
       log(`[QWEN_FASE_1_ERROR] ${err.message} — usando fallback de átomos deterministas.`);
+      if (err.code === 'AI_STUDIO_ALL_MODELS_EXHAUSTED' || err.code === 'AI_STUDIO_FATAL_HTTP') {
+        throw err;
+      }
     }
   } else {
     const fastSentences = rawPara.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
@@ -286,175 +289,16 @@ async function runTrackAParagraph({
   }
 
   // -----------------------------------------------------------------------
-  // PROCESO QWEN #2: Compilador Colocacional y Sanación (estrictamente sobre graftedDonorDraft)
+  // PRE-CHEQUEO FÁCTICO DETERMINISTA + COMPOSICIÓN PIVOTE / MULTI-DONANTE
+  // Se ejecuta antes de llamar al LLM en Carril A: si el borrador simbólico
+  // presenta hueco fáctico o semántico y Carril B está activo, no malgastamos
+  // llamadas al modelo puliendo un esqueleto que será reemplazado en Carril B.
   // -----------------------------------------------------------------------
-  let reconstructedPara = '';
-  let usedQwenGraft = false;
-  let rotatedCandidate = false;
-  let qwenAttemptsUsed = 0;
-
-  if (isColonIntro) {
-    reconstructedPara = graftedDonorDraft;
-    if (rawPara.trim().endsWith(':') && !reconstructedPara.trim().endsWith(':')) {
-      reconstructedPara = reconstructedPara.replace(/[.!?]+$/, '') + ':';
-    }
-    commitChosenDonors(pickedDonors, usedDonorIds, usedDomainsCount);
-    log(`[QWEN_FASE_4_INJERTO] Blindaje estructural de transición con dos puntos (:) aplicado — ensamblaje sobre molde pre-2022 sin rawPara.`);
-    log(`[QWEN_FASE_4_ENTRADA_ESQUELETO] "${graftedDonorDraft}"`);
-    log(`[QWEN_FASE_4_RESULTADO] ${reconstructedPara}`);
-    auditSteps.push({
-      stage: 'QWEN_COLLOCATIONAL_GRAFT',
-      model: 'symbolic-colon-shield',
-      durationMs: 0,
-      evalCount: 0,
-      donorId: donorsUsedInPara.map(b => b.brick_id).join(' + '),
-      preFilledSkeleton,
-      rawResponse: reconstructedPara,
-      reason: 'Párrafo introductorio cerrado en dos puntos (:) reconstruido sobre molde pre-2022 sin copiar sintaxis de entrada.'
-    });
-  } else if (useLocalLLM) {
-    const maxAttemptsPerCandidate = 5;
-    const totalMaxAttempts = 10;
-    const primaryId = pickedDonors[0]?.brick?.brick_id;
-    const candidateQueue = [pickedDonors];
-    const altNode = (centering.topCandidates || []).find(c => c?.brick?.brick_id && c.brick.brick_id !== primaryId);
-    if (altNode) {
-      candidateQueue.push([altNode]);
-    }
-
-    let acceptedGraft = null;
-    let lastFailureReason = null;
-    const attemptHistory = [];
-    const tempSchedule = [0.08, 0.16, 0.28, 0.05, 0.35, 0.22, 0.42, 0.12, 0.38, 0.30];
-    let globalAttempt = 0;
-
-    for (let qIdx = 0; qIdx < candidateQueue.length && !acceptedGraft; qIdx++) {
-      const candNodes = candidateQueue[qIdx];
-      if (qIdx > 0) {
-        rotatedCandidate = true;
-        const altBuild = buildDraftForNodes(candNodes);
-        pickedDonors = candNodes;
-        donorsUsedInPara.length = 0;
-        for (const n of pickedDonors) donorsUsedInPara.push(n.brick);
-        graftedDonorDraft = altBuild.draft;
-        preFilledSkeleton = altBuild.draft;
-        lastFailureReason = null;
-        const altId = candNodes[0]?.brick?.brick_id || 'fallback';
-        const altDom = candNodes[0]?.domain || 'corpus';
-        rerankMeta.fitScore = estimateFitFromSem(candNodes[0]);
-        rerankMeta.reason = `Alternativa tras 5 descartes en candidato #1 (${altId})`;
-        donorSelectionAudit.donor_id = altId;
-        donorSelectionAudit.source = altDom;
-        donorSelectionAudit.score = candNodes[0]?.score ?? 0;
-        donorSelectionAudit.semScore = candNodes[0]?.brick?._semScore ?? 0;
-        donorSelectionAudit.fitScore = rerankMeta.fitScore;
-        donorSelectionAudit.skeleton = altBuild.pieces.join(' ');
-        semanticRerankerAudit.donorId = altId;
-        semanticRerankerAudit.domain = altDom;
-        semanticRerankerAudit.semScore = candNodes[0]?.brick?._semScore ?? 0;
-        semanticRerankerAudit.fitScore = rerankMeta.fitScore;
-        semanticRerankerAudit.isBankGap = (rerankMeta.fitScore ?? 10) <= 6;
-        log(`[QWEN_FASE_4_ROTACION] Rotando a donante alternativo ${altId} (${altDom}) tras ${maxAttemptsPerCandidate} descartes en candidato previo.`);
-      }
-
-      const candBudget = candidateQueue.length > 1 ? maxAttemptsPerCandidate : totalMaxAttempts;
-      for (let localTry = 1; localTry <= candBudget && globalAttempt < totalMaxAttempts; localTry++) {
-        globalAttempt++;
-        const currentTemp = tempSchedule[(globalAttempt - 1) % tempSchedule.length];
-        try {
-          const graftRes = await compileCollocationalWithQwen({
-            graftedDonorDraft,
-            endsWithColon: false,
-            atoms,
-            centering,
-            currentAnchor,
-            frame,
-            modelName: activeModel,
-            log,
-            qwenStats,
-            attempt: globalAttempt,
-            temperature: currentTemp,
-            feedback: lastFailureReason
-          });
-
-          const check = validateQwenGraft(graftRes.text, rawPara, atoms, graftedDonorDraft, frame, currentAnchor);
-          const auditMetrics = analyzeAlterations(graftRes.text, graftedDonorDraft, atoms);
-
-          attemptHistory.push({
-            attempt: globalAttempt,
-            candidateDonorId: donorsUsedInPara.map(b => b.brick_id).join(' + '),
-            temperature: currentTemp,
-            text: graftRes.text,
-            valid: check.ok,
-            reason: check.ok ? 'Aceptado' : check.reason,
-            metrics: auditMetrics
-          });
-
-          if (check.ok) {
-            acceptedGraft = graftRes;
-            acceptedGraft.auditMetrics = auditMetrics;
-            acceptedGraft.attemptNumber = globalAttempt;
-            acceptedGraft.totalAttempts = globalAttempt;
-            log(`[QWEN_FASE_4_EXITO] Intento ${globalAttempt}/${totalMaxAttempts} ACEPTADO (Alteración: ${(auditMetrics.alterationRate).toFixed(1)}% | ${auditMetrics.typeSummary}).`);
-            break;
-          } else {
-            lastFailureReason = check.reason;
-            log(`[QWEN_FASE_4_REINTENTO] Intento ${globalAttempt}/${totalMaxAttempts} descartado (${check.reason}). Preparando reintento...`);
-          }
-        } catch (err) {
-          qwenStats.failures += 1;
-          lastFailureReason = err.message;
-          log(`[QWEN_FASE_4_ERROR] Intento ${globalAttempt}/${totalMaxAttempts} falló (${err.message}).`);
-        }
-      }
-    }
-
-    if (acceptedGraft) {
-      qwenAttemptsUsed = acceptedGraft.totalAttempts || globalAttempt;
-      commitChosenDonors(pickedDonors, usedDonorIds, usedDomainsCount);
-      reconstructedPara = acceptedGraft.text;
-      usedQwenGraft = true;
-      auditSteps.push({
-        stage: 'QWEN_COLLOCATIONAL_GRAFT',
-        model: acceptedGraft.model,
-        durationMs: acceptedGraft.durationMs,
-        evalCount: acceptedGraft.evalCount,
-        donorId: donorsUsedInPara.map(b => b.brick_id).join(' + '),
-        preFilledSkeleton,
-        rawResponse: acceptedGraft.text,
-        attemptsCount: acceptedGraft.totalAttempts,
-        attemptHistory,
-        alterationMetrics: acceptedGraft.auditMetrics,
-        reason: `Pulido morfosintáctico completado en intento ${acceptedGraft.attemptNumber}/${totalMaxAttempts}.`
-      });
-    } else {
-      const lastErr = lastFailureReason || 'Validación morfosintáctica no superada';
-      qwenAttemptsUsed = globalAttempt;
-      usedQwenGraft = false;
-      trackAFailedQwen = true;
-      rerankMeta.fitScore = Math.min(rerankMeta.fitScore ?? 4, 4);
-      donorSelectionAudit.fitScore = rerankMeta.fitScore;
-      semanticRerankerAudit.fitScore = rerankMeta.fitScore;
-      log(`[QWEN_FASE_4_FALLBACK] Párrafo no superó Qwen tras ${globalAttempt} intentos (${lastErr}). Preservado borrador simbólico y habilitado escalado a Carril B.`);
-      auditSteps.push({
-        stage: 'QWEN_COLLOCATIONAL_GRAFT',
-        status: 'FALLBACK_TO_SYMBOLIC_AND_TRACK_B',
-        model: activeModel,
-        donorId: donorsUsedInPara.map(b => b.brick_id).join(' + ') || 'fallback',
-        preFilledSkeleton,
-        attemptsCount: globalAttempt,
-        attemptHistory,
-        reason: `Qwen no superó validación tras ${globalAttempt} intentos (${lastErr}); se continúa sin abortar el artículo.`
-      });
-    }
-  }
-
-  if (!isColonIntro && !usedQwenGraft) {
+  if (!isColonIntro) {
     if (!lastEntailmentAudit) {
       lastEntailmentAudit = factualGuard.evaluateFactualEntailment(rawPara, graftedDonorDraft, atoms?.discriminativeAnchors, atoms?.signedPolarity);
     }
 
-    // Voice-Locked 2-Clause Adversative Pivot Composition (solo si el donante monolítico deja hueco fáctico real)
     if (lastEntailmentAudit?.isHonestFactualGap) {
       const pivot = factualGuard.detectAdversativePivot(rawPara);
       if (pivot.hasPivot) {
@@ -510,6 +354,7 @@ async function runTrackAParagraph({
                 donorsUsedInPara.length = 0;
                 donorsUsedInPara.push(nodeL.brick, nodeR.brick);
                 graftedDonorDraft = composedText;
+                preFilledSkeleton = composedText;
                 lastEntailmentAudit = composedEntail;
 
                 const dualFit = composedEntail.isHonestFactualGap
@@ -531,6 +376,297 @@ async function runTrackAParagraph({
       }
     }
 
+    if (lastEntailmentAudit?.isHonestFactualGap) {
+      const missingTerms = [...new Set([
+        ...(lastEntailmentAudit.missingCriticalTech || []),
+        ...(lastEntailmentAudit.missingAnchors || []),
+        ...(lastEntailmentAudit.unwarnedNegativeContexts || [])
+      ])].filter(Boolean);
+
+      if (missingTerms.length > 0) {
+        const missingQuery = missingTerms.join(' ');
+        const { type: missFrame, atoms: missAtoms } = classifyParagraph(missingQuery, currentAnchor, activeSubdomains);
+        const mergedAtoms = {
+          ...atoms,
+          brand_models: atoms?.brand_models || [],
+          discriminativeAnchors: atoms?.discriminativeAnchors || [],
+          signedPolarity: atoms?.signedPolarity || null
+        };
+        const excludeIds = new Set([...usedDonorIds, ...donorsUsedInPara.map(b => b.brick_id)]);
+        const compFrames = [...new Set([missFrame, frame, 'OPTICAL_PROTECTION', 'MATERIAL_COMPOSITION', 'PRODUCT_FACTUAL', 'AUDIOLOGY', 'GENERAL_STYLE'])];
+        const compCands = searchDonorBricksForParagraph(
+          bankState,
+          compFrames,
+          missAtoms,
+          missingQuery,
+          excludeIds,
+          12,
+          null,
+          frame,
+          {
+            paragraphMode: false,
+            minWindowWords: 10,
+            maxWindowWords: 45,
+            currentAnchor,
+            isFirstAfterHeading: false,
+            usageLedger,
+            articleMacroStyle: articleState?.articleMacroStyle || 'general_editorial',
+            domainId,
+            activeSubdomains
+          }
+        );
+
+        const primaryEnded = /[.!?]$/.test(graftedDonorDraft.trim())
+          ? graftedDonorDraft.trim()
+          : `${graftedDonorDraft.trim()}.`;
+        let bestFusion = null;
+
+        for (const candNode of compCands) {
+          const compPiece = fillSlotsInBrick(candNode.brick, mergedAtoms, frame, null, rawPara);
+          if (!compPiece || !compPiece.trim()) continue;
+          const compTrim = /[.!?]$/.test(compPiece.trim()) ? compPiece.trim() : `${compPiece.trim()}.`;
+          const candidateFused = `${primaryEnded} ${compTrim}`.replace(/\s+/g, ' ').trim();
+          if (candidateFused.split(/\s+/).filter(Boolean).length > 98) continue;
+
+          const fusedEntail = factualGuard.evaluateFactualEntailment(
+            rawPara,
+            candidateFused,
+            atoms?.discriminativeAnchors,
+            atoms?.signedPolarity
+          );
+          if (
+            !fusedEntail.polarityContradiction &&
+            !fusedEntail.unrequestedTechLeak &&
+            fusedEntail.entailmentScore >= (lastEntailmentAudit.entailmentScore || 0) + 18
+          ) {
+            if (!bestFusion || fusedEntail.entailmentScore > bestFusion.entail.entailmentScore) {
+              bestFusion = { candNode, fusedText: candidateFused, entail: fusedEntail };
+            }
+          }
+        }
+
+        if (bestFusion) {
+          const compWrap = {
+            brick: bestFusion.candNode.brick,
+            domain: bestFusion.candNode.brick.source_domain || 'corpus',
+            score: bestFusion.candNode.score
+          };
+          pickedDonors = [...pickedDonors, compWrap];
+          donorsUsedInPara.push(bestFusion.candNode.brick);
+          graftedDonorDraft = bestFusion.fusedText;
+          preFilledSkeleton = bestFusion.fusedText;
+          lastEntailmentAudit = bestFusion.entail;
+
+          const fusedFit = bestFusion.entail.isHonestFactualGap
+            ? Math.min(5, Math.max(2, Math.round(bestFusion.entail.entailmentScore / 10)))
+            : Math.min(10, Math.max(7, Math.round(bestFusion.entail.entailmentScore / 10)));
+          rerankMeta.fitScore = fusedFit;
+          rerankMeta.reason = `Fusión complementaria multi-donante (+${bestFusion.candNode.brick.brick_id}) | entail=${bestFusion.entail.entailmentScore}%`;
+          donorSelectionAudit.donor_id = donorsUsedInPara.map(b => b.brick_id).join(', ');
+          donorSelectionAudit.source = pickedDonors.map(p => p.domain).join(', ');
+          donorSelectionAudit.fitScore = fusedFit;
+          donorSelectionAudit.skeleton = bestFusion.fusedText;
+          semanticRerankerAudit.donorId = donorsUsedInPara.map(b => b.brick_id).join(' + ');
+          semanticRerankerAudit.fitScore = fusedFit;
+          log(`[FASE_3_FUSION_COMPLEMENTARIA] Añadido donante ${bestFusion.candNode.brick.brick_id} (${compWrap.domain}) -> entail=${bestFusion.entail.entailmentScore}%, fit=${fusedFit}/10`);
+        }
+      }
+    }
+  }
+
+  const carrilBMode = options?.carrilBMode || (options?.enableCarrilB === false ? 'off' : 'auto');
+  const carrilBWillHandle = Boolean(
+    !isColonIntro &&
+    options?.enableCarrilB !== false &&
+    carrilBMode !== 'off' &&
+    (
+      carrilBMode === 'always' ||
+      lastEntailmentAudit?.isHonestFactualGap ||
+      (rerankMeta.fitScore ?? 10) <= 6
+    )
+  );
+
+  // -----------------------------------------------------------------------
+  // PROCESO LLM #2: Compilador Colocacional y Sanación (solo cuando Carril A cubre el párrafo)
+  // -----------------------------------------------------------------------
+  let reconstructedPara = '';
+  let usedQwenGraft = false;
+  let rotatedCandidate = false;
+  let qwenAttemptsUsed = 0;
+
+  if (isColonIntro) {
+    reconstructedPara = graftedDonorDraft;
+    if (rawPara.trim().endsWith(':') && !reconstructedPara.trim().endsWith(':')) {
+      reconstructedPara = reconstructedPara.replace(/[.!?]+$/, '') + ':';
+    }
+    commitChosenDonors(pickedDonors, usedDonorIds, usedDomainsCount);
+    log(`[QWEN_FASE_4_INJERTO] Blindaje estructural de transición con dos puntos (:) aplicado — ensamblaje sobre molde pre-2022 sin rawPara.`);
+    log(`[QWEN_FASE_4_ENTRADA_ESQUELETO] "${graftedDonorDraft}"`);
+    log(`[QWEN_FASE_4_RESULTADO] ${reconstructedPara}`);
+    auditSteps.push({
+      stage: 'QWEN_COLLOCATIONAL_GRAFT',
+      model: 'symbolic-colon-shield',
+      durationMs: 0,
+      evalCount: 0,
+      donorId: donorsUsedInPara.map(b => b.brick_id).join(' + '),
+      preFilledSkeleton,
+      rawResponse: reconstructedPara,
+      reason: 'Párrafo introductorio cerrado en dos puntos (:) reconstruido sobre molde pre-2022 sin copiar sintaxis de entrada.'
+    });
+  } else if (carrilBWillHandle) {
+    reconstructedPara = graftedDonorDraft;
+    log(`[CARRIL_A_DELEGACION] Hueco fáctico/semántico detectado (entail=${lastEntailmentAudit?.entailmentScore ?? 0}%, encaje=${rerankMeta.fitScore}/10) -> omitiendo pulido LLM de Carril A para escalar directamente a Carril B.`);
+    auditSteps.push({
+      stage: 'QWEN_COLLOCATIONAL_GRAFT',
+      status: 'DEFERRED_TO_CARRIL_B',
+      model: 'deferred-to-track-b',
+      durationMs: 0,
+      evalCount: 0,
+      donorId: donorsUsedInPara.map(b => b.brick_id).join(' + '),
+      preFilledSkeleton,
+      rawResponse: graftedDonorDraft,
+      reason: 'Se detectó hueco de cobertura en el banco simbólico; se delega directamente a Transferencia Estructural Guiada (Carril B) sin consumir llamadas intermedias.'
+    });
+  } else if (useLocalLLM) {
+    const maxAttemptsPerCandidate = 2;
+    const totalMaxAttempts = 3;
+    const primaryId = pickedDonors[0]?.brick?.brick_id;
+    const candidateQueue = [pickedDonors];
+    const altNode = (centering.topCandidates || []).find(c => c?.brick?.brick_id && c.brick.brick_id !== primaryId);
+    if (altNode) {
+      candidateQueue.push([altNode]);
+    }
+
+    let acceptedGraft = null;
+    let lastFailureReason = null;
+    const attemptHistory = [];
+    const tempSchedule = [0.08, 0.18, 0.26];
+    let globalAttempt = 0;
+
+    for (let qIdx = 0; qIdx < candidateQueue.length && !acceptedGraft; qIdx++) {
+      const candNodes = candidateQueue[qIdx];
+      if (qIdx > 0) {
+        rotatedCandidate = true;
+        const altBuild = buildDraftForNodes(candNodes);
+        pickedDonors = candNodes;
+        donorsUsedInPara.length = 0;
+        for (const n of pickedDonors) donorsUsedInPara.push(n.brick);
+        graftedDonorDraft = altBuild.draft;
+        preFilledSkeleton = altBuild.draft;
+        lastFailureReason = null;
+        const altId = candNodes[0]?.brick?.brick_id || 'fallback';
+        const altDom = candNodes[0]?.domain || 'corpus';
+        rerankMeta.fitScore = estimateFitFromSem(candNodes[0]);
+        rerankMeta.reason = `Alternativa tras descartes en candidato #1 (${altId})`;
+        donorSelectionAudit.donor_id = altId;
+        donorSelectionAudit.source = altDom;
+        donorSelectionAudit.score = candNodes[0]?.score ?? 0;
+        donorSelectionAudit.semScore = candNodes[0]?.brick?._semScore ?? 0;
+        donorSelectionAudit.fitScore = rerankMeta.fitScore;
+        donorSelectionAudit.skeleton = altBuild.pieces.join(' ');
+        semanticRerankerAudit.donorId = altId;
+        semanticRerankerAudit.domain = altDom;
+        semanticRerankerAudit.semScore = candNodes[0]?.brick?._semScore ?? 0;
+        semanticRerankerAudit.fitScore = rerankMeta.fitScore;
+        semanticRerankerAudit.isBankGap = (rerankMeta.fitScore ?? 10) <= 6;
+        log(`[QWEN_FASE_4_ROTACION] Rotando a donante alternativo ${altId} (${altDom}).`);
+      }
+
+      const candBudget = candidateQueue.length > 1 ? maxAttemptsPerCandidate : totalMaxAttempts;
+      for (let localTry = 1; localTry <= candBudget && globalAttempt < totalMaxAttempts; localTry++) {
+        globalAttempt++;
+        const currentTemp = tempSchedule[(globalAttempt - 1) % tempSchedule.length];
+        try {
+          const graftRes = await compileCollocationalWithQwen({
+            graftedDonorDraft,
+            endsWithColon: false,
+            atoms,
+            centering,
+            currentAnchor,
+            frame,
+            modelName: activeModel,
+            log,
+            qwenStats,
+            attempt: globalAttempt,
+            temperature: currentTemp,
+            feedback: lastFailureReason
+          });
+
+          const check = validateQwenGraft(graftRes.text, rawPara, atoms, graftedDonorDraft, frame, currentAnchor);
+          const auditMetrics = analyzeAlterations(graftRes.text, graftedDonorDraft, atoms);
+
+          attemptHistory.push({
+            attempt: globalAttempt,
+            candidateDonorId: donorsUsedInPara.map(b => b.brick_id).join(' + '),
+            temperature: currentTemp,
+            text: graftRes.text,
+            valid: check.ok,
+            reason: check.ok ? 'Aceptado' : check.reason,
+            metrics: auditMetrics
+          });
+
+          if (check.ok) {
+            acceptedGraft = graftRes;
+            acceptedGraft.auditMetrics = auditMetrics;
+            acceptedGraft.attemptNumber = globalAttempt;
+            acceptedGraft.totalAttempts = globalAttempt;
+            log(`[QWEN_FASE_4_EXITO] Intento ${globalAttempt}/${totalMaxAttempts} ACEPTADO (Alteración: ${(auditMetrics.alterationRate).toFixed(1)}% | ${auditMetrics.typeSummary}).`);
+            break;
+          } else {
+            lastFailureReason = check.reason;
+            log(`[QWEN_FASE_4_REINTENTO] Intento ${globalAttempt}/${totalMaxAttempts} descartado (${check.reason}). Preparando reintento...`);
+          }
+        } catch (err) {
+          qwenStats.failures += 1;
+          lastFailureReason = err.message;
+          log(`[QWEN_FASE_4_ERROR] Intento ${globalAttempt}/${totalMaxAttempts} falló (${err.message}).`);
+          if (err.code === 'AI_STUDIO_ALL_MODELS_EXHAUSTED' || err.code === 'AI_STUDIO_FATAL_HTTP') {
+            throw err;
+          }
+        }
+      }
+    }
+
+    if (acceptedGraft) {
+      qwenAttemptsUsed = acceptedGraft.totalAttempts || globalAttempt;
+      commitChosenDonors(pickedDonors, usedDonorIds, usedDomainsCount);
+      reconstructedPara = acceptedGraft.text;
+      usedQwenGraft = true;
+      auditSteps.push({
+        stage: 'QWEN_COLLOCATIONAL_GRAFT',
+        model: acceptedGraft.model,
+        durationMs: acceptedGraft.durationMs,
+        evalCount: acceptedGraft.evalCount,
+        donorId: donorsUsedInPara.map(b => b.brick_id).join(' + '),
+        preFilledSkeleton,
+        rawResponse: acceptedGraft.text,
+        attemptsCount: acceptedGraft.totalAttempts,
+        attemptHistory,
+        alterationMetrics: acceptedGraft.auditMetrics,
+        reason: `Pulido morfosintáctico completado en intento ${acceptedGraft.attemptNumber}/${totalMaxAttempts}.`
+      });
+    } else {
+      const lastErr = lastFailureReason || 'Validación morfosintáctica no superada';
+      qwenAttemptsUsed = globalAttempt;
+      usedQwenGraft = false;
+      trackAFailedQwen = true;
+      reconstructedPara = graftedDonorDraft;
+      rerankMeta.fitScore = Math.min(rerankMeta.fitScore ?? 4, 4);
+      donorSelectionAudit.fitScore = rerankMeta.fitScore;
+      semanticRerankerAudit.fitScore = rerankMeta.fitScore;
+      log(`[QWEN_FASE_4_FALLBACK] Párrafo no superó pulido de Carril A tras ${globalAttempt} intentos (${lastErr}). Escalando a Carril B.`);
+      auditSteps.push({
+        stage: 'QWEN_COLLOCATIONAL_GRAFT',
+        status: 'FALLBACK_TO_SYMBOLIC_AND_TRACK_B',
+        model: activeModel,
+        donorId: donorsUsedInPara.map(b => b.brick_id).join(' + ') || 'fallback',
+        preFilledSkeleton,
+        attemptsCount: globalAttempt,
+        attemptHistory,
+        reason: `Carril A no superó validación tras ${globalAttempt} intentos (${lastErr}); escalado obligatorio a Carril B.`
+      });
+    }
+  } else {
     commitChosenDonors(pickedDonors, usedDonorIds, usedDomainsCount);
     reconstructedPara = graftedDonorDraft;
   }

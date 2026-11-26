@@ -2,34 +2,102 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
+const aiStudioClient = require('./google-ai-studio-client.cjs');
 
 class OllamaClient {
-  constructor(baseUrl = 'http://127.0.0.1:11434') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl = process.env.NOUS_OLLAMA_URL || 'http://127.0.0.1:11434', authToken = process.env.NOUS_OLLAMA_TOKEN || '') {
+    this.baseUrl = String(baseUrl || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+    this.authToken = String(authToken || '').trim();
     const logical = (os.cpus() || []).length || 4;
     this.defaultThreads = Math.max(2, Math.min(8, Math.floor(logical / 2) || logical));
+    this.activeLogCallback = null;
   }
 
-  async isAvailable() {
+  setLogCallback(fn) {
+    this.activeLogCallback = typeof fn === 'function' ? fn : null;
+  }
+
+  hasAIStudio() {
+    return aiStudioClient.hasApiKey();
+  }
+
+  isAIStudioModel(modelName) {
+    return aiStudioClient.isAIStudioModelName(modelName);
+  }
+
+  getDefaultAIStudioModel() {
+    return aiStudioClient.getDefaultPrimaryModel();
+  }
+
+  isRemote() {
+    return !/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?:\/|$)/i.test(this.baseUrl);
+  }
+
+  setEndpoint(baseUrl, authToken = '') {
+    this.baseUrl = String(baseUrl || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+    this.authToken = String(authToken || '').trim();
+  }
+
+  buildHeaders(extra = {}) {
+    const headers = { ...extra };
+    if (this.authToken) {
+      headers.Authorization = `Bearer ${this.authToken}`;
+    }
+    return headers;
+  }
+
+  async isLocalOllamaAvailable() {
     try {
-      const res = await fetch(`${this.baseUrl}/api/tags`, { signal: AbortSignal.timeout(2500) });
+      const timeoutMs = this.isRemote() ? 60000 : 2500;
+      const res = await fetch(`${this.baseUrl}/api/tags`, {
+        headers: this.buildHeaders(),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
       return res.ok;
     } catch (e) {
       return false;
     }
   }
 
-  async ensureServerRunning(logFn = null) {
+  async isAvailable() {
+    if (aiStudioClient.hasApiKey()) return true;
+    return await this.isLocalOllamaAvailable();
+  }
+
+  async ensureServerRunning(logFn = null, preferredModel = null) {
     const emit = (msg) => {
       if (typeof logFn === 'function') logFn(msg);
     };
 
-    const alreadyUp = await this.isAvailable();
+    const wantsAIStudio = aiStudioClient.hasApiKey() && (
+      !preferredModel || aiStudioClient.isAIStudioModelName(preferredModel)
+    );
+
+    if (wantsAIStudio) {
+      const models = await this.listModels();
+      const chain = aiStudioClient.buildModelCascade(preferredModel || aiStudioClient.getDefaultPrimaryModel(), true);
+      emit(`[AI_STUDIO] Google AI Studio activo | Cadena configurada (10 intentos/modelo): ${chain.join(' -> ')}`);
+      return {
+        available: true,
+        models,
+        startedByApp: false,
+        remote: true,
+        provider: 'google-ai-studio',
+        cascade: chain
+      };
+    }
+
+    const alreadyUp = await this.isLocalOllamaAvailable();
     if (alreadyUp) {
       const models = await this.listModels();
       const modelList = models.length ? models.map(m => `${m.name} (${m.parameter_size})`).join(', ') : 'ninguno';
-      emit(`[OLLAMA] Conectado en ${this.baseUrl} | Modelos detectados: ${modelList}`);
-      return { available: true, models, startedByApp: false };
+      emit(`[${this.isRemote() ? 'OLLAMA_REMOTE' : 'OLLAMA'}] Conectado en ${this.baseUrl} | Modelos detectados: ${modelList}`);
+      return { available: true, models, startedByApp: false, remote: this.isRemote(), provider: 'ollama' };
+    }
+
+    if (this.isRemote()) {
+      emit(`[OLLAMA_REMOTE] Endpoint remoto no disponible o no autorizado en ${this.baseUrl}.`);
+      return { available: false, models: [], startedByApp: false, remote: true, error: 'Endpoint remoto Ollama no disponible' };
     }
 
     emit(`[OLLAMA] Servicio no detectado en ${this.baseUrl}. Intentando iniciar servidor local en segundo plano...`);
@@ -55,11 +123,11 @@ class OllamaClient {
     const start = Date.now();
     while (Date.now() - start < maxWaitMs) {
       await new Promise(r => setTimeout(r, 400));
-      if (await this.isAvailable()) {
+      if (await this.isLocalOllamaAvailable()) {
         const models = await this.listModels();
         const modelList = models.length ? models.map(m => `${m.name} (${m.parameter_size})`).join(', ') : 'ninguno';
         emit(`[OLLAMA] Servidor iniciado (${Date.now() - start}ms) | Modelos detectados: ${modelList}`);
-        return { available: true, models, startedByApp: true };
+        return { available: true, models, startedByApp: true, provider: 'ollama' };
       }
     }
 
@@ -68,27 +136,34 @@ class OllamaClient {
   }
 
   async listModels() {
+    const cloudModels = aiStudioClient.listAvailableCatalogModels();
+    let localModels = [];
     try {
-      const res = await fetch(`${this.baseUrl}/api/tags`, { signal: AbortSignal.timeout(4000) });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return (data.models || []).map(m => ({
-        name: m.name,
-        size: m.size ? `${(m.size / (1024 * 1024 * 1024)).toFixed(2)} GB` : 'N/A',
-        modified_at: m.modified_at,
-        family: m.details?.family || 'unknown',
-        parameter_size: m.details?.parameter_size || 'unknown'
-      }));
-    } catch (e) {
-      return [];
-    }
+      const timeoutMs = this.isRemote() ? 20000 : 1800;
+      const res = await fetch(`${this.baseUrl}/api/tags`, {
+        headers: this.buildHeaders(),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localModels = (data.models || []).map(m => ({
+          name: m.name,
+          size: m.size ? `${(m.size / (1024 * 1024 * 1024)).toFixed(2)} GB` : 'N/A',
+          modified_at: m.modified_at,
+          family: m.details?.family || 'unknown',
+          parameter_size: m.details?.parameter_size || 'unknown'
+        }));
+      }
+    } catch (e) {}
+
+    return [...cloudModels, ...localModels];
   }
 
   async pullModel(modelName, onProgress = null) {
     try {
       const res = await fetch(`${this.baseUrl}/api/pull`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ name: modelName, stream: true })
       });
 
@@ -152,6 +227,26 @@ class OllamaClient {
   }
 
   async generate(model, prompt, options = {}) {
+    if (aiStudioClient.hasApiKey() && aiStudioClient.isAIStudioModelName(model)) {
+      const cloudRes = await aiStudioClient.generateWithCascade(model, prompt, {
+        ...options,
+        log: options.log || this.activeLogCallback
+      });
+      const response = this.cleanResponseText(cloudRes.rawResponse, !!options.cleanPlainText);
+      return {
+        response,
+        rawResponse: cloudRes.rawResponse,
+        total_duration: cloudRes.durationMs * 1e6,
+        durationMs: cloudRes.durationMs,
+        netCallMs: cloudRes.netCallMs,
+        eval_count: cloudRes.eval_count || 0,
+        prompt_eval_count: cloudRes.prompt_eval_count || 0,
+        model: cloudRes.model,
+        usedFallbackModel: cloudRes.usedFallbackModel,
+        attemptsTaken: cloudRes.attemptsTaken
+      };
+    }
+
     const startTime = Date.now();
     const useRawGenerate = Boolean(options.useRawGenerate);
     const sysPrompt = options.system !== undefined
@@ -202,9 +297,9 @@ class OllamaClient {
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(options.timeoutMs || 120000)
+        signal: AbortSignal.timeout(options.timeoutMs || (this.isRemote() ? 180000 : 120000))
       });
 
       if (!res.ok) {
@@ -235,7 +330,7 @@ class OllamaClient {
     try {
       const res = await fetch(`${this.baseUrl}/api/delete`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ name: modelName }),
         signal: AbortSignal.timeout(15000)
       });

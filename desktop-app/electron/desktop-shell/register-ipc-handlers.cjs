@@ -63,7 +63,13 @@ function registerIpcHandlers(ipcMain, shell, getMainWindow) {
       writeLog('ERROR', `Error en humanizeArticle: ${err.message}`);
       return {
         success: false,
-        error: err.message
+        error: err.message,
+        errorCode: err.code || 'HUMANIZATION_FAILED',
+        failedParagraph: err.paragraphIndex || null,
+        failedHeading: err.sectionHeading || null,
+        failedGates: err.failedGates || [],
+        attemptLog: err.attemptLog || err.carrilBAttempts || [],
+        auditTrail: err.auditTrail || []
       };
     }
   });

@@ -120,10 +120,10 @@ export default function HumanizedOutputPanel({
           {metrics.qwenStats && (
             <div className="flex items-center gap-2">
               <Cpu className="w-4 h-4 text-cyan-400" />
-              <span className="text-slate-400">Qwen:</span>
+              <span className="text-slate-400">{metrics.qwenStats.activeModel || 'Motor IA'}:</span>
               <span className="font-mono text-cyan-300">
                 {metrics.qwenStats.enabled
-                  ? `${metrics.qwenStats.calls} proc. · ${metrics.qwenStats.totalTokens} tok · ${(metrics.qwenStats.totalDurationMs / 1000).toFixed(1)}s`
+                  ? `${metrics.qwenStats.calls} llam. · ${metrics.qwenStats.totalTokens} tok · ${(metrics.qwenStats.totalDurationMs / 1000).toFixed(1)}s`
                   : 'Simbólico'}
               </span>
             </div>

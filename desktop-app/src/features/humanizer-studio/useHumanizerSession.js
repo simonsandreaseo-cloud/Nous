@@ -3,8 +3,12 @@ import { convertHtmlToPlainText } from '../../shared/html-to-plain-text';
 import { fullBohoArticle, shortBohoArticle } from '../../shared/sample-drafts/boho-eyewear-sample';
 
 const DEFAULT_MODEL_PRESETS = [
-  { value: 'qwen2.5:1.5b', label: 'qwen2.5:1.5b (Recomendado)' },
-  { value: 'qwen2.5:0.5b', label: 'qwen2.5:0.5b (Ultra Rápido)' }
+  { value: 'gemma-4-26b-a4b-it', label: 'gemma-4-26b-a4b-it (Gemma 4 26B MoE · AI Studio ⭐)' },
+  { value: 'gemini-3.1-flash-lite', label: 'gemini-3.1-flash-lite (Cascada #1 · AI Studio)' },
+  { value: 'gemini-3.5-flash-lite', label: 'gemini-3.5-flash-lite (Cascada #2 · AI Studio)' },
+  { value: 'gemma-4-31b-it', label: 'gemma-4-31b-it (Gemma 4 31B Denso · AI Studio)' },
+  { value: 'qwen2.5:1.5b', label: 'qwen2.5:1.5b (Ollama Local CPU)' },
+  { value: 'gemma3:4b', label: 'gemma3:4b (Ollama Local)' }
 ];
 
 export function useHumanizerSession() {
@@ -13,7 +17,7 @@ export function useHumanizerSession() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [logsCopied, setLogsCopied] = useState(false);
-  const [modelName, setModelName] = useState('qwen2.5:1.5b');
+  const [modelName, setModelName] = useState('gemma-4-26b-a4b-it');
   const [antiOutro, setAntiOutro] = useState(true);
   const [injectGlitches, setInjectGlitches] = useState(false);
   const [useLocalLLM, setUseLocalLLM] = useState(true);
@@ -61,10 +65,13 @@ export function useHumanizerSession() {
     for (const m of installed) {
       if (!m?.name || seen.has(m.name)) continue;
       seen.add(m.name);
+      const isCloud = m.provider === 'google-ai-studio';
       const sizeInfo = m.parameter_size && m.parameter_size !== 'unknown' ? m.parameter_size : m.size;
       list.push({
         value: m.name,
-        label: `${m.name} (${sizeInfo ? `${sizeInfo} · ` : ''}instalado)`
+        label: isCloud
+          ? `${m.name} (${sizeInfo ? `${sizeInfo} · ` : ''}Google AI Studio)`
+          : `${m.name} (${sizeInfo ? `${sizeInfo} · ` : ''}Ollama local)`
       });
     }
 
@@ -90,8 +97,9 @@ export function useHumanizerSession() {
           const installedNames = models.map(m => m.name);
           setModelName(prev => {
             if (installedNames.includes(prev)) return prev;
+            if (installedNames.includes('gemma-4-26b-a4b-it')) return 'gemma-4-26b-a4b-it';
             if (installedNames.includes('qwen2.5:1.5b')) return 'qwen2.5:1.5b';
-            return installedNames.find(n => n.toLowerCase().includes('qwen')) || installedNames[0];
+            return installedNames[0];
           });
         }
       } catch {
@@ -223,13 +231,29 @@ export function useHumanizerSession() {
           useLocalLLM,
           enableCarrilB,
           carrilBMode: 'auto',
-          antiPlagiarism: false
+          antiPlagiarism: true,
+          strictFailFast: true
         });
 
         if (res && res.bankEmptyForDomain) {
           setErrorMsg(res.message || `Nicho "${res.domainLabel || domainId}" preparado sin corpus cosechado todavía.`);
           setOutputText('');
           setAuditTrail([]);
+          return;
+        }
+
+        if (res && res.success === false) {
+          setOutputText('');
+          setErrorMsg(res.error || 'La operación se detuvo por no superar las compuertas de calidad.');
+          if (Array.isArray(res.auditTrail) && res.auditTrail.length > 0) {
+            setAuditTrail(res.auditTrail);
+            setShowAuditPanel(true);
+            setExpandedParas({ [res.auditTrail.length - 1]: true });
+          }
+          if (window.api.getRecentLogs) {
+            const freshLogs = await window.api.getRecentLogs();
+            setLogsContent(freshLogs);
+          }
           return;
         }
 

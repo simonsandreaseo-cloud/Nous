@@ -44,7 +44,8 @@ function applySymbolicShingleBreaker(bankState, text, donorsUsedInPara, atoms = 
   let current = text;
   const protectedBrandTokens = new Set([
     ...(atoms?.brand_models || []).flatMap(bm => tokenize(bm)),
-    ...(atoms?.proper_entities || []).flatMap(pe => tokenize(pe))
+    ...(atoms?.proper_entities || []).flatMap(pe => tokenize(pe)),
+    ...(atoms?.discriminativeAnchors || []).flatMap(anc => tokenize(String(anc?.label || '')))
   ]);
 
   const microSwaps = [
@@ -102,15 +103,15 @@ function applySymbolicShingleBreaker(bankState, text, donorsUsedInPara, atoms = 
     gafas: ['monturas'],
     monturas: ['gafas'],
     montura: ['silueta'],
-    estilo: ['aire', 'línea'],
+    estilo: ['aire', 'sello'],
     forma: ['silueta', 'línea'],
     formas: ['siluetas', 'líneas'],
     diseño: ['corte'],
     diseños: ['cortes'],
-    mejores: ['más acertadas'],
+    mejores: ['superiores'],
     perfecto: ['ideal', 'acertado'],
     perfecta: ['ideal', 'acertada'],
-    ideal: ['idóneo', 'acertado'],
+    ideal: ['excelente'],
     actualmente: ['hoy en día'],
     prendas: ['piezas'],
     aporta: ['ofrece', 'brinda'],
@@ -147,7 +148,6 @@ function applySymbolicShingleBreaker(bankState, text, donorsUsedInPara, atoms = 
     marca: ['firma'],
     buena: ['acertada'],
     posibilidades: ['alternativas'],
-    fácil: ['sencillo'],
     elegir: ['escoger'],
     protegen: ['resguardan'],
     armoniza: ['encaja'],
@@ -171,8 +171,6 @@ function applySymbolicShingleBreaker(bankState, text, donorsUsedInPara, atoms = 
     distintas: ['diferentes'],
     clásico: ['intemporal'],
     clásica: ['intemporal'],
-    elegante: ['sofisticado'],
-    elegantes: ['sofisticados'],
     manera: ['forma'],
     darán: ['aportarán'],
     toque: ['matiz'],
@@ -287,29 +285,14 @@ function applySymbolicShingleBreaker(bankState, text, donorsUsedInPara, atoms = 
     if (!mutated) {
       const syntacticPivots = [
         {
-          key: 'pivot_que_art',
-          rx: /\bque\s+(el|la|los|las|se|no|te|le|nos)\b/i,
-          repFn: (m, g1) => `que hoy ${g1}`
-        },
-        {
           key: 'pivot_coord_y_ademas',
           rx: /\b([a-záéíóúñ]{4,})\s+y\s+(no|su|sus|el|la|los|las)\b/i,
-          repFn: (m, w1, w2) => `${w1} —y además ${w2}`
+          repFn: (m, w1, w2) => `${w1} y, además, ${w2}`
         },
         {
           key: 'pivot_dash_pause',
           rx: /\b([a-záéíóúñ]{4,}),\s+pero\b/i,
-          repFn: (m, w1) => `${w1} —eso sí,`
-        },
-        {
-          key: 'pivot_conversational_comma',
-          rx: /\b,\s+(que|donde|cuando|como)\b/i,
-          repFn: (m, rel) => `, de hecho, ${rel}`
-        },
-        {
-          key: 'pivot_sin_duda',
-          rx: /\bes\s+(una|un|perfecto|perfecta|ideal)\b/i,
-          repFn: (m, w1) => `es, sin duda, ${w1}`
+          repFn: (m, w1) => `${w1}, aunque`
         },
         {
           key: 'pivot_en_la_practica',

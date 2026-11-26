@@ -1,10 +1,13 @@
 'use strict';
 
 const path = require('path');
+const { loadWorkspaceEnv } = require('./load-env.cjs');
 
 const ELECTRON_DIR = path.resolve(__dirname, '..');
 const DESKTOP_APP_DIR = path.resolve(__dirname, '../..');
 const WORKSPACE_ROOT_DIR = path.resolve(__dirname, '../../..');
+
+loadWorkspaceEnv(WORKSPACE_ROOT_DIR);
 
 const BANK_DIR = path.join(WORKSPACE_ROOT_DIR, 'banco_ontologico_semantico');
 const LOGS_DIR = path.join(DESKTOP_APP_DIR, 'logs');

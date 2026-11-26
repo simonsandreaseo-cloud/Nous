@@ -112,7 +112,7 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
   }
 
   if (!bankState.isLoaded) loadBanks(bankState);
-  bankState.enableAntiPlagiarism = options.antiPlagiarism === true;
+  bankState.enableAntiPlagiarism = options.antiPlagiarism !== false;
   const cleanArticleText = sanitizeDraftInput(rawArticleText);
   const paragraphs = cleanArticleText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   const allSections = [];
@@ -175,8 +175,14 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
     }
   };
 
+  ollamaClient.setLogCallback(log);
+
+  const strictFailFast = options.strictFailFast !== false;
   const requestedLocalLLM = options.useLocalLLM !== false;
-  let activeModel = options.modelName || 'qwen2.5:1.5b';
+  const defaultEngineModel = ollamaClient.hasAIStudio()
+    ? ollamaClient.getDefaultAIStudioModel()
+    : 'qwen2.5:1.5b';
+  let activeModel = options.modelName || defaultEngineModel;
   let useLocalLLM = false;
   const carrilBMode = options.carrilBMode || (options.enableCarrilB === false ? 'off' : 'auto');
   const carrilBRequested = options.enableCarrilB !== undefined
@@ -187,6 +193,7 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
     enabled: false,
     requestedModel: activeModel,
     activeModel: null,
+    provider: ollamaClient.isAIStudioModel(activeModel) ? 'google-ai-studio' : 'local-ollama',
     calls: 0,
     failures: 0,
     totalDurationMs: 0,
@@ -213,41 +220,45 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
   log(`COMPILADOR BLUEPAPER NOUS: DECONSTRUCCIÓN Y RECONSTRUCCIÓN FÁCTICA PURA`);
   log(`Total párrafos de entrada: ${paragraphs.length} | Caracteres: ${cleanArticleText.length}`);
   log(`Bancos activos: ${bankState.masterBricks.length} ladrillos + ${(bankState.unifiedCorpusBricks || []).length} bloques unificados + ${(bankState.goldenMM?.length || 0) + (bankState.goldenOP?.length || 0) + (bankState.goldenVH?.length || 0)} marcos dorados (${bankState.corpus7GramMap?.size || 0} 7-gramas)`);
-  log(`Modo Qwen solicitado: ${requestedLocalLLM ? `SÍ (${activeModel})` : 'NO (Modo Determinista)'} | Anti-Plagio: ${bankState.enableAntiPlagiarism ? 'ACTIVO' : 'DESACTIVADO (Humanización Pura)'} | Anti-Outro: ${options.antiOutro !== false} | Glitches: ${options.injectGlitches === true || options.injectGlitches === 'force'}`);
+  log(`Motor Neuronal solicitado: ${requestedLocalLLM ? `SÍ (${activeModel})` : 'NO (Modo Determinista)'} | Fail-Fast Estricto: ${strictFailFast ? 'ACTIVO' : 'NO'} | Anti-Plagio: ${bankState.enableAntiPlagiarism ? 'ACTIVO (Bajo)' : 'DESACTIVADO'} | Anti-Outro: ${options.antiOutro !== false} | Glitches: ${options.injectGlitches === true || options.injectGlitches === 'force'}`);
 
-  if (requestedLocalLLM) {
+  if (requestedLocalLLM || carrilBRequested) {
     const serverState = await ollamaClient.ensureServerRunning(log);
     if (serverState.available) {
       const installedNames = (serverState.models || []).map(m => m.name);
-      if (installedNames.includes(activeModel)) {
-        useLocalLLM = true;
-      } else if (installedNames.includes('qwen2.5:0.5b')) {
-        log(`[OLLAMA] Modelo "${activeModel}" no instalado. Fallback automático a "qwen2.5:0.5b".`);
-        activeModel = 'qwen2.5:0.5b';
-        useLocalLLM = true;
-      } else {
-        const anyQwen = installedNames.find(n => n.toLowerCase().includes('qwen'));
-        if (anyQwen) {
-          log(`[OLLAMA] Fallback automático al modelo Qwen disponible: "${anyQwen}".`);
-          activeModel = anyQwen;
-          useLocalLLM = true;
-        } else {
-          log(`[OLLAMA] No se encontraron modelos Qwen instalados (${installedNames.join(', ') || 'ninguno'}). Ejecutando modo determinista.`);
-        }
+      if (installedNames.includes(activeModel) || (ollamaClient.isAIStudioModel(activeModel) && ollamaClient.hasAIStudio())) {
+        useLocalLLM = requestedLocalLLM;
+      } else if (ollamaClient.hasAIStudio()) {
+        const aiStudioDefault = ollamaClient.getDefaultAIStudioModel();
+        log(`[AI_STUDIO] Modelo "${activeModel}" no disponible localmente; usando "${aiStudioDefault}" en Google AI Studio.`);
+        activeModel = aiStudioDefault;
+        useLocalLLM = requestedLocalLLM;
+      } else if (installedNames.length > 0) {
+        const preferredLocal = installedNames.find(n => n.toLowerCase().includes('qwen') || n.toLowerCase().includes('gemma')) || installedNames[0];
+        log(`[MOTOR_LLM] Modelo "${activeModel}" no instalado. Usando "${preferredLocal}".`);
+        activeModel = preferredLocal;
+        useLocalLLM = requestedLocalLLM;
       }
+      ollamaLazyState.checked = true;
+      ollamaLazyState.available = Boolean(installedNames.includes(activeModel) || (ollamaClient.isAIStudioModel(activeModel) && ollamaClient.hasAIStudio()));
+      ollamaLazyState.model = ollamaLazyState.available ? activeModel : null;
     } else {
-      log(`[OLLAMA] Servidor local no disponible. Ejecutando fallback determinista sin Qwen.`);
+      ollamaLazyState.checked = true;
+      ollamaLazyState.available = false;
+      log(`[MOTOR_LLM] Ningún proveedor neuronal disponible (Google AI Studio sin clave y Ollama apagado).`);
+      if (strictFailFast && requestedLocalLLM) {
+        const err = new Error('Operación abortada: se solicitó motor neuronal pero ni Google AI Studio (GEMINI_API_KEY) ni Ollama local están disponibles.');
+        err.code = 'LLM_PROVIDER_UNAVAILABLE';
+        throw err;
+      }
     }
   }
 
-  qwenStats.enabled = useLocalLLM;
-  qwenStats.activeModel = useLocalLLM ? activeModel : null;
-  if (requestedLocalLLM) {
-    ollamaLazyState.checked = true;
-    ollamaLazyState.available = useLocalLLM;
-    ollamaLazyState.model = useLocalLLM ? activeModel : null;
-  }
-  log(`Motor Neuronal Activo: ${useLocalLLM ? `Qwen (${activeModel})` : 'Desactivado (Simbólico Determinista)'}${carrilBStats.enabled ? ` | Carril B Guiado: ACTIVO (${carrilBStats.mode}, solo críticos)` : ''}`);
+  qwenStats.enabled = useLocalLLM || Boolean(carrilBRequested && ollamaLazyState.available);
+  qwenStats.activeModel = ollamaLazyState.model || (useLocalLLM ? activeModel : null);
+  qwenStats.provider = ollamaClient.isAIStudioModel(activeModel) ? 'google-ai-studio' : 'local-ollama';
+  const providerBadge = ollamaClient.isAIStudioModel(activeModel) ? 'Google AI Studio' : 'Ollama Local';
+  log(`Motor Neuronal Activo: ${qwenStats.enabled ? `${providerBadge} (${activeModel})` : 'Desactivado (Simbólico Determinista)'}${carrilBStats.enabled ? ` | Carril B Guiado: ACTIVO (${carrilBStats.mode}, todos los huecos)` : ''}`);
   log(`Nicho Activo: ${domainId} (${domainPack.label}) | Enrutamiento por H2: ACTIVO (aislamiento estanco por sección)`);
   log(`==========================================================================`);
 
@@ -357,36 +368,58 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
       reason: 'Deconstrucción lógica de Davidson: extracción de entidades, predicados, marcos e invariantes (Bedeutung).'
     });
 
-    const recon = await humanizeParagraph({ bankState,
-      paragraphIndex: paraNum,
-      frame: type,
-      atoms,
-      atomSummaryText,
-      tuples,
-      rawPara,
-      currentAnchor,
-      isFirstAfterHeading,
-      glitchIdx,
-      options,
-      auditSteps,
-      usedDonorIds,
-      usedDomainsCount,
-      centeringTransitions,
-      usedGlitches,
-      usedHinges,
-      usedBridgeWords,
-      useLocalLLM,
-      activeModel,
-      log,
-      qwenStats,
-      usageLedger,
-      articleState,
-      paraTopology: sectionTopology.items[i] || null,
-      carrilBStats,
-      ollamaLazyState,
-      domainId,
-      activeSubdomains: paraSubdomains
-    });
+    let recon;
+    try {
+      recon = await humanizeParagraph({ bankState,
+        paragraphIndex: paraNum,
+        frame: type,
+        atoms,
+        atomSummaryText,
+        tuples,
+        rawPara,
+        currentAnchor,
+        isFirstAfterHeading,
+        glitchIdx,
+        options,
+        auditSteps,
+        usedDonorIds,
+        usedDomainsCount,
+        centeringTransitions,
+        usedGlitches,
+        usedHinges,
+        usedBridgeWords,
+        useLocalLLM,
+        activeModel,
+        log,
+        qwenStats,
+        usageLedger,
+        articleState,
+        paraTopology: sectionTopology.items[i] || null,
+        carrilBStats,
+        ollamaLazyState,
+        domainId,
+        activeSubdomains: paraSubdomains
+      });
+    } catch (paraErr) {
+      auditTrail.push({
+        paragraphIndex: paraNum,
+        totalParagraphs: paragraphs.length,
+        isHeading: false,
+        failed: true,
+        error: paraErr.message,
+        failedGates: paraErr.failedGates || [paraErr.code || 'ERROR'],
+        sectionHeading: currentAnchor || '(Introducción)',
+        subdomains: [...paraSubdomains],
+        originalText: rawPara,
+        humanizedText: '',
+        steps: auditSteps
+      });
+      log(`[OPERACIÓN ABORTADA] Fallo en Párrafo ${paraNum}/${paragraphs.length}: ${paraErr.message}`);
+      paraErr.paragraphIndex = paraErr.paragraphIndex || paraNum;
+      paraErr.sectionHeading = currentAnchor || '(Introducción)';
+      paraErr.auditTrail = auditTrail;
+      throw paraErr;
+    }
 
     if (Array.isArray(recon.donorsUsedInPara)) {
       allUsedDonorsForArticle.push(...recon.donorsUsedInPara);
@@ -395,13 +428,15 @@ async function runHumanizeArticle(bankState, rawArticleText, options = {}, logCa
     totalInterventionTokens += recon.interventionTokens || 0;
     isFirstAfterHeading = false;
 
-    // Limpieza tipográfica final
+    // Limpieza tipográfica y eufónica final
     let reconstructedPara = recon.text
       .replace(/\b([a-záéíóúüñ]+[áéíóú])\s+(lic[oa]s?|tic[oa]s?|gic[oa]s?|mic[oa]s?|nic[oa]s?)\b/gi, '$1$2')
       .replace(/\ba el\b/g, 'al')
       .replace(/\bA el\b/g, 'Al')
       .replace(/\bde el\b/g, 'del')
       .replace(/\bDe el\b/g, 'Del')
+      .replace(/\b(o)\s+((?:o|ó|ho|hó)[a-záéíóúüñ]+)/gi, (m, conj, nextW) => `${conj === 'O' ? 'U' : 'u'} ${nextW}`)
+      .replace(/\b(y)\s+((?:i|í|hi|hí)(?![eaouáéóú])[a-záéíóúüñ]+)/gi, (m, conj, nextW) => `${conj === 'Y' ? 'E' : 'e'} ${nextW}`)
       .replace(/\s{2,}/g, ' ')
       .replace(/\s+([.,;:!?])/g, '$1')
       .replace(/\.\s*\./g, '.')

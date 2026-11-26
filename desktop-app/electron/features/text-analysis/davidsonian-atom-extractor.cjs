@@ -17,11 +17,13 @@ function extractDavidsonianAtoms(text) {
     locative_scenes: [],
     coatings: [],
     key_concepts: [],
+    key_concepts: [],
+    compared_against: [],
     relations: []
   };
 
-  // Brands and models (with SKU/caliber codes preserved verbatim, without leaking full headings)
-  const brandRx = /\b(Chloé|Gucci|Persol|Ray-Ban|Tom Ford|Prada|Dior|Oakley|Carrera|Moscot|Oliver Peoples)(?:\s+(?:Aviator|Classic|Wayfarer|Clubmaster|Original|Steve\s+McQueen|714|[A-Z]{1,4}\d{2,5}[A-Z]?(?:\/\d{1,3})?|\d{2,4}))+/gi;
+  // Brands and models (with multi-letter SKU suffixes like PO0714SM and caliber codes preserved verbatim)
+  const brandRx = /\b(Chloé|Gucci|Persol|Ray-Ban|Tom Ford|Prada|Dior|Oakley|Carrera|Moscot|Oliver Peoples)(?:\s+(?:Aviator|Classic|Wayfarer|Clubmaster|Original|Steve\s+McQueen|714|[A-Z]{1,4}\d{2,5}[A-Z]{0,3}(?:\/\d{1,3})?|\d{2,4}))+/gi;
   let bm;
   while ((bm = brandRx.exec(text)) !== null) {
     atoms.brand_models.push(bm[0].trim());
@@ -31,7 +33,11 @@ function extractDavidsonianAtoms(text) {
       atoms.brand_models.push(sSku);
     }
   }
-  atoms.brand_models = [...new Set(atoms.brand_models)];
+  // Prefer full longer SKU strings and drop truncated prefixes (e.g. drop "Persol PO0714S" when "Persol PO0714SM" exists)
+  const sortedSkus = [...new Set(atoms.brand_models)].sort((a, b) => b.length - a.length);
+  atoms.brand_models = sortedSkus.filter((sku, idx) =>
+    !sortedSkus.slice(0, idx).some(longer => longer.toLowerCase().startsWith(sku.toLowerCase()))
+  );
 
   // Proper / historical / cultural entities (e.g., Brigitte Bardot, Jane Birkin, hippies)
   const stopEntityStarts = /^(?:Hoy|Por|Sin|Ahora|Estos|Estas|Este|Esta|Dos|Las|Los|Una|Uno|Para|Con|En|La|El|Un|De|Del|Al|Su|Sus|No|Si|Y|O|Pero|Aunque|Mientras|Cuando|Boho|Chic|Original)$/i;
@@ -66,8 +72,18 @@ function extractDavidsonianAtoms(text) {
   const stMatches = text.match(styleRx);
   if (stMatches) atoms.styles.push(...[...new Set(stMatches.map(s => s.toLowerCase()))]);
 
-  // Materials (Frame materials exclusively - excluding textile fabrics, process tools & internal wire cores)
-  const matSearchText = text
+  // Isolate comparative / foil materials & lenses ("más resistente que el policarbonato", "frente al plástico")
+  // so Carril A never injects a contrasted foil as if it were the product's own material/lens!
+  const comparatorSpanRx = /\b(?:que\s+(?:el|la|los|las|un|una)\s+|frente\s+(?:al?|a\s+(?:la|los|las))\s+|a\s+diferencia\s+de(?:l|\s+la|\s+los|\s+las)?\s+|en\s+(?:vez|lugar)\s+de(?:l|\s+la|\s+los|\s+las)?\s+)(cristal(?:es)?\s+mineral(?:es)?|policarbonatos?|pl[aá]stico(?:\s+inyectado)?|pasta(?:\s+inyectada)?|acetato|metal|titanio|acero|monofocal(?:es)?|progresiv[oa]s?|ocupacional(?:es)?)\b/gi;
+  let compMatch;
+  while ((compMatch = comparatorSpanRx.exec(text)) !== null) {
+    atoms.compared_against.push(compMatch[1].toLowerCase().trim());
+  }
+  atoms.compared_against = [...new Set(atoms.compared_against)];
+  const nonComparatorText = text.replace(comparatorSpanRx, ' ');
+
+  // Materials (Frame materials exclusively - excluding textile fabrics, process tools, internal wire cores & comparators)
+  const matSearchText = nonComparatorText
     .replace(/\btambores?\s+de\s+madera\b/gi, ' ')
     .replace(/\b(?:alma|n[uú]cleo)\s+met[aá]lic[oa]s?\b/gi, ' ')
     .replace(/\bacetato\s+de\s+celulosa\b/gi, 'acetato');
@@ -103,9 +119,9 @@ function extractDavidsonianAtoms(text) {
   const oMatches = text.match(outRx);
   if (oMatches) atoms.outfits.push(...[...new Set(oMatches.map(o => o.toLowerCase()))]);
 
-  // Optical coatings & lens tech
+  // Optical coatings & lens tech (excluding comparator foils like "que el policarbonato")
   const coatRx = /\b(uv\s*400|filtro\s*uv|polarizad[oa]s?|antirreflejantes?|espejad[oa]s?|cristal(?:es)?\s*mineral(?:es)?|fotocrom[aá]tic[oa]s?|progresiv[oa]s?|ocupacional(?:es)?|monofocal(?:es)?|policarbonato|luz\s+azul|degradad[oa]s?)\b/gi;
-  const cMatches = text.match(coatRx);
+  const cMatches = nonComparatorText.match(coatRx);
   if (cMatches) atoms.coatings.push(...[...new Set(cMatches.map(c => c.toLowerCase()))]);
 
   // Domain key concepts (sintagmas nominales compuestos extraídos dinámicamente por morfosintaxis general)

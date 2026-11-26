@@ -77,7 +77,7 @@ const BENCH_CASES = [
     rawPara: 'Debido precisamente a ese peso extra y a su puente tipo cerradura de 21 mm, conviene evitarlas si tienes la nariz muy estrecha o si necesitas unas gafas ultraligeras para llevar ocho horas seguidas sin notar presión.',
     carrilABaseline: 'Conviene revisar siempre el ajuste de las varillas si notas molestias detrás de las orejas durante el día.',
     buildOracle: () =>
-      `En las Persol PO0714SM existe el inconveniente de su puente cerradura de 21 mm, ya que el exceso de peso puede provocar deslizamiento al llevarlas puestas. Por esta razón, conviene evitar estas lentes en rostros con nariz muy estrecha o si prefieres gafas ultraligeras sin presión prolongada.`
+      `Porque del peso extra y su puente de cerradura de 21 mm depende que la Persol PO0714SM se nos adapte bien a nuestra nariz o no. Si tu nariz es muy estrecha o buscas gafas ultraligeras sin presión durante ocho horas, conviene evitarlas para prevenir molestias.`
   },
   {
     caseId: 'C3-INYECTADO-NEG',
@@ -99,7 +99,7 @@ const BENCH_CASES = [
     rawPara: 'Las lentes ocupacionales resuelven este problema ampliando el campo visual intermedio y cercano a cambio de renunciar al enfoque de lejos; por eso resultan excelentes en la oficina, pero nunca deben utilizarse para conducir.',
     carrilABaseline: 'Para ver de cerca con nitidez frente al escritorio resulta útil ajustar la altura del asiento y la distancia al monitor.',
     buildOracle: () =>
-      `Para lo que nunca deben utilizarse las lentes ocupacionales es para conducir al volante. En cuanto a su diseño en la oficina frente al ordenador, ofrecen visión intermedia y cercana ampliada a cambio de limitar el enfoque lejano.`
+      `La ventaja de las lentes ocupacionales en la oficina es que amplían el campo visual cercano e intermedio y dejan atrás el enfoque de lejos, pero jamás sirven al volante para conducir.`
   },
   {
     caseId: 'C5-FOTOCROM-COCHE',
@@ -110,7 +110,7 @@ const BENCH_CASES = [
     rawPara: 'Las lentes fotocromáticas se adaptan rápido al aire libre gracias a la radiación ultravioleta, pero el parabrisas del coche filtra casi toda la luz UV e impide que se oscurezcan salvo que incorporen activación por luz visible.',
     carrilABaseline: 'En días muy luminosos conviene llevar unas gafas cómodas para evitar el resplandor directo del sol en exteriores.',
     buildOracle: () =>
-      `Al aire libre, las lentes fotocromáticas activan su tinte proporcionalmente ante la radiación ultravioleta del sol. Sin embargo, dentro del coche el parabrisas frena esa luz UV y no se oscurecen lo suficiente salvo que reaccionen a la luz visible.`
+      `Al aire libre, es cierto que las lentes fotocromáticas reaccionan rápido ante la radiación UV exterior, pero dentro del coche no se oscurecen porque el parabrisas bloquea y filtra esos rayos. No obstante, podemos encontrar opciones modernas que responden a la luz visible en carretera.`
   },
   {
     caseId: 'C6-AUDIOLOGIA-H2',
@@ -121,7 +121,7 @@ const BENCH_CASES = [
     rawPara: 'La exposición prolongada a un ruido excesivo y la pérdida auditiva gradual suelen provocar acúfenos persistentes; por eso conviene realizar una audiometría a tiempo para adaptar audífonos discretos.',
     carrilABaseline: 'La otitis externa aparece con frecuencia cuando entra humedad en el conducto auditivo tras bañarse en la piscina.',
     buildOracle: () =>
-      `Sin duda, cuando el ruido excesivo genera acúfenos o pérdida auditiva, hoy existen múltiples soluciones y tipos de audífonos capaces de mejorar la audición diaria. Así, mediante una audiometría a tiempo, es posible calibrar cada aparato auditivo según tu perfil.`
+      `La exposición prolongada a un ruido excesivo puede provocar un daño continuo y generar tanto pérdida auditiva como acúfenos persistentes, haciendo recomendable una audiometría temprana para ajustar audífonos discretos.`
   }
 ];
 

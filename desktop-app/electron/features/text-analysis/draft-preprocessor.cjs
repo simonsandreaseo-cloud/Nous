@@ -86,8 +86,8 @@ function humanizeHeading(text) {
     clean = clean.slice(prefix.length).trim();
   }
 
-  // Preserve brand & model titles intact
-  if (/^(Chloé|Gucci|Persol|Ray-Ban|Tom Ford|Prada|Dior|Oakley)\b/i.test(clean)) {
+  // Preserve standalone brand & model SKU titles intact when they do not use GPT colons
+  if (!clean.includes(':') && /^(Chloé|Gucci|Persol|Ray-Ban|Tom Ford|Prada|Dior|Oakley)\b/i.test(clean)) {
     return prefix + clean;
   }
 
@@ -96,17 +96,24 @@ function humanizeHeading(text) {
     const parts = clean.split(':').map(p => p.trim());
     if (parts.length === 2 && parts[0] && parts[1] && !/[0-9]/.test(parts[0])) {
       const part1 = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-      const part2 = parts[1].charAt(0).toLowerCase() + parts[1].slice(1);
+      const startsWithProperOrAcronym = /^(?:Chlo[eé]|Gucci|Persol|Ray-Ban|Tom\s+Ford|Prada|Dior|Oakley|Carrera|Moscot|Oliver\s+Peoples|Maui\s+Jim|Etnia|Hawkers|UV|[A-ZÁÉÍÓÚÑ]{2,}|[A-Z]{1,4}\d{2,})/.test(parts[1]);
+      const part2 = startsWithProperOrAcronym
+        ? parts[1]
+        : parts[1].charAt(0).toLowerCase() + parts[1].slice(1);
       const aiAppositionRx = /^(?:el|un|la|una)\s+(?:icono|símbolo|clásico|referente|accesorio|complemento|secreto|guía)\s*(?:atemporal|indiscutible|definitivo|imprescindible|esencial|clásico|definitiva)?\s+(?:de\s+|para\s+|en\s+)/i;
       if (aiAppositionRx.test(part2)) {
         const remainder = part2.replace(aiAppositionRx, '').trim();
         clean = remainder ? `${part1} en ${remainder}` : part1;
-      } else if (/^(?:cómo|qué|cuándo|dónde|por qué|claves|consejos|elegir|escoger|combinar|usar)\b/i.test(part2)) {
+      } else if (/^(?:cómo|qué|cuándo|dónde|por qué)\b/i.test(part2)) {
         clean = `${part1} y ${part2}`;
+      } else if (/^(?:claves|consejos|diferencias|límites|ventajas|riesgos)\b/i.test(part2)) {
+        clean = `${part1} y sus ${part2}`;
+      } else if (/^(?:gu[ií]a|claves|consejos|an[aá]lisis|todo)\b/i.test(part1)) {
+        clean = `${part1} sobre ${part2}`;
       } else if (/^(?:el|la|un|una)\b/i.test(part2)) {
-        clean = `${part1} para ${part2}`;
+        clean = `${part1}, ${part2}`;
       } else {
-        clean = `${part1} en ${part2}`;
+        clean = `${part1} y ${part2}`;
       }
     }
   }

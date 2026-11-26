@@ -22,13 +22,13 @@ const OPTICAL_BRANDS = [
 const KNOWN_MODEL_WORDS_RX = /^(?:aviator|classic|wayfarer|clubmaster|original|steve|mcqueen|justin|erika|holbrook|frogskins|sutro|lite|latch|round|metal|meteor|hexagonal|havana|tortoise|po\d+|rb\d+|gg\d+|ch\d+)$/i;
 const SKU_STOP_TOKEN_RX = /^(?:plegables?|qu[eé]|debes|saber|antes|para|con|son|como|gu[ií]a|rese[ñn]a|an[aá]lisis|gafas?|monturas?|lentes?|de|la|las|el|los|y|o|en|mujer|hombre|unisex|tiene[ns]?|combinan|destacan|ofrecen)$/i;
 
-const CLAUSE_NEG_RX = /\b(?:nunca\s+(?:debes|deben|deber[ií]as|uses?|utilices?|son)|jam[aá]s|no\s+debes\s+(?:usar\w*|utilizar\w*)|no\s+(?:debes?|deben|deber[ií]as?|hay\s+que|uses?|utilices?|apliques?|expongas?|coloques?|guardes?|sumerjas?|limpies?|cubras?|bloquees?|instales?|mezcles?)|no\s+(?:incluye[ns]?|cuenta[ns]?\s+con|dispone[ns]?\s+de|admite[ns]?|soporta[ns]?|ofrece[ns]?|protege[ns]?|sirve[ns]?|garantiza[ns]?|permite[ns]?|resiste[ns]?|bloquea[ns]?|filtra[ns]?|aporta[ns]?|presenta[ns]?|tiene[ns]?|posee[ns]?|incorpora[ns]?|funciona[ns]?)|carece[ns]?\s+de|no\s+(?:son\s+|est[aá]n\s+|resultan\s+)?(?:permitid\w*|recomendab\w*|apt\w*|ideales?|convenientes?)|no\s+(?:te\s+(?:lo|las|los)\s+)?(?:recomendamos|aconsejamos|conviene(?!\s+(?:olvidar|perder|dejar\s+pasar)))|no\s+deben\s+(?:usarse|utilizarse)|no\s+se\s+recomiend\w*|no\s+(?:se\s+)?oscurec\w*|apenas\s+se\s+oscurec\w*|impide\s+que\s+se\s+oscurezc\w*|conviene\s+evitar\w*|evit(?:a|e|es|en|ar|ando)(?:l[oa]s?|se)?|prohibid\w*|inconveniente|desventaja|(?:el\s+principal|un\s+grave|suele[ns]?\s+dar|genera[ns]?|provoca[ns]?|causa[ns]?)\s+problema|(?:el|otro|su)\s+problema\s+(?:de|del|es|radica|con)|peligro|riesgo|cuidado\s+con|descascarill\w*|quebradiz\w*|degrad\w*|baja\s+calidad|deterior\w*)\b/i;
+const CLAUSE_NEG_RX = /\b(?:nunca|jam[aá]s|tampoco|apenas|ni\s+siquiera|ni\s+[a-záéíóúüñ]{2,}|no\s+(?!(?:solo|s[oó]lo|obstante|cabe\s+duda|hay\s+duda|dudes?|deja[ns]?\s+de|tarda[ns]?\s+en|conviene\s+(?:olvidar|perder|dejar\s+pasar)|por\s+eso|complicar\w*|pasar\s+desapercibid\w*|pasar\s+de\s+moda|perder\s+de\s+vista|destacar\s+en\s+exceso|recargar|desentonar|te\s+(?:las|los)\s+quitar[aá]s|falta[ns]?|falla[ns]?|tiene[ns]?\s+rival|puedes?\s+(?:ignorar|perderte))\b)(?:(?:se|te|le|les|nos|me|lo|la|los|las|ya|a[uú]n)\s+){0,2}(?:es|va[ns]?|ha[ns]?|da[ns]?|hay|[a-záéíóúüñ]{3,})|carece[ns]?\s+de|impide[ns]?|imposibilita[ns]?|conviene\s+evitar\w*|evit(?:a|e|es|en|ar|ando)(?:l[oa]s?|se)?|desaconsej\w*|descart\w*|renunci\w*\s+a|prohibid\w*|inconvenientes?|desventajas?|(?:el\s+principal|un\s+grave|suele[ns]?\s+dar|genera[ns]?|provoca[ns]?|causa[ns]?|supone[ns]?)\s+(?:un\s+)?problema|(?:el|otro|su)\s+problema\s+(?:de|del|es|radica|con)|peligro|riesgo|cuidado\s+con|pierde[ns]?\s+(?:su\s+|la\s+|el\s+)?(?:color|superficie|forma|eficacia|elasticidad)|deja[ns]?\s+(?:marcas|se[ñn]ales)|pesa[ns]?\s+m[aá]s|m[aá]s\s+pesad[oa]s?|mayor\s+peso|exceso\s+de\s+peso|resbala\w*|se\s+desliz\w*|recorta[ns]?\s+(?:la\s+|el\s+)?(?:visi[oó]n|campo)|limita[ns]?\s+(?:la\s+|el\s+)?(?:visi[oó]n|campo)|apretar\w*|aprieta[ns]?|pellizc\w*|descascarill\w*|quebradiz\w*|deform\w*|degrad\w*|baja\s+calidad|deterior\w*)\b/i;
 
 const DONOR_SLOT_NEG_RX = /\b(?:no\s+(?:son\s+|est[aá]n\s+|resultan\s+)?(?:permitid[oa]s?|apt[oa]s?|recomendab\w*|aconsejab\w*|ideales?|convenientes?)|nunca|jam[aá]s|prohibid[oa]s?|evitar|descartar|huir\s+de|no\s+utilizar\w*|no\s+sirven)\b[^.!?]{0,32}$/i;
 
 const DONOR_SLOT_FOLLOWING_NEG_RX = /^[^.!?]{0,90}\bno\s+(?:te\s+(?:lo|las|los)\s+)?(?:recomendamos|aconsejamos|conviene|son\s+recomendables|debes|deber[ií]as|es\s+buena\s+idea|funciona[ns]?)\b/i;
 
-const POSITIVE_ENDORSEMENT_RX = /\b(?:ideal(?:es)?|perfect[oa]s?|excelentes?|recomendab\w*|obligad[oa]s?|mejor\s+aliad[oa]|imprescindible(?:s)?|es\s+mejor\s+(?:usar|llevar|elegir|optar)|conviene\s+usar|resultan?\s+(?:ideales|id[oó]ne[oa]s|excelentes)|elige|optar\s+por|con\s+seguridad|incluye[ns]?|incorpora[ns]?|cuenta[ns]?\s+con|dispone[ns]?\s+de)\b/i;
+const POSITIVE_ENDORSEMENT_RX = /\b(?:ideal(?:es)?|perfect[oa]s?|excelentes?|recomendab\w*|obligad[oa]s?|mejor\s+aliad[oa]|imprescindible(?:s)?|es\s+mejor\s+(?:usar|llevar|elegir|optar)|conviene\s+usar|resultan?\s+(?:ideales|id[oó]ne[oa]s|excelentes)|elige|optar\s+por|con\s+seguridad|incluye[ns]?|incorpora[ns]?|cuenta[ns]?\s+con|dispone[ns]?\s+de|(?:una\s+)?(?:buena|excelente|gran)\s+opci[oó]n|disminuyen\s+la\s+fatiga|vital\s+para)\b/i;
 
 const SIGNED_CONTEXT_RULES = [];
 
@@ -90,7 +90,11 @@ function stemForSpanishVerify(asciiTok) {
 }
 
 function buildStemVerifyRx(phrase) {
-  const tokens = stripAccentsAscii(phrase)
+  const phraseNorm = stripAccentsAscii(phrase).trim();
+  if (phraseNorm === 'conducir' || phraseNorm === 'al volante' || phraseNorm === 'volante') {
+    return /\b(?:conduc[a-záéíóúüñ]*|al\s+volante|trayectos?\s+en\s+coche|coche\s+o\s+en\s+moto|en\s+carretera|manej[a-záéíóúüñ]*)\b/i;
+  }
+  const tokens = phraseNorm
     .split(/[^a-z0-9]+/)
     .filter(t => t.length >= 3 && !SPANISH_STOPWORDS_CONCEPT.has(t));
   if (!tokens.length) {
@@ -139,6 +143,7 @@ function extractSpanishCompoundNPs(text, maxItems = 4) {
     const w1 = stripAccentsAscii(tok1);
     const w2 = stripAccentsAscii(tok2);
     if (/mente$/.test(w1) || /mente$/.test(w2)) continue;
+    if (/^(?:auditiv[oa]s?|visual(?:es)?|optic[oa]s?)$/.test(w1)) continue;
     if (!adjSuffixRx.test(tok2)) continue;
     if (!SPANISH_STOPWORDS_CONCEPT.has(w1) && !SPANISH_STOPWORDS_CONCEPT.has(w2)) {
       pushNP(`${tok1} ${tok2}`);
@@ -263,8 +268,8 @@ const DISCRIMINATIVE_ANCHOR_CATALOG = [
     category: 'LENS_TECH',
     severity: 'CRITICAL',
     weight: 3.0,
-    detectRx: /\bprogresiv[oa]s?\b/i,
-    verifyRx: /\bprogresiv[oa]s?\b/i
+    detectRx: /\b(?:(?:lentes?|gafas?|cristales?|multifocal(?:es)?)\s+progresiv[oa]s?|(?:los|unos|tus|sus|las|unas|estas|esas|de)\s+progresiv[oa]s)\b/i,
+    verifyRx: /\b(?:(?:lentes?|gafas?|cristales?|multifocal(?:es)?)\s+progresiv[oa]s?|(?:los|unos|tus|sus|las|unas|estas|esas|de)\s+progresiv[oa]s)\b/i
   },
   {
     key: 'ocupacionales',
@@ -587,12 +592,46 @@ function extractDiscriminativeAnchors(rawPara, atoms = {}, domainId = 'optica') 
     });
   }
 
+  const comparedAgainstText = Array.isArray(atoms?.compared_against)
+    ? stripAccentsAscii(atoms.compared_against.join(' | '))
+    : '';
+  const isOnlyComparatorFoil = (entry) => {
+    const lblNorm = stripAccentsAscii(entry.label || '');
+    const lblParts = lblNorm.split('/').map(s => s.trim()).filter(Boolean);
+    const matchesComparedAtom = comparedAgainstText && lblParts.some(p => p.length >= 3 && comparedAgainstText.includes(p));
+    // Verify whether every occurrence in rawPara is preceded by a comparative marker
+    const globalRx = new RegExp(entry.detectRx.source, 'gi');
+    let m;
+    let totalHits = 0;
+    let foilHits = 0;
+    while ((m = globalRx.exec(text)) !== null) {
+      totalHits++;
+      const before = text.slice(Math.max(0, m.index - 55), m.index);
+      if (/\b(?:que\s+(?:el|la|los|las|un|una)|frente\s+(?:a|al|a\s+la|a\s+las)|en\s+comparaci[oó]n\s+con|a\s+diferencia\s+de(?:l|\s+la|\s+las|\s+los)?|respecto\s+(?:a|al))\s*$/i.test(before)) {
+        foilHits++;
+      }
+    }
+    if (totalHits > 0 && foilHits === totalHits) return true;
+    if (matchesComparedAtom && totalHits <= 1 && foilHits >= 1) return true;
+    return false;
+  };
+
   const domainAnchors = domainRegistry.getAnchorsForDomain ? (domainRegistry.getAnchorsForDomain(domainId) || []) : [];
   for (const entry of [...DISCRIMINATIVE_ANCHOR_CATALOG, ...domainAnchors]) {
+    entry.detectRx.lastIndex = 0;
     if (entry.detectRx.test(text) && !seenKeys.has(entry.key)) {
       seenKeys.add(entry.key);
       seenLabels.push(stripAccentsAscii(entry.label));
-      anchors.push(entry);
+      if (isOnlyComparatorFoil(entry)) {
+        anchors.push({
+          ...entry,
+          severity: 'COMPARATIVE',
+          weight: 1.0,
+          isComparatorFoil: true
+        });
+      } else {
+        anchors.push(entry);
+      }
     }
   }
 
@@ -725,6 +764,29 @@ function evaluateFactualEntailment(rawPara, candidateText, anchors = null, signe
     .map(c => c.trim())
     .filter(Boolean);
 
+  // Guard against comparator foils being falsely attributed as intrinsic features of the product
+  const skuAnchors = activeAnchors.filter(a => a.category === 'BRAND_SKU');
+  const intrinsicTechAnchors = activeAnchors.filter(a => a.category === 'LENS_TECH' && !a.isComparatorFoil);
+  for (const foilAnchor of activeAnchors.filter(a => a.isComparatorFoil)) {
+    foilAnchor.verifyRx.lastIndex = 0;
+    if (!foilAnchor.verifyRx.test(cand)) continue;
+    const comparativeOrNegRx = /\b(?:que\s+(?:el|la|los|las|un|una)|frente\s+(?:a|al|a\s+la|a\s+las)|en\s+comparaci[oó]n|a\s+diferencia|respecto\s+(?:a|al)|mejor\s+que|peor\s+que|superior(?:es)?\s+(?:a|al)|inferior(?:es)?\s+(?:a|al)|m[aá]s\s+[a-záéíóúüñ]+(?:\s+[a-záéíóúüñ]+){0,3}\s+que|menos\s+[a-záéíóúüñ]+|supera(?:n|ndo)?\s+(?:a|al)|alternativa|en\s+lugar\s+de|en\s+vez\s+de|no\s+(?:lleva|llevan|usa|usan|emplea|emplean|incorpora|incorporan|es|son))\b/i;
+    const attributedDirectly = candClauses.some(cl => {
+      foilAnchor.verifyRx.lastIndex = 0;
+      if (!foilAnchor.verifyRx.test(cl)) return false;
+      if (comparativeOrNegRx.test(cl) || CLAUSE_NEG_RX.test(cl) || DONOR_SLOT_NEG_RX.test(cl)) return false;
+      const mentionsProductOrCoordinatedTech =
+        skuAnchors.some(sa => { sa.verifyRx.lastIndex = 0; return sa.verifyRx.test(cl); }) ||
+        intrinsicTechAnchors.some(ta => { ta.verifyRx.lastIndex = 0; return ta.verifyRx.test(cl); }) ||
+        /\b(?:incorpora[ns]?|lleva[ns]?|integra[ns]?|monta[ns]?|fabricad[oa]s?\s+(?:en|con|de)|hech[oa]s?\s+de)\b/i.test(cl);
+      return mentionsProductOrCoordinatedTech;
+    });
+    if (attributedDirectly) {
+      polarityContradiction = true;
+      contradictionDetails.push(`COMPARATIVE_FOIL_ATTRIBUTED_AS_FEATURE:${foilAnchor.label}`);
+    }
+  }
+
   for (const cl of candClauses) {
     const clIsNeg = CLAUSE_NEG_RX.test(cl) || DONOR_SLOT_NEG_RX.test(cl);
     const clIsPos = POSITIVE_ENDORSEMENT_RX.test(cl) && !clIsNeg;
@@ -766,16 +828,24 @@ function evaluateFactualEntailment(rawPara, candidateText, anchors = null, signe
   const unrequestedTechLeak = unrequestedTechLeaks.length > 0;
 
   // Check whether negative safety/usage contexts from the source were omitted without negation
+  const candSentences = cand.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
   const unwarnedNegativeContexts = [];
   let warnedCount = 0;
   for (const nc of negOnlyCtx) {
     const rx = resolveCtxRx(nc);
     if (!rx) continue;
-    const warned = candClauses.some(cl => {
+    const warnedInClause = candClauses.some(cl => {
       const clIsNeg = CLAUSE_NEG_RX.test(cl) || DONOR_SLOT_NEG_RX.test(cl);
       return clIsNeg && rx.test(cl);
     });
-    if (warned) {
+    const warnedInCausalSent = !warnedInClause && candSentences.some(sent => {
+      if (!rx.test(sent)) return false;
+      const hasCausalLink = /\b(?:porque|ya\s+que|debido\s+a|puesto\s+que|dado\s+que|pues|al\s+filtrar|al\s+bloquear|impide|bloquea|filtra)\b/i.test(sent);
+      const sentHasNeg = CLAUSE_NEG_RX.test(sent) || DONOR_SLOT_NEG_RX.test(sent);
+      const sentPraisesCtx = POSITIVE_ENDORSEMENT_RX.test(sent) && !sentHasNeg;
+      return hasCausalLink && sentHasNeg && !sentPraisesCtx;
+    });
+    if (warnedInClause || warnedInCausalSent) {
       warnedCount++;
     } else {
       unwarnedNegativeContexts.push(nc);
@@ -800,13 +870,14 @@ function evaluateFactualEntailment(rawPara, candidateText, anchors = null, signe
     entailmentScore = 0;
   }
 
+  const honestGapFloor = activeAnchors.length >= 4 ? 0.68 : 0.72;
   const isHonestFactualGap = Boolean(
     polarityContradiction ||
     missingSafetyWarning ||
     (activeAnchors.length >= 1 && anchorCoverageRatio === 0) ||
-    (activeAnchors.length >= 2 && (missingCriticalTech.length > 0 || anchorCoverageRatio < 0.45)) ||
+    (activeAnchors.length >= 2 && (missingCriticalTech.length > 0 || anchorCoverageRatio < honestGapFloor)) ||
     (activeAnchors.length === 1 && missingCriticalTech.length > 0) ||
-    (unrequestedTechLeak && entailmentScore < 55)
+    (unrequestedTechLeak && entailmentScore < 65)
   );
 
   return {

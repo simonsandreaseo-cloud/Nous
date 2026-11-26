@@ -25,6 +25,11 @@ export default function StudioHeader({
   onOpenBankGaps,
   onOpenLogs
 }) {
+  const aiStudioModels = Array.isArray(ollamaStatus?.models)
+    ? ollamaStatus.models.filter(m => m?.provider === 'google-ai-studio')
+    : [];
+  const hasAIStudio = aiStudioModels.length > 0;
+
   return (
     <header className="h-16 border-b border-slate-800 bg-[#111422] flex items-center justify-between px-6 select-none shrink-0 shadow-md">
       <div className="flex items-center gap-4">
@@ -48,25 +53,29 @@ export default function StudioHeader({
             </button>
             <button
               onClick={onRefreshOllamaStatus}
-              title="Haz clic para verificar la conexión con Ollama y los modelos Qwen instalados"
+              title="Haz clic para verificar la conexión con Google AI Studio (Gemma 4 + Cascada 10x) u Ollama local"
               className={`text-[11px] px-2.5 py-0.5 rounded-full border font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
                 ollamaStatus.available
-                  ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20'
+                  ? (hasAIStudio
+                      ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/35 hover:bg-cyan-500/25'
+                      : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/20')
                   : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
               }`}
             >
               <Cpu className="w-3 h-3" />
               <span>
                 {!ollamaStatus.checked
-                  ? 'Verificando Ollama...'
+                  ? 'Verificando motor IA...'
                   : ollamaStatus.available
-                    ? `Ollama + Qwen (${ollamaStatus.models.length})`
-                    : 'Ollama desconectado (auto-arranque)'}
+                    ? (hasAIStudio
+                        ? `Google AI Studio · Gemma 4 (${aiStudioModels.length} mod. + 10x retry)`
+                        : `Ollama Local (${ollamaStatus.models.length})`)
+                    : 'Motor IA desconectado'}
               </span>
             </button>
           </div>
           <p className="text-xs text-slate-400">
-            Motor neuro-simbólico local: esqueletos humanos, transferencia guiada y auditoría estructural
+            Esqueletos humanos pre-2022, transferencia estructural guiada (Gemma 4 + Cascada) y modo Fail-Fast Cero Mediocridad
           </p>
         </div>
       </div>

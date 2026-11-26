@@ -211,7 +211,7 @@ function rerankCandidatesNeurosymbolic({
   });
 
   scoredPool.sort((a, b) => b.axisTotal - a.axisTotal);
-  const winner = scoredPool[0];
+  const winner = scoredPool.find(item => !item.liveEntail?.polarityContradiction) || scoredPool[0];
   if (articleState && winner) {
     articleState.prevOpener2w = winner.filledOpener2w;
     if (winner.liveHybrid.narrativePersona !== 'IMPERSONAL_THIRD') {

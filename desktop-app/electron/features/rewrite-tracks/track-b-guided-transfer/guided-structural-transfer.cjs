@@ -62,7 +62,28 @@ const AI_CLICHE_PATTERNS = [
   /\bes fundamental\b/i,
   /\bequilibrio perfecto\b/i,
   /\ben el mundo actual\b/i,
-  /\buna opci[oó]n ideal para todos\b/i
+  /\buna opci[oó]n ideal para todos\b/i,
+  /\bdise[ñn]o innovador\b/i,
+  /\bse vuelve especialmente importante\b/i,
+  /\beficazmente\b/i,
+  /\bminimizar el\b/i,
+  /\bpara seguir reduciendo\b/i,
+  /\bmediante la medici[oó]n de\b/i,
+  /\bcombinando\s+[^,.]{3,40}\s+con\s+este\b/i,
+  /\bel auge de\b/i,
+  /\bpieza clave\b/i,
+  /\bcomplemento vital\b/i,
+  /\bsoluci[oó]n ideal\b/i,
+  /\bexplora estas\b/i,
+  /\bbrinda[ns]?\s+(?:un|una)\b/i,
+  /\b[aá]rea extensa\b/i,
+  /\bresulta vital\b/i,
+  /\btales (?:modificaciones|procesos|ajustes)\b/i,
+  /\best[aá]n compuestos de\b/i,
+  /\bdestaca por su tecnolog[ií]a\b/i,
+  /\bsalvaguard\w*/i,
+  /\bmitigando los efectos\b/i,
+  /\bdesaf[ií]a la rutina\b/i
 ];
 
 const ENGLISH_STOPWORDS = new Set([
@@ -110,7 +131,7 @@ function extractRhetoricalBlueprint(text, atoms = null, paraTopology = null) {
   if (/\b(?:porque|ya\s+que|debido\s+a|por\s+eso|por\s+lo\s+que|lo\s+que\s+permite|hace\s+que|provoca|obliga\s+a|de\s+modo\s+que|gracias\s+a)\b/i.test(s)) {
     rstRelations.push('CAUSAL_MECHANISM');
   }
-  if (/\b(?:conviene\s+evitar\w*|evita\s+(?:usar|utilizar|comprar|llevar|elegir)|nunca\s+(?:debes|deben|uses?|utilices?)|no\s+(?:deben|debes|emplees|uses?|utilices?|son\s+(?:apt|recomend|permit)|est[aá]n\s+permitid|conviene(?!\s+olvidar))|no\s+(?:se\s+)?oscurec\w*|no\s+funcion\w*|no\s+llevan\s+graduaci[oó]n|menos\s+campo\s+[uú]til|no\s+son\s+permitid\w*|impide\s+que\s+(?:se\s+oscurezc|penetr)|prohibid\w*|inconvenientes?|desventajas?|peligro|riesgo|cuidado\s+con|baja\s+calidad|deform\w*|descascarill\w*|quebradiz\w*|apretar|pellizcar|se[ñn]ales\s+marcadas|se\s+resbal\w*|molestias?\s+(?:oculares?|en\s+la\s+nariz)|demasiado\s+(?:r[ií]gid|pesad|estrech|grande|anch|oscur)|tienden\s+a\s+romperse|muy\s+pesad\w*|muy\s+fr[aá]gil)\b/i.test(s)) {
+  if (/\b(?:conviene\s+evitar\w*|evita\s+(?:usar|utilizar|comprar|llevar|elegir)|nunca\s+(?:debes|deben|uses?|utilices?)|no\s+(?:deben|debes|emplees|uses?|utilices?|son\s+(?:apt|recomend|permit)|est[aá]n\s+permitid|conviene(?!\s+olvidar))|no\s+se\s+oscurec\w*|no\s+funcion\w*|no\s+llevan\s+graduaci[oó]n|menos\s+campo\s+[uú]til|no\s+son\s+permitid\w*|impide\s+que\s+(?:se\s+oscurezc|penetr)|prohibid\w*|inconvenientes?|desventajas?|peligro|riesgo|cuidado\s+con|baja\s+calidad|deform\w*|descascarill\w*|quebradiz\w*|apretar|pellizcar|se[ñn]ales\s+marcadas|se\s+resbal\w*|molestias?\s+(?:oculares?|en\s+la\s+nariz)|demasiado\s+(?:r[ií]gid|pesad|estrech|grande|anch|oscur)|tienden\s+a\s+romperse|muy\s+pesad\w*|muy\s+fr[aá]gil)\b/i.test(s)) {
     rstRelations.push('NEGATIVE_WARNING');
   }
   if (/\b(?:si\s+tienes|si\s+necesitas|si\s+vas\s+a|si\s+buscas|cuando\s+se\s+trata)\b/i.test(s)) {
@@ -212,13 +233,34 @@ function computeNormalizedLCS(seqA, seqB) {
   return { lcsLength, f1, recallDonor, precisionCand };
 }
 
+const FINITE_SCAFFOLD_VERB_RX = /(?:\b(?:es|son|est[aá]n?|era[ns]?|fue(?:ron)?|ser[aáeé]n?|sea[ns]?|hay|ha[ns]?|hemos|tiene[ns]?|puede[ns]?|podemos|suele[ns]?|debe[ns]?|hace[ns]?|da[ns]?|va[ns]?|viene[ns]?|encaja[ns]?|destaca[ns]?|aporta[ns]?|ofrece[ns]?|permite[ns]?|favorece[ns]?|queda[ns]?|sienta[ns]?|pasa[ns]?|resulta[ns]?|combina[ns]?|protege[ns]?|busca[ns]?|crea[ns]?|logra[ns]?|lleva[ns]?|luce[ns]?|marca[ns]?|define[ns]?|adapta[ns]?|ajusta[ns]?|evita[ns]?|impide[ns]?|bloquea[ns]?|filtra[ns]?|reduce[ns]?|mejora[ns]?|conviene[ns]?|ayuda[ns]?|depende[ns]?|garantiza[ns]?|emplea[ns]?|usa[ns]?|incorpora[ns]?|cuenta[ns]?|exige[ns]?|requiere[ns]?|existe[ns]?)\b|\b[a-záéíóúüñ]{3,}(?:amos|emos|imos|aron|ieron|aban|ían|arán|erán|irán|aría[ns]?)\b)/i;
+
+function isValidStandaloneScaffoldSentence(sent, isFirstSentence = false) {
+  const s = String(sent || '').trim();
+  if (!s) return false;
+  // Reject mini-FAQ question headers ("¿Qué evitar?", "¿Cómo elegir?")
+  if (/^¿[^?]{1,32}\?$/.test(s)) return false;
+  // Reject incomplete conditional protasis with no comma ("Si las monturas definen el estilo.")
+  if (/^si\s+[^,;]+[.!?]$/i.test(s)) return false;
+  // Reject gerund-only or orphan subordinate fragments ("Y armonizando con...", "Porque de su...")
+  if (/^(?:y|o|e|u)\s+[a-záéíóúüñ]+(?:ando|iendo)\b/i.test(s)) return false;
+  if (isFirstSentence && /^(?:porque|ya\s+que|puesto\s+que|dado\s+que|que\s+|o\s+(?:con|de|en|para|por|si|quiz[aá])|y\s+(?:es\s+que|con|as[ií]|adem[aá]s)|para\s+eso,|hacen\s+que|pero\s+si\s+no|adem[aá]s,|sin\s+embargo,|por\s+eso,)/i.test(s)) {
+    return false;
+  }
+  if (!FINITE_SCAFFOLD_VERB_RX.test(s)) return false;
+  return true;
+}
+
 function buildCleanSentenceWindow(rawText, targetWords, minWords, maxWords, allowTrailingColon = false) {
-  const sents = splitSentences(rawText);
+  // Strip leading mini-FAQ headers like "¿Qué evitar? " before splitting
+  const cleanedRaw = String(rawText || '').replace(/^\s*¿[^?]{1,28}\?\s+/, '');
+  const sents = splitSentences(cleanedRaw);
   if (!sents.length) return '';
 
+  const fullAllValid = sents.every((st, idx) => isValidStandaloneScaffoldSentence(st, idx === 0));
   const fullText = sents.join(' ');
   const fullWc = tokenizeWords(fullText).length;
-  if (fullWc >= minWords && fullWc <= maxWords) {
+  if (fullAllValid && fullWc >= minWords && fullWc <= maxWords) {
     if (!/\.\.\.$|…$/.test(fullText) && (allowTrailingColon || !/:$/.test(fullText))) {
       return fullText;
     }
@@ -229,13 +271,14 @@ function buildCleanSentenceWindow(rawText, targetWords, minWords, maxWords, allo
 
   for (let start = 0; start < sents.length; start++) {
     const first = sents[start];
-    if (/^(?:o\s+(?:con|de|en|para|por|si|quiz[aá])|y\s+(?:es\s+que|con)|para\s+eso,|hacen\s+que|pero\s+si\s+no|adem[aá]s,|sin\s+embargo,|por\s+eso,)/i.test(first)) {
+    if (!isValidStandaloneScaffoldSentence(first, true)) {
       continue;
     }
     let acc = '';
     let accWords = 0;
     for (let end = start; end < sents.length; end++) {
       const piece = sents[end];
+      if (!isValidStandaloneScaffoldSentence(piece, end === start)) break;
       if (/\.\.\.$|…$/.test(piece) || (!allowTrailingColon && /:$/.test(piece))) break;
       acc = acc ? `${acc} ${piece}` : piece;
       accWords += tokenizeWords(piece).length;
@@ -264,11 +307,24 @@ function detectUnrequestedBrands(text, referenceTexts = []) {
   return leaked;
 }
 
+const GENERIC_SCAFFOLD_GLUE = new Set([
+  ...EXACT_FUNCTION_WORDS,
+  'gafa', 'gafas', 'sol', 'lente', 'lentes', 'montura', 'monturas', 'cristal', 'cristales',
+  'vista', 'ojos', 'mirada', 'visual', 'visuales', 'optica', 'optico', 'opticas', 'opticos',
+  'estilo', 'modelo', 'modelos', 'forma', 'formas', 'diseno', 'calidad', 'uso', 'usar', 'usos',
+  'llevar', 'elegir', 'tipo', 'tipos', 'parte', 'caso', 'casos', 'hora', 'horas', 'dia', 'dias',
+  'vez', 'veces', 'gran', 'bien', 'mejor', 'mejores', 'mayor', 'menor', 'poco', 'poca', 'mucho',
+  'mucha', 'mismo', 'misma', 'modo', 'manera', 'nivel', 'punto', 'puntos', 'tiempo', 'momento',
+  'hecho', 'falta', 'cuenta', 'cambio', 'ademas', 'sino', 'solo', 'toda', 'todo', 'todos', 'todas',
+  'esta', 'este', 'estos', 'estas', 'son', 'ser', 'tiene', 'tienen', 'pueden', 'puede', 'hacer',
+  'hace', 'hacen', 'resulta', 'resultan', 'ofrece', 'ofrecen', 'permite', 'permiten', 'evitar',
+  'riesgo', 'problema', 'problemas', 'ventaja', 'ventajas', 'opcion', 'opciones', 'ejemplo'
+]);
+
 function extractDomainTopicTokens(text) {
-  const stop = new Set([...EXACT_FUNCTION_WORDS, 'gafa', 'gafas', 'sol', 'lente', 'lentes', 'montura', 'monturas', 'esta', 'este', 'son', 'ser', 'tiene', 'pueden', 'puede']);
   return new Set(
     tokenizeWords(text)
-      .filter(w => w.length >= 4 && !stop.has(w) && !CLOSED_CLASS_RULES.some(r => r.rx.test(w)))
+      .filter(w => w.length >= 4 && !GENERIC_SCAFFOLD_GLUE.has(w) && !CLOSED_CLASS_RULES.some(r => r.rx.test(w)))
   );
 }
 
@@ -291,7 +347,7 @@ function selectStructuralScaffolds({
   const srcBlueprint = extractRhetoricalBlueprint(rawPara, atoms, paraTopology);
   const srcWc = Math.max(12, srcBlueprint.wordCount);
   const minW = Math.max(18, Math.round(srcWc * 0.58));
-  const maxW = Math.min(115, Math.round(srcWc * 1.55));
+  const maxW = Math.min(120, Math.round(srcWc * 1.75));
   const allowColon = /:$/.test(String(rawPara || '').trim());
   const srcLower = String(rawPara || '').toLowerCase();
   const srcTopicTokens = extractDomainTopicTokens(rawPara);
@@ -347,14 +403,23 @@ function selectStructuralScaffolds({
       /\b(?:yo\s+(?:creo|pienso|tengo|prefiero|quiero|uso)|quiero\s+desmentir|mis\s+anteriores|compr[eé]|me\s+encanta|me\s+gusta|a\s+m[ií]\s+me)\b/i.test(rLow) ||
       /\bque\s+la\s+lente\s+un\s+tama[ñn]o\b/i.test(rLow) ||
       (!allowsClinicalOrAudio && /\b(?:cl[ií]nica|miop[ií]a|astigmatismo|ojo vago|estrabismo|ambliop[ií]a|cataratas|glaucoma|colirio|oftalm[oó]logo|estos\s+pacientes)\b/i.test(rLow)) ||
+      (!/\b(?:diabetes|glucosa|insulina|colesterol|hipertensi[oó]n|dieta)\b/i.test(srcLower) && /\b(?:diabetes|diab[eé]tic[oa]s?|glucosa|insulina|colesterol|hipertensi[oó]n|dieta\s+y\s+ejercicio|az[uú]car\s+en\s+sangre)\b/i.test(rLow)) ||
+      (!/\b(?:madre|padre|regal|navidad|reyes)\b/i.test(srcLower) && /\b(?:tu\s+madre|d[ií]a\s+de\s+la\s+madre|d[ií]a\s+del\s+padre|regalar\w*|regalos?|navidad|reyes\s+magos|amigo\s+invisible|black\s+friday|rebajas)\b/i.test(rLow)) ||
+      (!/\b(?:quemar|quemadur|temperatura|calor\s+extremo|salpicadero)\b/i.test(srcLower) && /\b(?:quemarte|quemaduras?|expuestas?\s+al\s+calor|cuidado\s+con\s+las\s+temperaturas|salpicadero)\b/i.test(rLow)) ||
+      (!/\b(?:conduc|coche|volante|carretera|veh[ií]culo)\b/i.test(srcLower) && /\b(?:al\s+volante|sufrir\s+accidentes|cansancio\s+del\s+conductor|conducci[oó]n\s+mucho\s+m[aá]s\s+segura)\b/i.test(rLow)) ||
+      (!/\b(?:low\s*cost|barat|econ[oó]mic|precio)\b/i.test(srcLower) && /\b(?:low\s*cost|precios?\s+muy\s+econ[oó]micos?|gafas\s+baratas)\b/i.test(rLow)) ||
+      /\b(?:hip-hop|raperos?)\b/i.test(rLow) ||
+      /\b(?:p[aá]rrafo\s+anterior|siguiente\s+p[aá]rrafo|siguiente\s+apartado|como\s+vimos\s+antes|en\s+este\s+post|en\s+este\s+art[ií]culo|en\s+este\s+cat[aá]logo|presentamos\s+los\s+modelos|ya\s+dec[ií]amos\s+que|como\s+ya\s+dijimos|estar[ií]amos\s+hablando\s+de)\b/i.test(rLow) ||
       /\b(?:alfombra\s+roja|hollywood|instagram|famos[oa]s|celebrities)\b/i.test(rLow) ||
       (!/\bdioptr[ií]as?\b/i.test(srcLower) && /\bdioptr[ií]as?\b/i.test(rLow)) ||
       (!/\b(?:lentes?\s+de\s+contacto|lentillas?)\b/i.test(srcLower) && /\b(?:lentes?\s+de\s+contacto|lentillas?)\b/i.test(rLow)) ||
       (!/\b(?:carnavales?|halloween)\b/i.test(srcLower) && /\b(?:carnavales?|halloween)\b/i.test(rLow)) ||
       (!/\b(?:buceo|nataci[oó]n|piscina)\b/i.test(srcLower) && /\b(?:gafas?\s+de\s+buceo|antifog|sello\s+ce|referencia\s+iso)\b/i.test(rLow)) ||
-      /\b(?:mariah\s+carey|good\s+morning\s+britain|annalynne|reese\s+witherspoon|paula\s+echevarr[ií]a|dicho\s+esto|vamos\s+con\s+la\s+informaci[oó]n\s+que\s+est[aá]s\s+esperando|un\s+saludo|el\s+precio\s+aproximados|l[aá]grimas?\s+artificial(?:es)?|embarazo|eritema|quemaduras\s+solares|cross\s+linking|pendiente\s+roza|mi\s+primera\s+gafa|solo\s+encuentro\s+un\s+problema|nues-tros|exprimera\s+dama|cgcoo|colegios?\s+de\s+[oó]pticos|opticalia|dos\s+por\s+uno|lavaplatos|mascarilla|ritmos?\s+circadianos?|alteraci[oó]n\s+visual|riesgo\s+secundario)\b/i.test(rLow) ||
+      /\b(?:mariah\s+carey|good\s+morning\s+britain|annalynne|reese\s+witherspoon|paula\s+echevarr[ií]a|dicho\s+esto|vamos\s+con\s+la\s+informaci[oó]n\s+que\s+est[aá]s\s+esperando|un\s+saludo|el\s+precio\s+aproximados|l[aá]grimas?\s+artificial(?:es)?|embarazo|eritema|quemaduras\s+solares|cross\s+linking|pendiente\s+roza|mi\s+primera\s+gafa|solo\s+encuentro\s+un\s+problema|nues-tros|exprimera\s+dama|cgcoo|colegios?\s+de\s+[oó]pticos|opticalia|dos\s+por\s+uno|lavaplatos|mascarilla|ritmos?\s+circadianos?|alteraci[oó]n\s+visual|riesgo\s+secundario|p[ií]denos\s+cita|llamando\s+al\s+tel[eé]fono|formulario\s+de\s+contacto|\d{9})\b/i.test(rLow) ||
       (!/\b(?:limpi|jab[oó]n|grifo|funda|agua\s+del\s+mar)\b/i.test(srcLower) && /\b(?:agua\s+del\s+mar|cuando\s+limpies\s+las\s+gafas|bajo\s+el\s+grifo|gota\s+de\s+jab[oó]n|productos?\s+abrasivos?)\b/i.test(rLow)) ||
-      (!/\bmigra[ñn]as?\b/i.test(srcLower) && /\bmigra[ñn]as?\b/i.test(rLow))
+      (!/\bmigra[ñn]as?\b/i.test(srcLower) && /\bmigra[ñn]as?\b/i.test(rLow)) ||
+      (!/\b(?:millones|miles)\b/i.test(srcLower) && /\b\d{2,}\s+(?:millones|miles)\s+de\s+personas\b/i.test(rLow)) ||
+      /\b(?:steve\s+mcqueen|mcqueen|boeing|stearman|pilotar|rey\s+de\s+lo\s+cool|edici[oó]n\s+especial|colecci[oó]n\s+consiste\s+en|manicuras?|working\s+girl|borrado\s+de\s+memoria|empezamos\s+hablando\s+de)\b/i.test(rLow)
     ) {
       continue;
     }
@@ -420,7 +485,7 @@ function selectStructuralScaffolds({
       anc.verifyRx.lastIndex = 0;
       if (anc.verifyRx.test(cleanText)) matchedAnchorHits++;
     }
-    const anchorBonus = Math.min(24, matchedAnchorHits * 12);
+    const anchorBonus = Math.min(36, matchedAnchorHits * 12);
 
     const donorEntail = factualGuard.evaluateFactualEntailment
       ? factualGuard.evaluateFactualEntailment(rawPara, cleanText, atoms?.discriminativeAnchors, atoms?.signedPolarity)
@@ -435,7 +500,7 @@ function selectStructuralScaffolds({
     if (isTechOrMaterialPara && b.frame === 'CARE_MAINTENANCE') {
       competingTechPenalty -= 14;
     }
-    const axis1Score = Number((Math.min(58, semScore + anchorBonus) + competingTechPenalty).toFixed(2));
+    const axis1Score = Number((Math.min(68, semScore + anchorBonus) + competingTechPenalty).toFixed(2));
 
     // 2. Polarity & RST alignment con piso semántico (-24..+24)
     let rstScore = 0;
@@ -443,7 +508,7 @@ function selectStructuralScaffolds({
     if (srcBlueprint.hasNegativeWarning) {
       if (
         donorBlueprint.hasNegativeWarning ||
-        /\b(?:apretar|pellizcar|se[ñn]ales\s+marcadas|se\s+resbal\w*|no\s+llevan\s+graduaci[oó]n|menos\s+campo\s+[uú]til|no\s+son\s+permitid\w*|inconvenientes?|desventajas?|fr[aá]gil|muy\s+pesad|conviene\s+evitar\w*|no\s+(?:son|est[aá]n)\s+(?:recomendab|permitid|apt)|prohibid\w*|no\s+(?:se\s+)?oscurec|no\s+funcion|deform\w*|descascarill\w*|quebradiz\w*|baja\s+calidad|tienden\s+a\s+romperse|demasiado\s+(?:r[ií]gid|pesad|estrech|oscur))\b/i.test(cleanText)
+        /\b(?:apretar|pellizcar|se[ñn]ales\s+marcadas|se\s+resbal\w*|no\s+llevan\s+graduaci[oó]n|menos\s+campo\s+[uú]til|no\s+son\s+permitid\w*|inconvenientes?|desventajas?|fr[aá]gil|muy\s+pesad|conviene\s+evitar\w*|no\s+(?:son|est[aá]n)\s+(?:recomendab|permitid|apt)|prohibid\w*|no\s+se\s+oscurec|no\s+funcion|deform\w*|descascarill\w*|quebradiz\w*|baja\s+calidad|tienden\s+a\s+romperse|demasiado\s+(?:r[ií]gid|pesad|estrech|oscur))\b/i.test(cleanText)
       ) {
         rstScore += 16;
         matchedRst.push('WARNING');
@@ -497,6 +562,11 @@ function selectStructuralScaffolds({
     // 4. Sentence count & cadence isomorphism (-10..+18)
     const deltaSents = Math.abs(donorBlueprint.sentenceCount - srcBlueprint.sentenceCount);
     let cadenceScore = deltaSents === 0 ? 10 : (deltaSents === 1 ? 5 : -10);
+    if (srcBlueprint.sentenceCount >= 2 && donorBlueprint.sentenceCount >= 2 && donorBlueprint.avgSentenceWords <= 32) {
+      cadenceScore += 5;
+    } else if (donorBlueprint.sentenceCount === 1 && donorBlueprint.wordCount >= 55) {
+      cadenceScore -= 8;
+    }
     const wcRatio = donorBlueprint.wordCount / Math.max(1, srcWc);
     cadenceScore = Math.max(-10, Math.min(18, Number((cadenceScore + Math.max(0, 8 - Math.abs(1 - wcRatio) * 14)).toFixed(2))));
 
@@ -560,12 +630,12 @@ function buildCarrilBFewShotMessages() {
     'Cierre de sección (sintetiza la consecuencia práctica o limitación final).',
     '',
     'TEXTO BASE HUMANO (molde gramatical obligatorio):',
-    '"Aunque este abrigo de lana abriga con eficacia en invierno, su peso elevado lo hace poco práctico en viajes largos; por eso muchos viajeros prefieren prendas más ligeras."',
+    'Aunque este abrigo de lana abriga con eficacia en invierno, su peso elevado lo hace poco práctico en viajes largos; por eso muchos viajeros prefieren prendas más ligeras.',
     '',
     'HECHOS QUE DEBEN APARECER EN TU TEXTO:',
     '- Términos técnicos obligatorios: botas de cuero, membrana impermeable',
     '- Conceptos clave: suela rígida | caminar horas | peso extra',
-    '- Advertencia o limitación en sentido negativo: evitar en senderismo ligero',
+    '- Límites / advertencias (expresar en sentido negativo natural): senderismo ligero | peso extra',
     '',
     'PAUTAS ESTRICTAS DE EDICIÓN MÍNIMA:',
     '1. Sustituye el tema del TEXTO BASE HUMANO por los hechos indicados manteniendo sus conectores lógicos, estructura y cadencia de oraciones.',
@@ -581,6 +651,19 @@ function buildCarrilBFewShotMessages() {
   ];
 }
 
+function compressRelationalProposition(clauseText) {
+  // De-linearize into telegraphic relational notation so LLM preserves 100% of causal/comparative relations without echoing source syntax
+  return String(clauseText || '')
+    .replace(/^(?:Por\s+(?:otro\s+lado|su\s+parte|ello|eso|lo\s+tanto|consiguiente)|Sin\s+embargo|No\s+obstante|En\s+(?:cambio|definitiva|resumen|conclusi[oó]n)|Cabe\s+destacar\s+que|Es\s+importante\s+(?:se[ñn]alar|recordar|mencionar)\s+que|Adem[aá]s|Asimismo),?\s+/i, '')
+    .replace(/\b(?:aunque|pero|mientras\s+que)\s+/gi, '[CONTRASTE] ')
+    .replace(/\b(?:porque|ya\s+que|debido\s+a\s+que|puesto\s+que)\s+/gi, '[CAUSA] ')
+    .replace(/\b(?:dentro\s+del|en\s+el\s+interior\s+del)\s+/gi, 'en ')
+    .replace(/\b(?:el|la|los|las|un|una|unos|unas|su|sus|este|esta|estos|estas)\s+/gi, '')
+    .replace(/\s+\b(?:y|e)\b\s+/gi, ' + ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function buildDeLinearizedFactBullets(rawPara, atoms) {
   const factLines = [];
   const brandModels = Array.isArray(atoms?.brand_models) ? atoms.brand_models.filter(Boolean) : [];
@@ -590,75 +673,74 @@ function buildDeLinearizedFactBullets(rawPara, atoms) {
 
   const brandLowerSet = new Set(brandModels.map(b => stripAccents(b)));
   const anchors = Array.isArray(atoms?.discriminativeAnchors) ? atoms.discriminativeAnchors : [];
-  const anchorLabels = anchors
-    .map(a => String(a?.label || '').trim())
-    .filter(lbl => lbl && !brandLowerSet.has(stripAccents(lbl)));
-  if (anchorLabels.length > 0) {
-    factLines.push(`- Términos técnicos obligatorios: ${anchorLabels.join(', ')}`);
-  }
-
-  const coveredNorms = new Set([
-    ...brandLowerSet,
-    ...anchorLabels.flatMap(l => stripAccents(l).split(/[\/,\s]+/)).filter(Boolean)
-  ]);
-
-  const conceptPills = [];
-  const seenPills = new Set();
-  const pushPill = (raw) => {
-    const words = String(raw || '')
-      .replace(/[.;:!?()"«»]/g, ' ')
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 3);
-    if (!words.length) return;
-    const pill = words.join(' ');
-    const normTokens = words.map(w => stripAccents(w));
-    if (normTokens.every(t => t.length < 3 || EXACT_FUNCTION_WORDS.has(t) || coveredNorms.has(t))) return;
-    const key = normTokens.join(' ');
-    if (seenPills.has(key)) return;
-    seenPills.add(key);
-    conceptPills.push(pill.toLowerCase());
+  const rawLowerNorm = stripAccents(rawPara);
+  const pickCleanAnchorLabel = (rawLbl) => {
+    const lbl = String(rawLbl || '').trim();
+    if (!lbl.includes('/')) return lbl;
+    const parts = lbl.split('/').map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return lbl;
+    const matchedPart = parts.find(p => rawLowerNorm.includes(stripAccents(p)));
+    return matchedPart || parts[0];
   };
 
-  if (typeof factualGuardMod.extractSpanishCompoundNPs === 'function') {
-    for (const np of factualGuardMod.extractSpanishCompoundNPs(rawPara, 10)) {
-      if (np?.label) pushPill(np.label);
+  const intrinsicAnchors = anchors.filter(a => !a?.isComparatorFoil);
+  const foilAnchors = anchors.filter(a => a?.isComparatorFoil);
+
+  const anchorLabels = intrinsicAnchors
+    .map(a => pickCleanAnchorLabel(a?.label))
+    .filter(lbl => lbl && !brandLowerSet.has(stripAccents(lbl)));
+  if (anchorLabels.length > 0) {
+    factLines.push(`- Términos técnicos obligatorios del sujeto: ${anchorLabels.join(', ')}`);
+  }
+
+  const foilLabels = [
+    ...foilAnchors.map(a => pickCleanAnchorLabel(a?.label)),
+    ...(Array.isArray(atoms?.compared_against) ? atoms.compared_against : [])
+  ].map(s => String(s || '').trim()).filter(Boolean);
+  const dedupFoils = [];
+  for (const fl of foilLabels) {
+    const fn = stripAccents(fl);
+    if (!dedupFoils.some(prev => stripAccents(prev).includes(fn) || fn.includes(stripAccents(prev)))) {
+      dedupFoils.push(fl);
     }
   }
-  for (const m of (atoms?.materials || [])) pushPill(m);
-  for (const o of (atoms?.outfits || [])) pushPill(o);
-  for (const sh of (atoms?.shapes || [])) pushPill(sh);
-
-  const extraWords = tokenizeWords(rawPara).filter(w =>
-    w.length >= 5 &&
-    !EXACT_FUNCTION_WORDS.has(w) &&
-    !CLOSED_CLASS_RULES.some(r => r.rx.test(w)) &&
-    !coveredNorms.has(w) &&
-    !/^(?:embargo|precisamente|cambio|mucho|mejor|sobre|suelen|llevan|tienen|pueden|ofrece|combinan|resuelven|ampliando|resultan|bloquean|reaccionan)$/i.test(w)
-  );
-  for (const ew of extraWords) {
-    if (conceptPills.length >= 7) break;
-    const alreadyInPills = conceptPills.some(p => stripAccents(p).includes(ew));
-    if (!alreadyInPills) pushPill(ew);
+  if (dedupFoils.length > 0) {
+    factLines.push(`- Elemento de comparación externa (NO es componente del modelo; úsalo solo como contraste comparativo): ${dedupFoils.join(', ')}`);
   }
 
-  if (conceptPills.length > 0) {
-    factLines.push(`- Conceptos clave: ${conceptPills.slice(0, 7).join(' | ')}`);
+  // Extraer proposiciones relacionales completas para impedir inversión de causalidad, comparaciones o advertencias
+  const rawClauses = String(rawPara || '')
+    .split(/(?:[.;!?]+|\s+(?=(?:aunque|pero|sin\s+embargo|mientras\s+que|por\s+eso|por\s+lo\s+que|ya\s+que|porque|debido\s+a)\b))/i)
+    .map(compressRelationalProposition)
+    .filter(c => c.split(/\s+/).filter(Boolean).length >= 3);
+
+  if (rawClauses.length > 0) {
+    const propNotes = rawClauses.slice(0, 5).map((cl, idx) => `  (${idx + 1}) ${cl}`);
+    factLines.push(`- Hechos y relaciones lógicas a expresar (reescríbelos con tus propias palabras dentro de la estructura del TEXTO BASE HUMANO, sin copiar frases literales):\n${propNotes.join('\n')}`);
   }
 
   const sp = atoms?.signedPolarity || {};
-  if (sp.positiveContexts?.length) {
-    factLines.push(`- Contexto favorable: ${sp.positiveContexts.join(', ').toLowerCase()}`);
+  const srcTokensForAccents = String(rawPara || '').match(/[a-záéíóúüñA-ZÁÉÍÓÚÜÑ0-9]+/g) || [];
+  const normAccentMap = new Map();
+  for (const tk of srcTokensForAccents) {
+    const k = stripAccents(tk);
+    if (k && !normAccentMap.has(k)) normAccentMap.set(k, tk.toLowerCase());
   }
-  const negParts = [
+  const restoreAccentsFromSource = (term) => String(term || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(w => normAccentMap.get(stripAccents(w)) || w.toLowerCase())
+    .join(' ');
+
+  const negAccented = [
     ...(sp.negativeContexts || []),
     ...(sp.negativeMaterials || [])
-  ].map(x => String(x || '').toLowerCase()).filter(Boolean);
-  if (negParts.length > 0) {
-    factLines.push(`- Advertencia o limitación en sentido negativo: evitar o desaconsejar en ${[...new Set(negParts)].join(', ')}`);
+  ].map(restoreAccentsFromSource).filter(Boolean);
+  if (negAccented.length > 0) {
+    factLines.push(`- Límites / advertencias obligatorias en sentido negativo: ${[...new Set(negAccented)].join(' | ')}`);
   } else if (extractRhetoricalBlueprint(rawPara, atoms).hasNegativeWarning) {
-    factLines.push('- Advertencia o limitación en sentido negativo: mantén la crítica, desgaste o restricción de uso sin suavizarla.');
+    factLines.push('- Límites / advertencias obligatorias en sentido negativo: mantén la restricción, contrapartida o desgaste sin suavizarlo ni invertirlo.');
   }
 
   return factLines.length ? factLines : ['- Conserva los conceptos técnicos principales del aviso.'];
@@ -681,24 +763,324 @@ function buildGuidedTransferPrompt({
     ? `\nAJUSTE OBLIGATORIO TRAS EL INTENTO ANTERIOR:\n${feedback}\n`
     : '';
 
-  return `Transfiere hechos técnicos concretos dentro de la arquitectura sintáctica del TEXTO BASE HUMANO en español.
+  return `Transfiere los hechos técnicos indicados dentro de la arquitectura sintáctica y el ritmo del TEXTO BASE HUMANO en español.
 
 FUNCIÓN EN EL METARRELATO:
 ${describeDiscourseRole(paraTopology?.role || activeBlueprint.discourseRole, heading)}
 
-TEXTO BASE HUMANO (molde gramatical obligatorio):
-"${donorBase}"
+TEXTO BASE HUMANO (molde rítmico y sintáctico):
+${donorBase}
 
-HECHOS QUE DEBEN APARECER EN TU TEXTO:
+HECHOS Y RELACIONES QUE DEBEN APARECER EN TU TEXTO:
 ${factLines.join('\n')}
 
-PAUTAS ESTRICTAS DE EDICIÓN MÍNIMA:
-1. Reemplaza el contenido del TEXTO BASE HUMANO por los hechos indicados arriba; no devuelvas el tema viejo del molde ni concatenes ambos textos.
-2. Conserva la arquitectura de ${dBlueprint.sentenceCount} ${dBlueprint.sentenceCount === 1 ? 'oración' : 'oraciones'}, sus conectores lógicos ("aunque", "sin embargo", "debido a", "por eso", "si", "pero", "ya que"), el orden sintáctico y el ritmo del TEXTO BASE HUMANO, ajustando artículos, verbos, género y número solo lo mínimo indispensable.
-3. Si los hechos incluyen una advertencia o prohibición, redacta la frase en sentido explícitamente negativo en español natural; nunca copies etiquetas de instrucción ni conviertas una advertencia en recomendación.
-4. Prohibido añadir clichés de IA ("en resumen", "en conclusión", "cabe destacar", "en definitiva", "es fundamental", "equilibrio perfecto", "sin lugar a dudas"), títulos, viñetas, Markdown o comillas envolventes.
-5. Responde únicamente con el párrafo final en español.
+PAUTAS ESTRICTAS DE TRANSFERENCIA ESTRUCTURAL:
+1. Sustituye por completo los sustantivos y predicados del tema viejo del TEXTO BASE HUMANO por los hechos actuales; NO dejes rastros temáticos del molde viejo ni copies tramos de 8 o más palabras literales seguidas del TEXTO BASE HUMANO.
+2. Conserva la arquitectura de ${dBlueprint.sentenceCount} ${dBlueprint.sentenceCount === 1 ? 'oración' : 'oraciones'}, los conectores ("aunque", "sin embargo", "debido a", "por eso", "si", "pero", "ya que") y la cadencia humana del TEXTO BASE HUMANO, reformulando los hechos sin calcar las frases de la lista de hechos.
+3. Respeta exactamente quién posee cada propiedad en las comparaciones, incluye tanto las ventajas como los inconvenientes de los hechos y expresa toda advertencia o limitación de forma directa y clara en negativo (jamás uses dobles negaciones confusas como "evita que falle en quienes no tengan...").
+4. Prohibido añadir clichés de IA ("en resumen", "en conclusión", "cabe destacar", "en definitiva", "es fundamental", "equilibrio perfecto", "sin lugar a dudas", "eficazmente", "diseño innovador"), referencias a otros párrafos ("como vimos antes", "en el párrafo anterior"), títulos, viñetas, Markdown o comillas envolventes.
+5. Responde únicamente con el párrafo final limpio en español.
 ${feedbackBlock}`;
+}
+
+function computeDonorTokenPreservation(candidate, donorBase) {
+  const candTokens = tokenizeWords(candidate);
+  const donorTokens = tokenizeWords(donorBase);
+  if (!candTokens.length || !donorTokens.length) {
+    return { candPreservation: 0, donorRecall: 0, newTokenRatio: 1 };
+  }
+  const donorFreq = new Map();
+  for (const tk of donorTokens) {
+    donorFreq.set(tk, (donorFreq.get(tk) || 0) + 1);
+  }
+  let kept = 0;
+  for (const tk of candTokens) {
+    const avail = donorFreq.get(tk) || 0;
+    if (avail > 0) {
+      kept++;
+      donorFreq.set(tk, avail - 1);
+    }
+  }
+  const candPreservation = Number((kept / candTokens.length).toFixed(4));
+  const donorRecall = Number((kept / donorTokens.length).toFixed(4));
+  const newTokenRatio = Number((1 - candPreservation).toFixed(4));
+  return { candPreservation, donorRecall, newTokenRatio };
+}
+
+function buildPatchOnlyFewShotMessages() {
+  const demoUserPrompt = [
+    'Edita el TEXTO BASE HUMANO mediante PARCHES CORTOS en JSON para insertar únicamente los hechos solicitados sin reescribir las frases completas.',
+    '',
+    'FUNCIÓN EN EL METARRELATO:',
+    'Cierre de sección (sintetiza la consecuencia práctica o limitación final).',
+    '',
+    'TEXTO BASE HUMANO (intocable fuera de los parches):',
+    'Cuando sales al campo en invierno, un buen abrigo de lana te quita el frío sin agobiarte. Eso sí, si pesa demasiado acaba molestando al cabo de un rato y conviene dejarlo en casa para rutas largas.',
+    '',
+    'HECHOS QUE DEBEN APARECER TRAS APLICAR LOS PARCHES:',
+    '- Términos técnicos obligatorios: botas de cuero, membrana impermeable',
+    '- Conceptos clave: suela rígida | caminar horas | peso extra',
+    '- Límites / advertencias (expresar en sentido negativo natural): senderismo ligero | peso extra',
+    '',
+    'REGLAS ESTRICTAS DE PARCHES:',
+    '1. Devuelve exclusivamente un JSON con la clave "parches": una lista de entre 1 y 5 objetos {"buscar":"fragmento literal del texto base","reemplazar":"sustituto breve en español"}.',
+    '2. Cada "buscar" debe aparecer literalmente en el TEXTO BASE HUMANO y jamás puede cruzar un punto, exclamación ni interrogación.',
+    '3. Respeta el resto del TEXTO BASE HUMANO letra por letra, conservando sus puntos y el número exacto de oraciones (2 oraciones).',
+    '4. Prohibido añadir clichés de IA ("diseño innovador", "eficazmente", "minimizar el", "se vuelve especialmente importante", "en conclusión", "cabe destacar") o barras inclinadas.',
+    '5. Responde solo con el objeto JSON válido.'
+  ].join('\n');
+
+  const demoAssistantReply = JSON.stringify({
+    parches: [
+      {
+        buscar: 'un buen abrigo de lana te quita el frío',
+        reemplazar: 'unas buenas botas de cuero con membrana impermeable te protegen de la lluvia'
+      },
+      {
+        buscar: 'si pesa demasiado acaba molestando al cabo de un rato',
+        reemplazar: 'su suela rígida y su peso extra acaban cansando tras caminar horas'
+      },
+      {
+        buscar: 'dejarlo en casa para rutas largas',
+        reemplazar: 'evitarlas en senderismo ligero'
+      }
+    ]
+  });
+
+  return [
+    { role: 'user', content: demoUserPrompt },
+    { role: 'assistant', content: demoAssistantReply }
+  ];
+}
+
+function buildPatchOnlyPrompt({
+  donorBase,
+  rawPara,
+  atoms,
+  heading,
+  paraTopology,
+  blueprint,
+  donorBlueprint,
+  feedback = null
+}) {
+  const factLines = buildDeLinearizedFactBullets(rawPara, atoms);
+  const activeBlueprint = blueprint || extractRhetoricalBlueprint(rawPara, atoms, paraTopology);
+  const dBlueprint = donorBlueprint || extractRhetoricalBlueprint(donorBase, null, null);
+  const feedbackBlock = feedback
+    ? `\nAJUSTE OBLIGATORIO TRAS EL INTENTO ANTERIOR:\n${feedback}\n`
+    : '';
+
+  return `Edita el TEXTO BASE HUMANO mediante PARCHES CORTOS en JSON para insertar únicamente los hechos solicitados sin reescribir las frases completas.
+
+FUNCIÓN EN EL METARRELATO:
+${describeDiscourseRole(paraTopology?.role || activeBlueprint.discourseRole, heading)}
+
+TEXTO BASE HUMANO (intocable fuera de los parches):
+${donorBase}
+
+HECHOS QUE DEBEN APARECER TRAS APLICAR LOS PARCHES:
+${factLines.join('\n')}
+
+REGLAS ESTRICTAS DE PARCHES (MÁXIMA CONSERVACIÓN HUMANA):
+1. Devuelve exclusivamente un JSON con la clave "parches": entre 1 y 4 objetos {"buscar":"fragmento literal del texto base","reemplazar":"sustituto breve y llano en español"}.
+2. Cada "buscar" debe ser un tramo corto (de 2 a 9 palabras) copiado literalmente del TEXTO BASE HUMANO y nunca debe cruzar un punto, signo de exclamación ni interrogación.
+3. Conserva INTACTO al menos el 60% de las palabras del TEXTO BASE HUMANO letra por letra y mantén exactamente ${dBlueprint.sentenceCount} ${dBlueprint.sentenceCount === 1 ? 'oración' : 'oraciones'}; cada "reemplazar" debe ser conciso (máximo 12 palabras) y encajar en género y número con las palabras humanas que quedan a sus lados.
+4. Respeta quién posee cada propiedad en las comparaciones y redacta toda advertencia o prohibición de forma directa en sentido negativo ("no sirven para...", "evita...", "pesan más"), sin dobles negaciones.
+5. En cada "reemplazar" usa español llano y cotidiano ("llevan", "tienen", "dan", "dejan", "pesan"); PROHIBIDO usar vocabulario artificial de IA ("brindan", "otorgan", "salvaguardan", "resulta vital", "pieza clave", "el auge de", "tales modificaciones", "diseño innovador", "eficazmente", "en conclusión", "cabe destacar") ni barras inclinadas ("/").
+6. Responde únicamente con el JSON válido.
+${feedbackBlock}`;
+}
+
+function applySurgicalPatches(donorBase, rawResponse, maxPatches = 4) {
+  const base = String(donorBase || '').replace(/\s+/g, ' ').trim();
+  let raw = String(rawResponse || '').trim()
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .trim()
+    .replace(/^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/i, '$1')
+    .trim();
+
+  let parsed = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    const firstBrace = raw.indexOf('{');
+    const lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        parsed = JSON.parse(raw.slice(firstBrace, lastBrace + 1));
+      } catch {}
+    }
+  }
+
+  const rawList = Array.isArray(parsed)
+    ? parsed
+    : (parsed?.parches || parsed?.reemplazos || parsed?.cambios || parsed?.edits || []);
+
+  if (!Array.isArray(rawList) || rawList.length === 0) {
+    return {
+      text: base,
+      patchesProposed: 0,
+      patchesApplied: 0,
+      patchesSkipped: 0,
+      skippedReasons: ['INVALID_OR_EMPTY_JSON'],
+      appliedList: [],
+      preservation: computeDonorTokenPreservation(base, base)
+    };
+  }
+
+  const skippedReasons = [];
+  const acceptedSpans = [];
+  const normEsc = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+
+  for (const item of rawList.slice(0, maxPatches)) {
+    if (!item || typeof item !== 'object') {
+      skippedReasons.push('BAD_PATCH_OBJECT');
+      continue;
+    }
+    let buscar = String(item.buscar ?? item.find ?? item.original ?? '').replace(/\s+/g, ' ').trim();
+    let reemplazar = String(item.reemplazar ?? item.replace ?? item.nuevo ?? '').replace(/\s+/g, ' ').trim();
+    if (!buscar || !reemplazar) {
+      skippedReasons.push('EMPTY_SIDE');
+      continue;
+    }
+
+    const trailSeek = buscar.match(/([.!?])$/);
+    const trailRep = reemplazar.match(/([.!?])$/);
+    if (trailSeek && trailRep && trailSeek[1] === trailRep[1]) {
+      buscar = buscar.slice(0, -1).trim();
+      reemplazar = reemplazar.slice(0, -1).trim();
+    } else if (trailSeek && !/[.!?]/.test(reemplazar)) {
+      buscar = buscar.slice(0, -1).trim();
+    }
+
+    if (!buscar || !reemplazar || buscar === reemplazar) {
+      skippedReasons.push('NO_OP_PATCH');
+      continue;
+    }
+    if (/[.!?]/.test(buscar) || /[.!?]/.test(reemplazar)) {
+      skippedReasons.push('CROSSES_SENTENCE_BOUNDARY');
+      continue;
+    }
+
+    const buscarWords = tokenizeWords(buscar).length;
+    const repTokens = tokenizeWords(reemplazar);
+    const repWords = repTokens.length;
+    const nonCodeRepWords = repTokens.filter(t => !/\d/.test(t)).length;
+    if (buscarWords === 0 || buscarWords > 14 || repWords === 0 || repWords > 20 || nonCodeRepWords > buscarWords + 10) {
+      skippedReasons.push('PATCH_TOO_LONG');
+      continue;
+    }
+
+    let matchStart = base.indexOf(buscar);
+    let matchLen = buscar.length;
+    if (matchStart === -1) {
+      const ciRx = new RegExp(normEsc(buscar), 'i');
+      const m = ciRx.exec(base);
+      if (m) {
+        matchStart = m.index;
+        matchLen = m[0].length;
+      }
+    }
+
+    if (matchStart === -1) {
+      skippedReasons.push('SEEK_NOT_FOUND');
+      continue;
+    }
+    const matchEnd = matchStart + matchLen;
+    const overlapsExisting = acceptedSpans.some(sp => Math.max(sp.start, matchStart) < Math.min(sp.end, matchEnd));
+    if (overlapsExisting) {
+      skippedReasons.push('OVERLAPPING_PATCH');
+      continue;
+    }
+
+    acceptedSpans.push({ start: matchStart, end: matchEnd, buscar, reemplazar });
+  }
+
+  if (acceptedSpans.length === 0) {
+    return {
+      text: base,
+      patchesProposed: rawList.length,
+      patchesApplied: 0,
+      patchesSkipped: rawList.length,
+      skippedReasons,
+      appliedList: [],
+      preservation: computeDonorTokenPreservation(base, base)
+    };
+  }
+
+  const BOUNDARY_PREPS = new Set([
+    'a', 'ante', 'bajo', 'con', 'contra', 'de', 'desde', 'durante', 'en',
+    'entre', 'hacia', 'hasta', 'mediante', 'para', 'por', 'segun', 'sin',
+    'sobre', 'tras'
+  ]);
+
+  acceptedSpans.sort((a, b) => a.start - b.start);
+  let rebuilt = '';
+  let cursor = 0;
+  for (let idx = 0; idx < acceptedSpans.length; idx++) {
+    const sp = acceptedSpans[idx];
+    const between = base.slice(cursor, sp.start);
+    rebuilt += between;
+    let rep = sp.reemplazar.trim();
+
+    // Soldadura general de borde izquierdo (evita palabras duplicadas o choque PREP+PREP)
+    const leftMatch = rebuilt.match(/([a-záéíóúüñA-ZÁÉÍÓÚÜÑ0-9]+)(\s+)$/);
+    const repHead = rep.match(/^([a-záéíóúüñA-ZÁÉÍÓÚÜÑ0-9]+)\s+([\s\S]+)$/);
+    if (leftMatch && repHead) {
+      const lw = stripAccents(leftMatch[1]);
+      const rw = stripAccents(repHead[1]);
+      if (lw === rw) {
+        rep = repHead[2].trim();
+      } else if (BOUNDARY_PREPS.has(lw) && BOUNDARY_PREPS.has(rw)) {
+        rebuilt = rebuilt.slice(0, rebuilt.length - leftMatch[0].length);
+        if (rebuilt.length > 0 && !/\s$/.test(rebuilt)) rebuilt += ' ';
+      }
+    }
+
+    // Soldadura general de borde derecho (evita palabra duplicada o PREP colgante ante el sufijo)
+    const nextLimit = idx + 1 < acceptedSpans.length ? acceptedSpans[idx + 1].start : base.length;
+    const rightLookahead = base.slice(sp.end, nextLimit);
+    const repTail = rep.match(/^([\s\S]+)\s+([a-záéíóúüñA-ZÁÉÍÓÚÜÑ0-9]+)$/);
+    const rightMatch = rightLookahead.match(/^\s+([a-záéíóúüñA-ZÁÉÍÓÚÜÑ0-9]+)\b/);
+    if (repTail && rightMatch) {
+      const rtw = stripAccents(repTail[2]);
+      const rhw = stripAccents(rightMatch[1]);
+      if (rtw === rhw || (BOUNDARY_PREPS.has(rtw) && BOUNDARY_PREPS.has(rhw))) {
+        rep = repTail[1].trim();
+      }
+    }
+
+    const isSentStart = sp.start === 0 || /[.!?]\s+$/.test(base.slice(0, sp.start));
+    if (isSentStart && rep.length > 0) {
+      rep = rep.charAt(0).toUpperCase() + rep.slice(1);
+    }
+    rebuilt += rep;
+    cursor = sp.end;
+  }
+  rebuilt += base.slice(cursor);
+
+  const finalText = rebuilt
+    .replace(/\b([a-záéíóúüñ]{2,})\s+\1\b/gi, '$1')
+    .replace(/\ba el\b/g, 'al')
+    .replace(/\bA el\b/g, 'Al')
+    .replace(/\bde el\b/g, 'del')
+    .replace(/\bDe el\b/g, 'Del')
+    .replace(/\b(o)\s+((?:o|ó|ho|hó)[a-záéíóúüñ]+)/gi, (m, conj, nextW) => `${conj === 'O' ? 'U' : 'u'} ${nextW}`)
+    .replace(/\b(y)\s+((?:i|í|hi|hí)(?![eaouáéóú])[a-záéíóúüñ]+)/gi, (m, conj, nextW) => `${conj === 'Y' ? 'E' : 'e'} ${nextW}`)
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .replace(/\.\s*\./g, '.')
+    .trim();
+
+  return {
+    text: finalText,
+    patchesProposed: rawList.length,
+    patchesApplied: acceptedSpans.length,
+    patchesSkipped: Math.max(0, rawList.length - acceptedSpans.length),
+    skippedReasons,
+    appliedList: acceptedSpans.map(s => ({ buscar: s.buscar, reemplazar: s.reemplazar })),
+    preservation: computeDonorTokenPreservation(finalText, base)
+  };
 }
 
 function maskMandatoryTerms(text, atoms, rawPara = '') {
@@ -717,6 +1099,13 @@ function maskMandatoryTerms(text, atoms, rawPara = '') {
         if (clean.length >= 3) phraseSet.add(clean);
       }
     }
+  }
+  for (const ctxTerm of [
+    ...(atoms?.signedPolarity?.negativeContexts || []),
+    ...(atoms?.signedPolarity?.positiveContexts || [])
+  ]) {
+    const cleanCtx = stripAccents(ctxTerm).trim();
+    if (cleanCtx.length >= 4) phraseSet.add(cleanCtx);
   }
   const srcForExtract = String(rawPara || text || '');
   const numSpecs = srcForExtract.match(/\b\d+(?:[.,]\d+)?\s*(?:mm|cm|m|nm|%|h|horas?|d[ií]as?|a[ñn]os?|g|gr|mg|kg|db|hz|khz|mhz|uv\s*\d+)\b/gi) || [];
@@ -759,17 +1148,22 @@ function computeTrigramOverlapAndMaxSpan(candStr, refStr) {
     : 0;
 
   let maxSpan = 0;
+  let maxEndIdx = 0;
   const dp = Array.from({ length: cw.length + 1 }, () => new Uint16Array(rw.length + 1));
   for (let i = 1; i <= cw.length; i++) {
     for (let j = 1; j <= rw.length; j++) {
       if (cw[i - 1] === rw[j - 1]) {
         dp[i][j] = dp[i - 1][j - 1] + 1;
-        if (dp[i][j] > maxSpan) maxSpan = dp[i][j];
+        if (dp[i][j] > maxSpan) {
+          maxSpan = dp[i][j];
+          maxEndIdx = i;
+        }
       }
     }
   }
 
-  return { trigramOverlap, maxContiguousSpan: maxSpan };
+  const maxSpanPhrase = maxSpan > 0 ? cw.slice(maxEndIdx - maxSpan, maxEndIdx).join(' ') : '';
+  return { trigramOverlap, maxContiguousSpan: maxSpan, maxSpanPhrase };
 }
 
 function computeContentWordRetention(candidate, donorBase) {
@@ -783,6 +1177,27 @@ function computeContentWordRetention(candidate, donorBase) {
   return Number((kept / donorTokens.length).toFixed(4));
 }
 
+function hasTelegraphicKeywordSalad(candTrim, donorBase) {
+  const checkSegments = (txt) => {
+    const parts = String(txt || '').split(',').map(p => p.trim()).filter(Boolean);
+    let run = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const cleanSeg = parts[i].replace(/[.!?]+$/, '').trim();
+      const segWords = cleanSeg.split(/\s+/).filter(Boolean);
+      const hasConjunction = /\b(?:y|e|o|u|ni|pero|aunque|que|como)\b/i.test(cleanSeg);
+      const isShortNominalTag = segWords.length >= 1 && segWords.length <= 2 && cleanSeg.length <= 18 && !hasConjunction;
+      if (isShortNominalTag) {
+        run++;
+        if (run >= 3) return true;
+      } else {
+        run = 0;
+      }
+    }
+    return false;
+  };
+  return checkSegments(candTrim) && !checkSegments(donorBase);
+}
+
 function judgeCarrilBCandidate({
   candidate,
   donorBase,
@@ -794,17 +1209,20 @@ function judgeCarrilBCandidate({
   paraTopology,
   domainId = 'optica',
   activeSubdomains = null,
-  baselineEntailment = null
+  baselineEntailment = null,
+  patchMeta = null,
+  isPostSurgery = false
 }) {
   const candTrim = String(candidate || '').trim();
   const failedGates = [];
   const feedbackParts = [];
+  const isPatchOnly = patchMeta?.mode === 'patch_only';
 
   // Gate M1: Grammatical skeleton preservation (function words + structural punctuation LCS)
   const donorSkel = extractFunctionWordSkeleton(donorBase);
   const candSkel = extractFunctionWordSkeleton(candTrim);
   const lcs = computeNormalizedLCS(donorSkel, candSkel);
-  if (lcs.f1 < 0.42) {
+  if (lcs.f1 < 0.44) {
     failedGates.push('LOW_SKELETON_LCS');
     feedbackParts.push('Conserva mucho más los conectores, preposiciones, artículos y la estructura sintáctica del TEXTO BASE HUMANO sin reescribir libremente.');
   }
@@ -826,6 +1244,9 @@ function judgeCarrilBCandidate({
   if (
     candSents.length === 0 ||
     sentenceCountDelta > 1 ||
+    (isPatchOnly && sentenceCountDelta !== 0) ||
+    (donorSents.length >= 2 && candSents.length < 2) ||
+    (candSents.length === 1 && candWords > 52 && candWords > donorWords + 10) ||
     wordRatio < 0.52 ||
     wordRatio > 1.85 ||
     candWords < 14 ||
@@ -835,7 +1256,7 @@ function judgeCarrilBCandidate({
     openE !== closeE
   ) {
     failedGates.push('CADENCE_ISOMORPHISM');
-    feedbackParts.push(`Mantén el mismo número de oraciones (${donorSents.length}) y extensión equilibrada, terminando siempre con punto final completo.`);
+    feedbackParts.push(`Mantén exactamente las ${donorSents.length} ${donorSents.length === 1 ? 'oración' : 'oraciones'} originales, sin fusionar ni partir frases, terminando con punto final.`);
   }
 
   // Gate M3: Factual entailment & signed polarity
@@ -846,7 +1267,7 @@ function judgeCarrilBCandidate({
     atoms?.signedPolarity
   );
   const activeAnchorCount = entail.anchorCount || 0;
-  const covFloor = activeAnchorCount >= 4 ? 0.60 : 0.68;
+  const covFloor = activeAnchorCount >= 4 ? 0.68 : 0.72;
 
   if (entail.polarityContradiction) {
     failedGates.push('POLARITY_CONTRADICTION');
@@ -870,8 +1291,9 @@ function judgeCarrilBCandidate({
   }
   if (
     baselineEntailment &&
+    baselineEntailment.isHonestFactualGap &&
     typeof baselineEntailment.entailmentScore === 'number' &&
-    baselineEntailment.entailmentScore < 100 &&
+    entail.entailmentScore < 80 &&
     entail.entailmentScore <= baselineEntailment.entailmentScore
   ) {
     failedGates.push('NO_FACTUAL_GAIN_OVER_CARRIL_A');
@@ -885,12 +1307,13 @@ function judgeCarrilBCandidate({
   const rawStats = computeTrigramOverlapAndMaxSpan(candTrim, rawPara);
 
   if (
-    maskedStats.trigramOverlap > 0.38 ||
+    maskedStats.trigramOverlap > 0.36 ||
     rawStats.trigramOverlap > 0.52 ||
-    maskedStats.maxContiguousSpan >= 6
+    maskedStats.maxContiguousSpan >= 8
   ) {
     failedGates.push('SOURCE_SYNTAX_COPY');
-    feedbackParts.push('Evita copiar secuencias de frases de los DATOS FÁCTICOS DE REFERENCIA; encaja cada dato dentro de la sintaxis del TEXTO BASE HUMANO.');
+    const copiedHint = rawStats.maxSpanPhrase ? ` (tramo calcado: "${rawStats.maxSpanPhrase}")` : '';
+    feedbackParts.push(`Evita copiar secuencias sintácticas del borrador${copiedHint}; cambia el orden de los elementos y encájalos dentro de la estructura del TEXTO BASE HUMANO.`);
   }
 
   // Gate M5: AI style & domain purity
@@ -898,8 +1321,20 @@ function judgeCarrilBCandidate({
     ? factualGuard.assessDomainPurity(candTrim, { domainId, activeSubdomains })
     : factualGuard.assessOpticalDomainPurity(candTrim, activeSubdomains);
   const hasCliche = AI_CLICHE_PATTERNS.some(rx => rx.test(candTrim) && !rx.test(donorBase));
-  const hasPromptLeak = /\*\*|^#+\s|\bTEXTO BASE HUMANO\b|\bFICHA DE HECHOS\b|\bAquí tienes\b|\bPárrafo final\s*:|\bEVITAR\s*\/\s*NO\s+USAR\b|\bDato\s+\d+\s*:|\bConceptos clave\s*:|\bTérminos técnicos obligatorios\s*:|\bModelo exacto a mantener\s*:/i.test(candTrim);
+  const hasPromptLeak = /\*\*|^#+\s|\bTEXTO BASE HUMANO\b|\bFICHA DE HECHOS\b|\bAquí tienes\b|\bPárrafo final\s*:|\bEVITAR\s*\/\s*NO\s+USAR\b|\bDato\s+\d+\s*:|\bConceptos clave\s*:|\bTérminos técnicos obligatorios\b|\bModelo exacto a mantener\s*:|\bElemento de comparaci[oó]n externa\b|\bHechos y relaciones l[oó]gicas\b|\bevitar\s+o\s+desaconsejar\s+en\b|\bL[ií]mites\s*\/\s*advertencias\b|\bexpresar\s+en\s+sentido\s+negativo\b|\bAdvertencia\s+o\s+limitaci[oó]n\b/i.test(candTrim);
+  const hasMetaBlogDeixis = /\b(?:igual que en el p[aá]rrafo anterior|en el p[aá]rrafo anterior|como vimos en el apartado|en el siguiente apartado|en el siguiente p[aá]rrafo|en este post|en este art[ií]culo)\b/i.test(candTrim) && !/\bp[aá]rrafo|apartado|post\b/i.test(rawPara);
+  const fewShotLeakRxs = [
+    /\bsenderismo\s+ligero\b/i,
+    /\bbotas\s+de\s+cuero\b/i,
+    /\babrigo\s+de\s+lana\b/i,
+    /\bmembrana\s+impermeable\b/i,
+    /\bsuela\s+r[ií]gida\b/i
+  ];
+  const hasFewShotLeak = fewShotLeakRxs.some(rx => rx.test(candTrim) && !rx.test(rawPara) && !rx.test(donorBase));
+  const hasUnbalancedDoubleQuotes = ((candTrim.match(/"/g) || []).length % 2) !== 0;
   const hasForeignChars = /[\u4e00-\u9fff\u0400-\u04ff]/.test(candTrim);
+  const rawSlashRx = /\b[a-záéíóúüñ]{3,}\s*\/\s*[a-záéíóúüñ]{3,}\b/i;
+  const hasRawSlashAlt = rawSlashRx.test(candTrim) && !rawSlashRx.test(rawPara) && !rawSlashRx.test(donorBase);
   const rawCandWords = tokenizeWords(candTrim);
   const allowedRefWords = new Set(tokenizeWords(`${rawPara} ${donorBase} ${heading || ''}`));
   const englishHits = rawCandWords.filter(w => ENGLISH_STOPWORDS.has(w) && !allowedRefWords.has(w)).length;
@@ -907,14 +1342,19 @@ function judgeCarrilBCandidate({
   const materialRedundancy = discourseTopology
     ? discourseTopology.hasContrastiveMaterialRedundancy('', rawPara, atoms, candTrim)
     : false;
+  const keywordSalad = hasTelegraphicKeywordSalad(candTrim, donorBase);
 
   if (hasCliche) {
     failedGates.push('AI_STYLE_CLICHE');
-    feedbackParts.push('Elimina expresiones cliché de IA (como "en resumen", "en conclusión", "cabe destacar", "es fundamental").');
+    feedbackParts.push('Elimina expresiones cliché de IA (como "en resumen", "en conclusión", "cabe destacar", "es fundamental", "eficazmente", "diseño innovador", "minimizar el").');
   }
-  if (hasPromptLeak || hasForeignChars || englishHits >= 2) {
+  if (hasPromptLeak || hasMetaBlogDeixis || hasFewShotLeak || hasUnbalancedDoubleQuotes || hasForeignChars || englishHits >= 2 || hasRawSlashAlt) {
     failedGates.push('PROMPT_OR_LANG_LEAK');
-    feedbackParts.push('Devuelve exclusivamente un párrafo limpio en español sin encabezados, notas, ni palabras en otros idiomas.');
+    feedbackParts.push('Devuelve exclusivamente español limpio sin encabezados, referencias a otros párrafos, notas, barras inclinadas ni palabras en otros idiomas.');
+  }
+  if (keywordSalad) {
+    failedGates.push('TELEGRAPHIC_KEYWORD_SALAD');
+    feedbackParts.push('Integra los términos de forma gramatical dentro de la oración con artículos y preposiciones reales; no apiles palabras sueltas separadas por comas.');
   }
   if (!purity.isCleanOptical) {
     failedGates.push('OPTICAL_DOMAIN_IMPURITY');
@@ -929,21 +1369,55 @@ function judgeCarrilBCandidate({
     feedbackParts.push('No contrapongas materiales equivalentes (como acetato frente a celulosa o pasta) si el origen trata una sola familia.');
   }
 
-  // Gate M6: Donor adaptation check (tolerant when donor was already semantically close)
-  const rawTopicTokens = extractDomainTopicTokens(rawPara);
+  // Gate M6: Donor adaptation & alien donor residue check
+  const rawTopicTokens = extractDomainTopicTokens(`${rawPara} ${heading || ''}`);
   const donorTopicTokens = [...extractDomainTopicTokens(donorBase)];
   const alienTokens = donorTopicTokens.filter(t => !rawTopicTokens.has(t));
   const candWordSet = new Set(tokenizeWords(candTrim));
-  const keptAlien = alienTokens.filter(tk => candWordSet.has(tk)).length;
+  const keptAlienList = alienTokens.filter(tk => candWordSet.has(tk));
+  const keptAlien = keptAlienList.length;
   const alienRetention = alienTokens.length > 0 ? Number((keptAlien / alienTokens.length).toFixed(4)) : 0;
-  const donorRawOverlap = computeTrigramOverlapAndMaxSpan(candTrim, donorBase).trigramOverlap;
+  const donorSpanStats = computeTrigramOverlapAndMaxSpan(candTrim, donorBase);
+  const donorRawOverlap = donorSpanStats.trigramOverlap;
   const donorContentRetention = computeContentWordRetention(candTrim, donorBase);
-  if (
-    ((baselineEntailment?.entailmentScore ?? 0) < 75 && alienTokens.length >= 4 && alienRetention > 0.85) ||
-    (donorRawOverlap > 0.85 && entail.entailmentScore <= (baselineEntailment?.entailmentScore ?? 0))
-  ) {
-    failedGates.push('UNCHANGED_DONOR');
-    feedbackParts.push('Adapta los conceptos del TEXTO BASE HUMANO incorporando los datos técnicos de la ficha en lugar de repetir el molde casi intacto.');
+
+  const hardOffTopicRx = /\b(?:diabetes|diab[eé]tic[oa]s?|glucosa|insulina|colesterol|hipertensi[oó]n|dieta|quemarte|quemaduras?|crema\s+solar|maquillaje|lavaplatos|tu\s+madre|d[ií]a\s+de\s+la\s+madre|reyes\s+magos)\b/i;
+  const hasHardOffTopicResidue = hardOffTopicRx.test(candTrim) && !hardOffTopicRx.test(rawPara);
+
+  if (isPatchOnly) {
+    if (hasHardOffTopicResidue) {
+      failedGates.push('ALIEN_DONOR_RESIDUE');
+      feedbackParts.push(`Sustituye con un parche breve el concepto ajeno heredado del molde (${keptAlienList.slice(0, 5).join(', ')}).`);
+    } else if (
+      candTrim === donorBase.trim() ||
+      (patchMeta?.patchesApplied ?? 0) === 0 ||
+      (donorRawOverlap > 0.94 && entail.entailmentScore <= (baselineEntailment?.entailmentScore ?? 0))
+    ) {
+      failedGates.push('UNCHANGED_DONOR');
+      feedbackParts.push('Propón parches "buscar" literales tomados exactamente del TEXTO BASE HUMANO para insertar los datos pendientes.');
+    }
+  } else {
+    if (
+      hasHardOffTopicResidue ||
+      (alienTokens.length >= 4 && keptAlien >= 4 && alienRetention > 0.42)
+    ) {
+      failedGates.push('ALIEN_DONOR_RESIDUE');
+      feedbackParts.push(`Elimina estos conceptos del TEXTO BASE HUMANO que no pertenecen al tema actual: ${keptAlienList.slice(0, 7).join(', ')}.`);
+    } else if (
+      donorRawOverlap > 0.72 && entail.entailmentScore <= (baselineEntailment?.entailmentScore ?? 0)
+    ) {
+      failedGates.push('UNCHANGED_DONOR');
+      feedbackParts.push('Adapta los conceptos del TEXTO BASE HUMANO incorporando los datos técnicos actuales en lugar de repetir el molde casi intacto.');
+    }
+  }
+
+  // Gate M7: Bounded rewrite preservation (Patch-Only V2 enforces high human token conservation >= 50-56%)
+  const pres = computeDonorTokenPreservation(candTrim, donorBase);
+  const minCandPres = isPostSurgery ? 0.46 : (activeAnchorCount >= 4 ? 0.48 : 0.54);
+  const minDonorRecall = isPostSurgery ? 0.45 : (activeAnchorCount >= 4 ? 0.48 : 0.52);
+  if (isPatchOnly && (pres.candPreservation < minCandPres || pres.donorRecall < minDonorRecall)) {
+    failedGates.push('EXCESSIVE_LLM_REWRITE');
+    feedbackParts.push(`Conserva al menos el 55-60% de las palabras originales del TEXTO BASE HUMANO (actual: ${(pres.candPreservation * 100).toFixed(0)}%). Usa menos parches y haz cada "buscar" y "reemplazar" más cortos.`);
   }
 
   const approved = failedGates.length === 0;
@@ -974,7 +1448,11 @@ function judgeCarrilBCandidate({
       maskedSourceTrigramOverlap: maskedStats.trigramOverlap,
       rawSourceTrigramOverlap: rawStats.trigramOverlap,
       maxSourceCopySpan: maskedStats.maxContiguousSpan,
-      donorContentRetention
+      donorContentRetention,
+      donorTokenPreservation: pres.candPreservation,
+      donorTokenRecall: pres.donorRecall,
+      newTokenRatio: pres.newTokenRatio,
+      patchesApplied: patchMeta?.patchesApplied ?? null
     }
   };
 }
@@ -997,6 +1475,9 @@ async function runCarrilBForParagraph({
   modelName = 'qwen2.5:1.5b',
   baselineEntailment = null,
   qwenStats = null,
+  maxAttempts = 5,
+  timeoutMs = null,
+  patchMode = true,
   log = () => {}
 }) {
   const scaffolds = selectStructuralScaffolds({
@@ -1022,25 +1503,29 @@ async function runCarrilBForParagraph({
       attempts: [],
       scaffold: null,
       judge: null,
+      patchMeta: null,
       text: ''
     };
   }
 
   const blueprint = extractRhetoricalBlueprint(rawPara, atoms, paraTopology);
-  const fewShotMessages = buildCarrilBFewShotMessages();
+  const fewShotMessages = patchMode ? buildPatchOnlyFewShotMessages() : buildCarrilBFewShotMessages();
   const attempts = [];
   const tempPlan = [
-    { scaffoldIdx: 0, temp: 0.20 },
-    { scaffoldIdx: 0, temp: 0.30 },
-    { scaffoldIdx: scaffolds.length > 1 ? 1 : 0, temp: 0.24 },
-    { scaffoldIdx: scaffolds.length > 1 ? 1 : 0, temp: 0.32 }
+    { scaffoldIdx: 0, temp: 0.22 },
+    { scaffoldIdx: 0, temp: 0.32 },
+    { scaffoldIdx: scaffolds.length > 1 ? 1 : 0, temp: 0.25 },
+    { scaffoldIdx: scaffolds.length > 1 ? 1 : 0, temp: 0.34 },
+    { scaffoldIdx: scaffolds.length > 2 ? 2 : (scaffolds.length > 1 ? 1 : 0), temp: 0.28 }
   ];
 
   let lastFeedback = null;
   let lastScaffoldIdx = -1;
   let bestRejected = null;
+  const maxTries = Math.max(1, Math.min(tempPlan.length, Number(maxAttempts) || tempPlan.length));
+  const effectiveTimeoutMs = timeoutMs || (/(?:^|:)(?:3b|4b|7b|8b)/i.test(String(modelName || '')) ? 300000 : 180000);
 
-  for (let i = 0; i < tempPlan.length; i++) {
+  for (let i = 0; i < maxTries; i++) {
     const { scaffoldIdx, temp } = tempPlan[i];
     const activeScaffold = scaffolds[scaffoldIdx];
     if (scaffoldIdx !== lastScaffoldIdx) {
@@ -1048,30 +1533,60 @@ async function runCarrilBForParagraph({
       lastScaffoldIdx = scaffoldIdx;
     }
 
-    const prompt = buildGuidedTransferPrompt({
-      donorBase: activeScaffold.cleanText,
-      rawPara,
-      atoms,
-      heading,
-      paraTopology,
-      blueprint,
-      donorBlueprint: activeScaffold.blueprint,
-      feedback: lastFeedback
-    });
+    const prompt = patchMode
+      ? buildPatchOnlyPrompt({
+          donorBase: activeScaffold.cleanText,
+          rawPara,
+          atoms,
+          heading,
+          paraTopology,
+          blueprint,
+          donorBlueprint: activeScaffold.blueprint,
+          feedback: lastFeedback
+        })
+      : buildGuidedTransferPrompt({
+          donorBase: activeScaffold.cleanText,
+          rawPara,
+          atoms,
+          heading,
+          paraTopology,
+          blueprint,
+          donorBlueprint: activeScaffold.blueprint,
+          feedback: lastFeedback
+        });
 
-    const numPredict = Math.min(340, Math.max(220, Math.round(activeScaffold.blueprint.wordCount * 4.5)));
-    const systemPrompt = 'Eres un editor lingüístico de precisión en español. Tu tarea es transferir datos técnicos exactos dentro de un texto humano base conservando al máximo su arquitectura gramatical, sus conectores y su naturalidad, sin inventar información ni copiar frases literales de los datos de referencia.';
+    const numPredict = patchMode
+      ? 260
+      : Math.min(340, Math.max(220, Math.round(activeScaffold.blueprint.wordCount * 4.5)));
+    const systemPrompt = patchMode
+      ? 'Eres un editor lingüístico de precisión en español. Tu única tarea es devolver un JSON con parches mínimos literales sobre un texto humano base, preservando sus puntos, su sintaxis y su voz humana original.'
+      : 'Eres un editor lingüístico de precisión en español. Tu tarea es transferir datos técnicos exactos dentro de un texto humano base conservando al máximo su arquitectura gramatical, sus conectores y su naturalidad, sin inventar información ni copiar frases literales de los datos de referencia.';
 
     try {
-      const res = await ollamaClient.generate(modelName, prompt, {
-        system: systemPrompt,
-        fewShotMessages,
-        temperature: temp,
-        top_p: 0.88,
-        num_ctx: 2048,
-        num_predict: numPredict,
-        cleanPlainText: true
-      });
+      const generateOpts = patchMode
+        ? {
+            system: systemPrompt,
+            fewShotMessages,
+            format: 'json',
+            temperature: temp,
+            top_p: 0.85,
+            num_ctx: 2048,
+            num_predict: numPredict,
+            timeoutMs: effectiveTimeoutMs,
+            cleanPlainText: false
+          }
+        : {
+            system: systemPrompt,
+            fewShotMessages,
+            temperature: temp,
+            top_p: 0.88,
+            num_ctx: 2048,
+            num_predict: numPredict,
+            timeoutMs: effectiveTimeoutMs,
+            cleanPlainText: true
+          };
+
+      const res = await ollamaClient.generate(modelName, prompt, generateOpts);
 
       if (qwenStats) {
         qwenStats.calls += 1;
@@ -1079,10 +1594,31 @@ async function runCarrilBForParagraph({
         qwenStats.totalTokens += res.eval_count || 0;
       }
 
-      let candidateText = typeof cleanResponseFn === 'function'
-        ? cleanResponseFn(res.response)
-        : String(res.response || '').trim();
-      candidateText = candidateText.replace(/^["«“]|["»”]$/g, '').replace(/\s+/g, ' ').trim();
+      let candidateText = '';
+      let patchRes = null;
+      let patchMeta = null;
+      if (patchMode) {
+        patchRes = applySurgicalPatches(activeScaffold.cleanText, res.rawResponse || res.response, 4);
+        candidateText = patchRes.text;
+        patchMeta = {
+          mode: 'patch_only',
+          patchesProposed: patchRes.patchesProposed,
+          patchesApplied: patchRes.patchesApplied,
+          patchesSkipped: patchRes.patchesSkipped,
+          skippedReasons: patchRes.skippedReasons,
+          appliedList: patchRes.appliedList
+        };
+      } else {
+        candidateText = typeof cleanResponseFn === 'function'
+          ? cleanResponseFn(res.response)
+          : String(res.response || '').trim();
+        candidateText = candidateText
+          .replace(/^["«“]|["»”]$/g, '')
+          .replace(/\b(o)\s+((?:o|ó|ho|hó)[a-záéíóúüñ]+)/gi, (m, conj, nextW) => `${conj === 'O' ? 'U' : 'u'} ${nextW}`)
+          .replace(/\b(y)\s+((?:i|í|hi|hí)(?![eaouáéóú])[a-záéíóúüñ]+)/gi, (m, conj, nextW) => `${conj === 'Y' ? 'E' : 'e'} ${nextW}`)
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
 
       const judge = judgeCarrilBCandidate({
         candidate: candidateText,
@@ -1095,7 +1631,8 @@ async function runCarrilBForParagraph({
         paraTopology,
         domainId,
         activeSubdomains,
-        baselineEntailment
+        baselineEntailment,
+        patchMeta
       });
 
       const attemptEntry = {
@@ -1106,6 +1643,7 @@ async function runCarrilBForParagraph({
         temperature: temp,
         durationMs: res.durationMs || 0,
         text: candidateText,
+        patchMeta,
         approved: judge.approved,
         failedGates: judge.failedGates,
         metrics: judge.metrics,
@@ -1113,7 +1651,11 @@ async function runCarrilBForParagraph({
       };
       attempts.push(attemptEntry);
 
-      log(`[CARRIL_B] Intento ${i + 1}/4 | Andamio ${activeScaffold.brick.brick_id} (${activeScaffold.domain}) | LCS=${judge.metrics.functionSkeletonLCS} | Entail=${judge.metrics.entailmentScore} | SrcMask3g=${judge.metrics.maskedSourceTrigramOverlap} | ${judge.approved ? 'APROBADO' : `RECHAZADO [${judge.failedGates.join(', ')}]`}`);
+      if (patchMode) {
+        log(`[CARRIL_B_V2_PATCH] Intento ${i + 1}/${maxTries} | Andamio ${activeScaffold.brick.brick_id} (${activeScaffold.domain}) | Parches=${patchRes.patchesApplied}/${patchRes.patchesProposed} | Pres=${judge.metrics.donorTokenPreservation} | Sents=${splitSentences(candidateText).length}/${activeScaffold.blueprint.sentenceCount} | LCS=${judge.metrics.functionSkeletonLCS} | Entail=${judge.metrics.entailmentScore} | SrcMask3g=${judge.metrics.maskedSourceTrigramOverlap} | ${judge.approved ? 'APROBADO' : `RECHAZADO [${judge.failedGates.join(', ')}]`}`);
+      } else {
+        log(`[CARRIL_B] Intento ${i + 1}/${maxTries} | Andamio ${activeScaffold.brick.brick_id} (${activeScaffold.domain}) | LCS=${judge.metrics.functionSkeletonLCS} | Entail=${judge.metrics.entailmentScore} | SrcMask3g=${judge.metrics.maskedSourceTrigramOverlap} | ${judge.approved ? 'APROBADO' : `RECHAZADO [${judge.failedGates.join(', ')}]`}`);
+      }
 
       if (judge.approved) {
         return {
@@ -1121,16 +1663,22 @@ async function runCarrilBForParagraph({
           status: 'APPROVED',
           text: candidateText,
           scaffold: activeScaffold,
+          patchMeta,
           judge,
           attempts
         };
       }
 
-      lastFeedback = judge.feedbackForRetry;
+      let nextFeedback = judge.feedbackForRetry;
+      if (patchMode && patchRes && patchRes.patchesApplied === 0) {
+        nextFeedback = `El intento anterior propuso parches no válidos (${patchRes.skippedReasons.join(', ') || 'ninguno aplicado'}). Asegúrate de copiar exactamente cada "buscar" desde el TEXTO BASE HUMANO sin cruzar puntos. ${nextFeedback}`.trim();
+      }
+      lastFeedback = nextFeedback;
       if (!bestRejected || judge.score > bestRejected.judge.score) {
         bestRejected = {
           text: candidateText,
           scaffold: activeScaffold,
+          patchMeta,
           judge
         };
       }
@@ -1142,10 +1690,14 @@ async function runCarrilBForParagraph({
         scaffoldDomain: activeScaffold.domain,
         temperature: temp,
         approved: false,
-        failedGates: ['OLLAMA_ERROR'],
+        failedGates: [err.code || 'LLM_ERROR'],
         error: err.message
       });
-      log(`[CARRIL_B_ERROR] Intento ${i + 1}/4 falló (${err.message})`);
+      log(`[CARRIL_B_ERROR] Intento ${i + 1}/${maxTries} falló (${err.message})`);
+      if (err.code === 'AI_STUDIO_ALL_MODELS_EXHAUSTED' || err.code === 'AI_STUDIO_FATAL_HTTP') {
+        err.carrilBAttempts = attempts;
+        throw err;
+      }
     }
   }
 
@@ -1154,6 +1706,7 @@ async function runCarrilBForParagraph({
     status: 'REJECTED_FALLBACK',
     text: '',
     scaffold: bestRejected?.scaffold || scaffolds[0],
+    patchMeta: bestRejected?.patchMeta || null,
     bestRejected,
     judge: bestRejected?.judge || null,
     attempts
@@ -1168,6 +1721,10 @@ module.exports = {
   buildCarrilBFewShotMessages,
   buildDeLinearizedFactBullets,
   buildGuidedTransferPrompt,
+  computeDonorTokenPreservation,
+  buildPatchOnlyFewShotMessages,
+  buildPatchOnlyPrompt,
+  applySurgicalPatches,
   maskMandatoryTerms,
   judgeCarrilBCandidate,
   runCarrilBForParagraph

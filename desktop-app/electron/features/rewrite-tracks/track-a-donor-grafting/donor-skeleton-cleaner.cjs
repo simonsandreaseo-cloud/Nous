@@ -223,7 +223,7 @@ function extractCleanDonorWindow(brick, targetWords = 60, contextFrame = 'GENERA
   // Filtros estructurales y pragmáticos generales (sin listas de palabras sueltas de donantes)
   const sentenceJunkRx = /[""“”@]|https?:|www\.|\b(?:a[ñn]adir al carrito|ver cat[aá]logo|pincha aqu[ií]|haz clic|gu[ií]a de compra|consulta nuestro ranking|2x1)\b/i;
   const clinicalOnlySentenceJunkRx = /\b(?:dolor de cabeza|cefalea|migraña|hípnico|hípnica|fase rem|sueño|insomnio|conjuntivitis|cataratas|glaucoma|retina|córnea|colirio|oftalmólogo|síntomas|patología|tratamiento|enfermedad|clínica|ambliopía|estrabismo|ojo vago|diplopía|sistema visual|desarrollo visual|agudeza visual|globo ocular|nervio óptico|cristalino|mácula|dioptrías|optometrista|oftalmología|mareos|pupila|derrame ocular|lágrimas artificiales|neuralgia)\b/i;
-  const firstPersonAndCtaRx = /\b(?:yo\s+|voy\s+a\b|me\s+(?:he|compr[eé]|encanta|fascina)|os\s+(?:vamos|traemos|contamos)|vosotros\b|mi\s+(?:experiencia|opini[oó]n)\b|hazte\s+con|no\s+te\s+quedes|elige\s+la\s+tuya|visita\s+nuestra)\b/i;
+  const firstPersonAndCtaRx = /\b(?:yo\s+|voy\s+a\b|me\s+(?:he|compr[eé]|encanta|fascina)|os\s+(?:vamos|traemos|contamos)|vosotros\b|mi\s+(?:experiencia|opini[oó]n)\b|hoy\s+(?:hablaremos|vamos\s+a\s+hablar|te\s+hablamos|te\s+traemos|veremos)\b|en\s+el\s+post\s+de\s+hoy\b|tu\s+madre|d[ií]a\s+de\s+la\s+madre|d[ií]a\s+del\s+padre|regalo\s+perfecto|reyes\s+magos|hazte\s+con|no\s+te\s+quedes|elige\s+la\s+tuya|visita\s+nuestra)\b/i;
   const finiteVerbRx = /(?:\b(?:es|son|est[aá]n?|era[ns]?|fue(?:ron)?|ser[aáeé]n?|sea[ns]?|hay|han?|hemos|tienen?|pueden?|podemos|suelen?|hace[ns]?|hacemos|da[ns]?|va[ns]?|van|encajan?|destacan?|aportan?|ofrecen?|permiten?|favorecen?|quedan?|sientan?|pasa[ns]?|resultan?|combinan?|protegen?|resguardan?|buscan?|desean?|crean?|logran?|llevan?|llevamos|lucen?|marcan?|definen?|evocan?|recuerdan?|convierte[ns]?|adaptan?|ajustan?|equilibran?|estilizan?|acompañan?|siguen?|har[aá]n?|gustan?|caracterizan?|distinguen?|sobresalen?|resaltan?|realzan?|sabemos|tenemos|elegimos|debemos|existen)\b|\b[a-záéíóúñ]{3,}(?:amos|emos|imos|aron|ieron|aban|ában|ían|arán|erán|irán|aría[ns]?)\b)/i;
   const orphanStartRx = /^(?:Pero|También|Además|Asimismo|Sin\s+embargo|No\s+obstante|Por\s+(?:eso|ello|lo\s+tanto|el\s+contrario)|En\s+(?:cambio|este\s+caso|estos\s+casos|(?:segundo|tercer)\s+lugar)|De\s+(?:esta\s+(?:forma|manera)|hecho)|Es\s+(?:decir|por\s+(?:eso|ello))|Y\s+por\s+[úu]ltimo|Esto\s+(?:hace|significa|permite|supone))\b/i;
   const benignSpanishMidCapRx = /^(?:Primavera|Verano|Otoño|Invierno|Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado|Domingo|España|Italia|Francia|Europa|Mediterráneo|Madrid|Barcelona|Milán|París|Londres|Sol|Moda|Luz|UV|Internet|Estado|Público|Historia|Arte|Diseño|Color|Colores|Forma|Formas|Rostro|Cara)$/i;
@@ -278,11 +278,14 @@ function extractCleanDonorWindow(brick, targetWords = 60, contextFrame = 'GENERA
         continue;
       }
     }
-    if (/\b\d{2}\s*mm\b/i.test(sent) && !/\b(?:mm|calibre|talla|medida)\b/i.test(targetConceptsText)) continue;
+    const rawLowerRef = `${String(winOptions?.rawPara || '')} ${targetConceptsText}`.toLowerCase();
+    if (/\b\d{2}\s*mm\b/i.test(sent) && !/\b(?:mm|calibre|talla|medida)\b/i.test(rawLowerRef)) continue;
     if (/\best[aá]n\s+disponibles\s+en\s+\d+\s+(?:colores|tonos)\b/i.test(sent)) continue;
-    if (/\b(?:rostros?|caras?)\s+pequeñ[oa]s?\b/i.test(faceCheckText) && !/\b(?:rostro|cara)s?\s+pequeñ/i.test(targetConceptsText)) continue;
-    if (/\b(?:en esta lista|de esta lista|esta selección|nuestra selección|este ranking|en este post|en este artículo|no sean lo tuyo|no es lo tuyo|bajo tu radar)\b/i.test(sent)) continue;
-    if (/\b(?:categoría\s+[0-4]|filtro\s+[0-4]|multicolor(?:es)?)\b/i.test(sent)) continue;
+    if (/\b(?:rostros?|caras?)\s+pequeñ[oa]s?\b/i.test(faceCheckText) && !/\b(?:rostro|cara)s?\s+pequeñ/i.test(rawLowerRef)) continue;
+    if (/\b(?:en esta lista|de esta lista|esta selección|nuestra selección|este ranking|en este post|en este artículo|no sean lo tuyo|no es lo tuyo|bajo tu radar|hip-hop|low\s*cost)\b/i.test(sent)) continue;
+    if (!/\b(?:conduc|coche|volante|carretera|veh[ií]culo)\b/i.test(rawLowerRef) && /\b(?:al\s+volante|sufrir\s+accidentes|cansancio\s+del\s+conductor)\b/i.test(sent)) continue;
+    if (/\bmulticolor(?:es)?\b/i.test(sent) && !/\bmulticolor/i.test(rawLowerRef)) continue;
+    if (/\b(?:categor[ií]a\s+[0-4]|filtro\s+[0-4])\b/i.test(sent) && !/\b(?:categor[ií]a|filtro)\s*[0-4]?\b/i.test(rawLowerRef)) continue;
     if (!atoms?.coatings?.length && /\b(?:polarizad[oa]s?|espejad[oa]s?|fotocromátic[oa]s?|lente\s+plana)\b/i.test(sent) && contextFrame !== 'OPTICAL_PROTECTION') {
       continue;
     }

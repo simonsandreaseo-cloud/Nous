@@ -35,9 +35,11 @@ export default function ParagraphAuditDrawer({
             <div
               key={pIdx}
               className={`border rounded-xl transition-all ${
-                para.isHeading
-                  ? 'border-blue-900/40 bg-blue-950/20'
-                  : 'border-slate-800/80 bg-[#121626]/80'
+                para.failed
+                  ? 'border-rose-700/80 bg-rose-950/25'
+                  : para.isHeading
+                    ? 'border-blue-900/40 bg-blue-950/20'
+                    : 'border-slate-800/80 bg-[#121626]/80'
               }`}
             >
               {/* Paragraph Header */}
@@ -78,6 +80,11 @@ export default function ParagraphAuditDrawer({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {para.failed && (
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded border bg-rose-600/30 text-rose-200 border-rose-500/60">
+                      OPERACIÓN ABORTADA ✗
+                    </span>
+                  )}
                   {!para.isHeading && para.coverage?.track?.startsWith('CARRIL_B') && (
                     <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
                       para.coverage.track === 'CARRIL_B_APROBADO'
@@ -361,12 +368,12 @@ export default function ParagraphAuditDrawer({
                         {para.originalText}
                       </p>
                     </div>
-                    <div className="bg-[#0f1d19] p-3 rounded-lg border border-emerald-900/40">
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">
-                        Texto Humanizado (Después):
+                    <div className={`p-3 rounded-lg border ${para.failed ? 'bg-rose-950/30 border-rose-800/60' : 'bg-[#0f1d19] border-emerald-900/40'}`}>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider block mb-1 ${para.failed ? 'text-rose-300' : 'text-emerald-400'}`}>
+                        {para.failed ? 'Motivo Exacto del Fallo (Cero Mediocridad):' : 'Texto Humanizado (Después):'}
                       </span>
-                      <p className="text-xs text-slate-100 font-serif leading-relaxed select-text">
-                        {para.humanizedText}
+                      <p className={`text-xs leading-relaxed select-text ${para.failed ? 'text-rose-200 font-mono' : 'text-slate-100 font-serif'}`}>
+                        {para.failed ? para.error : para.humanizedText}
                       </p>
                     </div>
                   </div>
